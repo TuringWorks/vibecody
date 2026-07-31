@@ -1,8 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ArrowDown, RotateCcw } from "lucide-react";
 import { TaskPrompt, type ComposerSubmit } from "./TaskPrompt";
 import { ToolUseBlock } from "./ToolUseBlock";
+import { CopyButton, Markdown } from "./Markdown";
 import { useAgentStream, eventsToStreamItems } from "../hooks/useAgentStream";
 import type { Task, TaskHistory } from "../hooks/useTasks";
+import type { ComposerPrefs } from "../hooks/useComposerPrefs";
 import type { QuickAction } from "./QuickActionDrawer";
 
 interface SessionStreamProps {
@@ -10,9 +13,14 @@ interface SessionStreamProps {
   daemonOnline: boolean;
   /** Project the next task is scoped to (null → daemon workspace default). */
   projectPath: string | null;
-  /** When set, this finished chat is loaded into the pane and follow-ups resume
-   *  its session instead of starting a fresh one (VX bug-3). */
+  /** When set, this chat is loaded into the pane and follow-ups resume its
+   *  session instead of starting a fresh one. */
   selectedTask: Task | null;
+  prefs: ComposerPrefs;
+  onPref: <K extends keyof ComposerPrefs>(key: K, value: ComposerPrefs[K]) => void;
+  onProviderModel: (provider: string, model: string | undefined) => void;
+  draft: string;
+  onDraft: (text: string) => void;
   createTask: (
     title: string,
     provider: string,
@@ -27,9 +35,24 @@ interface SessionStreamProps {
   onRunFinished: () => void;
 }
 
+/** A chat title is a one-liner — the prompt that started it, clipped. */
+function titleFrom(task: string): string {
+  const firstLine = task.split("\n").find((l) => l.trim()) ?? task;
+  const trimmed = firstLine.trim();
+  return trimmed.length > 72 ? `${trimmed.slice(0, 71)}…` : trimmed;
+}
+
+/** `1m 04s` / `12s` — the elapsed readout next to a running turn. */
+function formatElapsed(ms: number): string {
+  const total = Math.floor(ms / 1000);
+  const mins = Math.floor(total / 60);
+  const secs = total % 60;
+  return mins > 0 ? `${mins}m ${String(secs).padStart(2, "0")}s` : `${secs}s`;
+}
+
 /**
  * VX-103 + VX-105b — center linear conversation (Codex screenshots 1, 8).
- * User messages are right-aligned chips; agent output is left-aligned prose
+ * User messages are right-aligned chips; agent output is left-aligned markdown
  * streamed live from the daemon via `useAgentStream`. The composer (TaskPrompt)
  * is pinned at the bottom; this component orchestrates the full submit flow:
  * create task (+worktree) → run agent → link session → reflect lifecycle.
@@ -39,33 +62,54 @@ export function SessionStream({
   daemonOnline,
   projectPath,
   selectedTask,
+  prefs,
+  onPref,
+  onProviderModel,
+  draft,
+  onDraft,
   createTask,
   linkSession,
   getHistory,
   onQuickAction,
   onRunFinished,
 }: SessionStreamProps) {
-  const { items, state, runTask, loadItems } = useAgentStream();
-  const [title, setTitle] = useState<string>(selectedTask?.title ?? "New task");
+  const { items, state, startedAt, runTask, attach, stop, loadItems } = useAgentStream();
+  const [title, setTitle] = useState<string>(selectedTask?.title ?? "New chat");
+  const [elapsed, setElapsed] = useState(0);
   // The task whose run is currently streaming — used to PATCH its lifecycle
   // status when the run reaches a terminal state (VX-201).
-  const activeTaskId = useRef<string | null>(null);
-  // When resuming a selected chat, the session id to continue (VX bug-3).
+  const activeTaskId = useRef<string | null>(selectedTask?.id ?? null);
+  // When resuming a selected chat, the session id to continue.
   const resumeSessionId = useRef<string | null>(null);
+  // Last submitted payload, so a failed turn can be retried verbatim.
+  const lastSubmit = useRef<ComposerSubmit | null>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  // Sticky-bottom: follow the stream while the user is at the bottom, and stop
+  // following the moment they scroll up to read something.
+  const [stuck, setStuck] = useState(true);
 
-  // VX bug-3: when mounted onto a selected chat, load its prior conversation
-  // from the daemon and arm follow-ups to resume that session. SessionStream is
-  // remounted (keyed on a nonce) per selection, so a mount-time load is correct.
+  // The directory a run executes in: a task's own worktree when it has one,
+  // otherwise the selected project. Without this the daemon ran every task in
+  // its own cwd, so switching projects changed nothing about what the agent saw.
+  const runRoot = selectedTask?.worktree_path || selectedTask?.project_path || projectPath || undefined;
+
+  // Load the selected chat. A chat whose run is still in flight is re-attached
+  // to its live stream (replaying the durable log first) rather than rendered
+  // as a static transcript — otherwise leaving and returning to a running chat
+  // showed a frozen pane and a status that never advanced.
   useEffect(() => {
     const task = selectedTask;
-    if (!task || !task.session_id) return;
+    if (!task?.session_id) return;
     resumeSessionId.current = task.session_id;
+    if (task.status === "running") {
+      attach(daemonUrl, task.session_id).catch((e) => console.error("attach failed", e));
+      return;
+    }
     let alive = true;
     (async () => {
       try {
         const hist = await getHistory(task.id);
-        if (!alive) return;
-        loadItems(eventsToStreamItems(hist.events));
+        if (alive) loadItems(eventsToStreamItems(hist.events), task.session_id);
       } catch (e) {
         console.error("load chat history failed", e);
       }
@@ -73,94 +117,158 @@ export function SessionStream({
     return () => {
       alive = false;
     };
-    // Only on (re)mount for this selected task.
+    // Only on (re)mount for this selected task — the pane is keyed per chat.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // VX-201: reflect the run's terminal state onto the task card. A completed
   // run moves the task to "reviewing" (user reviews the diff); an error moves
-  // it to "failed". Mirrors the VibeDesk state machine in pdm/08 §7.
+  // it to "failed"; a user-stopped run returns to "reviewing" with whatever
+  // work landed. Mirrors the VibeDesk state machine in pdm/08 §7.
   useEffect(() => {
     const id = activeTaskId.current;
-    if (!id) return;
-    if (state === "done") {
-      linkSession(id, "", "reviewing").catch((e) => console.error("status update failed", e));
-      activeTaskId.current = null;
-      onRunFinished();
-    } else if (state === "error") {
-      linkSession(id, "", "failed").catch((e) => console.error("status update failed", e));
-      activeTaskId.current = null;
-      onRunFinished();
-    }
+    if (!id || state === "idle" || state === "running") return;
+    // Claim the task before doing anything else. This effect depends on the
+    // parent's `onRunFinished`, and calling it re-renders the parent — which
+    // mints a new callback identity and re-runs this effect. Without releasing
+    // the id here that cycle never terminates, PATCHing the task every pass.
+    activeTaskId.current = null;
+    const status = state === "error" ? "failed" : "reviewing";
+    linkSession(id, "", status).catch((e) => console.error("status update failed", e));
+    onRunFinished();
   }, [state, linkSession, onRunFinished]);
 
-  async function handleSubmit(p: ComposerSubmit) {
-    // VX bug-3: resume path — continue the selected chat's session instead of
-    // creating a fresh task. The new turn + reply append to the loaded history.
-    if (resumeSessionId.current && selectedTask) {
-      activeTaskId.current = selectedTask.id;
-      try {
-        await linkSession(selectedTask.id, "", "running");
-      } catch (e) {
-        console.error("status update failed", e);
+  // Elapsed-time readout while a turn is in flight. Codex and Claude Desktop
+  // both show one; without it a long tool loop is indistinguishable from a hang.
+  useEffect(() => {
+    if (state !== "running" || startedAt == null) return;
+    setElapsed(Date.now() - startedAt);
+    const id = setInterval(() => setElapsed(Date.now() - startedAt), 1000);
+    return () => clearInterval(id);
+  }, [state, startedAt]);
+
+  // Follow the tail of the stream, but only while the user hasn't scrolled up.
+  useLayoutEffect(() => {
+    if (!stuck) return;
+    const el = bodyRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [items, state, stuck]);
+
+  const onScroll = useCallback(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    // 24px of slack so a near-bottom position still counts as "following".
+    setStuck(el.scrollHeight - el.scrollTop - el.clientHeight < 24);
+  }, []);
+
+  const jumpToLatest = useCallback(() => {
+    const el = bodyRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+    setStuck(true);
+  }, []);
+
+  const submit = useCallback(
+    async (p: ComposerSubmit) => {
+      lastSubmit.current = p;
+      setStuck(true);
+
+      // Resume path — continue the selected chat's session instead of creating
+      // a fresh task. The new turn + reply append to the loaded history.
+      if (resumeSessionId.current && selectedTask) {
+        activeTaskId.current = selectedTask.id;
+        try {
+          await linkSession(selectedTask.id, "", "running");
+        } catch (e) {
+          console.error("status update failed", e);
+        }
+        await runTask({
+          daemonUrl,
+          task: p.task,
+          provider: p.provider,
+          model: p.model,
+          approval: p.approval,
+          reasoning: p.reasoning,
+          resumeSessionId: resumeSessionId.current,
+          workspaceRoot: runRoot,
+        });
+        return;
       }
-      await runTask({
+
+      // First message becomes the chat title.
+      if (items.length === 0) setTitle(titleFrom(p.task));
+
+      // VX-112/113: create the task card before the agent starts. A worktree
+      // branch is only forked when the user opted in via the composer's Branch
+      // toggle (p.isolate) — a plain chat stays in place (no branch).
+      let task: Task | null = null;
+      try {
+        task = await createTask(titleFrom(p.task), p.provider, p.model, projectPath ?? undefined, p.isolate);
+        activeTaskId.current = task.id;
+      } catch (e) {
+        // A task card is bookkeeping, not the run itself — surface the failure
+        // but still run, rather than silently dropping the user's request.
+        console.error("create task failed", e);
+      }
+
+      // A fresh isolated task runs inside the worktree the daemon just forked.
+      const sessionId = await runTask({
         daemonUrl,
         task: p.task,
         provider: p.provider,
         model: p.model,
         approval: p.approval,
         reasoning: p.reasoning,
-        resumeSessionId: resumeSessionId.current,
+        workspaceRoot: task?.worktree_path || runRoot,
       });
-      return;
-    }
 
-    // First task message becomes the session title.
-    if (state === "idle") setTitle(p.task);
-
-    // VX-112/113: create the task card before the agent starts. A worktree
-    // branch is only forked when the user opted in via the composer's Branch
-    // toggle (p.isolate) — a plain chat stays in place (no branch).
-    let task: Task | null = null;
-    try {
-      task = await createTask(p.task, p.provider, p.model, projectPath ?? undefined, p.isolate);
-      activeTaskId.current = task.id;
-    } catch (e) {
-      console.error("create task failed", e);
-    }
-
-    // VX-105b: run the agent and stream its output live.
-    const sessionId = await runTask({
-      daemonUrl,
-      task: p.task,
-      provider: p.provider,
-      model: p.model,
-      approval: p.approval,
-      reasoning: p.reasoning,
-    });
-
-    // VX-201: link the run's session and reflect lifecycle on the task.
-    if (task && sessionId) {
-      try {
-        await linkSession(task.id, sessionId, "running");
-      } catch (e) {
-        console.error("link session failed", e);
+      // VX-201: link the run's session and reflect lifecycle on the task. The
+      // chat is now resumable, so follow-ups continue this session.
+      if (sessionId) resumeSessionId.current = sessionId;
+      if (task && sessionId) {
+        try {
+          await linkSession(task.id, sessionId, "running");
+        } catch (e) {
+          console.error("link session failed", e);
+        }
       }
-    }
-  }
+    },
+    [createTask, daemonUrl, items.length, linkSession, projectPath, runRoot, runTask, selectedTask]
+  );
 
   const statusLabel =
-    state === "running" ? "running" : state === "error" ? "failed" : state === "done" ? "reviewing" : "";
+    state === "running"
+      ? `running · ${formatElapsed(elapsed)}`
+      : state === "error"
+        ? "failed"
+        : state === "cancelled"
+          ? "stopped"
+          : state === "done"
+            ? "reviewing"
+            : "";
+
+  const canRetry = (state === "error" || state === "cancelled") && !!lastSubmit.current;
 
   return (
     <div className="vx-stream">
       <header className="vx-stream__header">
-        <span className="vx-stream__title">{title}</span>
-        {statusLabel && <span className={`vx-stream__status vx-stream__status--${state}`}>{statusLabel}</span>}
+        <span className="vx-stream__title" title={title}>
+          {title}
+        </span>
+        {statusLabel && (
+          <span className={`vx-stream__status vx-stream__status--${state}`}>{statusLabel}</span>
+        )}
+        {canRetry && (
+          <button
+            className="vx-stream__retry"
+            onClick={() => lastSubmit.current && submit(lastSubmit.current)}
+            title="Run the last message again"
+          >
+            <RotateCcw size={12} /> Retry
+          </button>
+        )}
       </header>
 
-      <div className="vx-stream__body">
+      <div className="vx-stream__body" ref={bodyRef} onScroll={onScroll}>
         {items.length === 0 && (
           <div className="vx-stream__empty">
             Type a message below — VibeDesk runs the agent and streams the result here. Toggle
@@ -178,7 +286,12 @@ export function SessionStream({
             case "agent":
               return (
                 <div key={i} className="vx-msg vx-msg--agent">
-                  <div className="vx-msg__prose">{item.text}</div>
+                  <div className="vx-msg__prose">
+                    <Markdown text={item.text} />
+                  </div>
+                  <div className="vx-msg__tools">
+                    <CopyButton text={item.text} />
+                  </div>
                 </div>
               );
             case "system":
@@ -200,11 +313,23 @@ export function SessionStream({
         {state === "running" && <div className="vx-stream__typing">●●●</div>}
       </div>
 
+      {!stuck && (
+        <button className="vx-stream__jump" onClick={jumpToLatest} aria-label="Jump to latest">
+          <ArrowDown size={14} /> Latest
+        </button>
+      )}
+
       <TaskPrompt
         daemonUrl={daemonUrl}
         daemonOnline={daemonOnline}
         busy={state === "running"}
-        onSubmit={handleSubmit}
+        prefs={prefs}
+        onPref={onPref}
+        onProviderModel={onProviderModel}
+        draft={draft}
+        onDraft={onDraft}
+        onSubmit={submit}
+        onStop={() => stop(daemonUrl)}
         onQuickAction={onQuickAction}
       />
     </div>

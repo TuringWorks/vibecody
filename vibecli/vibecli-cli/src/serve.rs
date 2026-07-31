@@ -234,6 +234,27 @@ pub struct AgentRequest {
     /// session — backward compatible.
     #[serde(default)]
     pub resume_session_id: Option<String>,
+    /// Directory the run operates in. VibeDesk sends the selected project's path
+    /// (or the task's worktree) so a multi-project client isn't pinned to the
+    /// daemon's own cwd. `None` / unreadable → the daemon's `workspace_root`,
+    /// which is what every pre-existing client relies on.
+    #[serde(default, alias = "project_path", alias = "cwd")]
+    pub workspace_root: Option<String>,
+}
+
+/// Resolve the directory a run should execute in. A client-supplied root is
+/// honored only when it is an existing directory; anything else (missing,
+/// empty, a file, a bad path) falls back to the daemon's own workspace root
+/// rather than failing the run — the daemon stays the source of truth for what
+/// a valid workspace is, and a stale path in a client never bricks the agent.
+fn resolve_run_root(requested: Option<&str>, default_root: &std::path::Path) -> std::path::PathBuf {
+    requested
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(std::path::PathBuf::from)
+        .filter(|p| p.is_dir())
+        .and_then(|p| p.canonicalize().ok())
+        .unwrap_or_else(|| default_root.to_path_buf())
 }
 
 /// Map a VibeDesk reasoning-effort label to an extended-thinking token budget.
@@ -1235,6 +1256,12 @@ async fn start_agent(
         }
     }
 
+    // Multi-project: run in the directory the client selected (VibeDesk's active
+    // project, or a task's worktree) instead of always the daemon's own cwd. An
+    // absent/invalid path falls back to `state.workspace_root`, so every other
+    // client is unaffected.
+    let run_root = resolve_run_root(req.workspace_root.as_deref(), &state.workspace_root);
+
     // VibeDesk resume: when the client passes `resume_session_id`, continue that
     // session — reuse its id so new events append to the same durable log —
     // instead of creating a fresh job. Otherwise create a new session.
@@ -1251,7 +1278,7 @@ async fn start_agent(
                 task: req.task.clone(),
                 provider: state.provider_name.clone(),
                 approval: req.approval.clone().unwrap_or_else(|| "auto".into()),
-                workspace_root: state.workspace_root.to_string_lossy().to_string(),
+                workspace_root: run_root.to_string_lossy().to_string(),
                 priority: 5,
                 webhook_url: None,
                 tags: vec![],
@@ -1294,7 +1321,7 @@ async fn start_agent(
     // G7.1 — keep the full Goal so we can also inject a context
     // preamble (title + statement + criteria + plan) below, making
     // the agent goal-aware instead of just metadata-attributed.
-    let pinned_goal = auto_link_to_pinned_goal(&state.workspace_root, &session_id);
+    let pinned_goal = auto_link_to_pinned_goal(&run_root, &session_id);
     if let Some(ref goal) = pinned_goal {
         let id_prefix = goal.id.chars().take(8).collect::<String>();
         let msg = format!("Auto-linked to pinned goal {id_prefix}: {}", goal.title);
@@ -1330,7 +1357,7 @@ async fn start_agent(
 
     let task = req.task.clone();
     let sid = session_id.clone();
-    let workspace_root = state.workspace_root.clone();
+    let workspace_root = run_root.clone();
     // Honor the per-request provider/model (VibeDesk model picker, mobile, watch,
     // IDE). Without this the agent always used the daemon's *startup* provider,
     // so a request for a local model (e.g. ollama/codellama:13b) silently ran
@@ -2131,15 +2158,26 @@ async fn task_history(
 // ── VibeDesk environment API (VX-109 / VX-202 / VX-110) ────────────────────────
 //
 // Read-only git/file inspection for the VibeDesk Environment inspector, the
-// Review diff viewer, and the Files quick-action. All operate on the daemon's
-// `workspace_root` and reuse `vibe_core::git` helpers — no new git logic.
+// Review diff viewer, and the Files quick-action. Each takes an optional
+// `?path=` naming the repo to inspect — VibeDesk sends its active project (or a
+// task's worktree) so a multi-project client isn't pinned to the daemon's own
+// cwd. Omitted / invalid → `workspace_root`, the pre-existing behavior. All
+// reuse `vibe_core::git` helpers — no new git logic.
+
+/// `?path=` — the repo a VibeDesk environment query targets.
+#[derive(Debug, Default, serde::Deserialize)]
+struct VibedeskScopeQuery {
+    #[serde(default)]
+    path: Option<String>,
+}
 
 /// GET /api/vibedesk/git/status — branch + changed files for the Environment
 /// inspector (VX-109). Excludes ignored files so "Changes" matches Codex.
 async fn vibedesk_git_status(
+    Query(q): Query<VibedeskScopeQuery>,
     State(state): State<ServeState>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let root = &state.workspace_root;
+    let root = &resolve_run_root(q.path.as_deref(), &state.workspace_root);
     if !vibe_core::git::is_git_repo(root) {
         return Ok(Json(serde_json::json!({
             "is_git_repo": false,
@@ -2172,9 +2210,10 @@ async fn vibedesk_git_status(
 /// (VX-202). Returned as a single unified-diff string; the client splits it
 /// per file for rendering.
 async fn vibedesk_git_diff(
+    Query(q): Query<VibedeskScopeQuery>,
     State(state): State<ServeState>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let root = &state.workspace_root;
+    let root = &resolve_run_root(q.path.as_deref(), &state.workspace_root);
     if !vibe_core::git::is_git_repo(root) {
         return Ok(Json(serde_json::json!({ "diff": "" })));
     }
@@ -2187,9 +2226,10 @@ async fn vibedesk_git_diff(
 /// quick-action (VX-110). Uses git's view of the tree (gitignore-correct)
 /// rather than a raw fs walk. Falls back to an empty list outside a repo.
 async fn vibedesk_files(
+    Query(q): Query<VibedeskScopeQuery>,
     State(state): State<ServeState>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let root = &state.workspace_root;
+    let root = &resolve_run_root(q.path.as_deref(), &state.workspace_root);
     if !vibe_core::git::is_git_repo(root) {
         return Ok(Json(serde_json::json!({ "files": [] })));
     }
@@ -5590,7 +5630,6 @@ async fn v1_resume_get(Path(handle): Path<String>) -> (StatusCode, Json<serde_js
 // regenerate succeeds (one POST per appended step) and again with a
 // final_state on Apply / Cancel / modal-closed. There is no idle
 // timer, no continuous keystroke listener, no editor-buffer overlay.
-// Patent re-audit: PASS (elements 1–5 unchanged).
 
 #[derive(Debug, Deserialize)]
 struct DiffCompleteChainStepWire {
@@ -6814,7 +6853,7 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/v1/skillopt/cancel/{job}", post(v1_skillopt_cancel))
         .route("/v1/skillopt/promote", post(v1_skillopt_promote))
         // Recap & Resume v1 — D1.1 (diffcomplete chain autosave).
-        // Patent re-audit: PASS (1–5 unchanged). Writes happen only
+        // Writes happen only
         // on discrete user-driven events posted by the modal.
         .route("/v1/diffcomplete/chains", post(v1_diffcomplete_chains_post))
         // Mobile Gateway — machine registration & dispatch (iOS/Android remote management)

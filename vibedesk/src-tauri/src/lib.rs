@@ -76,6 +76,7 @@ pub fn run() {
             commands::list_daemon_models,
             commands::start_agent_session,
             commands::stream_agent,
+            commands::cancel_agent_session,
             commands::list_tasks,
             commands::create_task,
             commands::update_task,

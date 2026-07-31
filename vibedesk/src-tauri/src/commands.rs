@@ -180,6 +180,7 @@ pub async fn start_agent_session(
     approval: Option<String>,
     reasoning: Option<String>,
     resume_session_id: Option<String>,
+    workspace_root: Option<String>,
     token: Option<String>,
 ) -> Result<String, String> {
     let agent_url = format!("{}/agent", url.trim_end_matches('/'));
@@ -189,6 +190,13 @@ pub async fn start_agent_session(
         "provider": provider,
         "approval": approval.unwrap_or_else(|| "default".to_string()),
     });
+    // Multi-project: run in the selected project (or the task's worktree) rather
+    // than the daemon's own cwd. Omitted → the daemon falls back to its root.
+    if let Some(root) = &workspace_root {
+        if !root.is_empty() {
+            body["workspace_root"] = serde_json::Value::String(root.clone());
+        }
+    }
     if let Some(m) = &model {
         if !m.is_empty() {
             body["model"] = serde_json::Value::String(m.clone());
@@ -497,16 +505,22 @@ pub async fn get_task_history(
 }
 
 /// Generic authed GET against the daemon, returning parsed JSON. Shared by the
-/// VibeDesk environment endpoints (git status/diff, files).
+/// VibeDesk environment endpoints (git status/diff, files). `scope` is the
+/// optional repo path those endpoints inspect — passed as `?path=` and encoded
+/// by reqwest, so project paths with spaces work unchanged.
 async fn daemon_get(
     url: String,
     path: &str,
+    scope: Option<String>,
     token: Option<String>,
 ) -> Result<serde_json::Value, String> {
     let full = format!("{}{}", url.trim_end_matches('/'), path);
     let client = reqwest::Client::new();
-    let req = with_auth(client.get(&full), token);
-    let resp = req
+    let get = match scope.filter(|s| !s.is_empty()) {
+        Some(p) => client.get(&full).query(&[("path", p)]),
+        None => client.get(&full),
+    };
+    let resp = with_auth(get, token)
         .send()
         .await
         .map_err(|e| format!("Cannot reach daemon: {}", e))?;
@@ -516,44 +530,99 @@ async fn daemon_get(
     resp.json().await.map_err(|e| e.to_string())
 }
 
-/// GET /api/vibedesk/git/status — branch + changed files (VX-109).
+/// GET /api/vibedesk/git/status — branch + changed files (VX-109), scoped to
+/// `path` (the active project / task worktree) when given.
 #[tauri::command]
-pub async fn git_status(url: String, token: Option<String>) -> Result<serde_json::Value, String> {
-    daemon_get(url, "/api/vibedesk/git/status", token).await
+pub async fn git_status(
+    url: String,
+    path: Option<String>,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    daemon_get(url, "/api/vibedesk/git/status", path, token).await
 }
 
 /// GET /api/vibedesk/git/diff — working-tree diff for the Review action (VX-202).
 #[tauri::command]
-pub async fn git_diff(url: String, token: Option<String>) -> Result<serde_json::Value, String> {
-    daemon_get(url, "/api/vibedesk/git/diff", token).await
+pub async fn git_diff(
+    url: String,
+    path: Option<String>,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    daemon_get(url, "/api/vibedesk/git/diff", path, token).await
 }
 
 /// GET /api/vibedesk/files — tracked file paths for the Files action (VX-110).
 #[tauri::command]
-pub async fn list_files(url: String, token: Option<String>) -> Result<serde_json::Value, String> {
-    daemon_get(url, "/api/vibedesk/files", token).await
+pub async fn list_files(
+    url: String,
+    path: Option<String>,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    daemon_get(url, "/api/vibedesk/files", path, token).await
 }
 
-/// Connect to the daemon SSE stream and forward events to the frontend as
-/// `agent:chunk` / `agent:complete` / `agent:error` events.
+/// POST /jobs/:id/cancel — stop an in-flight agent run. Backs the composer's
+/// Stop button: a long or wrong-headed turn must be interruptible without
+/// killing the app or waiting it out. The daemon marks the job cancelled and
+/// closes its stream, so the UI's SSE forwarder terminates on its own.
+#[tauri::command]
+pub async fn cancel_agent_session(
+    url: String,
+    session_id: String,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let u = format!("{}/jobs/{}/cancel", url.trim_end_matches('/'), session_id);
+    let client = reqwest::Client::new();
+    let resp = with_auth(client.post(&u), token)
+        .send()
+        .await
+        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let b = resp.text().await.unwrap_or_default();
+        return Err(format!("Daemon returned {}: {}", status, b));
+    }
+    resp.json().await.map_err(|e| e.to_string())
+}
+
+/// Tauri event name carrying one session's forwarded agent events. Scoping the
+/// channel by session id is what lets several chats run at once: a global
+/// `agent:chunk` channel delivered every run's tokens to every listener, so two
+/// concurrent runs interleaved into whichever bubble was on screen. One channel
+/// per session means a listener only ever sees its own run.
+pub fn session_event_name(session_id: &str) -> String {
+    format!("agent://{}", session_id)
+}
+
+/// Connect to the daemon SSE stream and forward its events to the frontend on
+/// this session's own channel, as `{ kind, ... }` payloads:
+///   `user`/`chunk`/`system`/`error` → `text`, `step` → `tool` + `summary`,
+///   `complete` → this turn ended, `closed` → the daemon closed the stream.
+///
+/// `since_seq` replays the durable log from that sequence before going live, so
+/// re-opening a chat whose run is still in flight catches up instead of showing
+/// a gap. A replay of a multi-turn chat contains one `complete` per finished
+/// turn, so `complete` must NOT end the forwarder — doing that truncated the
+/// replay at the first turn. We read until the daemon closes the stream (which
+/// it does once a run finishes) and emit `closed` then.
 #[tauri::command]
 pub async fn stream_agent(
     app: AppHandle,
     url: String,
     session_id: String,
+    since_seq: Option<u64>,
     token: Option<String>,
 ) -> Result<(), String> {
     use tauri::Emitter;
 
-    let stream_url = format!("{}/stream/{}", url.trim_end_matches('/'), session_id);
+    let base = format!("{}/stream/{}", url.trim_end_matches('/'), session_id);
     let client = reqwest::Client::new();
-    let req = with_auth(
-        client
-            .get(&stream_url)
-            .header("Accept", "text/event-stream"),
-        token,
-    );
-    let res = req
+    let get = client.get(&base).header("Accept", "text/event-stream");
+    let get = match since_seq {
+        Some(n) => get.query(&[("since_seq", n)]),
+        None => get,
+    };
+    let res = with_auth(get, token)
         .send()
         .await
         .map_err(|e| format!("Cannot connect to stream: {}", e))?;
@@ -562,6 +631,7 @@ pub async fn stream_agent(
         return Err(format!("Stream returned {}", res.status()));
     }
 
+    let channel = session_event_name(&session_id);
     tokio::spawn(async move {
         let mut buf = String::new();
         let mut response = res;
@@ -585,48 +655,49 @@ pub async fn stream_agent(
                 if line.is_empty() || line.starts_with(':') {
                     continue;
                 }
-                if let Some(data) = line.strip_prefix("data: ") {
-                    if let Ok(ev) = serde_json::from_str::<serde_json::Value>(data) {
-                        match ev["type"].as_str() {
-                            Some("chunk") => {
-                                if let Some(t) = ev["content"].as_str() {
-                                    let _ = app.emit("agent:chunk", t.to_string());
-                                }
-                            }
-                            Some("system") => {
-                                if let Some(t) = ev["content"].as_str() {
-                                    let _ = app.emit("agent:system", t.to_string());
-                                }
-                            }
-                            Some("step") => {
-                                // Tool-use step — forward the tool name + summary
-                                // so the UI can render a structured ToolUseBlock.
-                                let tool = ev["tool_name"].as_str().unwrap_or("tool").to_string();
-                                let summary = ev["content"].as_str().unwrap_or("").to_string();
-                                let _ = app.emit(
-                                    "agent:step",
-                                    serde_json::json!({ "tool": tool, "summary": summary }),
-                                );
-                            }
-                            Some("complete") => {
-                                let _ = app.emit("agent:complete", ());
-                                return;
-                            }
-                            Some("error") => {
-                                let msg = ev["content"]
-                                    .as_str()
-                                    .unwrap_or("unknown error")
-                                    .to_string();
-                                let _ = app.emit("agent:error", msg);
-                                return;
-                            }
-                            _ => {}
-                        }
+                let Some(data) = line.strip_prefix("data: ") else {
+                    continue;
+                };
+                let Ok(ev) = serde_json::from_str::<serde_json::Value>(data) else {
+                    continue;
+                };
+                let content = ev["content"].as_str().unwrap_or("").to_string();
+                match ev["type"].as_str() {
+                    // `user` appears on replay (the durable log is a full
+                    // transcript); the live path never sees it, because the
+                    // daemon publishes it before this forwarder connects.
+                    Some(kind @ ("user" | "chunk" | "system")) => {
+                        let _ = app
+                            .emit(&channel, serde_json::json!({ "kind": kind, "text": content }));
                     }
+                    Some("step") => {
+                        // Tool-use step — forward the tool name + summary so the
+                        // UI can render a structured ToolUseBlock.
+                        let tool = ev["tool_name"].as_str().unwrap_or("tool").to_string();
+                        let _ = app.emit(
+                            &channel,
+                            serde_json::json!({ "kind": "step", "tool": tool, "summary": content }),
+                        );
+                    }
+                    Some("complete") => {
+                        let _ = app.emit(&channel, serde_json::json!({ "kind": "complete" }));
+                    }
+                    Some("error") => {
+                        let text = if content.is_empty() {
+                            "unknown error".to_string()
+                        } else {
+                            content
+                        };
+                        let _ =
+                            app.emit(&channel, serde_json::json!({ "kind": "error", "text": text }));
+                    }
+                    _ => {}
                 }
             }
         }
-        let _ = app.emit("agent:complete", ());
+        // Stream closed — the run is over (or the daemon went away). The UI
+        // unsubscribes on this, so it never sticks on "running" forever.
+        let _ = app.emit(&channel, serde_json::json!({ "kind": "closed" }));
     });
 
     Ok(())

@@ -4,6 +4,9 @@ import { useEnvironment } from "../hooks/useEnvironment";
 interface EnvironmentInspectorProps {
   daemonUrl: string;
   daemonOnline: boolean;
+  /** Repo to inspect — the active project or the selected task's worktree.
+   *  Undefined → the daemon's own workspace root. */
+  path?: string;
   /** Bumped by the parent after a run finishes, to force a status refetch. */
   refreshKey?: number;
   /** Open the Review diff viewer (VX-202). */
@@ -20,14 +23,16 @@ interface EnvironmentInspectorProps {
 export function EnvironmentInspector({
   daemonUrl,
   daemonOnline,
+  path,
   refreshKey,
   onOpenReview,
   onToggle,
 }: EnvironmentInspectorProps) {
-  const { status } = useEnvironment(daemonUrl, daemonOnline, refreshKey);
+  const { status } = useEnvironment(daemonUrl, daemonOnline, path, refreshKey);
 
   const branch = status?.branch || (status?.is_git_repo === false ? "(no repo)" : "…");
   const changedCount = status?.changed_count ?? 0;
+  const repoName = path ? path.split("/").filter(Boolean).pop() : null;
 
   return (
     <aside className="vx-env">
@@ -36,6 +41,12 @@ export function EnvironmentInspector({
         <button className="vx-icon-btn" aria-label="Collapse environment" onClick={onToggle}>
           <PanelRightClose size={15} />
         </button>
+      </div>
+
+      {/* Which repo these numbers describe — ambiguous the moment more than
+          one project is open, which is the whole point of the app. */}
+      <div className="vx-env__scope" title={path ?? "Daemon workspace root"}>
+        {repoName ?? "Daemon workspace"}
       </div>
 
       <ul className="vx-env__list">

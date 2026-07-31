@@ -4,6 +4,9 @@ import { X, FileCode } from "lucide-react";
 
 interface FilesViewProps {
   daemonUrl: string;
+  /** Repo to list — the active project or the selected task's worktree.
+   *  Undefined → the daemon's own workspace root. */
+  path?: string;
   onClose: () => void;
 }
 
@@ -12,7 +15,7 @@ interface FilesViewProps {
  * tracked files (gitignore-correct, from the daemon's `git ls-files`). Codex
  * summons this on demand rather than keeping a persistent tree.
  */
-export function FilesView({ daemonUrl, onClose }: FilesViewProps) {
+export function FilesView({ daemonUrl, path, onClose }: FilesViewProps) {
   const [files, setFiles] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
@@ -21,7 +24,7 @@ export function FilesView({ daemonUrl, onClose }: FilesViewProps) {
     let cancelled = false;
     (async () => {
       try {
-        const res = await invoke<{ files: string[] }>("list_files", { url: daemonUrl });
+        const res = await invoke<{ files: string[] }>("list_files", { url: daemonUrl, path });
         if (!cancelled) setFiles(res.files);
       } catch (e) {
         if (!cancelled) setError(String(e));
@@ -30,9 +33,10 @@ export function FilesView({ daemonUrl, onClose }: FilesViewProps) {
     return () => {
       cancelled = true;
     };
-  }, [daemonUrl]);
+  }, [daemonUrl, path]);
 
-  const shown = (files ?? []).filter((f) => f.toLowerCase().includes(filter.toLowerCase())).slice(0, 500);
+  const matches = (files ?? []).filter((f) => f.toLowerCase().includes(filter.toLowerCase()));
+  const shown = matches.slice(0, 500);
 
   return (
     <div className="vx-files">
@@ -46,6 +50,7 @@ export function FilesView({ daemonUrl, onClose }: FilesViewProps) {
         className="vx-files__filter"
         placeholder="Filter files…"
         value={filter}
+        autoFocus
         onChange={(e) => setFilter(e.target.value)}
       />
       <div className="vx-files__body">
@@ -62,6 +67,12 @@ export function FilesView({ daemonUrl, onClose }: FilesViewProps) {
             </li>
           ))}
         </ul>
+        {/* A silent 500-row cut reads as "that's all there is" — say so. */}
+        {matches.length > shown.length && (
+          <div className="vx-files__empty">
+            Showing {shown.length} of {matches.length} matches — refine the filter to narrow it.
+          </div>
+        )}
       </div>
     </div>
   );

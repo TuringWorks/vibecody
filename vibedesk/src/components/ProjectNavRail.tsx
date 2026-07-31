@@ -17,6 +17,7 @@ interface ProjectNavRailProps {
   onSelectChat: (id: string) => void;
   onDeleteChat: (task: Task) => void;
   onArchiveChat: (task: Task) => void;
+  onOpenSearch: () => void;
   onOpenTrash: () => void;
   onOpenSettings: () => void;
   onToggle: () => void;
@@ -75,11 +76,15 @@ export function ProjectNavRail({
   onSelectChat,
   onDeleteChat,
   onArchiveChat,
+  onOpenSearch,
   onOpenTrash,
   onOpenSettings,
   onToggle,
 }: ProjectNavRailProps) {
   const projects = groupByProject(tasks, projectPaths);
+  // ⌘1…⌘9 address chats in flat nav order, so the hint on a row has to be its
+  // position across the whole rail, not within its project group.
+  let chatOrdinal = 0;
 
   async function pickProject() {
     try {
@@ -104,6 +109,7 @@ export function ProjectNavRail({
           <button className="vx-nav__item" aria-label="New chat" onClick={onNewChat}>
             <MessageSquarePlus size={15} />
             <span>New chat</span>
+            <kbd className="vx-nav__kbd">⌘N</kbd>
           </button>
         </li>
         <li>
@@ -113,9 +119,10 @@ export function ProjectNavRail({
           </button>
         </li>
         <li>
-          <button className="vx-nav__item vx-nav__item--soon" aria-label="Search" disabled title="Coming soon">
+          <button className="vx-nav__item" aria-label="Search chats" onClick={onOpenSearch}>
             <Search size={15} />
             <span>Search</span>
+            <kbd className="vx-nav__kbd">⌘P</kbd>
           </button>
         </li>
         <li>
@@ -171,7 +178,9 @@ export function ProjectNavRail({
               {p.tasks.length === 0 && (
                 <li className="vx-nav__chats-empty">No chats yet — type a task below.</li>
               )}
-              {p.tasks.map((t, i) => (
+              {p.tasks.map((t) => {
+                const ordinal = chatOrdinal++;
+                return (
                 <li key={t.id} className="vx-nav__chat-row">
                   <button
                     className={`vx-nav__chat${activeChatId === t.id ? " is-active" : ""}`}
@@ -184,7 +193,7 @@ export function ProjectNavRail({
                       style={{ background: STATUS_DOT[t.status] ?? "var(--text-tertiary)" }}
                     />
                     <span className="vx-nav__chat-title">{t.title}</span>
-                    {i < 9 && <kbd className="vx-nav__kbd">⌘{i + 1}</kbd>}
+                    {ordinal < 9 && <kbd className="vx-nav__kbd">⌘{ordinal + 1}</kbd>}
                   </button>
                   <button
                     className="vx-nav__chat-del"
@@ -209,7 +218,8 @@ export function ProjectNavRail({
                     <Trash2 size={13} />
                   </button>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           </li>
         ))}

@@ -15,21 +15,30 @@ export interface GitStatus {
 
 /**
  * Live git status for the Environment inspector (VX-109). Polls the daemon's
- * `/api/vibedesk/git/status`. The daemon is the source of truth; this is a thin
- * client. `refreshKey` lets callers force a refetch (e.g. after a run finishes).
+ * `/api/vibedesk/git/status` for `path` — the active project or the selected
+ * task's worktree. Without that scope the inspector reported the daemon's own
+ * repo no matter which project was open, so "Changes" and the branch name were
+ * about a repo the user wasn't looking at. `undefined` → the daemon's root.
+ * The daemon is the source of truth; this is a thin client. `refreshKey` lets
+ * callers force a refetch (e.g. after a run finishes).
  */
-export function useEnvironment(daemonUrl: string, daemonOnline: boolean, refreshKey = 0) {
+export function useEnvironment(
+  daemonUrl: string,
+  daemonOnline: boolean,
+  path?: string,
+  refreshKey = 0
+) {
   const [status, setStatus] = useState<GitStatus | null>(null);
 
   const refresh = useCallback(async () => {
     if (!daemonOnline) return;
     try {
-      const s = await invoke<GitStatus>("git_status", { url: daemonUrl });
+      const s = await invoke<GitStatus>("git_status", { url: daemonUrl, path });
       setStatus(s);
     } catch {
       setStatus(null);
     }
-  }, [daemonUrl, daemonOnline]);
+  }, [daemonUrl, daemonOnline, path]);
 
   useEffect(() => {
     refresh();

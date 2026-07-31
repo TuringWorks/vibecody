@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PanelLeftOpen, PanelRightOpen } from "lucide-react";
 import { ask, confirm, message } from "@tauri-apps/plugin-dialog";
 import { ProjectNavRail } from "../components/ProjectNavRail";
@@ -8,8 +8,10 @@ import { ReviewView } from "../components/ReviewView";
 import { FilesView } from "../components/FilesView";
 import { SettingsView } from "../components/SettingsView";
 import { RecoveryView } from "../components/RecoveryView";
+import { ChatSearch } from "../components/ChatSearch";
 import type { QuickAction } from "../components/QuickActionDrawer";
 import { useProjects } from "../hooks/useProjects";
+import { useComposerPrefs } from "../hooks/useComposerPrefs";
 import type { Task, useTasks } from "../hooks/useTasks";
 
 type TasksApi = ReturnType<typeof useTasks>;
@@ -21,17 +23,25 @@ interface ShellLayoutProps {
   tasks: TasksApi;
 }
 
+/** Draft composer text, keyed by chat id ("" = the unsaved new chat). */
+type Drafts = Record<string, string>;
+
 /**
  * VX-101 — the Codex-faithful three-column shell:
  *   left ProjectNavRail · center SessionStream · right EnvironmentInspector.
  * Side rails collapse to a thin strip with an expand button (so collapse is
  * reversible). No persistent editor pane — code is summoned via the
  * Review/Files quick-actions, which open as a center overlay.
+ *
+ * This layer owns everything that must outlive a chat switch: the composer's
+ * run controls, per-chat drafts, and the app-wide keyboard shortcuts. The
+ * conversation pane below is remounted per chat, so state kept there is lost.
  */
 export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps) {
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [envCollapsed, setEnvCollapsed] = useState(false);
   const [overlay, setOverlay] = useState<Overlay>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
   // Bumped when a run finishes so the Environment inspector refetches git status.
   const [envRefresh, setEnvRefresh] = useState(0);
   // Remounting SessionStream on a fresh nonce is how "New chat" resets the
@@ -43,10 +53,29 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
   // The currently selected chat/task id (visual highlight in the nav).
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   // The selected chat's full task row — loaded into SessionStream so its
-  // conversation renders and follow-ups resume its session (VX bug-3).
+  // conversation renders and follow-ups resume its session.
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   // Persisted project list so empty projects show + survive restart (bug-1).
   const projects = useProjects();
+  // Run controls live here, not in the remounted composer, so a chosen model
+  // survives clicking between chats.
+  const { prefs, update: setPref, setProviderModel } = useComposerPrefs();
+  const [drafts, setDrafts] = useState<Drafts>({});
+
+  const draftKey = activeChatId ?? "";
+  const setDraft = useCallback(
+    (text: string) => setDrafts((prev) => ({ ...prev, [draftKey]: text })),
+    [draftKey]
+  );
+  // Stable identity: the conversation pane keys a terminal-state effect off
+  // this callback, so an inline arrow here would re-trigger it on every render.
+  const handleRunFinished = useCallback(() => setEnvRefresh((n) => n + 1), []);
+
+  // The repo the Environment / Review / Files views describe: a selected task's
+  // own worktree if it has one, else its project, else the active project.
+  // Without this they always reported the daemon's own repo.
+  const scopePath =
+    selectedTask?.worktree_path || selectedTask?.project_path || activeProject || undefined;
 
   function handleQuickAction(action: QuickAction) {
     if (action === "review") setOverlay("review");
@@ -54,23 +83,71 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
     // side-chat / browser / terminal: Phase 3.
   }
 
-  function newChat() {
+  const newChat = useCallback(() => {
     setOverlay(null);
+    setSearchOpen(false);
     setActiveChatId(null);
     setSelectedTask(null);
     setChatNonce((n) => n + 1);
-  }
+  }, []);
 
-  // VX bug-3: selecting a chat loads it into the center pane. Remounting
-  // SessionStream (fresh nonce) makes it fetch + render the chat's history.
-  function selectChat(id: string) {
-    const t = tasks.tasks.find((x) => x.id === id) ?? null;
-    setActiveChatId(id);
-    setSelectedTask(t);
-    if (t?.project_path) setActiveProject(t.project_path);
-    setOverlay(null);
-    setChatNonce((n) => n + 1);
-  }
+  // Selecting a chat loads it into the center pane. Remounting SessionStream
+  // (fresh nonce) makes it fetch + render the chat's history — or re-attach to
+  // its live stream when the run is still going.
+  const selectChat = useCallback(
+    (id: string) => {
+      const t = tasks.tasks.find((x) => x.id === id) ?? null;
+      setActiveChatId(id);
+      setSelectedTask(t);
+      if (t?.project_path) setActiveProject(t.project_path);
+      setOverlay(null);
+      setSearchOpen(false);
+      setChatNonce((n) => n + 1);
+    },
+    [tasks.tasks]
+  );
+
+  // Chats in nav order — the ⌘1…⌘9 targets. The rail renders these hints, so
+  // they have to resolve to the same rows the user is looking at.
+  const orderedChats = useMemo(() => {
+    const byPath = new Map<string, Task[]>();
+    for (const p of projects.projectPaths) if (p) byPath.set(p, []);
+    for (const t of tasks.tasks) byPath.set(t.project_path, [...(byPath.get(t.project_path) ?? []), t]);
+    return [...byPath.values()].flat();
+  }, [tasks.tasks, projects.projectPaths]);
+
+  // App-wide shortcuts. ⌘1…⌘9 were already advertised as <kbd> hints in the
+  // nav rail but bound to nothing. ⌘K is deliberately unbound (VX-013).
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const mod = e.metaKey || e.ctrlKey;
+      if (e.key === "Escape") {
+        // Esc backs out of whatever is covering the conversation.
+        if (searchOpen) setSearchOpen(false);
+        else if (overlay) setOverlay(null);
+        return;
+      }
+      if (!mod) return;
+      if (e.key === "n" || e.key === "N") {
+        e.preventDefault();
+        newChat();
+      } else if (e.key === "p" || e.key === "P" || e.key === "f" || e.key === "F") {
+        e.preventDefault();
+        setSearchOpen(true);
+      } else if (e.key === ",") {
+        e.preventDefault();
+        setOverlay((o) => (o === "settings" ? null : "settings"));
+      } else if (e.key >= "1" && e.key <= "9") {
+        const target = orderedChats[Number(e.key) - 1];
+        if (target) {
+          e.preventDefault();
+          selectChat(target.id);
+        }
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [newChat, orderedChats, overlay, searchOpen, selectChat]);
 
   // VX bug-2 + worktree-lifecycle: delete a chat → move it to Trash (reversible
   // from the Trash & Archive view; the daemon reclaims its worktree after the
@@ -144,6 +221,10 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
       data-nav={navCollapsed ? "collapsed" : "expanded"}
       data-env={envCollapsed ? "collapsed" : "expanded"}
     >
+      {searchOpen && (
+        <ChatSearch tasks={tasks.tasks} onPick={selectChat} onClose={() => setSearchOpen(false)} />
+      )}
+
       <div className="vibedesk-col vibedesk-col--nav">
         {navCollapsed ? (
           <div className="vx-rail vx-rail--left">
@@ -175,6 +256,7 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
             onSelectChat={selectChat}
             onDeleteChat={deleteChat}
             onArchiveChat={archiveChat}
+            onOpenSearch={() => setSearchOpen(true)}
             onOpenTrash={() => setOverlay("trash")}
             onOpenSettings={() => setOverlay("settings")}
             onToggle={() => setNavCollapsed(true)}
@@ -194,9 +276,9 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
             }}
           />
         ) : overlay === "review" ? (
-          <ReviewView daemonUrl={daemonUrl} onClose={() => setOverlay(null)} />
+          <ReviewView daemonUrl={daemonUrl} path={scopePath} onClose={() => setOverlay(null)} />
         ) : overlay === "files" ? (
-          <FilesView daemonUrl={daemonUrl} onClose={() => setOverlay(null)} />
+          <FilesView daemonUrl={daemonUrl} path={scopePath} onClose={() => setOverlay(null)} />
         ) : (
           <SessionStream
             key={chatNonce}
@@ -204,11 +286,16 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
             daemonOnline={daemonOnline}
             projectPath={activeProject}
             selectedTask={selectedTask}
+            prefs={prefs}
+            onPref={setPref}
+            onProviderModel={setProviderModel}
+            draft={drafts[draftKey] ?? ""}
+            onDraft={setDraft}
             createTask={tasks.createTask}
             linkSession={tasks.linkSession}
             getHistory={tasks.getHistory}
             onQuickAction={handleQuickAction}
-            onRunFinished={() => setEnvRefresh((n) => n + 1)}
+            onRunFinished={handleRunFinished}
           />
         )}
       </div>
@@ -229,6 +316,7 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
           <EnvironmentInspector
             daemonUrl={daemonUrl}
             daemonOnline={daemonOnline}
+            path={scopePath}
             refreshKey={envRefresh}
             onOpenReview={() => setOverlay("review")}
             onToggle={() => setEnvCollapsed(true)}
