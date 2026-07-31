@@ -225,4 +225,3 @@ When no external provider is connected, VibeCody loads its built-in design syste
 ## Related Demos
 
 - [Demo 64: Reasoning Provider & Extended Thinking](../64-reasoning-provider/)
-- [Fit-Gap Analysis](../../fit-gap-analysis/) — consolidated competitive catalogue

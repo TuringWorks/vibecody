@@ -32,7 +32,6 @@ VibeCody is **not a single app**. It's a toolchain of ~13 clients that share one
 
 - [`docs/FEATURE-MATRIX.md`](./docs/FEATURE-MATRIX.md) — at-a-glance ✅/⚙️/🔬/❌ per capability
 - [`docs/FEATURE-REFERENCE.md`](./docs/FEATURE-REFERENCE.md) — detailed reference per feature
-- [`docs/FIT-GAP-ANALYSIS.md`](./docs/FIT-GAP-ANALYSIS.md) — competitive catalogue (142 gaps tracked across iterations)
 
 When you add a feature or close a gap, update whichever of those tables names the feature — otherwise the matrix drifts from reality.
 

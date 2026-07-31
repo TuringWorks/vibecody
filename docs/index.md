@@ -34,16 +34,12 @@ All surfaces are backed by a shared set of Rust crates for AI providers, text ed
 | [Memory Architecture](./memory-architecture/) | Detailed architecture: five stores, Context Assembler, Recap/Resume, storage security |
 | [Architecture](./architecture/) | Crate structure, data flow, and design decisions |
 | [SkillForge](./skillforge/) | Measure and train agent-skill docs (SkillLens + SkillOpt) against any provider |
-| [Roadmap](./roadmap/) | Competitive landscape, phase-level history (1–39), and positioning |
 | [Plugin Development](./plugin-development/) | Build plugins, skills, hooks, WASM extensions, and MCP integrations |
 | [VibeMobile](vibemobile/) | Mobile companion (Flutter) — pairing, Handoff, remote chat, sync |
 | [VibeWatch — watchOS](watchos/) | Apple Watch native client — pair, view transcripts, dictate reply |
 | [VibeWatch — Wear OS](wearos/) | Wear OS native client — same feature set, Keystore/StrongBox attestation |
 | [Connectivity](connectivity/) | mDNS, Tailscale Funnel, ngrok — zero-config device discovery |
 | [Watch Integration](watch-integration/) | Full architecture: P-256 pairing, `/watch/*` routes, sync model |
-| [Competitive Analysis](./shannon-comparison/) | Feature comparison with other AI coding tools |
-| [Fit-Gap Analysis](fit-gap-analysis/) | Consolidated gap catalogue — 142 gaps tracked across 8 iterations and 5 deep-dives |
-| [Whitepapers](./whitepapers/) | In-depth comparisons: VibeCody vs OpenClaw, PicoClaw, NemoClaw, and 12+ alternatives |
 | [Development Guide](./development/) | Build, test, debug, and code organization for contributors |
 | [Security](./security/) | Security model, SSRF/path-traversal prevention, command blocklists |
 | [Release Notes](./release/) | What's new in v0.4.0 — downloads, upgrade guide |

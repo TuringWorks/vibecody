@@ -29,7 +29,7 @@
 - [ ] Sensitive values stored in ProfileStore / WorkspaceStore (never plaintext)
 - [ ] Feature is zero-config by default (sane defaults, no env-var-only setup)
 - [ ] Required config surfaced in daemon startup log + `/health`
-- [ ] Cross-referenced: FEATURE-MATRIX.md / FEATURE-REFERENCE.md / FIT-GAP-ANALYSIS.md updated if this closes a gap
+- [ ] Cross-referenced: FEATURE-MATRIX.md / FEATURE-REFERENCE.md updated if this changes a capability
 - [ ] BDD tests added or updated (`*.bdd.test.tsx` for panels, `*.feature` for daemon routes)
 - [ ] Documentation updated (`docs/` or AGENTS.md if the Change-Surface Cookbook changed)
 

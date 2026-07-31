@@ -7,32 +7,43 @@
 
 ## AI Providers
 
-| Provider | VibeCLI | VibeCoder | Notes |
+**24+ providers.** Model lists and per-provider defaults live in one file — `vibecoder/src/hooks/useModelRegistry.ts` (see [CLAUDE.md → Adding / updating providers and models](../CLAUDE.md)). Every panel that calls an LLM must honour the toolbar's provider/model selection; **no panel may hard-code a vendor** ([AGENTS.md → Provider-Agnostic Panels — STRICT](../AGENTS.md)).
+
+| Provider | VibeCLI | VibeCoder | Notes (models current as of 2026-07-30) |
 |---|:---:|:---:|---|
-| Anthropic Claude | ✅ | ✅ | claude-3-5-sonnet, claude-opus-4, etc. |
-| OpenAI GPT-4 / GPT-4o | ✅ | ✅ | All model tiers |
-| Google Gemini | ✅ | ✅ | Gemini 1.5 Pro/Flash, 2.0 |
+| Anthropic Claude | ✅ | ✅ | Opus 5, Sonnet 5 (1M ctx), Opus 4.8, Fable 5 ᴬ |
+| Claude Code (subscription auth) | ✅ | ✅ | Uses an existing Claude Code seat instead of an API key |
+| OpenAI | ✅ | ✅ | GPT-5.6 Sol / Terra / Luna ᴬ, GPT-5.5, GPT-5.3-Codex |
+| Google Gemini | ✅ | ✅ | Gemini 3.6 Flash ᴬ, 3.5 Flash / Flash-Lite ᴬ, 3.1 Pro |
 | Ollama (local) | ✅ | ✅ | Any Ollama-served model, auto-detect |
-| AWS Bedrock | ✅ | ✅ | Claude, Titan, Llama via Bedrock API |
+| mistral.rs (in-process local) | ✅ | ✅ | GGUF / quantised local inference — no server required |
+| AWS Bedrock | ✅ | ✅ | Claude, Titan, Llama via Bedrock API + SigV4 |
 | Azure OpenAI | ✅ | ✅ | Custom deployment endpoint |
 | Groq | ✅ | ✅ | Ultra-fast inference |
-| Grok (X.ai) | ✅ | ✅ | |
-| Mistral AI | ✅ | ✅ | |
-| DeepSeek | ✅ | ✅ | Code-focused |
+| Grok (xAI) | ✅ | ✅ | Grok 4.5 — 500K ctx, $2/$6 ᴬ |
+| Mistral AI | ✅ | ✅ | Codestral for code |
+| DeepSeek | ✅ | ✅ | V4 / V4-Flash (MIT open weights) |
+| Moonshot (Kimi) | ⚙️ | ⚙️ | K3 (2.8T MoE, 1M ctx) / K2.7-Code — via OpenRouter today; native provider pending ᴬ |
+| Zhipu GLM | ✅ | ✅ | GLM-5.2 (744B) |
+| MiniMax | ✅ | ✅ | MiniMax-M3 |
+| Qwen (via OpenRouter / Ollama) | ✅ | ✅ | Qwen 3.6-Coder (Apache 2.0) |
 | Cerebras | ✅ | ✅ | Fast inference |
 | Perplexity | ✅ | ✅ | Search-augmented |
 | Together AI | ✅ | ✅ | Open model hosting |
 | Fireworks AI | ✅ | ✅ | |
 | SambaNova | ✅ | ✅ | |
-| OpenRouter | ✅ | ✅ | 300+ models via single key |
-| Zhipu GLM | ✅ | ✅ | Chinese market |
-| MiniMax | ✅ | ✅ | Chinese market |
+| OpenRouter | ✅ | ✅ | 300+ models via a single key |
 | Vercel AI Gateway | ✅ | ✅ | Unified proxy |
 | GitHub Copilot | ✅ | ✅ | Device-flow auth |
-| Provider failover chain | ✅ | ✅ | Auto-retry on next provider |
-| Provider health tracking | ✅ | ✅ | ResilientProvider wrapper |
-| Per-tab provider override | ❌ | ✅ | VibeCoder chat tab selector |
-| Cost-optimized routing | ✅ | ⚙️ | `/route` command |
+| Provider failover chain | ✅ | ✅ | Auto-retry on the next provider |
+| Provider health tracking | ✅ | ✅ | `ResilientProvider` wrapper |
+| Per-tab provider override | ❌ | ✅ | VibeCoder chat-tab selector |
+| Per-request effort knob | ✅ | ✅ | `low\|medium\|high\|xhigh` → Claude/Gemini thinking budget, OpenAI `reasoning_effort` |
+| Cost-optimized routing (heuristic) | ✅ | ⚙️ | `/route` + `cost_router.rs` |
+
+ᴬ **Registry append pending.** The provider integration works; these specific new model IDs are not yet listed in `useModelRegistry.ts`.
+
+> ⚠ **Known issue:** the `gemini` provider default currently points at an unreleased model ID and will be corrected to `gemini-3.6-flash`.
 
 ---
 
@@ -474,9 +485,7 @@
 | **Security** | `/redteam`, `/blueteam`, `/purpleteam`, `/vulnscan`, `/compliance` |
 | **Infra** | `/sandbox`, `/docker`, `/container`, `/cloud`, `/vm` |
 | **Integrations** | `/linear`, `/mcp`, `/skills`, `/connect` |
-| **Advanced** | `/arena`, `/profiler`, `/bisect`, `/repair`, `/arena`, `/voice` |
-| **System** | `/cost`, `/config`, `/doctor`, `/status`, `/theme`, `/wizard` |
+| **Advanced** | `/arena`, `/profiler`, `/bisect`, `/repair`, `/loop`, `/goal`, `/voice` |
+| **System** | `/cost`, `/config`, `/status`, `/theme`, `/wizard` — plus `vibecli --doctor` (CLI flag) |
 
----
-
-*Last updated: 2026-04-05 · See [FEATURE-REFERENCE.md](FEATURE-REFERENCE.md) for deep-dive per-feature documentation.*
+*Last updated: 2026-07-30 · See [FEATURE-REFERENCE.md](FEATURE-REFERENCE.md) for deep-dive per-feature documentation.*

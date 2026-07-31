@@ -51,8 +51,6 @@ provider -- no native function-calling API required.
 - [Architecture](/architecture/)
 - [Plugin Development](/PLUGIN-DEVELOPMENT/)
 - [Tutorials](/tutorials/)
-- [Roadmap](/ROADMAP/)
-- [Competitive Analysis](/COMPETITIVE-ANALYSIS-2026-03/)
 - [Contributing](/contributing/)
 
 ## Providers

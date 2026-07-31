@@ -1121,4 +1121,4 @@ Plugin **subagents** (B2.11) — no built-in file-based subagent loader to plug 
 
 ---
 
-*For the quick matrix view see [FEATURE-MATRIX.md](FEATURE-MATRIX.md). For competitive analysis see [FIT-GAP-ANALYSIS.md](FIT-GAP-ANALYSIS.md).*
+*For the quick matrix view see [FEATURE-MATRIX.md](FEATURE-MATRIX.md).*

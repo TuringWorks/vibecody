@@ -411,8 +411,6 @@ Full documentation is available at the [GitHub Pages site](https://vibecody.gith
 - [Architecture Overview](./docs/architecture.md)
 - [VibeCLI Reference](./docs/vibecli.md)
 - [VibeCoder Reference](./docs/vibecoder.md)
-- [Roadmap](./docs/ROADMAP.md) — consolidated roadmap (phases 1–39 history in appendices)
-- [Fit-Gap Analysis](./docs/FIT-GAP-ANALYSIS.md) — consolidated competitive catalogue (142 gaps, 8 iterations, 5 deep-dives)
 - [Configuration Guide](./docs/configuration.md)
 - [Contributing](./docs/contributing.md)
 

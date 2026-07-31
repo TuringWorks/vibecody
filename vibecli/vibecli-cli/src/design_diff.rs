@@ -2,7 +2,7 @@
 //!
 //! Cursor shipped Design Mode GA (point / draw / narrate UI changes in the
 //! browser; the agent edits the code underneath). The VibeCody shape is
-//! deliberately distant from that surface, honoring the [§18](../../docs/FIT-GAP-ANALYSIS.md)
+//! deliberately distant from that surface, honoring the §18
 //! patent-distance principles:
 //!
 //! * **No agent-controlled browser, no live DOM mutation** (#7). The user

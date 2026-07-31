@@ -360,7 +360,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Documentation
 
 - **Serve endpoint table**: Expanded from 9 → 16 routes with auth requirements.
-- **Jekyll navigation**: Added ROADMAP-v2, FIT-GAP-ANALYSIS-v2, SHANNON-COMPARISON, CHANGELOG to header pages.
+- **Jekyll navigation**: Added CHANGELOG to header pages.
 - **Test counts**: Updated across all docs to reflect 1074 total tests.
 
 ### Accessibility (WCAG 2.1 AA)
@@ -621,7 +621,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   CWE-918 (SSRF), CWE-611 (XXE), CWE-502 (insecure deserialization), CWE-943 (NoSQL injection),
   CWE-1336 (template injection), CWE-639 (IDOR), CWE-352 (missing CSRF), CWE-319 (cleartext
   transmission); total 15 vulnerability patterns; `RedTeamPanel.tsx` added as 🛡️ RedTeam tab in
-  VibeCoder AI panel; `docs/SHANNON-COMPARISON.md` feature comparison document.
+  VibeCoder AI panel.
 - **Phase 39**: LSP / linter diagnostics panel in VibeCLI TUI — `DiagnosticsComponent`
   (`tui/components/diagnostics.rs`); `/check` TUI command runs `cargo check --message-format=json`
   (or `npx eslint --format json` for npm projects), parses output via `parse_cargo_check()`,

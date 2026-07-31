@@ -2,7 +2,7 @@
 //!
 //! Competitors shipped always-on agentic security review (Cursor Security
 //! Review; GitHub Copilot's agentic review on Actions). The VibeCody shape is
-//! deliberately *distant* from those, honoring the [§18](../../docs/FIT-GAP-ANALYSIS.md)
+//! deliberately *distant* from those, honoring the §18
 //! patent-distance principles:
 //!
 //! * **Opt-in, default OFF** (#5). The trigger is a user-configured workspace

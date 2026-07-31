@@ -35,7 +35,7 @@ All notable changes to VibeCody are documented here. This project follows [Seman
   - **PreToolUse hook** — a non-blocking `Glob|Grep` nudge in `.claude/settings.json` that surfaces the graph's presence so broad file sweeps can consult `/graph/*` first.
   - Unit tests for `graph_index` (build/query, symbol mapping, graph-aware seeding); follow-ups deferred: background debounce poll for incremental refresh, `lsp` tier through `vibe-lsp`, `ast_edit.rs` parser delegation, and `semantic_mcp.rs` reuse of `kodegraph::mcp`.
 
-- **Phase 55 fit-gap closures — `feat/bridge-cgap-fitgap-gaps`** — eight competitive-parity gaps from the v15 delta shipped as compiling, unit + BDD-tested code (full ledger in [docs/REMAINING-WORK.md → Implemented this cycle](./remaining-work/)):
+- **Phase 55 — `feat/bridge-cgap-fitgap-gaps`** — eight capability gaps shipped as compiling, unit + BDD-tested code:
   - **C5 · Per-request effort knob** — provider-agnostic `Effort` (`low|medium|high|xhigh`, default `high`) in `vibe-ai/provider.rs`, mapped per provider: Claude/Gemini extended-thinking budget, OpenAI `reasoning_effort` (clamped to "high"). Wired through `ProviderConfig.effort`, `cost_router::route_task_with_effort`, the daemon `/agent` path (`serve.rs`, via the VX-111 `reasoning` label), the `ai_chat_with_effort` Tauri command, `vibeapp` `start_agent_session`, and a VibeCoder toolbar selector (`utils/effort.ts`). **Fix:** Gemini *Pro* models can't disable thinking — `Effort::Low` now clamps Pro to the 128-token minimum instead of emitting an API-rejected `thinkingBudget: 0`. BDD: `effort_bdd` (5 scenarios).
   - **C1 · `/loop`** — recurring (`/loop 5m <prompt>`) and self-paced (`/loop auto <prompt>`, loop-until-done) REPL command with a `MAX_ITER` guard (20), wall-clock auto-expiry, job IDs, Ctrl-C stop, an LLM done-validator, and `list`/`stop`/`status` + JSON persistence (`loop_engine.rs`). BDD: `loop_engine_bdd` (6 scenarios).
   - **C3 · MCP Tasks extension + stateless transport** (2026-07-28 RC) — `tasks/get|update|cancel` registry with a `Working→…→Completed/Failed/Cancelled` state machine, plus stateless `_meta` (`RequestMeta`) and a `stateless` flag on `StreamableHttpConfig` (`mcp_tasks.rs`). BDD: `mcp_tasks_bdd` (5 scenarios).
@@ -460,7 +460,7 @@ Release-engineering patch — restores the artifacts that didn't build for v0.5.
   - SOC 2 compliance controls with audit trail, PII redaction, and retention policies.
   - Unified voice+vision+code multimodal agent.
 - 8 new VibeCoder panels and 4 new REPL commands.
-- 12 v5 fit-gap competitive gaps catalogued and Phases 10–14 planned (now consolidated into [Fit-Gap Analysis](./fit-gap-analysis/) and [Roadmap](./roadmap/)).
+- 12 v5 capability gaps catalogued and Phases 10–14 planned.
 - Workspace total: approximately 5,745 tests with 0 failures and 136+ panels.
 
 
@@ -498,4 +498,4 @@ Earlier releases established the foundation:
 - Gateway system supporting 18 messaging platforms.
 - Voice input (Groq Whisper), pairing (QR code), and Tailscale integration.
 
-See the [Roadmap](/vibecody/roadmap/) for the complete feature history.
+See the [Changelog](/vibecody/changelog/) for the complete feature history.
