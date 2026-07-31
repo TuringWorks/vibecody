@@ -242,6 +242,7 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
             daemonUrl={daemonUrl}
             daemonOnline={daemonOnline}
             tasks={tasks.tasks}
+            tasksError={tasks.error}
             projectPaths={projects.projectPaths}
             activeChatId={activeChatId}
             activeProject={activeProject}
@@ -254,6 +255,14 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
             onSelectProject={(path) => setActiveProject(path)}
             onDeleteProject={deleteProject}
             onSelectChat={selectChat}
+            onRenameChat={(id, title) => {
+              tasks.renameTask(id, title).catch((e) =>
+                message(String(e), { title: "Rename failed", kind: "error" })
+              );
+              if (activeChatId === id) {
+                setSelectedTask((prev) => (prev ? { ...prev, title } : prev));
+              }
+            }}
             onDeleteChat={deleteChat}
             onArchiveChat={archiveChat}
             onOpenSearch={() => setSearchOpen(true)}

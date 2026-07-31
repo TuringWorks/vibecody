@@ -1,4 +1,5 @@
-import { MessageSquarePlus, FolderPlus, Search, Sparkles, Plug, Workflow, Folder, Settings, PanelLeftClose, Trash2, Archive } from "lucide-react";
+import { useState } from "react";
+import { MessageSquarePlus, FolderPlus, Search, Sparkles, Plug, Workflow, Folder, Settings, PanelLeftClose, Trash2, Archive, AlertTriangle } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
 import type { Task } from "../hooks/useTasks";
 
@@ -6,6 +7,8 @@ interface ProjectNavRailProps {
   daemonUrl: string;
   daemonOnline: boolean;
   tasks: Task[];
+  /** Why the task list is empty, when it's empty because something broke. */
+  tasksError: string | null;
   /** Explicitly-added project paths (persisted) — shown even with no chats. */
   projectPaths: string[];
   activeChatId: string | null;
@@ -15,6 +18,7 @@ interface ProjectNavRailProps {
   onSelectProject: (path: string) => void;
   onDeleteProject: (path: string) => void;
   onSelectChat: (id: string) => void;
+  onRenameChat: (id: string, title: string) => void;
   onDeleteChat: (task: Task) => void;
   onArchiveChat: (task: Task) => void;
   onOpenSearch: () => void;
@@ -66,6 +70,7 @@ function groupByProject(
 
 export function ProjectNavRail({
   tasks,
+  tasksError,
   projectPaths,
   activeChatId,
   activeProject,
@@ -74,6 +79,7 @@ export function ProjectNavRail({
   onSelectProject,
   onDeleteProject,
   onSelectChat,
+  onRenameChat,
   onDeleteChat,
   onArchiveChat,
   onOpenSearch,
@@ -82,6 +88,8 @@ export function ProjectNavRail({
   onToggle,
 }: ProjectNavRailProps) {
   const projects = groupByProject(tasks, projectPaths);
+  // Chat being renamed inline, plus its in-progress text.
+  const [renaming, setRenaming] = useState<{ id: string; draft: string } | null>(null);
   // ⌘1…⌘9 address chats in flat nav order, so the hint on a row has to be its
   // position across the whole rail, not within its project group.
   let chatOrdinal = 0;
@@ -146,8 +154,16 @@ export function ProjectNavRail({
       </ul>
 
       <div className="vx-nav__section">Projects</div>
+      {/* An empty rail because the daemon call failed looks identical to an
+          empty rail because there's nothing yet — say which it is. */}
+      {tasksError && (
+        <div className="vx-nav__error" title={tasksError}>
+          <AlertTriangle size={13} />
+          <span>Couldn’t load chats — {tasksError}</span>
+        </div>
+      )}
       <ul className="vx-nav__list">
-        {projects.length === 0 && (
+        {projects.length === 0 && !tasksError && (
           <li className="vx-nav__empty">No tasks yet — type one below or add a project.</li>
         )}
         {projects.map((p) => (
@@ -182,11 +198,33 @@ export function ProjectNavRail({
                 const ordinal = chatOrdinal++;
                 return (
                 <li key={t.id} className="vx-nav__chat-row">
+                  {renaming?.id === t.id ? (
+                    // Inline rename: Enter commits, Escape and blur abandon.
+                    <input
+                      className="vx-nav__rename"
+                      value={renaming.draft}
+                      autoFocus
+                      aria-label={`Rename chat ${t.title}`}
+                      onChange={(e) => setRenaming({ id: t.id, draft: e.target.value })}
+                      onBlur={() => setRenaming(null)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          onRenameChat(t.id, renaming.draft);
+                          setRenaming(null);
+                        } else if (e.key === "Escape") {
+                          e.preventDefault();
+                          setRenaming(null);
+                        }
+                      }}
+                    />
+                  ) : (
                   <button
                     className={`vx-nav__chat${activeChatId === t.id ? " is-active" : ""}`}
                     aria-label={t.title}
-                    title={`${t.status} · ${t.branch || "no branch"}`}
+                    title={`${t.status} · ${t.branch || "no branch"} — double-click to rename`}
                     onClick={() => onSelectChat(t.id)}
+                    onDoubleClick={() => setRenaming({ id: t.id, draft: t.title })}
                   >
                     <span
                       className="vx-nav__chat-dot"
@@ -195,6 +233,7 @@ export function ProjectNavRail({
                     <span className="vx-nav__chat-title">{t.title}</span>
                     {ordinal < 9 && <kbd className="vx-nav__kbd">⌘{ordinal + 1}</kbd>}
                   </button>
+                  )}
                   <button
                     className="vx-nav__chat-del"
                     aria-label={`Archive chat ${t.title}`}

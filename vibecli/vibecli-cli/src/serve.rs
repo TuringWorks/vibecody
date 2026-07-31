@@ -1826,9 +1826,13 @@ struct UpdateTaskRequest {
     /// Link the agent run's session id once the agent starts.
     #[serde(default)]
     session_id: Option<String>,
+    /// Rename the chat. Titles start as the first prompt, which stops
+    /// describing the chat as soon as it goes anywhere.
+    #[serde(default)]
+    title: Option<String>,
 }
 
-/// PATCH /api/tasks/{id} — update status and/or link a session.
+/// PATCH /api/tasks/{id} — update status, title, and/or link a session.
 async fn update_task(
     Path(id): Path<String>,
     State(_state): State<ServeState>,
@@ -1862,6 +1866,11 @@ async fn update_task(
     if let Some(sid) = &req.session_id {
         store
             .set_session(&id, sid, now_unix())
+            .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("update: {e}")))?;
+    }
+    if let Some(title) = req.title.as_deref().map(str::trim).filter(|t| !t.is_empty()) {
+        store
+            .set_title(&id, title, now_unix())
             .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("update: {e}")))?;
     }
 

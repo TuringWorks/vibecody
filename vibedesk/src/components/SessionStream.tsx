@@ -106,12 +106,16 @@ export function SessionStream({
     const task = selectedTask;
     if (!task?.session_id) return;
     resumeSessionId.current = task.session_id;
-    if (task.status === "running") {
-      attach(daemonUrl, task.session_id).catch((e) => console.error("attach failed", e));
-      return;
-    }
     let alive = true;
     (async () => {
+      // A chat marked "running" gets re-attached to its live stream. That can
+      // still fail — the daemon drops the stream when a run ends, and a task
+      // can be stale-marked (app closed mid-run, daemon restarted) — so fall
+      // through to the static transcript rather than showing an error.
+      if (task.status === "running") {
+        const attached = await attach(daemonUrl, task.session_id).catch(() => false);
+        if (attached || !alive) return;
+      }
       try {
         const hist = await getHistory(task.id);
         if (alive) loadItems(eventsToStreamItems(hist.events), task.session_id);

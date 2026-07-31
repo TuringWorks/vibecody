@@ -194,6 +194,16 @@ impl TaskStore {
         Ok(())
     }
 
+    /// Rename a task. The title is auto-derived from the first prompt, which is
+    /// rarely what the chat is actually about once it has run for a while.
+    pub fn set_title(&self, id: &str, title: &str, now: i64) -> Result<()> {
+        self.conn.execute(
+            "UPDATE tasks SET title = ?2, updated_at = ?3 WHERE id = ?1",
+            params![id, title, now],
+        )?;
+        Ok(())
+    }
+
     /// Attach the branch + worktree path once a worktree is spawned (VX-113).
     pub fn set_worktree(
         &self,

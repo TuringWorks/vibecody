@@ -182,10 +182,16 @@ export function useAgentStream() {
    * Re-attach to a session whose run is still in flight: replay its durable log
    * from the beginning, then follow it live. Used when a chat that was left
    * running is re-opened.
+   *
+   * Returns false when the daemon has no live stream for the session — it 404s
+   * `/stream/:id` once a run ends, and a task can sit stale-marked "running"
+   * (app closed mid-run, daemon restarted). The caller falls back to the static
+   * history in that case, so a finished chat shows its transcript rather than
+   * an error. The stream is left untouched on failure so nothing is clobbered.
    */
   const attach = useCallback(
-    async (daemonUrl: string, sid: string) => {
-      if (inFlight.current) return;
+    async (daemonUrl: string, sid: string): Promise<boolean> => {
+      if (inFlight.current) return false;
       cleanup();
       inFlight.current = true;
       sessionRef.current = sid;
@@ -196,10 +202,12 @@ export function useAgentStream() {
       await subscribe(sid);
       try {
         await invoke("stream_agent", { url: daemonUrl, sessionId: sid, sinceSeq: 0 });
-      } catch (e) {
-        setItems((prev) => [...prev, { kind: "error", text: String(e) }]);
-        setState("error");
+        return true;
+      } catch {
         cleanup();
+        setState("idle");
+        setStartedAt(null);
+        return false;
       }
     },
     [cleanup, subscribe]

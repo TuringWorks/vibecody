@@ -312,6 +312,7 @@ pub async fn update_task(
     id: String,
     status: Option<String>,
     session_id: Option<String>,
+    title: Option<String>,
     token: Option<String>,
 ) -> Result<serde_json::Value, String> {
     let task_url = format!("{}/api/tasks/{}", url.trim_end_matches('/'), id);
@@ -322,6 +323,9 @@ pub async fn update_task(
     }
     if let Some(sid) = &session_id {
         body["session_id"] = serde_json::Value::String(sid.clone());
+    }
+    if let Some(t) = &title {
+        body["title"] = serde_json::Value::String(t.clone());
     }
     let req = with_auth(client.patch(&task_url).json(&body), token);
     let resp = req

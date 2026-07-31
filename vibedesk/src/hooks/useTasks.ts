@@ -108,6 +108,20 @@ export function useTasks(daemonUrl: string, daemonOnline: boolean) {
   );
 
   /**
+   * Rename a chat. Titles are seeded from the first prompt, which stops
+   * describing the chat as soon as the conversation moves on.
+   */
+  const renameTask = useCallback(
+    async (id: string, title: string): Promise<void> => {
+      const trimmed = title.trim();
+      if (!trimmed) return;
+      await invoke<Task>("update_task", { url: daemonUrl, id, title: trimmed });
+      await refresh();
+    },
+    [daemonUrl, refresh]
+  );
+
+  /**
    * Delete a task. With the worktree-lifecycle backend this SOFT-deletes by
    * default (moves the chat to Trash, recoverable via {@link restoreTask}); the
    * worktree is reclaimed later by the daemon's reaper. `removeWorktree` maps to
@@ -187,6 +201,7 @@ export function useTasks(daemonUrl: string, daemonOnline: boolean) {
     refresh,
     createTask,
     linkSession,
+    renameTask,
     deleteTask,
     mergeTask,
     archiveTask,
