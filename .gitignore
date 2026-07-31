@@ -60,3 +60,6 @@ docs/Gemfile.lock
 /.obsidian
 /.codex
 ollama-launch-codex-app.config.toml
+
+# local one-shot maintenance script (not for publication)
+purge-history.sh

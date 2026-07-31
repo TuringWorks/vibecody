@@ -64,7 +64,7 @@ pub fn build_design_prompt(element: &SelectedElement, instruction: &str) -> Stri
 /// Tolerant of a fenced ```diff block or a bare diff body. Enforces the
 /// invariant: any reply that looks like live-DOM mutation (e.g. `document.`,
 /// `.style.`, `.innerHTML`) instead of a diff is **rejected**, so the agent can
-/// never smuggle a DOM-mutation payload past the cleared shape.
+/// never smuggle a DOM-mutation payload past the parser.
 pub fn parse_design_diff(element: &SelectedElement, reply: &str) -> Result<DesignDiff, String> {
     let body = extract_diff_block(reply);
     let trimmed = body.trim();
