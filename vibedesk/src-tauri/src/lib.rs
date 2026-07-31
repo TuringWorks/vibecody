@@ -81,6 +81,7 @@ pub fn run() {
             commands::list_skills,
             commands::list_plugins,
             commands::read_attachment,
+            commands::run_command,
             commands::get_skill,
             commands::stream_approvals,
             commands::respond_approval,

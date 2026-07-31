@@ -5,6 +5,7 @@ export type SlashAction =
   | "files"
   | "skills"
   | "plugins"
+  | "terminal"
   | "search"
   | "settings"
   | "trash"
@@ -33,6 +34,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { id: "files", name: "files", hint: "Browse project files" },
   { id: "skills", name: "skills", hint: "Browse the skill catalog" },
   { id: "plugins", name: "plugins", hint: "Show enabled plugin components" },
+  { id: "terminal", name: "terminal", hint: "Run a command in the project" },
   { id: "search", name: "search", hint: "Search chats" },
   { id: "branch", name: "branch", hint: "Toggle worktree isolation for the next run" },
   { id: "stop", name: "stop", hint: "Stop the running task", runningOnly: true },

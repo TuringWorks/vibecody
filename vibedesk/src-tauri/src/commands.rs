@@ -565,6 +565,38 @@ pub async fn list_files(
     daemon_get(url, "/api/vibedesk/files", path, token).await
 }
 
+/// POST /api/vibedesk/exec — run one shell command in the scoped project.
+/// Backs the Terminal quick-action. One-shot, not a PTY: the daemon bounds it
+/// with a timeout and an output cap, and returns stdout/stderr/exit code.
+#[tauri::command]
+pub async fn run_command(
+    url: String,
+    command: String,
+    path: Option<String>,
+    timeout_ms: Option<u64>,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let u = format!("{}/api/vibedesk/exec", url.trim_end_matches('/'));
+    let client = reqwest::Client::new();
+    let mut body = serde_json::json!({ "command": command });
+    if let Some(p) = path.filter(|s| !s.is_empty()) {
+        body["path"] = serde_json::Value::String(p);
+    }
+    if let Some(t) = timeout_ms {
+        body["timeout_ms"] = serde_json::Value::from(t);
+    }
+    let resp = with_auth(client.post(&u).json(&body), token)
+        .send()
+        .await
+        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    let status = resp.status();
+    if !status.is_success() {
+        let b = resp.text().await.unwrap_or_default();
+        return Err(format!("Daemon returned {}: {}", status, b));
+    }
+    resp.json().await.map_err(|e| e.to_string())
+}
+
 /// Largest attachment we inline into a prompt. Past this the file is better
 /// referenced by path (the agent has read tools) than pasted — and a multi-MB
 /// paste mostly buys context-window exhaustion.

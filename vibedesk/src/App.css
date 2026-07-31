@@ -329,6 +329,28 @@ html, body, #root {
 .vx-drawer__action-sub { font-size: 11px; color: var(--text-secondary); }
 .vx-drawer__soon { position: absolute; top: 6px; right: 6px; font-size: 10px; color: var(--text-tertiary); }
 
+/* ── Terminal (one-shot command runner) ─────────────────────────────────── */
+.vx-term { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.vx-term__cwd { font-size: 11px; font-weight: 400; color: var(--text-tertiary); font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+.vx-term__body { flex: 1; overflow-y: auto; padding: 12px 16px; min-height: 0; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
+.vx-term__empty { color: var(--text-tertiary); font-size: 13px; font-family: -apple-system, system-ui, sans-serif; padding: 16px 0; }
+.vx-term__note { margin-top: 6px; font-size: 11px; color: var(--text-tertiary); font-family: -apple-system, system-ui, sans-serif; }
+.vx-term__note code { font-family: ui-monospace, "SF Mono", Menlo, monospace; background: var(--bg-elevated); padding: 0 4px; border-radius: 3px; }
+.vx-term__entry { margin-bottom: 14px; }
+.vx-term__cmd { display: flex; align-items: baseline; gap: 6px; color: var(--text-primary); }
+.vx-term__prompt { color: var(--accent-green); flex: none; }
+.vx-term__meta { margin-left: auto; font-size: 11px; color: var(--text-tertiary); flex: none; }
+.vx-term__exit { color: var(--error-color); }
+.vx-term__out { margin: 4px 0 0; padding: 0; white-space: pre-wrap; word-break: break-word; color: var(--text-secondary); line-height: 1.45; }
+.vx-term__out--err { color: var(--error-color); }
+.vx-term__out--quiet { color: var(--text-tertiary); font-style: italic; }
+.vx-term__composer { flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--border-color); background: var(--bg-secondary); }
+.vx-term__input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; color: var(--text-primary); font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
+.vx-term__input:disabled { opacity: 0.5; }
+.vx-term__run { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-elevated); color: var(--text-secondary); cursor: pointer; flex: none; }
+.vx-term__run:disabled { opacity: 0.4; cursor: default; }
+.vx-term__run:hover:not(:disabled) { color: var(--text-primary); }
+
 /* ── Plugins inventory (read-only) ──────────────────────────────────────── */
 .vx-plugins__body { flex: 1; overflow-y: auto; padding: 14px 18px; min-height: 0; }
 .vx-plugins__hint { margin-top: 8px; font-size: 11px; color: var(--text-tertiary); }

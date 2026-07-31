@@ -2406,6 +2406,117 @@ async fn vibedesk_git_diff(
     Ok(Json(serde_json::json!({ "diff": diff })))
 }
 
+/// Hard ceiling on a `/api/vibedesk/exec` run. A command that outlives this is
+/// killed, not waited on.
+const EXEC_MAX_TIMEOUT_MS: u64 = 120_000;
+const EXEC_DEFAULT_TIMEOUT_MS: u64 = 30_000;
+/// Output past this is dropped with a marker. A command like `yes` or a verbose
+/// build would otherwise stream unbounded memory into a JSON response.
+const EXEC_MAX_OUTPUT: usize = 256 * 1024;
+
+#[derive(Debug, serde::Deserialize)]
+struct ExecRequest {
+    command: String,
+    #[serde(default)]
+    path: Option<String>,
+    #[serde(default)]
+    timeout_ms: Option<u64>,
+}
+
+fn clip(mut s: String) -> (String, bool) {
+    if s.len() <= EXEC_MAX_OUTPUT {
+        return (s, false);
+    }
+    // Cut on a char boundary — a byte-offset truncate would panic on UTF-8.
+    let mut end = EXEC_MAX_OUTPUT;
+    while end > 0 && !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    s.truncate(end);
+    (s, true)
+}
+
+/// POST /api/vibedesk/exec — run one shell command in the scoped project and
+/// return its output. Backs VibeDesk's Terminal quick-action.
+///
+/// This does not widen the daemon's capability surface: `/agent`'s ToolExecutor
+/// already runs arbitrary commands on the same localhost + bearer-token
+/// boundary. It makes that reachable directly, which is the point of a terminal.
+///
+/// Bounded on purpose, having watched an unbounded operation make this daemon
+/// unresponsive earlier:
+///   - killed at `timeout_ms` (default 30s, hard cap 120s), so a hung command
+///     cannot pin a connection open indefinitely;
+///   - output clipped at 256KB with the clipping reported;
+///   - `tokio::process` rather than `std::process`, so stdout/stderr are drained
+///     concurrently — a child filling a pipe would otherwise deadlock against a
+///     sequential read, which is the classic way this goes wrong.
+/// One-shot only: there is no PTY, so `vim`, `top` and anything else expecting a
+/// terminal will not work, and the UI says so rather than appearing to hang.
+async fn vibedesk_exec(
+    State(state): State<ServeState>,
+    Json(req): Json<ExecRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let command = req.command.trim().to_string();
+    if command.is_empty() {
+        return Err(json_error(StatusCode::BAD_REQUEST, "empty command"));
+    }
+    // Run in the directory the user picked, not the repo root — `cd`-ing into a
+    // subfolder and running there is normal terminal behaviour.
+    let cwd = resolve_run_root(req.path.as_deref(), &state.workspace_root);
+    let timeout = Duration::from_millis(
+        req.timeout_ms
+            .unwrap_or(EXEC_DEFAULT_TIMEOUT_MS)
+            .min(EXEC_MAX_TIMEOUT_MS),
+    );
+
+    let started = std::time::Instant::now();
+    let mut child = tokio::process::Command::new("/bin/sh")
+        .arg("-c")
+        .arg(&command)
+        .current_dir(&cwd)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()
+        .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("spawn: {e}")))?;
+
+    let result = tokio::time::timeout(timeout, child.wait_with_output()).await;
+    let elapsed_ms = started.elapsed().as_millis() as u64;
+
+    let (stdout, stderr, code, timed_out) = match result {
+        Ok(Ok(out)) => (
+            String::from_utf8_lossy(&out.stdout).to_string(),
+            String::from_utf8_lossy(&out.stderr).to_string(),
+            out.status.code(),
+            false,
+        ),
+        Ok(Err(e)) => (String::new(), format!("run failed: {e}"), None, false),
+        // `kill_on_drop` reaps the child when the dropped future releases it.
+        Err(_) => (
+            String::new(),
+            format!("Timed out after {}ms and was killed.", timeout.as_millis()),
+            None,
+            true,
+        ),
+    };
+
+    let (stdout, out_clipped) = clip(stdout);
+    let (stderr, err_clipped) = clip(stderr);
+
+    Ok(Json(serde_json::json!({
+        "command": command,
+        "cwd": cwd.to_string_lossy(),
+        "stdout": stdout,
+        "stderr": stderr,
+        "exit_code": code,
+        "timed_out": timed_out,
+        "truncated": out_clipped || err_clipped,
+        "duration_ms": elapsed_ms,
+    })))
+}
+
 /// GET /api/vibedesk/plugins — the workspace's enabled plugin components.
 ///
 /// `plugin_runtime::enabled_components` has always known exactly which MCP
@@ -6900,6 +7011,7 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/api/vibedesk/git/diff", get(vibedesk_git_diff))
         .route("/api/vibedesk/files", get(vibedesk_files))
         .route("/api/vibedesk/plugins", get(vibedesk_plugins))
+        .route("/api/vibedesk/exec", post(vibedesk_exec))
         .route("/collab/rooms", post(create_collab_room))
         .route("/collab/rooms", get(list_collab_rooms))
         .route("/collab/rooms/{room_id}/peers", get(list_collab_peers))

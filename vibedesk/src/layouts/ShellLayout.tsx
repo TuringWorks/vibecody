@@ -12,6 +12,7 @@ import { ChatSearch } from "../components/ChatSearch";
 import { SkillsView } from "../components/SkillsView";
 import { SideChatPanel } from "../components/SideChatPanel";
 import { PluginsView } from "../components/PluginsView";
+import { TerminalView } from "../components/TerminalView";
 import type { QuickAction } from "../components/QuickActionDrawer";
 import type { SlashAction } from "../components/slashCommands";
 import { useProjects } from "../hooks/useProjects";
@@ -20,7 +21,7 @@ import type { Task, useTasks } from "../hooks/useTasks";
 import type { Attachment } from "../lib/attachments";
 
 type TasksApi = ReturnType<typeof useTasks>;
-type Overlay = null | "review" | "files" | "settings" | "trash" | "skills" | "plugins";
+type Overlay = null | "review" | "files" | "settings" | "trash" | "skills" | "plugins" | "terminal";
 
 interface ShellLayoutProps {
   daemonUrl: string;
@@ -108,7 +109,8 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
     if (action === "review") setOverlay("review");
     else if (action === "files") setOverlay("files");
     else if (action === "side-chat") openSideChat();
-    // browser / terminal need daemon surfaces that don't exist yet.
+    else if (action === "terminal") setOverlay("terminal");
+    // browser still needs an embedded webview surface.
   }
 
   /** Shell-level slash commands. `stop`/`branch`/`help` are handled in the
@@ -127,6 +129,7 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
       case "trash":
       case "skills":
       case "plugins":
+      case "terminal":
         setOverlay(action);
         break;
       default:
@@ -341,6 +344,8 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
           <ReviewView daemonUrl={daemonUrl} path={scopePath} onClose={() => setOverlay(null)} />
         ) : overlay === "files" ? (
           <FilesView daemonUrl={daemonUrl} path={scopePath} onClose={() => setOverlay(null)} />
+        ) : overlay === "terminal" ? (
+          <TerminalView daemonUrl={daemonUrl} path={scopePath} onClose={() => setOverlay(null)} />
         ) : overlay === "plugins" ? (
           <PluginsView daemonUrl={daemonUrl} path={scopePath} onClose={() => setOverlay(null)} />
         ) : overlay === "skills" ? (
