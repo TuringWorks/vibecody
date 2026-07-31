@@ -76,10 +76,18 @@ export function useAgentStream() {
   const [items, setItems] = useState<StreamItem[]>([]);
   const [state, setState] = useState<RunState>("idle");
   const unlisteners = useRef<UnlistenFn[]>([]);
+  // Synchronous re-entrancy guard. `state` alone can't gate a second run: it's
+  // updated asynchronously, so two runTask calls that fire before React commits
+  // `state = "running"` (StrictMode double-invoke, key autorepeat, a double
+  // submit) would BOTH pass a `state`-based check and open two /agent runs +
+  // two /stream forwarders — the daemon's single reply then arrives twice and
+  // interleaves in one bubble. A ref flips synchronously, so it closes that gap.
+  const inFlight = useRef(false);
 
   const cleanup = useCallback(() => {
     for (const u of unlisteners.current) u();
     unlisteners.current = [];
+    inFlight.current = false;
   }, []);
 
   useEffect(() => cleanup, [cleanup]);
@@ -107,7 +115,13 @@ export function useAgentStream() {
 
   const runTask = useCallback(
     async (args: RunArgs): Promise<string | null> => {
+      // Re-entrancy guard: bail if a run is already streaming. Claiming the run
+      // here — synchronously, before the first `await` — means a second call
+      // that races the async `setState("running")` is rejected instead of
+      // opening a duplicate /agent run + /stream forwarder.
+      if (inFlight.current) return null;
       cleanup();
+      inFlight.current = true;
       setItems((prev) => [...prev, { kind: "user", text: args.task }]);
       setState("running");
 
