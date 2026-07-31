@@ -7496,10 +7496,40 @@ pub async fn serve(
                             .ok()
                             .and_then(|s| s.secret_get(name).ok().flatten())
                     },
+                    // `/loop goal` jobs are judged against their goal's success
+                    // criteria, re-read each tick so edits mid-run are honoured.
+                    |spec| {
+                        spec.goal_id
+                            .as_deref()
+                            .and_then(crate::exec_goal_repl::goal_brief_by_id)
+                            .map(|brief| crate::loop_engine::goal_validator_prompt(&brief))
+                    },
                 )
                 .await;
                 if !ran.is_empty() {
                     eprintln!("[hosted-loop] ran {} loop iteration(s)", ran.len());
+                }
+                // Fold any goal-bound job that just finished back onto its goal.
+                // Terminal jobs are never `due` again, so each one is recorded
+                // exactly once — on the tick it terminated.
+                if !ran.is_empty() {
+                    let finished = crate::loop_engine::load_jobs(&path)
+                        .into_iter()
+                        .filter(|j| ran.contains(&j.id) && j.status.is_terminal());
+                    for job in finished {
+                        let Some(goal_id) = job.spec.goal_id.as_deref() else {
+                            continue;
+                        };
+                        match crate::exec_goal_repl::record_goal_loop_outcome(
+                            goal_id,
+                            &job.id,
+                            job.status,
+                            job.iterations_done,
+                        ) {
+                            Ok(msg) => eprintln!("[hosted-loop] {msg}"),
+                            Err(e) => eprintln!("[hosted-loop] goal not updated: {e}"),
+                        }
+                    }
                 }
             }
         });
@@ -8565,6 +8595,15 @@ async fn v1_create_loop(
     let spec = match crate::loop_engine::parse_loop_args(&req.args) {
         Ok(s) => s,
         Err(e) => return Json(serde_json::json!({ "error": e })),
+    };
+    // `goal <id-prefix>` arrives unhydrated — resolve it here so the persisted
+    // job carries the full goal id and the rendered brief as its body.
+    let spec = match spec.goal_id.as_deref() {
+        None => spec,
+        Some(prefix) => match crate::exec_goal_repl::resolve_goal_brief(prefix) {
+            Ok(brief) => crate::loop_engine::hydrate_goal_loop(spec, &brief),
+            Err(e) => return Json(serde_json::json!({ "error": e })),
+        },
     };
     let path = crate::loop_engine::loops_path();
     let mut jobs = crate::loop_engine::load_jobs(&path);

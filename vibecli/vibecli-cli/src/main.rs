@@ -5791,6 +5791,39 @@ async fn main() -> Result<()> {
                                 _ => match loop_engine::parse_loop_args(trimmed) {
                                     Err(e) => println!("{e}\n"),
                                     Ok(spec) => {
+                                        // `/loop goal <id>` — resolve the goal
+                                        // once, render its brief into the loop
+                                        // body, and keep the brief for the
+                                        // per-iteration criteria validator.
+                                        let (spec, goal_brief) = match spec.goal_id.as_deref() {
+                                            None => (spec, None),
+                                            Some(prefix) => {
+                                                match exec_goal_repl::resolve_goal_brief(prefix) {
+                                                    Ok(brief) => (
+                                                        loop_engine::hydrate_goal_loop(
+                                                            spec.clone(),
+                                                            &brief,
+                                                        ),
+                                                        Some(brief),
+                                                    ),
+                                                    Err(msg) => {
+                                                        println!("{msg}\n");
+                                                        continue;
+                                                    }
+                                                }
+                                            }
+                                        };
+                                        if let Some(brief) = &goal_brief {
+                                            println!("Goal: {}", brief.title);
+                                            if !brief.has_criteria() {
+                                                println!(
+                                                    "⚠ This goal has no success criteria — the \
+                                                     validator will judge against its statement \
+                                                     alone. Add criteria for a sharper stop \
+                                                     condition."
+                                                );
+                                            }
+                                        }
                                         let now = std::time::SystemTime::now()
                                             .duration_since(std::time::UNIX_EPOCH)
                                             .map(|d| d.as_secs())
@@ -5814,22 +5847,41 @@ async fn main() -> Result<()> {
                                             job.id, job.spec.mode
                                         );
 
+                                        // Attach the run to its goal up-front so
+                                        // `/goal show` lists it while in flight.
+                                        if let Some(goal_id) = job.spec.goal_id.as_deref() {
+                                            if let Err(e) = exec_goal_repl::link_goal_loop_start(
+                                                goal_id, &job.id,
+                                            ) {
+                                                println!("⚠ {e}");
+                                            }
+                                        }
+
                                         // C1 — inject the job's declared secrets into the process
                                         // environment for the loop's lifetime, so shell tools the
                                         // agent runs inherit them. Values come from the encrypted
                                         // WorkspaceStore, never loops.json or any plaintext file.
-                                        let injected_secrets: Vec<String> = if job.spec.secrets.is_empty()
+                                        let injected_secrets: Vec<String> = if job
+                                            .spec
+                                            .secrets
+                                            .is_empty()
                                         {
                                             Vec::new()
                                         } else {
                                             match std::env::current_dir().ok().and_then(|d| {
-                                                crate::workspace_store::WorkspaceStore::open(&d).ok()
+                                                crate::workspace_store::WorkspaceStore::open(&d)
+                                                    .ok()
                                             }) {
                                                 Some(store) => {
                                                     let (resolved, missing) =
                                                         loop_engine::resolve_loop_secrets(
                                                             &job.spec.secrets,
-                                                            |name| store.secret_get(name).ok().flatten(),
+                                                            |name| {
+                                                                store
+                                                                    .secret_get(name)
+                                                                    .ok()
+                                                                    .flatten()
+                                                            },
                                                         );
                                                     if !missing.is_empty() {
                                                         println!(
@@ -5887,13 +5939,20 @@ async fn main() -> Result<()> {
                                             job.iterations_done += 1;
 
                                             // Self-paced loops consult an LLM validator each turn.
-                                            let done = if matches!(
-                                                job.spec.mode,
-                                                loop_engine::LoopMode::SelfPaced
-                                            ) {
-                                                validate_loop_done(&llm, &job.spec.prompt).await
-                                            } else {
-                                                false
+                                            // A goal-bound loop is judged against its recorded
+                                            // success criteria rather than the loop body.
+                                            let done = match (&job.spec.mode, goal_brief.as_ref()) {
+                                                (loop_engine::LoopMode::SelfPaced, Some(brief)) => {
+                                                    validate_loop_done_with(
+                                                        &llm,
+                                                        loop_engine::goal_validator_prompt(brief),
+                                                    )
+                                                    .await
+                                                }
+                                                (loop_engine::LoopMode::SelfPaced, None) => {
+                                                    validate_loop_done(&llm, &job.spec.prompt).await
+                                                }
+                                                _ => false,
                                             };
                                             let decision =
                                                 job.decide_next(done, start.elapsed().as_secs());
@@ -5952,6 +6011,21 @@ async fn main() -> Result<()> {
                                             jobs.push(job.clone());
                                         }
                                         let _ = loop_engine::save_jobs(&path, &jobs);
+
+                                        // Fold the outcome back onto the goal:
+                                        // `done` only when the validator confirmed
+                                        // every criterion, a note either way.
+                                        if let Some(goal_id) = job.spec.goal_id.as_deref() {
+                                            match exec_goal_repl::record_goal_loop_outcome(
+                                                goal_id,
+                                                &job.id,
+                                                job.status,
+                                                job.iterations_done,
+                                            ) {
+                                                Ok(msg) => println!("{msg}\n"),
+                                                Err(e) => println!("⚠ goal not updated: {e}\n"),
+                                            }
+                                        }
                                     }
                                 },
                             }
@@ -17840,22 +17914,31 @@ async fn run_parallel_agents(
 /// that isn't an unambiguous "DONE" (or an error) keeps the loop running, so a
 /// flaky validator can never prematurely declare success.
 async fn validate_loop_done(llm: &Arc<dyn LLMProvider>, goal: &str) -> bool {
+    validate_loop_done_with(
+        llm,
+        format!("Goal:\n{goal}\n\nIs this goal complete? Answer DONE or CONTINUE."),
+    )
+    .await
+}
+
+/// The validator turn itself, taking a pre-rendered question so a goal-bound
+/// loop can ask criterion-by-criterion (see `loop_engine::goal_validator_prompt`)
+/// while a plain `/loop auto` asks about its prompt. A provider error is *not*
+/// treated as completion — an unreachable validator keeps the loop running
+/// until a hard cap stops it.
+async fn validate_loop_done_with(llm: &Arc<dyn LLMProvider>, question: String) -> bool {
     let messages = vec![
         Message {
             role: MessageRole::System,
-            content: "You are a strict completion validator for an autonomous coding loop. \
-                      Given the user's goal and the current repository state, decide whether \
-                      the goal is fully and verifiably achieved. Reply with exactly one word: \
-                      DONE if it is complete, or CONTINUE if any work remains."
-                .to_string(),
+            content: loop_engine::VALIDATOR_SYSTEM_PROMPT.to_string(),
         },
         Message {
             role: MessageRole::User,
-            content: format!("Goal:\n{goal}\n\nIs this goal complete? Answer DONE or CONTINUE."),
+            content: question,
         },
     ];
     match llm.chat(&messages, None).await {
-        Ok(reply) => reply.trim().to_uppercase().starts_with("DONE"),
+        Ok(reply) => loop_engine::validator_says_done(&reply),
         Err(_) => false,
     }
 }

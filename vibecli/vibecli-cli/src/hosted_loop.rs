@@ -33,6 +33,13 @@ use vibe_ai::provider::{AIProvider, Message, MessageRole};
 /// Executor seam: run one iteration of a hosted loop body. `secrets` are the
 /// resolved `(NAME, VALUE)` pairs from the WorkspaceStore, passed scoped so a
 /// tool-running iteration can use them without the daemon touching global env.
+///
+/// `validator` is the completion question to ask after the body has run — for a
+/// `/loop goal` job, the goal's success criteria rendered by
+/// [`crate::loop_engine::goal_validator_prompt`]. `None` means "no validator
+/// available", in which case the iteration reports not-done and the job
+/// terminates on its caps instead.
+///
 /// Returns the self-paced "done" signal (ignored for recurring loops).
 #[async_trait::async_trait]
 pub trait LoopExecutor {
@@ -40,6 +47,7 @@ pub trait LoopExecutor {
         &self,
         prompt: &str,
         secrets: &[(String, String)],
+        validator: Option<&str>,
     ) -> Result<bool, String>;
 }
 
@@ -74,18 +82,22 @@ pub fn due_hosted_jobs(
 ///
 /// `now_secs` + `last_runs` are injected for testability; `secret_lookup`
 /// resolves a job's declared secret names (a closure over the `WorkspaceStore` at
-/// the live call site). A job whose iteration errors is marked `Failed` rather
-/// than aborting the tick.
-pub async fn scheduler_tick<E, F>(
+/// the live call site) and `validator_lookup` renders a job's completion question
+/// (a closure over the `SessionStore` for `/loop goal` jobs, so criteria edited
+/// mid-run are picked up on the next tick). A job whose iteration errors is
+/// marked `Failed` rather than aborting the tick.
+pub async fn scheduler_tick<E, F, V>(
     jobs_path: &Path,
     now_secs: u64,
     last_runs: &mut HashMap<String, u64>,
     executor: &E,
     secret_lookup: F,
+    validator_lookup: V,
 ) -> Vec<String>
 where
     E: LoopExecutor + Sync,
     F: Fn(&str) -> Option<String>,
+    V: Fn(&crate::loop_engine::LoopSpec) -> Option<String>,
 {
     let path = jobs_path.to_path_buf();
     let mut jobs = load_jobs(&path);
@@ -98,8 +110,16 @@ where
         };
         let prompt = jobs[idx].spec.prompt.clone();
         let (secrets, _missing) = resolve_loop_secrets(&jobs[idx].spec.secrets, &secret_lookup);
+        // Only self-paced jobs have a stop condition to validate; a recurring
+        // job's done-signal is ignored, so don't pay for the extra turn.
+        let validator = matches!(jobs[idx].spec.mode, LoopMode::SelfPaced)
+            .then(|| validator_lookup(&jobs[idx].spec))
+            .flatten();
 
-        match executor.run_iteration(&prompt, &secrets).await {
+        match executor
+            .run_iteration(&prompt, &secrets, validator.as_deref())
+            .await
+        {
             Ok(done) => {
                 last_runs.insert(id.clone(), now_secs);
                 jobs[idx].iterations_done += 1;
@@ -120,13 +140,15 @@ where
     due
 }
 
-/// Daemon adapter: run a hosted iteration as one chat turn against any provider.
+/// Daemon adapter: run a hosted iteration as one chat turn against any provider,
+/// then — when the job supplies a `validator` question — a second, separate turn
+/// that decides whether the loop is finished. Splitting the turns is deliberate:
+/// the worker never gets to grade its own work.
 ///
 /// A plain chat turn doesn't consume `secrets`; they're threaded through for the
-/// day a hosted iteration runs an agent with shell tools. Returns `done = false`
-/// — recurring loops terminate by interval + `max_iter` / `max_duration`; a
-/// self-paced hosted loop relies on those caps (a hosted done-validator is a
-/// later refinement).
+/// day a hosted iteration runs an agent with shell tools. With no validator the
+/// iteration reports `done = false` and the job stops on its caps, which is also
+/// how recurring loops behave.
 pub struct ProviderLoopExecutor {
     provider: Arc<dyn AIProvider>,
 }
@@ -143,6 +165,7 @@ impl LoopExecutor for ProviderLoopExecutor {
         &self,
         prompt: &str,
         _secrets: &[(String, String)],
+        validator: Option<&str>,
     ) -> Result<bool, String> {
         let messages = vec![Message {
             role: MessageRole::User,
@@ -152,7 +175,28 @@ impl LoopExecutor for ProviderLoopExecutor {
             .chat(&messages, None)
             .await
             .map_err(|e| e.to_string())?;
-        Ok(false)
+
+        let Some(question) = validator else {
+            return Ok(false);
+        };
+        let check = vec![
+            Message {
+                role: MessageRole::System,
+                content: crate::loop_engine::VALIDATOR_SYSTEM_PROMPT.to_string(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: question.to_string(),
+            },
+        ];
+        // A validator that can't be reached is not a completion — the job keeps
+        // running (bounded by its caps) rather than being declared done.
+        Ok(self
+            .provider
+            .chat(&check, None)
+            .await
+            .map(|reply| crate::loop_engine::validator_says_done(&reply))
+            .unwrap_or(false))
     }
 }
 
@@ -171,6 +215,7 @@ mod tests {
             max_iter: DEFAULT_MAX_ITER,
             max_duration_secs: 3600,
             secrets: Vec::new(),
+            goal_id: None,
         };
         let mut j = LoopJob::new(id.to_string(), spec, 0);
         j.hosted = hosted;
@@ -212,7 +257,12 @@ mod tests {
 
     #[async_trait::async_trait]
     impl LoopExecutor for CountingExec {
-        async fn run_iteration(&self, _p: &str, _s: &[(String, String)]) -> Result<bool, String> {
+        async fn run_iteration(
+            &self,
+            _p: &str,
+            _s: &[(String, String)],
+            _v: Option<&str>,
+        ) -> Result<bool, String> {
             self.calls.fetch_add(1, Ordering::SeqCst);
             Ok(self.done)
         }
@@ -230,7 +280,7 @@ mod tests {
             done: false,
         };
         let mut last = HashMap::new();
-        let ran = scheduler_tick(&path, 1000, &mut last, &exec, |_| None).await;
+        let ran = scheduler_tick(&path, 1000, &mut last, &exec, |_| None, |_| None).await;
         assert_eq!(ran, vec!["a"]);
         assert_eq!(exec.calls.load(Ordering::SeqCst), 1);
         assert_eq!(last.get("a"), Some(&1000));
@@ -246,7 +296,12 @@ mod tests {
         struct FailExec;
         #[async_trait::async_trait]
         impl LoopExecutor for FailExec {
-            async fn run_iteration(&self, _p: &str, _s: &[(String, String)]) -> Result<bool, String> {
+            async fn run_iteration(
+                &self,
+                _p: &str,
+                _s: &[(String, String)],
+                _v: Option<&str>,
+            ) -> Result<bool, String> {
                 Err("boom".into())
             }
         }
@@ -255,7 +310,7 @@ mod tests {
         save_jobs(&path, &vec![recurring_job("a", 60, true)]).unwrap();
         let mut last = HashMap::new();
         // now=100 ≥ interval 60 (last_run defaults to 0) so the job is due.
-        scheduler_tick(&path, 100, &mut last, &FailExec, |_| None).await;
+        scheduler_tick(&path, 100, &mut last, &FailExec, |_| None, |_| None).await;
         assert_eq!(load_jobs(&path)[0].status, LoopStatus::Failed);
     }
 
@@ -266,7 +321,12 @@ mod tests {
         struct SecretAssertExec;
         #[async_trait::async_trait]
         impl LoopExecutor for SecretAssertExec {
-            async fn run_iteration(&self, _p: &str, s: &[(String, String)]) -> Result<bool, String> {
+            async fn run_iteration(
+                &self,
+                _p: &str,
+                s: &[(String, String)],
+                _v: Option<&str>,
+            ) -> Result<bool, String> {
                 assert_eq!(s, &[("TOK".to_string(), "abc".to_string())]);
                 Ok(false)
             }
@@ -279,14 +339,20 @@ mod tests {
             max_iter: DEFAULT_MAX_ITER,
             max_duration_secs: 3600,
             secrets: vec!["TOK".into()],
+            goal_id: None,
         };
         let mut job = LoopJob::new("a".into(), spec, 0);
         job.hosted = true;
         save_jobs(&path, &vec![job]).unwrap();
         let mut last = HashMap::new();
-        scheduler_tick(&path, 5, &mut last, &SecretAssertExec, |n| {
-            (n == "TOK").then(|| "abc".to_string())
-        })
+        scheduler_tick(
+            &path,
+            5,
+            &mut last,
+            &SecretAssertExec,
+            |n| (n == "TOK").then(|| "abc".to_string()),
+            |_| None,
+        )
         .await;
     }
 
@@ -300,6 +366,7 @@ mod tests {
             max_iter: DEFAULT_MAX_ITER,
             max_duration_secs: 3600,
             secrets: Vec::new(),
+            goal_id: None,
         };
         let mut job = LoopJob::new("a".into(), spec, 0);
         job.hosted = true;
@@ -310,7 +377,103 @@ mod tests {
             done: true, // validator says "done"
         };
         let mut last = HashMap::new();
-        scheduler_tick(&path, 10, &mut last, &exec, |_| None).await;
+        scheduler_tick(&path, 10, &mut last, &exec, |_| None, |_| None).await;
         assert_eq!(load_jobs(&path)[0].status, LoopStatus::Done);
+    }
+
+    /// Records the validator question it was handed, and answers "done" once it
+    /// has seen one — standing in for a provider that checks the criteria.
+    struct ValidatorSpyExec {
+        seen: std::sync::Mutex<Vec<Option<String>>>,
+    }
+
+    #[async_trait::async_trait]
+    impl LoopExecutor for ValidatorSpyExec {
+        async fn run_iteration(
+            &self,
+            _p: &str,
+            _s: &[(String, String)],
+            v: Option<&str>,
+        ) -> Result<bool, String> {
+            let mut seen = self.seen.lock().expect("test mutex");
+            seen.push(v.map(str::to_string));
+            Ok(v.is_some())
+        }
+    }
+
+    fn goal_job(id: &str, mode: LoopMode) -> LoopJob {
+        let spec = LoopSpec {
+            mode,
+            prompt: "work the goal".into(),
+            max_iter: DEFAULT_MAX_ITER,
+            max_duration_secs: 3600,
+            secrets: Vec::new(),
+            goal_id: Some("goal-abc".into()),
+        };
+        let mut j = LoopJob::new(id.to_string(), spec, 0);
+        j.hosted = true;
+        j
+    }
+
+    #[tokio::test]
+    async fn hosted_goal_loop_completes_on_criteria_validator() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("loops.json");
+        save_jobs(&path, &vec![goal_job("a", LoopMode::SelfPaced)]).unwrap();
+
+        let exec = ValidatorSpyExec {
+            seen: std::sync::Mutex::new(Vec::new()),
+        };
+        let mut last = HashMap::new();
+        // The lookup renders the goal's criteria question for goal-bound jobs.
+        scheduler_tick(
+            &path,
+            10,
+            &mut last,
+            &exec,
+            |_| None,
+            |spec| {
+                spec.goal_id
+                    .as_ref()
+                    .map(|id| format!("criteria for {id}: all met?"))
+            },
+        )
+        .await;
+
+        assert_eq!(
+            exec.seen.lock().unwrap().as_slice(),
+            &[Some("criteria for goal-abc: all met?".to_string())],
+        );
+        assert_eq!(load_jobs(&path)[0].status, LoopStatus::Done);
+    }
+
+    #[tokio::test]
+    async fn recurring_jobs_skip_the_validator_turn() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("loops.json");
+        save_jobs(
+            &path,
+            &vec![goal_job("a", LoopMode::Recurring { interval_secs: 1 })],
+        )
+        .unwrap();
+
+        let exec = ValidatorSpyExec {
+            seen: std::sync::Mutex::new(Vec::new()),
+        };
+        let mut last = HashMap::new();
+        scheduler_tick(
+            &path,
+            10,
+            &mut last,
+            &exec,
+            |_| None,
+            |_| Some("should not be asked".to_string()),
+        )
+        .await;
+
+        // No validator handed over, so no early completion — recurring jobs run
+        // to their caps regardless of any done-signal.
+        assert_eq!(exec.seen.lock().unwrap().as_slice(), &[None]);
+        assert_eq!(load_jobs(&path)[0].status, LoopStatus::Running);
     }
 }

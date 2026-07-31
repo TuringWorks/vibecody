@@ -316,8 +316,7 @@ fn build_chat_memory_system_message(workspace: &std::path::Path) -> Option<Strin
 /// `~/.vibecli/memory.md` scratch). Deliberately bypasses the context
 /// assembler so no auto-extracted state (OpenMemory facts, agent
 /// scratchpads, orchestration lessons) can leak into the diffcomplete
-/// prompt — see `notes/PATENT_AUDIT_INLINE.md` "Slice audit —
-/// 2026-04-26" for the patent-distance rationale.
+/// prompt.
 fn build_diffcomplete_project_memory(workspace: &std::path::Path) -> Option<String> {
     vibecli_cli::memory::ProjectMemory::load(workspace).combined()
 }
@@ -17168,7 +17167,7 @@ pub async fn ai_chat_with_effort(
         .map_err(|e| e.to_string())
 }
 
-/// A7 (§18.A7) — turn a clicked browser element + a natural-language instruction
+/// Turn a clicked browser element + a natural-language instruction
 /// into a CSS/HTML **unified diff** for `DiffReviewPanel`. Never emits live-DOM
 /// mutation: the underlying parser rejects DOM-mutation payloads. Provider-
 /// agnostic and effort-aware; honors the toolbar provider/model selection.
@@ -17218,7 +17217,7 @@ pub struct SecurityFindingDto {
     pub suggestion: Option<String>,
 }
 
-/// B3 (§18.B3) — run an opt-in security review over one file's contents and
+/// Run an opt-in security review over one file's contents and
 /// return standard findings for the existing `ReviewPanel`. On-demand entry
 /// point the daemon's opt-in file-watcher also calls; acting on a finding is an
 /// explicit user diffcomplete, never an auto-applied fix.
@@ -17270,7 +17269,7 @@ pub async fn security_review_file(
         .collect())
 }
 
-/// C4 (§18.A7-shape) — parse the WebMCP tool descriptors a page advertises.
+/// Parse the WebMCP tool descriptors a page advertises.
 /// Pure parsing; consumer invocation is gated separately behind the origin-trial
 /// flag and surfaced for explicit user confirmation.
 #[tauri::command]
@@ -18310,8 +18309,7 @@ mod tests {
 
     #[test]
     fn build_diffcomplete_memory_returns_none_for_empty_workspace() {
-        // No author-authored memory files → no injection. This is the
-        // baseline patent-distance posture before the slice — adding
+        // No author-authored memory files → no injection. Adding
         // memory must not change behavior on workspaces without one.
         let workspace = tempfile::TempDir::new().unwrap();
         assert!(
@@ -40986,16 +40984,15 @@ pub async fn workspace_secret_list(workspace_path: String) -> Result<serde_json:
 // Tauri bridge into the B2.1–B2.5 plugin stack. The panel
 // (PluginGovernancePanel.tsx) is the only frontend consumer.
 //
-// Patent-distance discipline (fit-gap §18):
-//   - principle #1 (no telemetry-driven personalization): no "for-you"
-//     surface, no usage logging here.
-//   - principle #2 (client-side admin-authored policy): the
-//     `is_admin` flag on set/uninstall is the only privilege gate;
-//     no server endpoint can flip it.
-//   - principle #3 (open MCPB lineage): bundle parsing reuses
-//     `mcpb_bundle` shipped in A2.
-//   - principle #4 (per-publisher P-256 trust roots): verification
-//     reuses `signed_agent_card` JWK + ECDSA from B6.
+// Design invariants:
+//   - No telemetry-driven personalization: no "for-you" surface,
+//     no usage logging here.
+//   - Client-side, admin-authored policy: the `is_admin` flag on
+//     set/uninstall is the only privilege gate; no server endpoint
+//     can flip it.
+//   - Open MCPB bundle format: parsing reuses `mcpb_bundle`.
+//   - Per-publisher P-256 trust roots: verification reuses
+//     `signed_agent_card` JWK + ECDSA.
 
 use vibecli_cli::plugin_install::{self, InstalledPlugin};
 use vibecli_cli::workspace_store::{PluginPolicy, PolicySetter};

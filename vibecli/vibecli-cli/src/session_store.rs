@@ -648,6 +648,32 @@ impl SessionStore {
         }
     }
 
+    /// Resolve a goal-id **prefix** to the newest-updated matching goal.
+    ///
+    /// The REPL and the `/loop goal` daemon route both address goals by the
+    /// 8-char prefix printed in `/goal list`, so the lookup lives here rather
+    /// than being re-derived at each call site. `Ok(None)` means no match.
+    pub fn find_goal_by_prefix(&self, prefix: &str) -> Result<Option<crate::exec_goal::Goal>> {
+        let prefix = prefix.trim();
+        // Goal ids are UUIDv4 hex; anything else can't match, and refusing it
+        // here keeps `LIKE` wildcards (`%`, `_`) out of the pattern.
+        if prefix.is_empty() || !prefix.chars().all(|c| c.is_ascii_alphanumeric()) {
+            return Ok(None);
+        }
+        let mut stmt = self.conn.prepare(
+            "SELECT id, workspace, title, statement, status, success_criteria,
+                    tags, created_at, updated_at, parent_goal_id,
+                    current_plan_json, schema_version
+             FROM goals WHERE id LIKE ?1 || '%'
+             ORDER BY updated_at DESC LIMIT 1",
+        )?;
+        let mut rows = stmt.query(params![prefix])?;
+        match rows.next()? {
+            Some(r) => Ok(Some(row_to_goal(r)?)),
+            None => Ok(None),
+        }
+    }
+
     /// List goals with optional filters. Newest-updated first. `limit
     /// = 0` means no limit.
     pub fn list_goals(&self, filter: &GoalListFilter) -> Result<Vec<crate::exec_goal::Goal>> {
@@ -3800,6 +3826,45 @@ pub fn auto_name_session(raw_task: &str) -> String {
         .map(|(i, _)| i)
         .unwrap_or(task.len());
     format!("{}…", &task[..end])
+}
+
+#[cfg(test)]
+mod goal_prefix_tests {
+    use super::tests_support::open_temp;
+    use crate::exec_goal::Goal;
+
+    #[test]
+    fn find_goal_by_prefix_matches_and_rejects_wildcards() {
+        let store = open_temp();
+        let mut goal = Goal::new("Ship the loop↔goal wiring");
+        goal.id = "abc123def456".to_string();
+        store.insert_goal(&goal).unwrap();
+
+        // Prefix hit, exact-id hit, and a clean miss.
+        let hit = store.find_goal_by_prefix("abc123").unwrap();
+        assert_eq!(hit.map(|g| g.id), Some("abc123def456".to_string()));
+        assert!(store.find_goal_by_prefix("abc123def456").unwrap().is_some());
+        assert!(store.find_goal_by_prefix("zzz").unwrap().is_none());
+
+        // `%` is a LIKE wildcard, not a prefix — it must not match everything.
+        assert!(store.find_goal_by_prefix("%").unwrap().is_none());
+        assert!(store.find_goal_by_prefix("").unwrap().is_none());
+    }
+}
+
+/// Shared temp-store constructor for the store's test modules.
+#[cfg(test)]
+mod tests_support {
+    use super::SessionStore;
+    use tempfile::NamedTempFile;
+
+    pub fn open_temp() -> SessionStore {
+        let f = NamedTempFile::new().unwrap();
+        let path = f.path().to_owned();
+        // Don't delete the temp file while we use it.
+        std::mem::forget(f);
+        SessionStore::open(path).unwrap()
+    }
 }
 
 #[cfg(test)]

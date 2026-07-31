@@ -195,7 +195,7 @@ pub static GOAL_SUBS: &[&str] = &[
 ];
 
 /// Sub-commands for `/loop <sub>` (gap C1)
-pub static LOOP_SUBS: &[&str] = &["auto", "list", "stop", "status"];
+pub static LOOP_SUBS: &[&str] = &["auto", "goal", "list", "stop", "status"];
 
 /// Sub-commands for `/webmcp <sub>` (gap C4)
 pub static WEBMCP_SUBS: &[&str] = &["list", "call"];
@@ -600,7 +600,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/share"    => Some("<session_id>  — print shareable URL for a session (requires vibecli serve)"),
         "/workflow" => Some("[new <name>|list|show <n>|advance <n>|check <n> <id>|generate <n>]  — Code Complete workflow"),
         "/goal"     => Some("[new <title>|list [status]|show <id>|status <id> <s>|link <id> <kind> <target>|start <id> [task]|children <id>|reparent <id> <parent>|delete <id>]  — durable execution intent"),
-        "/loop"     => Some("<interval> <prompt> | auto <prompt> | list | stop <id> | status <id>  — recurring or self-paced loop-until-done (MAX_ITER guard, Ctrl-C to stop)"),
+        "/loop"     => Some("<interval> <prompt> | auto <prompt> | goal <id> [guidance] | list | stop <id> | status <id>  — recurring, self-paced, or goal-driven loop-until-done (MAX_ITER guard, Ctrl-C to stop)"),
         "/redteam"  => Some("[scan <url>|list|show <id>|report <id>|config]  — autonomous security scanning"),
         "/voice"    => Some("[transcribe <file>|speak <text>]  — voice transcription (Whisper) & TTS (ElevenLabs)"),
         "/discover" => Some("— discover VibeCLI peers on the local network"),

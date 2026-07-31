@@ -3,7 +3,10 @@
  * Run with: cargo test --test loop_engine_bdd
  */
 use cucumber::{given, then, when, World};
-use vibecli_cli::loop_engine::{parse_loop_args, LoopDecision, LoopJob, LoopMode, LoopSpec};
+use vibecli_cli::loop_engine::{
+    goal_validator_prompt, hydrate_goal_loop, parse_loop_args, GoalBrief, LoopDecision, LoopJob,
+    LoopMode, LoopSpec,
+};
 
 #[derive(Debug, Default, World)]
 #[allow(dead_code)]
@@ -12,6 +15,8 @@ pub struct LoopWorld {
     parsed: Option<Result<LoopSpec, String>>,
     job: Option<LoopJob>,
     decision: Option<LoopDecision>,
+    hydrated: Option<LoopSpec>,
+    validator_question: Option<String>,
 }
 
 // ── Given ─────────────────────────────────────────────────────────────────
@@ -58,6 +63,26 @@ fn validator_not_done(w: &mut LoopWorld, elapsed: u64) {
     w.decision = Some(job.decide_next(false, elapsed));
 }
 
+#[when(expr = "I hydrate it with a goal whose criteria are {string} and {string}")]
+fn hydrate_with_goal(w: &mut LoopWorld, first: String, second: String) {
+    let spec = w
+        .parsed
+        .as_ref()
+        .expect("arguments were parsed")
+        .as_ref()
+        .expect("goal spec parses")
+        .clone();
+    let brief = GoalBrief {
+        id: "4f2a19c8ffff".to_string(),
+        title: "Ship the wiring".to_string(),
+        statement: "Wire /loop to run a goal to completion.".to_string(),
+        success_criteria: vec![first, second],
+        plan: None,
+    };
+    w.validator_question = Some(goal_validator_prompt(&brief));
+    w.hydrated = Some(hydrate_goal_loop(spec, &brief));
+}
+
 // ── Then ──────────────────────────────────────────────────────────────────
 
 #[then("parsing succeeds")]
@@ -99,6 +124,37 @@ fn mode_self_paced(w: &mut LoopWorld) {
 fn prompt_is(w: &mut LoopWorld, expected: String) {
     let spec = w.parsed.as_ref().unwrap().as_ref().unwrap();
     assert_eq!(spec.prompt, expected);
+}
+
+#[then(expr = "the goal binding is {string}")]
+fn goal_binding_is(w: &mut LoopWorld, expected: String) {
+    let spec = w.parsed.as_ref().unwrap().as_ref().unwrap();
+    assert_eq!(spec.goal_id.as_deref(), Some(expected.as_str()));
+}
+
+#[then(expr = "the max iterations are {int}")]
+fn max_iter_is(w: &mut LoopWorld, expected: u32) {
+    let spec = w.parsed.as_ref().unwrap().as_ref().unwrap();
+    assert_eq!(spec.max_iter, expected);
+}
+
+#[then(expr = "the loop body mentions {string}")]
+fn body_mentions(w: &mut LoopWorld, needle: String) {
+    let spec = w.hydrated.as_ref().expect("spec was hydrated");
+    assert!(
+        spec.prompt.contains(&needle),
+        "loop body missing {needle:?}:\n{}",
+        spec.prompt
+    );
+}
+
+#[then(expr = "the validator question mentions {string}")]
+fn validator_mentions(w: &mut LoopWorld, needle: String) {
+    let q = w
+        .validator_question
+        .as_ref()
+        .expect("validator question was built");
+    assert!(q.contains(&needle), "validator missing {needle:?}:\n{q}");
 }
 
 #[then("the decision is stop-done")]

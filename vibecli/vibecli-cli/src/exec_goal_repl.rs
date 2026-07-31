@@ -39,6 +39,118 @@ fn short(id: &str) -> &str {
     &id[..id.len().min(8)]
 }
 
+// ── `/loop goal <id>` bridge ─────────────────────────────────────────────────
+//
+// These three are the store-touching edge of the goal↔loop wiring: resolve a
+// prefix into the pure [`GoalBrief`] the loop engine renders, and write the
+// loop's start and terminal state back onto the goal. They return messages
+// instead of printing so both the REPL and the daemon's `POST /v1/loops` can
+// use them.
+
+/// Resolve a goal-id prefix to the [`crate::loop_engine::GoalBrief`] that
+/// drives a `/loop goal` run. `Err` holds a user-facing explanation.
+pub fn resolve_goal_brief(prefix: &str) -> Result<crate::loop_engine::GoalBrief, String> {
+    let prefix = prefix.trim();
+    if prefix.is_empty() {
+        return Err("Usage: /loop goal <id-prefix> [extra guidance]".to_string());
+    }
+    let store =
+        SessionStore::open_default().map_err(|e| format!("Failed to open session store: {e}"))?;
+    let goal = store
+        .find_goal_by_prefix(prefix)
+        .map_err(|e| format!("Failed to look up goal: {e}"))?
+        .ok_or_else(|| format!("No goal matched prefix {prefix:?}. Try `/goal list`."))?;
+    if goal.status == GoalStatus::Done {
+        return Err(format!(
+            "Goal {} is already done. Reopen it with `/goal status {} active` first.",
+            short(&goal.id),
+            short(&goal.id),
+        ));
+    }
+    Ok(crate::loop_engine::GoalBrief::from_goal(&goal))
+}
+
+/// Same lookup as [`resolve_goal_brief`] without the already-done guard, for a
+/// loop that is already in flight — the guard belongs at start, not mid-run.
+/// Used by the daemon's hosted scheduler to re-read criteria each tick, so a
+/// goal edited while its loop runs is judged against the current criteria.
+pub fn goal_brief_by_id(goal_id: &str) -> Option<crate::loop_engine::GoalBrief> {
+    SessionStore::open_default()
+        .ok()?
+        .find_goal_by_prefix(goal_id)
+        .ok()
+        .flatten()
+        .as_ref()
+        .map(crate::loop_engine::GoalBrief::from_goal)
+}
+
+/// Record that `loop_id` has started working on `goal_id`, so `/goal show`
+/// lists the run while it is still in flight.
+pub fn link_goal_loop_start(goal_id: &str, loop_id: &str) -> Result<(), String> {
+    let store =
+        SessionStore::open_default().map_err(|e| format!("Failed to open session store: {e}"))?;
+    let link = GoalLink {
+        id: crate::exec_goal::new_goal_link_id(),
+        goal_id: goal_id.to_string(),
+        kind: GoalLinkKind::Job,
+        target_id: loop_id.to_string(),
+        linked_at: chrono::Utc::now(),
+        note: Some("self-paced /loop goal run".to_string()),
+    };
+    store
+        .insert_goal_link(&link)
+        .map(|_| ())
+        .map_err(|e| format!("Failed to link loop to goal: {e}"))
+}
+
+/// Write a finished `/loop goal` run back onto the goal: always attach a note
+/// link recording the outcome, and flip the goal to `done` when — and only
+/// when — the validator confirmed every success criterion. Any other terminal
+/// state (max-iter, expiry, stop, failure) deliberately leaves the status
+/// alone: an exhausted budget is not evidence of success. Returns the line to
+/// show the user.
+pub fn record_goal_loop_outcome(
+    goal_id: &str,
+    loop_id: &str,
+    status: crate::loop_engine::LoopStatus,
+    iterations: u32,
+) -> Result<String, String> {
+    let store =
+        SessionStore::open_default().map_err(|e| format!("Failed to open session store: {e}"))?;
+    let completed = status == crate::loop_engine::LoopStatus::Done;
+    let note = format!(
+        "loop {loop_id} → {} after {iterations} iteration(s)",
+        format!("{status:?}").to_lowercase(),
+    );
+    let link = GoalLink {
+        id: crate::exec_goal::new_goal_link_id(),
+        goal_id: goal_id.to_string(),
+        kind: GoalLinkKind::Note,
+        target_id: loop_id.to_string(),
+        linked_at: chrono::Utc::now(),
+        note: Some(note.clone()),
+    };
+    store
+        .insert_goal_link(&link)
+        .map_err(|e| format!("Failed to record loop outcome: {e}"))?;
+    if !completed {
+        return Ok(format!("Goal {} left unchanged — {note}.", short(goal_id)));
+    }
+    let patch = GoalPatch {
+        status: Some(GoalStatus::Done),
+        ..Default::default()
+    };
+    match store.update_goal(goal_id, &patch) {
+        Ok(Some(g)) => Ok(format!(
+            "Goal {} → done — all success criteria met after {iterations} iteration(s).\n  {}",
+            short(&g.id),
+            g.title,
+        )),
+        Ok(None) => Err("Goal vanished before it could be marked done.".to_string()),
+        Err(e) => Err(format!("Failed to mark goal done: {e}")),
+    }
+}
+
 /// `/goal new <title…>` — create a new goal at default scope. The
 /// statement and other fields can be edited via VibeCoder or `/goal edit`.
 pub fn handle_goal_new(args: &str) {

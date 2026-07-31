@@ -146,6 +146,7 @@ In REPL mode, the following slash commands are available:
 | `/goal plan <id>` | Generate / refresh an `ExecutionPlan` (requires `vibecli serve`) |
 | `/loop <interval> <prompt>` | Re-run a prompt on a cadence (`30s`, `5m`, `1h`) until stopped/expired (e.g. `/loop 5m run the tests`) |
 | `/loop auto <prompt>` | Self-paced loop: re-run until an LLM validator says the task is done, bounded by a `MAX_ITER` guard (20) + wall-clock budget. `--until-done` is an alias. Ctrl-C stops it. |
+| `/loop goal <id-prefix> [guidance]` | Drive a `/goal` until **every** success criterion is met — see [Goal-driven loops](#goal-driven-loops). Accepts `--max-iter N`, `--max-duration 45m`, `--secret NAME`. |
 | `/loop list` | List loop jobs (id, iterations, status) |
 | `/loop stop <id>` | Stop a loop job before its next iteration |
 | `/loop status <id>` | Show a loop job's mode, iterations, and status |
@@ -568,6 +569,47 @@ Creating branch agent for: add JWT auth middleware
   3. Auto-commit changes with descriptive messages
   4. Push and create a PR on completion
 ```
+
+### Goal-Driven Loops
+
+`/loop goal <id-prefix>` joins the two halves of autonomous execution: a `/goal`
+supplies the durable intent and its success criteria, `/loop` supplies the
+run-until-done engine. Each iteration works the goal; after each one a separate
+validator turn checks the criteria one by one and only stops the loop when
+**every** one is met.
+
+```text
+> /goal new Ship the loop↔goal wiring
+Created goal 4f2a19c8 — Ship the loop↔goal wiring
+
+> /loop goal 4f2a19c8 keep the diff small
+Goal: Ship the loop↔goal wiring
+▶ loop loop-68a1c30f started (SelfPaced). Press Ctrl-C to stop.
+…
+■ loop loop-68a1c30f → Done after 4 iteration(s).
+Goal 4f2a19c8 → done — all success criteria met after 4 iteration(s).
+```
+
+Details worth knowing:
+
+- **Criteria drive the stop condition.** The validator is shown the goal's
+  numbered `success_criteria` and answers `DONE` only if all of them verifiably
+  hold. A goal with no criteria still runs, but the loop warns that completion
+  now rests on the statement alone — add criteria with VibeCoder's Goal panel or
+  `PATCH /v1/goals/{id}`.
+- **Only success writes back.** A confirmed run flips the goal to `done`. Hitting
+  `--max-iter`, the wall-clock budget, Ctrl-C, or an iteration error leaves the
+  status untouched — an exhausted budget is not evidence of completion. Either
+  way the outcome is attached to the goal as a note link, so `/goal show` has the
+  full history.
+- **Bounds.** Defaults are the standard 20 iterations / 30 minutes; override per
+  run with `--max-iter N` and `--max-duration 45m`. `--secret NAME` injects a
+  WorkspaceStore secret into the loop's environment, as with any other loop.
+- **Already-done goals are refused** — reopen with `/goal status <id> active`
+  first, so a finished goal can't be silently reworked.
+- **Machine-off.** `POST /v1/loops {"args": "goal 4f2a19c8"}` enqueues the same
+  run inside the daemon; it survives client disconnect and appears in
+  `/loop list`.
 
 ### Always-On Channel Daemon
 

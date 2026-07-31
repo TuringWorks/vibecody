@@ -36,3 +36,29 @@ Feature: /loop recurring + self-paced execution (gap C1)
     Given a self-paced job from "auto long task" with max duration 10 seconds
     When the validator reports done at elapsed 10 seconds
     Then the decision is stop-expired
+
+  Scenario: A goal loop parses into a self-paced spec bound to the goal
+    Given the loop argument "goal 4f2a19c8 keep the diff small"
+    When I parse the loop arguments
+    Then parsing succeeds
+    And the mode is self-paced
+    And the goal binding is "4f2a19c8"
+
+  Scenario: A goal loop honours an explicit iteration cap
+    Given the loop argument "goal 4f2a19c8 --max-iter 5"
+    When I parse the loop arguments
+    Then parsing succeeds
+    And the max iterations are 5
+
+  Scenario: A goal loop without a goal id is rejected
+    Given the loop argument "goal"
+    When I parse the loop arguments
+    Then parsing fails
+
+  Scenario: Hydrating a goal loop renders its criteria into the loop body
+    Given the loop argument "goal 4f2a19c8"
+    When I parse the loop arguments
+    And I hydrate it with a goal whose criteria are "tests pass" and "docs updated"
+    Then the loop body mentions "tests pass"
+    And the loop body mentions "docs updated"
+    And the validator question mentions "EVERY criterion"

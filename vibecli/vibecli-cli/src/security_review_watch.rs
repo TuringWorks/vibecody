@@ -1,21 +1,19 @@
-//! Opt-in always-on security review (gap B3) — §18.B3 cleared shape.
+//! Opt-in file-watcher security review.
 //!
-//! Competitors shipped always-on agentic security review (Cursor Security
-//! Review; GitHub Copilot's agentic review on Actions). The VibeCody shape is
-//! deliberately *distant* from those, honoring the §18
-//! patent-distance principles:
+//! A workspace may opt in to having changed files reviewed for security issues
+//! as they are saved. Design invariants this module enforces:
 //!
-//! * **Opt-in, default OFF** (#5). The trigger is a user-configured workspace
-//!   flag + file-watcher rule; the daemon ships no system-imposed always-on
-//!   default and no privileged "security agent" canvas.
-//! * **Findings flow through the generic [`crate::self_review::Finding`] schema**
-//!   (#6), alongside clippy / eslint / semgrep — the LLM is one finding source
-//!   among many, never singled out with a one-click "apply fix" gesture.
+//! * **Opt-in, default OFF.** The trigger is a user-configured workspace flag
+//!   plus a file-watcher rule; the daemon ships no system-imposed always-on
+//!   default and no privileged "security agent" surface.
+//! * **Findings flow through the generic [`crate::self_review::Finding`] schema**,
+//!   alongside clippy / eslint / semgrep — the LLM is one finding source among
+//!   many, never singled out with a one-click "apply fix" gesture.
 //! * **Acting on a finding is an explicit user diffcomplete (⌘.)** — this module
 //!   only *produces* findings into the existing `ReviewPanel`; it never mutates
-//!   files or runs a hidden fix loop (#6, #8).
-//! * **No hidden RAG / cross-file taint** (#9): each review sees only the changed
-//!   file the user's own watcher rule selected.
+//!   files or runs a hidden fix loop.
+//! * **No hidden retrieval or cross-file inference.** Each review sees only the
+//!   changed file the user's own watcher rule selected.
 //!
 //! This module is the pure controller — the opt-in gate, the path/glob filter,
 //! the provider-agnostic prompt, and the finding parser. The daemon supplies the
@@ -41,7 +39,7 @@ pub struct SecurityReviewConfig {
 impl Default for SecurityReviewConfig {
     fn default() -> Self {
         Self {
-            // Default OFF — §18.B3 principle #5.
+            // Default OFF.
             enabled: false,
             watched_suffixes: Vec::new(),
             min_severity: Severity::Warning,
@@ -63,7 +61,7 @@ impl SecurityReviewConfig {
         self.watched_suffixes.iter().any(|s| name.ends_with(s))
     }
 
-    /// The always-on bridge (§18.B3): from a [`ChangeBatch`] the file-watcher
+    /// The watcher bridge: from a [`ChangeBatch`] the file-watcher
     /// flushed, return the changed files that should be security-reviewed —
     /// honoring the opt-in gate + suffix filter. Empty when disabled, so the
     /// daemon's watcher loop is a no-op until a user opts the workspace in. The
@@ -86,7 +84,7 @@ impl SecurityReviewConfig {
 }
 
 /// Build the provider-agnostic review prompt for one changed file. No RAG, no
-/// cross-file context — only the file the watcher rule selected (§18 #9).
+/// cross-file context — only the file the watcher rule selected.
 pub fn build_review_prompt(file: &str, contents: &str) -> String {
     format!(
         "You are a security reviewer. Review ONLY the file below for genuine \
@@ -196,7 +194,7 @@ where
 /// produced this tick for the caller to surface in the existing ReviewPanel.
 ///
 /// A no-op (empty result, no reads) while `cfg.enabled` is false — the opt-in
-/// gate (§18.B3 #5) means the loop costs nothing until a workspace opts in.
+/// gate means the loop costs nothing until a workspace opts in.
 pub async fn poll_and_review<R>(
     cfg: &SecurityReviewConfig,
     watcher: &crate::file_watcher::SharedFileWatcher,

@@ -1,20 +1,18 @@
-//! Design Mode → diffcomplete-into-DOM (gap A7) — §18.A7 cleared shape.
+//! Design Mode → diffcomplete-into-source.
 //!
-//! Cursor shipped Design Mode GA (point / draw / narrate UI changes in the
-//! browser; the agent edits the code underneath). The VibeCody shape is
-//! deliberately distant from that surface, honoring the §18
-//! patent-distance principles:
+//! The user attaches *their own* browser over a CDP session they authorized,
+//! clicks an element, and types an instruction. This module turns that into a
+//! **CSS/HTML unified diff against the source file**, which the user reviews and
+//! applies through the existing `DiffReviewPanel` / diffcomplete (⌘.) mechanism.
 //!
-//! * **No agent-controlled browser, no live DOM mutation** (#7). The user
-//!   attaches *their own* browser via CDP they authorized, clicks an element,
-//!   and types an instruction. This module turns that into a **CSS/HTML unified
-//!   diff against the source file**, which the user reviews and applies through
-//!   the existing `DiffReviewPanel` / diffcomplete (⌘.) mechanism — the same
-//!   claim-element posture as the inline-completion Path D.
-//! * **No closed-loop hidden iteration** (#8): one explicit user chord per
+//! Design invariants this module enforces:
+//!
+//! * **No agent-controlled browser and no live DOM mutation.** Output is always
+//!   a diff against source; DOM-mutation payloads are rejected outright.
+//! * **No closed-loop hidden iteration.** One explicit user chord per
 //!   refinement; this produces a single diff, never a screenshot-diff retry loop.
-//! * **No hidden RAG / cross-file taint** (#9): the prompt sees only the element
-//!   the user selected and the source snippet, nothing auto-gathered.
+//! * **No hidden retrieval or cross-file inference.** The prompt sees only the
+//!   element the user selected and its source snippet, nothing auto-gathered.
 //!
 //! This is the pure transform — selection + instruction → prompt, and LLM output
 //! → a reviewable unified diff. The daemon/UI owns the CDP attach and the diff
@@ -34,8 +32,7 @@ pub struct SelectedElement {
 }
 
 /// The result of a design edit: a unified diff for `DiffReviewPanel`. Crucially
-/// it is a *diff against the source file*, never a DOM-mutation instruction —
-/// the §18.A7 invariant.
+/// it is a *diff against the source file*, never a DOM-mutation instruction.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DesignDiff {
     pub source_file: String,
@@ -64,7 +61,7 @@ pub fn build_design_prompt(element: &SelectedElement, instruction: &str) -> Stri
 
 /// Extract the unified diff from the model's reply into a [`DesignDiff`].
 ///
-/// Tolerant of a fenced ```diff block or a bare diff body. Enforces the §18.A7
+/// Tolerant of a fenced ```diff block or a bare diff body. Enforces the
 /// invariant: any reply that looks like live-DOM mutation (e.g. `document.`,
 /// `.style.`, `.innerHTML`) instead of a diff is **rejected**, so the agent can
 /// never smuggle a DOM-mutation payload past the cleared shape.
@@ -80,7 +77,7 @@ pub fn parse_design_diff(element: &SelectedElement, reply: &str) -> Result<Desig
         });
     }
 
-    // Reject DOM-mutation payloads outright (§18.A7 #7).
+    // Reject DOM-mutation payloads outright.
     let lowered = trimmed.to_lowercase();
     let looks_like_dom_mutation = (lowered.contains("document.")
         || lowered.contains(".innerhtml")
@@ -89,7 +86,7 @@ pub fn parse_design_diff(element: &SelectedElement, reply: &str) -> Result<Desig
         && !is_unified_diff(trimmed);
     if looks_like_dom_mutation {
         return Err(
-            "rejected: reply looks like live-DOM mutation, not a source diff (§18.A7)".to_string(),
+            "rejected: reply looks like live-DOM mutation, not a source diff".to_string(),
         );
     }
 
@@ -156,7 +153,7 @@ mod tests {
     fn rejects_live_dom_mutation() {
         let reply = "document.querySelector('.cta-button').style.color = 'green';";
         let err = parse_design_diff(&elem(), reply).unwrap_err();
-        assert!(err.contains("§18.A7") || err.contains("live-DOM"));
+        assert!(err.contains("live-DOM") || err.contains("source diff"));
     }
 
     #[test]
