@@ -11,6 +11,7 @@ import { RecoveryView } from "../components/RecoveryView";
 import { ChatSearch } from "../components/ChatSearch";
 import { SkillsView } from "../components/SkillsView";
 import { SideChatPanel } from "../components/SideChatPanel";
+import { PluginsView } from "../components/PluginsView";
 import type { QuickAction } from "../components/QuickActionDrawer";
 import type { SlashAction } from "../components/slashCommands";
 import { useProjects } from "../hooks/useProjects";
@@ -18,7 +19,7 @@ import { useComposerPrefs } from "../hooks/useComposerPrefs";
 import type { Task, useTasks } from "../hooks/useTasks";
 
 type TasksApi = ReturnType<typeof useTasks>;
-type Overlay = null | "review" | "files" | "settings" | "trash" | "skills";
+type Overlay = null | "review" | "files" | "settings" | "trash" | "skills" | "plugins";
 
 interface ShellLayoutProps {
   daemonUrl: string;
@@ -114,6 +115,7 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
       case "settings":
       case "trash":
       case "skills":
+      case "plugins":
         setOverlay(action);
         break;
       default:
@@ -305,6 +307,7 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
             onArchiveChat={archiveChat}
             onOpenSearch={() => setSearchOpen(true)}
             onOpenSkills={() => setOverlay("skills")}
+            onOpenPlugins={() => setOverlay("plugins")}
             onOpenTrash={() => setOverlay("trash")}
             onOpenSettings={() => setOverlay("settings")}
             onToggle={() => setNavCollapsed(true)}
@@ -327,6 +330,8 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
           <ReviewView daemonUrl={daemonUrl} path={scopePath} onClose={() => setOverlay(null)} />
         ) : overlay === "files" ? (
           <FilesView daemonUrl={daemonUrl} path={scopePath} onClose={() => setOverlay(null)} />
+        ) : overlay === "plugins" ? (
+          <PluginsView daemonUrl={daemonUrl} path={scopePath} onClose={() => setOverlay(null)} />
         ) : overlay === "skills" ? (
           <SkillsView
             daemonUrl={daemonUrl}

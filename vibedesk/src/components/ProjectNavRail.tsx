@@ -23,6 +23,7 @@ interface ProjectNavRailProps {
   onArchiveChat: (task: Task) => void;
   onOpenSearch: () => void;
   onOpenSkills: () => void;
+  onOpenPlugins: () => void;
   onOpenTrash: () => void;
   onOpenSettings: () => void;
   onToggle: () => void;
@@ -85,6 +86,7 @@ export function ProjectNavRail({
   onArchiveChat,
   onOpenSearch,
   onOpenSkills,
+  onOpenPlugins,
   onOpenTrash,
   onOpenSettings,
   onToggle,
@@ -142,7 +144,7 @@ export function ProjectNavRail({
           </button>
         </li>
         <li>
-          <button className="vx-nav__item vx-nav__item--soon" aria-label="Plugins" disabled title="Coming soon">
+          <button className="vx-nav__item" aria-label="Plugins" onClick={onOpenPlugins}>
             <Plug size={15} />
             <span>Plugins</span>
           </button>

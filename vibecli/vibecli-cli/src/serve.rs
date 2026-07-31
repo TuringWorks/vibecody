@@ -2406,6 +2406,68 @@ async fn vibedesk_git_diff(
     Ok(Json(serde_json::json!({ "diff": diff })))
 }
 
+/// GET /api/vibedesk/plugins — the workspace's enabled plugin components.
+///
+/// `plugin_runtime::enabled_components` has always known exactly which MCP
+/// servers, skills, subagents, rules and hooks are live for a workspace, but
+/// nothing exposed it over HTTP, so VibeDesk's Plugins nav item was a disabled
+/// "coming soon" button. Read-only: this reports what is enabled, it does not
+/// install, enable or disable anything — policy changes stay in the CLI and the
+/// governance surface, where they are audited.
+///
+/// `?path=` scopes to a project, like the other VibeDesk environment routes.
+async fn vibedesk_plugins(
+    Query(q): Query<VibedeskScopeQuery>,
+    State(state): State<ServeState>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let root = resolve_repo_root(q.path.as_deref(), &state.workspace_root);
+    // Opening the workspace store and walking the plugin dir is blocking IO.
+    let components = tokio::task::spawn_blocking(move || {
+        let store = crate::workspace_store::WorkspaceStore::open(&root).ok()?;
+        crate::plugin_runtime::enabled_components(&root, &store).ok()
+    })
+    .await
+    .ok()
+    .flatten();
+
+    // A workspace with no plugins (the common case) is not an error — report an
+    // empty inventory so the panel can say "none installed" rather than "failed".
+    let Some(c) = components else {
+        return Ok(Json(serde_json::json!({
+            "available": false,
+            "total": 0,
+            "mcp_servers": [], "skills": [], "subagents": [], "rules": [], "hooks": [],
+        })));
+    };
+
+    let named = |plugin: &str, name: &str, policy: &crate::workspace_store::PluginPolicy| {
+        serde_json::json!({
+            "plugin": plugin,
+            "name": name,
+            "policy": format!("{policy:?}").to_lowercase(),
+        })
+    };
+    Ok(Json(serde_json::json!({
+        "available": true,
+        "total": c.total(),
+        "mcp_servers": c.mcp_servers.iter()
+            .map(|x| named(&x.plugin_name, &x.spec.name, &x.policy)).collect::<Vec<_>>(),
+        "skills": c.skills.iter()
+            .map(|x| named(&x.plugin_name, &x.spec.name, &x.policy)).collect::<Vec<_>>(),
+        "subagents": c.subagents.iter()
+            .map(|x| named(&x.plugin_name, &x.spec.name, &x.policy)).collect::<Vec<_>>(),
+        "rules": c.rules.iter()
+            .map(|x| named(&x.plugin_name, &x.spec.name, &x.policy)).collect::<Vec<_>>(),
+        "hooks": c.hooks.iter()
+            .map(|x| serde_json::json!({
+                "plugin": x.plugin_name,
+                "name": x.spec.name,
+                "event": x.spec.event,
+                "policy": format!("{:?}", x.policy).to_lowercase(),
+            })).collect::<Vec<_>>(),
+    })))
+}
+
 /// GET /api/vibedesk/files — tracked + changed file paths for the Files
 /// quick-action (VX-110). Uses git's view of the tree (gitignore-correct)
 /// rather than a raw fs walk. Falls back to an empty list outside a repo.
@@ -6837,6 +6899,7 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/api/vibedesk/git/status", get(vibedesk_git_status))
         .route("/api/vibedesk/git/diff", get(vibedesk_git_diff))
         .route("/api/vibedesk/files", get(vibedesk_files))
+        .route("/api/vibedesk/plugins", get(vibedesk_plugins))
         .route("/collab/rooms", post(create_collab_room))
         .route("/collab/rooms", get(list_collab_rooms))
         .route("/collab/rooms/{room_id}/peers", get(list_collab_peers))

@@ -565,6 +565,18 @@ pub async fn list_files(
     daemon_get(url, "/api/vibedesk/files", path, token).await
 }
 
+/// GET /api/vibedesk/plugins — enabled plugin components for the scoped
+/// workspace. Read-only inventory; enabling/disabling stays in the CLI and the
+/// governance surface where it's audited.
+#[tauri::command]
+pub async fn list_plugins(
+    url: String,
+    path: Option<String>,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    daemon_get(url, "/api/vibedesk/plugins", path, token).await
+}
+
 /// POST /jobs/:id/cancel — stop an in-flight agent run. Backs the composer's
 /// Stop button: a long or wrong-headed turn must be interruptible without
 /// killing the app or waiting it out. The daemon marks the job cancelled and
