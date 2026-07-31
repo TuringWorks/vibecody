@@ -6,6 +6,7 @@ export type SlashAction =
   | "skills"
   | "plugins"
   | "terminal"
+  | "automations"
   | "search"
   | "settings"
   | "trash"
@@ -35,6 +36,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { id: "skills", name: "skills", hint: "Browse the skill catalog" },
   { id: "plugins", name: "plugins", hint: "Show enabled plugin components" },
   { id: "terminal", name: "terminal", hint: "Run a command in the project" },
+  { id: "automations", name: "automations", hint: "Scheduled prompts the daemon runs" },
   { id: "search", name: "search", hint: "Search chats" },
   { id: "branch", name: "branch", hint: "Toggle worktree isolation for the next run" },
   { id: "stop", name: "stop", hint: "Stop the running task", runningOnly: true },

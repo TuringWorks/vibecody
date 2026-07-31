@@ -24,6 +24,7 @@ interface ProjectNavRailProps {
   onOpenSearch: () => void;
   onOpenSkills: () => void;
   onOpenPlugins: () => void;
+  onOpenAutomations: () => void;
   onOpenTrash: () => void;
   onOpenSettings: () => void;
   onToggle: () => void;
@@ -87,6 +88,7 @@ export function ProjectNavRail({
   onOpenSearch,
   onOpenSkills,
   onOpenPlugins,
+  onOpenAutomations,
   onOpenTrash,
   onOpenSettings,
   onToggle,
@@ -150,7 +152,7 @@ export function ProjectNavRail({
           </button>
         </li>
         <li>
-          <button className="vx-nav__item vx-nav__item--soon" aria-label="Automations" disabled title="Coming soon">
+          <button className="vx-nav__item" aria-label="Automations" onClick={onOpenAutomations}>
             <Workflow size={15} />
             <span>Automations</span>
           </button>

@@ -565,6 +565,69 @@ pub async fn list_files(
     daemon_get(url, "/api/vibedesk/files", path, token).await
 }
 
+// ── Automations (hosted loops) ──────────────────────────────────────────────
+//
+// The daemon has a resident scheduler (`hosted_loop::scheduler_tick`) that runs
+// recurring prompts and survives client disconnect, persisted to loops.json —
+// but its only clients were the CLI REPL and raw HTTP, so VibeDesk's
+// Automations nav item sat disabled. These three commands wire it up.
+
+/// GET /v1/loops — hosted loop jobs the daemon is running.
+#[tauri::command]
+pub async fn list_loops(url: String, token: Option<String>) -> Result<serde_json::Value, String> {
+    daemon_get(url, "/v1/loops", None, token).await
+}
+
+/// POST /v1/loops — create a hosted loop. `args` is the `/loop` argument
+/// string: `<interval> <prompt>` (e.g. `5m run the tests`) or `auto <prompt>`.
+/// The daemon parses it, so the accepted forms can't drift from the CLI's.
+#[tauri::command]
+pub async fn create_loop(
+    url: String,
+    args: String,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let u = format!("{}/v1/loops", url.trim_end_matches('/'));
+    let client = reqwest::Client::new();
+    let resp = with_auth(client.post(&u).json(&serde_json::json!({ "args": args })), token)
+        .send()
+        .await
+        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    if !resp.status().is_success() {
+        let s = resp.status();
+        let b = resp.text().await.unwrap_or_default();
+        return Err(format!("Daemon returned {}: {}", s, b));
+    }
+    // A bad `args` string comes back as 200 with an `error` field rather than a
+    // status code — surface it as an error so the UI doesn't show a phantom
+    // automation that was never created.
+    let body: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    match body.get("error").and_then(|e| e.as_str()) {
+        Some(msg) => Err(msg.to_string()),
+        None => Ok(body),
+    }
+}
+
+/// POST /v1/loops/:id/stop — stop a hosted loop. The scheduler skips terminal
+/// jobs on its next tick.
+#[tauri::command]
+pub async fn stop_loop(
+    url: String,
+    id: String,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let u = format!("{}/v1/loops/{}/stop", url.trim_end_matches('/'), id);
+    let client = reqwest::Client::new();
+    let resp = with_auth(client.post(&u), token)
+        .send()
+        .await
+        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    if !resp.status().is_success() {
+        return Err(format!("Daemon returned {}", resp.status()));
+    }
+    resp.json().await.map_err(|e| e.to_string())
+}
+
 /// POST /api/vibedesk/exec — run one shell command in the scoped project.
 /// Backs the Terminal quick-action. One-shot, not a PTY: the daemon bounds it
 /// with a timeout and an output cap, and returns stdout/stderr/exit code.
