@@ -80,6 +80,7 @@ pub fn run() {
             commands::get_job,
             commands::list_skills,
             commands::list_plugins,
+            commands::read_attachment,
             commands::get_skill,
             commands::stream_approvals,
             commands::respond_approval,

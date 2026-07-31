@@ -17,6 +17,7 @@ import type { SlashAction } from "../components/slashCommands";
 import { useProjects } from "../hooks/useProjects";
 import { useComposerPrefs } from "../hooks/useComposerPrefs";
 import type { Task, useTasks } from "../hooks/useTasks";
+import type { Attachment } from "../lib/attachments";
 
 type TasksApi = ReturnType<typeof useTasks>;
 type Overlay = null | "review" | "files" | "settings" | "trash" | "skills" | "plugins";
@@ -29,6 +30,11 @@ interface ShellLayoutProps {
 
 /** Draft composer text, keyed by chat id ("" = the unsaved new chat). */
 type Drafts = Record<string, string>;
+/** Attachments pending on the next message, keyed the same way as drafts. */
+type Attachments = Record<string, Attachment[]>;
+
+/** Stable empty array — a fresh [] each render would remount work downstream. */
+const EMPTY_ATTACHMENTS: Attachment[] = [];
 
 /**
  * VX-101 — the Codex-faithful three-column shell:
@@ -71,10 +77,15 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
   // survives clicking between chats.
   const { prefs, update: setPref, setProviderModel } = useComposerPrefs();
   const [drafts, setDrafts] = useState<Drafts>({});
+  const [attachments, setAttachments] = useState<Attachments>({});
 
   const draftKey = activeChatId ?? "";
   const setDraft = useCallback(
     (text: string) => setDrafts((prev) => ({ ...prev, [draftKey]: text })),
+    [draftKey]
+  );
+  const setChatAttachments = useCallback(
+    (next: Attachment[]) => setAttachments((prev) => ({ ...prev, [draftKey]: next })),
     [draftKey]
   );
   // Stable identity: the conversation pane keys a terminal-state effect off
@@ -357,6 +368,8 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
             onProviderModel={setProviderModel}
             draft={drafts[draftKey] ?? ""}
             onDraft={setDraft}
+            attachments={attachments[draftKey] ?? EMPTY_ATTACHMENTS}
+            onAttachments={setChatAttachments}
             createTask={tasks.createTask}
             linkSession={tasks.linkSession}
             getHistory={tasks.getHistory}

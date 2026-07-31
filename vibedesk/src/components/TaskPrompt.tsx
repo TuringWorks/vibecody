@@ -1,5 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Plus, ArrowUp, GitBranch, Square, FileCode } from "lucide-react";
+import { Plus, ArrowUp, GitBranch, Square, FileCode, Paperclip, X } from "lucide-react";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { invoke } from "@tauri-apps/api/core";
 import { ApprovalPill, type ApprovalTier } from "./ApprovalPill";
 import { ProviderPill } from "./ProviderPill";
 import { ReasoningPill, type ReasoningEffort } from "./ReasoningPill";
@@ -7,10 +9,16 @@ import { QuickActionDrawer, type QuickAction } from "./QuickActionDrawer";
 import type { ComposerPrefs } from "../hooks/useComposerPrefs";
 import { findMention, rankFiles, useProjectFiles } from "../hooks/useProjectFiles";
 import { findSlash, matchSlash, type SlashAction } from "./slashCommands";
+import { composeWithAttachments, formatBytes, type Attachment } from "../lib/attachments";
 
 /** The composer's submit payload, bubbled up to SessionStream for orchestration. */
 export interface ComposerSubmit {
+  /** The full prompt sent to the agent — attachments prepended, if any. */
   task: string;
+  /** Just what the user typed. The chat title and the ↑-history come from this:
+   *  titling a chat after the first line of an attached file would name it
+   *  "Attached file: /Users/…". */
+  typed: string;
   provider: string;
   model?: string;
   approval: ApprovalTier;
@@ -35,6 +43,10 @@ interface TaskPromptProps {
    *  half-typed message. Keyed per chat by the parent. */
   draft: string;
   onDraft: (text: string) => void;
+  /** Files attached to the next message. Lifted for the same reason as the
+   *  draft — switching chats must not silently discard them. */
+  attachments: Attachment[];
+  onAttachments: (next: Attachment[]) => void;
   /** Repo whose files back @-mention completion. */
   scopePath?: string;
   onSubmit: (payload: ComposerSubmit) => void;
@@ -66,6 +78,8 @@ export function TaskPrompt({
   onProviderModel,
   draft,
   onDraft,
+  attachments,
+  onAttachments,
   scopePath,
   onSubmit,
   onStop,
@@ -124,7 +138,34 @@ export function TaskPrompt({
     });
   }
 
-  const canSubmit = !!draft.trim() && !busy && daemonOnline;
+  const [attachError, setAttachError] = useState<string | null>(null);
+
+  /** Native file picker → read each file → append as attachment chips. */
+  async function pickAttachments() {
+    setAttachError(null);
+    try {
+      const picked = await openDialog({ multiple: true, title: "Attach files" });
+      const paths = Array.isArray(picked) ? picked : picked ? [picked] : [];
+      if (paths.length === 0) return;
+      const results = await Promise.allSettled(
+        paths.map((path) => invoke<Attachment>("read_attachment", { path }))
+      );
+      const ok = results.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
+      // A binary or unreadable file is a normal mistake, not a failure of the
+      // whole action — attach what worked and say what didn't.
+      const failed = results.flatMap((r) => (r.status === "rejected" ? [String(r.reason)] : []));
+      if (failed.length > 0) setAttachError(failed[0]);
+      if (ok.length > 0) {
+        const byPath = new Map(attachments.map((a) => [a.path, a]));
+        for (const a of ok) byPath.set(a.path, a);
+        onAttachments([...byPath.values()]);
+      }
+    } catch (e) {
+      setAttachError(String(e));
+    }
+  }
+
+  const canSubmit = (!!draft.trim() || attachments.length > 0) && !busy && daemonOnline;
 
   // Auto-grow: a fixed 2-row box made anything longer than a sentence a
   // 2-line peephole, which is the most-hit edge of the composer.
@@ -150,11 +191,14 @@ export function TaskPrompt({
       runSlash(exact.id);
       return;
     }
-    const task = draft.trim();
-    history.current = [...history.current, task];
+    const typed = draft.trim();
+    // Attachments lead the prompt; see composeWithAttachments.
+    const task = composeWithAttachments(typed, attachments);
+    history.current = [...history.current, typed];
     historyPos.current = null;
-    onSubmit({ task, ...prefs });
+    onSubmit({ task, typed, ...prefs });
     onDraft("");
+    onAttachments([]);
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -290,6 +334,28 @@ export function TaskPrompt({
           ))}
         </ul>
       )}
+      {(attachments.length > 0 || attachError) && (
+        <div className="vx-attach">
+          {attachments.map((a) => (
+            <span key={a.path} className="vx-attach__chip" title={`${a.path} · ${formatBytes(a.bytes)}`}>
+              <FileCode size={11} />
+              <span className="vx-attach__name">{a.name}</span>
+              <span className="vx-attach__size">
+                {formatBytes(a.bytes)}
+                {a.truncated ? " · truncated" : ""}
+              </span>
+              <button
+                className="vx-attach__remove"
+                aria-label={`Remove ${a.name}`}
+                onClick={() => onAttachments(attachments.filter((x) => x.path !== a.path))}
+              >
+                <X size={11} />
+              </button>
+            </span>
+          ))}
+          {attachError && <span className="vx-attach__error">{attachError}</span>}
+        </div>
+      )}
       <textarea
         ref={inputRef}
         className="vx-composer__input"
@@ -316,6 +382,14 @@ export function TaskPrompt({
           onClick={() => setDrawerOpen((v) => !v)}
         >
           <Plus size={16} />
+        </button>
+        <button
+          className="vx-icon-btn"
+          aria-label="Attach files"
+          title="Attach files"
+          onClick={pickAttachments}
+        >
+          <Paperclip size={15} />
         </button>
         <ApprovalPill value={prefs.approval} onChange={(v) => onPref("approval", v)} />
         <button

@@ -259,6 +259,15 @@ html, body, #root {
 .vx-composer__bar { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
 .vx-composer__spacer { flex: 1; }
 .vx-composer__input { max-height: 260px; overflow-y: auto; line-height: 1.5; }
+/* Attachment chips, above the input so they read as part of the message. */
+.vx-attach { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.vx-attach__chip { display: inline-flex; align-items: center; gap: 5px; max-width: 260px; padding: 3px 6px 3px 8px; border: 1px solid var(--border-color); border-radius: 12px; background: var(--bg-tertiary); font-size: 11px; color: var(--text-secondary); }
+.vx-attach__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
+.vx-attach__size { color: var(--text-tertiary); flex: none; }
+.vx-attach__remove { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; padding: 0; border: none; border-radius: 50%; background: transparent; color: var(--text-tertiary); cursor: pointer; flex: none; }
+.vx-attach__remove:hover { background: var(--bg-elevated); color: var(--error-color); }
+.vx-attach__error { font-size: 11px; color: var(--accent-orange); align-self: center; }
+
 /* @-mention file picker — anchored above the composer like the pill menus. */
 .vx-mention {
   position: absolute; bottom: calc(100% - 4px); left: 10px; right: 10px;

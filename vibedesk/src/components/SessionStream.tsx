@@ -9,6 +9,7 @@ import { useApprovals } from "../hooks/useApprovals";
 import { formatCost, formatTokens, useJobUsage } from "../hooks/useJobUsage";
 import type { Task, TaskHistory } from "../hooks/useTasks";
 import type { ComposerPrefs } from "../hooks/useComposerPrefs";
+import type { Attachment } from "../lib/attachments";
 import type { QuickAction } from "./QuickActionDrawer";
 import { helpText, type SlashAction } from "./slashCommands";
 
@@ -25,6 +26,8 @@ interface SessionStreamProps {
   onProviderModel: (provider: string, model: string | undefined) => void;
   draft: string;
   onDraft: (text: string) => void;
+  attachments: Attachment[];
+  onAttachments: (next: Attachment[]) => void;
   createTask: (
     title: string,
     provider: string,
@@ -73,6 +76,8 @@ export function SessionStream({
   onProviderModel,
   draft,
   onDraft,
+  attachments,
+  onAttachments,
   createTask,
   linkSession,
   getHistory,
@@ -209,14 +214,14 @@ export function SessionStream({
       }
 
       // First message becomes the chat title.
-      if (items.length === 0) setTitle(titleFrom(p.task));
+      if (items.length === 0) setTitle(titleFrom(p.typed || p.task));
 
       // VX-112/113: create the task card before the agent starts. A worktree
       // branch is only forked when the user opted in via the composer's Branch
       // toggle (p.isolate) — a plain chat stays in place (no branch).
       let task: Task | null = null;
       try {
-        task = await createTask(titleFrom(p.task), p.provider, p.model, projectPath ?? undefined, p.isolate);
+        task = await createTask(titleFrom(p.typed || p.task), p.provider, p.model, projectPath ?? undefined, p.isolate);
         activeTaskId.current = task.id;
       } catch (e) {
         // A task card is bookkeeping, not the run itself — surface the failure
@@ -357,6 +362,8 @@ export function SessionStream({
         onProviderModel={onProviderModel}
         draft={draft}
         onDraft={onDraft}
+        attachments={attachments}
+        onAttachments={onAttachments}
         scopePath={runRoot}
         onSubmit={submit}
         onStop={() => stop(daemonUrl)}

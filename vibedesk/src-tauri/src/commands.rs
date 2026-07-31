@@ -565,6 +565,60 @@ pub async fn list_files(
     daemon_get(url, "/api/vibedesk/files", path, token).await
 }
 
+/// Largest attachment we inline into a prompt. Past this the file is better
+/// referenced by path (the agent has read tools) than pasted — and a multi-MB
+/// paste mostly buys context-window exhaustion.
+const MAX_ATTACHMENT_BYTES: usize = 256 * 1024;
+
+/// Read a user-picked file for composer attachment.
+///
+/// Only ever called with a path the user chose in the native file dialog, so
+/// there is no path-traversal surface to defend — but it still refuses what it
+/// cannot usefully inline: binary content (invalid UTF-8) is rejected outright
+/// rather than pasted as mojibake, and oversized text is truncated with the
+/// truncation reported so the UI can say so instead of silently losing the tail.
+#[tauri::command]
+pub async fn read_attachment(path: String) -> Result<serde_json::Value, String> {
+    let p = std::path::PathBuf::from(&path);
+    let name = p
+        .file_name()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| path.clone());
+
+    let bytes = tokio::fs::read(&p)
+        .await
+        .map_err(|e| format!("Could not read {}: {}", name, e))?;
+    let total = bytes.len();
+
+    let (slice, truncated) = if total > MAX_ATTACHMENT_BYTES {
+        (&bytes[..MAX_ATTACHMENT_BYTES], true)
+    } else {
+        (&bytes[..], false)
+    };
+    // Truncating at a byte offset can split a multi-byte char; take the valid
+    // prefix rather than failing a file that is otherwise perfectly readable.
+    let text = match std::str::from_utf8(slice) {
+        Ok(t) => t.to_string(),
+        Err(e) if truncated && e.valid_up_to() > 0 => {
+            String::from_utf8_lossy(&slice[..e.valid_up_to()]).to_string()
+        }
+        Err(_) => {
+            return Err(format!(
+                "{} looks like a binary file — attach text, or reference it with @ so the agent can open it itself.",
+                name
+            ))
+        }
+    };
+
+    Ok(serde_json::json!({
+        "path": path,
+        "name": name,
+        "bytes": total,
+        "text": text,
+        "truncated": truncated,
+    }))
+}
+
 /// GET /api/vibedesk/plugins — enabled plugin components for the scoped
 /// workspace. Read-only inventory; enabling/disabling stays in the CLI and the
 /// governance surface where it's audited.

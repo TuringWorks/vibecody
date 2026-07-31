@@ -12,6 +12,7 @@
 // plain node with nothing but `tsc` — no bundler, no webview.
 import { findSlash, matchSlash } from "../src/components/slashCommands";
 import { findMention, rankFiles } from "../src/lib/composerParsing";
+import { composeWithAttachments, formatBytes, type Attachment } from "../src/lib/attachments";
 
 let failures = 0;
 
@@ -52,6 +53,39 @@ const files = ["src/main.rs", "src/lib.rs", "docs/main.md", "a/b/mainly.ts"];
 eq("a basename prefix outranks a mid-path hit", rankFiles(files, "main")[0], "src/main.rs");
 eq("non-matches are dropped", rankFiles(files, "lib"), ["src/lib.rs"]);
 eq("an empty query returns the head of the list", rankFiles(files, "", 2).length, 2);
+
+// ── Attachment composition ────────────────────────────────────────────────
+const att = (over: Partial<Attachment> = {}): Attachment => ({
+  path: "/tmp/a.txt", name: "a.txt", bytes: 10, text: "hello", truncated: false, ...over,
+});
+
+eq("no attachments leaves the prompt untouched", composeWithAttachments("hi", []), "hi");
+{
+  const out = composeWithAttachments("summarise this", [att()]);
+  eq("attachment leads, message follows", out.endsWith("summarise this"), true);
+  eq("block is labelled with its path", out.startsWith("Attached file: /tmp/a.txt"), true);
+  eq("content is fenced", out.includes("```\nhello\n```"), true);
+}
+// The case that silently corrupts a prompt: a markdown file contains ``` of its
+// own, which would close a fixed 3-backtick fence early and spill the rest as
+// prose. The fence has to outgrow the longest run in the content.
+{
+  const md = "intro\n```js\ncode\n```\noutro";
+  const out = composeWithAttachments("review", [att({ text: md, name: "r.md" })]);
+  eq("fence outgrows backticks in content", out.includes("````\n" + md + "\n````"), true);
+  eq("inner fence survives intact", out.includes("```js"), true);
+}
+{
+  const out = composeWithAttachments("x", [att({ truncated: true, bytes: 999999, text: "abc" })]);
+  eq("truncation is stated, not silent", out.includes("truncated"), true);
+}
+eq("multiple attachments are all present",
+  composeWithAttachments("go", [att(), att({ path: "/tmp/b.txt", name: "b.txt" })]).match(/Attached file:/g)?.length,
+  2);
+
+eq("bytes: under 1K", formatBytes(512), "512 B");
+eq("bytes: KB", formatBytes(2048), "2.0 KB");
+eq("bytes: MB", formatBytes(3 * 1024 * 1024), "3.0 MB");
 
 console.log(failures === 0 ? "\n✓ composer parsing: all pass" : `\n✗ ${failures} failure(s)`);
 process.exit(failures === 0 ? 0 : 1);
