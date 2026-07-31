@@ -320,6 +320,33 @@ html, body, #root {
 .vx-drawer__action-sub { font-size: 11px; color: var(--text-secondary); }
 .vx-drawer__soon { position: absolute; top: 6px; right: 6px; font-size: 10px; color: var(--text-tertiary); }
 
+/* ── Right rail: Environment / Side chat tabs ───────────────────────────── */
+.vx-right { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.vx-right__tabs { display: flex; gap: 2px; padding: 8px 8px 0; flex: none; }
+.vx-right__tab { flex: 1; padding: 5px 8px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text-secondary); font-size: 12px; font-family: inherit; cursor: pointer; }
+.vx-right__tab:hover { color: var(--text-primary); background: var(--bg-elevated); }
+.vx-right__tab.is-active { color: var(--text-primary); background: var(--bg-elevated); font-weight: 600; }
+/* `hidden` alone loses to the flex display, so restore it explicitly. */
+.vx-right__pane { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.vx-right__pane[hidden] { display: none; }
+
+/* ── Side chat (quick question, no task card) ───────────────────────────── */
+.vx-side { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.vx-side__body { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.vx-side__empty { color: var(--text-tertiary); font-size: 12px; line-height: 1.5; padding: 12px 4px; }
+.vx-side__msg { font-size: 12px; line-height: 1.5; }
+.vx-side__msg--user { align-self: flex-end; max-width: 90%; padding: 5px 9px; border-radius: 10px; background: var(--bg-elevated); white-space: pre-wrap; }
+.vx-side__msg--agent { color: var(--text-primary); }
+.vx-side__msg--system { color: var(--text-secondary); font-style: italic; font-size: 11px; }
+.vx-side__msg--error { color: var(--error-color); white-space: pre-wrap; }
+.vx-side__composer { flex: none; border-top: 1px solid var(--border-color); padding: 8px; }
+.vx-side__input { width: 100%; resize: none; background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 7px; padding: 6px 8px; font-size: 12px; font-family: inherit; }
+.vx-side__bar { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.vx-side__clear { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: none; border-radius: 5px; background: transparent; color: var(--text-tertiary); cursor: pointer; }
+.vx-side__clear:hover:not(:disabled) { background: var(--bg-elevated); color: var(--error-color); }
+.vx-side__clear:disabled { opacity: 0.35; cursor: default; }
+.vx-side__model { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--text-tertiary); }
+
 /* ── Environment inspector (VX-109) ─────────────────────────────────────── */
 .vx-env { display: flex; flex-direction: column; height: 100%; padding: 10px; }
 .vx-env__head { display: flex; align-items: center; justify-content: space-between; padding: 4px 4px 10px; }

@@ -10,6 +10,7 @@ import { SettingsView } from "../components/SettingsView";
 import { RecoveryView } from "../components/RecoveryView";
 import { ChatSearch } from "../components/ChatSearch";
 import { SkillsView } from "../components/SkillsView";
+import { SideChatPanel } from "../components/SideChatPanel";
 import type { QuickAction } from "../components/QuickActionDrawer";
 import type { SlashAction } from "../components/slashCommands";
 import { useProjects } from "../hooks/useProjects";
@@ -42,6 +43,12 @@ type Drafts = Record<string, string>;
 export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps) {
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [envCollapsed, setEnvCollapsed] = useState(false);
+  // The right rail shows either the Environment inspector or the Side chat.
+  // Side chat is mounted persistently once opened (kept alive by CSS rather
+  // than unmounting) so switching back to Environment doesn't discard an
+  // in-flight answer.
+  const [rightTab, setRightTab] = useState<"env" | "side">("env");
+  const [sideChatOpened, setSideChatOpened] = useState(false);
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   // Bumped when a run finishes so the Environment inspector refetches git status.
@@ -79,10 +86,17 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
   const scopePath =
     selectedTask?.worktree_path || selectedTask?.project_path || activeProject || undefined;
 
+  function openSideChat() {
+    setSideChatOpened(true);
+    setRightTab("side");
+    setEnvCollapsed(false);
+  }
+
   function handleQuickAction(action: QuickAction) {
     if (action === "review") setOverlay("review");
     else if (action === "files") setOverlay("files");
-    // side-chat / browser / terminal: Phase 3.
+    else if (action === "side-chat") openSideChat();
+    // browser / terminal need daemon surfaces that don't exist yet.
   }
 
   /** Shell-level slash commands. `stop`/`branch`/`help` are handled in the
@@ -361,15 +375,52 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
             </button>
           </div>
         ) : (
-          <EnvironmentInspector
-            daemonUrl={daemonUrl}
-            daemonOnline={daemonOnline}
-            path={scopePath}
-            refreshKey={envRefresh}
-            onOpenReview={() => setOverlay("review")}
-            onOpenFiles={() => setOverlay("files")}
-            onToggle={() => setEnvCollapsed(true)}
-          />
+          <div className="vx-right">
+            {sideChatOpened && (
+              <div className="vx-right__tabs" role="tablist">
+                <button
+                  role="tab"
+                  aria-selected={rightTab === "env"}
+                  className={`vx-right__tab${rightTab === "env" ? " is-active" : ""}`}
+                  onClick={() => setRightTab("env")}
+                >
+                  Environment
+                </button>
+                <button
+                  role="tab"
+                  aria-selected={rightTab === "side"}
+                  className={`vx-right__tab${rightTab === "side" ? " is-active" : ""}`}
+                  onClick={() => setRightTab("side")}
+                >
+                  Side chat
+                </button>
+              </div>
+            )}
+            {/* Both panes stay mounted once the side chat exists — hiding with
+                CSS instead of unmounting means switching tabs mid-answer
+                doesn't tear down the stream and lose the reply. */}
+            <div className="vx-right__pane" hidden={sideChatOpened && rightTab !== "env"}>
+              <EnvironmentInspector
+                daemonUrl={daemonUrl}
+                daemonOnline={daemonOnline}
+                path={scopePath}
+                refreshKey={envRefresh}
+                onOpenReview={() => setOverlay("review")}
+                onOpenFiles={() => setOverlay("files")}
+                onToggle={() => setEnvCollapsed(true)}
+              />
+            </div>
+            {sideChatOpened && (
+              <div className="vx-right__pane" hidden={rightTab !== "side"}>
+                <SideChatPanel
+                  daemonUrl={daemonUrl}
+                  daemonOnline={daemonOnline}
+                  workspaceRoot={scopePath}
+                  prefs={prefs}
+                />
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>
