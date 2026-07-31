@@ -565,6 +565,70 @@ pub async fn list_files(
     daemon_get(url, "/api/vibedesk/files", path, token).await
 }
 
+/// Normalise what a user typed into a URL safe to hand a webview.
+///
+/// Only `http`/`https` survive. A bare `example.com` gets `https://`; anything
+/// with another scheme — `file:`, `javascript:`, `data:` — is rejected rather
+/// than normalised, because those are exactly the ones that turn "open a page"
+/// into "read the disk" or "run script in my window". Control characters are
+/// refused too: a newline in a URL is how header/scheme smuggling starts.
+fn normalize_browser_url(input: &str) -> Result<String, String> {
+    let raw = input.trim();
+    if raw.is_empty() {
+        return Err("Enter a web address.".into());
+    }
+    if raw.chars().any(|c| c.is_control() || c.is_whitespace()) {
+        return Err("That doesn't look like a web address.".into());
+    }
+    let lower = raw.to_ascii_lowercase();
+    if lower.starts_with("http://") || lower.starts_with("https://") {
+        return Ok(raw.to_string());
+    }
+    // A scheme we don't allow — say so instead of silently prefixing https://
+    // and opening something the user didn't ask for.
+    if let Some(scheme_end) = raw.find(':') {
+        let scheme = &lower[..scheme_end];
+        if !scheme.is_empty() && scheme.chars().all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '-' || c == '.') {
+            return Err(format!("Only http and https addresses can be opened (got \"{scheme}:\")."));
+        }
+    }
+    Ok(format!("https://{raw}"))
+}
+
+/// Open a website in its own webview window.
+///
+/// A separate window rather than an in-app pane on purpose: the app's CSP is
+/// `default-src 'self'`, so a remote page cannot be framed inside the shell,
+/// and giving arbitrary web content a surface inside the app window would be
+/// the wrong place to economise. The new window's label is not listed in
+/// `capabilities/default.json` (`windows: ["main"]`), so the page it loads has
+/// **no** access to any Tauri command — it is a browser tab, not part of the app.
+#[tauri::command]
+pub async fn open_browser(app: AppHandle, url: String) -> Result<String, String> {
+    use tauri::{WebviewUrl, WebviewWindowBuilder};
+
+    let target = normalize_browser_url(&url)?;
+    let parsed: tauri::Url = target
+        .parse()
+        .map_err(|e| format!("Could not parse \"{target}\": {e}"))?;
+
+    // Unique label per window so several pages can be open at once; reusing a
+    // label would silently fail once the first window exists.
+    let label = format!(
+        "browser-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis())
+            .unwrap_or(0)
+    );
+    WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(parsed))
+        .title(&target)
+        .inner_size(1100.0, 800.0)
+        .build()
+        .map_err(|e| format!("Could not open a window: {e}"))?;
+    Ok(target)
+}
+
 // ── Automations (hosted loops) ──────────────────────────────────────────────
 //
 // The daemon has a resident scheduler (`hosted_loop::scheduler_tick`) that runs

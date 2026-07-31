@@ -85,6 +85,7 @@ pub fn run() {
             commands::list_loops,
             commands::create_loop,
             commands::stop_loop,
+            commands::open_browser,
             commands::get_skill,
             commands::stream_approvals,
             commands::respond_approval,

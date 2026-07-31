@@ -17,7 +17,7 @@ const ACTIONS: { id: QuickAction; icon: typeof FolderTree; label: string; sub: s
   { id: "files", icon: FolderTree, label: "Files", sub: "Browse project files", ready: true },
   { id: "review", icon: GitCompare, label: "Review", sub: "View code changes", ready: true },
   { id: "side-chat", icon: MessagesSquare, label: "Side chat", sub: "Ask without making a task", ready: true },
-  { id: "browser", icon: Globe, label: "Browser", sub: "Open a website", ready: false },
+  { id: "browser", icon: Globe, label: "Browser", sub: "Open a website", ready: true },
   { id: "terminal", icon: TerminalSquare, label: "Terminal", sub: "Run a command in the project", ready: true },
 ];
 

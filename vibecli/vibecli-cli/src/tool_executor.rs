@@ -617,7 +617,14 @@ impl ToolExecutor {
     /// shell semantics (pipes, redirects, env-var expansion) work.
     /// Workspace is bound rw; network policy is `NetPolicy::None`
     /// when `self.network_disabled`, else `NetPolicy::Direct`.
-    fn run_in_native_sandbox(&self, command: &str, cwd: &Path) -> Result<std::process::Output> {
+    /// Associated rather than a method: this runs on a blocking thread (see
+    /// `run_bash`), so it must not borrow `&self` across the await point. It
+    /// only ever needed `network_disabled`.
+    fn run_in_native_sandbox_with(
+        network_disabled: bool,
+        command: &str,
+        cwd: &Path,
+    ) -> Result<std::process::Output> {
         use std::ffi::OsStr;
 
         let mut sandbox = vibe_sandbox_native::native()
@@ -625,7 +632,7 @@ impl ToolExecutor {
         sandbox
             .bind_rw(cwd, cwd)
             .map_err(|e| anyhow::anyhow!("bind_rw workspace: {}", e))?;
-        sandbox.network(if self.network_disabled {
+        sandbox.network(if network_disabled {
             NetPolicy::None
         } else {
             NetPolicy::Direct
@@ -635,7 +642,7 @@ impl ToolExecutor {
             target: "vibecody::sandbox",
             tier = "Native",
             cwd = %cwd.display(),
-            net = if self.network_disabled { "none" } else { "direct" },
+            net = if network_disabled { "none" } else { "direct" },
             cmd_len = command.len(),
             "sandbox.spawn",
         );
@@ -710,39 +717,59 @@ impl ToolExecutor {
             std::borrow::Cow::Borrowed(command)
         };
 
-        let output = if self.sandbox {
-            // S3: route through the unified `Sandbox` trait. The Tier-0
-            // native backend (`vibe-sandbox-native`) is bwrap+Landlock on
-            // Linux, sandbox-exec on macOS, AppContainer on Windows.
-            // Falls back to `CommandExecutor::execute_sandboxed` on the
-            // (rare) case the native backend cannot be constructed —
-            // logged as a downgrade.
-            match self.run_in_native_sandbox(&effective_command, cwd) {
-                Ok(out) => Ok(out),
-                Err(e) => {
-                    tracing::warn!(
-                        target: "vibecody::sandbox",
-                        tier = "Native",
-                        backend_error = %e,
-                        "sandbox.downgrade: native backend unavailable — using execute_sandboxed fallback",
-                    );
-                    CommandExecutor::execute_sandboxed(&effective_command, cwd, cwd)
+        // Every branch below runs a child process to completion with a
+        // *blocking* wait. `execute` is async and is awaited directly on a
+        // tokio worker, so doing that inline pinned a runtime worker for the
+        // entire lifetime of the command. The multi-thread runtime has roughly
+        // one worker per core, so a handful of concurrent agents running slow
+        // commands — or one command that never returns — starves the runtime
+        // and the daemon stops serving HTTP entirely while still holding its
+        // listener open: alive, accepting, answering nothing.
+        //
+        // `spawn_blocking` moves it to the blocking pool (512 threads by
+        // default), which is exactly what that pool is for. Values are moved in
+        // because the closure outlives this frame.
+        let sandboxed = self.sandbox;
+        let net_disabled = self.network_disabled;
+        let owned_command = effective_command.into_owned();
+        let owned_cwd = cwd.to_path_buf();
+        let output = tokio::task::spawn_blocking(move || {
+            if sandboxed {
+                // S3: route through the unified `Sandbox` trait. The Tier-0
+                // native backend (`vibe-sandbox-native`) is bwrap+Landlock on
+                // Linux, sandbox-exec on macOS, AppContainer on Windows.
+                // Falls back to `CommandExecutor::execute_sandboxed` on the
+                // (rare) case the native backend cannot be constructed —
+                // logged as a downgrade.
+                match ToolExecutor::run_in_native_sandbox_with(net_disabled, &owned_command, &owned_cwd) {
+                    Ok(out) => Ok(out),
+                    Err(e) => {
+                        tracing::warn!(
+                            target: "vibecody::sandbox",
+                            tier = "Native",
+                            backend_error = %e,
+                            "sandbox.downgrade: native backend unavailable — using execute_sandboxed fallback",
+                        );
+                        CommandExecutor::execute_sandboxed(&owned_command, &owned_cwd, &owned_cwd)
+                    }
                 }
+            } else if let Some(env) = custom_env {
+                // Execute with custom environment
+                use std::process::Command;
+                Command::new("sh")
+                    .arg("-c")
+                    .arg(&owned_command)
+                    .current_dir(&owned_cwd)
+                    .env_clear()
+                    .envs(env)
+                    .output()
+                    .map_err(anyhow::Error::from)
+            } else {
+                CommandExecutor::execute_in(&owned_command, &owned_cwd)
             }
-        } else if let Some(env) = custom_env {
-            // Execute with custom environment
-            use std::process::Command;
-            Command::new("sh")
-                .arg("-c")
-                .arg(effective_command.as_ref())
-                .current_dir(cwd)
-                .env_clear()
-                .envs(env)
-                .output()
-                .map_err(anyhow::Error::from)
-        } else {
-            CommandExecutor::execute_in(&effective_command, cwd)
-        };
+        })
+        .await
+        .unwrap_or_else(|e| Err(anyhow::anyhow!("command task failed: {e}")));
 
         match output {
             Ok(out) => {
