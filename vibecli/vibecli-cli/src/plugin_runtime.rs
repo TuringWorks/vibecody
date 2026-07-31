@@ -12,8 +12,7 @@
 //! `EnabledComponents` and concat them with their existing sources.
 //! No loader changes shape — they just see a longer input list.
 //!
-//! Patent-distance anchor (fit-gap §18 principle #2): policy
-//! enforcement is client-side. Components from a plugin whose policy
+//! Design invariant: policy enforcement is client-side. Components from a plugin whose policy
 //! is `Off` (or has no row at all — the "unknown plugin" safe
 //! default) are not enumerated; they cannot run.
 

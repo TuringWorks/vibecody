@@ -23,12 +23,12 @@ pub mod mcp_streamable;
 pub mod mcp_tasks;
 // ACP + MCP Registry self-listing (gap C6).
 pub mod registry_listing;
-// Opt-in always-on security review (gap B3, §18.B3 cleared shape).
+// Opt-in file-watcher security review.
 pub mod security_review_watch;
 pub mod security_watch_daemon;
-// WebMCP browser-tool exposure (gap C4, §18.A7-shape, origin-trial gated).
+// WebMCP browser-tool exposure (origin-trial gated).
 pub mod webmcp;
-// Design Mode → diffcomplete-into-DOM (gap A7, §18.A7 cleared shape).
+// Design Mode → diffcomplete-into-source.
 pub mod design_diff;
 // Dynamic large-scale workflow primitive (gap C2).
 pub mod dynamic_workflow;
@@ -232,7 +232,7 @@ pub mod sync_ext;
 // /goal — REPL handlers (display + direct-DB CRUD).
 pub mod exec_goal_repl;
 // Recap & Resume — Phase D1.1: diffcomplete chain types + encrypted
-// store on workspace.db. Patent re-audit: PASS (1–5 unchanged).
+// store on workspace.db.
 pub mod diff_chain;
 pub mod diff_chain_store;
 pub mod mem_benchmark;

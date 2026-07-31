@@ -2,18 +2,18 @@ import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 
-// B2.6 — Plugin Governance panel.
+// Plugin Governance panel.
 //
-// Patent-distance posture (fit-gap §18):
-//   - principle #1: no "for-you" surface, no usage telemetry, no
-//     recommendations — this panel shows the installed plugins for
-//     THIS workspace and nothing else.
-//   - principle #2: every policy change is a deliberate admin click;
-//     the `As admin` toggle is the only privilege gate, mirroring
-//     the server-side `PolicySetter::Admin` semantics.
-//   - principle #4: each row shows the publisher key fingerprint
-//     (truncated x-coordinate) so trust is anchored to a key the
-//     user can see and recognise on re-install.
+// Design invariants:
+//   - No "for-you" surface, no usage telemetry, no recommendations —
+//     this panel shows the installed plugins for THIS workspace and
+//     nothing else.
+//   - Every policy change is a deliberate admin click; the `As admin`
+//     toggle is the only privilege gate, mirroring the server-side
+//     `PolicySetter::Admin` semantics.
+//   - Each row shows the publisher key fingerprint (truncated
+//     x-coordinate) so trust is anchored to a key the user can see
+//     and recognise on re-install.
 
 interface InstalledPlugin {
   name: string;

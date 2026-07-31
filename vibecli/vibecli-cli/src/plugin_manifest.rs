@@ -5,14 +5,13 @@
 //! the VibeCody-specific manifest that lives at the root of an
 //! extracted bundle and tells VibeCLI which components to register.
 //!
-//! Patent-distance posture (fit-gap §18):
-//!   - principle #3: artifact format is open MCPB; lineage to `.vsix`
-//!     + MetaPK keeps prior art clear. This module only defines the
+//! Design invariants:
+//!   - The artifact format is open MCPB. This module only defines the
 //!     manifest *inside* that container — no proprietary wrapping.
-//!   - principle #4: publisher trust roots are per-publisher P-256
-//!     ECDSA keys, embedded here as a `PublicKeyJwk` reusing the same
-//!     JWK shape as the A2A signed agent card (`signed_agent_card.rs`).
-//!     This module records the key; B2.2 verifies the signature.
+//!   - Publisher trust roots are per-publisher P-256 ECDSA keys,
+//!     embedded here as a `PublicKeyJwk` reusing the same JWK shape as
+//!     the A2A signed agent card (`signed_agent_card.rs`). This module
+//!     records the key; verification happens separately.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;

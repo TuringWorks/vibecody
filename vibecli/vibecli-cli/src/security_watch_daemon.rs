@@ -12,7 +12,7 @@
 //! * findings land in a bounded, cloneable [`SecurityFindingsQueue`] the daemon's
 //!   `/v1/security-review/findings` route snapshots for the ReviewPanel.
 //!
-//! The §18.B3 posture is preserved: the loop only *starts* when the caller passes
+//! The opt-in invariant is preserved: the loop only *starts* when the caller passes
 //! an **enabled** [`SecurityReviewConfig`] (opt-in / default-OFF), and it only
 //! ever *produces* [`Finding`]s — it never mutates files or auto-applies fixes.
 //! The reviewer is provider-agnostic (any [`AIProvider`], never hard-coded).

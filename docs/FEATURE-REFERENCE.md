@@ -1091,7 +1091,7 @@ Atomic: bundle extracts to `.staging.<pid>.<uuid>/`; only renamed into the final
 | **VibeCoder** | `PluginGovernancePanel.tsx` under **Enterprise Governance** → **Plugin Governance**. Install form + per-plugin row with publisher fingerprint + policy buttons + Uninstall. |
 | **MCP** | `list_skills` / `get_skill` already return enabled-plugin skills alongside built-ins, tagged with provenance: `{"kind": "builtin"}` or `{"kind": "plugin", "plugin": "<name>"}`. |
 
-### Patent-distance anchors (fit-gap §18)
+### Design anchors
 
 1. **No telemetry-driven personalization.** No "for-you" surface, no usage analytics. Panel shows installed plugins for THIS workspace and nothing else.
 2. **Policy enforcement is client-side and admin-authored.** No remote endpoint can flip a workspace plugin from Off to Required.

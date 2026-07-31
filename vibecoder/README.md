@@ -11,7 +11,7 @@ A modern, high-performance desktop code editor built with Rust + Tauri 2, featur
 - ✅ **Syntax Highlighting**: Monaco Editor with full language grammar support
 - ✅ **LSP Support**: Language Server Protocol client for completions, hover, go-to-definition
 - ✅ **Diff View**: Side-by-side diff viewer with Accept/Reject for agent edits
-- ✅ **DiffComplete (⌘.)**: Explicit-chord AI edit — select code, describe change, model returns a unified diff for modal review (per-hunk accept/reject, optional Monaco edit-before-apply, regenerate-with-refinement). Patent-distant alternative to keystroke-driven ghost text.
+- ✅ **DiffComplete (⌘.)**: Explicit-chord AI edit — select code, describe change, model returns a unified diff for modal review (per-hunk accept/reject, optional Monaco edit-before-apply, regenerate-with-refinement). A deliberate alternative to keystroke-driven ghost text.
 - ✅ **Git Integration**: Branch display, file status indicators, diff view, commit UI
 - ✅ **Terminal**: Integrated PTY-backed terminal panel
 - ✅ **Browser Panel**: Embedded iframe browser for localhost previews (quick-launch: 3000/5173/8080)

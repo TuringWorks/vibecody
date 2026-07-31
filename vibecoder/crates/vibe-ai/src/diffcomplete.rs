@@ -1,6 +1,6 @@
 //! Diff-mode code completion.
 //!
-//! Design intent: a patent-distant alternative to keystroke-driven ghost-text
+//! Design intent: a deliberate alternative to keystroke-driven ghost-text
 //! inline completion. The surface differs on every claim element:
 //!
 //!   - **Trigger**: explicit chord (⌘.) in the host — never keystroke-driven.
@@ -27,7 +27,7 @@ use std::sync::Arc;
 /// `additional_files` is a user-selected list of related files to include as
 /// extra context. This is human-in-the-loop retrieval — files are added by
 /// the user via an explicit picker, never by automatic embedding search. That
-/// distinction keeps Phase 2 patent-distant from keystroke-driven RAG paths.
+/// distinction keeps Phase 2 clear of keystroke-driven RAG paths.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiffCompleteRequest {
     pub file_path: String,
@@ -54,8 +54,7 @@ pub struct DiffCompleteRequest {
     pub refinement: Option<String>,
     /// Author-authored project memory (VIBECLI.md / AGENTS.md / CLAUDE.md
     /// hierarchy + `~/.vibecli/memory.md` scratch). Phase 7 quick-win
-    /// (slice 2026-04-26) — see `notes/PATENT_AUDIT_INLINE.md` "Slice
-    /// audit — 2026-04-26". Carried as a separate optional field rather
+    /// (2026-04-26). Carried as a separate optional field rather
     /// than spliced into `instruction` so it's emitted as a distinct
     /// system message and can be audited / disabled at the wire layer.
     /// **MUST NOT** carry auto-extracted state (OpenMemory, scratchpad,
@@ -106,8 +105,7 @@ Rules:\n\
 /// author-authored project memory verbatim under a clearly-labeled
 /// header. The user message comes last and never embeds the memory
 /// (memory is *context*, not *instruction* — keeping the layers
-/// distinct is part of the patent-distance posture, see
-/// `notes/PATENT_AUDIT_INLINE.md`).
+/// distinct is a deliberate design choice).
 pub fn build_messages(request: &DiffCompleteRequest) -> Vec<Message> {
     let mut messages = Vec::with_capacity(3);
     messages.push(Message {
@@ -427,8 +425,7 @@ mod tests {
 
     #[test]
     fn build_messages_keeps_memory_out_of_user_prompt() {
-        // Patent-distance pin (notes/PATENT_AUDIT_INLINE.md slice 2026-04-26):
-        // memory is system-level *context*, never spliced into the user's
+        // Design pin: memory is system-level *context*, never spliced into the user's
         // instruction. Verify the user message is identical with or
         // without project_memory present.
         let with_mem = DiffCompleteRequest {

@@ -1,6 +1,6 @@
 //! Detached P-256 ECDSA signing for `vibecli-plugin.toml` manifests.
 //!
-//! B2.2 of the plugin-bundle work. Anchors fit-gap §18 principle #4:
+//! Design invariant:
 //! publisher trust roots are per-publisher P-256 ECDSA keys, embedded
 //! in the manifest as a `PublicKeyJwk`. There is no opaque trust
 //! chain — the user explicitly trusts the publisher key when adding

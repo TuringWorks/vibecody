@@ -8303,8 +8303,8 @@ pub async fn diffcomplete_generate(
     previous_diff: Option<String>,
     refinement: Option<String>,
 ) -> Result<DiffCompleteResponseDto, String> {
-    // Phase 7 quick-win (slice 2026-04-26): inject project memory from
-    // author-authored sources only. See notes/PATENT_AUDIT_INLINE.md.
+    // Phase 7 quick-win (2026-04-26): inject project memory from
+    // author-authored sources only.
     // `None` when no workspace is open or no memory files exist —
     // diffcomplete falls back to its prior behavior in that case.
     let project_memory = read_active_workspace_path()
@@ -18447,9 +18447,8 @@ mod tests {
 
     #[test]
     fn build_diffcomplete_memory_surfaces_author_authored_files() {
-        // A project-root AGENTS.md is author-authored — exactly what the
-        // slice audit (notes/PATENT_AUDIT_INLINE.md, 2026-04-26) green-
-        // lights for diffcomplete injection.
+        // A project-root AGENTS.md is author-authored — exactly what
+        // diffcomplete injection is scoped to.
         let workspace = tempfile::TempDir::new().unwrap();
         std::fs::write(
             workspace.path().join("AGENTS.md"),
@@ -60835,12 +60834,10 @@ pub async fn recap_generate(
 
 // ── D1.1: diffcomplete chain autosave ──────────────────────────────────────
 //
-// Thin wrapper around POST /v1/diffcomplete/chains. Patent posture
-// matches the daemon side: the modal is the only caller, and it only
-// fires this on a regenerate-success or final-state-change event.
+// Thin wrapper around POST /v1/diffcomplete/chains. Matches the daemon
+// side: the modal is the only caller, and it only fires this on a
+// regenerate-success or final-state-change event.
 // No timer, no editor-buffer overlay, no accept/reject decoration.
-//
-// Patent re-audit: PASS (elements 1–5 unchanged).
 
 /// D1.1 — Autosave a diffcomplete chain step (and optionally the
 /// final state). The modal POSTs once per regenerate plus once at

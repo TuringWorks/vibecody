@@ -6,16 +6,13 @@
 //! the backbone of the recap-and-resume design for the diffcomplete
 //! workstream (see `docs/design/recap-resume/03-diffcomplete.md`).
 //!
-//! ## Patent-distance posture
+//! ## Design constraints
 //!
 //! These types are pure data; they encode *what already happened*. They
 //! never run on a timer, never decorate the editor buffer, never
 //! contain accept/reject affordances, and never expand a model's
 //! context window. Persistence happens only on discrete user-driven
 //! events (regenerate succeeded, modal closed, apply clicked).
-//!
-//! Re-audit (per `notes/PATENT_AUDIT_INLINE.md`):
-//! Patent re-audit: PASS (elements 1–5 unchanged).
 //!
 //! ## Wire shape
 //!

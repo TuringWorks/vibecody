@@ -121,7 +121,7 @@ fn open_conn(path: &Path) -> Result<Connection, String> {
          -- Policies aren't secrets — they're admin-set workspace-policy
          -- decisions, so no encryption. `set_by` lets us enforce that a
          -- `required` policy can only be lowered by an admin (fit-gap
-         -- §18 principle #2: client-side, admin-authored).
+         -- client-side, admin-authored).
          CREATE TABLE IF NOT EXISTS plugin_policies (
              plugin_name TEXT    PRIMARY KEY,
              policy      TEXT    NOT NULL,
@@ -517,7 +517,7 @@ impl WorkspaceStore {
 
     /// Set (or replace) a plugin's policy.
     ///
-    /// Enforces fit-gap §18 principle #2: a `Required` pin can only
+    /// Design invariant: a `Required` pin can only
     /// be lowered to `Off` by `PolicySetter::Admin`. Anyone may raise
     /// a policy (Off → On → Required); only admin may lower a
     /// Required pin. Setting `Required` from `On` is also admin-only

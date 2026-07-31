@@ -88,7 +88,7 @@ The installer is placed in `src-tauri/target/release/bundle/`.
 - **Rope-based buffer** — built on `ropey` for efficient O(log n) edits on large files
 - **Batch edits** — `apply_batch_edits` for bulk insert/delete operations
 - **Multi-cursor** — `update_cursors` for synchronised cursor state
-- **DiffComplete (⌘.)** — explicit-chord AI editing surface; `DiffCompleteModal` collects an instruction (with optional user-picked extra files for context), `vibe_ai::diffcomplete::generate` returns a unified diff, `DiffReviewPanel` shows per-hunk accept/reject with optional Monaco edit-before-apply and a regenerate-with-refinement loop. Patent-distant alternative to keystroke-driven ghost text — there is no inline-completion / FIM / next-edit-prediction surface in VibeCody (those were removed in 2026-04-26; see `notes/PATENT_AUDIT_INLINE.md` if local).
+- **DiffComplete (⌘.)** — explicit-chord AI editing surface; `DiffCompleteModal` collects an instruction (with optional user-picked extra files for context), `vibe_ai::diffcomplete::generate` returns a unified diff, `DiffReviewPanel` shows per-hunk accept/reject with optional Monaco edit-before-apply and a regenerate-with-refinement loop. A deliberate alternative to keystroke-driven ghost text — there is no inline-completion / FIM / next-edit-prediction surface in VibeCody (those were removed in 2026-04-26).
 - **File watching** — auto-detects external changes using `notify`
 - **Multi-workspace** — open multiple folders simultaneously
 - **Language detection** — automatic language mode from file extension

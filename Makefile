@@ -207,7 +207,7 @@ test-vibedesk: check-vibedesk lint-vibedesk ## Test VibeDesk (typecheck + no-inl
 check-vibedesk: vibedesk/node_modules ## Type-check VibeDesk (tsc --noEmit)
 	cd vibedesk && npx tsc --noEmit
 
-lint-vibedesk: vibedesk/node_modules ## Run VibeDesk patent-distance guard (no-inline-edit)
+lint-vibedesk: vibedesk/node_modules ## Run VibeDesk no-inline-edit lint guard
 	cd vibedesk && $(NPM) run lint:no-inline-edit
 
 # ── Desktop apps aggregate (the three Tauri shells) ───────────────────────────

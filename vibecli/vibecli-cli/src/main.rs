@@ -2956,7 +2956,7 @@ mod loop_engine;
 mod hosted_loop;
 mod sync_ext;
 // Recap & Resume — Phase D1.1: diffcomplete chain types + encrypted
-// store on workspace.db. Patent re-audit: PASS (1–5 unchanged).
+// store on workspace.db.
 #[allow(dead_code)]
 pub mod agentic_cicd;
 #[allow(dead_code)]
@@ -3022,14 +3022,14 @@ mod mcp_tasks;
 // ACP + MCP Registry self-listing (gap C6).
 #[allow(dead_code)]
 mod registry_listing;
-// Opt-in always-on security review (gap B3, §18.B3 cleared shape).
+// Opt-in file-watcher security review.
 #[allow(dead_code)]
 mod security_review_watch;
 mod security_watch_daemon;
-// WebMCP browser-tool exposure (gap C4, §18.A7-shape, origin-trial gated).
+// WebMCP browser-tool exposure (origin-trial gated).
 #[allow(dead_code)]
 mod webmcp;
-// Design Mode → diffcomplete-into-DOM (gap A7, §18.A7 cleared shape).
+// Design Mode → diffcomplete-into-source.
 #[allow(dead_code)]
 mod design_diff;
 // Dynamic large-scale workflow primitive (gap C2).
@@ -6533,7 +6533,7 @@ async fn main() -> Result<()> {
                             // C4 driver — discover/call WebMCP tools a page
                             // advertises over the CDP-attached browser. Origin-
                             // trial gated (off unless VIBECLI_WEBMCP=1) and never
-                            // mutates the live DOM (§18.A7): it only invokes the
+                            // mutates the live DOM: it only invokes the
                             // page-author-provided tool functions.
                             let flag = crate::webmcp::WebMcpFlag::from_env();
                             if !flag.enabled() {

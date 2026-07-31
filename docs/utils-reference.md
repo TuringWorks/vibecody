@@ -88,4 +88,4 @@ Five shared utility modules live in `vibecoder/src/utils/`. They provide common 
 
 ## SupercompleteEngine — REMOVED 2026-04-26
 
-This engine and its supporting Tauri commands (`semantic_search_codebase`, `request_inline_completion`, `predict_next_edit`) were removed entirely as part of the inline-completion patent-distance work. There is no replacement — VibeCody's only AI editing surface is `DiffCompleteModal` (⌘.). See `notes/PATENT_AUDIT_INLINE.md` (gitignored) for the rationale.
+This engine and its supporting Tauri commands (`semantic_search_codebase`, `request_inline_completion`, `predict_next_edit`) were removed entirely. There is no replacement — VibeCody's only AI editing surface is `DiffCompleteModal` (⌘.).

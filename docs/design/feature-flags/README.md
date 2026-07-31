@@ -1707,7 +1707,7 @@ The sandbox-tiers spec defines four backends (Tier-0 native, Tier-1 WASI, Tier-2
 
 ### vs. [docs/design/recap-resume/README.md](../recap-resume/README.md)
 
-The recap system has a heuristic generator (GA, always on, `feature.recap_heuristic`) and an LLM-driven generator (Experimental, off by default, `feature.recap_llm_generator`). The recap subsystem checks `feature.recap_llm_generator` at request time — when off, it falls through to the heuristic. The diffcomplete-kind recap (`feature.recap_kind_diffcomplete`) requires a per-slice patent re-audit per the recap-resume design; the feature flag adds a UI gate but does not substitute for the patent audit.
+The recap system has a heuristic generator (GA, always on, `feature.recap_heuristic`) and an LLM-driven generator (Experimental, off by default, `feature.recap_llm_generator`). The recap subsystem checks `feature.recap_llm_generator` at request time — when off, it falls through to the heuristic. The diffcomplete-kind recap (`feature.recap_kind_diffcomplete`) requires a per-slice design-constraint re-check per the recap-resume design; the feature flag adds a UI gate but does not substitute for that review.
 
 ### vs. [docs/design/rl-os/README.md](../rl-os/README.md)
 

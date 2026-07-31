@@ -1154,8 +1154,8 @@ fn write_promoted_override_in(
 /// per-workspace override dir (`<ws>/.vibecli/skills/`). **Never** overwrites
 /// the shipped `skills/*.md` tree — promoted artifacts land in the override
 /// dir so the 710 shipped skills stay pristine. The panel requires a separate
-/// human action to swap a promoted artifact into the live loader (ties into
-/// the patent-audit rule about surfacing AI output). Returns the written path.
+/// human action to swap a promoted artifact into the live loader. Returns the
+/// written path.
 pub fn promote_value(skill_name: &str, content: &str) -> Result<Value, String> {
     // Precondition: the skill must exist in the catalog (don't write an
     // override for an unknown name).

@@ -1,5 +1,5 @@
 /**
- * SecurityReviewPanel (gap B3) — §18.B3 cleared shape.
+ * SecurityReviewPanel.
  *
  * On-demand, provider-agnostic security review of a single file. The user names
  * a file; the panel reads it and runs `security_review_file`, which returns

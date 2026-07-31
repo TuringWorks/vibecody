@@ -6,7 +6,7 @@ permalink: /diffcomplete/
 
 > AI editing without ghost-text. Press **⌘.** anywhere in the editor, describe the change you want, review the unified diff hunk-by-hunk, accept or reject what you like.
 
-Diffcomplete is VibeCody's only AI code-editing surface. It deliberately replaces keystroke-driven inline completions with an explicit-trigger, diff-output flow — better for review, better for safety, and patent-distant from FIM / next-edit / ghost-text systems.
+Diffcomplete is VibeCody's only AI code-editing surface. It deliberately replaces keystroke-driven inline completions with an explicit-trigger, diff-output flow — better for review and better for safety than FIM / next-edit / ghost-text systems.
 
 ---
 
@@ -223,4 +223,3 @@ Diffcomplete is a deliberate, claim-distant alternative to those patterns. If yo
 
 - **Design doc:** [`docs/design/recap-resume/03-diffcomplete.md`](https://github.com/TuringWorks/vibecody/blob/main/docs/design/recap-resume/03-diffcomplete.md)
 - **Source:** [`vibecoder/crates/vibe-ai/src/diffcomplete.rs`](https://github.com/TuringWorks/vibecody/blob/main/vibecoder/crates/vibe-ai/src/diffcomplete.rs) · [`vibecoder/src/components/DiffCompleteModal.tsx`](https://github.com/TuringWorks/vibecody/blob/main/vibecoder/src/components/DiffCompleteModal.tsx)
-- **Patent audit working doc:** `notes/PATENT_AUDIT_INLINE.md` (gitignored — local only)

@@ -18,14 +18,13 @@
 //!
 //! See also: `01-session.md` for triggers, slicing, failure modes.
 //!
-//! ## Patent-distance note
+//! ## Design constraints
 //!
 //! Recap is itself a context-trimming primitive — it shrinks context.
 //! The Session-kind generator does not predict future code, does not
 //! render inline, has no accept/reject UI on code, and runs only on
-//! explicit triggers. The five Path-D claim elements remain at
-//! distance. Diffcomplete-kind recaps (separate slice D1) require a
-//! per-slice patent re-audit before they ship.
+//! explicit triggers. Diffcomplete-kind recaps (separate slice D1)
+//! require a per-slice constraint re-check before they ship.
 
 #![allow(dead_code)]
 

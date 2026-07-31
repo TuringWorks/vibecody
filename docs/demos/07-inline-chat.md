@@ -4,7 +4,7 @@ title: "Demo 07 — DiffComplete (⌘.)"
 permalink: /demos/07-inline-chat/
 ---
 
-> **Note:** This demo previously covered Inline Chat (⌘K), inline AI completions, Supercomplete, and next-edit prediction. All of those surfaces were removed from VibeCody on **2026-04-26** as part of the inline-completion patent-distance work. The only AI editing surface in VibeCody is now **DiffComplete (⌘.)**, described below. (For background on the removal, see `notes/PATENT_AUDIT_INLINE.md` if you have a local working copy.)
+> **Note:** This demo previously covered Inline Chat (⌘K), inline AI completions, Supercomplete, and next-edit prediction. All of those surfaces were removed from VibeCody on **2026-04-26**. The only AI editing surface in VibeCody is now **DiffComplete (⌘.)**, described below.
 
 ## Overview
 

@@ -97,7 +97,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
   const [visualEditEnabled, setVisualEditEnabled] = useState(false);
   const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
   const [aiInstruction, setAiInstruction] = useState("");
-  // A7 (§18.A7 cleared shape): diffcomplete-into-DOM. Instruction + element →
+  // Diffcomplete-into-source. Instruction + element →
   // a CSS/HTML unified diff (never a live-DOM mutation), shown for explicit apply.
   const [diffInstruction, setDiffInstruction] = useState("");
   const [designDiff, setDesignDiff] = useState<string | null>(null);
@@ -291,7 +291,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
     }
   };
 
-  // A7 cleared shape: emit a CSS/HTML unified diff for the selected element.
+  // Emit a CSS/HTML unified diff for the selected element.
   // The backend (`design_emit_diff`) rejects live-DOM-mutation payloads, so the
   // agent can only ever propose a source diff the user explicitly applies.
   const handleEmitDiff = async () => {

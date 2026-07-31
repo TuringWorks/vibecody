@@ -25,7 +25,7 @@
 //! );
 //! ```
 //!
-//! ## Patent posture
+//! ## Design constraints
 //!
 //! Writes happen on discrete user-driven events only:
 //!  * `upsert_step` — caller posts after a regenerate succeeds,
@@ -35,7 +35,7 @@
 //! POSTed twice doesn't create a duplicate. There is no timer, no
 //! polling, no idle scanner.
 //!
-//! Patent re-audit: PASS (elements 1–5 unchanged).
+//! All five recap design constraints hold.
 
 #![allow(dead_code)]
 

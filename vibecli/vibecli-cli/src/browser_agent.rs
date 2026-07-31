@@ -803,7 +803,7 @@ impl BrowserSession {
         Ok(Self::extract_js_value(&result))
     }
 
-    // ── C4: WebMCP over CDP (§18.A7-shape, origin-trial gated) ──────────────
+    // ── WebMCP over CDP (origin-trial gated) ────────────────────────────────
 
     /// C4 consumer — discover the WebMCP tools the current page advertises.
     /// Probes the known WebMCP surfaces (`window.agent.tools`,
@@ -832,7 +832,7 @@ impl BrowserSession {
     /// first validated by [`crate::webmcp::build_invocation`] (flag on + required
     /// params present), so a malformed or disabled call never reaches the page.
     /// The agent invokes the page-author-provided tool function — it never
-    /// mutates the DOM directly (§18.A7 #7). Returns the tool's JSON result.
+    /// mutates the DOM directly. Returns the tool's JSON result.
     pub async fn call_webmcp_tool(
         &mut self,
         flag: crate::webmcp::WebMcpFlag,

@@ -166,9 +166,9 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
   // to the same chain rather than spawning a new row each time.
   // `nextStepIndexRef` is the 0-based index for the *next* successful
   // generate. Cleared every time the modal opens fresh.
-  // Patent posture: these refs are only read inside discrete event
+  // Design constraint: these refs are only read inside discrete event
   // handlers (regenerate-success, Apply, Cancel/Close) — never on a
-  // timer, never on keystroke. See top-of-file Patent re-audit note.
+  // timer, never on keystroke.
   const chainIdRef = useRef<string | null>(null);
   const nextStepIndexRef = useRef<number>(0);
   const lastInstructionRef = useRef<string>("");
@@ -325,7 +325,6 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
       // successful regenerate (a discrete user-initiated event); never
       // on idle or on typing. Failures don't surface to the user — the
       // modal works whether or not the daemon is online.
-      // Patent re-audit: PASS (elements 1–5 unchanged).
       const stepIndex = nextStepIndexRef.current;
       const isFirstStep = stepIndex === 0;
       const stepInstruction = isFirstStep

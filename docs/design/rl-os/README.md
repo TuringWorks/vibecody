@@ -180,7 +180,7 @@ This gives the user honest ground-truth on which panels are real at any commit. 
 - **31k lines of orphaned scaffolding rot.** The `rl_*_os.rs` modules will diverge from reality unless we either wire them or delete them. Slice 1 begins the wiring; if a module isn't wired by slice 7, that's a signal to delete.
 - **Python ↔ Rust serialization cost.** Per-step IPC is fatal for fast envs (CartPole at 10k steps/s). Mitigation: env loop runs entirely in Python; only metric snapshots cross the boundary. See slice 2.
 - **License surface.** Gymnasium (MIT), CleanRL (MIT), TRL (Apache 2.0) — clean. MuJoCo (Apache 2.0 since 2021) — clean. PettingZoo (MIT) — clean. No GPL surface introduced.
-- **Patent surface.** RL training is unencumbered. The diffcomplete patent-distance work (per CLAUDE.md memory) is unrelated to RL-OS — RL training surfaces don't need patent re-audit.
+- **Scope note.** RL-OS is independent of the diffcomplete editing surface; the two subsystems share no constraints.
 
 ## Glossary (project-specific)
 

@@ -10,7 +10,7 @@
 //!   agent can call them.
 //!
 //! Both stay behind a feature flag while the spec is in origin trial, and both
-//! honor the §18.A7 cleared shape: **the agent never mutates the live DOM**. A
+//! honor the core invariant: **the agent never mutates the live DOM**. A
 //! consumer invocation is surfaced to the user for an explicit diffcomplete-style
 //! confirmation; the producer only advertises read/affordance tools. This module
 //! is the pure descriptor + invocation layer (no CDP I/O), so it is unit-testable
@@ -18,7 +18,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Whether WebMCP is enabled. Off by default — origin-trial gated (§18.A7).
+/// Whether WebMCP is enabled. Off by default — origin-trial gated.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct WebMcpFlag(pub bool);
 
@@ -35,7 +35,7 @@ impl WebMcpFlag {
 
     /// Resolve the origin-trial gate from the environment. Off unless
     /// `VIBECLI_WEBMCP` is `1`/`true`/`on`/`yes` (case-insensitive), keeping
-    /// WebMCP disabled by default per §18.A7 while the spec is in origin trial.
+    /// WebMCP disabled by default while the spec is in origin trial.
     pub fn from_env() -> Self {
         let on = std::env::var("VIBECLI_WEBMCP")
             .map(|v| {

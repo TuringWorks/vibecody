@@ -6,10 +6,10 @@
 
 ---
 
-> **⚠ Patent-distance constraint.**
-> Diffcomplete is the project's deliberately patent-distant alternative to inline AI editing. Any feature on this surface — including recap and resume — is required to walk the five-element claim checklist before merging.
+> **⚠ Standing design constraints.**
+> Diffcomplete is the project's deliberate alternative to inline AI editing: explicit-trigger, diff-first, review-before-apply. Any feature on this surface — including recap and resume — is required to walk the five design constraints before merging.
 >
-> All five elements are summarized in `notes/PATENT_AUDIT_INLINE.md` (gitignored). Cross-reference: [README.md → Patent-distance posture](./README.md#patent-distance-posture).
+> Cross-reference: [README.md → Design constraints](./README.md#design-constraints).
 >
 > If this doc seems to over-constrain the design, that is intentional — the constraint is the point.
 
@@ -24,7 +24,6 @@ Grounded in `b1e28ad1` (Phase 2 slice 3, just shipped):
 - **Modal:** `vibecoder/src/components/DiffCompleteModal.tsx` — keeps `lastDiff`, `refinement`, `phase`, `instruction`, `additionalFiles`, `modified` in **component state only**. Closing the modal loses the chain.
 - **Tests:** `DiffCompleteModal.test.tsx` covers the regenerate flow.
 - **No persistence**, no chain history, no resume of a chain across modal opens.
-- **Memory artifact:** `feedback_patent_distance_priority.md` — user explicitly prefers patent-distance moves over ergonomics polish on this surface.
 
 The surface today is: open modal → instruction → diff → review → optionally refine + regenerate → apply or cancel. **All chain state evaporates on close.**
 
@@ -33,28 +32,28 @@ The surface today is: open modal → instruction → diff → review → optiona
 1. **Persist the chain** for the lifetime of a workspace, so a closed-then-reopened modal can resume the same diff chain.
 2. **Generate a recap** of a chain when the user applies, cancels, or closes the modal — capturing the iteration trail.
 3. **Resume** lets the user re-open any prior chain and continue from any step in it (chain forking is fine; chain rewriting is not).
-4. Keep all five patent-distance elements distant. Recap is a **side panel artifact, never inlined**, **never auto-generated during typing**, **never decorated with accept/reject affordances on code**.
+4. Hold all five design constraints. Recap is a **side panel artifact, never inlined**, **never auto-generated during typing**, **never decorated with accept/reject affordances on code**.
 
 ## Non-goals
 
-- Auto-suggesting diffs as the user types. **Forbidden by patent-distance posture.**
+- Auto-suggesting diffs as the user types. **Forbidden by the design constraints.**
 - Surfacing the chain in a hover popup or inline ghost-text. **Forbidden.**
 - Mobile / watch composition of new diff chains. Mobile and watch can **read** chain recaps (handoff use case), but composition stays on desktop.
 - Cross-workspace chain visibility. Chains live in the workspace they were created in.
 
-## Patent-distance walk-through
+## Design-constraint walk-through
 
-Before describing the design, walk the five claim elements explicitly. Each row says how the proposed feature stays distant.
+Before describing the design, walk the five standing constraints explicitly. Each row says how the proposed feature holds to it.
 
-| Element | Standard inline-suggestion claim | Diffcomplete recap/resume posture |
-|---|---|---|
-| **1. Continuous monitoring of typing** | The system monitors keystrokes and selection state continuously to predict completions. | Recap is generated *only* on explicit modal close / apply / cancel. No keyboard listener, no idle scanner. Chain persistence is a *result-of-action* write, not a continuous capture. |
-| **2. Predictive completion** | The system predicts code the user is *about to type*. | Recap and resume look *backward* at user-directed diffs. Resuming a chain replays *prior* user instructions; no forward prediction. |
-| **3. Inline UI presentation** | Suggestions render in the editor buffer as ghost text or overlays. | Recap and chain history live in a side panel and the modal footer — never in the editor buffer. The applied diff is the only thing that lands in the buffer, and only on explicit user click. |
-| **4. Accept/reject on code** | Tab-to-accept / Esc-to-reject decorate suggested code. | The chain history shows *what was done*, not *what could be done*. There is no accept button on a chain entry — only "View" and "Resume", which open the existing modal flow with its existing explicit Apply gesture. |
-| **5. Model-context-window expansion** | The patent posture extends prompt context to drive better predictions. | Resume *replays* prior context that was already user-supplied; recap *summarizes* it. Neither expands context beyond what the user already directed. |
+| Constraint | How recap/resume holds to it |
+|---|---|
+| **1. No continuous monitoring** | Recap is generated *only* on explicit modal close / apply / cancel. No keyboard listener, no idle scanner. Chain persistence is a *result-of-action* write, not a continuous capture. |
+| **2. No prediction** | Recap and resume look *backward* at user-directed diffs. Resuming a chain replays *prior* user instructions; no forward prediction. |
+| **3. No inline UI** | Recap and chain history live in a side panel and the modal footer — never in the editor buffer. The applied diff is the only thing that lands in the buffer, and only on explicit user click. |
+| **4. No accept/reject on code** | The chain history shows *what was done*, not *what could be done*. There is no accept button on a chain entry — only "View" and "Resume", which open the existing modal flow with its existing explicit Apply gesture. |
+| **5. No context expansion** | Resume *replays* prior context that was already user-supplied; recap *summarizes* it. Neither expands context beyond what the user already directed. |
 
-If any future change to this surface would soften any of these rows, the change is required to be re-audited via `notes/PATENT_AUDIT_INLINE.md` *before* implementation.
+If any future change to this surface would soften any of these rows, the change is required to be re-reviewed *before* implementation.
 
 ## Triggers
 
@@ -67,7 +66,7 @@ If any future change to this surface would soften any of these rows, the change 
 
 **Chains of length 1** (no regeneration occurred) do not produce a recap. The recap value is in the iteration trail.
 
-**No idle-timer trigger.** Per patent-distance Element 1, recap generation is never time-based.
+**No idle-timer trigger.** Per the no-continuous-monitoring constraint, recap generation is never time-based.
 
 ## Data model
 
@@ -323,7 +322,7 @@ Diffcomplete is desktop-only today (it's an editor flow). The CLI gets a *read-o
 
 ## Slicing plan
 
-| Slice | What | Surfaces | Patent re-audit |
+| Slice | What | Surfaces | Constraint re-check |
 |---|---|---|---|
 | **D1.1** | `diff_chains` table on `workspace.db` + `DiffChain` types + autosave RPC | daemon + Tauri command | Required: confirm autosave doesn't run on idle/typing. |
 | **D1.2** | `DiffCompleteModal` autosave on regenerate / final-state | vibecoder | Required: confirm no editor-buffer decoration added. |
@@ -332,9 +331,9 @@ Diffcomplete is desktop-only today (it's an editor flow). The CLI gets a *read-o
 | **D1.5** | "Resume from last step" button in chain history; `/v1/resume` (kind=diff_chain); modal opens at primed step | vibecoder + daemon | Required: confirm resume requires explicit click and uses existing modal-Apply gesture. |
 | **D1.6** | REPL `/diff-chains` and `/diff-chain show` (read-only) | vibecli | Required: confirm no CLI loop affordance added. |
 | **D2.x** | LLM recap generator option | daemon + vibecoder Settings | Required: confirm generator is opt-in per call. |
-| **M1.3** | Mobile read-only chain recap view via `/v1/recap` shared shape | vibemobile | (Read-only — minimal patent surface.) |
+| **M1.3** | Mobile read-only chain recap view via `/v1/recap` shared shape | vibemobile | (Read-only — constraints not engaged.) |
 
-Each slice is required to commit a one-line note in its PR description: `Patent re-audit: PASS (elements 1–5 unchanged)`. If any element is touched, the audit is the merge blocker.
+Each slice is required to commit a one-line note in its PR description: `Constraint re-check: PASS (1–5 unchanged)`. If any constraint is touched, the review is the merge blocker.
 
 ## Open questions
 

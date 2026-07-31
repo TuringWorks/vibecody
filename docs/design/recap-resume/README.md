@@ -29,7 +29,7 @@ Each scope owns its data model and UX, but they share the same daemon primitives
 
 1. **One source of truth.** The vibecli daemon owns recap generation and durable storage; every client renders what the daemon emits. Clients never compute their own recap from raw history. (Aligns with [AGENTS.md](../../../AGENTS.md): the daemon is the authoritative protocol surface.)
 2. **Cheap to resume on any device.** Opening a session on your watch should not require streaming the full transcript — the recap is enough to get oriented; on-demand fetch fills in detail.
-3. **No surprise capture.** Recap is generated on explicit triggers (session end, job completion, user request) — not silently in the background. Diffcomplete remains user-directed (see patent-distance constraint below).
+3. **No surprise capture.** Recap is generated on explicit triggers (session end, job completion, user request) — not silently in the background. Diffcomplete remains user-directed (see design constraints below).
 4. **Resume preserves the chain, not just the last state.** Branching, prior diffs, prior reasoning — all reachable from the recap.
 
 ## Non-goals
@@ -154,17 +154,17 @@ See per-scope docs for the exact request/response bodies.
 4. **Recap generation is logged in `messages` as a system event** with role `system` and a `recap.generated` marker — auditable, never hidden.
 5. **No recap of recaps.** Recapping a recap is forbidden to prevent information loss spirals.
 
-## Patent-distance posture
+## Design constraints
 
-Diffcomplete recap/resume (`03-diffcomplete.md`) must remain distant from all five elements of the inline-suggestion patent claim, per the project's standing constraint:
+Diffcomplete recap/resume (`03-diffcomplete.md`) holds to five standing constraints. They are deliberate product decisions, not implementation details:
 
-- **Element 1 (continuous monitoring):** Recap is generated only on explicit user trigger or chain end. No background scanning.
-- **Element 2 (predictive completion):** Recap summarizes *prior* user-directed diffs; it does not predict future code.
-- **Element 3 (inline UI):** Recap renders in a side panel / modal footer / dedicated view — never inlined into the editor buffer.
-- **Element 4 (acceptance UI):** Recap has no accept/reject affordances on code; it surfaces *what already happened*, not what *might*.
-- **Element 5 (model context window):** Recap is itself a deliberate context-trimming primitive — it shrinks context, doesn't extend it.
+- **No continuous monitoring.** Recap is generated only on explicit user trigger or chain end. No background scanning.
+- **No prediction.** Recap summarizes *prior* user-directed diffs; it does not predict future code.
+- **No inline UI.** Recap renders in a side panel / modal footer / dedicated view — never inlined into the editor buffer.
+- **No accept/reject on code.** Recap has no accept/reject affordances; it surfaces *what already happened*, not what *might*.
+- **No context expansion.** Recap is itself a context-trimming primitive — it shrinks context, it does not extend it.
 
-Cross-reference: `notes/PATENT_AUDIT_INLINE.md` (gitignored). Any change to the diffcomplete recap surface is required to walk the five-element checklist before merging.
+Any change to the diffcomplete recap surface is required to walk these five constraints before merging.
 
 ## Sequencing
 
@@ -175,7 +175,7 @@ The three scopes ship independently but share a common foundation. Recommended o
 | **F1** | Foundation: `recap` + `resume` types, daemon `recaps` table on `sessions.db`, `/v1/recap` routes (Session kind only) | vibecli daemon, vibecli REPL `/recap` command | Everything else depends on the schema and routes; ship them under one `kind` first. |
 | **F2** | vibecoder Session recap panel + auto-recap toggle in Settings | vibecoder only | Validates the daemon contract from a real client before mobile/watch work. |
 | **J1** | Job kind: extend `recap` to jobs, table on `jobs.db`, BackgroundJobs panel "Recap" button | daemon + vibecoder | Reuses the foundation; no new shape. |
-| **D1** | Diffcomplete kind: persisted chains in `workspace.db`, recap of chain at modal close | daemon + vibecoder | Patent-distance review required before merge. |
+| **D1** | Diffcomplete kind: persisted chains in `workspace.db`, recap of chain at modal close | daemon + vibecoder | Design-constraint review required before merge. |
 | **M1** | vibemobile: ChatScreen recap header + resume from recap | vibemobile | One surface, narrow scope. |
 | **W1** | watchOS + Wear: recap-only view, resume opens phone/desktop session | both watch apps | Watches read but never compose a full recap. |
 | **F3** | Auto-resume-last-session toggle, cross-device handoff via `/mobile/sessions` | all clients | Last; depends on every client knowing the recap shape. |
@@ -200,7 +200,7 @@ Detail lives in the per-scope docs; here's the cross-cutting picture:
 2. **LLM vs heuristic default.** Heuristic recaps are free and offline; LLM recaps are richer but cost tokens. Default = heuristic, user opt-in to LLM. → Confirmed in `01-session.md`.
 3. **Counsel sessions.** They're in-memory only today (`counsel.rs`). Persisting them is a prerequisite for Counsel recaps. Out of scope for the first cut; mark as a follow-on.
 4. **Cross-workspace recap visibility.** A session may span workspaces (rare). Default: scope to the workspace the session started in. → Settled in `01-session.md`.
-5. **Patent posture for diffcomplete-resume.** Re-running a chain from index N — does that violate any element? Audit needed before D1 merges.
+5. **Resume semantics for diffcomplete.** Re-running a chain from index N — does that stay within the five design constraints? Review needed before D1 merges.
 
 ## Cross-references
 
@@ -208,7 +208,6 @@ Detail lives in the per-scope docs; here's the cross-cutting picture:
 - [`CLAUDE.md`](../../../CLAUDE.md) — repo guidelines (storage rules, build commands, provider-add 6-file dance)
 - [`docs/connectivity.md`](../../connectivity.md) — mobile/watch transport stack (relevant for resume across devices)
 - [`vibecoder/design-system/README.md`](../../../vibecoder/design-system/README.md) — UI tokens for the recap panel
-- `notes/PATENT_AUDIT_INLINE.md` (gitignored) — patent-distance audit working doc
 
 ## Status table
 

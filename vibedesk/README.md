@@ -10,7 +10,7 @@ Spec & plan live in the PDM vault:
 
 ## Locked decisions
 
-1. **No Cmd+K / no inline-completion.** AI edits go through conversation+Review or the existing **⌘. `DiffCompleteModal`** surface only (patent-distance). Enforced by `scripts/check-no-inline-edit.mjs` (task VX-013).
+1. **No Cmd+K / no inline-completion.** AI edits go through conversation+Review or the existing **⌘. `DiffCompleteModal`** surface only. Enforced by `scripts/check-no-inline-edit.mjs` (task VX-013).
 2. **Worktree-native** environments; sandbox tiers are opt-in escalation.
 3. The **VibeCLI daemon is the source of truth** — VibeDesk talks to it over HTTP/SSE (`src-tauri/src/commands.rs`), never re-implementing agent logic.
 
