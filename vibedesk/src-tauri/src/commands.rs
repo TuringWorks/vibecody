@@ -585,6 +585,112 @@ pub async fn cancel_agent_session(
     resp.json().await.map_err(|e| e.to_string())
 }
 
+/// GET /jobs/:id — the daemon's record for a run, carrying `steps_completed`,
+/// `tokens_used` and `cost_cents`. Backs the usage readout: without it a run is
+/// opaque about what it is spending, which both Claude Desktop and Codex show.
+#[tauri::command]
+pub async fn get_job(
+    url: String,
+    session_id: String,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let u = format!("{}/jobs/{}", url.trim_end_matches('/'), session_id);
+    let client = reqwest::Client::new();
+    let resp = with_auth(client.get(&u), token)
+        .send()
+        .await
+        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    if !resp.status().is_success() {
+        return Err(format!("Daemon returned {}", resp.status()));
+    }
+    resp.json().await.map_err(|e| e.to_string())
+}
+
+// ── Approval prompts (tainted-content gate) ─────────────────────────────────
+//
+// When the daemon runs with `--tainted-http-prompt`, an action carrying
+// prompt-injection-tainted input blocks until a client approves it. VibeDesk's
+// approval pill only ever chose a *policy*; there was no surface to answer an
+// actual prompt, so a gated run would sit there with no explanation. These two
+// commands bridge the daemon's queue to the UI. When the flag is off the SSE
+// stream simply never emits — nothing to configure, nothing to break.
+
+/// Tauri event carrying one pending approval prompt.
+pub const APPROVAL_EVENT: &str = "approval://pending";
+
+/// GET /v1/tainted/pending — forward the daemon's SSE prompt queue. The daemon
+/// re-emits a full snapshot on every change, so the UI de-dupes by `request_id`.
+#[tauri::command]
+pub async fn stream_approvals(
+    app: AppHandle,
+    url: String,
+    token: Option<String>,
+) -> Result<(), String> {
+    use tauri::Emitter;
+
+    let u = format!("{}/v1/tainted/pending", url.trim_end_matches('/'));
+    let client = reqwest::Client::new();
+    let res = with_auth(client.get(&u).header("Accept", "text/event-stream"), token)
+        .send()
+        .await
+        .map_err(|e| format!("Cannot connect to approval stream: {}", e))?;
+
+    if !res.status().is_success() {
+        return Err(format!("Approval stream returned {}", res.status()));
+    }
+
+    tokio::spawn(async move {
+        let mut buf = String::new();
+        let mut response = res;
+        loop {
+            let chunk = match response.chunk().await {
+                Ok(Some(c)) => c,
+                _ => break,
+            };
+            let Ok(text) = std::str::from_utf8(&chunk) else {
+                continue;
+            };
+            buf.push_str(text);
+            while let Some(nl) = buf.find('\n') {
+                let line = buf[..nl].trim().to_string();
+                buf = buf[nl + 1..].to_string();
+                if let Some(data) = line.strip_prefix("data: ") {
+                    if let Ok(ev) = serde_json::from_str::<serde_json::Value>(data) {
+                        let _ = app.emit(APPROVAL_EVENT, ev);
+                    }
+                }
+            }
+        }
+    });
+
+    Ok(())
+}
+
+/// POST /v1/tainted/respond — approve or deny a pending prompt. A 404 means the
+/// prompt already timed out or was answered elsewhere; the UI drops it either
+/// way, so that is reported back rather than treated as a hard failure.
+#[tauri::command]
+pub async fn respond_approval(
+    url: String,
+    request_id: String,
+    approve: bool,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let u = format!("{}/v1/tainted/respond", url.trim_end_matches('/'));
+    let client = reqwest::Client::new();
+    let body = serde_json::json!({ "request_id": request_id, "approve": approve });
+    let resp = with_auth(client.post(&u).json(&body), token)
+        .send()
+        .await
+        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    let status = resp.status();
+    let parsed: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    if !status.is_success() && status != reqwest::StatusCode::NOT_FOUND {
+        return Err(format!("Daemon returned {}: {}", status, parsed));
+    }
+    Ok(parsed)
+}
+
 /// Tauri event name carrying one session's forwarded agent events. Scoping the
 /// channel by session id is what lets several chats run at once: a global
 /// `agent:chunk` channel delivered every run's tokens to every listener, so two

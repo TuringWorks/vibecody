@@ -3,7 +3,10 @@ import { ArrowDown, RotateCcw } from "lucide-react";
 import { TaskPrompt, type ComposerSubmit } from "./TaskPrompt";
 import { ToolUseBlock } from "./ToolUseBlock";
 import { CopyButton, Markdown } from "./Markdown";
+import { ApprovalPrompt } from "./ApprovalPrompt";
 import { useAgentStream, eventsToStreamItems } from "../hooks/useAgentStream";
+import { useApprovals } from "../hooks/useApprovals";
+import { formatCost, formatTokens, useJobUsage } from "../hooks/useJobUsage";
 import type { Task, TaskHistory } from "../hooks/useTasks";
 import type { ComposerPrefs } from "../hooks/useComposerPrefs";
 import type { QuickAction } from "./QuickActionDrawer";
@@ -73,7 +76,9 @@ export function SessionStream({
   onQuickAction,
   onRunFinished,
 }: SessionStreamProps) {
-  const { items, state, startedAt, runTask, attach, stop, loadItems } = useAgentStream();
+  const { items, state, sessionId, startedAt, runTask, attach, stop, loadItems } = useAgentStream();
+  const usage = useJobUsage(daemonUrl, sessionId, state === "running");
+  const approvals = useApprovals(daemonUrl, daemonOnline);
   const [title, setTitle] = useState<string>(selectedTask?.title ?? "New chat");
   const [elapsed, setElapsed] = useState(0);
   // The task whose run is currently streaming — used to PATCH its lifecycle
@@ -257,6 +262,15 @@ export function SessionStream({
         {statusLabel && (
           <span className={`vx-stream__status vx-stream__status--${state}`}>{statusLabel}</span>
         )}
+        {usage && usage.tokens_used > 0 && (
+          <span
+            className="vx-stream__usage"
+            title={`${usage.steps_completed} step${usage.steps_completed === 1 ? "" : "s"} · ${usage.tokens_used.toLocaleString()} tokens · ${formatCost(usage.cost_cents)}`}
+          >
+            {usage.steps_completed}⋅steps · {formatTokens(usage.tokens_used)} tok ·{" "}
+            {formatCost(usage.cost_cents)}
+          </span>
+        )}
         {canRetry && (
           <button
             className="vx-stream__retry"
@@ -318,6 +332,8 @@ export function SessionStream({
           <ArrowDown size={14} /> Latest
         </button>
       )}
+
+      <ApprovalPrompt pending={approvals.pending} onRespond={approvals.respond} />
 
       <TaskPrompt
         daemonUrl={daemonUrl}

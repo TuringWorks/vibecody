@@ -137,6 +137,7 @@ html, body, #root {
 .vx-stream__status--error { color: var(--error-color); }
 .vx-stream__status--cancelled { color: var(--accent-orange); }
 .vx-stream__status--done { color: var(--accent-blue); }
+.vx-stream__usage { font-size: 11px; color: var(--text-tertiary); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .vx-stream__empty { color: var(--text-tertiary); font-size: 13px; padding: 24px 8px; text-align: center; }
 .vx-stream__typing { color: var(--text-tertiary); letter-spacing: 2px; padding: 4px 0; animation: vx-pulse 1.2s ease-in-out infinite; }
 @keyframes vx-pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
@@ -227,6 +228,28 @@ html, body, #root {
 .vx-tool__duration { margin-left: auto; color: var(--text-tertiary); font-size: 11px; }
 .vx-tool__detail { padding: 0 10px 10px 32px; color: var(--text-secondary); font-size: 12px; }
 .vx-tool__actions { display: flex; gap: 8px; padding: 0 10px 10px 32px; }
+
+/* ── Approval prompt (tainted-content gate) ─────────────────────────────── */
+/* Sits above the composer because the run is blocked until it's answered. */
+.vx-approval {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin: 0 10px; padding: 10px 12px;
+  border: 1px solid var(--accent-orange); border-radius: 8px;
+  background: var(--bg-tertiary);
+}
+.vx-approval__icon { color: var(--accent-orange); flex: none; margin-top: 1px; }
+.vx-approval__body { flex: 1; min-width: 0; }
+.vx-approval__head { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+.vx-approval__queue { font-size: 11px; font-weight: 400; color: var(--text-tertiary); }
+.vx-approval__summary {
+  margin-top: 2px; font-size: 11px; color: var(--text-secondary);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.vx-approval__actions { display: flex; gap: 6px; flex: none; }
+.vx-approval__btn { padding: 5px 14px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-elevated); color: var(--text-primary); font-size: 12px; font-family: inherit; cursor: pointer; }
+.vx-approval__btn--deny { border-color: var(--accent-orange); color: var(--accent-orange); font-weight: 600; }
+.vx-approval__btn--allow:hover { background: var(--bg-secondary); }
 
 /* ── Composer (VX-105) + pills (VX-106/107/108) ─────────────────────────── */
 .vx-composer { position: relative; border-top: 1px solid var(--border-color); padding: 10px; background: var(--bg-secondary); }
