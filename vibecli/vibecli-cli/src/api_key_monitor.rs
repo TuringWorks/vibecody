@@ -191,30 +191,42 @@ fn resolve_env_key(name: &str) -> Option<String> {
 }
 
 /// Collect every configured provider from the config.
+/// Every AI provider the daemon knows how to build.
+///
+/// Also the allowlist `/health` filters its `providers.names` through: the
+/// ProfileStore's `api_keys` table holds more than provider credentials (watch
+/// pairing material like `watch.jwt_secret`, the OpenMemory passphrase), so
+/// reporting its raw contents as "configured AI providers" inflated the count
+/// and made `features.diffcomplete.available` true on installs with no provider
+/// configured at all. Keep this in step with `create_raw_provider` in main.rs
+/// and `build_temp_provider` in the VibeCoder commands (see CLAUDE.md → Adding
+/// / updating providers and models).
+pub const AI_PROVIDER_NAMES: &[&str] = &[
+    "anthropic",
+    "openai",
+    "gemini",
+    "grok",
+    "groq",
+    "openrouter",
+    "azure_openai",
+    "mistral",
+    "cerebras",
+    "deepseek",
+    "zhipu",
+    "vercel_ai",
+    "minimax",
+    "perplexity",
+    "together",
+    "fireworks",
+    "sambanova",
+    "ollama",
+    "vibecli_mistralrs",
+];
+
 fn configured_providers(cfg: &Config) -> Vec<(String, Arc<dyn vibe_ai::provider::AIProvider>)> {
-    let all_names = [
-        "anthropic",
-        "openai",
-        "gemini",
-        "grok",
-        "groq",
-        "openrouter",
-        "azure_openai",
-        "mistral",
-        "cerebras",
-        "deepseek",
-        "zhipu",
-        "vercel_ai",
-        "minimax",
-        "perplexity",
-        "together",
-        "fireworks",
-        "sambanova",
-        "ollama",
-        "vibecli_mistralrs",
-    ];
+    let all_names = AI_PROVIDER_NAMES;
     let mut providers = Vec::new();
-    for name in &all_names {
+    for name in all_names {
         if let Some(pc) = cfg.get_provider_config(name) {
             if pc.enabled {
                 if let Some(p) = build_provider(name, pc) {

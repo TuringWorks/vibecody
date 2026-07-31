@@ -487,7 +487,19 @@ fn configured_provider_names_with(
 ) -> Vec<String> {
     store
         .and_then(|s| s.list_api_key_providers("default").ok())
-        .map(|mut v| {
+        .map(|v| {
+            // The api_keys table is not provider-only — it also holds watch
+            // pairing material (`watch.jwt_secret`, `watch.machine_id`, …) and
+            // the OpenMemory passphrase. Reporting those as configured AI
+            // providers inflated `providers.configured_count` (observed: 4 on
+            // an install with zero providers) and flipped
+            // `features.diffcomplete.available` on, since it gates on count > 0.
+            let mut v: Vec<String> = v
+                .into_iter()
+                .filter(|name| {
+                    crate::api_key_monitor::AI_PROVIDER_NAMES.contains(&name.as_str())
+                })
+                .collect();
             v.sort();
             v
         })
@@ -614,24 +626,67 @@ static MEMORY_HEALTH_CACHE: std::sync::OnceLock<
 
 const MEMORY_HEALTH_TTL: Duration = Duration::from_secs(30);
 
-/// Cached wrapper around [`memory_health_block`]. Returns the cached value when
-/// it is younger than the TTL, otherwise recomputes. A poisoned lock falls
-/// through to a fresh computation rather than propagating the panic — a stale
-/// stat must never take `/health` down.
+/// Set while a background refresh is in flight, so a burst of `/health` hits
+/// against an expired entry spawns one recompute rather than one each.
+static MEMORY_HEALTH_REFRESHING: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+/// Recompute the memory block and store it. Blocking (~11s) — only ever called
+/// from the startup warm or a background refresh thread, never from a request.
+fn memory_health_refresh() {
+    let value = memory_health_block();
+    let cache = MEMORY_HEALTH_CACHE.get_or_init(|| std::sync::Mutex::new(None));
+    if let Ok(mut guard) = cache.lock() {
+        *guard = Some((std::time::Instant::now(), value));
+    }
+}
+
+/// Kick off a background refresh unless one is already running. Uses a plain
+/// thread rather than `spawn_blocking` so it works regardless of the caller's
+/// runtime context, and so a ~11s job never occupies a runtime blocking slot.
+fn memory_health_spawn_refresh() {
+    use std::sync::atomic::Ordering;
+    if MEMORY_HEALTH_REFRESHING
+        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+        .is_err()
+    {
+        return; // already refreshing
+    }
+    std::thread::spawn(|| {
+        memory_health_refresh();
+        MEMORY_HEALTH_REFRESHING.store(false, Ordering::Release);
+    });
+}
+
+/// Non-blocking read of the memory block for `/health`.
+///
+/// Stale-while-revalidate: always returns immediately with whatever is cached
+/// and refreshes in the background once the entry ages past the TTL. A plain
+/// TTL cache was not enough — it made one request per window pay the full ~11s
+/// recompute inline, so a client polling every 10s still hit a multi-second
+/// `/health` roughly a third of the time, and VibeDesk's 800ms autostart probe
+/// failed whenever it landed on an expired entry.
+///
+/// Before the startup warm completes there is nothing to serve, so the block
+/// reports `"status": "warming"` rather than zeros a caller could mistake for
+/// a real (empty) store.
 fn memory_health_block_cached() -> serde_json::Value {
     let cache = MEMORY_HEALTH_CACHE.get_or_init(|| std::sync::Mutex::new(None));
-    if let Ok(guard) = cache.lock() {
-        if let Some((at, value)) = guard.as_ref() {
-            if at.elapsed() < MEMORY_HEALTH_TTL {
-                return value.clone();
+    // A poisoned lock must not take /health down — fall through to "warming"
+    // and let the background refresh replace it.
+    let snapshot = cache.lock().ok().and_then(|g| g.clone());
+    match snapshot {
+        Some((at, value)) => {
+            if at.elapsed() >= MEMORY_HEALTH_TTL {
+                memory_health_spawn_refresh();
             }
+            value
+        }
+        None => {
+            memory_health_spawn_refresh();
+            serde_json::json!({ "status": "warming" })
         }
     }
-    let value = memory_health_block();
-    if let Ok(mut guard) = cache.lock() {
-        *guard = Some((std::time::Instant::now(), value.clone()));
-    }
-    value
 }
 
 fn memory_health_block() -> serde_json::Value {
@@ -2256,13 +2311,41 @@ struct VibedeskScopeQuery {
     path: Option<String>,
 }
 
+/// Resolve a requested path to the git repo that contains it.
+///
+/// `vibe_core::git::is_git_repo` opens a path as a repo directly, with no
+/// upward discovery, so a perfectly ordinary choice — picking a subfolder in
+/// the "New project" folder picker — reported "no repo" and left the
+/// Environment inspector, Review diff and Files list all empty. Every other git
+/// tool walks up to the enclosing repo; so do we. `rev-parse --show-toplevel`
+/// is used rather than opening the path directly because it resolves linked
+/// worktrees to their own root, which is exactly what a task worktree needs.
+/// Falls back to the resolved path when it isn't inside a repo at all.
+fn resolve_repo_root(
+    requested: Option<&str>,
+    default_root: &std::path::Path,
+) -> std::path::PathBuf {
+    let start = resolve_run_root(requested, default_root);
+    std::process::Command::new("git")
+        .arg("-C")
+        .arg(&start)
+        .args(["rev-parse", "--show-toplevel"])
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .filter(|s| !s.is_empty())
+        .map(std::path::PathBuf::from)
+        .unwrap_or(start)
+}
+
 /// GET /api/vibedesk/git/status — branch + changed files for the Environment
 /// inspector (VX-109). Excludes ignored files so "Changes" matches Codex.
 async fn vibedesk_git_status(
     Query(q): Query<VibedeskScopeQuery>,
     State(state): State<ServeState>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let root = &resolve_run_root(q.path.as_deref(), &state.workspace_root);
+    let root = &resolve_repo_root(q.path.as_deref(), &state.workspace_root);
     if !vibe_core::git::is_git_repo(root) {
         return Ok(Json(serde_json::json!({
             "is_git_repo": false,
@@ -2314,7 +2397,7 @@ async fn vibedesk_git_diff(
     Query(q): Query<VibedeskScopeQuery>,
     State(state): State<ServeState>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let root = &resolve_run_root(q.path.as_deref(), &state.workspace_root);
+    let root = &resolve_repo_root(q.path.as_deref(), &state.workspace_root);
     if !vibe_core::git::is_git_repo(root) {
         return Ok(Json(serde_json::json!({ "diff": "" })));
     }
@@ -2330,7 +2413,7 @@ async fn vibedesk_files(
     Query(q): Query<VibedeskScopeQuery>,
     State(state): State<ServeState>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let root = &resolve_run_root(q.path.as_deref(), &state.workspace_root);
+    let root = &resolve_repo_root(q.path.as_deref(), &state.workspace_root);
     if !vibe_core::git::is_git_repo(root) {
         return Ok(Json(serde_json::json!({ "files": [] })));
     }
@@ -7353,7 +7436,7 @@ pub async fn serve(
     // has to be absorbed here rather than by whoever knocks first.
     tokio::task::spawn_blocking(|| {
         let started = std::time::Instant::now();
-        let _ = memory_health_block_cached();
+        memory_health_refresh();
         let ms = started.elapsed().as_millis();
         if ms > 1_000 {
             eprintln!("[vibecli serve] memory health stats warmed in {ms}ms (cached for /health)");
