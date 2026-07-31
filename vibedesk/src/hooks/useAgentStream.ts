@@ -164,6 +164,13 @@ export function useAgentStream() {
     [cleanup]
   );
 
+  /** Append a local system note (e.g. `/help` output) without touching the run
+   *  state — these are UI messages, not daemon events, so they are never
+   *  persisted and vanish when the chat is reloaded. */
+  const appendSystem = useCallback((text: string) => {
+    setItems((prev) => [...prev, { kind: "system", text }]);
+  }, []);
+
   /** Seed the stream with a previously-finished conversation. The stream
    *  returns to `idle` so the composer is ready for a follow-up. */
   const loadItems = useCallback(
@@ -274,5 +281,5 @@ export function useAgentStream() {
     }
   }, []);
 
-  return { items, state, sessionId, startedAt, runTask, attach, stop, loadItems };
+  return { items, state, sessionId, startedAt, runTask, attach, stop, loadItems, appendSystem };
 }

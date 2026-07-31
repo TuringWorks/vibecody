@@ -589,6 +589,39 @@ pub async fn cancel_agent_session(
     resp.json().await.map_err(|e| e.to_string())
 }
 
+/// GET /v1/skilllens/skills — the daemon's skill catalog (name, category,
+/// summary, source). Backs the Skills browser, which was a disabled
+/// "coming soon" nav item despite the catalog already being served.
+#[tauri::command]
+pub async fn list_skills(
+    url: String,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    daemon_get(url, "/v1/skilllens/skills", None, token).await
+}
+
+/// GET /v1/skilllens/skills/:name — one skill plus its markdown body, for the
+/// detail pane. The name comes from the catalog, so it is encoded as a path
+/// segment rather than trusted verbatim.
+#[tauri::command]
+pub async fn get_skill(
+    url: String,
+    name: String,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let encoded: String = name
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.') {
+                c.to_string()
+            } else {
+                format!("%{:02X}", c as u32)
+            }
+        })
+        .collect();
+    daemon_get(url, &format!("/v1/skilllens/skills/{encoded}"), None, token).await
+}
+
 /// GET /jobs/:id — the daemon's record for a run, carrying `steps_completed`,
 /// `tokens_used` and `cost_cents`. Backs the usage readout: without it a run is
 /// opaque about what it is spending, which both Claude Desktop and Codex show.

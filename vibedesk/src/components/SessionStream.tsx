@@ -10,6 +10,7 @@ import { formatCost, formatTokens, useJobUsage } from "../hooks/useJobUsage";
 import type { Task, TaskHistory } from "../hooks/useTasks";
 import type { ComposerPrefs } from "../hooks/useComposerPrefs";
 import type { QuickAction } from "./QuickActionDrawer";
+import { helpText, type SlashAction } from "./slashCommands";
 
 interface SessionStreamProps {
   daemonUrl: string;
@@ -34,6 +35,8 @@ interface SessionStreamProps {
   linkSession: (id: string, sessionId: string, status?: string) => Promise<void>;
   getHistory: (id: string) => Promise<TaskHistory>;
   onQuickAction: (action: QuickAction) => void;
+  /** Slash command picked in the composer; the shell owns what they do. */
+  onSlash: (action: SlashAction) => void;
   /** Fired when a run reaches a terminal state, so the parent can refresh env. */
   onRunFinished: () => void;
 }
@@ -74,9 +77,11 @@ export function SessionStream({
   linkSession,
   getHistory,
   onQuickAction,
+  onSlash,
   onRunFinished,
 }: SessionStreamProps) {
-  const { items, state, sessionId, startedAt, runTask, attach, stop, loadItems } = useAgentStream();
+  const { items, state, sessionId, startedAt, runTask, attach, stop, loadItems, appendSystem } =
+    useAgentStream();
   const usage = useJobUsage(daemonUrl, sessionId, state === "running");
   const approvals = useApprovals(daemonUrl, daemonOnline);
   const [title, setTitle] = useState<string>(selectedTask?.title ?? "New chat");
@@ -313,9 +318,13 @@ export function SessionStream({
                 </div>
               );
             case "system":
+              // Rendered as markdown so `/help` reads as a list; daemon system
+              // notes are plain text, which passes through unchanged.
               return (
                 <div key={i} className="vx-msg vx-msg--system">
-                  <div className="vx-msg__system">{item.text}</div>
+                  <div className="vx-msg__system">
+                    <Markdown text={item.text} />
+                  </div>
                 </div>
               );
             case "tool":
@@ -352,6 +361,13 @@ export function SessionStream({
         onSubmit={submit}
         onStop={() => stop(daemonUrl)}
         onQuickAction={onQuickAction}
+        onSlash={(action) => {
+          // Three commands act on this pane; the rest are the shell's.
+          if (action === "stop") stop(daemonUrl);
+          else if (action === "branch") onPref("isolate", !prefs.isolate);
+          else if (action === "help") appendSystem(helpText());
+          else onSlash(action);
+        }}
       />
     </div>
   );

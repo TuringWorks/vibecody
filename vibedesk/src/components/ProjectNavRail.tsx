@@ -22,6 +22,7 @@ interface ProjectNavRailProps {
   onDeleteChat: (task: Task) => void;
   onArchiveChat: (task: Task) => void;
   onOpenSearch: () => void;
+  onOpenSkills: () => void;
   onOpenTrash: () => void;
   onOpenSettings: () => void;
   onToggle: () => void;
@@ -83,6 +84,7 @@ export function ProjectNavRail({
   onDeleteChat,
   onArchiveChat,
   onOpenSearch,
+  onOpenSkills,
   onOpenTrash,
   onOpenSettings,
   onToggle,
@@ -134,7 +136,7 @@ export function ProjectNavRail({
           </button>
         </li>
         <li>
-          <button className="vx-nav__item vx-nav__item--soon" aria-label="Skills" disabled title="Coming soon">
+          <button className="vx-nav__item" aria-label="Skills" onClick={onOpenSkills}>
             <Sparkles size={15} />
             <span>Skills</span>
           </button>

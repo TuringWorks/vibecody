@@ -78,6 +78,8 @@ pub fn run() {
             commands::stream_agent,
             commands::cancel_agent_session,
             commands::get_job,
+            commands::list_skills,
+            commands::get_skill,
             commands::stream_approvals,
             commands::respond_approval,
             commands::list_tasks,

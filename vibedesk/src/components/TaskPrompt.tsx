@@ -6,6 +6,7 @@ import { ReasoningPill, type ReasoningEffort } from "./ReasoningPill";
 import { QuickActionDrawer, type QuickAction } from "./QuickActionDrawer";
 import type { ComposerPrefs } from "../hooks/useComposerPrefs";
 import { findMention, rankFiles, useProjectFiles } from "../hooks/useProjectFiles";
+import { findSlash, matchSlash, type SlashAction } from "./slashCommands";
 
 /** The composer's submit payload, bubbled up to SessionStream for orchestration. */
 export interface ComposerSubmit {
@@ -39,6 +40,8 @@ interface TaskPromptProps {
   onSubmit: (payload: ComposerSubmit) => void;
   onStop: () => void;
   onQuickAction: (action: QuickAction) => void;
+  /** Run a slash command. Handled by the shell — the composer only picks it. */
+  onSlash: (action: SlashAction) => void;
 }
 
 /** Grow the textarea with its content, up to a scrollable ceiling. */
@@ -67,6 +70,7 @@ export function TaskPrompt({
   onSubmit,
   onStop,
   onQuickAction,
+  onSlash,
 }: TaskPromptProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -87,8 +91,25 @@ export function TaskPrompt({
   );
   const mentionOpen = !!mention && mentionMatches.length > 0;
 
+  // Slash commands: only when the whole composer is one `/word`, so paths and
+  // URLs inside a real prompt never pop the menu.
+  const slash = findSlash(draft);
+  const slashMatches = useMemo(
+    () => (slash === null ? [] : matchSlash(slash, busy)),
+    [slash, busy]
+  );
+  const slashOpen = slash !== null && slashMatches.length > 0;
+  const [slashCursor, setSlashCursor] = useState(0);
+
   // A shrinking match list must not leave the highlight past the end.
   useEffect(() => setMentionCursor(0), [mention?.query]);
+  useEffect(() => setSlashCursor(0), [slash]);
+
+  /** Run the picked command and clear the composer. */
+  function runSlash(action: SlashAction) {
+    onDraft("");
+    onSlash(action);
+  }
 
   /** Replace the live `@…` token with the picked path and close the picker. */
   function applyMention(path: string) {
@@ -122,6 +143,13 @@ export function TaskPrompt({
 
   function submit() {
     if (!canSubmit) return;
+    // Clicking the send arrow on a bare `/command` should run it, not send the
+    // literal text to the model.
+    const exact = slashMatches.find((c) => c.name === slash);
+    if (exact) {
+      runSlash(exact.id);
+      return;
+    }
     const task = draft.trim();
     history.current = [...history.current, task];
     historyPos.current = null;
@@ -130,6 +158,30 @@ export function TaskPrompt({
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    // The slash menu takes precedence: it only opens when the composer holds
+    // nothing but the command, so there's no prompt text to protect.
+    if (slashOpen) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSlashCursor((c) => Math.min(slashMatches.length - 1, c + 1));
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSlashCursor((c) => Math.max(0, c - 1));
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        runSlash(slashMatches[slashCursor].id);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onDraft("");
+        return;
+      }
+    }
     // The mention picker owns the arrows / Enter / Tab / Esc while it's open,
     // so completing a path never submits the message by accident.
     if (mentionOpen) {
@@ -195,6 +247,27 @@ export function TaskPrompt({
           onClose={() => setDrawerOpen(false)}
         />
       )}
+      {slashOpen && (
+        <ul className="vx-mention" role="listbox" aria-label="Slash commands">
+          {slashMatches.map((c, i) => (
+            <li key={c.id}>
+              <button
+                role="option"
+                aria-selected={i === slashCursor}
+                className={`vx-mention__item${i === slashCursor ? " is-active" : ""}`}
+                onMouseEnter={() => setSlashCursor(i)}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  runSlash(c.id);
+                }}
+              >
+                <span className="vx-slash__name">/{c.name}</span>
+                <span className="vx-slash__hint">{c.hint}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
       {mentionOpen && (
         <ul className="vx-mention" role="listbox" aria-label="Project files">
           {mentionMatches.map((f, i) => (
@@ -221,7 +294,9 @@ export function TaskPrompt({
         ref={inputRef}
         className="vx-composer__input"
         placeholder={
-          daemonOnline ? "Describe a task, or ask a question — @ to reference a file" : "Waiting for the daemon…"
+          daemonOnline
+            ? "Describe a task, or ask a question — @ for a file, / for commands"
+            : "Waiting for the daemon…"
         }
         value={draft}
         rows={1}

@@ -9,13 +9,15 @@ import { FilesView } from "../components/FilesView";
 import { SettingsView } from "../components/SettingsView";
 import { RecoveryView } from "../components/RecoveryView";
 import { ChatSearch } from "../components/ChatSearch";
+import { SkillsView } from "../components/SkillsView";
 import type { QuickAction } from "../components/QuickActionDrawer";
+import type { SlashAction } from "../components/slashCommands";
 import { useProjects } from "../hooks/useProjects";
 import { useComposerPrefs } from "../hooks/useComposerPrefs";
 import type { Task, useTasks } from "../hooks/useTasks";
 
 type TasksApi = ReturnType<typeof useTasks>;
-type Overlay = null | "review" | "files" | "settings" | "trash";
+type Overlay = null | "review" | "files" | "settings" | "trash" | "skills";
 
 interface ShellLayoutProps {
   daemonUrl: string;
@@ -81,6 +83,28 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
     if (action === "review") setOverlay("review");
     else if (action === "files") setOverlay("files");
     // side-chat / browser / terminal: Phase 3.
+  }
+
+  /** Shell-level slash commands. `stop`/`branch`/`help` are handled in the
+   *  conversation pane, which owns the run and the composer prefs. */
+  function handleSlash(action: SlashAction) {
+    switch (action) {
+      case "new":
+        newChat();
+        break;
+      case "search":
+        setSearchOpen(true);
+        break;
+      case "review":
+      case "files":
+      case "settings":
+      case "trash":
+      case "skills":
+        setOverlay(action);
+        break;
+      default:
+        break;
+    }
   }
 
   const newChat = useCallback(() => {
@@ -266,6 +290,7 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
             onDeleteChat={deleteChat}
             onArchiveChat={archiveChat}
             onOpenSearch={() => setSearchOpen(true)}
+            onOpenSkills={() => setOverlay("skills")}
             onOpenTrash={() => setOverlay("trash")}
             onOpenSettings={() => setOverlay("settings")}
             onToggle={() => setNavCollapsed(true)}
@@ -288,6 +313,19 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
           <ReviewView daemonUrl={daemonUrl} path={scopePath} onClose={() => setOverlay(null)} />
         ) : overlay === "files" ? (
           <FilesView daemonUrl={daemonUrl} path={scopePath} onClose={() => setOverlay(null)} />
+        ) : overlay === "skills" ? (
+          <SkillsView
+            daemonUrl={daemonUrl}
+            onClose={() => setOverlay(null)}
+            onUse={(name) => {
+              // Drop the skill into the current chat's draft and go back to it.
+              setDrafts((prev) => ({
+                ...prev,
+                [draftKey]: `${prev[draftKey] ?? ""}${prev[draftKey] ? " " : ""}Use the ${name} skill: `,
+              }));
+              setOverlay(null);
+            }}
+          />
         ) : (
           <SessionStream
             key={chatNonce}
@@ -304,6 +342,7 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
             linkSession={tasks.linkSession}
             getHistory={tasks.getHistory}
             onQuickAction={handleQuickAction}
+            onSlash={handleSlash}
             onRunFinished={handleRunFinished}
           />
         )}
