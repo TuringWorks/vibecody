@@ -382,8 +382,20 @@ static CODEC_PROBE: std::sync::OnceLock<vibe_infer::kv_cache_tq::CodecProbeRepor
 /// True if `short` is set in ProfileStore (non-empty) OR any of `env_vars`
 /// resolves to a non-empty value. Used by `unconfigured_integrations`
 /// below so `/health` can surface integrations the daemon would 401 on.
-fn integration_configured(short: &str, env_vars: &[&str]) -> bool {
-    if let Ok(store) = crate::profile_store::ProfileStore::new() {
+/// Takes an already-open store rather than opening its own.
+///
+/// `ProfileStore::new()` re-runs the full schema batch (including
+/// `PRAGMA journal_mode=WAL`) on every open, so opening it once per integration
+/// made `/health` cost ten of those and serialize on the WAL lock — measured at
+/// ~12s per request, which is worse than useless for a liveness probe: VibeDesk
+/// probes with an 800ms timeout, concluded the daemon was dead, and told users
+/// to check their PATH while the daemon was running fine.
+fn integration_configured(
+    store: Option<&crate::profile_store::ProfileStore>,
+    short: &str,
+    env_vars: &[&str],
+) -> bool {
+    if let Some(store) = store {
         if let Ok(Some(v)) = store.get_api_key("default", short) {
             if !v.is_empty() {
                 return true;
@@ -400,30 +412,34 @@ fn integration_configured(short: &str, env_vars: &[&str]) -> bool {
 /// every required value must be discoverable; this is the machine-readable
 /// side of that rule. UIs / CLI / dashboards consume this to show a
 /// "needs configuration" badge per surface without users hunting docs.
-fn unconfigured_integrations() -> Vec<&'static str> {
+/// Shares one open store across all nine checks — see `integration_configured`
+/// for why opening per check was pathological.
+fn unconfigured_integrations(
+    store: Option<&crate::profile_store::ProfileStore>,
+) -> Vec<&'static str> {
     let mut out = Vec::new();
-    if !integration_configured("huggingface", &["HF_TOKEN"]) {
+    if !integration_configured(store, "huggingface", &["HF_TOKEN"]) {
         out.push("huggingface");
     }
-    if !integration_configured("notion", &["NOTION_API_KEY"]) {
+    if !integration_configured(store, "notion", &["NOTION_API_KEY"]) {
         out.push("notion");
     }
-    if !integration_configured("todoist", &["TODOIST_API_KEY"]) {
+    if !integration_configured(store, "todoist", &["TODOIST_API_KEY"]) {
         out.push("todoist");
     }
-    let jira_ok = integration_configured("jira_url", &["JIRA_URL"])
-        && integration_configured("jira_email", &["JIRA_EMAIL"])
-        && integration_configured("jira_api_token", &["JIRA_API_TOKEN"]);
+    let jira_ok = integration_configured(store, "jira_url", &["JIRA_URL"])
+        && integration_configured(store, "jira_email", &["JIRA_EMAIL"])
+        && integration_configured(store, "jira_api_token", &["JIRA_API_TOKEN"]);
     if !jira_ok {
         out.push("jira");
     }
-    if !integration_configured("linear", &["LINEAR_API_KEY"]) {
+    if !integration_configured(store, "linear", &["LINEAR_API_KEY"]) {
         out.push("linear");
     }
-    if !integration_configured("copilot", &["COPILOT_TOKEN"]) {
+    if !integration_configured(store, "copilot", &["COPILOT_TOKEN"]) {
         out.push("copilot");
     }
-    if !integration_configured("github", &["GH_TOKEN", "GITHUB_TOKEN"]) {
+    if !integration_configured(store, "github", &["GH_TOKEN", "GITHUB_TOKEN"]) {
         out.push("github");
     }
     out
@@ -460,8 +476,16 @@ fn resolve_machine_id() -> String {
 /// one canonical source instead of probing per-feature. Read fresh on
 /// each call: ProfileStore is a local SQLite query, sub-millisecond.
 fn configured_provider_names() -> Vec<String> {
-    crate::profile_store::ProfileStore::new()
-        .ok()
+    let store = crate::profile_store::ProfileStore::new().ok();
+    configured_provider_names_with(store.as_ref())
+}
+
+/// Reuses an already-open store — `/health` needs this alongside the
+/// integration scan and must not pay for a second schema-batch open.
+fn configured_provider_names_with(
+    store: Option<&crate::profile_store::ProfileStore>,
+) -> Vec<String> {
+    store
         .and_then(|s| s.list_api_key_providers("default").ok())
         .map(|mut v| {
             v.sort();
@@ -571,6 +595,45 @@ fn mcp_features_block() -> serde_json::Value {
     })
 }
 
+/// Cached `/health` memory block: `(computed_at, value)`.
+///
+/// `memory_health_block` loads the whole OpenMemory store — including its
+/// compressed-HNSW vector index — just to report three counts. On a populated
+/// store that measured ~11s, and it ran on every single `/health` request, on
+/// the async runtime. That made the daemon's own liveness endpoint unusable as
+/// a liveness probe: VibeDesk's autostart gives it 800ms, concluded the daemon
+/// was dead, tried to spawn a duplicate, and told the user to check their PATH
+/// while the daemon was running perfectly well. Mobile / watch / IDE clients
+/// all poll the same endpoint.
+///
+/// Counts on a status endpoint do not need to be current to the millisecond, so
+/// they are recomputed at most once per `MEMORY_HEALTH_TTL`.
+static MEMORY_HEALTH_CACHE: std::sync::OnceLock<
+    std::sync::Mutex<Option<(std::time::Instant, serde_json::Value)>>,
+> = std::sync::OnceLock::new();
+
+const MEMORY_HEALTH_TTL: Duration = Duration::from_secs(30);
+
+/// Cached wrapper around [`memory_health_block`]. Returns the cached value when
+/// it is younger than the TTL, otherwise recomputes. A poisoned lock falls
+/// through to a fresh computation rather than propagating the panic — a stale
+/// stat must never take `/health` down.
+fn memory_health_block_cached() -> serde_json::Value {
+    let cache = MEMORY_HEALTH_CACHE.get_or_init(|| std::sync::Mutex::new(None));
+    if let Ok(guard) = cache.lock() {
+        if let Some((at, value)) = guard.as_ref() {
+            if at.elapsed() < MEMORY_HEALTH_TTL {
+                return value.clone();
+            }
+        }
+    }
+    let value = memory_health_block();
+    if let Ok(mut guard) = cache.lock() {
+        *guard = Some((std::time::Instant::now(), value.clone()));
+    }
+    value
+}
+
 fn memory_health_block() -> serde_json::Value {
     let store_dir = openmemory_dir();
     let mut store = match crate::open_memory::OpenMemoryStore::load(&store_dir, "default") {
@@ -611,9 +674,22 @@ async fn health(State(state): State<ServeState>) -> impl IntoResponse {
         .unwrap_or(false);
     let codec_probe = CODEC_PROBE.get();
     let graph_probe = crate::graph_index::graph_handle().map(|h| h.probe.read_recover().clone());
-    let providers = configured_provider_names();
+    // One store open, shared by both scans, and done on a blocking thread:
+    // these are synchronous sqlite calls, and running them on the async runtime
+    // let a slow store stall every other route on the same worker.
+    let (providers, unconfigured, memory_block) = tokio::task::spawn_blocking(|| {
+        let store = crate::profile_store::ProfileStore::new().ok();
+        (
+            configured_provider_names_with(store.as_ref()),
+            unconfigured_integrations(store.as_ref()),
+            // Cached, but the cold computation still reads the memory store off
+            // disk — keep it off the async runtime so it can't stall other routes.
+            memory_health_block_cached(),
+        )
+    })
+    .await
+    .unwrap_or_else(|_| (Vec::new(), Vec::new(), serde_json::Value::Null));
     let provider_count = providers.len();
-    let unconfigured = unconfigured_integrations();
     let now_unix = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs())
@@ -808,7 +884,7 @@ async fn health(State(state): State<ServeState>) -> impl IntoResponse {
         // Consumed by Settings panel + ops dashboards so a feature that
         // depends on "memory has data" can read one canonical signal
         // instead of probing /memory/list.
-        "memory": memory_health_block(),
+        "memory": memory_block,
         // Sandbox readiness — active tier + per-OS capabilities + the
         // explicit deferred list. Honest about limits so dashboards and
         // marketing pages can't claim something the code doesn't deliver.
@@ -7268,6 +7344,21 @@ pub async fn serve(
             ),
         }
     }
+
+    // Warm the /health memory block off the request path. Computing it reads
+    // the whole OpenMemory store (and its HNSW index) — ~11s on a populated
+    // store — so the first client to probe /health would otherwise pay for it
+    // and time out. Every client polls /health for liveness, and VibeDesk's
+    // autostart allows 800ms before declaring the daemon dead, so the cold cost
+    // has to be absorbed here rather than by whoever knocks first.
+    tokio::task::spawn_blocking(|| {
+        let started = std::time::Instant::now();
+        let _ = memory_health_block_cached();
+        let ms = started.elapsed().as_millis();
+        if ms > 1_000 {
+            eprintln!("[vibecli serve] memory health stats warmed in {ms}ms (cached for /health)");
+        }
+    });
 
     // Legacy jobs directory — kept for feedback/intervene side-car files and
     // one-shot migration. Job records themselves now live in
