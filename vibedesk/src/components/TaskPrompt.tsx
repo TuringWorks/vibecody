@@ -1,10 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Plus, ArrowUp, GitBranch, Square } from "lucide-react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Plus, ArrowUp, GitBranch, Square, FileCode } from "lucide-react";
 import { ApprovalPill, type ApprovalTier } from "./ApprovalPill";
 import { ProviderPill } from "./ProviderPill";
 import { ReasoningPill, type ReasoningEffort } from "./ReasoningPill";
 import { QuickActionDrawer, type QuickAction } from "./QuickActionDrawer";
 import type { ComposerPrefs } from "../hooks/useComposerPrefs";
+import { findMention, rankFiles, useProjectFiles } from "../hooks/useProjectFiles";
 
 /** The composer's submit payload, bubbled up to SessionStream for orchestration. */
 export interface ComposerSubmit {
@@ -33,6 +34,8 @@ interface TaskPromptProps {
    *  half-typed message. Keyed per chat by the parent. */
   draft: string;
   onDraft: (text: string) => void;
+  /** Repo whose files back @-mention completion. */
+  scopePath?: string;
   onSubmit: (payload: ComposerSubmit) => void;
   onStop: () => void;
   onQuickAction: (action: QuickAction) => void;
@@ -60,6 +63,7 @@ export function TaskPrompt({
   onProviderModel,
   draft,
   onDraft,
+  scopePath,
   onSubmit,
   onStop,
   onQuickAction,
@@ -70,6 +74,34 @@ export function TaskPrompt({
   // way every shell and chat client behaves.
   const history = useRef<string[]>([]);
   const historyPos = useRef<number | null>(null);
+  // @-mention completion over the project's tracked files: naming a file in a
+  // prompt shouldn't mean retyping its path from memory.
+  const projectFiles = useProjectFiles(daemonUrl, daemonOnline, scopePath);
+  const [caret, setCaret] = useState(0);
+  const [mentionCursor, setMentionCursor] = useState(0);
+
+  const mention = useMemo(() => findMention(draft, caret), [draft, caret]);
+  const mentionMatches = useMemo(
+    () => (mention ? rankFiles(projectFiles, mention.query) : []),
+    [mention, projectFiles]
+  );
+  const mentionOpen = !!mention && mentionMatches.length > 0;
+
+  // A shrinking match list must not leave the highlight past the end.
+  useEffect(() => setMentionCursor(0), [mention?.query]);
+
+  /** Replace the live `@…` token with the picked path and close the picker. */
+  function applyMention(path: string) {
+    if (!mention) return;
+    const next = `${draft.slice(0, mention.start)}@${path} ${draft.slice(caret)}`;
+    onDraft(next);
+    const pos = mention.start + path.length + 2;
+    setCaret(pos);
+    requestAnimationFrame(() => {
+      inputRef.current?.setSelectionRange(pos, pos);
+      inputRef.current?.focus();
+    });
+  }
 
   const canSubmit = !!draft.trim() && !busy && daemonOnline;
 
@@ -98,6 +130,31 @@ export function TaskPrompt({
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    // The mention picker owns the arrows / Enter / Tab / Esc while it's open,
+    // so completing a path never submits the message by accident.
+    if (mentionOpen) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setMentionCursor((c) => Math.min(mentionMatches.length - 1, c + 1));
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setMentionCursor((c) => Math.max(0, c - 1));
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        applyMention(mentionMatches[mentionCursor]);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        // Move the caret off the token so `findMention` stops matching.
+        setCaret(-1);
+        return;
+      }
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       submit();
@@ -138,16 +195,42 @@ export function TaskPrompt({
           onClose={() => setDrawerOpen(false)}
         />
       )}
+      {mentionOpen && (
+        <ul className="vx-mention" role="listbox" aria-label="Project files">
+          {mentionMatches.map((f, i) => (
+            <li key={f}>
+              <button
+                role="option"
+                aria-selected={i === mentionCursor}
+                className={`vx-mention__item${i === mentionCursor ? " is-active" : ""}`}
+                onMouseEnter={() => setMentionCursor(i)}
+                // mousedown, not click: the textarea must not lose focus first.
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  applyMention(f);
+                }}
+              >
+                <FileCode size={12} />
+                <span className="vx-mention__path">{f}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
       <textarea
         ref={inputRef}
         className="vx-composer__input"
-        placeholder={daemonOnline ? "Describe a task, or ask a question" : "Waiting for the daemon…"}
+        placeholder={
+          daemonOnline ? "Describe a task, or ask a question — @ to reference a file" : "Waiting for the daemon…"
+        }
         value={draft}
         rows={1}
         onChange={(e) => {
           historyPos.current = null;
+          setCaret(e.target.selectionStart ?? e.target.value.length);
           onDraft(e.target.value);
         }}
+        onSelect={(e) => setCaret(e.currentTarget.selectionStart ?? 0)}
         onKeyDown={onKeyDown}
       />
       <div className="vx-composer__bar">

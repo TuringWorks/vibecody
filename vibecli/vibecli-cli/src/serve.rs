@@ -2198,11 +2198,27 @@ async fn vibedesk_git_status(
         .filter(|(_, st)| **st != vibe_core::git::FileStatus::Ignored)
         .map(|(path, st)| serde_json::json!({ "path": path, "status": format!("{st:?}").to_lowercase() }))
         .collect();
+    // HEAD summary for the inspector's Commit row, which previously rendered as
+    // a permanently-inert label. Best-effort: a repo with no commits yet simply
+    // reports no head rather than failing the whole status call.
+    let head = vibe_core::git::get_history(root, 1)
+        .ok()
+        .and_then(|c| c.into_iter().next())
+        .map(|c| {
+            serde_json::json!({
+                "hash": c.hash.chars().take(8).collect::<String>(),
+                "message": c.message.lines().next().unwrap_or("").to_string(),
+                "author": c.author,
+                "timestamp": c.timestamp,
+            })
+        });
+
     Ok(Json(serde_json::json!({
         "is_git_repo": true,
         "branch": status.branch,
         "changed_count": changed.len(),
         "changed": changed,
+        "head": head,
     })))
 }
 

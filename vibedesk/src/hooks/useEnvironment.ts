@@ -6,11 +6,20 @@ export interface ChangedFile {
   status: string;
 }
 
+/** HEAD summary, absent in a repo with no commits yet. */
+export interface HeadCommit {
+  hash: string;
+  message: string;
+  author: string;
+  timestamp: number;
+}
+
 export interface GitStatus {
   is_git_repo: boolean;
   branch: string;
   changed_count: number;
   changed: ChangedFile[];
+  head?: HeadCommit | null;
 }
 
 /**

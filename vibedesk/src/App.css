@@ -257,6 +257,16 @@ html, body, #root {
 .vx-composer__bar { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
 .vx-composer__spacer { flex: 1; }
 .vx-composer__input { max-height: 260px; overflow-y: auto; line-height: 1.5; }
+/* @-mention file picker — anchored above the composer like the pill menus. */
+.vx-mention {
+  position: absolute; bottom: calc(100% - 4px); left: 10px; right: 10px;
+  list-style: none; margin: 0; padding: 4px; max-height: 220px; overflow-y: auto;
+  background: var(--bg-elevated); border: 1px solid var(--border-color);
+  border-radius: 8px; box-shadow: var(--elevation-2); z-index: 14;
+}
+.vx-mention__item { display: flex; align-items: center; gap: 7px; width: 100%; padding: 5px 8px; border: none; border-radius: 5px; background: transparent; color: var(--text-secondary); cursor: pointer; font-size: 12px; text-align: left; font-family: inherit; }
+.vx-mention__item.is-active { background: var(--bg-tertiary); color: var(--text-primary); }
+.vx-mention__path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
 .vx-composer__submit { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: none; border-radius: 50%; background: var(--accent-blue); color: #fff; cursor: pointer; flex: none; }
 .vx-composer__submit:disabled { opacity: 0.4; cursor: default; }
 /* Stop reads as an interrupt, not a send — different colour, square glyph. */
@@ -307,6 +317,9 @@ html, body, #root {
 .vx-env__changes:disabled { cursor: default; color: var(--text-secondary); }
 .vx-env__changes:not(:disabled):hover { color: var(--accent-blue); }
 .vx-env__branch { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vx-env__sha { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; color: var(--text-secondary); flex: none; }
+.vx-env__commit-msg { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--text-secondary); }
+.vx-env__sources:disabled { opacity: 0.5; cursor: default; }
 .vx-env__changed-list { list-style: none; margin: 6px 0; padding: 6px 0; border-top: 1px solid var(--border-subtle); display: flex; flex-direction: column; gap: 2px; }
 .vx-env__changed { display: flex; align-items: center; gap: 8px; padding: 2px 8px; font-size: 12px; color: var(--text-secondary); }
 .vx-env__changed--more { color: var(--text-tertiary); font-style: italic; }

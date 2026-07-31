@@ -344,6 +344,7 @@ export function SessionStream({
         onProviderModel={onProviderModel}
         draft={draft}
         onDraft={onDraft}
+        scopePath={runRoot}
         onSubmit={submit}
         onStop={() => stop(daemonUrl)}
         onQuickAction={onQuickAction}

@@ -11,6 +11,8 @@ interface EnvironmentInspectorProps {
   refreshKey?: number;
   /** Open the Review diff viewer (VX-202). */
   onOpenReview?: () => void;
+  /** Open the Files list — what the "Sources" row means. */
+  onOpenFiles?: () => void;
   onToggle: () => void;
 }
 
@@ -26,6 +28,7 @@ export function EnvironmentInspector({
   path,
   refreshKey,
   onOpenReview,
+  onOpenFiles,
   onToggle,
 }: EnvironmentInspectorProps) {
   const { status } = useEnvironment(daemonUrl, daemonOnline, path, refreshKey);
@@ -33,6 +36,11 @@ export function EnvironmentInspector({
   const branch = status?.branch || (status?.is_git_repo === false ? "(no repo)" : "…");
   const changedCount = status?.changed_count ?? 0;
   const repoName = path ? path.split("/").filter(Boolean).pop() : null;
+  const head = status?.head ?? null;
+  // The daemon parks task worktrees under `<repo>/.vibecli/worktrees/` (see
+  // create_task in serve.rs); a run in one is isolated on its own branch, which
+  // is worth saying out loud rather than leaving "Local" as a bare label.
+  const isWorktree = !!path && path.includes("/.vibecli/worktrees/");
 
   return (
     <aside className="vx-env">
@@ -61,14 +69,27 @@ export function EnvironmentInspector({
             <span className="vx-env__badge">{changedCount > 0 ? `+${changedCount}` : "0"}</span>
           </button>
         </li>
-        <li className="vx-env__item">
+        <li className="vx-env__item" title={path ?? "The daemon's own workspace root"}>
           <Monitor size={14} /> <span>Local</span>
+          <span className="vx-env__badge">{isWorktree ? "worktree" : "in place"}</span>
         </li>
         <li className="vx-env__item" title={branch}>
           <GitBranch size={14} /> <span className="vx-env__branch">{branch}</span>
         </li>
-        <li className="vx-env__item vx-env__item--muted">
-          <GitCommit size={14} /> <span>Commit</span>
+        {/* HEAD, not a dead "Commit" label — the row now says what's checked out. */}
+        <li
+          className={`vx-env__item${head ? "" : " vx-env__item--muted"}`}
+          title={head ? `${head.hash} — ${head.message}` : "No commits yet"}
+        >
+          <GitCommit size={14} />
+          {head ? (
+            <>
+              <span className="vx-env__sha">{head.hash}</span>
+              <span className="vx-env__commit-msg">{head.message}</span>
+            </>
+          ) : (
+            <span>No commits yet</span>
+          )}
         </li>
       </ul>
 
@@ -88,7 +109,14 @@ export function EnvironmentInspector({
         </ul>
       )}
 
-      <button className="vx-env__sources" aria-label="Sources">
+      {/* Was a chevron button that did nothing; it now opens the file list,
+          which is what "Sources" was always implying. */}
+      <button
+        className="vx-env__sources"
+        aria-label="Browse project sources"
+        onClick={onOpenFiles}
+        disabled={!onOpenFiles}
+      >
         <FolderGit2 size={14} /> <span>Sources</span> <span className="vx-env__chevron">›</span>
       </button>
     </aside>

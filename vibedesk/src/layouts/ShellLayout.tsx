@@ -319,6 +319,7 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
             path={scopePath}
             refreshKey={envRefresh}
             onOpenReview={() => setOverlay("review")}
+            onOpenFiles={() => setOverlay("files")}
             onToggle={() => setEnvCollapsed(true)}
           />
         )}
