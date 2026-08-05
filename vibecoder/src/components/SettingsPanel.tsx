@@ -102,6 +102,7 @@ interface ApiKeySettings {
   together_api_key: string;
   fireworks_api_key: string;
   sambanova_api_key: string;
+  poolside_api_key: string;
   ollama_api_key: string;
   ollama_api_url: string;
   claude_model: string;
@@ -1003,6 +1004,7 @@ function ApiKeysSection() {
     mistral_api_key: "", cerebras_api_key: "", deepseek_api_key: "", zhipu_api_key: "",
     vercel_ai_api_key: "", vercel_ai_api_url: "", minimax_api_key: "", perplexity_api_key: "",
     together_api_key: "", fireworks_api_key: "", sambanova_api_key: "",
+    poolside_api_key: "",
     ollama_api_key: "", ollama_api_url: "",
     claude_model: "claude-3-5-sonnet-latest", openai_model: "gpt-4o", openrouter_model: "",
   });
@@ -1303,6 +1305,14 @@ function ApiKeysSection() {
         {renderSecretField("API Key", "sambanova_api_key", "...", "sambanova")}
         <p style={modelsHintStyle}>
           Models: Llama 3.3 70B, Llama 3.1 405B (fast inference on custom silicon)
+        </p>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        {renderSectionHeader("Poolside AI")}
+        {renderSecretField("API Key", "poolside_api_key", "ps_...", "poolside")}
+        <p style={modelsHintStyle}>
+          Models: Malibu, Point, Malibu-Code, Point-Code (purpose-built coding models)
         </p>
       </div>
 

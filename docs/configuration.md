@@ -171,6 +171,11 @@ enabled = false
 api_key = "..."                    # SambaNova key (or SAMBANOVA_API_KEY)
 model = "Meta-Llama-3.1-70B-Instruct"
 
+[poolside]
+enabled = false
+api_key = "..."                    # Poolside AI key (or POOLSIDE_API_KEY)
+model = "malibu"                   # "malibu", "point", "malibu-code", "point-code"
+
 [minimax]
 enabled = false
 api_key = "..."                    # MiniMax key (or MINIMAX_API_KEY)
@@ -268,6 +273,7 @@ API keys can be set as environment variables instead of (or in addition to) the 
 | `TOGETHER_API_KEY` | Together AI |
 | `FIREWORKS_API_KEY` | Fireworks AI |
 | `SAMBANOVA_API_KEY` | SambaNova |
+| `POOLSIDE_API_KEY` | Poolside AI |
 | `MINIMAX_API_KEY` | MiniMax |
 | `JIRA_URL` | Jira instance URL, e.g. `https://myorg.atlassian.net` |
 | `JIRA_EMAIL` | Jira account email (for basic auth) |
@@ -294,6 +300,12 @@ vibecli --tui --provider claude
 ### 1. Ollama — Local/Private Models (Default)
 
 Ollama runs models locally on your machine. No API key needed, no data leaves your network.
+
+**Cloud / Turbo models** — Ollama Cloud (`*-cloud` model suffix, e.g. `glm-5.2:cloud`) runs
+models in Ollama's datacenter. Select a `*-cloud` model and set an `OLLAMA_API_KEY` (via
+`vibecli set-key ollama <key>` or env var) to use it. The local Ollama server acts as a
+proxy to ollama.com when a valid Bearer is attached. Local models on a loopback endpoint
+never send the Bearer, so they always run locally.
 
 1. Install Ollama: [ollama.ai](https://ollama.ai)
 
@@ -766,6 +778,26 @@ Runs models on SambaNova's custom RDU hardware for fast inference.
    ```
 
    Free tier available with rate limits.
+
+### 22. Poolside AI — Purpose-Built Coding Models (Malibu, Point)
+
+Poolside AI provides purpose-built coding models. The API is OpenAI-compatible.
+
+1. Get an API key at [poolside.ai](https://poolside.ai/)
+
+2. Configure:
+
+   ```toml
+   [poolside]
+   enabled = true
+   model = "malibu"       # "malibu", "point", "malibu-code", "point-code"
+   ```
+
+   ```bash
+   export POOLSIDE_API_KEY="..."
+   ```
+
+   Key can also be stored encrypted via `vibecli set-key poolside <key>`.
 
 ### `apiKeyHelper` — Rotating Credentials
 

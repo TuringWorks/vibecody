@@ -15,7 +15,7 @@
 | Claude Code (subscription auth) | ✅ | ✅ | Uses an existing Claude Code seat instead of an API key |
 | OpenAI | ✅ | ✅ | GPT-5.6 Sol / Terra / Luna ᴬ, GPT-5.5, GPT-5.3-Codex |
 | Google Gemini | ✅ | ✅ | Gemini 3.6 Flash ᴬ, 3.5 Flash / Flash-Lite ᴬ, 3.1 Pro |
-| Ollama (local) | ✅ | ✅ | Any Ollama-served model, auto-detect |
+| Ollama (local + Cloud/Turbo) | ✅ | ✅ | Any Ollama-served model, auto-detect; Cloud models (`*-cloud`) via bearer token |
 | mistral.rs (in-process local) | ✅ | ✅ | GGUF / quantised local inference — no server required |
 | AWS Bedrock | ✅ | ✅ | Claude, Titan, Llama via Bedrock API + SigV4 |
 | Azure OpenAI | ✅ | ✅ | Custom deployment endpoint |
@@ -32,6 +32,7 @@
 | Together AI | ✅ | ✅ | Open model hosting |
 | Fireworks AI | ✅ | ✅ | |
 | SambaNova | ✅ | ✅ | |
+| Poolside AI | ✅ | ✅ | Purpose-built coding models (Malibu, Point) |
 | OpenRouter | ✅ | ✅ | 300+ models via a single key |
 | Vercel AI Gateway | ✅ | ✅ | Unified proxy |
 | GitHub Copilot | ✅ | ✅ | Device-flow auth |

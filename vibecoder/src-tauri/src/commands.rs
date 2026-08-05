@@ -10946,6 +10946,7 @@ fn _field_to_provider(field: &str) -> Option<&'static str> {
         "together_api_key" => Some("together"),
         "fireworks_api_key" => Some("fireworks"),
         "sambanova_api_key" => Some("sambanova"),
+        "poolside_api_key" => Some("poolside"),
         "ollama_api_key" => Some("ollama"),
         _ => None,
     }
@@ -10992,6 +10993,7 @@ pub fn load_api_key_settings() -> ApiKeySettings {
         together_api_key: g("together"),
         fireworks_api_key: g("fireworks"),
         sambanova_api_key: g("sambanova"),
+        poolside_api_key: g("poolside"),
         ollama_api_key: g("ollama"),
         ollama_api_url: c("ollama", "api_url"),
         claude_model: c("anthropic", "model"),
@@ -11035,6 +11037,7 @@ fn save_api_key_settings_to_store(settings: &ApiKeySettings) -> Result<(), Strin
     sk!(&settings.together_api_key, "together");
     sk!(&settings.fireworks_api_key, "fireworks");
     sk!(&settings.sambanova_api_key, "sambanova");
+    sk!(&settings.poolside_api_key, "poolside");
     sk!(&settings.ollama_api_key, "ollama");
     sc!(&settings.azure_openai_api_url, "azure_openai", "api_url");
     sc!(&settings.vercel_ai_api_url, "vercel_ai", "api_url");
@@ -11100,6 +11103,9 @@ pub struct ApiKeySettings {
     /// SambaNova — fast inference (SAMBANOVA_API_KEY).
     #[serde(default)]
     pub sambanova_api_key: String,
+    /// Poolside AI — purpose-built coding models (POOLSIDE_API_KEY).
+    #[serde(default)]
+    pub poolside_api_key: String,
     /// Ollama API key. If empty, a device key derived from hostname+username is used.
     #[serde(default)]
     pub ollama_api_key: String,
@@ -11441,6 +11447,22 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
         }
     }
 
+    if !settings.poolside_api_key.is_empty() {
+        for model_id in &["malibu", "point", "malibu-code", "point-code"] {
+            let config = vibe_ai::provider::ProviderConfig {
+                provider_type: "poolside".to_string(),
+                api_key: Some(settings.poolside_api_key.clone()),
+                model: model_id.to_string(),
+                api_url: None,
+                max_tokens: None,
+                temperature: None,
+                ..Default::default()
+            };
+            let provider = vibe_ai::providers::poolside::PoolsideProvider::new(config);
+            engine.add_provider(Arc::new(provider));
+        }
+    }
+
     // Ollama — always registered; uses explicit key, env var, or device key fallback.
     {
         let api_url = if settings.ollama_api_url.is_empty() {
@@ -11554,6 +11576,9 @@ fn count_configured_provider_keys(s: &ApiKeySettings) -> usize {
         n += 1;
     }
     if !s.sambanova_api_key.is_empty() {
+        n += 1;
+    }
+    if !s.poolside_api_key.is_empty() {
         n += 1;
     }
     if !s.ollama_api_key.is_empty() {
@@ -11900,6 +11925,21 @@ pub async fn validate_api_key(
                 Err(format!("HTTP {} from {}", resp.status().as_u16(), base))
             }
         }
+        "poolside" => {
+            let resp = client
+                .get("https://api.poolside.ai/v1/models")
+                .bearer_auth(&api_key)
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+            if resp.status().is_success() {
+                Ok(())
+            } else if resp.status().as_u16() == 401 {
+                Err("Invalid API key".into())
+            } else {
+                Err(format!("HTTP {}", resp.status().as_u16()))
+            }
+        }
         _ => Err(format!("Unknown provider: {}", provider)),
     };
 
@@ -11952,6 +11992,7 @@ pub async fn validate_all_api_keys() -> Result<Vec<ApiKeyValidation>, String> {
         ("together", &settings.together_api_key, None),
         ("fireworks", &settings.fireworks_api_key, None),
         ("sambanova", &settings.sambanova_api_key, None),
+        ("poolside", &settings.poolside_api_key, None),
         (
             "ollama",
             &settings.ollama_api_key,
@@ -17058,7 +17099,8 @@ fn build_temp_provider_with_effort(
         "perplexity" => std::env::var("PERPLEXITY_API_KEY").ok(),
         "together" => std::env::var("TOGETHER_API_KEY").ok(),
         "fireworks" => std::env::var("FIREWORKS_API_KEY").ok(),
-        "ollama" => Some(String::new()),
+        "poolside" => std::env::var("POOLSIDE_API_KEY").ok(),
+        "ollama" => std::env::var("OLLAMA_API_KEY").ok(),
         "vibecli-mistralrs" | "vibecli_mistralrs" => {
             // Token: env first, then ~/.vibecli/daemon.token. Empty string acts
             // as "no auth needed" so build_temp_provider doesn't reject the
@@ -17127,6 +17169,7 @@ fn build_temp_provider_with_effort(
         "together" => Arc::new(providers::TogetherProvider::new(cfg)),
         "fireworks" => Arc::new(providers::FireworksProvider::new(cfg)),
         "ollama" => Arc::new(providers::OllamaProvider::new(cfg)),
+        "poolside" => Arc::new(providers::PoolsideProvider::new(cfg)),
         "vibecli-mistralrs" | "vibecli_mistralrs" => Arc::new(
             providers::vibecli_mistralrs::VibeCliMistralRsProvider::new(cfg),
         ),

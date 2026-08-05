@@ -40,7 +40,7 @@ pub use provider::{CodeContext, CompletionStream, Effort, ImageAttachment, Messa
 pub use providers::{
     AzureOpenAIProvider, BedrockProvider, CerebrasProvider, CopilotProvider, DeepSeekProvider,
     FailoverProvider, GroqProvider, LocalEditProvider, MistralProvider, OpenRouterProvider,
-    VercelAIProvider, ZhipuProvider,
+    PoolsideProvider, VercelAIProvider, ZhipuProvider,
 };
 pub use resilience::{
     add_jitter, classify_error, FailureCategory, FailureJournal, FailureJournalSummary,

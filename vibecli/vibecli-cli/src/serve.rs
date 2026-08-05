@@ -5461,7 +5461,11 @@ fn build_provider_override_with_effort(
         "deepseek" => std::env::var("DEEPSEEK_API_KEY").ok(),
         "cerebras" => std::env::var("CEREBRAS_API_KEY").ok(),
         "openrouter" => std::env::var("OPENROUTER_API_KEY").ok(),
-        "ollama" => Some(String::new()),
+        "perplexity" => std::env::var("PERPLEXITY_API_KEY").ok(),
+        "together" => std::env::var("TOGETHER_API_KEY").ok(),
+        "fireworks" => std::env::var("FIREWORKS_API_KEY").ok(),
+        "poolside" => std::env::var("POOLSIDE_API_KEY").ok(),
+        "ollama" => std::env::var("OLLAMA_API_KEY").ok(),
         _ => std::env::var(format!("{}_API_KEY", provider_type.to_uppercase())).ok(),
     };
 
@@ -5504,6 +5508,7 @@ fn build_provider_override_with_effort(
         "cerebras" => Arc::new(providers::CerebrasProvider::new(cfg)),
         "openrouter" => Arc::new(providers::OpenRouterProvider::new(cfg)),
         "ollama" => Arc::new(providers::ollama::OllamaProvider::new(cfg)),
+        "poolside" => Arc::new(providers::poolside::PoolsideProvider::new(cfg)),
         _ => return None,
     };
     Some(p)

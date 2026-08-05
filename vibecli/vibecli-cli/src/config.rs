@@ -147,6 +147,17 @@ pub struct Config {
     /// SambaNova — fast inference (SAMBANOVA_API_KEY).
     pub sambanova: Option<ProviderConfig>,
 
+    /// Poolside AI — purpose-built coding models (POOLSIDE_API_KEY).
+    ///
+    /// ```toml
+    /// [poolside]
+    /// enabled = true
+    /// model = "malibu"      # or "point", "malibu-code", "point-code"
+    /// api_url = "https://api.poolside.ai/v1"   # optional, default shown
+    /// api_key = "ps_..."                       # or POOLSIDE_API_KEY env
+    /// ```
+    pub poolside: Option<ProviderConfig>,
+
     /// Provider failover chain — try providers in order.
     ///
     /// ```toml
@@ -2164,6 +2175,7 @@ impl Config {
             "together" => self.together.as_ref(),
             "fireworks" => self.fireworks.as_ref(),
             "sambanova" => self.sambanova.as_ref(),
+            "poolside" => self.poolside.as_ref(),
             "vibecli_mistralrs" | "vibecli-mistralrs" => self.vibecli_mistralrs.as_ref(),
             _ => None,
         }
@@ -2997,6 +3009,7 @@ model = "gpt-4o"
         cfg.together = Some(pc());
         cfg.fireworks = Some(pc());
         cfg.sambanova = Some(pc());
+        cfg.poolside = Some(pc());
 
         let names = &[
             "ollama",
@@ -3021,6 +3034,7 @@ model = "gpt-4o"
             "together",
             "fireworks",
             "sambanova",
+            "poolside",
         ];
         for name in names {
             assert!(

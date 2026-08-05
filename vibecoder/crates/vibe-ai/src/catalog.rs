@@ -167,6 +167,8 @@ const MINIMAX: &[&str] = &["MiniMax-M3", "abab6.5s-chat"];
 
 const SAMBANOVA: &[&str] = &["Meta-Llama-3.3-70B-Instruct"];
 
+const POOLSIDE: &[&str] = &["malibu", "point", "malibu-code", "point-code"];
+
 const VIBECLI_MISTRALRS: &[&str] = &[
     "meta-llama/Llama-3.1-8B-Instruct",
     "meta-llama/Llama-3.2-3B-Instruct",
@@ -198,6 +200,7 @@ pub const PROVIDER_MODELS: &[(&str, &[&str])] = &[
     ("zhipu", ZHIPU),
     ("minimax", MINIMAX),
     ("sambanova", SAMBANOVA),
+    ("poolside", POOLSIDE),
     ("vibecli-mistralrs", VIBECLI_MISTRALRS),
 ];
 
@@ -227,6 +230,7 @@ mod tests {
         "together",
         "fireworks",
         "sambanova",
+        "poolside",
         "vibecli-mistralrs",
     ];
 

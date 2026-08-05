@@ -57,6 +57,7 @@ const mockApiKeySettings = {
   together_api_key: "",
   fireworks_api_key: "",
   sambanova_api_key: "",
+  poolside_api_key: "",
   ollama_api_key: "",
   ollama_api_url: "",
   claude_model: "claude-3-5-sonnet-latest",

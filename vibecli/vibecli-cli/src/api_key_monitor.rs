@@ -38,6 +38,7 @@ const PROVIDER_LABELS: &[(&str, &str)] = &[
     ("together", "Together AI"),
     ("fireworks", "Fireworks AI"),
     ("sambanova", "SambaNova"),
+    ("poolside", "Poolside AI"),
     ("ollama", "Ollama"),
     ("vibecli_mistralrs", "VibeCLI mistralrs (local)"),
 ];
@@ -154,6 +155,9 @@ fn build_provider(
         "sambanova" => Some(Arc::new(
             vibe_ai::providers::sambanova::SambaNovaProvider::new(config),
         )),
+        "poolside" => Some(Arc::new(
+            vibe_ai::providers::poolside::PoolsideProvider::new(config),
+        )),
         "ollama" => Some(Arc::new(vibe_ai::providers::ollama::OllamaProvider::new(
             config,
         ))),
@@ -184,6 +188,8 @@ fn resolve_env_key(name: &str) -> Option<String> {
         "together" => "TOGETHER_API_KEY",
         "fireworks" => "FIREWORKS_API_KEY",
         "sambanova" => "SAMBANOVA_API_KEY",
+        "poolside" => "POOLSIDE_API_KEY",
+        "ollama" => "OLLAMA_API_KEY",
         "vibecli_mistralrs" | "vibecli-mistralrs" => "VIBECLI_DAEMON_TOKEN",
         _ => return None,
     };
@@ -219,6 +225,7 @@ pub const AI_PROVIDER_NAMES: &[&str] = &[
     "together",
     "fireworks",
     "sambanova",
+    "poolside",
     "ollama",
     "vibecli_mistralrs",
 ];
@@ -368,6 +375,8 @@ mod tests {
         assert_eq!(provider_label("together"), "Together AI");
         assert_eq!(provider_label("fireworks"), "Fireworks AI");
         assert_eq!(provider_label("sambanova"), "SambaNova");
+        assert_eq!(provider_label("poolside"), "Poolside AI");
+        assert_eq!(provider_label("ollama"), "Ollama");
     }
 
     #[test]
@@ -451,6 +460,7 @@ mod tests {
             "together",
             "fireworks",
             "sambanova",
+            "poolside",
         ] {
             assert!(
                 build_provider(name, &pc).is_some(),

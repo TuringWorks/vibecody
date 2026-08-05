@@ -1521,6 +1521,7 @@ const KEY_PROVIDERS: &[&str] = &[
     "together",
     "fireworks",
     "sambanova",
+    "poolside",
     "ollama",
     // Third-party non-AI tokens that gate features the daemon ships.
     // huggingface: required to pull gated meta-llama/* repos. Daemon
@@ -18890,6 +18891,11 @@ fn list_providers_and_models() {
             "Meta-Llama-3.3-70B-Instruct",
             "SambaNova (SAMBANOVA_API_KEY)",
         ),
+        (
+            "poolside",
+            "malibu",
+            "Poolside AI — coding models (POOLSIDE_API_KEY)",
+        ),
     ];
 
     println!(
@@ -18922,7 +18928,7 @@ fn create_raw_provider(
 ) -> Result<Arc<dyn LLMProvider>> {
     use vibe_ai::providers::{
         azure_openai, bedrock, cerebras, claude, copilot, deepseek, fireworks, gemini, grok, groq,
-        minimax, mistral, openai, openrouter, perplexity, sambanova, together, vercel_ai,
+        minimax, mistral, openai, openrouter, perplexity, poolside, sambanova, together, vercel_ai,
         vibecli_mistralrs, zhipu,
     };
 
@@ -18954,9 +18960,21 @@ fn create_raw_provider(
             )))
         }
 
-        // ── Ollama (local, no API key required) ───────────────────────────────
+        // ── Ollama (local + Cloud/Turbo) ───────────────────────────────────────
+        // Ollama Cloud models (name contains "cloud") need a bearer token.
+        // Key resolution: config → env var → ProfileStore → None (local only).
+        // The provider strips the Bearer for loopback non-cloud models.
         "ollama" => {
             let cfg_model = cfg.ollama.as_ref().and_then(|c| c.model.clone());
+            let api_key = cfg.ollama.as_ref()
+                .and_then(|c| c.api_key.clone())
+                .or_else(|| std::env::var("OLLAMA_API_KEY").ok())
+                .or_else(|| {
+                    crate::profile_store::ProfileStore::new()
+                        .ok()
+                        .and_then(|s| s.get_api_key("default", "ollama").ok().flatten())
+                        .filter(|k| !k.is_empty())
+                });
             let api_url = {
                 let raw = cfg.ollama.as_ref().and_then(|c| c.api_url.clone())
                     .or_else(|| std::env::var("OLLAMA_HOST").ok())
@@ -18975,7 +18993,7 @@ fn create_raw_provider(
                 provider_type: "ollama".to_string(),
                 api_url: Some(api_url),
                 model,
-                api_key: None,
+                api_key,
                 max_tokens: None,
                 temperature: None,
                 ..Default::default()
@@ -19458,8 +19476,39 @@ fn create_raw_provider(
             })))
         }
 
+        // ── Poolside AI (purpose-built coding models) ──────────────────────────
+        "poolside" => {
+            let cfg_key = cfg.poolside.as_ref().and_then(|c| c.api_key.clone());
+            let api_key = cfg_key
+                .or_else(|| std::env::var("POOLSIDE_API_KEY").ok())
+                .or_else(|| {
+                    crate::profile_store::ProfileStore::new()
+                        .ok()
+                        .and_then(|s| s.get_api_key("default", "poolside").ok().flatten())
+                        .filter(|k| !k.is_empty())
+                });
+            if api_key.is_none() {
+                eprintln!("⚠️  POOLSIDE_API_KEY not set (set env var, [poolside] api_key in config, or `vibecli set-key poolside <key>`)");
+            }
+            let cfg_model = cfg.poolside.as_ref().and_then(|c| c.model.clone());
+            let model = model
+                .or(cfg_model)
+                .unwrap_or_else(|| "malibu".to_string());
+            let api_key_helper = cfg.poolside.as_ref().and_then(|c| c.api_key_helper.clone());
+            Ok(Arc::new(poolside::PoolsideProvider::new(ProviderConfig {
+                provider_type: "poolside".to_string(),
+                api_url: None,
+                model,
+                api_key,
+                max_tokens: None,
+                temperature: None,
+                api_key_helper,
+                ..Default::default()
+            })))
+        }
+
         _ => anyhow::bail!(
-            "Unknown provider: '{}'. Available: ollama, claude, openai, gemini, grok, groq, openrouter, azure, bedrock, copilot, mistral, cerebras, deepseek, zhipu, vercel, minimax, perplexity, together, fireworks, sambanova",
+            "Unknown provider: '{}'. Available: ollama, claude, openai, gemini, grok, groq, openrouter, azure, bedrock, copilot, mistral, cerebras, deepseek, zhipu, vercel, minimax, perplexity, together, fireworks, sambanova, poolside",
             provider_name
         ),
     }

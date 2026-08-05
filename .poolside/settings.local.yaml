@@ -1,0 +1,14 @@
+tools:
+    shell:
+        allow:
+            - find *
+            - sort
+            - grep *
+            - head *
+            - wc *
+            - ls *
+            - tail *
+            - cd *
+            - cargo check *
+            - npx tsc *
+            - cargo test *

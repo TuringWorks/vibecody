@@ -78,6 +78,8 @@ export const STATIC_MODELS: Record<string, string[]> = {
   // MiniMax-M3 (2026-06-01): 1M-token context + native multimodality in one open-weight model.
   minimax: ["MiniMax-M3", "abab6.5s-chat"],
   sambanova: ["Meta-Llama-3.3-70B-Instruct"],
+  // Poolside AI — purpose-built coding models (Poolside AI).
+  poolside: ["malibu", "point", "malibu-code", "point-code"],
 };
 
 export const ALL_PROVIDERS = Object.keys(STATIC_MODELS);
@@ -172,6 +174,7 @@ export const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
   vercel_ai:    "",
   minimax:      "MiniMax-M3",
   sambanova:    "Meta-Llama-3.3-70B-Instruct",
+  poolside:     "malibu",
 };
 
 export interface ModelInfo {

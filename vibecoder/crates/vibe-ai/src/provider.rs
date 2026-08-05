@@ -157,6 +157,8 @@ impl TokenUsage {
             ("fireworks", _) => (0.2 / 1_000_000.0, 0.2 / 1_000_000.0),
             ("together", _) => (0.2 / 1_000_000.0, 0.2 / 1_000_000.0),
             ("minimax", _) => (0.2 / 1_000_000.0, 0.2 / 1_000_000.0),
+            // Poolside AI — purpose-built coding models
+            ("poolside", _) => (1.0 / 1_000_000.0, 4.0 / 1_000_000.0),
             _ => (0.0, 0.0), // Ollama / local providers = free
         };
         self.prompt_tokens as f64 * input_price + self.completion_tokens as f64 * output_price
