@@ -284,9 +284,54 @@ interface AIChatProps {
  useAgentLoop?: boolean;
  /** Called when the user toggles the agent-loop switch in the chat header. */
  onUseAgentLoopChange?: (on: boolean) => void;
+ /**
+  * How much the agent may do without asking. Fixed for the whole run — the
+  * backend reads it once when the run starts. Uncontrolled when omitted.
+  */
+ approvalMode?: ApprovalMode;
+ /** Called when the user picks a different approval mode. */
+ onApprovalModeChange?: (mode: ApprovalMode) => void;
  /** /goal slash command — switch to Goals panel (and optionally seed the New Goal modal). */
  onSwitchToGoals?: (seed?: string) => void;
 }
+
+// ── Approval modes ───────────────────────────────────────────────────────────
+
+/**
+ * Wire values for `ApprovalPolicy::from_str` in `vibe-ai/src/agent.rs`. The
+ * backend also has `chat-only` (blocks every tool), which is pointless with the
+ * agent loop switched on, so it is not offered here.
+ */
+export type ApprovalMode = "suggest" | "read-only" | "auto-edit" | "full-auto";
+
+export const APPROVAL_MODES: ReadonlyArray<{
+  value: ApprovalMode;
+  label: string;
+  hint: string;
+}> = [
+  {
+    value: "suggest",
+    label: "Ask every time",
+    hint: "Approve each tool call individually.",
+  },
+  {
+    value: "read-only",
+    label: "Read-only",
+    hint: "Run reads and searches automatically; block writes, shell commands, and sub-agents. Good for reviews and audits.",
+  },
+  {
+    value: "auto-edit",
+    label: "Auto-edit",
+    hint: "Apply file edits automatically; ask before running shell commands.",
+  },
+  {
+    value: "full-auto",
+    label: "Autonomous",
+    hint: "Run everything without asking, including shell commands that modify files.",
+  },
+];
+
+const DEFAULT_APPROVAL_MODE: ApprovalMode = "suggest";
 
 // ── Slash commands ───────────────────────────────────────────────────────────
 
@@ -1041,9 +1086,26 @@ export function AIChat({
   sessionTitle,
   useAgentLoop = false,
   onUseAgentLoopChange,
+  approvalMode: controlledApprovalMode,
+  onApprovalModeChange,
   onSwitchToGoals,
 }: AIChatProps) {
   const [agentMode, setAgentMode] = useState<AgentMode>("chat");
+
+  // Approval mode is controlled by the tab manager when it supplies both the
+  // value and the setter; otherwise AIChat keeps its own (uncontrolled panels,
+  // tests, embedded uses).
+  const [localApprovalMode, setLocalApprovalMode] = useState<ApprovalMode>(DEFAULT_APPROVAL_MODE);
+  const approvalMode = controlledApprovalMode ?? localApprovalMode;
+  const setApprovalMode = useCallback(
+    (mode: ApprovalMode) => {
+      setLocalApprovalMode(mode);
+      onApprovalModeChange?.(mode);
+    },
+    [onApprovalModeChange],
+  );
+  const approvalModeRef = useRef(approvalMode);
+  approvalModeRef.current = approvalMode;
   const [localMessages, setLocalMessages] = useState<Message[]>([]);
   const messages = controlledMessages ?? localMessages;
 
@@ -2054,7 +2116,7 @@ export function AIChat({
       try {
         await invoke("start_agent_task", {
           task: messageText,
-          approvalPolicy: "suggest",
+          approvalPolicy: approvalModeRef.current,
           provider,
           tabId: sessionId ?? null,
           effort: getSelectedEffort(),
@@ -2367,6 +2429,29 @@ export function AIChat({
               />
               Agent {useAgentLoop ? "ON" : "OFF"}
             </label>
+            {/* Approval mode only governs agent runs, so it appears with the
+                toggle. The backend reads the policy once at run start — hence
+                disabled while a run is in flight. */}
+            {useAgentLoop && (
+              <select
+                className="chat-action-btn"
+                value={approvalMode}
+                disabled={isLoading}
+                onChange={(e) => setApprovalMode(e.target.value as ApprovalMode)}
+                title={
+                  APPROVAL_MODES.find((m) => m.value === approvalMode)?.hint ??
+                  "How much the agent may do without asking"
+                }
+                aria-label="Agent approval mode"
+                style={{ cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.5 : 1 }}
+              >
+                {APPROVAL_MODES.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            )}
             {isLoading && (
               <button className="chat-action-btn chat-action-stop" onClick={stopMessage} title="Stop generation">
                 Stop

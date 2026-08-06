@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Icon } from "./Icon";
 import { invoke } from "@tauri-apps/api/core";
 import { AIChat, Message } from "./AIChat";
+import type { ApprovalMode } from "./AIChat";
 import { ChatMemoryPanel } from "./ChatMemoryPanel";
 import { RecapCard } from "./RecapCard";
 import { useSessionMemory } from "../hooks/useSessionMemory";
@@ -181,6 +182,14 @@ export function ChatTabManager({
     const [tabAgentLoop, setTabAgentLoop] = useState<Record<string, boolean>>({});
     const setAgentLoopForTab = useCallback((tabId: string, on: boolean) => {
         setTabAgentLoop(prev => ({ ...prev, [tabId]: on }));
+    }, []);
+
+    // Approval mode is per tab and, like the agent toggle, deliberately not
+    // persisted across launches: a stickily-remembered "Autonomous" would let
+    // a fresh session run shell commands before the user has looked at it.
+    const [tabApprovalMode, setTabApprovalMode] = useState<Record<string, ApprovalMode>>({});
+    const setApprovalModeForTab = useCallback((tabId: string, mode: ApprovalMode) => {
+        setTabApprovalMode(prev => ({ ...prev, [tabId]: mode }));
     }, []);
 
     const tabMessagesRef = useRef(tabMessages);
@@ -907,6 +916,8 @@ export function ChatTabManager({
                             sessionTitle={tab.title}
                             useAgentLoop={!!tabAgentLoop[tab.id]}
                             onUseAgentLoopChange={(on) => setAgentLoopForTab(tab.id, on)}
+                            approvalMode={tabApprovalMode[tab.id] ?? "suggest"}
+                            onApprovalModeChange={(mode) => setApprovalModeForTab(tab.id, mode)}
                             onSwitchToGoals={onSwitchToGoals}
                         />
                     </div>

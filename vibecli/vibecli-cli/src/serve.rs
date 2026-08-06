@@ -473,15 +473,12 @@ fn resolve_machine_id() -> String {
 /// ProfileStore. Names only — never the values. Used by `/health` so any
 /// feature that depends on "an AI provider is configured" (chat,
 /// diffcomplete, recap LLM mode, …) inherits its readiness signal from
-/// one canonical source instead of probing per-feature. Read fresh on
-/// each call: ProfileStore is a local SQLite query, sub-millisecond.
-fn configured_provider_names() -> Vec<String> {
-    let store = crate::profile_store::ProfileStore::new().ok();
-    configured_provider_names_with(store.as_ref())
-}
-
-/// Reuses an already-open store — `/health` needs this alongside the
-/// integration scan and must not pay for a second schema-batch open.
+/// one canonical source instead of probing per-feature.
+///
+/// Takes an already-open store: `/health` needs this alongside the integration
+/// scan and must not pay for a second schema-batch open. The store-opening
+/// wrapper this used to have had no call sites — deleted rather than left as a
+/// convenience nobody wanted.
 fn configured_provider_names_with(
     store: Option<&crate::profile_store::ProfileStore>,
 ) -> Vec<String> {
@@ -2423,6 +2420,25 @@ struct ExecRequest {
     timeout_ms: Option<u64>,
 }
 
+/// A requested timeout after the hard cap has been applied, together with
+/// whether the cap actually bound.
+///
+/// A clamp is not a value: a client asking for 10 minutes and silently getting
+/// 2 cannot tell "my command is slow" from "the daemon refused my timeout". The
+/// bound is reported in the response so the caller sees which one happened.
+struct EffectiveTimeout {
+    millis: u64,
+    clamped: bool,
+}
+
+fn effective_timeout(requested: Option<u64>) -> EffectiveTimeout {
+    let asked = requested.unwrap_or(EXEC_DEFAULT_TIMEOUT_MS);
+    EffectiveTimeout {
+        millis: asked.min(EXEC_MAX_TIMEOUT_MS),
+        clamped: asked > EXEC_MAX_TIMEOUT_MS,
+    }
+}
+
 fn clip(mut s: String) -> (String, bool) {
     if s.len() <= EXEC_MAX_OUTPUT {
         return (s, false);
@@ -2464,14 +2480,11 @@ async fn vibedesk_exec(
     // Run in the directory the user picked, not the repo root — `cd`-ing into a
     // subfolder and running there is normal terminal behaviour.
     let cwd = resolve_run_root(req.path.as_deref(), &state.workspace_root);
-    let timeout = Duration::from_millis(
-        req.timeout_ms
-            .unwrap_or(EXEC_DEFAULT_TIMEOUT_MS)
-            .min(EXEC_MAX_TIMEOUT_MS),
-    );
+    let budget = effective_timeout(req.timeout_ms);
+    let timeout = Duration::from_millis(budget.millis);
 
     let started = std::time::Instant::now();
-    let mut child = tokio::process::Command::new("/bin/sh")
+    let child = tokio::process::Command::new("/bin/sh")
         .arg("-c")
         .arg(&command)
         .current_dir(&cwd)
@@ -2514,6 +2527,11 @@ async fn vibedesk_exec(
         "timed_out": timed_out,
         "truncated": out_clipped || err_clipped,
         "duration_ms": elapsed_ms,
+        // The timeout actually applied, and whether the hard cap reduced what the
+        // caller asked for. Without this a clamped request is indistinguishable
+        // from a slow command.
+        "timeout_ms": budget.millis,
+        "timeout_clamped": budget.clamped,
     })))
 }
 

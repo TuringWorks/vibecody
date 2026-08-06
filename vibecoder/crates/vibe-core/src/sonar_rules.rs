@@ -1919,6 +1919,10 @@ fn query_rules(conn: &Connection, language: Option<&str>) -> rusqlite::Result<Ve
         Some(lang) => stmt.query_map(params![lang], row_to_rule),
         None => stmt.query_map([], row_to_rule),
     }?;
+    // Deliberate change from the previous `filter_map(Result::ok)`: a row that
+    // fails to decode means the schema is wrong, and silently returning a partial
+    // rule set hides that. Failing here lets `get_rules` fall back to the complete
+    // builtin set instead of quietly serving fewer rules than the caller expects.
     rows.collect()
 }
 
@@ -3357,5 +3361,116 @@ pub fn scan_content(file_path: &str, content: &str) -> SonarScanResult {
         code_smells: smells,
         security_hotspots: hotspots,
         debt_minutes: debt,
+    }
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Temp DB path so tests never touch `~/.vibecli/sonar_rules.db`.
+    fn temp_db(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("vibe_sonar_{name}_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("test temp dir");
+        dir.join("sonar_rules.db")
+    }
+
+    fn sample_rule(key: &str, language: &str, tags: &[&str]) -> SonarRule {
+        SonarRule {
+            key: key.into(),
+            name: "n".into(),
+            description: "d".into(),
+            why: "w".into(),
+            how_to_fix: "f".into(),
+            severity: "MAJOR".into(),
+            issue_type: "CODE_SMELL".into(),
+            language: language.into(),
+            tags: tags.iter().map(|t| (*t).to_string()).collect(),
+            effort_minutes: 5,
+        }
+    }
+
+    #[test]
+    fn encode_tags_is_always_valid_json() {
+        assert_eq!(encode_tags(&[]), "[]");
+        assert_eq!(encode_tags(&["a".into(), "b".into()]), r#"["a","b"]"#);
+        // The empty case must round-trip, not decode as "unknown".
+        let decoded: Vec<String> = serde_json::from_str(&encode_tags(&[])).unwrap();
+        assert!(decoded.is_empty());
+    }
+
+    #[test]
+    fn upsert_round_trips_every_builtin_rule() {
+        let path = temp_db("roundtrip");
+        let _ = std::fs::remove_file(&path);
+        let mut conn = open_db_at(&path).unwrap();
+        let rules = builtin_rules();
+
+        let count = upsert_rules(&mut conn, &rules).unwrap();
+        assert_eq!(count as usize, rules.len());
+
+        let read = query_rules(&conn, None).unwrap();
+        assert_eq!(read.len(), rules.len(), "every rule survives the round trip");
+
+        // Tags must survive as data, not decay to empty.
+        let tagged = rules.iter().filter(|r| !r.tags.is_empty()).count();
+        let read_tagged = read.iter().filter(|r| !r.tags.is_empty()).count();
+        assert_eq!(tagged, read_tagged);
+    }
+
+    #[test]
+    fn upsert_updates_in_place_without_nulling_columns() {
+        let path = temp_db("upsert");
+        let _ = std::fs::remove_file(&path);
+        let mut conn = open_db_at(&path).unwrap();
+
+        upsert_rules(&mut conn, &[sample_rule("x:S1", "rust", &["perf"])]).unwrap();
+        let mut updated = sample_rule("x:S1", "rust", &["perf", "clumsy"]);
+        updated.severity = "BLOCKER".into();
+        upsert_rules(&mut conn, &[updated]).unwrap();
+
+        let read = query_rules(&conn, None).unwrap();
+        assert_eq!(read.len(), 1, "same key updates rather than duplicating");
+        assert_eq!(read[0].severity, "BLOCKER");
+        assert_eq!(read[0].tags, vec!["perf".to_string(), "clumsy".to_string()]);
+        assert_eq!(read[0].name, "n", "untouched columns are preserved");
+    }
+
+    #[test]
+    fn language_filter_includes_general_rules() {
+        let path = temp_db("langfilter");
+        let _ = std::fs::remove_file(&path);
+        let mut conn = open_db_at(&path).unwrap();
+        upsert_rules(
+            &mut conn,
+            &[
+                sample_rule("rs:S1", "rust", &[]),
+                sample_rule("ts:S1", "typescript", &[]),
+                sample_rule("gen:S1", "general", &[]),
+            ],
+        )
+        .unwrap();
+
+        let rust: Vec<String> = query_rules(&conn, Some("rust"))
+            .unwrap()
+            .into_iter()
+            .map(|r| r.key)
+            .collect();
+        assert!(rust.contains(&"rs:S1".to_string()));
+        assert!(rust.contains(&"gen:S1".to_string()));
+        assert!(!rust.contains(&"ts:S1".to_string()));
+    }
+
+    #[test]
+    fn empty_db_is_distinguishable_from_unreadable_db() {
+        let path = temp_db("empty");
+        let _ = std::fs::remove_file(&path);
+        let conn = open_db_at(&path).unwrap();
+        assert!(
+            query_rules(&conn, None).unwrap().is_empty(),
+            "a readable-but-empty store returns Ok(vec![]), not an error"
+        );
     }
 }

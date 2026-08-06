@@ -1043,3 +1043,79 @@ describe('AIChat — agent approvals', () => {
     expect(screen.getByText(/Destructive tool — approval required/)).toBeInTheDocument();
   });
 });
+
+// ── Approval mode selector ───────────────────────────────────────────────────
+// The policy is fixed when the run starts (the backend reads it once in
+// start_agent_task), and it only governs agent runs.
+
+describe('AIChat — approval mode selector', () => {
+  it('is hidden until agent mode is on', async () => {
+    render(<AIChat provider="test-provider" />);
+    await flushAll();
+    expect(screen.queryByLabelText('Agent approval mode')).not.toBeInTheDocument();
+  });
+
+  it('is shown when agent mode is on, defaulting to asking every time', async () => {
+    render(<ControlledAgentChat />);
+    await flushAll();
+    const select = screen.getByLabelText('Agent approval mode') as HTMLSelectElement;
+    expect(select.value).toBe('suggest');
+  });
+
+  it('offers every backend policy that makes sense with the agent loop', async () => {
+    render(<ControlledAgentChat />);
+    await flushAll();
+    const select = screen.getByLabelText('Agent approval mode') as HTMLSelectElement;
+    const values = Array.from(select.options).map(o => o.value);
+    expect(values).toEqual(['suggest', 'read-only', 'auto-edit', 'full-auto']);
+  });
+
+  it('sends the chosen mode as the run policy', async () => {
+    render(<ControlledAgentChat />);
+    await flushAll();
+    fireEvent.change(screen.getByLabelText('Agent approval mode'), {
+      target: { value: 'read-only' },
+    });
+    await sendUserMessage('review the codebase');
+
+    expect(mockInvoke).toHaveBeenCalledWith(
+      'start_agent_task',
+      expect.objectContaining({ approvalPolicy: 'read-only' }),
+    );
+  });
+
+  it('is locked while a run is in flight', async () => {
+    render(<ControlledAgentChat />);
+    await flushAll();
+    await sendUserMessage('go');
+    expect(screen.getByLabelText('Agent approval mode')).toBeDisabled();
+  });
+
+  it('reports changes to the tab manager when controlled', async () => {
+    const onApprovalModeChange = vi.fn();
+    function ControlledMode() {
+      const [messages, setMessages] = useState<Message[]>([]);
+      const [mode, setMode] = useState<'suggest' | 'read-only' | 'auto-edit' | 'full-auto'>('suggest');
+      return (
+        <AIChat
+          provider="test-provider"
+          messages={messages}
+          onMessagesChange={setMessages}
+          useAgentLoop={true}
+          onUseAgentLoopChange={() => {}}
+          approvalMode={mode}
+          onApprovalModeChange={(m) => { onApprovalModeChange(m); setMode(m); }}
+        />
+      );
+    }
+    render(<ControlledMode />);
+    await flushAll();
+    fireEvent.change(screen.getByLabelText('Agent approval mode'), {
+      target: { value: 'full-auto' },
+    });
+    await flushAll();
+
+    expect(onApprovalModeChange).toHaveBeenCalledWith('full-auto');
+    expect((screen.getByLabelText('Agent approval mode') as HTMLSelectElement).value).toBe('full-auto');
+  });
+});
