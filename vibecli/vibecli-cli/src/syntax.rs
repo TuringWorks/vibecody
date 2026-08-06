@@ -426,7 +426,7 @@ fn terminal_width() -> usize {
 
 /// Render a tool call in a dark background box (Claude Code style).
 #[allow(dead_code)]
-/// ```
+/// ```text
 ///   ✓ ls -la src/ | head -20
 /// ```
 pub fn format_tool_call(tool_name: &str, summary: &str) -> String {

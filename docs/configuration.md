@@ -824,6 +824,24 @@ esac
 ```
 
 
+## Cloud AI Backends
+
+Serving, training, eval, and routing across DigitalOcean, Azure, Google, AWS,
+Oracle, IBM, and Akamai are configured separately from the chat providers above,
+through a TOML catalog rather than Rust code:
+
+```bash
+vibecli --cloud-ai list                       # every backend and the stages it serves
+vibecli --cloud-ai status                     # what is ready, and what each unready one needs
+vibecli --cloud-ai set google project my-proj # store a configuration value
+vibecli set-key google_vertex <token>         # store the credential (encrypted)
+vibecli --cloud-ai route serve cheapest       # pick a backend, and explain the skips
+```
+
+See [Cloud AI Backends]({{ site.baseurl }}/cloud-ai/) for the full reference, including the
+credential shape per cloud and the eval suite format.
+
+
 ## Selecting a Provider
 
 **VibeCLI — at launch:**

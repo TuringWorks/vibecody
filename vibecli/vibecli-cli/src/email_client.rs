@@ -13,7 +13,7 @@
 //!   `outlook_oauth_client_id`, `outlook_oauth_client_secret`.
 //!
 //! REPL commands:
-//! ```
+//! ```text
 //! /email inbox              — List recent emails
 //! /email unread             — List unread emails only
 //! /email read <id>          — Read full email body

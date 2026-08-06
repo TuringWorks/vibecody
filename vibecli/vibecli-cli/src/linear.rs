@@ -8,7 +8,7 @@
 //! - `linear.api_key` in `~/.vibecli/config.toml`
 //!
 //! Usage in REPL:
-//! ```
+//! ```text
 //! /linear list               — List open issues assigned to you
 //! /linear new "Fix bug"      — Create a new issue in the default team
 //! /linear attach <id>        — Tag the current session with a Linear issue

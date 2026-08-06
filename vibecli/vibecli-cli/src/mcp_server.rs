@@ -1594,6 +1594,14 @@ fn append_audit_event(
 
 #[cfg(test)]
 mod tests {
+    /// Serialises tests that redirect `VIBECLI_SKILLS_DIR`.
+    ///
+    /// `set_var` is process-global and cargo runs tests on parallel threads, so
+    /// one test would repoint the skills dir while another was mid-dispatch —
+    /// the failure moved around depending on the interleaving. Poison-tolerant
+    /// so one panic doesn't cascade.
+    static SKILLS_DIR_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     use super::*;
 
     // ── resolve ──────────────────────────────────────────────────────────────
@@ -1836,6 +1844,7 @@ Pick parametric tools.
 
     #[tokio::test]
     async fn list_skills_dispatch_returns_total_and_entries() {
+        let _skills_guard = SKILLS_DIR_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let dir = tempfile::tempdir().unwrap();
         write_skill(dir.path(), "agent-loops", FIXTURE_AGENT);
         write_skill(dir.path(), "design-cad", FIXTURE_DESIGN);
@@ -1869,6 +1878,7 @@ Pick parametric tools.
 
     #[tokio::test]
     async fn list_skills_dispatch_filters_by_category_and_query() {
+        let _skills_guard = SKILLS_DIR_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let dir = tempfile::tempdir().unwrap();
         write_skill(dir.path(), "agent-loops", FIXTURE_AGENT);
         write_skill(dir.path(), "design-cad", FIXTURE_DESIGN);
@@ -1912,6 +1922,7 @@ Pick parametric tools.
 
     #[tokio::test]
     async fn get_skill_dispatch_returns_body_and_frontmatter() {
+        let _skills_guard = SKILLS_DIR_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let dir = tempfile::tempdir().unwrap();
         write_skill(dir.path(), "agent-loops", FIXTURE_AGENT);
         std::env::set_var("VIBECLI_SKILLS_DIR", dir.path());
@@ -1941,6 +1952,7 @@ Pick parametric tools.
 
     #[tokio::test]
     async fn get_skill_dispatch_errors_when_name_missing_or_unknown() {
+        let _skills_guard = SKILLS_DIR_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let dir = tempfile::tempdir().unwrap();
         std::env::set_var("VIBECLI_SKILLS_DIR", dir.path());
         let provider = provider_for_test();

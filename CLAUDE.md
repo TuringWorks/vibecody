@@ -73,7 +73,7 @@ Full playbook + checklist: [AGENTS.md → Performance](./AGENTS.md#performance--
 
 Every desktop client autostarts the VibeCLI daemon on launch. **All of that logic lives in `vibecli/vibecli-cli/src/daemon_bootstrap.rs` — do not write another copy.**
 
-- **Check identity, not liveness.** `GET /health` returns `service: "vibecli"`; require it. A TCP connect (or a bare `res.ok`) treats any process on port 7878 as the daemon, and every panel then fails blaming the daemon instead of the port conflict.
+- **Check identity, not liveness.** `GET /health` returns `service: "vibecli"`; require it. A TCP connect (or a bare `res.ok`) treats any process on port 7878 as the daemon, and every panel then fails blaming the daemon instead of the port conflict. **Accept a pre-`service` daemon via its legacy shape** (`status: "ok"` + `version`) in *every* client, local paths included — the app reuses already-running daemons, so strictness told upgrading users their own daemon was "another program".
 - **Poll to a deadline, never sleep a guess.** A cold daemon measured **~16 s** to answer `/health`. The old autostart slept 2 s and checked once, so a healthy daemon was reported broken on every launch.
 - **Every failure is a distinct state with its own message** — `PortTakenByOther`, `BinaryNotFound`, `SpawnFailed`, `TimedOut`. "Is vibecli on your PATH?" is wrong advice for three of the four.
 - Port: `VIBECLI_DAEMON_PORT` (legacy `VIBEDESK_DAEMON_PORT`), default 7878.
@@ -89,6 +89,19 @@ Nearly every daemon route sits behind `require_auth`. Only `/health`, `/models`,
 - **The token rotates on every daemon start**, and VibeCoder restarts the daemon itself. `daemonFetch` caches then re-reads on a 401; don't cache a token at mount.
 
 Full rules: [AGENTS.md → Calling a daemon route from any client](./AGENTS.md#calling-a-daemon-route-from-any-client).
+
+### Test isolation — and `--no-fail-fast`
+
+Every "flaky" test found here was shared-state, not timing. Don't mutate process-global state in tests.
+
+- **Env vars** (`HOME`, `VIBECLI_SKILLS_DIR`, …): prefer a pure function taking the value; otherwise serialise with a poison-tolerant `static LOCK: Mutex<()>`.
+- **Real user stores**: `GlobalMemStore::open()` / `MemoryContextHub::new()` open the developer's **actual** `~/.vibecli` data. Use `open_at(path)` / `with_global_at(path)` with a `TempDir`.
+- **Fixed `/tmp` paths** collide across processes — use `TempDir` or suffix with `std::process::id()`.
+- **macOS symlinks**: `/var` → `/private/var`, so canonicalise before comparing OS-reported paths.
+
+**`cargo test` stops at the first failing binary** — always run `cargo test --workspace --no-fail-fast` before trusting a failure count.
+
+Full table: [AGENTS.md → Test Isolation](./AGENTS.md#test-isolation--shared-state-is-the-top-cause-of-flaky-here).
 
 ### Tauri commands
 

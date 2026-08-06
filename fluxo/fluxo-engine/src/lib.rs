@@ -447,10 +447,25 @@ mod tests {
         let id = engine.start("stuck", None, json!({}), None).await.expect("start");
         let _ = engine.poll("slow", "w1").await.expect("poll");
 
-        // Let the clock move past the (0s) timeout, then sweep.
-        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
-        let changed = engine.reap().await.expect("reap");
-        assert!(changed >= 1);
+        // Sweep until the run reaches its terminal state, rather than sleeping a
+        // fixed 5ms and asserting that one specific `reap` call did the work.
+        // The old form passed in isolation and failed under full-workspace load:
+        // `changed >= 1` asserts *which* sweep observed the transition, which is
+        // a scheduling detail, not the contract. The contract is that a task
+        // past its timeout ends the run as Failed.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        loop {
+            engine.reap().await.expect("reap");
+            let status = engine.get_run(&id).await.unwrap().status;
+            if status == WorkflowStatus::Failed {
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "run did not fail on timeout within 5s (status: {status:?})"
+            );
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
         assert_eq!(engine.get_run(&id).await.unwrap().status, WorkflowStatus::Failed);
     }
 }

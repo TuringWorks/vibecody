@@ -649,7 +649,12 @@ mod tests {
 
     #[test]
     fn load_from_empty_dir_returns_empty() {
-        let dir = std::env::temp_dir().join("vibe_ext_test_empty");
+        // Temp dirs are suffixed with the process id. These used to be fixed
+        // names under /tmp, which are shared across *processes*: cargo runs
+        // test binaries concurrently, so a second run of the same test would
+        // `remove_dir_all` the fixture the first was still using. It passed in
+        // isolation and failed in a full-workspace run.
+        let dir = std::env::temp_dir().join(format!("vibe_ext_test_empty_{}", std::process::id()));
         let _ = std::fs::create_dir_all(&dir);
         let loader = ExtensionLoader::new();
         let exts = loader.load_from_dir(&dir);
@@ -679,7 +684,7 @@ mod tests {
 
     #[test]
     fn load_from_dir_ignores_non_wasm_files() {
-        let dir = std::env::temp_dir().join("vibe_ext_test_non_wasm");
+        let dir = std::env::temp_dir().join(format!("vibe_ext_test_non_wasm_{}", std::process::id()));
         let _ = std::fs::create_dir_all(&dir);
         std::fs::write(dir.join("readme.txt"), "not wasm").unwrap();
         std::fs::write(dir.join("lib.so"), "not wasm").unwrap();
@@ -693,7 +698,7 @@ mod tests {
     #[test]
     fn load_from_dir_rejects_invalid_wasm() {
         // A file with .wasm extension but invalid content should fail to load
-        let dir = std::env::temp_dir().join("vibe_ext_test_invalid_wasm");
+        let dir = std::env::temp_dir().join(format!("vibe_ext_test_invalid_wasm_{}", std::process::id()));
         let _ = std::fs::create_dir_all(&dir);
         std::fs::write(dir.join("bad.wasm"), b"this is not wasm").unwrap();
         let loader = ExtensionLoader::new();
@@ -738,7 +743,7 @@ mod tests {
 
     #[test]
     fn load_from_dir_with_subdirectories_ignores_dirs() {
-        let dir = std::env::temp_dir().join("vibe_ext_test_subdir");
+        let dir = std::env::temp_dir().join(format!("vibe_ext_test_subdir_{}", std::process::id()));
         let _ = std::fs::create_dir_all(&dir);
         let _ = std::fs::create_dir(dir.join("subdir.wasm")); // dir, not file
         let loader = ExtensionLoader::new();
@@ -750,7 +755,7 @@ mod tests {
 
     #[test]
     fn load_from_dir_with_mixed_files() {
-        let dir = std::env::temp_dir().join("vibe_ext_test_mixed");
+        let dir = std::env::temp_dir().join(format!("vibe_ext_test_mixed_{}", std::process::id()));
         let _ = std::fs::create_dir_all(&dir);
         std::fs::write(dir.join("valid.txt"), "text").unwrap();
         std::fs::write(dir.join("config.json"), "{}").unwrap();
@@ -794,7 +799,7 @@ mod tests {
     #[test]
     fn load_one_with_minimal_wasm_module() {
         let loader = ExtensionLoader::new();
-        let dir = std::env::temp_dir().join("vibe_ext_test_minimal_wasm");
+        let dir = std::env::temp_dir().join(format!("vibe_ext_test_minimal_wasm_{}", std::process::id()));
         let _ = std::fs::create_dir_all(&dir);
 
         // Create a minimal valid WASM module from WAT
@@ -818,7 +823,7 @@ mod tests {
     #[test]
     fn load_from_dir_loads_valid_wasm() {
         let loader = ExtensionLoader::new();
-        let dir = std::env::temp_dir().join("vibe_ext_test_valid_load");
+        let dir = std::env::temp_dir().join(format!("vibe_ext_test_valid_load_{}", std::process::id()));
         let _ = std::fs::create_dir_all(&dir);
 
         let wat = r#"(module
@@ -861,7 +866,7 @@ mod tests {
             .with_default_fuel(10_000)
             .with_default_epoch_deadline(u64::MAX);
 
-        let dir = std::env::temp_dir().join("vibe_ext_test_h5_fuel");
+        let dir = std::env::temp_dir().join(format!("vibe_ext_test_h5_fuel_{}", std::process::id()));
         let _ = std::fs::create_dir_all(&dir);
         let wasm_path = dir.join("loop.wasm");
         std::fs::write(&wasm_path, infinite_loop_wasm()).unwrap();
@@ -887,7 +892,7 @@ mod tests {
             .with_default_fuel(u64::MAX)
             .with_default_epoch_deadline(1);
 
-        let dir = std::env::temp_dir().join("vibe_ext_test_h5_epoch");
+        let dir = std::env::temp_dir().join(format!("vibe_ext_test_h5_epoch_{}", std::process::id()));
         let _ = std::fs::create_dir_all(&dir);
         let wasm_path = dir.join("loop.wasm");
         std::fs::write(&wasm_path, infinite_loop_wasm()).unwrap();
@@ -914,7 +919,7 @@ mod tests {
             .with_default_fuel(u64::MAX)
             .with_default_epoch_deadline(u64::MAX);
 
-        let dir = std::env::temp_dir().join("vibe_ext_test_h5_per_ext_fuel");
+        let dir = std::env::temp_dir().join(format!("vibe_ext_test_h5_per_ext_fuel_{}", std::process::id()));
         let _ = std::fs::create_dir_all(&dir);
         let wasm_path = dir.join("loop.wasm");
         std::fs::write(&wasm_path, infinite_loop_wasm()).unwrap();
@@ -982,7 +987,7 @@ mod tests {
     #[test]
     fn h4_loaded_extension_reports_its_tier() {
         let loader = ExtensionLoader::new();
-        let dir = std::env::temp_dir().join("vibe_ext_test_h4_tier");
+        let dir = std::env::temp_dir().join(format!("vibe_ext_test_h4_tier_{}", std::process::id()));
         let _ = std::fs::create_dir_all(&dir);
         let wat = r#"(module (memory (export "memory") 1))"#;
         let wasm = wat::parse_str(wat).unwrap();
@@ -1001,7 +1006,7 @@ mod tests {
         // HyperlightIfAvailable. Until then it's Wasmtime.
         let loader =
             ExtensionLoader::new().with_tier_preference(ExtensionTier::HyperlightIfAvailable);
-        let dir = std::env::temp_dir().join("vibe_ext_test_h4_pref");
+        let dir = std::env::temp_dir().join(format!("vibe_ext_test_h4_pref_{}", std::process::id()));
         let _ = std::fs::create_dir_all(&dir);
         let wat = r#"(module (memory (export "memory") 1))"#;
         let wasm = wat::parse_str(wat).unwrap();
@@ -1026,7 +1031,7 @@ mod tests {
     #[test]
     fn extension_on_file_save_no_export_is_noop() {
         let loader = ExtensionLoader::new();
-        let dir = std::env::temp_dir().join("vibe_ext_test_save_noop");
+        let dir = std::env::temp_dir().join(format!("vibe_ext_test_save_noop_{}", std::process::id()));
         let _ = std::fs::create_dir_all(&dir);
 
         let wat = r#"(module (memory (export "memory") 1))"#;

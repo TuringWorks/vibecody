@@ -62,8 +62,14 @@ pub async fn check_daemon(url: String) -> Result<String, String> {
     // Reaching *something* is not reaching the daemon: the previous version
     // reported "online" for any response at all, including an error page from
     // an unrelated service holding the port.
+    // A daemon predating the `service` field is accepted via its exact legacy
+    // shape; only a body naming a *different* service is rejected. Strictness
+    // here would report a working older daemon as "not VibeCLI".
     let service = body.get("service").and_then(|v| v.as_str());
-    if service != Some(VIBECLI_SERVICE_NAME) {
+    let legacy_ok = service.is_none()
+        && body.get("status").and_then(|v| v.as_str()) == Some("ok")
+        && body.get("version").and_then(|v| v.as_str()).is_some();
+    if !legacy_ok && service != Some(VIBECLI_SERVICE_NAME) {
         return Err(format!(
             "{url} answered, but it is not the VibeCLI daemon{}. \
              Stop that program, or point VibeApp at the right port.",

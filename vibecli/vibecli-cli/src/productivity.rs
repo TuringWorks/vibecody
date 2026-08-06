@@ -1,7 +1,7 @@
 //! Unified productivity integrations: Notion, Todoist, Jira.
 //!
 //! REPL commands:
-//! ```
+//! ```text
 //! /notion search <query>      — Search Notion pages
 //! /notion page <id>           — Read a Notion page
 //! /notion create <title>      — Create a page

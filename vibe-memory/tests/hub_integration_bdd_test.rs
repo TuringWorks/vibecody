@@ -7,6 +7,15 @@
 use tempfile::TempDir;
 use vibe_memory::*;
 
+/// A private global-store directory for one test.
+///
+/// `MemoryContextHub::with_global_at(_gdir.path())` opens the real `~/.vibecli/memory/global.db`, so
+/// these scenarios were sharing (and mutating) the developer's actual memory
+/// store and each other's rows. `with_global_at` takes an explicit path.
+fn global_dir() -> TempDir {
+    TempDir::new().expect("temp global store dir")
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Gherkin scenarios — read the docstring above each test to see intent
 // ═══════════════════════════════════════════════════════════════════════════
@@ -20,8 +29,9 @@ use vibe_memory::*;
 /// And recency and salience boost are factored
 #[tokio::test]
 async fn layered_context_merge() {
+    let _gdir = global_dir();
     let workspace = TempDir::new().unwrap();
-    let hub = MemoryContextHub::new();
+    let hub = MemoryContextHub::with_global_at(_gdir.path());
 
     // Add memories to project store
     hub.store_to_project(workspace.path(), "Use REST for public APIs")
@@ -90,8 +100,9 @@ async fn layered_context_merge() {
 /// And memories are sorted by composite score before truncation
 #[tokio::test]
 async fn budget_aware_context() {
+    let _gdir = global_dir();
     let workspace = TempDir::new().unwrap();
-    let hub = MemoryContextHub::new();
+    let hub = MemoryContextHub::with_global_at(_gdir.path());
 
     // Add many memories
     for i in 0..20 {
@@ -139,8 +150,9 @@ async fn budget_aware_context() {
 /// And no error is raised
 #[tokio::test]
 async fn empty_stores_return_empty_context() {
+    let _gdir = global_dir();
     let workspace = TempDir::new().unwrap();
-    let hub = MemoryContextHub::new();
+    let hub = MemoryContextHub::with_global_at(_gdir.path());
 
     // Query on empty stores
     let context = hub
@@ -170,8 +182,9 @@ async fn empty_stores_return_empty_context() {
 /// And no error is raised
 #[tokio::test]
 async fn single_store_populated() {
+    let _gdir = global_dir();
     let workspace = TempDir::new().unwrap();
-    let hub = MemoryContextHub::new();
+    let hub = MemoryContextHub::with_global_at(_gdir.path());
 
     // Add to project only
     hub.store_to_project(workspace.path(), "Project-specific knowledge")
@@ -199,8 +212,9 @@ async fn single_store_populated() {
 /// And results are sorted by score descending
 #[tokio::test]
 async fn vector_search_with_filters() {
+    let _gdir = global_dir();
     let workspace = TempDir::new().unwrap();
-    let hub = MemoryContextHub::new();
+    let hub = MemoryContextHub::with_global_at(_gdir.path());
 
     // Add many similar memories
     for i in 0..100 {
@@ -252,8 +266,9 @@ async fn vector_search_with_filters() {
 /// And both stores are queried in parallel
 #[tokio::test]
 async fn query_routing() {
+    let _gdir = global_dir();
     let workspace = TempDir::new().unwrap();
-    let hub = MemoryContextHub::new();
+    let hub = MemoryContextHub::with_global_at(_gdir.path());
 
     // Store something in each
     hub.store_to_project(workspace.path(), "Project-specific data")
@@ -287,8 +302,9 @@ async fn query_routing() {
 /// And the response includes project and global results separately
 #[tokio::test]
 async fn hub_api_response_format() {
+    let _gdir = global_dir();
     let workspace = TempDir::new().unwrap();
-    let hub = MemoryContextHub::new();
+    let hub = MemoryContextHub::with_global_at(_gdir.path());
 
     // Add test data
     hub.store_to_project(workspace.path(), "Rust ownership model")
@@ -321,8 +337,9 @@ async fn hub_api_response_format() {
 /// And results are merged efficiently
 #[tokio::test]
 async fn parallel_queries() {
+    let _gdir = global_dir();
     let workspace = TempDir::new().unwrap();
-    let hub = MemoryContextHub::new();
+    let hub = MemoryContextHub::with_global_at(_gdir.path());
 
     // Add data to both stores
     for i in 0..10 {
@@ -356,8 +373,9 @@ async fn parallel_queries() {
 /// And low-salience entries are purged
 #[tokio::test]
 async fn consolidate_across_stores() {
+    let _gdir = global_dir();
     let workspace = TempDir::new().unwrap();
-    let hub = MemoryContextHub::new();
+    let hub = MemoryContextHub::with_global_at(_gdir.path());
 
     // Add memories
     hub.store_to_project(workspace.path(), "Important project data")
@@ -400,8 +418,9 @@ async fn consolidate_across_stores() {
 /// Then queries return results with updated ranking
 #[tokio::test]
 async fn custom_sector_weights() {
+    let _gdir = global_dir();
     let workspace = TempDir::new().unwrap();
-    let hub = MemoryContextHub::new();
+    let hub = MemoryContextHub::with_global_at(_gdir.path());
 
     // Add memories in different sectors
     hub.store_to_project(workspace.path(), "Yesterday we discussed authentication") // episodic
@@ -434,8 +453,9 @@ async fn custom_sector_weights() {
 /// Then I get counts and sizes for project and global stores
 #[tokio::test]
 async fn memory_usage_reporting() {
+    let _gdir = global_dir();
     let workspace = TempDir::new().unwrap();
-    let hub = MemoryContextHub::new();
+    let hub = MemoryContextHub::with_global_at(_gdir.path());
 
     // Add some memories
     hub.store_to_project(workspace.path(), "Project memory 1")
@@ -463,8 +483,9 @@ async fn memory_usage_reporting() {
 /// But global store results are still returned
 #[tokio::test]
 async fn hub_graceful_degradation() {
+    let _gdir = global_dir();
     let workspace = TempDir::new().unwrap();
-    let hub = MemoryContextHub::new();
+    let hub = MemoryContextHub::with_global_at(_gdir.path());
 
     // Add valid global memory
     hub.store_global("Valid global memory")
@@ -488,8 +509,9 @@ async fn hub_graceful_degradation() {
 /// And all queries complete successfully
 #[tokio::test]
 async fn concurrent_access_safety() {
+    let _gdir = global_dir();
     let workspace = TempDir::new().unwrap();
-    let hub = MemoryContextHub::new();
+    let hub = MemoryContextHub::with_global_at(_gdir.path());
 
     // Add some data
     for i in 0..20 {
@@ -528,8 +550,9 @@ async fn concurrent_access_safety() {
 /// And other store is unaffected
 #[tokio::test]
 async fn clear_store() {
+    let _gdir = global_dir();
     let workspace = TempDir::new().unwrap();
-    let hub = MemoryContextHub::new();
+    let hub = MemoryContextHub::with_global_at(_gdir.path());
 
     // Add to both stores
     hub.store_to_project(workspace.path(), "Project data")

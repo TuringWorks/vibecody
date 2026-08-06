@@ -367,6 +367,30 @@ describe('vibecoder:daemon-status custom event', () => {
   });
 });
 
+describe('Given an older daemon that predates the `service` field', () => {
+  it('When the health check fires, Then it is still reported online', async () => {
+    // Upgrade path: rejecting the legacy body made VibeCoder call a working
+    // daemon offline, then blame "another program" for holding the port.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ status: 'ok', version: '0.5.7' }),
+      })
+    );
+    const events: CustomEvent[] = [];
+    window.addEventListener('vibecoder:daemon-status', (e) => events.push(e as CustomEvent));
+
+    renderHook(() =>
+      useDaemonMonitor({ toast: makeToast(), addNotification: makeNotify() }));
+
+    await act(async () => { vi.advanceTimersByTime(3100); });
+    await act(async () => {});
+
+    expect(events[0].detail.online).toBe(true);
+  });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // BDD Scenario: another program occupies the daemon port
 //

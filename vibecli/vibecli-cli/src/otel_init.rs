@@ -8,8 +8,8 @@
 //!
 //! # Example
 //! ```no_run
-//! # use vibecli::otel_init;
-//! # use vibecli::config::OtelConfig;
+//! # use vibecli_cli::otel_init;
+//! # use vibecli_cli::config::OtelConfig;
 //! let guard = otel_init::setup(&OtelConfig::default()).unwrap();
 //! // ... run agent ...
 //! drop(guard); // flushes remaining spans

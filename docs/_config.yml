@@ -89,6 +89,8 @@ sidebar:
         url: /providers/gemini/
       - title: DeepSeek
         url: /providers/deepseek/
+      - title: Cloud AI Backends
+        url: /cloud-ai/
   - title: Settings
     icon: sliders
     url: /settings/

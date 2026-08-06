@@ -382,9 +382,16 @@ mod tests {
 
     #[tokio::test]
     async fn test_hub_without_global() {
-        // Test hub works even without global store
+        // The comment used to say "No global store" while calling
+        // `MemoryContextHub::new()`, which opens the *real*
+        // ~/.vibecli/memory/global.db. The assertion below ("no global
+        // results") therefore passed only as long as the developer's real
+        // store happened not to match the query — it started failing the
+        // moment anything wrote a matching row. Point it at an empty store so
+        // it tests what it claims to.
         let workspace = TempDir::new().unwrap();
-        let hub = MemoryContextHub::new(); // No global store
+        let empty_global = TempDir::new().unwrap();
+        let hub = MemoryContextHub::with_global_at(empty_global.path());
 
         hub.store_to_project(workspace.path(), "Project only")
             .await

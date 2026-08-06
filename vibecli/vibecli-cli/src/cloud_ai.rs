@@ -1138,8 +1138,12 @@ impl CloudClient {
 
 /// How a case's output is judged. Every variant is a deterministic function of
 /// the real model output — there is no sampled or estimated score.
+///
+/// The TOML form names the check directly — `expect = { contains = "Paris" }`
+/// — rather than requiring a `kind` discriminator. See [`ExpectSpec`] for the
+/// wire shape and why it is a separate type.
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-#[serde(tag = "kind", rename_all = "snake_case")]
+#[serde(try_from = "ExpectSpec", into = "ExpectSpec")]
 pub enum Expectation {
     /// Output must equal `value` after trimming.
     Exact { value: String },
@@ -1154,8 +1158,84 @@ pub enum Expectation {
     Command { file: String, command: String },
 }
 
+/// The on-disk shape of an `expect` table: every check as an optional key.
+///
+/// An untagged enum would parse the same TOML, but a typo (`contian = "..."`)
+/// fails every variant and serde reports only "data did not match any variant".
+/// A flat struct with `deny_unknown_fields` names the bad key and lists the
+/// valid ones, which is the difference between a fixable error and a puzzle.
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ExpectSpec {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exact: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contains: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub excludes: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub json_pointer: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub file: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub command: Option<String>,
+}
+
+impl TryFrom<ExpectSpec> for Expectation {
+    type Error = String;
+
+    fn try_from(s: ExpectSpec) -> std::result::Result<Self, Self::Error> {
+        // `file` is a modifier on `command`, not a check of its own, so it is
+        // not counted here — otherwise the valid two-key command form would
+        // read as two competing checks.
+        let checks = [
+            s.exact.is_some(),
+            s.contains.is_some(),
+            s.excludes.is_some(),
+            s.json_pointer.is_some(),
+            s.command.is_some(),
+        ]
+        .iter()
+        .filter(|present| **present)
+        .count();
+        if checks > 1 {
+            return Err("an expect table sets exactly one of `exact`, `contains`, `excludes`, `json_pointer`, or `command`".into());
+        }
+        match (s.exact, s.contains, s.excludes, s.json_pointer, s.command) {
+            (Some(value), _, _, _, _) => Ok(Self::Exact { value }),
+            (_, Some(value), _, _, _) => Ok(Self::Contains { value }),
+            (_, _, Some(values), _, _) => Ok(Self::Excludes { values }),
+            (_, _, _, Some(pointer), _) => Ok(Self::JsonPointer { pointer }),
+            (_, _, _, _, Some(command)) => Ok(Self::Command {
+                // Default the scratch filename so the common case is one key.
+                file: s.file.unwrap_or_else(|| "output.txt".to_string()),
+                command,
+            }),
+            _ => Err("an expect table needs one of `exact`, `contains`, `excludes`, `json_pointer`, or `command`".into()),
+        }
+    }
+}
+
+impl From<Expectation> for ExpectSpec {
+    fn from(e: Expectation) -> Self {
+        match e {
+            Expectation::Exact { value } => Self { exact: Some(value), ..Self::default() },
+            Expectation::Contains { value } => Self { contains: Some(value), ..Self::default() },
+            Expectation::Excludes { values } => Self { excludes: Some(values), ..Self::default() },
+            Expectation::JsonPointer { pointer } => {
+                Self { json_pointer: Some(pointer), ..Self::default() }
+            }
+            Expectation::Command { file, command } => {
+                Self { file: Some(file), command: Some(command), ..Self::default() }
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct EvalCase {
+    /// `name` is accepted as a synonym — both read naturally in a suite file.
+    #[serde(alias = "name")]
     pub id: String,
     pub prompt: String,
     #[serde(default)]
@@ -1409,6 +1489,15 @@ impl CloudClient {
             Some((id, price)) => {
                 let reason = match (policy, price) {
                     (RoutePolicy::Cheapest, Some(p)) => format!("cheapest configured at ${p}/Mtok"),
+                    // Say that the policy could not be applied. Reporting a
+                    // bare "first ready backend" for a `cheapest` request reads
+                    // as though price was compared, when in fact none was set.
+                    (RoutePolicy::Cheapest, None) => {
+                        "first ready backend — no price configured on any ready backend, so \
+                         there was nothing to compare (set one with \
+                         `--cloud-ai set <backend> price_per_mtok <value>`)"
+                            .into()
+                    }
                     (RoutePolicy::Ordered { .. }, _) => "first ready in configured order".into(),
                     _ => "first ready backend".into(),
                 };
@@ -1851,17 +1940,76 @@ mod exec_tests {
             [[case]]
             id = "adds"
             prompt = "2+2, digits only"
-            expect = { kind = "exact", value = "4" }
+            expect = { exact = "4" }
 
             [[case]]
-            id = "compiles"
+            name = "compiles"
             prompt = "a rust hello world"
-            expect = { kind = "command", file = "m.rs", command = "rustc --edition 2021 m.rs -o m" }
+            expect = { file = "m.rs", command = "rustc --edition 2021 m.rs -o m" }
             "#,
         )
         .unwrap();
         assert_eq!(suite.cases.len(), 2);
         assert_eq!(suite.cases[0].expect, Expectation::Exact { value: "4".into() });
+        // `name` is accepted wherever `id` is.
+        assert_eq!(suite.cases[1].id, "compiles");
+    }
+
+    #[test]
+    fn a_misspelled_expect_key_names_itself_and_the_valid_ones() {
+        let err = EvalSuite::from_toml(
+            r#"
+            name = "smoke"
+            model = "m"
+            [[case]]
+            id = "a"
+            prompt = "p"
+            expect = { contian = "Paris" }
+            "#,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(err.contains("contian"), "should name the bad key: {err}");
+        assert!(err.contains("contains"), "should list the valid keys: {err}");
+    }
+
+    #[test]
+    fn two_competing_checks_in_one_expect_table_are_rejected() {
+        let err = EvalSuite::from_toml(
+            r#"
+            name = "smoke"
+            model = "m"
+            [[case]]
+            id = "a"
+            prompt = "p"
+            expect = { exact = "4", contains = "4" }
+            "#,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(err.contains("exactly one"), "should explain the conflict: {err}");
+    }
+
+    #[test]
+    fn a_command_expectation_defaults_its_scratch_filename() {
+        let suite = EvalSuite::from_toml(
+            r#"
+            name = "smoke"
+            model = "m"
+            [[case]]
+            id = "a"
+            prompt = "p"
+            expect = { command = "test -s output.txt" }
+            "#,
+        )
+        .unwrap();
+        assert_eq!(
+            suite.cases[0].expect,
+            Expectation::Command {
+                file: "output.txt".into(),
+                command: "test -s output.txt".into()
+            }
+        );
     }
 
     #[test]
@@ -1952,6 +2100,13 @@ pub async fn run_cli(subcommand: &str, args: &[String]) -> anyhow::Result<()> {
         "job" => cli_job(args).await,
         "eval" => cli_eval(args).await,
         "route" => cli_route(args),
+        // Asking for help is a success, not a usage error — `--cloud-ai help`
+        // should print the same text without an "unknown subcommand" scold or
+        // a non-zero exit.
+        "help" | "--help" | "-h" => {
+            print_cloud_usage();
+            Ok(())
+        }
         other => {
             eprintln!("Unknown cloud subcommand: {other}\n");
             print_cloud_usage();
@@ -2038,7 +2193,11 @@ fn cli_set(args: &[String]) -> anyhow::Result<()> {
     catalog.get(backend)?; // reject typos before writing
     let config = ConfigSource::profile()?;
     config.set_var(backend, key, value)?;
-    println!("Set {backend}.{key}");
+    if value.trim().is_empty() {
+        println!("Cleared {backend}.{key} — the backend needs it set again before use");
+    } else {
+        println!("Set {backend}.{key}");
+    }
     Ok(())
 }
 

@@ -8,7 +8,7 @@
 //! - `HOME_ASSISTANT_TOKEN` env or `home_assistant.token` in `~/.vibecli/config.toml`
 //!
 //! Usage in REPL:
-//! ```
+//! ```text
 //! /ha status                          — List all entities grouped by domain
 //! /ha lights                          — List lights with on/off and brightness
 //! /ha on <entity_id>                  — Turn on a device

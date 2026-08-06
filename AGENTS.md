@@ -82,11 +82,21 @@ broken differently. Do not add a fourth.
 | `vscode-extension/src/api-client.ts` · `packages/agent-sdk/src/index.ts` | Same identity check |
 | `docs/api-reference.md` (`GET /health`) | The documented contract |
 
-Remote clients (mobile, VS Code, SDK) accept a pre-`service` daemon via its exact
-legacy body shape (`status: "ok"` **and** a `version`), because they talk to a
-desktop that may not have been upgraded yet. A body naming a *different* service
-is never accepted. The local autostart path requires the exact match — it
-controls the daemon it spawns.
+**Every** client accepts a pre-`service` daemon via its exact legacy body shape
+(`status: "ok"` **and** a `version`); a body naming a *different* service is
+never accepted.
+
+This applies to the local autostart path too. Requiring the exact match there
+looked safe ("it controls the daemon it spawns") and was wrong: the app also
+*reuses* an already-running daemon, so a user upgrading VibeCoder while their
+older `vibecli` held port 7878 got it rejected by `probe`, then flagged by
+`port_is_occupied`, and was told **"Port 7878 is in use by another program"** —
+about their own daemon. Caught by click-through against a real installed daemon,
+not by any test.
+
+The cost: a foreign service returning *exactly* `{"status":"ok","version":"…"}`
+and nothing else is indistinguishable from an old daemon. That is the price of
+not breaking users mid-upgrade.
 
 ### Calling a daemon route from any client
 
@@ -895,3 +905,29 @@ Short enough to actually run. Copy the relevant block into the PR description.
 - [ ] The cause, not just the change
 - [ ] What you deliberately left alone, and why
 - [ ] What is still **untested**, marked as such
+
+---
+
+## Test Isolation — shared state is the top cause of "flaky" here
+
+Every "flaky" test found in this repo so far had the same root cause: a test
+mutating something **process-global or machine-global** while cargo ran other
+tests on parallel threads. None were timing bugs. The failure moved between
+runs, which is what made them look random.
+
+| Shared thing | Symptom | Rule |
+|---|---|---|
+| `std::env::set_var` (`HOME`, `VIBECLI_SKILLS_DIR`, `VIBE_MEMORY_VECTOR_EXT`) | A *different* test fails each run | Prefer a pure function that takes the value as a parameter. If the env read is unavoidable, serialise with a poison-tolerant `static LOCK: Mutex<()>` (`lock().unwrap_or_else(\|e\| e.into_inner())`) |
+| Real user stores (`~/.vibecli/...`) | Counts drift (`expected 2, got 4`); the developer's own data is mutated | Use the `*_at(path)` / `with_global_at(path)` variants with a `TempDir`. `GlobalMemStore::open()` and `MemoryContextHub::new()` open the **real** store |
+| Fixed `/tmp` paths (`temp_dir().join("fixed_name")`) | Passes alone, fails in a full run — collides **across processes** | `TempDir`, or suffix with `std::process::id()` |
+| Ambient FS layout (symlinked temp dirs) | macOS-only failures | Canonicalise: macOS `/var` → `/private/var`, so OS-reported paths never equal `dir.join(..)` |
+
+**`cargo test` stops at the first failing binary.** A single failure hides every
+later target, so a suite can look like "1 failure" while carrying a dozen. Run
+`cargo test --workspace --no-fail-fast` before believing a count — that is how
+the last nine were found, each one hidden behind the one before it.
+
+**A test that never runs asserts nothing.** Several here had been failing since
+they were written — wrong DB path, an expectation the code could never satisfy,
+a hard-coded `<= 5` the arithmetic never supported — and nobody saw it because
+an earlier binary failed first.

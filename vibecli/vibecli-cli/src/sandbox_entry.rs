@@ -11,7 +11,7 @@
 use std::path::Path;
 use std::process::Output;
 
-use vibe_sandbox::{select, NetPolicy, ResourceLimits, SandboxTier, SelectOptions};
+use vibe_sandbox::{NetPolicy, ResourceLimits};
 
 #[derive(Debug, thiserror::Error)]
 pub enum SandboxRunError {
@@ -59,9 +59,16 @@ pub fn run_in_sandbox(
     args: &[&str],
     opts: SandboxRunOptions<'_>,
 ) -> Result<Output, SandboxRunError> {
-    let mut sandbox = select(SandboxTier::Native, &SelectOptions::default())
-        .map_err(|e| SandboxRunError::Setup(e.to_string()))?
-        .into_sandbox();
+    // Use the real native tier, not `vibe_sandbox::select`.
+    //
+    // `select()` lives in the core crate, which deliberately has no dependency
+    // on the tier crates — so it can only ever hand back `StubSandbox`, whose
+    // `spawn` returns "stub sandbox cannot spawn — install a tier crate". Real
+    // implementations (`MacosSandbox`, `LinuxSandbox`, `WindowsSandbox`) ship
+    // in `vibe-sandbox-native`, which `vibecli` already depends on; nothing was
+    // wiring them up, so every call here failed at the last step.
+    let mut sandbox =
+        vibe_sandbox_native::native().map_err(|e| SandboxRunError::Setup(e.to_string()))?;
     sandbox
         .bind_rw(opts.host_dir, opts.guest_dir)
         .map_err(|e| SandboxRunError::Setup(e.to_string()))?;

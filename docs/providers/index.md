@@ -62,6 +62,8 @@ VibeCody supports 23 AI providers, covering cloud APIs, local models, inference 
 
 **For reliability:** The Failover provider wraps multiple providers and automatically falls back if one fails.
 
+**For training, eval, and cross-cloud routing:** the providers above serve chat only. [Cloud AI Backends](../cloud-ai/) is a separate, configuration-driven layer covering serving → training → eval → routing across DigitalOcean, Azure, Google, AWS, Oracle, IBM, and Akamai — plus any OpenAI-compatible endpoint. Adding or repointing a cloud there is a TOML edit rather than a code change.
+
 
 ## Quick Examples by Provider
 

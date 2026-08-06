@@ -681,7 +681,21 @@ fn memory_health_block_cached() -> serde_json::Value {
         }
         None => {
             memory_health_spawn_refresh();
-            serde_json::json!({ "status": "warming" })
+            // Shape-complete placeholder. This used to be
+            // `{ "status": "warming" }` alone — no `enabled`, no counts — so a
+            // client reading `/health` before the first refresh (which is every
+            // client, since autostart polls `/health` immediately) saw
+            // `memory.enabled` as *undefined* rather than `false`. The block is
+            // documented to always carry these fields; "warming" is a state of
+            // the block, not an excuse to omit them.
+            serde_json::json!({
+                "status": "warming",
+                "enabled": false,
+                "store_path": openmemory_dir().display().to_string(),
+                "total_memories": 0,
+                "drawer_count": 0,
+                "encryption_enabled": false,
+            })
         }
     }
 }
@@ -10753,6 +10767,16 @@ mod tests {
 
     // ── HTTP integration tests (oneshot, no TCP binding) ────────────────
 
+    /// Serialises the tests that redirect `HOME`.
+    ///
+    /// `std::env::set_var` mutates process-global state while cargo runs tests
+    /// on parallel threads: one test would point `HOME` at its tempdir while
+    /// another was mid-way through resolving `~/.vibecli/...`, so which test
+    /// failed depended on the interleaving. Poison-tolerant (`into_inner`) so
+    /// one panicking test doesn't cascade into every other — same pattern as
+    /// `linear.rs`'s `ENV_LOCK`.
+    static HOME_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     mod http_integration {
         use super::*;
         use axum::body::Body;
@@ -12016,6 +12040,7 @@ mod tests {
 
         #[tokio::test]
         async fn goals_v1_full_lifecycle_through_router() {
+            let _home_guard = super::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
             let tmp_home = tempfile::tempdir().unwrap();
             // SAFETY: tests in this module run multi-threaded by default,
             // but no other test touches HOME, and `open_default_or_500`
@@ -12373,6 +12398,7 @@ mod tests {
 
         #[tokio::test]
         async fn resume_get_without_auth_returns_401() {
+            let _home_guard = super::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
             let (app, _tmp) = test_app("test-token");
             let req = Request::builder()
                 .uri("/v1/resume/some-handle")
@@ -13546,6 +13572,7 @@ mod tests {
 
     #[test]
     fn auto_link_helper_inserts_goal_link_via_default_store() {
+        let _home_guard = HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         // G6.4 — exercises the actual `auto_link_to_pinned_goal` helper
         // end-to-end. Redirects HOME to a tempdir so `open_default()`
         // hits a clean sessions.db, creates a goal, pins it, runs the
@@ -13598,6 +13625,7 @@ mod tests {
 
     #[test]
     fn auto_link_helper_returns_none_with_no_pin() {
+        let _home_guard = HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         // Mirror of the assertion the helper makes for clients: no pin
         // means no link is inserted and no event needs to be published.
         let tmp_home = tempfile::tempdir().unwrap();

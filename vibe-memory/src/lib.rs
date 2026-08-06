@@ -306,26 +306,65 @@ pub fn workspace_hash(workspace: &std::path::Path) -> String {
 }
 
 /// Classify sector from content using keyword matching.
-pub fn classify_sector(content: &str) -> MemorySector {
-    let content_lower = content.to_lowercase();
-    let mut scores: Vec<(MemorySector, f64)> = MemorySector::all()
+/// Sector used when no keyword signal fires. Stated explicitly rather than
+/// falling out of whichever variant `MemorySector::all()` happens to list
+/// first — an arbitrary winner reads exactly like a real classification.
+pub const DEFAULT_SECTOR: MemorySector = MemorySector::Episodic;
+
+/// Normalise text for whole-word keyword matching: lowercase, every
+/// non-alphanumeric run collapsed to a single space, and space-padded so a
+/// keyword at either end still matches.
+///
+/// The padding and spacing matter. A plain `content.contains("event")` also
+/// matches "pr**event**s", which is not an episodic signal at all — that false
+/// hit alone was enough to tie "A fact: Rust prevents null pointer exceptions"
+/// between Episodic and Semantic and hand the win to Episodic.
+fn normalize_for_keywords(content: &str) -> String {
+    let mut out = String::with_capacity(content.len() + 2);
+    out.push(' ');
+    let mut last_was_space = true;
+    for ch in content.chars() {
+        if ch.is_alphanumeric() {
+            out.extend(ch.to_lowercase());
+            last_was_space = false;
+        } else if !last_was_space {
+            out.push(' ');
+            last_was_space = true;
+        }
+    }
+    if !last_was_space {
+        out.push(' ');
+    } else if out.len() == 1 {
+        // all-punctuation input; keep the single pad so lookups are uniform
+    }
+    out
+}
+
+/// Count keyword signals that appear as whole words/phrases.
+fn keyword_score(haystack: &str, keywords: &[&str]) -> usize {
+    keywords
         .iter()
-        .map(|s| {
-            let score = s
-                .keyword_signals()
-                .iter()
-                .filter(|kw| content_lower.contains(*kw))
-                .count() as f64;
-            (s.clone(), score)
-        })
-        .collect();
+        .filter(|kw| haystack.contains(&format!(" {} ", kw.trim())))
+        .count()
+}
 
-    scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+pub fn classify_sector(content: &str) -> MemorySector {
+    let haystack = normalize_for_keywords(content);
 
-    scores
-        .first()
-        .map(|(s, _)| s.clone())
-        .unwrap_or(MemorySector::Episodic)
+    // `max_by_key` keeps the first maximum, so ties resolve in
+    // `MemorySector::all()` order — deterministic, and documented here rather
+    // than implied by a sort.
+    let best = MemorySector::all()
+        .iter()
+        .map(|s| (s.clone(), keyword_score(&haystack, s.keyword_signals())))
+        .max_by_key(|(_, score)| *score);
+
+    match best {
+        // No signal at all: say so via the named default instead of returning
+        // whichever variant sorted first.
+        Some((_, 0)) | None => DEFAULT_SECTOR,
+        Some((sector, _)) => sector,
+    }
 }
 
 /// Get default vector dimensions from environment or config.

@@ -79,7 +79,19 @@ impl SkillWatcher {
     /// Begin watching `dir` for `*.md` changes. Returns the watcher
     /// (caller holds for its lifetime) and a receiver for batched
     /// events.
+    /// Start watching `dir` for skill-file changes.
+    ///
+    /// The directory is canonicalised first. The OS reports FS events with the
+    /// **resolved** path, so watching a symlinked root makes every emitted path
+    /// disagree with what the caller would build by joining onto the path they
+    /// passed in. On macOS that is the default case, not an edge case:
+    /// `/var` is a symlink to `/private/var`, so anything under a temp dir
+    /// (or a symlinked home) never matched. Canonicalising the root once — here,
+    /// where the directory is known to exist — keeps emitted paths comparable
+    /// without having to canonicalise per event (which is impossible for a
+    /// removal, since the file is already gone).
     pub fn start(dir: &Path, config: SkillWatcherConfig) -> Result<(Self, Receiver<SkillEvent>)> {
+        let dir = &std::fs::canonicalize(dir).unwrap_or_else(|_| dir.to_path_buf());
         let (raw_tx, raw_rx) = channel::<notify::Result<Event>>();
         let mut watcher = notify::recommended_watcher(move |res| {
             // notify guarantees the channel survives the watcher
@@ -219,8 +231,15 @@ mod tests {
         }
     }
 
+    /// Canonical form of a temp dir — see `SkillWatcher::start`. Without this
+    /// the expected paths are `/var/folders/...` while the watcher reports
+    /// `/private/var/folders/...` and every comparison fails on macOS.
+    fn canonical(dir: &Path) -> PathBuf {
+        fs::canonicalize(dir).unwrap_or_else(|_| dir.to_path_buf())
+    }
+
     fn write_skill(dir: &Path, name: &str, body: &str) -> PathBuf {
-        let p = dir.join(format!("{name}.md"));
+        let p = canonical(dir).join(format!("{name}.md"));
         fs::write(&p, body).unwrap();
         p
     }

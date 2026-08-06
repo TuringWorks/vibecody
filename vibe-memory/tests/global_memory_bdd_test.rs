@@ -6,6 +6,25 @@
 use tempfile::TempDir;
 use vibe_memory::*;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Test isolation
+//
+// `GlobalMemStore::open_at(_gdir.path())` and `MemoryContextHub::with_global_at(_gdir.path())` open the *real* store
+// at `~/.vibecli/memory/global.db`. Every test here used them, which meant the
+// suite wrote into the developer's actual memory database, tests saw each
+// other's rows (counts came out 4-instead-of-2, 30-instead-of-1), and one
+// scenario ran `DELETE FROM memory_entries` against it. Cargo also runs tests
+// in parallel, so which ones failed varied per run.
+//
+// `open_at` / `with_global_at` take an explicit path — the same rule AGENTS.md
+// already states for ProfileStore/WorkspaceStore: tests use the `*_at` variant.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A private global-store directory for one test.
+fn global_dir() -> TempDir {
+    TempDir::new().expect("temp global store dir")
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Gherkin scenarios — read the docstring above each test to see intent
 // ═══════════════════════════════════════════════════════════════════════════
@@ -17,7 +36,8 @@ use vibe_memory::*;
 /// And the sector is classified as "emotional"
 #[tokio::test]
 async fn store_computer_level_memory() {
-    let store = GlobalMemStore::open().expect("open global store");
+    let _gdir = global_dir();
+    let store = GlobalMemStore::open_at(_gdir.path()).expect("open global store");
 
     let entry = store
         .store(
@@ -49,7 +69,8 @@ async fn store_computer_level_memory() {
 /// And each result includes the source project ID
 #[tokio::test]
 async fn cross_project_context_retrieval() {
-    let store = GlobalMemStore::open().expect("open global store");
+    let _gdir = global_dir();
+    let store = GlobalMemStore::open_at(_gdir.path()).expect("open global store");
 
     // Store from two different projects
     store
@@ -93,7 +114,8 @@ async fn cross_project_context_retrieval() {
 /// And other projects can still access global memories
 #[tokio::test]
 async fn global_store_persists_after_project_deletion() {
-    let store = GlobalMemStore::open().expect("open global store");
+    let _gdir = global_dir();
+    let store = GlobalMemStore::open_at(_gdir.path()).expect("open global store");
 
     // Store from project A
     let entry_id = store
@@ -131,7 +153,8 @@ async fn global_store_persists_after_project_deletion() {
 /// And sector weights are applied to final ranking
 #[tokio::test]
 async fn global_memory_merge_with_project() {
-    let global_store = GlobalMemStore::open().expect("open global");
+    let _gdir = global_dir();
+    let global_store = GlobalMemStore::open_at(_gdir.path()).expect("open global");
     let project_store = ProjectMemStore::open(&std::env::temp_dir().join("test-merge-project"))
         .expect("open project");
 
@@ -160,7 +183,7 @@ async fn global_memory_merge_with_project() {
         .expect("global 3");
 
     // Create hub and query
-    let hub = MemoryContextHub::new();
+    let hub = MemoryContextHub::with_global_at(_gdir.path());
     let context = hub
         .assemble_context(std::path::Path::new("."), "api design", 500)
         .await
@@ -179,7 +202,8 @@ async fn global_memory_merge_with_project() {
 /// And the key is consistent across VibeCody restarts
 #[tokio::test]
 async fn computer_level_encryption() {
-    let store = GlobalMemStore::open().expect("open global");
+    let _gdir = global_dir();
+    let store = GlobalMemStore::open_at(_gdir.path()).expect("open global");
 
     // Store a memory
     store
@@ -204,7 +228,7 @@ async fn computer_level_encryption() {
     drop(project_store);
 
     // Global and project stores should have different paths (different keys)
-    let global_path = GlobalMemStore::open().expect("reopen global").path();
+    let global_path = GlobalMemStore::open_at(_gdir.path()).expect("reopen global").path();
     let proj_path = ProjectMemStore::open(workspace.path())
         .expect("reopen project")
         .path();
@@ -222,8 +246,9 @@ async fn computer_level_encryption() {
 /// And can read each other's entries
 #[tokio::test]
 async fn global_store_shared_access() {
+    let _gdir = global_dir();
     // First instance
-    let store1 = GlobalMemStore::open().expect("open store 1");
+    let store1 = GlobalMemStore::open_at(_gdir.path()).expect("open store 1");
     let id1 = store1
         .store("Shared memory from process 1", None)
         .await
@@ -232,7 +257,7 @@ async fn global_store_shared_access() {
     drop(store1);
 
     // Second instance (different process simulation)
-    let store2 = GlobalMemStore::open().expect("open store 2");
+    let store2 = GlobalMemStore::open_at(_gdir.path()).expect("open store 2");
 
     // Should see the entry from store1
     let entry = store2.get(&id1).await.expect("get");
@@ -260,7 +285,8 @@ async fn global_store_shared_access() {
 /// And get all memories associated with that project
 #[tokio::test]
 async fn global_store_project_filtering() {
-    let store = GlobalMemStore::open().expect("open global");
+    let _gdir = global_dir();
+    let store = GlobalMemStore::open_at(_gdir.path()).expect("open global");
 
     // Store memories from multiple projects
     store
@@ -297,7 +323,8 @@ async fn global_store_project_filtering() {
 /// Then I get counts of memories per sector
 #[tokio::test]
 async fn global_store_sector_stats() {
-    let store = GlobalMemStore::open().expect("open global");
+    let _gdir = global_dir();
+    let store = GlobalMemStore::open_at(_gdir.path()).expect("open global");
 
     // Store diverse memories
     store
@@ -335,7 +362,8 @@ async fn global_store_sector_stats() {
 /// Then the memory is automatically deleted
 #[tokio::test]
 async fn global_store_ttl_expiration() {
-    let store = GlobalMemStore::open().expect("open global");
+    let _gdir = global_dir();
+    let store = GlobalMemStore::open_at(_gdir.path()).expect("open global");
 
     // Store with very short TTL
     let entry = store
@@ -364,7 +392,8 @@ async fn global_store_ttl_expiration() {
 /// Then only memories from that sector are returned
 #[tokio::test]
 async fn search_with_sector_filter() {
-    let store = GlobalMemStore::open().expect("open global");
+    let _gdir = global_dir();
+    let store = GlobalMemStore::open_at(_gdir.path()).expect("open global");
 
     // Store memories in different sectors
     store
@@ -412,7 +441,8 @@ async fn search_with_sector_filter() {
 /// Then they are stored and retrievable
 #[tokio::test]
 async fn global_store_waypoints() {
-    let store = GlobalMemStore::open().expect("open global");
+    let _gdir = global_dir();
+    let store = GlobalMemStore::open_at(_gdir.path()).expect("open global");
 
     // Store two memories
     let id1 = store

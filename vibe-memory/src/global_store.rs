@@ -203,7 +203,7 @@ impl GlobalMemStore {
     pub async fn get(&self, id: &str) -> Result<Option<MemoryEntry>> {
         let conn = self.inner.conn.lock().await;
         let result = conn.query_row(
-            "SELECT id, content, sector, salience, decay_lambda, created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding FROM memory_entries WHERE id = ?1",
+            "SELECT id, content, sector, salience, decay_lambda, created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding, ttl_expires_at FROM memory_entries WHERE id = ?1",
             params![id],
             |row| self.row_to_entry(row),
         );
@@ -229,10 +229,10 @@ impl GlobalMemStore {
     ) -> Result<Vec<MemoryEntry>> {
         let conn = self.inner.conn.lock().await;
         let sql = match (sector, limit) {
-            (Some(s), Some(l)) => format!("SELECT id, content, sector, salience, decay_lambda, created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding FROM memory_entries WHERE sector = '{}' ORDER BY created_at DESC LIMIT {}", s, l),
-            (None, Some(l)) => format!("SELECT id, content, sector, salience, decay_lambda, created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding FROM memory_entries ORDER BY created_at DESC LIMIT {}", l),
-            (Some(s), None) => format!("SELECT id, content, sector, salience, decay_lambda, created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding FROM memory_entries WHERE sector = '{}' ORDER BY created_at DESC", s),
-            (None, None) => "SELECT id, content, sector, salience, decay_lambda, created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding FROM memory_entries ORDER BY created_at DESC".to_string(),
+            (Some(s), Some(l)) => format!("SELECT id, content, sector, salience, decay_lambda, created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding, ttl_expires_at FROM memory_entries WHERE sector = '{}' ORDER BY created_at DESC LIMIT {}", s, l),
+            (None, Some(l)) => format!("SELECT id, content, sector, salience, decay_lambda, created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding, ttl_expires_at FROM memory_entries ORDER BY created_at DESC LIMIT {}", l),
+            (Some(s), None) => format!("SELECT id, content, sector, salience, decay_lambda, created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding, ttl_expires_at FROM memory_entries WHERE sector = '{}' ORDER BY created_at DESC", s),
+            (None, None) => "SELECT id, content, sector, salience, decay_lambda, created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding, ttl_expires_at FROM memory_entries ORDER BY created_at DESC".to_string(),
         };
         let mut stmt = conn.prepare(&sql).map_err(MemoryError::Sqlite)?;
         let rows = stmt
@@ -243,7 +243,7 @@ impl GlobalMemStore {
 
     pub async fn list_by_project(&self, project_id: &str) -> Result<Vec<MemoryEntry>> {
         let conn = self.inner.conn.lock().await;
-        let mut stmt = conn.prepare("SELECT id, content, sector, salience, decay_lambda, created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding FROM memory_entries WHERE project_id = ?1 ORDER BY created_at DESC").map_err(MemoryError::Sqlite)?;
+        let mut stmt = conn.prepare("SELECT id, content, sector, salience, decay_lambda, created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding, ttl_expires_at FROM memory_entries WHERE project_id = ?1 ORDER BY created_at DESC").map_err(MemoryError::Sqlite)?;
         let rows = stmt
             .query_map(params![project_id], |row| self.row_to_entry(row))
             .map_err(MemoryError::Sqlite)?;
@@ -402,7 +402,10 @@ impl GlobalMemStore {
     async fn insert_entry(&self, entry: MemoryEntry) -> Result<MemoryEntry> {
         let conn = self.inner.conn.lock().await;
         conn.execute(
-            "INSERT INTO memory_entries (id, content, content_text, sector, salience, decay_lambda, created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
+            // `ttl_expires_at` must be written here: `store_with_ttl` computes
+            // it, but it used to be omitted from this statement, so every TTL
+            // was silently discarded on insert.
+            "INSERT INTO memory_entries (id, content, content_text, sector, salience, decay_lambda, created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding, ttl_expires_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
             params![
                 entry.id, entry.content.clone(), entry.content.clone(), entry.sector,
                 entry.salience, entry.decay_lambda, entry.created_at, entry.updated_at,
@@ -410,6 +413,7 @@ impl GlobalMemStore {
                 serde_json::to_string(&entry.tags)?, serde_json::to_string(&entry.metadata)?,
                 entry.project_id, entry.session_id,
                 bincode::serialize(&entry.embedding).map_err(|e| MemoryError::Encryption(e.to_string()))?,
+                entry.ttl_expires_at,
             ],
         ).map_err(MemoryError::Sqlite)?;
         debug!("Stored global memory entry: {}", entry.id);
@@ -436,7 +440,9 @@ impl GlobalMemStore {
                 .unwrap_or(serde_json::Value::Null),
             project_id: row.get(12)?,
             session_id: row.get(13)?,
-            ttl_expires_at: None,
+            // Column 15 — was hard-coded to `None`, so even a persisted expiry
+            // never made it back out of the store.
+            ttl_expires_at: row.get(15)?,
         })
     }
 

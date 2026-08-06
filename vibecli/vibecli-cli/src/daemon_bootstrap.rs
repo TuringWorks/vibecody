@@ -184,7 +184,22 @@ pub async fn probe(port: u16) -> Option<DaemonIdentity> {
         .await
         .ok()?;
 
-    if body.get("service").and_then(|v| v.as_str()) != Some(SERVICE_NAME) {
+    // Accept a daemon that predates the `service` field via its exact legacy
+    // shape (`status: "ok"` **and** a `version` string).
+    //
+    // Strictness here was an upgrade regression: a user running an older
+    // `vibecli` on 7878 would have it rejected, then `port_is_occupied` would
+    // report the port taken, and the app would tell them "Port 7878 is in use
+    // by another program" — about their own daemon. A body naming a *different*
+    // service is still never accepted, which is the case this check exists for.
+    let identified = match body.get("service").and_then(|v| v.as_str()) {
+        Some(name) => name == SERVICE_NAME,
+        None => {
+            body.get("status").and_then(|v| v.as_str()) == Some("ok")
+                && body.get("version").and_then(|v| v.as_str()).is_some()
+        }
+    };
+    if !identified {
         return None;
     }
 
@@ -561,31 +576,66 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
-    #[tokio::test]
-    async fn probe_rejects_a_foreign_service_on_the_port() {
-        // A JSON-speaking service that is not the daemon must read as "not
-        // running", not as a healthy daemon.
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let port = listener.local_addr().unwrap().port();
+    /// A tiny HTTP server that keeps answering with `body` until dropped.
+    ///
+    /// Serves in a loop rather than accepting once: under a loaded full-suite
+    /// run a client can open more than one connection (or retry), and a
+    /// one-shot server then leaves the probe hanging until its timeout — which
+    /// made a "daemon is present" assertion fail for a reason that had nothing
+    /// to do with the code under test.
+    fn serve_json_forever(listener: tokio::net::TcpListener, body: &'static str) {
         tokio::spawn(async move {
-            if let Ok((mut socket, _)) = listener.accept().await {
-                use tokio::io::AsyncWriteExt;
-                let body = br#"{"status":"ok","version":"9.9.9"}"#;
-                let response = format!(
-                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n",
-                    body.len()
-                );
-                let _ = socket.write_all(response.as_bytes()).await;
-                let _ = socket.write_all(body).await;
-                let _ = socket.flush().await;
+            loop {
+                let Ok((mut socket, _)) = listener.accept().await else {
+                    return;
+                };
+                tokio::spawn(async move {
+                    use tokio::io::AsyncWriteExt;
+                    let response = format!(
+                        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                        body.len(),
+                        body
+                    );
+                    let _ = socket.write_all(response.as_bytes()).await;
+                    let _ = socket.flush().await;
+                });
             }
         });
+    }
+
+    #[tokio::test]
+    async fn probe_rejects_a_foreign_service_on_the_port() {
+        // A JSON-speaking service that names itself must read as "not running",
+        // not as a healthy daemon.
+        //
+        // Note the limit of the legacy fallback: a foreign service that happens
+        // to return *exactly* `{"status":"ok","version":"..."}` and nothing else
+        // is indistinguishable from a pre-`service` daemon. That ambiguity is
+        // the price of not breaking users mid-upgrade; anything that identifies
+        // itself is still rejected outright.
+        const BODY: &str = r#"{"status":"ok","service":"some-other-app","version":"9.9.9"}"#;
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        serve_json_forever(listener, BODY);
 
         assert_eq!(probe(port).await, None, "foreign service must not pass");
         assert!(
             port_is_occupied(port).await || true,
             "occupancy is checked separately"
         );
+    }
+
+    #[tokio::test]
+    async fn probe_accepts_a_daemon_that_predates_the_service_field() {
+        // Upgrade path: a user's already-running older `vibecli` has no
+        // `service` key. Rejecting it made the app report the port as taken by
+        // "another program" — their own daemon.
+        const BODY: &str = r#"{"status":"ok","version":"0.5.7"}"#;
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        serve_json_forever(listener, BODY);
+        let id = probe(port).await.expect("legacy daemon must be accepted");
+        assert_eq!(id.version, "0.5.7");
     }
 
     #[tokio::test]

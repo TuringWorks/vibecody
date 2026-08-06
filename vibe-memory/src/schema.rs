@@ -11,8 +11,15 @@ pub fn create_entries_table(conn: &Connection) -> SqliteResult<()> {
         r#"
         CREATE TABLE IF NOT EXISTS memory_entries (
             id              TEXT PRIMARY KEY,
-            content         BLOB NOT NULL,        -- encrypted content
-            content_text    TEXT NOT NULL,        -- for search (encrypted separately)
+            -- NOT encrypted. The `encryption` Cargo feature (chacha20poly1305)
+            -- exists but is off by default and unused: nothing in this crate
+            -- calls it, and `store()` writes the caller's text verbatim into
+            -- both columns. These comments used to say "encrypted content" /
+            -- "encrypted separately", which is a security claim the code does
+            -- not honour — treat this DB as plaintext until the feature is
+            -- actually implemented and enabled.
+            content         BLOB NOT NULL,        -- plaintext content
+            content_text    TEXT NOT NULL,        -- plaintext, for search
             sector          TEXT NOT NULL,         -- episodic|semantic|procedural|emotional|reflective
             salience        REAL NOT NULL DEFAULT 1.0,
             decay_lambda    REAL NOT NULL DEFAULT 0.01,
@@ -25,9 +32,10 @@ pub fn create_entries_table(conn: &Connection) -> SqliteResult<()> {
             metadata        TEXT NOT NULL DEFAULT '{}', -- JSON object
             project_id      TEXT,                 -- for global store cross-project tracking
             session_id      TEXT,
+            ttl_expires_at  INTEGER,              -- epoch seconds; NULL = never expires
             
             -- Vector storage (extension-specific)
-            embedding       BLOB                  -- vec/f32 array, encrypted
+            embedding       BLOB                  -- vec/f32 array, plaintext (bincode)
         );
         "#,
         [],
@@ -85,8 +93,15 @@ pub fn create_waypoints_table(conn: &Connection) -> SqliteResult<()> {
             cross_project INTEGER NOT NULL DEFAULT 0,
             created_at  INTEGER NOT NULL,
             
-            FOREIGN KEY (src_id) REFERENCES memory_entries(id) ON DELETE CASCADE,
-            FOREIGN KEY (dst_id) REFERENCES memory_entries(id) ON DELETE CASCADE
+            -- `src_id` is always an entry in *this* store, so the cascade is
+            -- correct. `dst_id` deliberately has no foreign key: a
+            -- cross-project waypoint points at an entry in a different store
+            -- (a different database file), so referential integrity cannot
+            -- hold. The FK that used to be here made
+            -- `add_waypoint_cross_project` fail with a constraint violation
+            -- 100% of the time — the schema forbade exactly what the function
+            -- existed to do.
+            FOREIGN KEY (src_id) REFERENCES memory_entries(id) ON DELETE CASCADE
         );
         "#,
         [],
@@ -139,9 +154,72 @@ pub fn create_meta_table(conn: &Connection) -> SqliteResult<()> {
 }
 
 /// Initialize a new memory store with all tables.
+/// Add columns that `CREATE TABLE IF NOT EXISTS` cannot retrofit onto a
+/// database created by an earlier version.
+///
+/// `ttl_expires_at` is the case that prompted this: the field existed on
+/// `MemoryEntry`, `store_with_ttl()` computed a value for it, and
+/// `cleanup_expired()` queried it — but the table never had the column. Writes
+/// silently dropped the expiry and cleanup failed outright with
+/// "no such column: ttl_expires_at", so the TTL feature did nothing at all.
+fn migrate_entries_table(conn: &Connection) -> SqliteResult<()> {
+    let has_column = conn
+        .prepare("SELECT 1 FROM pragma_table_info('memory_entries') WHERE name = ?1")?
+        .exists(["ttl_expires_at"])?;
+    if !has_column {
+        conn.execute(
+            "ALTER TABLE memory_entries ADD COLUMN ttl_expires_at INTEGER",
+            [],
+        )?;
+    }
+    Ok(())
+}
+
+/// Rebuild `waypoints` without the `dst_id` foreign key.
+///
+/// `CREATE TABLE IF NOT EXISTS` cannot alter an existing table, and SQLite has
+/// no `DROP CONSTRAINT`, so an already-created store keeps the FK that makes
+/// cross-project waypoints impossible. Detect it and rebuild once.
+fn migrate_waypoints_table(conn: &Connection) -> SqliteResult<()> {
+    let dst_fk_count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM pragma_foreign_key_list('waypoints') WHERE \"from\" = 'dst_id'",
+        [],
+        |row| row.get(0),
+    )?;
+    if dst_fk_count == 0 {
+        return Ok(());
+    }
+    // Foreign keys must be off while swapping the table, or the copy trips the
+    // very constraint being removed.
+    conn.execute_batch(
+        r#"
+        PRAGMA foreign_keys=OFF;
+        BEGIN;
+        CREATE TABLE waypoints_new (
+            id          TEXT PRIMARY KEY,
+            src_id      TEXT NOT NULL,
+            dst_id      TEXT NOT NULL,
+            weight      REAL NOT NULL DEFAULT 0.5,
+            cross_project INTEGER NOT NULL DEFAULT 0,
+            created_at  INTEGER NOT NULL,
+            FOREIGN KEY (src_id) REFERENCES memory_entries(id) ON DELETE CASCADE
+        );
+        INSERT INTO waypoints_new (id, src_id, dst_id, weight, cross_project, created_at)
+            SELECT id, src_id, dst_id, weight, cross_project, created_at FROM waypoints;
+        DROP TABLE waypoints;
+        ALTER TABLE waypoints_new RENAME TO waypoints;
+        COMMIT;
+        PRAGMA foreign_keys=ON;
+        "#,
+    )?;
+    Ok(())
+}
+
 pub fn initialize_store(conn: &Connection) -> SqliteResult<()> {
     create_entries_table(conn)?;
+    migrate_entries_table(conn)?;
     create_waypoints_table(conn)?;
+    migrate_waypoints_table(conn)?;
     create_meta_table(conn)?;
 
     // Enable WAL mode for better concurrent access

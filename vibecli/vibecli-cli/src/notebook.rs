@@ -31,7 +31,7 @@
 //!
 //! # Usage
 //!
-//! ```
+//! ```text
 //! vibecli notebook script.vibe
 //! vibecli notebook script.vibe --continue-on-error
 //! ```

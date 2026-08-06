@@ -54,12 +54,29 @@ async fn hub_respects_context_budget() {
     assert!(context.contains("<vibe-memory>"));
     assert!(context.contains("</vibe-memory>"));
 
-    // But limited content due to budget
+    // Budget-aware means "stays within the budget", not "returns at most N".
+    // The old assertion hard-coded `<= 5`, which the arithmetic never
+    // supported: each entry here is 11 words ≈ 14 tokens, so a 200-token
+    // budget admits 14 of them. It only looked correct because cargo stops at
+    // the first failing test binary and this one never ran.
     let mem_count = context.matches("- [PROJECT]").count();
     assert!(
-        mem_count <= 5,
-        "Budget should limit results, got {} entries",
+        mem_count < 20,
+        "Budget should admit fewer than all 20 stored memories, got {}",
         mem_count
+    );
+    // The real contract: the assembled entries fit the budget, using the same
+    // estimator `assemble_context` uses — words of the *content* only, so the
+    // rendered `- [PROJECT] ` prefix is skipped.
+    let estimated_tokens: usize = context
+        .lines()
+        .filter(|l| l.starts_with("- [PROJECT]"))
+        .map(|l| l.split_whitespace().skip(2).count() * 13 / 10)
+        .sum();
+    assert!(
+        estimated_tokens <= 200,
+        "assembled context must fit the 200-token budget, estimated {}",
+        estimated_tokens
     );
 }
 

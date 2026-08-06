@@ -37,6 +37,23 @@ const HEALTH_PATH = "/health";
  */
 const DAEMON_SERVICE_NAME = "vibecli";
 
+/**
+ * True when a `/health` body really came from a VibeCLI daemon.
+ *
+ * A daemon predating the `service` field is accepted via its exact legacy shape
+ * (`status: "ok"` **and** a `version`), matching what the mobile/SDK/VS Code
+ * clients do. Requiring `service` strictly was an upgrade regression: with an
+ * older daemon already on 7878, the app reported it offline and then blamed
+ * "another program" for holding the port. A body naming a *different* service
+ * is still rejected — that is the case this check exists for.
+ */
+function isVibeCliHealth(body: unknown): boolean {
+  if (typeof body !== "object" || body === null) return false;
+  const b = body as { service?: unknown; status?: unknown; version?: unknown };
+  if (typeof b.service === "string") return b.service === DAEMON_SERVICE_NAME;
+  return b.status === "ok" && typeof b.version === "string";
+}
+
 interface UseDaemonMonitorOpts {
   toast: ToastApi;
   addNotification: (opts: AddNotificationOpts) => void;
@@ -75,10 +92,7 @@ export function useDaemonMonitor({
       // panel would then fail with a confusing error. `/health` reports
       // `service: "vibecli"` precisely so clients can tell the difference.
       const body: unknown = res.ok ? await res.json().catch(() => null) : null;
-      isOnline =
-        typeof body === "object" &&
-        body !== null &&
-        (body as { service?: unknown }).service === DAEMON_SERVICE_NAME;
+      isOnline = isVibeCliHealth(body);
     } catch {
       isOnline = false;
     }
