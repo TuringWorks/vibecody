@@ -2388,11 +2388,15 @@ function App() {
       {/* DREAD #1 Slice G part 2 — tainted-argument confirmation bridge.
           Enabled only when the daemon was started with --tainted-http-prompt;
           the daemon will simply never emit pending events otherwise, so the
-          modal stays invisible. Token plumbing arrives in a follow-up slice
-          (today VibeCoder talks to a loopback daemon without a header). */}
+          modal stays invisible.
+
+          Token plumbing is done: the modal reads the live daemon token itself
+          (see daemonFetch.ts). It used to take a `VITE_DAEMON_TOKEN` env var
+          that nothing set, so both the SSE subscription and the response POST
+          401'd — the user was never shown the prompt, and the daemon fell back
+          to its deny-on-timeout path. */}
       <TaintedConfirmationModal
         daemonUrl={(import.meta.env.VITE_DAEMON_URL as string | undefined) ?? "http://localhost:7878"}
-        apiToken={(import.meta.env.VITE_DAEMON_TOKEN as string | undefined) ?? ""}
         enabled={(import.meta.env.VITE_TAINTED_HTTP_PROMPT as string | undefined) === "1"}
       />
       {/* DiffComplete Modal (⌘.) — diff-mode AI edit */}

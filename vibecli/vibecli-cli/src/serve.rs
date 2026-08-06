@@ -2720,6 +2720,22 @@ async fn stream_agent(
 /// every start (see `docs/security/key-rotation.md`). The same
 /// fallback is already in use by `ws_collab_handler` for WebSocket
 /// upgrades, which have the same header constraint.
+/// `abcd...wxyz` — enough to correlate a token in logs, never enough to use it.
+///
+/// Byte-slicing (`&s[..4]`) panics on a short or non-ASCII value, and this runs
+/// on the daemon's startup path where a panic means the daemon simply does not
+/// come up.
+fn mask_secret(secret: &str) -> String {
+    let chars: Vec<char> = secret.chars().collect();
+    if chars.len() < 12 {
+        // Too short to reveal any of it without leaking a meaningful fraction.
+        return "*".repeat(chars.len().max(1));
+    }
+    let head: String = chars[..4].iter().collect();
+    let tail: String = chars[chars.len() - 4..].iter().collect();
+    format!("{head}...{tail}")
+}
+
 async fn require_auth(
     State(state): State<ServeState>,
     req: Request,
@@ -8012,22 +8028,45 @@ pub async fn serve(
     let addr = format!("{host}:{port}");
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     eprintln!("[vibecli serve] Listening on http://{addr}");
-    // Write the full token to a file (mode 0600) instead of logging it
+    // Write the full token to a file (mode 0600) instead of logging it.
+    //
+    // This is a hard failure, not a warning. The token is freshly random for
+    // this process and is never printed in full, so this file is the *only*
+    // way any client can learn it — a daemon that starts without writing it is
+    // one that every client 401s against, with nothing on screen explaining
+    // why. Previously the result was discarded with `.ok()`.
     let token_path = dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join(".vibecli")
         .join("daemon.token");
-    std::fs::write(&token_path, &api_token).ok();
+    if let Err(e) = std::fs::write(&token_path, &api_token) {
+        anyhow::bail!(
+            "could not write the daemon bearer token to {}: {e}\n\
+             Every client authenticates with this file, so the daemon would start \
+             but reject every request. Fix the permissions on ~/.vibecli (or set \
+             HOME to a writable directory) and start again.",
+            token_path.display()
+        );
+    }
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let _ = std::fs::set_permissions(&token_path, std::fs::Permissions::from_mode(0o600));
+        // A world-readable token is a local-privilege-escalation gift; if the
+        // mode can't be tightened, say so rather than silently widening it.
+        if let Err(e) =
+            std::fs::set_permissions(&token_path, std::fs::Permissions::from_mode(0o600))
+        {
+            eprintln!(
+                "[vibecli serve] WARNING: could not restrict {} to mode 0600 ({e}). \
+                 Any local user may be able to read the daemon token.",
+                token_path.display()
+            );
+        }
     }
-    let masked = format!(
-        "{}...{}",
-        &api_token[..4],
-        &api_token[api_token.len() - 4..]
-    );
+    // Character-safe masking: slicing raw byte ranges panics on a token
+    // shorter than 8 bytes or on a non-ASCII boundary. Today's token is always
+    // 32 hex chars, but a startup panic is a poor way to discover that changed.
+    let masked = mask_secret(&api_token);
     eprintln!("[vibecli serve] API token: {masked} (full token in ~/.vibecli/daemon.token)");
     eprintln!("[vibecli serve] Jobs persisted at ~/.vibecli/jobs/");
     eprintln!("[vibecli serve] Session viewer at http://{addr}/sessions");
@@ -10834,6 +10873,24 @@ mod tests {
             let body = body_string(resp.into_body()).await;
             let json: serde_json::Value = serde_json::from_str(&body).unwrap();
             assert_eq!(json["status"], "ok");
+        }
+
+        #[test]
+        fn mask_secret_never_panics_and_never_leaks_short_values() {
+            // The startup path masks the bearer token. Byte-slicing a short or
+            // non-ASCII value there panicked the daemon before it could serve.
+            assert_eq!(super::super::mask_secret(""), "*");
+            assert_eq!(super::super::mask_secret("abc"), "***");
+            // Short-but-not-empty must not reveal head+tail (that would be most
+            // of the secret).
+            assert!(!super::super::mask_secret("abcdefgh").contains("..."));
+            // Multi-byte characters must not split a char boundary.
+            let unicode = "😀😀😀😀😀😀😀😀😀😀😀😀";
+            let masked = super::super::mask_secret(unicode);
+            assert!(masked.contains("..."), "long values are masked head...tail");
+            // A realistic 32-hex token.
+            let token = "0123456789abcdef0123456789abcdef";
+            assert_eq!(super::super::mask_secret(token), "0123...cdef");
         }
 
         #[tokio::test]

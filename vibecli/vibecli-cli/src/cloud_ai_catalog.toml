@@ -1,0 +1,181 @@
+# Cloud AI backend catalog — serving / training / eval / routing.
+#
+# This file is the product: adding or repointing a cloud is a config edit, not a
+# code change. It ships embedded (`include_str!`) as the default and is
+# overridden wholesale by `~/.vibecli/cloud_ai.toml` when that file exists.
+#
+# Every `base_url` is a template. Variables in `{braces}` are resolved from the
+# encrypted ProfileStore provider-config for that backend id (see
+# `vibecli cloud set <id> <var> <value>`), so nothing here is baked in.
+#
+# `verified` records when the endpoint shape was last checked against vendor
+# documentation, and against what. An entry with `verified = "unverified"` still
+# works — you just have to supply `base_url` yourself.
+#
+# Auth kinds (all perform real credential work, none are stubs):
+#   bearer          Authorization: Bearer <credential>
+#   api_key_header  <header>: <credential>            (header named per backend)
+#   ibm_iam         exchanges an IBM Cloud API key for an IAM bearer token
+#   gcp_bearer      OAuth access token (config value, or `gcloud auth print-access-token`)
+#   aws_sigv4       AWS Signature V4 over the request
+#   oci_token       OCI token-based auth (`oci session authenticate`)
+
+schema_version = 1
+
+# ── DigitalOcean ─────────────────────────────────────────────────────────────
+[[backend]]
+id = "digitalocean"
+display_name = "DigitalOcean Gradient AI"
+auth = "bearer"
+credential = "digitalocean"
+stages = ["serve"]
+verified = "2026-08-06 docs.digitalocean.com/products/inference"
+notes = "OpenAI-compatible. Model access key or personal access token."
+
+[backend.serve]
+api = "openai_chat"
+base_url = "https://inference.do-ai.run/v1"
+path = "/chat/completions"
+
+# ── Microsoft Azure ──────────────────────────────────────────────────────────
+[[backend]]
+id = "azure"
+display_name = "Azure OpenAI / AI Foundry"
+auth = "api_key_header"
+auth_header = "api-key"
+credential = "azure_openai"
+stages = ["serve", "train"]
+required_vars = ["resource", "deployment", "api_version"]
+verified = "2026-08-06 learn.microsoft.com azure-openai rest"
+notes = "Set `resource` (without .openai.azure.com), `deployment`, `api_version`."
+
+[backend.serve]
+api = "openai_chat"
+base_url = "https://{resource}.openai.azure.com/openai/deployments/{deployment}"
+path = "/chat/completions"
+query = "api-version={api_version}"
+
+[backend.train]
+api = "azure_fine_tune"
+base_url = "https://{resource}.openai.azure.com/openai"
+path = "/fine_tuning/jobs"
+query = "api-version={api_version}"
+
+# ── Google Cloud ─────────────────────────────────────────────────────────────
+[[backend]]
+id = "google"
+display_name = "Google Vertex AI"
+auth = "gcp_bearer"
+credential = "google_vertex"
+stages = ["serve", "train"]
+required_vars = ["project", "region"]
+verified = "2026-08-06 cloud.google.com/vertex-ai openai + tuningJobs"
+notes = "Credential is an OAuth access token; falls back to `gcloud auth print-access-token`."
+
+[backend.serve]
+api = "openai_chat"
+base_url = "https://{region}-aiplatform.googleapis.com/v1/projects/{project}/locations/{region}/endpoints/openapi"
+path = "/chat/completions"
+
+[backend.train]
+api = "vertex_tuning_job"
+base_url = "https://{region}-aiplatform.googleapis.com/v1/projects/{project}/locations/{region}"
+path = "/tuningJobs"
+
+# ── Amazon Web Services ──────────────────────────────────────────────────────
+[[backend]]
+id = "aws"
+display_name = "AWS Bedrock"
+auth = "aws_sigv4"
+auth_service = "bedrock"
+credential = "aws"
+stages = ["serve", "train"]
+required_vars = ["region"]
+verified = "2026-08-06 docs.aws.amazon.com/bedrock rest"
+notes = "Credential is `ACCESS_KEY_ID:SECRET_ACCESS_KEY` (optionally :SESSION_TOKEN)."
+
+[backend.serve]
+api = "bedrock_converse"
+base_url = "https://bedrock-runtime.{region}.amazonaws.com"
+path = "/model/{model}/converse"
+
+[backend.train]
+api = "bedrock_customization_job"
+base_url = "https://bedrock.{region}.amazonaws.com"
+path = "/model-customization-jobs"
+
+# ── Oracle Cloud ─────────────────────────────────────────────────────────────
+[[backend]]
+id = "oracle"
+display_name = "OCI Generative AI"
+auth = "oci_token"
+credential = "oracle_oci"
+stages = ["serve"]
+required_vars = ["region", "compartment_id"]
+verified = "2026-08-06 docs.oracle.com generative-ai-inference"
+notes = """Credential is an OCI session token (`oci session authenticate`).
+RSA request signing is not implemented — token auth is the supported path."""
+
+[backend.serve]
+api = "oci_chat"
+base_url = "https://inference.generativeai.{region}.oci.oraclecloud.com"
+path = "/20231130/actions/chat"
+
+# ── IBM Cloud ────────────────────────────────────────────────────────────────
+[[backend]]
+id = "ibm"
+display_name = "IBM watsonx.ai"
+auth = "ibm_iam"
+credential = "ibm_watsonx"
+stages = ["serve", "train"]
+required_vars = ["region", "project_id", "api_version"]
+verified = "2026-08-06 cloud.ibm.com/apidocs/watsonx-ai"
+notes = "Credential is an IBM Cloud API key; exchanged for an IAM bearer token at request time."
+
+[backend.serve]
+api = "watsonx_chat"
+base_url = "https://{region}.ml.cloud.ibm.com"
+path = "/ml/v1/text/chat"
+query = "version={api_version}"
+
+[backend.train]
+api = "watsonx_training"
+base_url = "https://{region}.ml.cloud.ibm.com"
+path = "/ml/v1/trainings"
+query = "version={api_version}"
+
+# ── Akamai ───────────────────────────────────────────────────────────────────
+[[backend]]
+id = "akamai"
+display_name = "Akamai Cloud Inference (Linode GPU)"
+auth = "bearer"
+credential = "akamai"
+stages = ["serve"]
+required_vars = ["base_url"]
+verified = "unverified — endpoint is per-deployment"
+notes = """Akamai Cloud Inference runs on Linode GPU instances, so the endpoint
+belongs to your deployment rather than to a shared regional host. Set `base_url`
+to your inference host (vLLM/SGLang/Triton all speak the OpenAI shape)."""
+
+[backend.serve]
+api = "openai_chat"
+base_url = "{base_url}"
+path = "/chat/completions"
+
+# ── Self-hosted escape hatch ─────────────────────────────────────────────────
+# Any OpenAI-compatible endpoint: vLLM, SGLang, llama.cpp, TGI, Ollama, a
+# corporate gateway, or a cloud not listed above.
+[[backend]]
+id = "custom"
+display_name = "Custom OpenAI-compatible endpoint"
+auth = "bearer"
+credential = "custom_cloud"
+stages = ["serve"]
+required_vars = ["base_url"]
+verified = "n/a — user supplied"
+notes = "The generic path. Set `base_url`; leave the credential empty for unauthenticated local servers."
+
+[backend.serve]
+api = "openai_chat"
+base_url = "{base_url}"
+path = "/chat/completions"
