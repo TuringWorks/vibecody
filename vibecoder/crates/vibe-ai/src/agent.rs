@@ -9,7 +9,8 @@ use crate::policy::AdminPolicy;
 use crate::provider::{AIProvider, Message, MessageRole};
 use crate::skills::SkillLoader;
 use crate::tools::{
-    format_tool_result, parse_tool_calls, ToolCall, ToolResult, TOOL_SYSTEM_PROMPT,
+    format_tool_result, parse_tool_calls, unparsed_tool_call_name, ToolCall, ToolResult,
+    AVAILABLE_TOOL_NAMES, TOOL_SYSTEM_PROMPT,
 };
 use crate::trace::DecisionWriter;
 use anyhow::Result;
@@ -1029,6 +1030,37 @@ impl AgentLoop {
             // ── 2. Parse tool calls ───────────────────────────────────────────
             let tool_calls = parse_tool_calls(&accumulated);
             if tool_calls.is_empty() {
+                // A `<tool_call>` block that parsed to nothing means the model
+                // named a tool we don't have (gpt-oss reaches for its built-in
+                // `container.exec`) or malformed the block. Silently treating
+                // that as the final answer ends the run with the unparsed
+                // markup as its "summary" — tell the model instead, so it can
+                // retry with a real tool.
+                if let Some(attempted) =
+                    unparsed_tool_call_name(&accumulated).filter(|_| consecutive_prose_turns <= 2)
+                {
+                    consecutive_prose_turns += 1;
+                    tracing::warn!(
+                        attempted_tool = %attempted,
+                        "Model called an unknown or malformed tool — re-prompting with the valid list",
+                    );
+                    messages.push(Message {
+                        role: MessageRole::Assistant,
+                        content: accumulated,
+                    });
+                    messages.push(Message {
+                        role: MessageRole::User,
+                        content: format!(
+                            "Tool call rejected: `{}` is not an available tool, or the block was malformed. \
+                             You have exactly these tools: {}. \
+                             Retry now with one of them, using the documented parameter tags.",
+                            attempted,
+                            AVAILABLE_TOOL_NAMES.join(", "),
+                        ),
+                    });
+                    continue;
+                }
+
                 // On the very first step, the model may output planning prose instead
                 // of a tool call. Re-prompt it once to force a tool call.
                 if step == 0 {

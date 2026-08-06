@@ -3483,8 +3483,25 @@ pub async fn stream_chat_message(
         let mut write_scan_pos: usize = 0;
         let mut files_written: Vec<String> = Vec::new();
 
+        /// Drop reasoning blocks before tool markup is acted on. Models quote
+        /// the calls they are *considering* inside `<thinking>` / `<think>` —
+        /// executing those would write files the model never asked for. The
+        /// `contains` guard keeps the common (reasoning-free) case allocation-
+        /// and regex-free on every streamed chunk.
+        fn visible_text(text: &str) -> std::borrow::Cow<'_, str> {
+            if text.contains("<think") {
+                std::borrow::Cow::Owned(vibe_ai::tools::strip_thinking(text))
+            } else {
+                std::borrow::Cow::Borrowed(text)
+            }
+        }
+
         /// Scan `text` starting at `scan_pos` for complete `<write_file>` blocks.
         /// Write each file immediately and return the new scan position.
+        ///
+        /// `scan_pos` indexes the *visible* text (reasoning removed), which can
+        /// shrink as a `<thinking>` block completes — hence the clamp. Anything
+        /// skipped that way is still caught by the final `process_tool_calls`.
         fn flush_completed_writes(
             text: &str,
             scan_pos: usize,
@@ -3493,8 +3510,12 @@ pub async fn stream_chat_message(
             app: &tauri::AppHandle,
         ) -> usize {
             use tauri::Emitter;
+            let text = &visible_text(text);
             let tag = "<write_file path=\"";
-            let mut pos = scan_pos;
+            let mut pos = scan_pos.min(text.len());
+            while pos > 0 && !text.is_char_boundary(pos) {
+                pos -= 1;
+            }
             while let Some(rel_start) = text[pos..].find(tag) {
                 let start = pos + rel_start;
                 let Some(path_end_rel) = text[start..].find("\">") else {
@@ -4890,6 +4911,9 @@ async fn process_tool_calls(
     workspace_lock: &Arc<Mutex<Workspace>>,
     app: &tauri::AppHandle,
 ) -> (String, Option<PendingWrite>) {
+    // Reasoning first: a model that muses about `<write_file …>` inside its
+    // thinking block must not have that call executed.
+    let response = &vibe_ai::tools::strip_thinking(response);
     // Normalize GLM/Qwen-style delimiters: <|tag|> → <tag>, </|tag|> → </tag>
     // These models wrap tool calls in <|...|> instead of <...>
     let response = &response

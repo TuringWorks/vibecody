@@ -582,11 +582,98 @@ const MAX_TOOL_OUTPUT: usize = 8_000;
 
 // ── Parsing ───────────────────────────────────────────────────────────────────
 
+/// Every tool name [`parse_tool_calls`] recognises. Used to tell a model that
+/// reached for something else (gpt-oss likes its built-in `container.exec`)
+/// what it can actually call.
+pub const AVAILABLE_TOOL_NAMES: &[&str] = &[
+    "read_file",
+    "write_file",
+    "apply_patch",
+    "bash",
+    "search_files",
+    "list_directory",
+    "web_search",
+    "fetch_url",
+    "task_complete",
+    "spawn_agent",
+    "think",
+    "plan_task",
+    "diffstat",
+    "record_memory",
+];
+
+/// Name of a `<tool_call>` block that [`parse_tool_calls`] could not turn into
+/// a call — an unknown tool, or one missing required parameters.
+///
+/// Returns `None` when the text has no tool-call markup at all (genuine prose)
+/// or when every block parsed successfully. Reasoning is ignored, as in
+/// [`parse_tool_calls`].
+pub fn unparsed_tool_call_name(text: &str) -> Option<String> {
+    let visible = strip_thinking(text);
+    let re = Regex::new(r#"(?s)<tool_call\s+name="([^"]+)">(.*?)</tool_call>"#)
+        .expect("hardcoded regex is valid");
+    for cap in re.captures_iter(&visible) {
+        let name = cap[1].trim();
+        if parse_single_tool(name, &cap[2]).is_none() {
+            return Some(name.to_string());
+        }
+    }
+    // An opening tag with no closing tag never reaches the loop above.
+    if visible.contains("<tool_call") && parse_tool_calls(&visible).is_empty() {
+        return Some("(malformed tool_call block)".to_string());
+    }
+    None
+}
+
+/// Render a native (structured) tool call as the `<tool_call name="…">` markup
+/// [`parse_tool_calls`] understands.
+///
+/// Providers whose APIs return function calls as JSON — rather than as the
+/// markup this crate's prompt asks for — transcribe them through here so the
+/// agent loop sees one canonical form. Non-string argument values keep their
+/// JSON representation (`3`, `["a"]`), which is what the per-tool parsers
+/// expect for numeric and structured fields.
+pub fn render_tool_call(name: &str, args: Option<&serde_json::Value>) -> String {
+    let body = args
+        .and_then(|v| v.as_object())
+        .map(|obj| {
+            obj.iter()
+                .map(|(key, value)| {
+                    let rendered = match value {
+                        serde_json::Value::String(s) => s.clone(),
+                        other => other.to_string(),
+                    };
+                    format!("<{k}>{v}</{k}>", k = key, v = rendered)
+                })
+                .collect::<String>()
+        })
+        .unwrap_or_default();
+    format!("<tool_call name=\"{}\">{}</tool_call>", name, body)
+}
+
+/// Remove `<thinking>` / `<think>` reasoning blocks from a model response.
+///
+/// Reasoning routinely *quotes* the call the model is considering — including
+/// calls it then rejects — so tool parsing must run on the visible turn only.
+/// An unclosed block (the stream ended, or was gated, mid-reasoning) discards
+/// everything after the opening tag.
+pub fn strip_thinking(text: &str) -> String {
+    let block_re = Regex::new(r"(?s)<(think|thinking)>.*?</(?:think|thinking)>")
+        .expect("hardcoded regex is valid");
+    let stripped = block_re.replace_all(text, "");
+    let unclosed_re =
+        Regex::new(r"(?s)<(?:think|thinking)>.*$").expect("hardcoded regex is valid");
+    unclosed_re.replace(&stripped, "").into_owned()
+}
+
 /// Parse all `<tool_call>` blocks from a model response.
+///
+/// Reasoning blocks are ignored — see [`strip_thinking`].
 ///
 /// Returns an empty vec if the response contains no tool calls (i.e. it is the
 /// final answer).
 pub fn parse_tool_calls(text: &str) -> Vec<ToolCall> {
+    let text = &strip_thinking(text);
     // Match <tool_call name="...">...</tool_call> — possibly multi-line
     let outer_re = Regex::new(r#"(?s)<tool_call\s+name="([^"]+)">(.*?)</tool_call>"#)
         .expect("hardcoded regex is valid");
@@ -1177,5 +1264,106 @@ Some text in between
         assert_eq!(calls.len(), 2);
         assert_eq!(calls[0].name(), "read_file");
         assert_eq!(calls[1].name(), "bash");
+    }
+}
+
+#[cfg(test)]
+mod thinking_tests {
+    use super::*;
+
+    // Models quote the call they are considering inside their reasoning —
+    // gpt-oss does it verbatim. Executing those would run tools the model
+    // never actually invoked (and, worse, ones it decided against).
+
+    #[test]
+    fn tool_call_inside_thinking_is_ignored() {
+        let text = r#"<thinking>I could <tool_call name="bash"><command>rm -rf /</command></tool_call> but no.</thinking>Done."#;
+        assert!(parse_tool_calls(text).is_empty());
+    }
+
+    #[test]
+    fn think_spelling_is_also_ignored() {
+        let text = r#"<think><tool_call name="read_file"><path>a.rs</path></tool_call></think>"#;
+        assert!(parse_tool_calls(text).is_empty());
+    }
+
+    #[test]
+    fn real_call_after_thinking_still_parses() {
+        let text = r#"<thinking>maybe <tool_call name="bash"><command>ls</command></tool_call></thinking>
+<tool_call name="list_directory"><path>src</path></tool_call>"#;
+        let calls = parse_tool_calls(text);
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].name(), "list_directory");
+    }
+
+    #[test]
+    fn unclosed_thinking_block_discards_its_tail() {
+        let text = r#"prose <thinking>I will <tool_call name="bash"><command>ls</command></tool_call>"#;
+        assert!(parse_tool_calls(text).is_empty());
+    }
+
+    #[test]
+    fn strip_thinking_keeps_surrounding_prose() {
+        assert_eq!(strip_thinking("a<thinking>x</thinking>b"), "ab");
+    }
+}
+
+#[cfg(test)]
+mod unknown_tool_tests {
+    use super::*;
+
+    // A `<tool_call>` naming a tool we don't have (gpt-oss reaches for its
+    // built-in `container.exec`) used to parse to nothing and end the run with
+    // the raw markup as its summary.
+
+    #[test]
+    fn unknown_tool_name_is_reported() {
+        let text = r#"<tool_call name="container.exec"><cmd>ls</cmd></tool_call>"#;
+        assert_eq!(
+            unparsed_tool_call_name(text).as_deref(),
+            Some("container.exec")
+        );
+    }
+
+    #[test]
+    fn missing_required_parameter_is_reported() {
+        // read_file without <path> cannot be built.
+        let text = r#"<tool_call name="read_file"><file>a.rs</file></tool_call>"#;
+        assert_eq!(unparsed_tool_call_name(text).as_deref(), Some("read_file"));
+    }
+
+    #[test]
+    fn valid_call_reports_nothing() {
+        let text = r#"<tool_call name="list_directory"><path>.</path></tool_call>"#;
+        assert!(unparsed_tool_call_name(text).is_none());
+    }
+
+    #[test]
+    fn plain_prose_reports_nothing() {
+        assert!(unparsed_tool_call_name("Here is my answer.").is_none());
+    }
+
+    #[test]
+    fn unknown_tool_inside_thinking_is_not_reported() {
+        let text = r#"<thinking><tool_call name="container.exec"><cmd>ls</cmd></tool_call></thinking>Done."#;
+        assert!(unparsed_tool_call_name(text).is_none());
+    }
+
+    #[test]
+    fn unclosed_block_is_reported_as_malformed() {
+        let text = r#"<tool_call name="bash"><command>ls"#;
+        assert!(unparsed_tool_call_name(text).is_some());
+    }
+
+    #[test]
+    fn every_advertised_name_parses() {
+        // The list we hand back to the model must not name tools the parser
+        // rejects.
+        for name in AVAILABLE_TOOL_NAMES {
+            assert!(
+                TOOL_SYSTEM_PROMPT.contains(&format!("name=\"{name}\"")),
+                "{name} is advertised but absent from the tool prompt"
+            );
+        }
     }
 }

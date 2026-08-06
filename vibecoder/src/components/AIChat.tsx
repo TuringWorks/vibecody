@@ -209,6 +209,18 @@ export interface Message {
  attachments?: ChatAttachment[];
  /** True when this message is a synthetic compaction summary of earlier messages. */
  isSummary?: boolean;
+ /**
+  * True when this message carries the output of tools the backend executed for
+  * the preceding assistant turn. Rendered like an assistant message, but sent
+  * back to the provider as a *user* turn — see `toBackendMessage`.
+  */
+ isToolOutput?: boolean;
+ /**
+  * Assistant content with the tool tags still in place (reasoning removed).
+  * `content` is the display form with tags stripped; replaying that back would
+  * hide the model's own tool calls from it on the next turn.
+  */
+ rawContent?: string;
 }
 
 // ── Attachment constants (module scope for stable references) ─────────────────
@@ -341,16 +353,69 @@ type AgentMode = "fast" | "chat" | "planning";
  */
 const MAX_AGENT_TURNS = 10;
 
-/** Extract <thinking>...</thinking> blocks from content. Returns [cleanedContent, thinkingText]. */
+/**
+ * Appended to the last tool-result turn so the model knows the loop is still
+ * running and what is expected of it next.
+ */
+const CONTINUE_HINT =
+  "\n\nContinue the task using these results. Emit more tool tags if you need "
+  + "more information; otherwise give your final answer.";
+
+/**
+ * Map a UI message to the shape the backend expects.
+ *
+ * Tool results are shown as assistant bubbles but must be sent as a **user**
+ * turn: a request whose last message is from the assistant makes providers
+ * (Ollama/GLM in particular) return an empty completion, which silently ended
+ * the auto-continue loop after the first tool round.
+ */
+function toBackendMessage(
+  m: Message,
+  isLast: boolean,
+): { role: "user" | "assistant"; content: string } {
+  if (!m.isToolOutput) return { role: m.role, content: m.rawContent ?? m.content };
+  return {
+    role: "user",
+    content: `[Tool results]\n${m.content}${isLast ? CONTINUE_HINT : ""}`,
+  };
+}
+
+/** Map a whole conversation for the backend, flagging the final message. */
+function toBackendMessages(messages: Message[]): Array<{ role: "user" | "assistant"; content: string }> {
+  return messages.map((m, i) => toBackendMessage(m, i === messages.length - 1));
+}
+
+/**
+ * Extract reasoning blocks from content. Returns [cleanedContent, thinkingText].
+ *
+ * Handles both `<thinking>` and the `<think>` spelling used by GLM/Qwen/R1, and
+ * the two unbalanced shapes those models emit in practice:
+ *  - an orphan `</think>` (the provider consumed the opening tag into its own
+ *    reasoning field), where everything before it is reasoning;
+ *  - an unclosed `<think>` (stream cut short), where everything after it is.
+ */
 function extractThinking(content: string): [string, string] {
-  const thinkingRegex = /<thinking>([\s\S]*?)<\/thinking>/g;
-  let thinkingText = "";
+  const parts: string[] = [];
+  const blockRegex = /<(think|thinking)>([\s\S]*?)<\/\1>/g;
   let match: RegExpExecArray | null;
-  while ((match = thinkingRegex.exec(content)) !== null) {
-    thinkingText += (thinkingText ? "\n" : "") + match[1].trim();
+  while ((match = blockRegex.exec(content)) !== null) {
+    parts.push(match[2].trim());
   }
-  const cleaned = content.replace(thinkingRegex, "").trim();
-  return [cleaned, thinkingText];
+  let cleaned = content.replace(blockRegex, "");
+
+  const orphanClose = cleaned.match(/^([\s\S]*?)<\/(?:think|thinking)>/);
+  if (orphanClose) {
+    parts.push(orphanClose[1].trim());
+    cleaned = cleaned.slice(orphanClose[0].length);
+  }
+
+  const orphanOpen = cleaned.match(/<(?:think|thinking)>([\s\S]*)$/);
+  if (orphanOpen) {
+    parts.push(orphanOpen[1].trim());
+    cleaned = cleaned.slice(0, cleaned.length - orphanOpen[0].length);
+  }
+
+  return [cleaned.trim(), parts.filter(Boolean).join("\n")];
 }
 
 /** Parse tool XML tags from content into ToolCallInfo[], return cleaned content. */
@@ -1454,6 +1519,11 @@ export function AIChat({
         // setMessages's update fn runs synchronously in both controlled and
         // local modes, so this ref is populated before the next line executes.
         const captured: { value: Message[] | null } = { value: null };
+        // A completion with no content, no reasoning and no tools is a dead
+        // turn (providers return one when the request ends on an assistant
+        // message). Don't append an empty bubble for it.
+        const isEmptyTurn =
+          !finalContent && !thinkingText && toolCalls.length === 0 && !hasToolOutput;
         setMessages((prev) => {
           const msg: Message = {
             role: "assistant",
@@ -1461,14 +1531,16 @@ export function AIChat({
             timestamp: Date.now(),
             thinking: thinkingText || undefined,
             toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+            rawContent: cleanedContent !== finalContent ? cleanedContent : undefined,
           };
-          const updated = [...prev, msg];
+          const updated = isEmptyTurn ? [...prev] : [...prev, msg];
 
           if (hasToolOutput) {
             updated.push({
               role: "assistant",
               content: "```\n" + response.tool_output.trim() + "\n```",
               timestamp: Date.now(),
+              isToolOutput: true,
             });
           }
           captured.value = updated;
@@ -1510,7 +1582,7 @@ export function AIChat({
           streamCharsRef.current = 0;
           setStreamStatus(`Continuing (${turn}/${MAX_AGENT_TURNS - 1})`);
 
-          const backendMessages = nextMessages.map(({ role, content }) => ({ role, content }));
+          const backendMessages = toBackendMessages(nextMessages);
           const effectiveContext =
             [pinnedMemoryRef.current, contextRef.current].filter(Boolean).join("\n\n") || null;
           const chatRequest = {
@@ -1534,7 +1606,20 @@ export function AIChat({
           return;
         }
 
-        // Terminal completion — clear loading state.
+        // Terminal completion — clear loading state. An empty turn here means
+        // the run stopped without producing anything; say so rather than
+        // leaving the user with a chat that just went quiet.
+        if (isEmptyTurn) {
+          const midLoop = agentTurnCountRef.current > 0;
+          setMessages((prev) => [...prev, {
+            role: "assistant",
+            content: midLoop
+              ? "The model returned an empty response while continuing after tool results, so the run stopped. Send \"continue\" to resume."
+              : "The model returned an empty response. Try resending, or switch models.",
+            timestamp: Date.now(),
+            isError: true,
+          }]);
+        }
         agentTurnCountRef.current = 0;
         if (onMessagesChangeRef.current) {
           // Controlled mode: defer clearing streaming UI until the new
@@ -1697,10 +1782,14 @@ export function AIChat({
       const a4 = await listen<string>(agentEvent("complete"), (e) => {
         if (!sessionIdRef.current && !agentRunOwnerRef.current) return;
         agentRunOwnerRef.current = false;
+        // Reasoning models put a `<thinking>` block in the summary; show it in
+        // the collapsible slot rather than inline with the answer.
+        const [summary, thinkingText] = extractThinking(e.payload ?? "");
         setMessages((prev) => [...prev, {
           role: "assistant",
-          content: e.payload || "Agent task complete.",
+          content: summary || "Agent task complete.",
           timestamp: Date.now(),
+          thinking: thinkingText || undefined,
         }]);
         setPendingApproval(null);
         setAgentSteps([]);
@@ -1729,8 +1818,9 @@ export function AIChat({
         if (!sessionIdRef.current && !agentRunOwnerRef.current) return;
         agentRunOwnerRef.current = false;
         const { summary, steps_completed, steps_planned, remaining_plan } = e.payload;
+        const [cleanSummary, thinkingText] = extractThinking(summary ?? "");
         const body =
-          `⚠ Partial completion (${steps_completed}/${steps_planned} steps)\n\n${summary}` +
+          `⚠ Partial completion (${steps_completed}/${steps_planned} steps)\n\n${cleanSummary}` +
           (remaining_plan.length > 0
             ? `\n\nRemaining:\n${remaining_plan.map((s, i) => `  ${steps_completed + i + 1}. ${s}`).join("\n")}`
             : "");
@@ -1738,6 +1828,7 @@ export function AIChat({
           role: "assistant",
           content: body,
           timestamp: Date.now(),
+          thinking: thinkingText || undefined,
         }]);
         setPendingApproval(null);
         setAgentSteps([]);
@@ -1949,10 +2040,7 @@ export function AIChat({
 
     try {
       // Build request with only the fields the backend expects
-      const backendMessages = [...messages, userMessage].map(({ role, content }) => ({
-        role,
-        content,
-      }));
+      const backendMessages = toBackendMessages([...messages, userMessage]);
       const effectiveContext = [pinnedMemory, context].filter(Boolean).join("\n\n") || null;
       const chatRequest = {
         messages: backendMessages,

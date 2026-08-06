@@ -64,15 +64,93 @@ struct OllamaChatRequest {
 struct OllamaChatMessage {
     role: String,
     content: String,
+    /// Reasoning tokens. Thinking models (gpt-oss, glm, qwen3, deepseek-r1)
+    /// put their whole turn here and leave `content` empty until they answer —
+    /// dropping this field makes such a turn look like an empty response.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    thinking: Option<String>,
+    /// Native (structured) tool calls. Models emit these instead of the
+    /// `<tool_call>` markup the agent's parser expects, so we transcribe them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    tool_calls: Option<Vec<OllamaToolCall>>,
     /// Base64-encoded images for vision models (Qwen2-VL, GLM-4V, LLaVA, etc.)
     #[serde(skip_serializing_if = "Option::is_none")]
     images: Option<Vec<String>>,
 }
 
+impl OllamaChatMessage {
+    /// A request-side message: no reasoning, no tool calls, no images.
+    fn outgoing(role: String, content: String) -> Self {
+        Self {
+            role,
+            content,
+            thinking: None,
+            tool_calls: None,
+            images: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct OllamaToolCall {
+    #[serde(default)]
+    function: Option<OllamaToolFunction>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct OllamaToolFunction {
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    arguments: Option<serde_json::Value>,
+}
+
+/// Transcribe a native Ollama tool call into the `<tool_call name="…">` markup
+/// [`crate::tools::parse_tool_calls`] understands.
+///
+/// Two shapes occur in the wild:
+///  - the plain one — `function.name` is the tool, `function.arguments` its args;
+///  - the gpt-oss wrapper — `function.name` is `"tool_use"` and the real tool
+///    sits in `arguments.name` / `arguments.arguments`.
+fn tool_call_to_xml(call: &OllamaToolCall) -> Option<String> {
+    let function = call.function.as_ref()?;
+    let (name, args) = match (function.name.as_deref(), function.arguments.as_ref()) {
+        (Some("tool_use"), Some(wrapped)) => (
+            wrapped.get("name").and_then(|v| v.as_str())?.to_string(),
+            wrapped.get("arguments").cloned(),
+        ),
+        (Some(name), args) => (name.to_string(), args.cloned()),
+        _ => return None,
+    };
+
+    Some(crate::tools::render_tool_call(&name, args.as_ref()))
+}
+
+/// Flatten a response message into the text the rest of the stack consumes:
+/// reasoning wrapped in `<thinking>` tags, then content, then any native tool
+/// calls transcribed to markup.
+fn message_to_text(msg: &OllamaChatMessage) -> String {
+    let mut out = String::new();
+    if let Some(thinking) = msg.thinking.as_deref().filter(|t| !t.is_empty()) {
+        out.push_str("<thinking>");
+        out.push_str(thinking);
+        out.push_str("</thinking>\n");
+    }
+    out.push_str(&msg.content);
+    for call in msg.tool_calls.iter().flatten() {
+        if let Some(xml) = tool_call_to_xml(call) {
+            if !out.is_empty() && !out.ends_with('\n') {
+                out.push('\n');
+            }
+            out.push_str(&xml);
+        }
+    }
+    out
+}
+
 #[derive(Debug, Deserialize)]
 struct OllamaChatResponse {
     message: Option<OllamaChatMessage>,
-    #[allow(dead_code)]
     done: bool,
 }
 
@@ -324,11 +402,7 @@ impl AIProvider for OllamaProvider {
     async fn chat(&self, messages: &[Message], context: Option<String>) -> Result<String> {
         let mut ollama_messages: Vec<OllamaChatMessage> = messages
             .iter()
-            .map(|m| OllamaChatMessage {
-                role: m.role.as_str().to_string(),
-                content: m.content.clone(),
-                images: None,
-            })
+            .map(|m| OllamaChatMessage::outgoing(m.role.as_str().to_string(), m.content.clone()))
             .collect();
 
         // Inject context into the last user message if available
@@ -370,18 +444,15 @@ impl AIProvider for OllamaProvider {
 
         Ok(ollama_response
             .message
-            .map(|m| m.content)
+            .as_ref()
+            .map(message_to_text)
             .unwrap_or_default())
     }
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
         let ollama_messages: Vec<OllamaChatMessage> = messages
             .iter()
-            .map(|m| OllamaChatMessage {
-                role: m.role.as_str().to_string(),
-                content: m.content.clone(),
-                images: None,
-            })
+            .map(|m| OllamaChatMessage::outgoing(m.role.as_str().to_string(), m.content.clone()))
             .collect();
 
         let request = OllamaChatRequest {
@@ -410,6 +481,10 @@ impl AIProvider for OllamaProvider {
         // JSON lines.  Cloud/remote Ollama models can split chunks at
         // arbitrary byte boundaries (mid-character or mid-JSON-object).
         let buf = std::sync::Arc::new(std::sync::Mutex::new(Vec::<u8>::new()));
+        // Reasoning streams token-by-token, so the `<thinking>` wrapper spans
+        // many chunks: opened on the first reasoning token, closed when prose,
+        // a tool call, or the end of the stream arrives.
+        let thinking_open = std::sync::Arc::new(std::sync::Mutex::new(false));
 
         let completion_stream = stream
             .map(move |chunk| -> Result<String, anyhow::Error> {
@@ -440,8 +515,37 @@ impl AIProvider for OllamaProvider {
                     }
                     match serde_json::from_str::<OllamaChatResponse>(line) {
                         Ok(response) => {
+                            let done = response.done;
                             if let Some(msg) = response.message {
+                                let mut open =
+                                    thinking_open.lock().unwrap_or_else(|e| e.into_inner());
+                                if let Some(t) =
+                                    msg.thinking.as_deref().filter(|t| !t.is_empty())
+                                {
+                                    if !*open {
+                                        result.push_str("<thinking>");
+                                        *open = true;
+                                    }
+                                    result.push_str(t);
+                                }
+                                // Anything that isn't reasoning ends the block.
+                                let ends_thinking =
+                                    !msg.content.is_empty() || msg.tool_calls.is_some() || done;
+                                if *open && ends_thinking {
+                                    result.push_str("</thinking>\n");
+                                    *open = false;
+                                }
+                                drop(open);
+
                                 result.push_str(&msg.content);
+                                for call in msg.tool_calls.iter().flatten() {
+                                    if let Some(xml) = tool_call_to_xml(call) {
+                                        if !result.is_empty() && !result.ends_with('\n') {
+                                            result.push('\n');
+                                        }
+                                        result.push_str(&xml);
+                                    }
+                                }
                             }
                         }
                         Err(_) => {
@@ -478,11 +582,7 @@ impl AIProvider for OllamaProvider {
     ) -> Result<String> {
         let mut ollama_messages: Vec<OllamaChatMessage> = messages
             .iter()
-            .map(|m| OllamaChatMessage {
-                role: m.role.as_str().to_string(),
-                content: m.content.clone(),
-                images: None,
-            })
+            .map(|m| OllamaChatMessage::outgoing(m.role.as_str().to_string(), m.content.clone()))
             .collect();
 
         // Inject context into the last user message if available
@@ -531,7 +631,8 @@ impl AIProvider for OllamaProvider {
 
         Ok(ollama_response
             .message
-            .map(|m| m.content)
+            .as_ref()
+            .map(message_to_text)
             .unwrap_or_default())
     }
 }
@@ -720,11 +821,10 @@ mod tests {
     fn ollama_chat_request_omits_none_options() {
         let req = OllamaChatRequest {
             model: "llama3".to_string(),
-            messages: vec![OllamaChatMessage {
-                role: "user".to_string(),
-                content: "hello".to_string(),
-                images: None,
-            }],
+            messages: vec![OllamaChatMessage::outgoing(
+                "user".to_string(),
+                "hello".to_string(),
+            )],
             stream: false,
             options: None,
         };
@@ -756,6 +856,87 @@ mod tests {
         let resp: OllamaChatResponse = serde_json::from_str(json).unwrap();
         assert!(resp.message.is_none());
         assert!(resp.done);
+    }
+
+    // ── Reasoning + native tool calls ──────────────────────────────────
+    //
+    // Thinking models (gpt-oss, glm, qwen3, deepseek-r1) answer with an empty
+    // `content`, putting the turn in `thinking` and/or `tool_calls`. Reading
+    // only `content` made every such turn look like an empty response, which
+    // stalled the agent loop before its first step.
+
+    #[test]
+    fn thinking_field_is_captured() {
+        let json = r#"{"message":{"role":"assistant","content":"","thinking":"pondering"},"done":false}"#;
+        let resp: OllamaChatResponse = serde_json::from_str(json).unwrap();
+        let msg = resp.message.unwrap();
+        assert_eq!(msg.thinking.as_deref(), Some("pondering"));
+        assert_eq!(message_to_text(&msg), "<thinking>pondering</thinking>\n");
+    }
+
+    #[test]
+    fn native_tool_call_becomes_tool_call_markup() {
+        let json = r#"{"message":{"role":"assistant","content":"","tool_calls":[
+            {"function":{"name":"list_directory","arguments":{"path":"src"}}}]},"done":true}"#;
+        let resp: OllamaChatResponse = serde_json::from_str(json).unwrap();
+        let text = message_to_text(&resp.message.unwrap());
+        assert_eq!(
+            text,
+            "<tool_call name=\"list_directory\"><path>src</path></tool_call>"
+        );
+        // …and the agent's parser accepts what we produced.
+        let calls = crate::tools::parse_tool_calls(&text);
+        assert_eq!(calls.len(), 1);
+    }
+
+    #[test]
+    fn gpt_oss_tool_use_wrapper_is_unwrapped() {
+        // gpt-oss nests the real call: function.name == "tool_use".
+        let json = r#"{"message":{"role":"assistant","content":"","tool_calls":[
+            {"id":"call_1","function":{"index":0,"name":"tool_use",
+             "arguments":{"name":"list_directory","arguments":{"path":"."}}}}]},"done":true}"#;
+        let resp: OllamaChatResponse = serde_json::from_str(json).unwrap();
+        let text = message_to_text(&resp.message.unwrap());
+        assert_eq!(
+            text,
+            "<tool_call name=\"list_directory\"><path>.</path></tool_call>"
+        );
+        assert_eq!(crate::tools::parse_tool_calls(&text).len(), 1);
+    }
+
+    #[test]
+    fn non_string_tool_arguments_are_rendered_as_json() {
+        let json = r#"{"message":{"role":"assistant","content":"","tool_calls":[
+            {"function":{"name":"spawn_agent","arguments":{"task":"go","max_steps":3}}}]},"done":true}"#;
+        let resp: OllamaChatResponse = serde_json::from_str(json).unwrap();
+        let text = message_to_text(&resp.message.unwrap());
+        assert!(text.contains("<max_steps>3</max_steps>"), "got {text}");
+        assert!(text.contains("<task>go</task>"), "got {text}");
+    }
+
+    #[test]
+    fn thinking_content_and_tool_call_are_all_kept() {
+        let json = r#"{"message":{"role":"assistant","content":"On it.","thinking":"hmm",
+            "tool_calls":[{"function":{"name":"list_directory","arguments":{"path":"src"}}}]},"done":true}"#;
+        let resp: OllamaChatResponse = serde_json::from_str(json).unwrap();
+        let text = message_to_text(&resp.message.unwrap());
+        assert_eq!(
+            text,
+            "<thinking>hmm</thinking>\nOn it.\n<tool_call name=\"list_directory\"><path>src</path></tool_call>"
+        );
+    }
+
+    #[test]
+    fn outgoing_messages_carry_no_reasoning_fields() {
+        let msg = OllamaChatMessage::outgoing("user".into(), "hi".into());
+        let json = serde_json::to_string(&msg).unwrap();
+        assert_eq!(json, r#"{"role":"user","content":"hi"}"#);
+    }
+
+    #[test]
+    fn tool_call_without_function_is_skipped() {
+        let call: OllamaToolCall = serde_json::from_str("{}").unwrap();
+        assert!(tool_call_to_xml(&call).is_none());
     }
 
     // ── API key resolution ─────────────────────────────────────────────

@@ -608,6 +608,8 @@ describe('AIChat — response does not disappear (controlled mode)', () => {
       });
     });
     await flushAll();
+    // Step cards live inside the "Work" section, which is collapsed by default.
+    fireEvent.click(screen.getByRole('button', { name: /Work · 1 step/ }));
     expect(screen.getByText('list_directory')).toBeInTheDocument();
     expect(screen.getByText(/a\.ts/)).toBeInTheDocument();
 
@@ -819,5 +821,118 @@ describe('AIChat — response does not disappear (controlled mode)', () => {
     });
     await flushAll();
     expect(screen.queryAllByText(/Working on it/).length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ── Tool-result auto-continue loop ───────────────────────────────────────────
+// The loop feeds executed tool output back so the model can act on it. Tool
+// results must be replayed as a *user* turn: a request ending on an assistant
+// message makes providers (Ollama/GLM) return an empty completion, which
+// silently stopped the run after the first tool round.
+
+/** Last `stream_chat_message` request payload seen by the mocked invoke. */
+function lastChatRequest(): {
+  messages: Array<{ role: string; content: string }>;
+} {
+  const calls = mockInvoke.mock.calls.filter(c => c[0] === 'stream_chat_message');
+  return calls[calls.length - 1][1].request;
+}
+
+function chatRequestCount(): number {
+  return mockInvoke.mock.calls.filter(c => c[0] === 'stream_chat_message').length;
+}
+
+describe('AIChat — tool-result continuation', () => {
+  it('auto-continues after tool output and replays the result as a user turn', async () => {
+    render(<ControlledAIChat />);
+    await flushAll();
+    await sendUserMessage('Review the codebase');
+
+    act(() => {
+      emitTauriEvent('chat:complete', {
+        message: 'Let me look around.\n<list_dir path="src" />',
+        tool_output: "Directory 'src':\n- lib.rs (file)",
+      });
+    });
+    await flushAll();
+
+    expect(chatRequestCount()).toBe(2);
+    const { messages } = lastChatRequest();
+    const last = messages[messages.length - 1];
+    expect(last.role).toBe('user');
+    expect(last.content).toContain('[Tool results]');
+    expect(last.content).toContain('lib.rs');
+  });
+
+  it('replays the assistant turn with its tool tags intact', async () => {
+    render(<ControlledAIChat />);
+    await flushAll();
+    await sendUserMessage('Review the codebase');
+
+    act(() => {
+      emitTauriEvent('chat:complete', {
+        message: 'Looking around.\n<list_dir path="src" />',
+        tool_output: "Directory 'src':\n- lib.rs (file)",
+      });
+    });
+    await flushAll();
+
+    const { messages } = lastChatRequest();
+    const assistantTurn = messages.find(m => m.role === 'assistant');
+    expect(assistantTurn?.content).toContain('<list_dir path="src" />');
+  });
+
+  it('never sends a request whose last message is from the assistant', async () => {
+    render(<ControlledAIChat />);
+    await flushAll();
+    await sendUserMessage('Review the codebase');
+
+    act(() => {
+      emitTauriEvent('chat:complete', {
+        message: '<list_dir path="src" />',
+        tool_output: "Directory 'src':\n- lib.rs (file)",
+      });
+    });
+    await flushAll();
+
+    for (const call of mockInvoke.mock.calls.filter(c => c[0] === 'stream_chat_message')) {
+      const msgs = call[1].request.messages as Array<{ role: string }>;
+      expect(msgs[msgs.length - 1].role).toBe('user');
+    }
+  });
+
+  it('stops without auto-continuing when no tools ran', async () => {
+    render(<ControlledAIChat />);
+    await flushAll();
+    await sendUserMessage('Just answer');
+
+    act(() => {
+      emitTauriEvent('chat:complete', { message: 'Here is the answer.', tool_output: '' });
+    });
+    await flushAll();
+
+    expect(chatRequestCount()).toBe(1);
+  });
+
+  it('reports an empty continuation instead of going quiet', async () => {
+    render(<ControlledAIChat />);
+    await flushAll();
+    await sendUserMessage('Review the codebase');
+
+    act(() => {
+      emitTauriEvent('chat:complete', {
+        message: '<list_dir path="src" />',
+        tool_output: "Directory 'src':\n- lib.rs (file)",
+      });
+    });
+    await flushAll();
+
+    // Continuation turn comes back empty — the provider gave up.
+    act(() => {
+      emitTauriEvent('chat:complete', { message: '', tool_output: '' });
+    });
+    await flushAll();
+
+    expect(screen.getByText(/empty response/i)).toBeInTheDocument();
   });
 });

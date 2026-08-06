@@ -61,6 +61,43 @@ pub struct StreamChoice {
 #[derive(Debug, Deserialize)]
 pub struct StreamDelta {
     pub content: Option<String>,
+    /// Reasoning tokens. DeepSeek-R1 and Zhipu/GLM call this
+    /// `reasoning_content`; OpenRouter and several proxies call it
+    /// `reasoning`. A turn made entirely of reasoning leaves `content` empty,
+    /// so dropping both fields renders that turn as an empty response.
+    #[serde(default)]
+    pub reasoning_content: Option<String>,
+    #[serde(default)]
+    pub reasoning: Option<String>,
+    /// Native (structured) tool calls, emitted by some hosted models instead
+    /// of the `<tool_call>` markup the agent parses. Transcribed on the way out.
+    #[serde(default)]
+    pub tool_calls: Option<Vec<StreamToolCall>>,
+}
+
+impl StreamDelta {
+    /// The reasoning text for this delta, whichever field carried it.
+    fn reasoning_text(&self) -> Option<&str> {
+        self.reasoning_content
+            .as_deref()
+            .or(self.reasoning.as_deref())
+            .filter(|t| !t.is_empty())
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct StreamToolCall {
+    #[serde(default)]
+    pub function: Option<StreamToolFunction>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct StreamToolFunction {
+    #[serde(default)]
+    pub name: Option<String>,
+    /// OpenAI streams arguments as a JSON *string*, assembled across deltas.
+    #[serde(default)]
+    pub arguments: Option<String>,
 }
 
 // ── Shared HTTP Client Factory ──────────────────────────────────────────────
@@ -101,32 +138,119 @@ pub fn build_messages(messages: &[Message], context: Option<String>) -> Vec<Chat
 
 // ── Shared SSE Stream Parser ────────────────────────────────────────────────
 
-/// Parse an SSE byte stream from an OpenAI-compatible API into a CompletionStream.
+/// Assembles one SSE stream into the text the rest of the stack consumes.
 ///
-/// Handles `data: [DONE]`, malformed JSON (silently skipped), and
-/// extracts `choices[0].delta.content` from each SSE event.
-pub fn parse_sse_stream(response: reqwest::Response) -> CompletionStream {
-    response
-        .bytes_stream()
-        .map(|chunk| {
-            let chunk = chunk?;
-            let text = String::from_utf8_lossy(&chunk);
-            let mut content = String::new();
-            for line in text.lines() {
-                if let Some(data) = line.strip_prefix("data: ") {
-                    if data == "[DONE]" {
-                        continue;
-                    }
-                    if let Ok(r) = serde_json::from_str::<StreamResponse>(data) {
-                        if let Some(c) = r.choices.first().and_then(|ch| ch.delta.content.as_ref())
-                        {
-                            content.push_str(c);
-                        }
-                    }
+/// State has to span chunks: reasoning arrives token-by-token (so the
+/// `<thinking>` wrapper opens once and closes when prose or a tool call
+/// follows), and a native tool call's arguments arrive as JSON string
+/// fragments that are only parseable once complete.
+#[derive(Debug, Default)]
+struct SseAccumulator {
+    thinking_open: bool,
+    tool_name: Option<String>,
+    tool_args: String,
+}
+
+impl SseAccumulator {
+    /// Feed one chunk of SSE text; returns the text to emit downstream.
+    fn push(&mut self, text: &str) -> String {
+        let mut out = String::new();
+        for line in text.lines() {
+            let Some(data) = line.strip_prefix("data: ") else {
+                continue;
+            };
+            if data == "[DONE]" {
+                out.push_str(&self.finish());
+                continue;
+            }
+            // Malformed / partial JSON is skipped, as before.
+            let Ok(response) = serde_json::from_str::<StreamResponse>(data) else {
+                continue;
+            };
+            let Some(delta) = response.choices.first().map(|c| &c.delta) else {
+                continue;
+            };
+
+            if let Some(reasoning) = delta.reasoning_text() {
+                if !self.thinking_open {
+                    out.push_str("<thinking>");
+                    self.thinking_open = true;
+                }
+                out.push_str(reasoning);
+            }
+
+            let content = delta.content.as_deref().unwrap_or("");
+            if self.thinking_open && (!content.is_empty() || delta.tool_calls.is_some()) {
+                out.push_str("</thinking>\n");
+                self.thinking_open = false;
+            }
+            out.push_str(content);
+
+            for call in delta.tool_calls.iter().flatten() {
+                let Some(function) = call.function.as_ref() else {
+                    continue;
+                };
+                // A named delta starts a call; unnamed deltas extend the
+                // arguments of the one in flight.
+                if let Some(name) = function.name.as_deref() {
+                    out.push_str(&self.flush_tool_call());
+                    self.tool_name = Some(name.to_string());
+                }
+                if let Some(args) = function.arguments.as_deref() {
+                    self.tool_args.push_str(args);
                 }
             }
-            Ok(content)
+        }
+        out
+    }
+
+    /// Close anything still open at the end of the stream.
+    fn finish(&mut self) -> String {
+        let mut out = self.flush_tool_call();
+        if self.thinking_open {
+            out.push_str("</thinking>\n");
+            self.thinking_open = false;
+        }
+        out
+    }
+
+    /// Emit the in-flight tool call, if any, as `<tool_call>` markup.
+    fn flush_tool_call(&mut self) -> String {
+        let Some(name) = self.tool_name.take() else {
+            self.tool_args.clear();
+            return String::new();
+        };
+        let args = std::mem::take(&mut self.tool_args);
+        let parsed = serde_json::from_str::<serde_json::Value>(&args).ok();
+        crate::tools::render_tool_call(&name, parsed.as_ref())
+    }
+}
+
+/// Parse an SSE byte stream from an OpenAI-compatible API into a CompletionStream.
+///
+/// Handles `data: [DONE]` and malformed JSON (silently skipped), and extracts
+/// content, reasoning, and native tool calls from `choices[0].delta`.
+pub fn parse_sse_stream(response: reqwest::Response) -> CompletionStream {
+    let acc = std::sync::Arc::new(std::sync::Mutex::new(SseAccumulator::default()));
+    let tail_acc = acc.clone();
+    response
+        .bytes_stream()
+        .map(move |chunk| {
+            let chunk = chunk?;
+            let text = String::from_utf8_lossy(&chunk);
+            Ok(acc
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .push(text.as_ref()))
         })
+        // A stream that ends without `[DONE]` still has to release whatever
+        // the accumulator is holding.
+        .chain(futures::stream::once(async move {
+            Ok(tail_acc
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .finish())
+        }))
         .boxed()
 }
 
@@ -315,4 +439,92 @@ mod tests {
         let resp: StreamResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.choices[0].delta.content, None);
     }
+
+    // ── SSE assembly ───────────────────────────────────────────────────
+    //
+    // Reasoning models (DeepSeek-R1, GLM) put a turn in `reasoning_content`
+    // and leave `content` empty; some hosted models answer with a structured
+    // `tool_calls` delta instead of the markup our prompt asks for. Dropping
+    // either renders the turn as an empty response.
+
+    fn sse(events: &[&str]) -> String {
+        events.iter().map(|e| format!("data: {e}\n")).collect()
+    }
+
+    #[test]
+    fn content_only_stream_is_unchanged() {
+        let mut acc = SseAccumulator::default();
+        let out = acc.push(&sse(&[r#"{"choices":[{"delta":{"content":"hi"}}]}"#, "[DONE]"]));
+        assert_eq!(out, "hi");
+    }
+
+    #[test]
+    fn reasoning_is_wrapped_once_across_deltas() {
+        let mut acc = SseAccumulator::default();
+        let out = acc.push(&sse(&[
+            r#"{"choices":[{"delta":{"reasoning_content":"the "}}]}"#,
+            r#"{"choices":[{"delta":{"reasoning_content":"plan"}}]}"#,
+            r#"{"choices":[{"delta":{"content":"Answer."}}]}"#,
+            "[DONE]",
+        ]));
+        assert_eq!(out, "<thinking>the plan</thinking>\nAnswer.");
+    }
+
+    #[test]
+    fn openrouter_reasoning_field_is_also_read() {
+        let mut acc = SseAccumulator::default();
+        let out = acc.push(&sse(&[r#"{"choices":[{"delta":{"reasoning":"hmm"}}]}"#, "[DONE]"]));
+        assert_eq!(out, "<thinking>hmm</thinking>\n");
+    }
+
+    #[test]
+    fn reasoning_only_turn_is_closed_at_stream_end() {
+        let mut acc = SseAccumulator::default();
+        // No [DONE] — the transport just ends.
+        let mut out = acc.push(&sse(&[r#"{"choices":[{"delta":{"reasoning_content":"x"}}]}"#]));
+        out.push_str(&acc.finish());
+        assert_eq!(out, "<thinking>x</thinking>\n");
+    }
+
+    #[test]
+    fn native_tool_call_is_assembled_across_deltas() {
+        let mut acc = SseAccumulator::default();
+        let out = acc.push(&sse(&[
+            r#"{"choices":[{"delta":{"tool_calls":[{"function":{"name":"list_directory","arguments":"{\"path\":"}}]}}]}"#,
+            r#"{"choices":[{"delta":{"tool_calls":[{"function":{"arguments":"\"src\"}"}}]}}]}"#,
+            "[DONE]",
+        ]));
+        assert_eq!(out, r#"<tool_call name="list_directory"><path>src</path></tool_call>"#);
+        assert_eq!(crate::tools::parse_tool_calls(&out).len(), 1);
+    }
+
+    #[test]
+    fn two_tool_calls_are_emitted_separately() {
+        let mut acc = SseAccumulator::default();
+        let out = acc.push(&sse(&[
+            r#"{"choices":[{"delta":{"tool_calls":[{"function":{"name":"read_file","arguments":"{\"path\":\"a.rs\"}"}}]}}]}"#,
+            r#"{"choices":[{"delta":{"tool_calls":[{"function":{"name":"read_file","arguments":"{\"path\":\"b.rs\"}"}}]}}]}"#,
+            "[DONE]",
+        ]));
+        let calls = crate::tools::parse_tool_calls(&out);
+        assert_eq!(calls.len(), 2);
+    }
+
+    #[test]
+    fn unparseable_tool_arguments_still_emit_the_call() {
+        let mut acc = SseAccumulator::default();
+        let out = acc.push(&sse(&[
+            r#"{"choices":[{"delta":{"tool_calls":[{"function":{"name":"build","arguments":"{oops"}}]}}]}"#,
+            "[DONE]",
+        ]));
+        assert_eq!(out, r#"<tool_call name="build"></tool_call>"#);
+    }
+
+    #[test]
+    fn malformed_events_are_skipped() {
+        let mut acc = SseAccumulator::default();
+        let out = acc.push("data: not json\ndata: {\"choices\":[{\"delta\":{\"content\":\"ok\"}}]}\n");
+        assert_eq!(out, "ok");
+    }
+
 }
