@@ -32,6 +32,9 @@ export function Toaster({ toasts, onDismiss }: ToasterProps) {
         <div key={t.id} className={`toast toast--${t.variant}`} role="alert">
           <span className="toast__icon"><ToastIcon variant={t.variant} /></span>
           <span className="toast__message">{t.message}</span>
+          {t.count > 1 && (
+            <span className="toast__count" aria-label={`repeated ${t.count} times`}>×{t.count}</span>
+          )}
           <button
             className="toast__close"
             onClick={() => onDismiss(t.id)}

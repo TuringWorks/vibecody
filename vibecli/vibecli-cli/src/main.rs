@@ -18893,7 +18893,7 @@ fn list_providers_and_models() {
         ),
         (
             "poolside",
-            "malibu",
+            "poolside/laguna-s-2.1",
             "Poolside AI — coding models (POOLSIDE_API_KEY)",
         ),
     ];
@@ -19493,7 +19493,7 @@ fn create_raw_provider(
             let cfg_model = cfg.poolside.as_ref().and_then(|c| c.model.clone());
             let model = model
                 .or(cfg_model)
-                .unwrap_or_else(|| "malibu".to_string());
+                .unwrap_or_else(|| "poolside/laguna-s-2.1".to_string());
             let api_key_helper = cfg.poolside.as_ref().and_then(|c| c.api_key_helper.clone());
             Ok(Arc::new(poolside::PoolsideProvider::new(ProviderConfig {
                 provider_type: "poolside".to_string(),

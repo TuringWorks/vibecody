@@ -197,3 +197,98 @@ describe('Given a toast is added', () => {
     expect(result.current.toasts[0].message).toBe(msg);
   });
 });
+
+// ── Scenario 8: Stable API identity ───────────────────────────────────────────
+// Panels list `toast` in useCallback/useEffect dependency arrays. A fresh
+// object every render makes an error path self-retrigger: render → fetch →
+// error toast → state change → render → …
+
+describe('Given a component holds on to the toast API', () => {
+  it('When the component re-renders, Then the toast object identity is unchanged', () => {
+    const { result, rerender } = renderHook(() => useToast());
+    const first = result.current.toast;
+    rerender();
+    expect(result.current.toast).toBe(first);
+  });
+
+  it('When a toast is raised (state change), Then the toast object identity is unchanged', () => {
+    const { result } = renderHook(() => useToast());
+    const first = result.current.toast;
+    act(() => { result.current.toast.error('boom'); });
+    expect(result.current.toast).toBe(first);
+  });
+
+  it('When toasts auto-dismiss, Then dismiss keeps its identity too', () => {
+    const { result } = renderHook(() => useToast());
+    const first = result.current.dismiss;
+    act(() => { result.current.toast.info('hi'); });
+    act(() => { vi.advanceTimersByTime(3000); });
+    expect(result.current.dismiss).toBe(first);
+  });
+});
+
+// ── Scenario 9: Duplicate collapsing ──────────────────────────────────────────
+
+describe('Given the same message is raised repeatedly', () => {
+  it('When it repeats while visible, Then one toast carries a count', () => {
+    const { result } = renderHook(() => useToast());
+    act(() => {
+      result.current.toast.error('Failed to list goals');
+      result.current.toast.error('Failed to list goals');
+      result.current.toast.error('Failed to list goals');
+    });
+    expect(result.current.toasts).toHaveLength(1);
+    expect(result.current.toasts[0].count).toBe(3);
+  });
+
+  it('When the same text is raised under a different variant, Then they are separate toasts', () => {
+    const { result } = renderHook(() => useToast());
+    act(() => {
+      result.current.toast.error('same');
+      result.current.toast.info('same');
+    });
+    expect(result.current.toasts.map(t => t.variant)).toEqual(['error', 'info']);
+  });
+
+  it('When a repeat arrives, Then the auto-dismiss countdown restarts', () => {
+    const { result } = renderHook(() => useToast());
+    act(() => { result.current.toast.error('flaky'); });
+    act(() => { vi.advanceTimersByTime(5000); });
+    act(() => { result.current.toast.error('flaky'); });
+    act(() => { vi.advanceTimersByTime(5000); });
+    expect(result.current.toasts).toHaveLength(1);
+    act(() => { vi.advanceTimersByTime(1000); });
+    expect(result.current.toasts).toHaveLength(0);
+  });
+
+  it('When the message is dismissed and raised again, Then it starts a fresh toast', () => {
+    const { result } = renderHook(() => useToast());
+    act(() => { result.current.toast.error('gone'); });
+    act(() => { result.current.dismiss(result.current.toasts[0].id); });
+    act(() => { result.current.toast.error('gone'); });
+    expect(result.current.toasts).toHaveLength(1);
+    expect(result.current.toasts[0].count).toBe(1);
+  });
+});
+
+// ── Scenario 10: Stack cap ────────────────────────────────────────────────────
+
+describe('Given more distinct toasts than the visible cap are raised', () => {
+  it('When six are raised, Then only the four newest remain', () => {
+    const { result } = renderHook(() => useToast());
+    act(() => {
+      ['a', 'b', 'c', 'd', 'e', 'f'].forEach(m => result.current.toast.error(m));
+    });
+    expect(result.current.toasts.map(t => t.message)).toEqual(['c', 'd', 'e', 'f']);
+  });
+
+  it('When an evicted message is raised again, Then it reappears with count 1', () => {
+    const { result } = renderHook(() => useToast());
+    act(() => {
+      ['a', 'b', 'c', 'd', 'e'].forEach(m => result.current.toast.error(m));
+      result.current.toast.error('a');
+    });
+    const revived = result.current.toasts.find(t => t.message === 'a');
+    expect(revived?.count).toBe(1);
+  });
+});

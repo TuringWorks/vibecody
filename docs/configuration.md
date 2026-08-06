@@ -174,7 +174,7 @@ model = "Meta-Llama-3.1-70B-Instruct"
 [poolside]
 enabled = false
 api_key = "..."                    # Poolside AI key (or POOLSIDE_API_KEY)
-model = "malibu"                   # "malibu", "point", "malibu-code", "point-code"
+model = "poolside/laguna-s-2.1"      # "poolside/laguna-s-2.1", "poolside/laguna-xs-2.1", "poolside/laguna-m-1"
 
 [minimax]
 enabled = false
@@ -779,18 +779,18 @@ Runs models on SambaNova's custom RDU hardware for fast inference.
 
    Free tier available with rate limits.
 
-### 22. Poolside AI — Purpose-Built Coding Models (Malibu, Point)
+### 22. Poolside AI — Purpose-Built Coding Models (Laguna S/XS/M.1)
 
 Poolside AI provides purpose-built coding models. The API is OpenAI-compatible.
 
-1. Get an API key at [poolside.ai](https://poolside.ai/)
+1. Get an API key at [platform.poolside.ai](https://platform.poolside.ai/)
 
 2. Configure:
 
    ```toml
    [poolside]
    enabled = true
-   model = "malibu"       # "malibu", "point", "malibu-code", "point-code"
+   model = "poolside/laguna-s-2.1"       # "poolside/laguna-s-2.1", "poolside/laguna-xs-2.1", "poolside/laguna-m-1"
    ```
 
    ```bash

@@ -167,7 +167,7 @@ const MINIMAX: &[&str] = &["MiniMax-M3", "abab6.5s-chat"];
 
 const SAMBANOVA: &[&str] = &["Meta-Llama-3.3-70B-Instruct"];
 
-const POOLSIDE: &[&str] = &["malibu", "point", "malibu-code", "point-code"];
+const POOLSIDE: &[&str] = &["laguna-s-2.1", "laguna-xs-2.1", "laguna-m-1"];
 
 const VIBECLI_MISTRALRS: &[&str] = &[
     "meta-llama/Llama-3.1-8B-Instruct",

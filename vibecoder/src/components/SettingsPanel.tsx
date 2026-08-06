@@ -1310,9 +1310,9 @@ function ApiKeysSection() {
 
       <div style={{ marginBottom: 20 }}>
         {renderSectionHeader("Poolside AI")}
-        {renderSecretField("API Key", "poolside_api_key", "ps_...", "poolside")}
+        {renderSecretField("API Key", "poolside_api_key", "sky_...", "poolside")}
         <p style={modelsHintStyle}>
-          Models: Malibu, Point, Malibu-Code, Point-Code (purpose-built coding models)
+          Models: Laguna S 2.1, Laguna XS 2.1, Laguna M.1 (purpose-built coding models)
         </p>
       </div>
 

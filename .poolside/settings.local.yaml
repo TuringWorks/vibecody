@@ -12,3 +12,26 @@ tools:
             - cargo check *
             - npx tsc *
             - cargo test *
+            - echo *
+            - npm run *
+            - curl *
+            - nslookup *
+            - cat *
+            - xargs *
+            - which vibecli
+            - cargo build *
+            - cp *
+            - ln *
+            - vibecli *
+            - sleep 3
+            - python3 *
+            - kill $DAEMON_PID
+            - sleep 4
+            - file *
+            - sips *
+            - which tesseract
+            - which ocrmac
+            - pip3 list
+paths:
+    allow:
+        - path: /Volumes/fast01/obsidian/documents/myWork/Projects/VibeCody/**

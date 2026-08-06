@@ -130,6 +130,9 @@ export function GoalPanel({
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
+  // Last list-fetch failure, rendered inline in the list column. Cleared on
+  // the next successful refresh.
+  const [listError, setListError] = useState<string | null>(null);
   const [planning, setPlanning] = useState(false);
   const [starting, setStarting] = useState(false);
   const [showNewModal, setShowNewModal] = useState(false);
@@ -187,15 +190,20 @@ export function GoalPanel({
         | Goal[];
       const list = Array.isArray(resp) ? resp : resp?.goals ?? [];
       setGoals(list);
-      if (list.length > 0 && !selectedId) {
-        setSelectedId(list[0].id);
-      }
+      setListError(null);
+      // Functional update so `selectedId` stays out of this callback's deps —
+      // reading it here would make every selection rebuild `refreshList` and
+      // re-fire the effect below.
+      setSelectedId((prev) => prev ?? list[0]?.id ?? null);
     } catch (e) {
-      toast.error('Failed to list goals: ' + String(e));
+      // Reported inline, not as a toast: the daemon being unreachable is a
+      // persistent condition and a retrying panel would flood the screen.
+      setListError(String(e));
+      setGoals([]);
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, searchQuery, selectedId, toast]);
+  }, [statusFilter, searchQuery]);
 
   // G10.1 — debounce the search input by 200 ms so each keystroke
   // doesn't fire an exec_goal_list invoke. 200 ms is small enough to
@@ -520,7 +528,19 @@ export function GoalPanel({
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          {goals.length === 0 ? (
+          {listError ? (
+            <div
+              className="panel-empty"
+              role="alert"
+              style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-start' }}
+            >
+              <div style={{ color: 'var(--text-danger, #f87171)' }}>Couldn’t reach the VibeCLI daemon.</div>
+              <div style={{ fontSize: 'var(--font-size-sm)', wordBreak: 'break-word' }}>{listError}</div>
+              <button className="panel-btn" onClick={() => { void refreshList(); }} disabled={loading}>
+                {loading ? 'Retrying…' : 'Retry'}
+              </button>
+            </div>
+          ) : goals.length === 0 ? (
             <div className="panel-empty" style={{ padding: 16 }}>
               {loading ? 'Loading…' : 'No goals yet. Click New.'}
             </div>

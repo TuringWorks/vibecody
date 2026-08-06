@@ -1,9 +1,10 @@
-//! Poolside AI provider — OpenAI-compatible API for Poolside's
-//! purpose-built coding models (Malibu, Point).
+//! Poolside AI provider — OpenAI-compatible API at `https://inference.poolside.ai/v1`.
 //!
-//! Supported models: malibu, point, malibu-code, point-code
+//! API keys start with `sky_` and are passed as `POOLSIDE_API_KEY` (env)
+//! or stored encrypted in ProfileStore via `vibecli set-key poolside <key>`.
 //!
-//! Source: <https://docs.poolside.ai>
+//! Supported models: poolside/laguna-s-2.1, poolside/laguna-xs-2.1, poolside/laguna-m-1
+//! (see <https://docs.poolside.ai/get-started/supported-models>).
 
 use super::openai_compat::{self, ChatRequest};
 use crate::provider::{
@@ -13,7 +14,7 @@ use crate::provider::{
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 
-const POOLSIDE_BASE_URL: &str = "https://api.poolside.ai/v1";
+const POOLSIDE_BASE_URL: &str = "https://inference.poolside.ai/v1";
 
 /// Poolside AI provider — OpenAI-compatible endpoint, purpose-built coding models.
 pub struct PoolsideProvider {
@@ -163,14 +164,14 @@ impl AIProvider for PoolsideProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use openai_compat::{ChatMessage, ChatResponse, StreamResponse};
+    use openai_compat::{ChatMessage, ChatResponse};
 
     fn test_config() -> ProviderConfig {
         ProviderConfig {
             provider_type: "poolside".into(),
-            api_key: Some("ps_test_key".into()),
+            api_key: Some("sky_test_key".into()),
             api_url: None,
-            model: "malibu".into(),
+            model: "poolside/laguna-s-2.1".into(),
             temperature: None,
             max_tokens: None,
             api_key_helper: None,
@@ -182,7 +183,7 @@ mod tests {
     #[test]
     fn name_is_poolside() {
         let p = PoolsideProvider::new(test_config());
-        assert_eq!(p.name(), "Poolside (malibu)");
+        assert_eq!(p.name(), "Poolside (poolside/laguna-s-2.1)");
     }
 
     #[tokio::test]
@@ -201,7 +202,7 @@ mod tests {
 
     #[test]
     fn base_url_constant() {
-        assert_eq!(POOLSIDE_BASE_URL, "https://api.poolside.ai/v1");
+        assert_eq!(POOLSIDE_BASE_URL, "https://inference.poolside.ai/v1");
     }
 
     #[test]
@@ -215,7 +216,7 @@ mod tests {
     #[test]
     fn base_url_default() {
         let p = PoolsideProvider::new(test_config());
-        assert_eq!(p.base_url(), "https://api.poolside.ai/v1");
+        assert_eq!(p.base_url(), "https://inference.poolside.ai/v1");
     }
 
     #[test]
@@ -229,7 +230,7 @@ mod tests {
     #[test]
     fn request_omits_none_fields() {
         let req = ChatRequest {
-            model: "malibu".into(),
+            model: "poolside/laguna-s-2.1".into(),
             messages: vec![ChatMessage {
                 role: "user".into(),
                 content: "hi".into(),
@@ -246,11 +247,11 @@ mod tests {
     #[test]
     fn provider_preserves_model_config() {
         let mut cfg = test_config();
-        cfg.model = "point".into();
+        cfg.model = "poolside/laguna-xs-2.1".into();
         cfg.temperature = Some(0.9);
         cfg.max_tokens = Some(8192);
         let p = PoolsideProvider::new(cfg);
-        assert_eq!(p.config.model, "point");
+        assert_eq!(p.config.model, "poolside/laguna-xs-2.1");
         assert_eq!(p.config.temperature, Some(0.9));
         assert_eq!(p.config.max_tokens, Some(8192));
     }

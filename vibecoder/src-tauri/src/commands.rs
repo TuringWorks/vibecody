@@ -5290,6 +5290,29 @@ pub async fn get_available_ai_providers(
         }
     }
 
+    // 1b. Surface Ollama Cloud / Turbo models so they're selectable in the
+    // toolbar dropdown even when no local models are pulled. These require
+    // an OLLAMA_API_KEY (or device key) — without one the request will fail
+    // at runtime, but surfacing them lets users pick them as a default.
+    let mut existing_names: std::collections::HashSet<String> =
+        chat_engine.get_provider_names().into_iter().collect();
+    for cloud_model in vibe_ai::providers::ollama::OLLAMA_CLOUD_MODELS {
+        let display_name = format!("Ollama ({})", cloud_model);
+        if existing_names.insert(display_name) {
+            let config = vibe_ai::provider::ProviderConfig {
+                provider_type: "ollama".to_string(),
+                api_key: None,
+                model: cloud_model.to_string(),
+                api_url: None,
+                max_tokens: None,
+                temperature: None,
+                ..Default::default()
+            };
+            let provider = vibe_ai::providers::ollama::OllamaProvider::new(config);
+            chat_engine.add_provider(vibe_ai::ResilientProvider::wrap(Arc::new(provider)));
+        }
+    }
+
     // 2. Add standard cloud providers if they are not already present (simplified logic for now)
     // In a real app, we'd check config or availability for these too.
     // For now, we rely on what's registered in lib.rs or added here.
@@ -11448,7 +11471,7 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
     }
 
     if !settings.poolside_api_key.is_empty() {
-        for model_id in &["malibu", "point", "malibu-code", "point-code"] {
+        for model_id in &["poolside/laguna-s-2.1", "poolside/laguna-xs-2.1", "poolside/laguna-m-1"] {
             let config = vibe_ai::provider::ProviderConfig {
                 provider_type: "poolside".to_string(),
                 api_key: Some(settings.poolside_api_key.clone()),
@@ -11927,7 +11950,7 @@ pub async fn validate_api_key(
         }
         "poolside" => {
             let resp = client
-                .get("https://api.poolside.ai/v1/models")
+                .get("https://inference.poolside.ai/v1/models")
                 .bearer_auth(&api_key)
                 .send()
                 .await

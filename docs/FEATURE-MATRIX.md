@@ -32,7 +32,7 @@
 | Together AI | ✅ | ✅ | Open model hosting |
 | Fireworks AI | ✅ | ✅ | |
 | SambaNova | ✅ | ✅ | |
-| Poolside AI | ✅ | ✅ | Purpose-built coding models (Malibu, Point) |
+| Poolside AI | ✅ | ✅ | Laguna S 2.1 / XS 2.1 / M.1 coding models |
 | OpenRouter | ✅ | ✅ | 300+ models via a single key |
 | Vercel AI Gateway | ✅ | ✅ | Unified proxy |
 | GitHub Copilot | ✅ | ✅ | Device-flow auth |

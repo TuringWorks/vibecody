@@ -79,7 +79,7 @@ export const STATIC_MODELS: Record<string, string[]> = {
   minimax: ["MiniMax-M3", "abab6.5s-chat"],
   sambanova: ["Meta-Llama-3.3-70B-Instruct"],
   // Poolside AI — purpose-built coding models (Poolside AI).
-  poolside: ["malibu", "point", "malibu-code", "point-code"],
+  poolside: ["poolside/laguna-s-2.1", "poolside/laguna-xs-2.1", "poolside/laguna-m-1"],
 };
 
 export const ALL_PROVIDERS = Object.keys(STATIC_MODELS);
@@ -174,7 +174,7 @@ export const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
   vercel_ai:    "",
   minimax:      "MiniMax-M3",
   sambanova:    "Meta-Llama-3.3-70B-Instruct",
-  poolside:     "malibu",
+  poolside:     "poolside/laguna-s-2.1",
 };
 
 export interface ModelInfo {
@@ -237,28 +237,31 @@ export function useModelRegistry() {
     try {
       // Fetch Ollama models dynamically
       let ollamaModels: string[] = [];
+      let ollamaReachable = false;
       try {
         const result = await invoke<string[]>("ollama_list_models");
-        if (result && result.length > 0) ollamaModels = result;
+        if (result && result.length > 0) {
+          ollamaModels = result;
+          ollamaReachable = true;
+        }
       } catch {
-        // Ollama not running — keep static list
+        // Ollama not running — will fall back to OLLAMA_CHAT_MODELS
       }
 
       // Merge with static models.
       const models = { ...STATIC_MODELS };
-      // The three ollama sources are disjoint: a local `/api/tags` reports only
-      // pulled local models (never the Cloud/Turbo catalog); `OLLAMA_CLOUD_MODELS`
-      // are datacenter-hosted `*-cloud` entries; `OLLAMA_CHAT_MODELS` is the full
-      // static library. Always union all three (cloud first, then locally-pulled,
-      // then the rest of the catalog; deduped) so *-cloud entries stay selectable
-      // whether or not a local Ollama is running, and locally-pulled models also
-      // appear when it is — without dropping the rest of the catalog.
-      const seen = new Set<string>();
-      models.ollama = [
-        ...OLLAMA_CLOUD_MODELS,
-        ...ollamaModels,
-        ...OLLAMA_CHAT_MODELS,
-      ].filter((m) => (seen.has(m) ? false : (seen.add(m), true)));
+      // When Ollama is reachable, show only cloud models + locally-pulled models.
+      // The full static catalog (OLLAMA_CHAT_MODELS) includes many older/superseded
+      // models that confuse the dropdown — only fall back to it when the daemon
+      // is unreachable so users can still pick a model to pull.
+      if (ollamaReachable) {
+        const seen = new Set<string>();
+        models.ollama = [
+          ...OLLAMA_CLOUD_MODELS,
+          ...ollamaModels,
+        ].filter((m) => (seen.has(m) ? false : (seen.add(m), true)));
+      }
+      // If Ollama is unreachable, static fallback is already set via { ...STATIC_MODELS }.
 
       const newData: ModelRegistryData = {
         providers: ALL_PROVIDERS,
