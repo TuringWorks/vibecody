@@ -27,18 +27,35 @@ impl Default for VectorExtension {
 
 impl VectorExtension {
     /// Create a vector extension from environment variable or default.
+    ///
+    /// The effect (reading the env var) is separated from the decision
+    /// (`parse`) so the parsing can be tested without mutating process-global
+    /// state. Three tests here used to `set_var`/`remove_var` on the same key
+    /// and Rust runs tests in parallel threads, so which one failed depended on
+    /// the interleaving — a genuinely nondeterministic suite.
     pub fn from_env() -> Self {
-        std::env::var("VIBE_MEMORY_VECTOR_EXT")
-            .map(|v| match v.to_lowercase().as_str() {
-                "vec" | "sqlite-vec" => Self::Vec,
-                "vector" | "sqlite-vector" => Self::Vector,
-                "lite" | "vectorlite" => Self::Lite,
-                _ => {
-                    warn!("Unknown VIBE_MEMORY_VECTOR_EXT '{}', defaulting to vec", v);
-                    Self::Vec
-                }
-            })
-            .unwrap_or_default()
+        match std::env::var("VIBE_MEMORY_VECTOR_EXT") {
+            Ok(value) => Self::parse(&value),
+            Err(_) => Self::default(),
+        }
+    }
+
+    /// Pure parse of the `VIBE_MEMORY_VECTOR_EXT` value. Unknown values fall
+    /// back to the portable default, with a warning — an unrecognised name is
+    /// a typo worth surfacing, not a reason to fail startup.
+    pub fn parse(value: &str) -> Self {
+        match value.to_lowercase().as_str() {
+            "vec" | "sqlite-vec" => Self::Vec,
+            "vector" | "sqlite-vector" => Self::Vector,
+            "lite" | "vectorlite" => Self::Lite,
+            _ => {
+                warn!(
+                    "Unknown VIBE_MEMORY_VECTOR_EXT '{}', defaulting to vec",
+                    value
+                );
+                Self::Vec
+            }
+        }
     }
 
     /// Check if this extension is available in the current environment.
@@ -236,24 +253,42 @@ impl ExtensionManager {
 mod tests {
     use super::*;
 
+    // These exercise `parse` rather than `from_env`. The previous versions each
+    // set/removed the same process-global env var; cargo runs tests in parallel
+    // threads, so they raced and *which* one failed varied per run. Testing the
+    // pure function removes the shared state entirely.
     #[test]
-    fn test_extension_from_env_vec() {
-        std::env::set_var("VIBE_MEMORY_VECTOR_EXT", "vec");
-        assert_eq!(VectorExtension::from_env(), VectorExtension::Vec);
-        std::env::remove_var("VIBE_MEMORY_VECTOR_EXT");
+    fn test_extension_parse_vec() {
+        assert_eq!(VectorExtension::parse("vec"), VectorExtension::Vec);
+        assert_eq!(VectorExtension::parse("sqlite-vec"), VectorExtension::Vec);
+        assert_eq!(VectorExtension::parse("VEC"), VectorExtension::Vec);
     }
 
     #[test]
-    fn test_extension_from_env_vector() {
-        std::env::set_var("VIBE_MEMORY_VECTOR_EXT", "sqlite-vector");
-        assert_eq!(VectorExtension::from_env(), VectorExtension::Vector);
-        std::env::remove_var("VIBE_MEMORY_VECTOR_EXT");
+    fn test_extension_parse_vector() {
+        assert_eq!(VectorExtension::parse("vector"), VectorExtension::Vector);
+        assert_eq!(
+            VectorExtension::parse("sqlite-vector"),
+            VectorExtension::Vector
+        );
     }
 
     #[test]
-    fn test_extension_default() {
-        std::env::remove_var("VIBE_MEMORY_VECTOR_EXT");
-        assert_eq!(VectorExtension::from_env(), VectorExtension::Vec);
+    fn test_extension_parse_lite() {
+        assert_eq!(VectorExtension::parse("lite"), VectorExtension::Lite);
+        assert_eq!(VectorExtension::parse("vectorlite"), VectorExtension::Lite);
+    }
+
+    #[test]
+    fn test_extension_parse_unknown_falls_back_to_portable_default() {
+        assert_eq!(VectorExtension::parse("nonsense"), VectorExtension::Vec);
+        assert_eq!(VectorExtension::parse(""), VectorExtension::Vec);
+    }
+
+    #[test]
+    fn test_extension_default_is_portable() {
+        // What `from_env` yields when the variable is unset.
+        assert_eq!(VectorExtension::default(), VectorExtension::Vec);
     }
 
     #[test]

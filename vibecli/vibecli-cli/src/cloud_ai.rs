@@ -265,10 +265,17 @@ fn render(template: &str, vars: &HashMap<String, String>, backend: &str) -> Resu
             CloudError::Catalog(format!("unterminated '{{' in template for '{backend}'"))
         })?;
         let name = &after[..close];
-        let value = vars.get(name).ok_or_else(|| CloudError::MissingVar {
-            backend: backend.to_string(),
-            var: name.to_string(),
-        })?;
+        // A blank value is missing, not present. Without this, clearing a var
+        // (`--cloud-ai set custom base_url ""`) renders a hostless URL like
+        // "/chat/completions" and the backend still reports ready — the failure
+        // then surfaces as an opaque request error instead of "set this var".
+        let value = vars
+            .get(name)
+            .filter(|v| !v.trim().is_empty())
+            .ok_or_else(|| CloudError::MissingVar {
+                backend: backend.to_string(),
+                var: name.to_string(),
+            })?;
         out.push_str(value);
         rest = &after[close + 1..];
     }
@@ -1477,6 +1484,19 @@ mod tests {
         let err = render("https://{region}/{project}", &vars, "x").unwrap_err();
         match err {
             CloudError::MissingVar { var, .. } => assert_eq!(var, "project"),
+            other => panic!("expected MissingVar, got {other}"),
+        }
+    }
+
+    #[test]
+    fn a_blank_var_counts_as_missing_not_as_an_empty_substitution() {
+        // Clearing a var must put the backend back into "needs configuration",
+        // not leave it ready with a hostless URL.
+        let mut vars = HashMap::new();
+        vars.insert("base_url".to_string(), "   ".to_string());
+        let err = render("{base_url}/chat/completions", &vars, "custom").unwrap_err();
+        match err {
+            CloudError::MissingVar { var, .. } => assert_eq!(var, "base_url"),
             other => panic!("expected MissingVar, got {other}"),
         }
     }

@@ -4097,7 +4097,19 @@ async fn main() -> Result<()> {
 
     // Cloud AI backends: vibecli --cloud-ai <list|status|set|chat|train|job|eval|route>
     if let Some(ref subcmd) = cli.cloud_ai_cmd {
-        return cloud_ai::run_cli(subcmd, &cli.message).await;
+        // Print the error chain rather than propagating: returning `Err` from
+        // main renders an anyhow backtrace (RUST_BACKTRACE is set repo-wide),
+        // which buries a one-line, actionable message under 30 stack frames.
+        return match cloud_ai::run_cli(subcmd, &cli.message).await {
+            Ok(()) => Ok(()),
+            Err(e) => {
+                eprintln!("Error: {e}");
+                e.chain()
+                    .skip(1)
+                    .for_each(|cause| eprintln!("  caused by: {cause}"));
+                std::process::exit(1);
+            }
+        };
     }
 
     // Daemon mode: vibecli --serve [--port 7878]
