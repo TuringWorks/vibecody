@@ -1061,6 +1061,35 @@ impl AgentLoop {
                     continue;
                 }
 
+                // A turn made entirely of reasoning is the model thinking out
+                // loud, not an answer — reasoning models emit these routinely.
+                // Ending the run here reports the last stray thought as the
+                // result ("<thinking>Let me read key files…</thinking>") and
+                // throws the task away, so nudge it to actually act instead.
+                if crate::tools::strip_thinking(&accumulated).trim().is_empty()
+                    && !accumulated.trim().is_empty()
+                    && consecutive_prose_turns <= 2
+                {
+                    consecutive_prose_turns += 1;
+                    tracing::warn!(
+                        step = step,
+                        consecutive_prose = consecutive_prose_turns,
+                        "Turn contained only reasoning — re-prompting for a tool call",
+                    );
+                    messages.push(Message {
+                        role: MessageRole::Assistant,
+                        content: accumulated,
+                    });
+                    messages.push(Message {
+                        role: MessageRole::User,
+                        content: "That turn was only reasoning — it contained no tool call and no \
+                                  answer. Act on it now: emit a <tool_call> block, or call \
+                                  task_complete with your final summary if the task is done."
+                            .to_string(),
+                    });
+                    continue;
+                }
+
                 // On the very first step, the model may output planning prose instead
                 // of a tool call. Re-prompt it once to force a tool call.
                 if step == 0 {

@@ -1975,12 +1975,23 @@ export function AIChat({
       unlisteners.push(av);
 
       // agent:circuit_break — backend tripped its circuit breaker (treat as terminal).
-      const a8 = await listen<string>(agentEvent("circuit_break"), (e) => {
+      // Payload is `{state, reason}` (see AgentEvent::CircuitBreak); interpolating
+      // it whole printed "[object Object]" and threw away the only useful part.
+      const a8 = await listen<{ state?: string; reason?: string } | string>(
+        agentEvent("circuit_break"),
+        (e) => {
         if (!sessionIdRef.current && !agentRunOwnerRef.current) return;
         agentRunOwnerRef.current = false;
+        const payload = e.payload;
+        const detail =
+          typeof payload === "string"
+            ? payload
+            : [payload?.reason, payload?.state && `state: ${payload.state}`]
+                .filter(Boolean)
+                .join(" — ") || "no reason reported";
         setMessages((prev) => [...prev, {
           role: "assistant",
-          content: `Agent halted (circuit breaker): ${e.payload}`,
+          content: `Agent halted (circuit breaker): ${detail}`,
           timestamp: Date.now(),
           isError: true,
         }]);
@@ -1997,7 +2008,8 @@ export function AIChat({
           setRetryInfo(null);
           setIsLoading(false);
         }
-      });
+      },
+      );
       if (cancelled) { a8(); return; }
       unlisteners.push(a8);
     })();

@@ -19,6 +19,10 @@ interface ExecResult {
   timed_out: boolean;
   truncated: boolean;
   duration_ms: number;
+  /** Timeout the daemon actually applied. Optional: older daemons omit it. */
+  timeout_ms?: number;
+  /** True when the daemon's hard cap reduced the timeout that was asked for. */
+  timeout_clamped?: boolean;
 }
 
 /** `842ms` / `3.2s` */
@@ -135,7 +139,11 @@ export function TerminalView({ daemonUrl, path, onClose }: TerminalViewProps) {
                 {r.exit_code !== null && r.exit_code !== 0 && (
                   <span className="vx-term__exit"> exit {r.exit_code}</span>
                 )}
-                {r.timed_out && <span className="vx-term__exit"> timed out</span>}
+                {r.timed_out && (
+                  <span className="vx-term__exit">
+                    {r.timeout_ms ? ` timed out at ${formatMs(r.timeout_ms)}` : " timed out"}
+                  </span>
+                )}
               </span>
             </div>
             {r.stdout && <pre className="vx-term__out">{r.stdout}</pre>}
@@ -144,6 +152,13 @@ export function TerminalView({ daemonUrl, path, onClose }: TerminalViewProps) {
               <pre className="vx-term__out vx-term__out--quiet">(no output)</pre>
             )}
             {r.truncated && <div className="vx-term__note">Output was clipped at 256KB.</div>}
+            {r.timeout_clamped && r.timeout_ms && (
+              // A bound that binds says so: otherwise a shortened run reads as a
+              // slow command rather than a timeout the daemon refused to grant.
+              <div className="vx-term__note">
+                Requested timeout exceeded the daemon's cap — capped at {formatMs(r.timeout_ms)}.
+              </div>
+            )}
           </div>
         ))}
         {busy && <div className="vx-stream__typing">●●●</div>}

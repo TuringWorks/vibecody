@@ -17148,6 +17148,10 @@ fn build_temp_provider_with_effort(
         "fireworks" => std::env::var("FIREWORKS_API_KEY").ok(),
         "poolside" => std::env::var("POOLSIDE_API_KEY").ok(),
         "ollama" => std::env::var("OLLAMA_API_KEY").ok(),
+        // These two don't follow the `{PROVIDER}_API_KEY` convention — Copilot
+        // authenticates with a GitHub token, Bedrock with an AWS secret key.
+        "copilot" | "github-copilot" => std::env::var("GITHUB_TOKEN").ok(),
+        "bedrock" | "aws" | "aws-bedrock" => std::env::var("AWS_SECRET_ACCESS_KEY").ok(),
         "vibecli-mistralrs" | "vibecli_mistralrs" => {
             // Token: env first, then ~/.vibecli/daemon.token. Empty string acts
             // as "no auth needed" so build_temp_provider doesn't reject the
@@ -17194,9 +17198,36 @@ fn build_temp_provider_with_effort(
         return None;
     }
 
+    // Providers that need an endpoint (or, for Bedrock, a region) alongside the
+    // key. Stored per-provider in ProfileStore under `api_url`, env as a fallback.
+    let api_url = match provider_type {
+        "azure_openai" | "vercel_ai" => {
+            std::env::var(format!("{}_API_URL", provider_type.to_uppercase()))
+                .ok()
+                .filter(|u| !u.is_empty())
+                .or_else(|| {
+                    _ProfileStore::new()
+                        .ok()
+                        .and_then(|s| {
+                            s.get_provider_config(_PROFILE_ID, provider_type, "api_url")
+                                .ok()
+                                .flatten()
+                        })
+                        .filter(|u| !u.is_empty())
+                })
+        }
+        // Bedrock reuses `api_url` to carry the AWS region, matching the daemon's
+        // `create_raw_provider`.
+        "bedrock" | "aws" | "aws-bedrock" => std::env::var("AWS_REGION")
+            .or_else(|_| std::env::var("AWS_DEFAULT_REGION"))
+            .ok(),
+        _ => None,
+    };
+
     let cfg = ProviderConfig {
         provider_type: provider_type.to_string(),
         api_key,
+        api_url,
         model: model.to_string(),
         effort: effort.and_then(vibe_ai::provider::Effort::parse),
         ..Default::default()
@@ -17220,6 +17251,17 @@ fn build_temp_provider_with_effort(
         "vibecli-mistralrs" | "vibecli_mistralrs" => Arc::new(
             providers::vibecli_mistralrs::VibeCliMistralRsProvider::new(cfg),
         ),
+        // These seven ship full `AIProvider` implementations and appear in the
+        // toolbar dropdown (`useModelRegistry.ts` → STATIC_MODELS), but had no
+        // arm here — so selecting one failed every Tauri-command panel with
+        // "not configured", which no amount of adding an API key would fix.
+        "azure_openai" => Arc::new(providers::AzureOpenAIProvider::new(cfg)),
+        "bedrock" | "aws" | "aws-bedrock" => Arc::new(providers::BedrockProvider::new(cfg)),
+        "copilot" | "github-copilot" => Arc::new(providers::CopilotProvider::new(cfg)),
+        "zhipu" | "glm" => Arc::new(providers::ZhipuProvider::new(cfg)),
+        "vercel_ai" => Arc::new(providers::VercelAIProvider::new(cfg)),
+        "minimax" => Arc::new(providers::MiniMaxProvider::new(cfg)),
+        "sambanova" => Arc::new(providers::SambaNovaProvider::new(cfg)),
         _ => return None,
     };
     Some(vibe_ai::ResilientProvider::wrap(p))
@@ -18944,6 +18986,33 @@ mod tests {
     fn build_temp_provider_unknown_returns_none() {
         let p = build_temp_provider("nonexistent-provider", "model");
         assert!(p.is_none());
+    }
+
+    /// Every provider the toolbar can offer must have a dispatch arm here.
+    ///
+    /// These seven shipped as `AIProvider` implementations and appeared in
+    /// `useModelRegistry.ts` → `STATIC_MODELS`, but had no arm in
+    /// `build_temp_provider`, so choosing one failed with "not configured" —
+    /// a dropdown entry that could never work. The enum was data, not control
+    /// flow, so nothing failed to compile. This test is the guard.
+    #[test]
+    fn build_temp_provider_covers_every_toolbar_provider() {
+        let cases = [
+            ("azure_openai", "AZURE_OPENAI_API_KEY", "gpt-4o"),
+            ("bedrock", "AWS_SECRET_ACCESS_KEY", "anthropic.claude-3-haiku-20240307-v1:0"),
+            ("copilot", "GITHUB_TOKEN", "gpt-4o"),
+            ("zhipu", "ZHIPU_API_KEY", "glm-5.2"),
+            ("vercel_ai", "VERCEL_AI_API_KEY", "gpt-4o"),
+            ("minimax", "MINIMAX_API_KEY", "MiniMax-M3"),
+            ("sambanova", "SAMBANOVA_API_KEY", "Meta-Llama-3.3-70B-Instruct"),
+        ];
+        for (provider, env_key, model) in cases {
+            std::env::set_var(env_key, "test-key");
+            assert!(
+                build_temp_provider(provider, model).is_some(),
+                "{provider} is offered in the toolbar but has no dispatch arm"
+            );
+        }
     }
 
     #[test]
@@ -58320,11 +58389,23 @@ mod daemon_tests {
     async fn port_open_returns_false_for_unbound_port() {
         // Use a port in the ephemeral range unlikely to be occupied in CI
         let port = 19_876u16;
-        // Make sure it really is free before the assertion
-        if TcpListener::bind(format!("127.0.0.1:{}", port)).is_ok() {
+        // Bind to prove the port is free, then release it *before* probing.
+        // Previously this was `if TcpListener::bind(..).is_ok() { .. }`: on
+        // edition 2021 the listener temporary lives until the end of the `if`
+        // expression, so it was still bound while `port_open` connected — the
+        // test asserted the opposite of what it meant and failed whenever the
+        // port was actually free.
+        let was_free = match TcpListener::bind(format!("127.0.0.1:{port}")) {
+            Ok(listener) => {
+                drop(listener);
+                true
+            }
+            // Something else holds it — skip rather than flake.
+            Err(_) => false,
+        };
+        if was_free {
             assert!(!port_open(port).await);
         }
-        // If it's in use we skip rather than flake
     }
 
     /// Given: a TCP listener is bound on a port
