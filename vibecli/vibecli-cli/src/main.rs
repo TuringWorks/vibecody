@@ -1555,6 +1555,20 @@ const KEY_PROVIDERS: &[&str] = &[
     // itself encrypted (machine-bound key) so the passphrase is never
     // at rest in plaintext.
     "openmemory_passphrase",
+    // Cloud AI backends (cloud_ai.rs / cloud_ai_catalog.toml). One credential
+    // per cloud, named by the catalog's `credential` field. `azure_openai` is
+    // deliberately reused rather than duplicated — Azure OpenAI serving and
+    // Azure fine-tuning authenticate with the same key. The value shape is
+    // per-cloud (`vibecli --cloud-ai list` documents each): an API key for
+    // most, `ACCESS_KEY_ID:SECRET_ACCESS_KEY[:SESSION_TOKEN]` for AWS, an
+    // OAuth access token for Google, a session token for Oracle.
+    "digitalocean",
+    "google_vertex",
+    "aws",
+    "oracle_oci",
+    "ibm_watsonx",
+    "akamai",
+    "custom_cloud",
 ];
 
 fn run_keys_command(action: &str, args: &[String]) {
@@ -2919,6 +2933,7 @@ mod auto_research;
 #[allow(dead_code)]
 mod blue_team;
 #[allow(dead_code)]
+mod cloud_ai;
 mod cloud_providers;
 #[allow(dead_code)]
 mod compliance_controls;
@@ -3441,6 +3456,19 @@ struct Cli {
     /// Example: vibecli --service install
     #[arg(long, value_name = "SUBCOMMAND")]
     service: Option<String>,
+
+    /// Cloud AI backends: list, status, set, chat, train, job, eval, route.
+    /// Serving / training / eval / routing across DigitalOcean, Azure, Google,
+    /// AWS, Oracle, IBM and Akamai — configuration only, no code changes.
+    /// Example: vibecli --cloud-ai status
+    ///
+    /// Named `--cloud-ai`, not `--cloud`: `--cloud` is already the shipped
+    /// boolean flag for "run the agent task in an isolated Docker container"
+    /// (Phase 8.17, below). One flag cannot be both a bool and a value-taking
+    /// option — declaring both is what broke the build. Rename this pair
+    /// deliberately if the shorter name is wanted for Cloud AI instead.
+    #[arg(long = "cloud-ai", value_name = "SUBCOMMAND")]
+    cloud_ai_cmd: Option<String>,
 
     // ── Daemon mode ───────────────────────────────────────────────────────────
     /// Start the VibeCLI HTTP daemon (for VS Code extension / Agent SDK).
@@ -4065,6 +4093,11 @@ async fn main() -> Result<()> {
                 std::process::exit(1);
             }
         };
+    }
+
+    // Cloud AI backends: vibecli --cloud-ai <list|status|set|chat|train|job|eval|route>
+    if let Some(ref subcmd) = cli.cloud_ai_cmd {
+        return cloud_ai::run_cli(subcmd, &cli.message).await;
     }
 
     // Daemon mode: vibecli --serve [--port 7878]

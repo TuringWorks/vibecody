@@ -88,6 +88,48 @@ desktop that may not have been upgraded yet. A body naming a *different* service
 is never accepted. The local autostart path requires the exact match — it
 controls the daemon it spawns.
 
+### Calling a daemon route from any client
+
+**Almost every daemon route is behind `require_auth`.** The public set is small
+and fixed: `/health`, `/models`, `/web`, `/favicon.svg`, `/webhook/github`,
+`/pair`, `/acp/v1/capabilities`, `/v1/capabilities`, `/ws/collab/{room_id}`,
+`/mobile/beacon`. Anything else needs a bearer token — **there is no
+unauthenticated mode**, so a client that omits the header is 100 % broken, not
+degraded.
+
+| Client | Use |
+|---|---|
+| VibeCoder panel | `daemonFetch()` from `vibecoder/src/lib/daemonFetch.ts` — never bare `fetch()` |
+| Agent SDK | `this.authedFetch(...)`; token via `AgentOptions.token` → `VIBECLI_DAEMON_TOKEN` → `~/.vibecli/daemon.token` |
+| VS Code extension | `this.authedFetch(...)`; same resolution order |
+| Mobile / watch | pairing-issued token in `Authorization: Bearer` (already correct) |
+| Rust side | `daemon_bearer_token()` in `commands.rs` |
+| **Any SSE stream** | `EventSource` **cannot** set headers — append `?token=` (the daemon's auth middleware accepts it for exactly this reason); SDK/VS Code expose `tokenizedUrl(path)` |
+
+**The token rotates on every daemon start.** `vibecli serve` mints a fresh
+random token each run (implicit rotation), and VibeCoder restarts the daemon
+itself on autostart — so a token captured once is stale routinely, not rarely.
+**Resolve it per call, or cache and re-read on a 401.** `daemonFetch` does the
+latter; the SDK and VS Code client do the former.
+
+This is a live-bug class, not a hypothetical. All of the following were **100 %
+401** against a default daemon, verified with curl:
+
+- Background Jobs panel — `/jobs`, `/agent`, `/v1/resume`, `/stream/{id}`
+- Tainted-argument confirmation modal — took its token from a `VITE_DAEMON_TOKEN`
+  env var nothing ever set, so the security prompt never appeared at all (the
+  daemon fell back to deny-on-timeout, so there was no error to see either)
+- **The entire Agent SDK and VS Code extension** — neither sent an
+  `Authorization` header anywhere
+
+**Detection habit:** grep each client for its HTTP entry point and confirm every
+call either targets a route on the public list above or carries a token:
+
+```bash
+grep -rn 'fetch(`${daemonUrl}\|new EventSource(' vibecoder/src
+grep -rn 'fetch(`${this.baseUrl}' packages/agent-sdk/src vscode-extension/src
+```
+
 ### Adding a new Tauri command
 
 `vibecoder/src-tauri/src/commands.rs` (implementation) → `vibecoder/src-tauri/src/lib.rs` (register in `tauri::generate_handler!`). VibeApp (`vibeapp/src-tauri/`) has its own `lib.rs` — register there too if the command is needed there. **Frontend consumers**: `vibecoder/src/` panels call `invoke("your_command", …)` from TypeScript. No mobile/watch impact (mobile/watch don't speak Tauri IPC, only HTTP).

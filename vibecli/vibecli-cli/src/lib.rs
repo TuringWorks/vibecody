@@ -360,6 +360,7 @@ pub mod clarifying_questions;
 pub mod cloud_agent;
 pub mod cloud_autofix;
 pub mod cloud_ide;
+pub mod cloud_ai;
 pub mod cloud_providers;
 pub mod cloud_sandbox;
 pub mod code_replay;

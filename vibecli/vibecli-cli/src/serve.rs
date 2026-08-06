@@ -8026,8 +8026,6 @@ pub async fn serve(
     }
 
     let addr = format!("{host}:{port}");
-    let listener = tokio::net::TcpListener::bind(&addr).await?;
-    eprintln!("[vibecli serve] Listening on http://{addr}");
     // Write the full token to a file (mode 0600) instead of logging it.
     //
     // This is a hard failure, not a warning. The token is freshly random for
@@ -8067,6 +8065,13 @@ pub async fn serve(
     // shorter than 8 bytes or on a non-ASCII boundary. Today's token is always
     // 32 hex chars, but a startup panic is a poor way to discover that changed.
     let masked = mask_secret(&api_token);
+
+    // Bind only after the token is on disk. Two reasons: a client that connects
+    // the instant the port opens would otherwise read the *previous* run's
+    // token from the file and 401; and announcing "Listening on …" before a
+    // step that can abort startup makes the log claim something untrue.
+    let listener = tokio::net::TcpListener::bind(&addr).await?;
+    eprintln!("[vibecli serve] Listening on http://{addr}");
     eprintln!("[vibecli serve] API token: {masked} (full token in ~/.vibecli/daemon.token)");
     eprintln!("[vibecli serve] Jobs persisted at ~/.vibecli/jobs/");
     eprintln!("[vibecli serve] Session viewer at http://{addr}/sessions");

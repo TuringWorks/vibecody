@@ -301,8 +301,49 @@ describe('VibeCLIAgent.chat', () => {
 
     await agent.chat([{ role: 'user', content: 'hi' }]);
 
-    const headers = fetchMock.mock.calls[0][1].headers as Record<string, string>;
-    expect(headers['Content-Type']).toBe('application/json');
+    // Read through `Headers` rather than indexing a plain object: attaching the
+    // bearer token normalises headers into a `Headers` instance, and the shape
+    // is not part of the contract.
+    const headers = new Headers(fetchMock.mock.calls[0][1].headers as HeadersInit);
+    expect(headers.get('Content-Type')).toBe('application/json');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Daemon auth. Almost every route is behind `require_auth`; the SDK previously
+// sent no Authorization header at all, so every call 401'd against a default
+// daemon (verified live: /chat, /agent, /jobs, /v1/goals all returned 401).
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('VibeCLIAgent daemon auth', () => {
+  it('attaches an explicit token as a bearer header', async () => {
+    const agent = new VibeCLIAgent({ token: 'tok-explicit' });
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ content: 'ok' }) });
+
+    await agent.chat([{ role: 'user', content: 'hi' }]);
+
+    const headers = new Headers(fetchMock.mock.calls[0][1].headers as HeadersInit);
+    expect(headers.get('Authorization')).toBe('Bearer tok-explicit');
+  });
+
+  it('does not authenticate /health — it is a public route', async () => {
+    const agent = new VibeCLIAgent({ token: 'tok-explicit' });
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ service: 'vibecli', status: 'ok', version: '0.5.7' }),
+    });
+
+    await agent.isConnected();
+
+    const init = fetchMock.mock.calls[0][1] as RequestInit | undefined;
+    expect(new Headers(init?.headers).get('Authorization')).toBeNull();
+  });
+
+  it('exposes a ?token= URL for consumers that cannot set headers', () => {
+    const agent = new VibeCLIAgent({ token: 'tok-explicit' });
+    const url = agent.tokenizedUrl('/stream/sess-1');
+    expect(url).toContain('/stream/sess-1');
+    expect(url).toContain('token=tok-explicit');
   });
 });
 

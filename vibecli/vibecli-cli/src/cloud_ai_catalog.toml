@@ -6,7 +6,7 @@
 #
 # Every `base_url` is a template. Variables in `{braces}` are resolved from the
 # encrypted ProfileStore provider-config for that backend id (see
-# `vibecli cloud set <id> <var> <value>`), so nothing here is baked in.
+# `vibecli --cloud-ai set <id> <var> <value>`), so nothing here is baked in.
 #
 # `verified` records when the endpoint shape was last checked against vendor
 # documentation, and against what. An entry with `verified = "unverified"` still

@@ -54,6 +54,15 @@ export interface AgentOptions {
   port?: number;
   /** VibeCLI daemon host. Default: 'localhost' */
   host?: string;
+  /**
+   * Bearer token for the daemon.
+   *
+   * Optional: when omitted the SDK reads `VIBECLI_DAEMON_TOKEN`, then
+   * `~/.vibecli/daemon.token` — the file `vibecli serve` writes on startup.
+   * Almost every daemon route is behind `require_auth`, so without a token
+   * every call returns 401.
+   */
+  token?: string;
 }
 
 // G6.3 / G7.1 — `system` is a daemon-issued advisory message that's
@@ -242,9 +251,36 @@ export interface GoalRecapResponse {
   recap_llm_error?: string;
 }
 
+/**
+ * Resolve the daemon bearer token: explicit value, then `VIBECLI_DAEMON_TOKEN`,
+ * then `~/.vibecli/daemon.token`.
+ *
+ * `vibecli serve` mints a fresh random token on every start and writes it to
+ * that file, so it is re-read per call rather than captured once — a daemon
+ * restart otherwise leaves a long-lived SDK client 401ing forever.
+ */
+function resolveDaemonToken(explicit?: string): string | undefined {
+  if (explicit) return explicit;
+  const env = process?.env?.VIBECLI_DAEMON_TOKEN;
+  if (env) return env;
+  try {
+    // Node-only; in a browser build this simply yields no token.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const fs = require('node:fs') as typeof import('node:fs');
+    const os = require('node:os') as typeof import('node:os');
+    const path = require('node:path') as typeof import('node:path');
+    const file = path.join(os.homedir(), '.vibecli', 'daemon.token');
+    const token = fs.readFileSync(file, 'utf8').trim();
+    return token.length > 0 ? token : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export class VibeCLIAgent {
   private baseUrl: string;
   private approval: string;
+  private explicitToken?: string;
   /** Session ID of the most-recently started run (set by `run()`). */
   private lastSessionId: string | null = null;
 
@@ -253,6 +289,32 @@ export class VibeCLIAgent {
     const port = options.port ?? 7878;
     this.baseUrl = `http://${host}:${port}`;
     this.approval = options.approval ?? 'suggest';
+    this.explicitToken = options.token;
+  }
+
+  /**
+   * `fetch` with the daemon bearer token attached.
+   *
+   * Every daemon route except a small public set (`/health`, `/models`,
+   * `/pair`, `/v1/capabilities`, …) sits behind `require_auth`. The SDK used
+   * plain `fetch` everywhere, so **every** call returned 401 against a default
+   * daemon. Resolved per call because the daemon rotates its token on restart.
+   */
+  private authedFetch(input: string, init?: RequestInit): Promise<Response> {
+    const token = resolveDaemonToken(this.explicitToken);
+    if (!token) return fetch(input, init);
+    const headers = new Headers(init?.headers);
+    headers.set('Authorization', `Bearer ${token}`);
+    return fetch(input, { ...init, headers });
+  }
+
+  /** Daemon URL with `?token=` appended — for SSE/EventSource-style consumers
+   *  that cannot set headers. The daemon accepts either form. */
+  tokenizedUrl(path: string): string {
+    const token = resolveDaemonToken(this.explicitToken);
+    const url = new URL(path, this.baseUrl);
+    if (token) url.searchParams.set('token', token);
+    return url.toString();
   }
 
   /**
@@ -265,7 +327,7 @@ export class VibeCLIAgent {
     const policy = approval ?? this.approval;
 
     // Start the agent
-    const startRes = await fetch(`${this.baseUrl}/agent`, {
+    const startRes = await this.authedFetch(`${this.baseUrl}/agent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ task, approval: policy }),
@@ -280,7 +342,7 @@ export class VibeCLIAgent {
     this.lastSessionId = session_id;
 
     // Stream events
-    const streamRes = await fetch(`${this.baseUrl}/stream/${session_id}`);
+    const streamRes = await this.authedFetch(`${this.baseUrl}/stream/${session_id}`);
     if (!streamRes.ok || !streamRes.body) {
       throw new AgentError(`Failed to open event stream: ${streamRes.status}`);
     }
@@ -292,7 +354,7 @@ export class VibeCLIAgent {
    * Single-turn chat (non-streaming).
    */
   async chat(messages: ChatMessage[]): Promise<string> {
-    const res = await fetch(`${this.baseUrl}/chat`, {
+    const res = await this.authedFetch(`${this.baseUrl}/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages }),
@@ -308,7 +370,7 @@ export class VibeCLIAgent {
    * Streaming chat — yields text tokens as they arrive.
    */
   async *chatStream(messages: ChatMessage[]): AsyncGenerator<string> {
-    const res = await fetch(`${this.baseUrl}/chat/stream`, {
+    const res = await this.authedFetch(`${this.baseUrl}/chat/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages }),
@@ -325,7 +387,7 @@ export class VibeCLIAgent {
    * List all background jobs (sorted newest-first).
    */
   async listJobs(): Promise<JobRecord[]> {
-    const res = await fetch(`${this.baseUrl}/jobs`);
+    const res = await this.authedFetch(`${this.baseUrl}/jobs`);
     if (!res.ok) {
       throw new AgentError(`listJobs failed: ${res.status} ${await res.text()}`);
     }
@@ -336,7 +398,7 @@ export class VibeCLIAgent {
    * Get a single job by session ID. Returns null if not found.
    */
   async getJob(sessionId: string): Promise<JobRecord | null> {
-    const res = await fetch(`${this.baseUrl}/jobs/${encodeURIComponent(sessionId)}`);
+    const res = await this.authedFetch(`${this.baseUrl}/jobs/${encodeURIComponent(sessionId)}`);
     if (res.status === 404) return null;
     if (!res.ok) {
       throw new AgentError(`getJob failed: ${res.status} ${await res.text()}`);
@@ -358,7 +420,7 @@ export class VibeCLIAgent {
    * Cancel a running job. No-op if the job is already finished.
    */
   async cancelJob(sessionId: string): Promise<void> {
-    const res = await fetch(`${this.baseUrl}/jobs/${encodeURIComponent(sessionId)}/cancel`, {
+    const res = await this.authedFetch(`${this.baseUrl}/jobs/${encodeURIComponent(sessionId)}/cancel`, {
       method: 'POST',
     });
     if (!res.ok) {
@@ -381,18 +443,18 @@ export class VibeCLIAgent {
       if (filter?.tag)       qs.set('tag', filter.tag);
       if (filter?.limit)     qs.set('limit', String(filter.limit));
       const url = `${this.baseUrl}/v1/goals${qs.size ? `?${qs}` : ''}`;
-      const res = await fetch(url);
+      const res = await this.authedFetch(url);
       if (!res.ok) throw new AgentError(`goals.list failed: ${res.status} ${await res.text()}`);
       const data = (await res.json()) as { goals?: Goal[] };
       return data.goals ?? [];
     },
     get: async (id: string): Promise<GoalDetail> => {
-      const res = await fetch(`${this.baseUrl}/v1/goals/${encodeURIComponent(id)}`);
+      const res = await this.authedFetch(`${this.baseUrl}/v1/goals/${encodeURIComponent(id)}`);
       if (!res.ok) throw new AgentError(`goals.get failed: ${res.status} ${await res.text()}`);
       return res.json() as Promise<GoalDetail>;
     },
     create: async (body: GoalCreateInput): Promise<Goal> => {
-      const res = await fetch(`${this.baseUrl}/v1/goals`, {
+      const res = await this.authedFetch(`${this.baseUrl}/v1/goals`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -401,7 +463,7 @@ export class VibeCLIAgent {
       return res.json() as Promise<Goal>;
     },
     update: async (id: string, patch: GoalPatch): Promise<Goal> => {
-      const res = await fetch(`${this.baseUrl}/v1/goals/${encodeURIComponent(id)}`, {
+      const res = await this.authedFetch(`${this.baseUrl}/v1/goals/${encodeURIComponent(id)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(patch),
@@ -410,13 +472,13 @@ export class VibeCLIAgent {
       return res.json() as Promise<Goal>;
     },
     delete: async (id: string): Promise<void> => {
-      const res = await fetch(`${this.baseUrl}/v1/goals/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const res = await this.authedFetch(`${this.baseUrl}/v1/goals/${encodeURIComponent(id)}`, { method: 'DELETE' });
       if (!res.ok && res.status !== 404) {
         throw new AgentError(`goals.delete failed: ${res.status} ${await res.text()}`);
       }
     },
     plan: async (id: string, provider?: string, model?: string): Promise<Goal> => {
-      const res = await fetch(`${this.baseUrl}/v1/goals/${encodeURIComponent(id)}/plan`, {
+      const res = await this.authedFetch(`${this.baseUrl}/v1/goals/${encodeURIComponent(id)}/plan`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider: provider ?? null, model: model ?? null }),
@@ -425,7 +487,7 @@ export class VibeCLIAgent {
       return res.json() as Promise<Goal>;
     },
     start: async (id: string, task?: string): Promise<{ session_id: string; link_id: string; goal_id: string }> => {
-      const res = await fetch(`${this.baseUrl}/v1/goals/${encodeURIComponent(id)}/start`, {
+      const res = await this.authedFetch(`${this.baseUrl}/v1/goals/${encodeURIComponent(id)}/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ task: task ?? null }),
@@ -434,7 +496,7 @@ export class VibeCLIAgent {
       return res.json() as Promise<{ session_id: string; link_id: string; goal_id: string }>;
     },
     link: async (id: string, kind: 'session' | 'job' | 'recap' | 'note', target_id: string, note?: string): Promise<GoalLink> => {
-      const res = await fetch(`${this.baseUrl}/v1/goals/${encodeURIComponent(id)}/link`, {
+      const res = await this.authedFetch(`${this.baseUrl}/v1/goals/${encodeURIComponent(id)}/link`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ kind, target_id, note: note ?? null }),
@@ -462,7 +524,7 @@ export class VibeCLIAgent {
      *  (empty/absent `workspace` → cross-workspace global slot). 404
      *  on unknown goal id; otherwise 200. */
     pin: async (id: string, workspace?: string): Promise<{ workspace: string | null; goal_id: string }> => {
-      const res = await fetch(`${this.baseUrl}/v1/goals/current`, {
+      const res = await this.authedFetch(`${this.baseUrl}/v1/goals/current`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ goal_id: id, workspace: workspace ?? null }),
@@ -474,7 +536,7 @@ export class VibeCLIAgent {
     /** Clear the pin for a workspace (or the global slot). */
     unpin: async (workspace?: string): Promise<{ workspace: string | null; removed: boolean }> => {
       const qs = workspace ? `?workspace=${encodeURIComponent(workspace)}` : '';
-      const res = await fetch(`${this.baseUrl}/v1/goals/current${qs}`, { method: 'DELETE' });
+      const res = await this.authedFetch(`${this.baseUrl}/v1/goals/current${qs}`, { method: 'DELETE' });
       if (!res.ok) throw new AgentError(`goals.unpin failed: ${res.status} ${await res.text()}`);
       return res.json() as Promise<{ workspace: string | null; removed: boolean }>;
     },
@@ -482,7 +544,7 @@ export class VibeCLIAgent {
     /** Look up the pinned goal. `goal_id: null` when nothing is pinned. */
     current: async (workspace?: string): Promise<GoalCurrentResponse> => {
       const qs = workspace ? `?workspace=${encodeURIComponent(workspace)}` : '';
-      const res = await fetch(`${this.baseUrl}/v1/goals/current${qs}`);
+      const res = await this.authedFetch(`${this.baseUrl}/v1/goals/current${qs}`);
       if (!res.ok) throw new AgentError(`goals.current failed: ${res.status} ${await res.text()}`);
       return res.json() as Promise<GoalCurrentResponse>;
     },
@@ -495,7 +557,7 @@ export class VibeCLIAgent {
       opts?: { provider?: string; model?: string },
     ): Promise<GoalRecapResponse> => {
       const body = opts ? { provider: opts.provider ?? null, model: opts.model ?? null } : {};
-      const res = await fetch(`${this.baseUrl}/v1/goals/${encodeURIComponent(id)}/recap`, {
+      const res = await this.authedFetch(`${this.baseUrl}/v1/goals/${encodeURIComponent(id)}/recap`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -512,19 +574,19 @@ export class VibeCLIAgent {
   /** `/v1/graph/status` — `{status:"ready"|"indexing"|"disabled", node_count, edge_count, last_built_at?}`. */
   readonly graph = {
     status: async (): Promise<Record<string, unknown>> => {
-      const res = await fetch(`${this.baseUrl}/v1/graph/status`);
+      const res = await this.authedFetch(`${this.baseUrl}/v1/graph/status`);
       if (!res.ok) throw new AgentError(`graph.status failed: ${res.status} ${await res.text()}`);
       return res.json() as Promise<Record<string, unknown>>;
     },
     /** `POST /v1/graph/build` — kicks off a background build, returns `{status:"indexing"}`. */
     build: async (): Promise<Record<string, unknown>> => {
-      const res = await fetch(`${this.baseUrl}/v1/graph/build`, { method: 'POST' });
+      const res = await this.authedFetch(`${this.baseUrl}/v1/graph/build`, { method: 'POST' });
       if (!res.ok) throw new AgentError(`graph.build failed: ${res.status} ${await res.text()}`);
       return res.json() as Promise<Record<string, unknown>>;
     },
     /** `POST /v1/graph/query {query, budget?}` — token-budgeted subgraph. */
     query: async (query: string, budget?: number): Promise<Record<string, unknown>> => {
-      const res = await fetch(`${this.baseUrl}/v1/graph/query`, {
+      const res = await this.authedFetch(`${this.baseUrl}/v1/graph/query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query, budget: budget ?? 2000 }),
@@ -534,25 +596,25 @@ export class VibeCLIAgent {
     },
     /** `GET /v1/graph/node/:name` — one node's payload. */
     node: async (name: string): Promise<Record<string, unknown>> => {
-      const res = await fetch(`${this.baseUrl}/v1/graph/node/${encodeURIComponent(name)}`);
+      const res = await this.authedFetch(`${this.baseUrl}/v1/graph/node/${encodeURIComponent(name)}`);
       if (!res.ok) throw new AgentError(`graph.node failed: ${res.status} ${await res.text()}`);
       return res.json() as Promise<Record<string, unknown>>;
     },
     /** `GET /v1/graph/neighbors/:name` — adjacent nodes. */
     neighbors: async (name: string): Promise<Record<string, unknown>[]> => {
-      const res = await fetch(`${this.baseUrl}/v1/graph/neighbors/${encodeURIComponent(name)}`);
+      const res = await this.authedFetch(`${this.baseUrl}/v1/graph/neighbors/${encodeURIComponent(name)}`);
       if (!res.ok) throw new AgentError(`graph.neighbors failed: ${res.status} ${await res.text()}`);
       return res.json() as Promise<Record<string, unknown>[]>;
     },
     /** `GET /v1/graph/path/:from/:to` — `{path:[…], hops}`. */
     path: async (from: string, to: string): Promise<Record<string, unknown>> => {
-      const res = await fetch(`${this.baseUrl}/v1/graph/path/${encodeURIComponent(from)}/${encodeURIComponent(to)}`);
+      const res = await this.authedFetch(`${this.baseUrl}/v1/graph/path/${encodeURIComponent(from)}/${encodeURIComponent(to)}`);
       if (!res.ok) throw new AgentError(`graph.path failed: ${res.status} ${await res.text()}`);
       return res.json() as Promise<Record<string, unknown>>;
     },
     /** `POST /v1/graph/blast {name, max_hops?}` — blast radius. */
     blast: async (name: string, maxHops?: number): Promise<Record<string, unknown>> => {
-      const res = await fetch(`${this.baseUrl}/v1/graph/blast`, {
+      const res = await this.authedFetch(`${this.baseUrl}/v1/graph/blast`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, max_hops: maxHops ?? 2 }),
@@ -562,7 +624,7 @@ export class VibeCLIAgent {
     },
     /** `GET /v1/graph/report` — full `GRAPH_REPORT.md` text (`{report:string}`). */
     report: async (): Promise<Record<string, unknown>> => {
-      const res = await fetch(`${this.baseUrl}/v1/graph/report`);
+      const res = await this.authedFetch(`${this.baseUrl}/v1/graph/report`);
       if (!res.ok) throw new AgentError(`graph.report failed: ${res.status} ${await res.text()}`);
       return res.json() as Promise<Record<string, unknown>>;
     },
@@ -578,25 +640,25 @@ export class VibeCLIAgent {
   readonly skilllens = {
     /** `GET /v1/skilllens/skills` — catalogue. */
     list: async (): Promise<Record<string, unknown>> => {
-      const res = await fetch(`${this.baseUrl}/v1/skilllens/skills`);
+      const res = await this.authedFetch(`${this.baseUrl}/v1/skilllens/skills`);
       if (!res.ok) throw new AgentError(`skilllens.list failed: ${res.status} ${await res.text()}`);
       return res.json() as Promise<Record<string, unknown>>;
     },
     /** `GET /v1/skilllens/skills/:name` — one skill detail. */
     get: async (name: string): Promise<Record<string, unknown>> => {
-      const res = await fetch(`${this.baseUrl}/v1/skilllens/skills/${encodeURIComponent(name)}`);
+      const res = await this.authedFetch(`${this.baseUrl}/v1/skilllens/skills/${encodeURIComponent(name)}`);
       if (!res.ok) throw new AgentError(`skilllens.get failed: ${res.status} ${await res.text()}`);
       return res.json() as Promise<Record<string, unknown>>;
     },
     /** `POST /v1/skilllens/refresh` — reload the catalogue from disk. */
     refresh: async (): Promise<Record<string, unknown>> => {
-      const res = await fetch(`${this.baseUrl}/v1/skilllens/refresh`, { method: 'POST' });
+      const res = await this.authedFetch(`${this.baseUrl}/v1/skilllens/refresh`, { method: 'POST' });
       if (!res.ok) throw new AgentError(`skilllens.refresh failed: ${res.status} ${await res.text()}`);
       return res.json() as Promise<Record<string, unknown>>;
     },
     /** `POST /v1/skilllens/convert {runs}` — normalise agent runs into trajectories. */
     convert: async (runs: unknown): Promise<Record<string, unknown>> => {
-      const res = await fetch(`${this.baseUrl}/v1/skilllens/convert`, {
+      const res = await this.authedFetch(`${this.baseUrl}/v1/skilllens/convert`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ runs }),
@@ -606,7 +668,7 @@ export class VibeCLIAgent {
     },
     /** `POST /v1/skilllens/extract {pool, method, provider, model}` — extract candidate skills. */
     extract: async (pool: unknown, method: string, provider: string, model: string): Promise<Record<string, unknown>> => {
-      const res = await fetch(`${this.baseUrl}/v1/skilllens/extract`, {
+      const res = await this.authedFetch(`${this.baseUrl}/v1/skilllens/extract`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pool, method, provider, model }),
@@ -616,7 +678,7 @@ export class VibeCLIAgent {
     },
     /** `POST /v1/skilllens/score {skill, tasks?, provider, model}` — score a skill. */
     score: async (skill: string, tasks: string | undefined, provider: string, model: string): Promise<Record<string, unknown>> => {
-      const res = await fetch(`${this.baseUrl}/v1/skilllens/score`, {
+      const res = await this.authedFetch(`${this.baseUrl}/v1/skilllens/score`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ skill, tasks, provider, model }),
@@ -643,7 +705,7 @@ export class VibeCLIAgent {
       model: string,
       envGrader?: 'llm_judge' | 'contains',
     ): Promise<Record<string, unknown>> => {
-      const res = await fetch(`${this.baseUrl}/v1/skillopt/train`, {
+      const res = await this.authedFetch(`${this.baseUrl}/v1/skillopt/train`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ skill, env: { kind: envKind, tasks: envTasks, ...(envGrader ? { grader: envGrader } : {}) }, config: config ?? {}, provider, model }),
@@ -669,7 +731,7 @@ export class VibeCLIAgent {
       model: string,
       envGrader?: 'llm_judge' | 'contains',
     ): AsyncGenerator<SkilloptTrainEvent> {
-      const res = await fetch(`${this.baseUrl}/v1/skillopt/train/stream`, {
+      const res = await this.authedFetch(`${this.baseUrl}/v1/skillopt/train/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ skill, env: { kind: envKind, tasks: envTasks, ...(envGrader ? { grader: envGrader } : {}) }, config: config ?? {}, provider, model }),
@@ -693,19 +755,19 @@ export class VibeCLIAgent {
     }).bind(this),
     /** `GET /v1/skillopt/status/:job` — train-job state + report. */
     status: async (jobId: string): Promise<Record<string, unknown>> => {
-      const res = await fetch(`${this.baseUrl}/v1/skillopt/status/${encodeURIComponent(jobId)}`);
+      const res = await this.authedFetch(`${this.baseUrl}/v1/skillopt/status/${encodeURIComponent(jobId)}`);
       if (!res.ok) throw new AgentError(`skillopt.status failed: ${res.status} ${await res.text()}`);
       return res.json() as Promise<Record<string, unknown>>;
     },
     /** `POST /v1/skillopt/cancel/:job` — best-effort cancel. */
     cancel: async (jobId: string): Promise<Record<string, unknown>> => {
-      const res = await fetch(`${this.baseUrl}/v1/skillopt/cancel/${encodeURIComponent(jobId)}`, { method: 'POST' });
+      const res = await this.authedFetch(`${this.baseUrl}/v1/skillopt/cancel/${encodeURIComponent(jobId)}`, { method: 'POST' });
       if (!res.ok) throw new AgentError(`skillopt.cancel failed: ${res.status} ${await res.text()}`);
       return res.json() as Promise<Record<string, unknown>>;
     },
     /** `POST /v1/skillopt/promote {skill, content}` — write `*.opt.md` to the per-workspace override dir `<ws>/.vibecli/skills/` (shipped skills/*.md untouched). */
     promote: async (skill: string, content: string): Promise<Record<string, unknown>> => {
-      const res = await fetch(`${this.baseUrl}/v1/skillopt/promote`, {
+      const res = await this.authedFetch(`${this.baseUrl}/v1/skillopt/promote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ skill, content }),

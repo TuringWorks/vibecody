@@ -80,6 +80,16 @@ Every desktop client autostarts the VibeCLI daemon on launch. **All of that logi
 
 Full rules + the surfaces to touch: [AGENTS.md → Touching daemon startup, health, or discovery](./AGENTS.md#touching-daemon-startup-health-or-discovery).
 
+### Calling a daemon route — every client needs the bearer token
+
+Nearly every daemon route sits behind `require_auth`. Only `/health`, `/models`, `/web`, `/favicon.svg`, `/webhook/github`, `/pair`, `/acp/v1/capabilities`, `/v1/capabilities`, `/ws/collab/{room_id}`, `/mobile/beacon` are public.
+
+- **Panels use `daemonFetch()`** (`vibecoder/src/lib/daemonFetch.ts`); the **Agent SDK** and **VS Code extension** use their `authedFetch()`. A plain `fetch` to a protected route is a silent 100% 401 — that was the state of both clients until recently.
+- **SSE**: `EventSource` can't set headers — append `?token=` (the daemon accepts it for exactly this case).
+- **The token rotates on every daemon start**, and VibeCoder restarts the daemon itself. `daemonFetch` caches then re-reads on a 401; don't cache a token at mount.
+
+Full rules: [AGENTS.md → Calling a daemon route from any client](./AGENTS.md#calling-a-daemon-route-from-any-client).
+
 ### Tauri commands
 
 1,045+ commands registered via `tauri::generate_handler!` in `vibecoder/src-tauri/src/lib.rs`. When adding a new Tauri command: implement in `commands.rs`, register in `tauri::generate_handler!` in `lib.rs`.

@@ -39,6 +39,13 @@ function isVibeCliHealth(body: unknown): boolean {
 export interface ClientOptions {
   port?: number;
   host?: string;
+  /**
+   * Bearer token for the daemon. Optional: falls back to
+   * `VIBECLI_DAEMON_TOKEN`, then `~/.vibecli/daemon.token`. Almost every
+   * daemon route is behind `require_auth`, so without a token every call
+   * returns 401.
+   */
+  token?: string;
 }
 
 export interface ChatMessage {
@@ -102,13 +109,65 @@ export interface ExecGoalSummary {
   updated_at: string;
 }
 
+/**
+ * Resolve the daemon bearer token: explicit value, then
+ * `VIBECLI_DAEMON_TOKEN`, then `~/.vibecli/daemon.token` (written by
+ * `vibecli serve` on startup).
+ *
+ * Re-read per call, not captured once: the daemon mints a fresh token on every
+ * restart, so a cached value leaves a long-running editor session 401ing.
+ */
+function resolveDaemonToken(explicit?: string): string | undefined {
+  if (explicit) return explicit;
+  const env = process?.env?.VIBECLI_DAEMON_TOKEN;
+  if (env) return env;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const fs = require('node:fs') as typeof import('node:fs');
+    const os = require('node:os') as typeof import('node:os');
+    const path = require('node:path') as typeof import('node:path');
+    const token = fs
+      .readFileSync(path.join(os.homedir(), '.vibecli', 'daemon.token'), 'utf8')
+      .trim();
+    return token.length > 0 ? token : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export class VibeCLIClient {
   private baseUrl: string;
+  private explicitToken?: string;
 
   constructor(options: ClientOptions = {}) {
     const host = options.host ?? 'localhost';
     const port = options.port ?? 7878;
     this.baseUrl = `http://${host}:${port}`;
+    this.explicitToken = options.token;
+  }
+
+  /**
+   * `fetch` with the daemon bearer token attached.
+   *
+   * This client previously sent no Authorization header anywhere, so every
+   * call to a protected route returned 401 — the whole extension was
+   * non-functional against a default daemon.
+   */
+  private authedFetch(input: string, init?: RequestInit): Promise<Response> {
+    const token = resolveDaemonToken(this.explicitToken);
+    if (!token) return fetch(input, init);
+    const headers = new Headers(init?.headers);
+    headers.set('Authorization', `Bearer ${token}`);
+    return fetch(input, { ...init, headers });
+  }
+
+  /** Daemon URL with `?token=` appended, for SSE consumers that cannot set
+   *  headers. The daemon's auth middleware accepts either form. */
+  tokenizedUrl(path: string): string {
+    const token = resolveDaemonToken(this.explicitToken);
+    const url = new URL(path, this.baseUrl);
+    if (token) url.searchParams.set('token', token);
+    return url.toString();
   }
 
   /** Check the daemon is reachable *and* is actually VibeCLI. */
@@ -124,7 +183,7 @@ export class VibeCLIClient {
 
   /** Single-turn chat (non-streaming). */
   async chat(messages: ChatMessage[]): Promise<string> {
-    const res = await fetch(`${this.baseUrl}/chat`, {
+    const res = await this.authedFetch(`${this.baseUrl}/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages }),
@@ -138,7 +197,7 @@ export class VibeCLIClient {
 
   /** Streaming chat: yields text chunks from the daemon. */
   async *chatStream(messages: ChatMessage[]): AsyncGenerator<string> {
-    const res = await fetch(`${this.baseUrl}/chat/stream`, {
+    const res = await this.authedFetch(`${this.baseUrl}/chat/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages }),
@@ -151,7 +210,7 @@ export class VibeCLIClient {
 
   /** Start an agent task. Returns the session_id for streaming. */
   async startAgent(task: string, approval?: string): Promise<{ sessionId: string }> {
-    const res = await fetch(`${this.baseUrl}/agent`, {
+    const res = await this.authedFetch(`${this.baseUrl}/agent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ task, approval }),
@@ -166,7 +225,7 @@ export class VibeCLIClient {
   /** List recent background jobs. */
   async listJobs(): Promise<JobRecord[]> {
     try {
-      const res = await fetch(`${this.baseUrl}/jobs`);
+      const res = await this.authedFetch(`${this.baseUrl}/jobs`);
       if (!res.ok) return [];
       return (await res.json()) as JobRecord[];
     } catch {
@@ -176,7 +235,7 @@ export class VibeCLIClient {
 
   /** Cancel a running job. */
   async cancelJob(sessionId: string): Promise<void> {
-    await fetch(`${this.baseUrl}/jobs/${sessionId}/cancel`, { method: 'POST' });
+    await this.authedFetch(`${this.baseUrl}/jobs/${sessionId}/cancel`, { method: 'POST' });
   }
 
   // ── /goal — durable execution intent (G1.7) ──────────────────
@@ -186,7 +245,7 @@ export class VibeCLIClient {
   async listGoals(status?: ExecGoalSummary['status']): Promise<ExecGoalSummary[]> {
     try {
       const qs = status ? `?status=${encodeURIComponent(status)}` : '';
-      const res = await fetch(`${this.baseUrl}/v1/goals${qs}`);
+      const res = await this.authedFetch(`${this.baseUrl}/v1/goals${qs}`);
       if (!res.ok) return [];
       const data = (await res.json()) as { goals?: ExecGoalSummary[] };
       return data.goals ?? [];
@@ -197,7 +256,7 @@ export class VibeCLIClient {
 
   /** Create a goal. Title is required; statement and workspace are optional. */
   async createGoal(title: string, statement?: string, workspace?: string): Promise<ExecGoalSummary> {
-    const res = await fetch(`${this.baseUrl}/v1/goals`, {
+    const res = await this.authedFetch(`${this.baseUrl}/v1/goals`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, statement: statement ?? '', workspace: workspace ?? null }),
@@ -216,7 +275,7 @@ export class VibeCLIClient {
     const ids = new Set<string>();
     const fetchOne = async (qs: string) => {
       try {
-        const res = await fetch(`${this.baseUrl}/v1/goals/current${qs}`);
+        const res = await this.authedFetch(`${this.baseUrl}/v1/goals/current${qs}`);
         if (!res.ok) return;
         const data = (await res.json()) as { goal_id?: string | null };
         if (data.goal_id) ids.add(data.goal_id);
@@ -234,7 +293,7 @@ export class VibeCLIClient {
 
   /** Start a new session bound to a goal. Returns the new session id. */
   async startGoal(goalId: string, task?: string): Promise<{ sessionId: string }> {
-    const res = await fetch(`${this.baseUrl}/v1/goals/${encodeURIComponent(goalId)}/start`, {
+    const res = await this.authedFetch(`${this.baseUrl}/v1/goals/${encodeURIComponent(goalId)}/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ task: task ?? null }),
@@ -250,21 +309,21 @@ export class VibeCLIClient {
 
   /** `GET /v1/graph/status` — `{status, node_count, edge_count, last_built_at?}`. */
   async graphStatus(): Promise<Record<string, unknown>> {
-    const res = await fetch(`${this.baseUrl}/v1/graph/status`);
+    const res = await this.authedFetch(`${this.baseUrl}/v1/graph/status`);
     if (!res.ok) throw new Error(`graph.status failed: ${res.status} ${await res.text()}`);
     return res.json() as Promise<Record<string, unknown>>;
   }
 
   /** `POST /v1/graph/build` — kick off a background build; returns `{status:"indexing"}`. */
   async graphBuild(): Promise<Record<string, unknown>> {
-    const res = await fetch(`${this.baseUrl}/v1/graph/build`, { method: 'POST' });
+    const res = await this.authedFetch(`${this.baseUrl}/v1/graph/build`, { method: 'POST' });
     if (!res.ok) throw new Error(`graph.build failed: ${res.status} ${await res.text()}`);
     return res.json() as Promise<Record<string, unknown>>;
   }
 
   /** `POST /v1/graph/query {query, budget?}` — token-budgeted subgraph. */
   async graphQuery(query: string, budget?: number): Promise<Record<string, unknown>> {
-    const res = await fetch(`${this.baseUrl}/v1/graph/query`, {
+    const res = await this.authedFetch(`${this.baseUrl}/v1/graph/query`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query, budget: budget ?? 2000 }),
@@ -275,28 +334,28 @@ export class VibeCLIClient {
 
   /** `GET /v1/graph/node/:name` — one node payload. */
   async graphNode(name: string): Promise<Record<string, unknown>> {
-    const res = await fetch(`${this.baseUrl}/v1/graph/node/${encodeURIComponent(name)}`);
+    const res = await this.authedFetch(`${this.baseUrl}/v1/graph/node/${encodeURIComponent(name)}`);
     if (!res.ok) throw new Error(`graph.node failed: ${res.status} ${await res.text()}`);
     return res.json() as Promise<Record<string, unknown>>;
   }
 
   /** `GET /v1/graph/neighbors/:name` — adjacent nodes. */
   async graphNeighbors(name: string): Promise<Record<string, unknown>[]> {
-    const res = await fetch(`${this.baseUrl}/v1/graph/neighbors/${encodeURIComponent(name)}`);
+    const res = await this.authedFetch(`${this.baseUrl}/v1/graph/neighbors/${encodeURIComponent(name)}`);
     if (!res.ok) throw new Error(`graph.neighbors failed: ${res.status} ${await res.text()}`);
     return res.json() as Promise<Record<string, unknown>[]>;
   }
 
   /** `GET /v1/graph/path/:from/:to` — `{path:[…], hops}`. */
   async graphPath(from: string, to: string): Promise<Record<string, unknown>> {
-    const res = await fetch(`${this.baseUrl}/v1/graph/path/${encodeURIComponent(from)}/${encodeURIComponent(to)}`);
+    const res = await this.authedFetch(`${this.baseUrl}/v1/graph/path/${encodeURIComponent(from)}/${encodeURIComponent(to)}`);
     if (!res.ok) throw new Error(`graph.path failed: ${res.status} ${await res.text()}`);
     return res.json() as Promise<Record<string, unknown>>;
   }
 
   /** `POST /v1/graph/blast {name, max_hops?}` — blast radius. */
   async graphBlast(name: string, maxHops?: number): Promise<Record<string, unknown>> {
-    const res = await fetch(`${this.baseUrl}/v1/graph/blast`, {
+    const res = await this.authedFetch(`${this.baseUrl}/v1/graph/blast`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, max_hops: maxHops ?? 2 }),
@@ -307,7 +366,7 @@ export class VibeCLIClient {
 
   /** `GET /v1/graph/report` — full `GRAPH_REPORT.md` text (`{report:string}`). */
   async graphReport(): Promise<Record<string, unknown>> {
-    const res = await fetch(`${this.baseUrl}/v1/graph/report`);
+    const res = await this.authedFetch(`${this.baseUrl}/v1/graph/report`);
     if (!res.ok) throw new Error(`graph.report failed: ${res.status} ${await res.text()}`);
     return res.json() as Promise<Record<string, unknown>>;
   }
@@ -321,28 +380,28 @@ export class VibeCLIClient {
 
   /** `GET /v1/skilllens/skills` — catalogue `{skills:[{name, category, summary, source, ...}]}`. */
   async skilllensListSkills(): Promise<Record<string, unknown>> {
-    const res = await fetch(`${this.baseUrl}/v1/skilllens/skills`);
+    const res = await this.authedFetch(`${this.baseUrl}/v1/skilllens/skills`);
     if (!res.ok) throw new Error(`skilllens.list failed: ${res.status} ${await res.text()}`);
     return res.json() as Promise<Record<string, unknown>>;
   }
 
   /** `GET /v1/skilllens/skills/:name` — one skill detail. */
   async skilllensGetSkill(name: string): Promise<Record<string, unknown>> {
-    const res = await fetch(`${this.baseUrl}/v1/skilllens/skills/${encodeURIComponent(name)}`);
+    const res = await this.authedFetch(`${this.baseUrl}/v1/skilllens/skills/${encodeURIComponent(name)}`);
     if (!res.ok) throw new Error(`skilllens.get failed: ${res.status} ${await res.text()}`);
     return res.json() as Promise<Record<string, unknown>>;
   }
 
   /** `POST /v1/skilllens/refresh` — reload the catalogue from disk. */
   async skilllensRefresh(): Promise<Record<string, unknown>> {
-    const res = await fetch(`${this.baseUrl}/v1/skilllens/refresh`, { method: 'POST' });
+    const res = await this.authedFetch(`${this.baseUrl}/v1/skilllens/refresh`, { method: 'POST' });
     if (!res.ok) throw new Error(`skilllens.refresh failed: ${res.status} ${await res.text()}`);
     return res.json() as Promise<Record<string, unknown>>;
   }
 
   /** `POST /v1/skilllens/convert {runs}` — normalise agent runs into trajectories. */
   async skilllensConvert(runs: unknown): Promise<Record<string, unknown>> {
-    const res = await fetch(`${this.baseUrl}/v1/skilllens/convert`, {
+    const res = await this.authedFetch(`${this.baseUrl}/v1/skilllens/convert`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ runs }),
@@ -353,7 +412,7 @@ export class VibeCLIClient {
 
   /** `POST /v1/skilllens/extract {pool, method, provider, model}` — extract candidate skills. */
   async skilllensExtract(pool: unknown, method: string, provider: string, model: string): Promise<Record<string, unknown>> {
-    const res = await fetch(`${this.baseUrl}/v1/skilllens/extract`, {
+    const res = await this.authedFetch(`${this.baseUrl}/v1/skilllens/extract`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pool, method, provider, model }),
@@ -364,7 +423,7 @@ export class VibeCLIClient {
 
   /** `POST /v1/skilllens/score {skill, tasks?, provider, model}` — score a skill. */
   async skilllensScore(skill: string, tasks: string | undefined, provider: string, model: string): Promise<Record<string, unknown>> {
-    const res = await fetch(`${this.baseUrl}/v1/skilllens/score`, {
+    const res = await this.authedFetch(`${this.baseUrl}/v1/skilllens/score`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ skill, tasks, provider, model }),
@@ -380,7 +439,7 @@ export class VibeCLIClient {
    *  call per task per epoch) or `'contains'` (free, weak); `envTasks`
    *  optionally overrides the trace dir to scan). */
   async skilloptTrain(skill: string, envKind: 'repo' | 'static' | 'history', envTasks: string | undefined, config: Record<string, unknown> | undefined, provider: string, model: string, envGrader?: 'llm_judge' | 'contains'): Promise<Record<string, unknown>> {
-    const res = await fetch(`${this.baseUrl}/v1/skillopt/train`, {
+    const res = await this.authedFetch(`${this.baseUrl}/v1/skillopt/train`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ skill, env: { kind: envKind, tasks: envTasks, ...(envGrader ? { grader: envGrader } : {}) }, config: config ?? {}, provider, model }),
@@ -414,7 +473,7 @@ export class VibeCLIClient {
     model: string,
     envGrader?: 'llm_judge' | 'contains',
   ): AsyncGenerator<SkilloptTrainEvent> {
-    const res = await fetch(`${this.baseUrl}/v1/skillopt/train/stream`, {
+    const res = await this.authedFetch(`${this.baseUrl}/v1/skillopt/train/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ skill, env: { kind: envKind, tasks: envTasks, ...(envGrader ? { grader: envGrader } : {}) }, config: config ?? {}, provider, model }),
@@ -439,21 +498,21 @@ export class VibeCLIClient {
 
   /** `GET /v1/skillopt/status/:job` — train-job state + report. */
   async skilloptStatus(jobId: string): Promise<Record<string, unknown>> {
-    const res = await fetch(`${this.baseUrl}/v1/skillopt/status/${encodeURIComponent(jobId)}`);
+    const res = await this.authedFetch(`${this.baseUrl}/v1/skillopt/status/${encodeURIComponent(jobId)}`);
     if (!res.ok) throw new Error(`skillopt.status failed: ${res.status} ${await res.text()}`);
     return res.json() as Promise<Record<string, unknown>>;
   }
 
   /** `POST /v1/skillopt/cancel/:job` — best-effort cancel. */
   async skilloptCancel(jobId: string): Promise<Record<string, unknown>> {
-    const res = await fetch(`${this.baseUrl}/v1/skillopt/cancel/${encodeURIComponent(jobId)}`, { method: 'POST' });
+    const res = await this.authedFetch(`${this.baseUrl}/v1/skillopt/cancel/${encodeURIComponent(jobId)}`, { method: 'POST' });
     if (!res.ok) throw new Error(`skillopt.cancel failed: ${res.status} ${await res.text()}`);
     return res.json() as Promise<Record<string, unknown>>;
   }
 
   /** `POST /v1/skillopt/promote {skill, content}` — write `*.opt.md` to the per-workspace override dir `<ws>/.vibecli/skills/` (shipped skills/*.md untouched). */
   async skilloptPromote(skill: string, content: string): Promise<Record<string, unknown>> {
-    const res = await fetch(`${this.baseUrl}/v1/skillopt/promote`, {
+    const res = await this.authedFetch(`${this.baseUrl}/v1/skillopt/promote`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ skill, content }),
@@ -464,7 +523,7 @@ export class VibeCLIClient {
 
   /** Stream agent events for a running session. */
   async *streamAgent(sessionId: string): AsyncGenerator<AgentEvent> {
-    const res = await fetch(`${this.baseUrl}/stream/${sessionId}`);
+    const res = await this.authedFetch(`${this.baseUrl}/stream/${sessionId}`);
     if (!res.ok || !res.body) {
       throw new Error(`Stream not found: ${sessionId}`);
     }

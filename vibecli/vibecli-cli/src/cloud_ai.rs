@@ -64,13 +64,13 @@ impl fmt::Display for CloudError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Catalog(m) => write!(f, "cloud catalog is invalid: {m}"),
-            Self::UnknownBackend(id) => write!(f, "no cloud backend named '{id}' (see `vibecli cloud list`)"),
+            Self::UnknownBackend(id) => write!(f, "no cloud backend named '{id}' (see `vibecli --cloud-ai list`)"),
             Self::StageUnsupported { backend, stage } => {
                 write!(f, "backend '{backend}' does not support the {stage} stage")
             }
             Self::MissingVar { backend, var } => write!(
                 f,
-                "backend '{backend}' needs '{var}' — set it with `vibecli cloud set {backend} {var} <value>`"
+                "backend '{backend}' needs '{var}' — set it with `vibecli --cloud-ai set {backend} {var} <value>`"
             ),
             Self::MissingCredential { backend, credential } => write!(
                 f,
@@ -192,6 +192,9 @@ pub struct Endpoint {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ApiShape {
+    /// Renamed explicitly: the derived name would be `open_ai_chat`, and the
+    /// catalog should read the way the vendors spell it.
+    #[serde(rename = "openai_chat")]
     OpenAiChat,
     BedrockConverse,
     OciChat,
@@ -615,6 +618,803 @@ impl AwsCredential {
     }
 }
 
+// ── AWS SigV4 ────────────────────────────────────────────────────────────────
+
+use hmac::{Hmac, Mac};
+use sha2::{Digest, Sha256};
+
+fn sha256_hex(data: &[u8]) -> String {
+    hex::encode(Sha256::digest(data))
+}
+
+fn hmac_sha256(key: &[u8], data: &[u8]) -> Vec<u8> {
+    // Hmac accepts a key of any length; the error case is unreachable.
+    let mut mac = match <Hmac<Sha256>>::new_from_slice(key) {
+        Ok(m) => m,
+        Err(_) => return Vec::new(),
+    };
+    mac.update(data);
+    mac.finalize().into_bytes().to_vec()
+}
+
+fn derive_signing_key(secret: &str, date: &str, region: &str, service: &str) -> Vec<u8> {
+    let k = hmac_sha256(format!("AWS4{secret}").as_bytes(), date.as_bytes());
+    let k = hmac_sha256(&k, region.as_bytes());
+    let k = hmac_sha256(&k, service.as_bytes());
+    hmac_sha256(&k, b"aws4_request")
+}
+
+/// Build a SigV4 `Authorization` header for a JSON POST.
+///
+/// Split out and tested against the AWS documentation example so the signing
+/// path is verifiable without a live account.
+#[allow(clippy::too_many_arguments)]
+fn sigv4_authorization(
+    access_key: &str,
+    secret_key: &str,
+    region: &str,
+    service: &str,
+    host: &str,
+    path: &str,
+    payload: &[u8],
+    datetime: &str,
+) -> String {
+    let date = &datetime[..8.min(datetime.len())];
+    let payload_hash = sha256_hex(payload);
+    let canonical_headers =
+        format!("content-type:application/json\nhost:{host}\nx-amz-date:{datetime}\n");
+    let signed_headers = "content-type;host;x-amz-date";
+    let canonical_request = format!(
+        "POST\n{path}\n\n{canonical_headers}\n{signed_headers}\n{payload_hash}"
+    );
+    let scope = format!("{date}/{region}/{service}/aws4_request");
+    let string_to_sign = format!(
+        "AWS4-HMAC-SHA256\n{datetime}\n{scope}\n{}",
+        sha256_hex(canonical_request.as_bytes())
+    );
+    let signing_key = derive_signing_key(secret_key, date, region, service);
+    let signature = hex::encode(hmac_sha256(&signing_key, string_to_sign.as_bytes()));
+    format!(
+        "AWS4-HMAC-SHA256 Credential={access_key}/{scope}, SignedHeaders={signed_headers}, Signature={signature}"
+    )
+}
+
+fn amz_datetime() -> String {
+    chrono::Utc::now().format("%Y%m%dT%H%M%SZ").to_string()
+}
+
+// ── Chat ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatMessage {
+    pub role: String,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ChatRequest {
+    pub model: String,
+    pub messages: Vec<ChatMessage>,
+    pub max_tokens: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ChatResponse {
+    pub backend_id: String,
+    pub model: String,
+    pub text: String,
+    pub latency_ms: u64,
+    pub input_tokens: Option<u64>,
+    pub output_tokens: Option<u64>,
+}
+
+/// Render a generic chat request onto a provider's wire format.
+fn chat_body(shape: ApiShape, req: &ChatRequest, vars: &HashMap<String, String>) -> serde_json::Value {
+    let messages: Vec<serde_json::Value> = req
+        .messages
+        .iter()
+        .map(|m| serde_json::json!({"role": m.role, "content": m.content}))
+        .collect();
+    match shape {
+        ApiShape::OpenAiChat => {
+            let mut v = serde_json::json!({"model": req.model, "messages": messages});
+            if let Some(max) = req.max_tokens {
+                v["max_tokens"] = serde_json::json!(max);
+            }
+            v
+        }
+        ApiShape::BedrockConverse => {
+            // Bedrock Converse nests content as typed blocks and carries the
+            // model in the URL rather than the body.
+            let msgs: Vec<serde_json::Value> = req
+                .messages
+                .iter()
+                .filter(|m| m.role != "system")
+                .map(|m| serde_json::json!({"role": m.role, "content": [{"text": m.content}]}))
+                .collect();
+            let mut v = serde_json::json!({"messages": msgs});
+            if let Some(max) = req.max_tokens {
+                v["inferenceConfig"] = serde_json::json!({"maxTokens": max});
+            }
+            let system: Vec<serde_json::Value> = req
+                .messages
+                .iter()
+                .filter(|m| m.role == "system")
+                .map(|m| serde_json::json!({"text": m.content}))
+                .collect();
+            if !system.is_empty() {
+                v["system"] = serde_json::json!(system);
+            }
+            v
+        }
+        ApiShape::OciChat => serde_json::json!({
+            "compartmentId": vars.get("compartment_id").cloned().unwrap_or_default(),
+            "servingMode": {"servingType": "ON_DEMAND", "modelId": req.model},
+            "chatRequest": {
+                "apiFormat": "GENERIC",
+                "messages": req.messages.iter().map(|m| serde_json::json!({
+                    "role": m.role.to_uppercase(),
+                    "content": [{"type": "TEXT", "text": m.content}]
+                })).collect::<Vec<_>>(),
+                "maxTokens": req.max_tokens.unwrap_or(1024),
+            }
+        }),
+        ApiShape::WatsonxChat => {
+            let mut v = serde_json::json!({
+                "model_id": req.model,
+                "messages": messages,
+                "project_id": vars.get("project_id").cloned().unwrap_or_default(),
+            });
+            if let Some(max) = req.max_tokens {
+                v["max_tokens"] = serde_json::json!(max);
+            }
+            v
+        }
+        // Training shapes never carry a chat body.
+        _ => serde_json::json!({}),
+    }
+}
+
+/// Pull assistant text out of a provider response.
+fn chat_text(shape: ApiShape, body: &serde_json::Value) -> Option<String> {
+    match shape {
+        ApiShape::OpenAiChat => body
+            .pointer("/choices/0/message/content")
+            .and_then(|v| v.as_str())
+            .map(str::to_string),
+        ApiShape::BedrockConverse => body
+            .pointer("/output/message/content/0/text")
+            .and_then(|v| v.as_str())
+            .map(str::to_string),
+        ApiShape::OciChat => body
+            .pointer("/chatResponse/choices/0/message/content/0/text")
+            .and_then(|v| v.as_str())
+            .map(str::to_string),
+        ApiShape::WatsonxChat => body
+            .pointer("/choices/0/message/content")
+            .and_then(|v| v.as_str())
+            .map(str::to_string),
+        _ => None,
+    }
+}
+
+fn usage_pair(shape: ApiShape, body: &serde_json::Value) -> (Option<u64>, Option<u64>) {
+    let g = |p: &str| body.pointer(p).and_then(|v| v.as_u64());
+    match shape {
+        ApiShape::BedrockConverse => (g("/usage/inputTokens"), g("/usage/outputTokens")),
+        _ => (
+            g("/usage/prompt_tokens").or_else(|| g("/usage/input_tokens")),
+            g("/usage/completion_tokens").or_else(|| g("/usage/output_tokens")),
+        ),
+    }
+}
+
+impl CloudClient {
+    /// Attach auth to a request. Performs real credential work — IBM exchanges
+    /// an IAM token over the network, AWS signs the payload, GCP may shell out
+    /// to `gcloud`.
+    async fn authorize(
+        &self,
+        builder: reqwest::RequestBuilder,
+        resolved: &Resolved,
+        url: &str,
+        payload: &[u8],
+    ) -> Result<reqwest::RequestBuilder> {
+        let cred = resolved.credential.clone().unwrap_or_default();
+        match resolved.auth {
+            AuthKind::None => Ok(builder),
+            AuthKind::Bearer | AuthKind::OciToken => {
+                Ok(builder.header("Authorization", format!("Bearer {cred}")))
+            }
+            AuthKind::ApiKeyHeader => {
+                let header = resolved.auth_header.clone().ok_or_else(|| {
+                    CloudError::Catalog(format!(
+                        "backend '{}' uses api_key_header but declares no auth_header",
+                        resolved.backend_id
+                    ))
+                })?;
+                Ok(builder.header(header, cred))
+            }
+            AuthKind::IbmIam => {
+                let token = self.ibm_iam_token(&cred).await?;
+                Ok(builder.header("Authorization", format!("Bearer {token}")))
+            }
+            AuthKind::GcpBearer => {
+                let token = self.gcp_token(&cred)?;
+                Ok(builder.header("Authorization", format!("Bearer {token}")))
+            }
+            AuthKind::AwsSigv4 => {
+                let creds = AwsCredential::parse(&cred, &resolved.backend_id)?;
+                let region = resolved.vars.get("region").cloned().ok_or_else(|| {
+                    CloudError::MissingVar {
+                        backend: resolved.backend_id.clone(),
+                        var: "region".into(),
+                    }
+                })?;
+                let service = resolved.auth_service.clone().unwrap_or_else(|| "bedrock".into());
+                let parsed = reqwest::Url::parse(url)
+                    .map_err(|e| CloudError::Transport(format!("bad URL {url}: {e}")))?;
+                let host = parsed.host_str().unwrap_or_default().to_string();
+                let datetime = amz_datetime();
+                let auth = sigv4_authorization(
+                    &creds.access_key,
+                    &creds.secret_key,
+                    &region,
+                    &service,
+                    &host,
+                    parsed.path(),
+                    payload,
+                    &datetime,
+                );
+                let mut b = builder
+                    .header("X-Amz-Date", datetime)
+                    .header("Authorization", auth);
+                if let Some(tok) = creds.session_token {
+                    b = b.header("X-Amz-Security-Token", tok);
+                }
+                Ok(b)
+            }
+        }
+    }
+
+    /// Send a chat completion to a backend. Real request, real response.
+    pub async fn chat(&self, backend_id: &str, req: &ChatRequest) -> Result<ChatResponse> {
+        let mut resolved = self.resolve(backend_id, Stage::Serve)?;
+
+        // Bedrock carries the model in the path.
+        if resolved.api == ApiShape::BedrockConverse {
+            resolved.url = resolved.url.replace("{model}", &req.model);
+        }
+
+        let body = chat_body(resolved.api, req, &resolved.vars);
+        let payload = serde_json::to_vec(&body)
+            .map_err(|e| CloudError::Response(format!("serializing request: {e}")))?;
+
+        let builder = self
+            .http
+            .post(&resolved.url)
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json")
+            .body(payload.clone());
+        let builder = self.authorize(builder, &resolved, &resolved.url, &payload).await?;
+
+        let started = SystemTime::now();
+        let resp = builder
+            .send()
+            .await
+            .map_err(|e| CloudError::Transport(e.to_string()))?;
+        let latency_ms = started.elapsed().map(|d| d.as_millis() as u64).unwrap_or(0);
+
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        if !status.is_success() {
+            return Err(CloudError::Remote {
+                status: status.as_u16(),
+                body: text.chars().take(600).collect(),
+            });
+        }
+        let json: serde_json::Value = serde_json::from_str(&text)
+            .map_err(|e| CloudError::Response(format!("{e}: {}", text.chars().take(200).collect::<String>())))?;
+        let out = chat_text(resolved.api, &json).ok_or_else(|| {
+            CloudError::Response(format!(
+                "no assistant text in {} response",
+                resolved.backend_id
+            ))
+        })?;
+        let (input_tokens, output_tokens) = usage_pair(resolved.api, &json);
+
+        Ok(ChatResponse {
+            backend_id: resolved.backend_id,
+            model: req.model.clone(),
+            text: out,
+            latency_ms,
+            input_tokens,
+            output_tokens,
+        })
+    }
+}
+
+// ── Training ─────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TrainingSpec {
+    /// Base model id, in the target cloud's own naming.
+    pub base_model: String,
+    /// Where the training data lives, in the form the cloud expects
+    /// (an uploaded file id, a `gs://` / `s3://` URI, or an asset id).
+    pub training_data: String,
+    #[serde(default)]
+    pub validation_data: Option<String>,
+    #[serde(default)]
+    pub suffix: Option<String>,
+    #[serde(default)]
+    pub hyperparameters: HashMap<String, serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TrainingJob {
+    pub backend_id: String,
+    pub job_id: String,
+    pub status: String,
+    pub raw: serde_json::Value,
+}
+
+/// Render a training spec onto a cloud's job-submission body.
+fn training_body(
+    shape: ApiShape,
+    spec: &TrainingSpec,
+    vars: &HashMap<String, String>,
+) -> Result<serde_json::Value> {
+    match shape {
+        ApiShape::AzureFineTune => {
+            let mut v = serde_json::json!({
+                "model": spec.base_model,
+                "training_file": spec.training_data,
+            });
+            if let Some(val) = &spec.validation_data {
+                v["validation_file"] = serde_json::json!(val);
+            }
+            if let Some(sfx) = &spec.suffix {
+                v["suffix"] = serde_json::json!(sfx);
+            }
+            if !spec.hyperparameters.is_empty() {
+                v["hyperparameters"] = serde_json::json!(spec.hyperparameters);
+            }
+            Ok(v)
+        }
+        ApiShape::VertexTuningJob => Ok(serde_json::json!({
+            "baseModel": spec.base_model,
+            "supervisedTuningSpec": {
+                "trainingDatasetUri": spec.training_data,
+                "validationDatasetUri": spec.validation_data,
+            },
+            "tunedModelDisplayName": spec.suffix.clone()
+                .unwrap_or_else(|| "vibecody-tuned".to_string()),
+        })),
+        ApiShape::BedrockCustomizationJob => {
+            let role = vars.get("role_arn").ok_or_else(|| CloudError::MissingVar {
+                backend: "aws".into(),
+                var: "role_arn".into(),
+            })?;
+            let output = vars.get("output_uri").ok_or_else(|| CloudError::MissingVar {
+                backend: "aws".into(),
+                var: "output_uri".into(),
+            })?;
+            let name = spec
+                .suffix
+                .clone()
+                .unwrap_or_else(|| format!("vibecody-{}", now_unix()));
+            Ok(serde_json::json!({
+                "jobName": name,
+                "customModelName": name,
+                "roleArn": role,
+                "baseModelIdentifier": spec.base_model,
+                "trainingDataConfig": {"s3Uri": spec.training_data},
+                "outputDataConfig": {"s3Uri": output},
+                "hyperParameters": spec.hyperparameters,
+            }))
+        }
+        ApiShape::WatsonxTraining => {
+            let project = vars.get("project_id").ok_or_else(|| CloudError::MissingVar {
+                backend: "ibm".into(),
+                var: "project_id".into(),
+            })?;
+            Ok(serde_json::json!({
+                "name": spec.suffix.clone().unwrap_or_else(|| "vibecody-tuning".into()),
+                "project_id": project,
+                "prompt_tuning": {
+                    "base_model": {"model_id": spec.base_model},
+                    "task_id": "generation",
+                },
+                "training_data_references": [{
+                    "type": "container",
+                    "location": {"path": spec.training_data},
+                }],
+            }))
+        }
+        other => Err(CloudError::Unsupported(format!(
+            "api shape {other:?} is not a training shape"
+        ))),
+    }
+}
+
+fn training_ids(shape: ApiShape, body: &serde_json::Value) -> (Option<String>, Option<String>) {
+    let s = |p: &str| body.pointer(p).and_then(|v| v.as_str()).map(str::to_string);
+    match shape {
+        ApiShape::AzureFineTune => (s("/id"), s("/status")),
+        ApiShape::VertexTuningJob => (s("/name"), s("/state")),
+        ApiShape::BedrockCustomizationJob => (s("/jobArn"), Some("InProgress".to_string())),
+        ApiShape::WatsonxTraining => (s("/metadata/id"), s("/entity/status/state")),
+        _ => (None, None),
+    }
+}
+
+impl CloudClient {
+    /// Submit a real training job. No local simulation: this either reaches the
+    /// cloud's job API and returns its job id, or it errors.
+    pub async fn submit_training(
+        &self,
+        backend_id: &str,
+        spec: &TrainingSpec,
+    ) -> Result<TrainingJob> {
+        let resolved = self.resolve(backend_id, Stage::Train)?;
+        let body = training_body(resolved.api, spec, &resolved.vars)?;
+        let payload = serde_json::to_vec(&body)
+            .map_err(|e| CloudError::Response(format!("serializing training request: {e}")))?;
+
+        let builder = self
+            .http
+            .post(&resolved.url)
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json")
+            .body(payload.clone());
+        let builder = self.authorize(builder, &resolved, &resolved.url, &payload).await?;
+
+        let resp = builder
+            .send()
+            .await
+            .map_err(|e| CloudError::Transport(e.to_string()))?;
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        if !status.is_success() {
+            return Err(CloudError::Remote {
+                status: status.as_u16(),
+                body: text.chars().take(600).collect(),
+            });
+        }
+        let json: serde_json::Value = serde_json::from_str(&text).unwrap_or(serde_json::json!({}));
+        let (job_id, job_status) = training_ids(resolved.api, &json);
+
+        Ok(TrainingJob {
+            backend_id: resolved.backend_id,
+            job_id: job_id.ok_or_else(|| {
+                CloudError::Response("training response carried no job id".into())
+            })?,
+            status: job_status.unwrap_or_else(|| "submitted".to_string()),
+            raw: json,
+        })
+    }
+
+    /// Poll a training job. Real GET against the same job collection.
+    pub async fn training_status(&self, backend_id: &str, job_id: &str) -> Result<TrainingJob> {
+        let resolved = self.resolve(backend_id, Stage::Train)?;
+        let url = match resolved.url.split_once('?') {
+            Some((base, query)) => format!("{base}/{job_id}?{query}"),
+            None => format!("{}/{job_id}", resolved.url),
+        };
+        let builder = self.http.get(&url).header("Accept", "application/json");
+        let builder = self.authorize(builder, &resolved, &url, b"").await?;
+        let resp = builder
+            .send()
+            .await
+            .map_err(|e| CloudError::Transport(e.to_string()))?;
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        if !status.is_success() {
+            return Err(CloudError::Remote {
+                status: status.as_u16(),
+                body: text.chars().take(600).collect(),
+            });
+        }
+        let json: serde_json::Value = serde_json::from_str(&text).unwrap_or(serde_json::json!({}));
+        let (_, job_status) = training_ids(resolved.api, &json);
+        Ok(TrainingJob {
+            backend_id: resolved.backend_id,
+            job_id: job_id.to_string(),
+            status: job_status.unwrap_or_else(|| "unknown".to_string()),
+            raw: json,
+        })
+    }
+}
+
+// ── Eval ─────────────────────────────────────────────────────────────────────
+
+/// How a case's output is judged. Every variant is a deterministic function of
+/// the real model output — there is no sampled or estimated score.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum Expectation {
+    /// Output must equal `value` after trimming.
+    Exact { value: String },
+    /// Output must contain `value`.
+    Contains { value: String },
+    /// Output must contain none of `values`.
+    Excludes { values: Vec<String> },
+    /// Output must parse as JSON and have a non-null value at `pointer`.
+    JsonPointer { pointer: String },
+    /// Output is written to `file`, then `command` runs; exit code 0 passes.
+    /// This is how a code-generation case is scored: by executing it.
+    Command { file: String, command: String },
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct EvalCase {
+    pub id: String,
+    pub prompt: String,
+    #[serde(default)]
+    pub system: Option<String>,
+    pub expect: Expectation,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct EvalSuite {
+    pub name: String,
+    pub model: String,
+    #[serde(default, rename = "case")]
+    pub cases: Vec<EvalCase>,
+}
+
+impl EvalSuite {
+    pub fn from_toml(text: &str) -> Result<Self> {
+        toml::from_str(text).map_err(|e| CloudError::Catalog(format!("eval suite: {e}")))
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct EvalCaseResult {
+    pub id: String,
+    pub passed: bool,
+    pub detail: String,
+    pub latency_ms: u64,
+    pub output: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct EvalReport {
+    pub suite: String,
+    pub backend_id: String,
+    pub model: String,
+    pub passed: usize,
+    pub failed: usize,
+    pub errored: usize,
+    pub cases: Vec<EvalCaseResult>,
+}
+
+impl EvalReport {
+    pub fn pass_rate(&self) -> f64 {
+        let total = self.passed + self.failed + self.errored;
+        if total == 0 {
+            return 0.0;
+        }
+        self.passed as f64 / total as f64
+    }
+}
+
+/// Score one real model output against its expectation.
+///
+/// Pure and total — the scoring rule is testable without a network, while the
+/// *output* it scores always comes from a real call.
+pub fn score(expect: &Expectation, output: &str, workdir: Option<&std::path::Path>) -> (bool, String) {
+    match expect {
+        Expectation::Exact { value } => {
+            let ok = output.trim() == value.trim();
+            (ok, if ok { "exact match".into() } else { format!("expected exactly {value:?}") })
+        }
+        Expectation::Contains { value } => {
+            let ok = output.contains(value.as_str());
+            (ok, if ok { "substring found".into() } else { format!("missing {value:?}") })
+        }
+        Expectation::Excludes { values } => match values.iter().find(|v| output.contains(v.as_str())) {
+            Some(hit) => (false, format!("contained forbidden {hit:?}")),
+            None => (true, "no forbidden substrings".into()),
+        },
+        Expectation::JsonPointer { pointer } => match serde_json::from_str::<serde_json::Value>(output) {
+            Ok(v) => match v.pointer(pointer) {
+                Some(found) if !found.is_null() => (true, format!("{pointer} present")),
+                _ => (false, format!("no value at {pointer}")),
+            },
+            Err(e) => (false, format!("output is not JSON: {e}")),
+        },
+        Expectation::Command { file, command } => {
+            let dir = match workdir {
+                Some(d) => d.to_path_buf(),
+                None => return (false, "command cases need a working directory".into()),
+            };
+            let target = dir.join(file);
+            if let Some(parent) = target.parent() {
+                if let Err(e) = std::fs::create_dir_all(parent) {
+                    return (false, format!("could not create {}: {e}", parent.display()));
+                }
+            }
+            if let Err(e) = std::fs::write(&target, output) {
+                return (false, format!("could not write {}: {e}", target.display()));
+            }
+            match std::process::Command::new("sh")
+                .arg("-c")
+                .arg(command)
+                .current_dir(&dir)
+                .output()
+            {
+                Ok(out) if out.status.success() => (true, "command exited 0".into()),
+                Ok(out) => (
+                    false,
+                    format!(
+                        "command exited {}: {}",
+                        out.status.code().unwrap_or(-1),
+                        String::from_utf8_lossy(&out.stderr).chars().take(300).collect::<String>()
+                    ),
+                ),
+                Err(e) => (false, format!("command failed to start: {e}")),
+            }
+        }
+    }
+}
+
+impl CloudClient {
+    /// Run an eval suite against a serving backend.
+    ///
+    /// Each case is a real completion scored by a deterministic rule. A case
+    /// whose request fails is counted as `errored` and reported — never scored
+    /// as a pass, and never replaced with a synthetic result.
+    pub async fn run_eval(
+        &self,
+        backend_id: &str,
+        suite: &EvalSuite,
+        workdir: Option<&std::path::Path>,
+    ) -> Result<EvalReport> {
+        // Fail fast on configuration before spending any tokens.
+        let _ = self.resolve(backend_id, Stage::Serve)?;
+
+        let mut cases = Vec::with_capacity(suite.cases.len());
+        let (mut passed, mut failed, mut errored) = (0usize, 0usize, 0usize);
+
+        for case in &suite.cases {
+            let mut messages = Vec::new();
+            if let Some(sys) = &case.system {
+                messages.push(ChatMessage { role: "system".into(), content: sys.clone() });
+            }
+            messages.push(ChatMessage { role: "user".into(), content: case.prompt.clone() });
+
+            let req = ChatRequest {
+                model: suite.model.clone(),
+                messages,
+                max_tokens: Some(2048),
+            };
+            match self.chat(backend_id, &req).await {
+                Ok(resp) => {
+                    let (ok, detail) = score(&case.expect, &resp.text, workdir);
+                    if ok {
+                        passed += 1;
+                    } else {
+                        failed += 1;
+                    }
+                    cases.push(EvalCaseResult {
+                        id: case.id.clone(),
+                        passed: ok,
+                        detail,
+                        latency_ms: resp.latency_ms,
+                        output: resp.text,
+                    });
+                }
+                Err(e) => {
+                    errored += 1;
+                    cases.push(EvalCaseResult {
+                        id: case.id.clone(),
+                        passed: false,
+                        detail: format!("request failed: {e}"),
+                        latency_ms: 0,
+                        output: String::new(),
+                    });
+                }
+            }
+        }
+
+        Ok(EvalReport {
+            suite: suite.name.clone(),
+            backend_id: backend_id.to_string(),
+            model: suite.model.clone(),
+            passed,
+            failed,
+            errored,
+            cases,
+        })
+    }
+}
+
+// ── Routing ──────────────────────────────────────────────────────────────────
+
+/// How the router picks among configured backends.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(tag = "policy", rename_all = "snake_case")]
+pub enum RoutePolicy {
+    /// Try backends in the given order, first ready one wins.
+    Ordered { order: Vec<String> },
+    /// Cheapest configured `price_per_mtok` first.
+    Cheapest,
+    /// Catalog order.
+    FirstReady,
+}
+
+impl Default for RoutePolicy {
+    fn default() -> Self {
+        Self::FirstReady
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RouteDecision {
+    pub backend_id: String,
+    pub reason: String,
+    /// Backends skipped, and why — so a routing choice is always explainable.
+    pub skipped: Vec<(String, String)>,
+}
+
+impl CloudClient {
+    /// Choose a backend for a stage. Pure configuration logic over the
+    /// resolvable set; no network call.
+    pub fn route(&self, stage: Stage, policy: &RoutePolicy) -> Result<RouteDecision> {
+        let mut skipped = Vec::new();
+
+        let candidates: Vec<String> = match policy {
+            RoutePolicy::Ordered { order } => order.clone(),
+            _ => self.catalog.for_stage(stage).iter().map(|b| b.id.clone()).collect(),
+        };
+
+        let mut ready: Vec<(String, Option<f64>)> = Vec::new();
+        for id in &candidates {
+            match self.resolve(id, stage) {
+                Ok(_) => {
+                    let price = self
+                        .config
+                        .var(id, "price_per_mtok")
+                        .and_then(|v| v.parse::<f64>().ok());
+                    ready.push((id.clone(), price));
+                }
+                Err(e) => skipped.push((id.clone(), e.to_string())),
+            }
+        }
+
+        let chosen = match policy {
+            RoutePolicy::Cheapest => ready
+                .iter()
+                .filter(|(_, p)| p.is_some())
+                .min_by(|a, b| {
+                    a.1.unwrap_or(f64::MAX)
+                        .partial_cmp(&b.1.unwrap_or(f64::MAX))
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
+                .or_else(|| ready.first())
+                .cloned(),
+            _ => ready.first().cloned(),
+        };
+
+        match chosen {
+            Some((id, price)) => {
+                let reason = match (policy, price) {
+                    (RoutePolicy::Cheapest, Some(p)) => format!("cheapest configured at ${p}/Mtok"),
+                    (RoutePolicy::Ordered { .. }, _) => "first ready in configured order".into(),
+                    _ => "first ready backend".into(),
+                };
+                Ok(RouteDecision { backend_id: id, reason, skipped })
+            }
+            None => Err(CloudError::Unsupported(format!(
+                "no backend is configured for the {stage} stage ({} candidate(s) skipped; run `vibecli --cloud-ai status` to see why)",
+                skipped.len()
+            ))),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -727,7 +1527,7 @@ mod tests {
         let client = CloudClient::new(Catalog::embedded().unwrap(), cfg);
         let err = client.resolve("azure", Stage::Serve).unwrap_err();
         let msg = err.to_string();
-        assert!(msg.contains("vibecli cloud set azure"), "unhelpful error: {msg}");
+        assert!(msg.contains("vibecli --cloud-ai set azure"), "unhelpful error: {msg}");
     }
 
     #[test]
@@ -781,3 +1581,558 @@ mod tests {
         assert_eq!(Stage::parse("nonsense"), None);
     }
 }
+
+#[cfg(test)]
+mod exec_tests {
+    use super::*;
+
+    // ── SigV4 ────────────────────────────────────────────────────────────────
+    // Signing is the one auth path we can verify offline: AWS publishes a
+    // worked example, so the derived signing key is checked against it rather
+    // than against our own output.
+
+    #[test]
+    fn sigv4_signing_key_matches_the_aws_worked_example() {
+        // From AWS's "Examples of the signature calculation" documentation.
+        let key = derive_signing_key("wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY", "20150830", "us-east-1", "iam");
+        assert_eq!(
+            hex::encode(key),
+            "c4afb1cc5771d871763a393e44b703571b55cc28424d1a5e86da6ed3c154a4b9"
+        );
+    }
+
+    #[test]
+    fn sigv4_authorization_has_the_required_parts() {
+        let auth = sigv4_authorization(
+            "AKIDEXAMPLE", "secret", "us-east-1", "bedrock",
+            "bedrock-runtime.us-east-1.amazonaws.com", "/model/m/converse",
+            b"{}", "20260806T000000Z",
+        );
+        assert!(auth.starts_with("AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20260806/us-east-1/bedrock/aws4_request"));
+        assert!(auth.contains("SignedHeaders=content-type;host;x-amz-date"));
+        assert!(auth.contains("Signature="));
+    }
+
+    #[test]
+    fn sigv4_signature_changes_with_the_payload() {
+        let one = sigv4_authorization("A", "s", "r", "bedrock", "h", "/p", b"{\"a\":1}", "20260806T000000Z");
+        let two = sigv4_authorization("A", "s", "r", "bedrock", "h", "/p", b"{\"a\":2}", "20260806T000000Z");
+        assert_ne!(one, two, "signature must cover the body");
+    }
+
+    // ── Request shaping ──────────────────────────────────────────────────────
+
+    #[test]
+    fn openai_shape_is_flat() {
+        let req = ChatRequest {
+            model: "gpt-oss-120b".into(),
+            messages: vec![ChatMessage { role: "user".into(), content: "hi".into() }],
+            max_tokens: Some(64),
+        };
+        let body = chat_body(ApiShape::OpenAiChat, &req, &HashMap::new());
+        assert_eq!(body["model"], "gpt-oss-120b");
+        assert_eq!(body["messages"][0]["content"], "hi");
+        assert_eq!(body["max_tokens"], 64);
+    }
+
+    #[test]
+    fn bedrock_shape_nests_content_and_lifts_system() {
+        let req = ChatRequest {
+            model: "anthropic.claude-opus-5".into(),
+            messages: vec![
+                ChatMessage { role: "system".into(), content: "be terse".into() },
+                ChatMessage { role: "user".into(), content: "hi".into() },
+            ],
+            max_tokens: Some(32),
+        };
+        let body = chat_body(ApiShape::BedrockConverse, &req, &HashMap::new());
+        // Model rides in the URL, not the body.
+        assert!(body.get("model").is_none());
+        assert_eq!(body["messages"][0]["content"][0]["text"], "hi");
+        assert_eq!(body["system"][0]["text"], "be terse");
+        assert_eq!(body["inferenceConfig"]["maxTokens"], 32);
+    }
+
+    #[test]
+    fn oci_and_watsonx_shapes_carry_their_scoping_ids() {
+        let req = ChatRequest {
+            model: "m".into(),
+            messages: vec![ChatMessage { role: "user".into(), content: "hi".into() }],
+            max_tokens: None,
+        };
+        let mut vars = HashMap::new();
+        vars.insert("compartment_id".to_string(), "ocid1.compartment".to_string());
+        vars.insert("project_id".to_string(), "proj".to_string());
+
+        let oci = chat_body(ApiShape::OciChat, &req, &vars);
+        assert_eq!(oci["compartmentId"], "ocid1.compartment");
+        assert_eq!(oci["chatRequest"]["messages"][0]["role"], "USER");
+
+        let wx = chat_body(ApiShape::WatsonxChat, &req, &vars);
+        assert_eq!(wx["project_id"], "proj");
+        assert_eq!(wx["model_id"], "m");
+    }
+
+    // ── Response parsing ─────────────────────────────────────────────────────
+
+    #[test]
+    fn each_shape_extracts_its_own_response_text() {
+        let openai = serde_json::json!({"choices":[{"message":{"content":"A"}}]});
+        assert_eq!(chat_text(ApiShape::OpenAiChat, &openai).as_deref(), Some("A"));
+
+        let bedrock = serde_json::json!({"output":{"message":{"content":[{"text":"B"}]}}});
+        assert_eq!(chat_text(ApiShape::BedrockConverse, &bedrock).as_deref(), Some("B"));
+
+        let oci = serde_json::json!({"chatResponse":{"choices":[{"message":{"content":[{"text":"C"}]}}]}});
+        assert_eq!(chat_text(ApiShape::OciChat, &oci).as_deref(), Some("C"));
+    }
+
+    #[test]
+    fn missing_text_is_none_not_empty_string() {
+        // An empty string would read as a successful empty completion.
+        assert_eq!(chat_text(ApiShape::OpenAiChat, &serde_json::json!({})), None);
+    }
+
+    #[test]
+    fn usage_is_read_per_shape() {
+        let bedrock = serde_json::json!({"usage":{"inputTokens":10,"outputTokens":3}});
+        assert_eq!(usage_pair(ApiShape::BedrockConverse, &bedrock), (Some(10), Some(3)));
+        let openai = serde_json::json!({"usage":{"prompt_tokens":7,"completion_tokens":2}});
+        assert_eq!(usage_pair(ApiShape::OpenAiChat, &openai), (Some(7), Some(2)));
+    }
+
+    // ── Training ─────────────────────────────────────────────────────────────
+
+    #[test]
+    fn training_bodies_match_each_cloud() {
+        let spec = TrainingSpec {
+            base_model: "base".into(),
+            training_data: "file-1".into(),
+            validation_data: None,
+            suffix: Some("run7".into()),
+            hyperparameters: HashMap::new(),
+        };
+        let az = training_body(ApiShape::AzureFineTune, &spec, &HashMap::new()).unwrap();
+        assert_eq!(az["training_file"], "file-1");
+        assert_eq!(az["suffix"], "run7");
+
+        let gc = training_body(ApiShape::VertexTuningJob, &spec, &HashMap::new()).unwrap();
+        assert_eq!(gc["supervisedTuningSpec"]["trainingDatasetUri"], "file-1");
+
+        let mut vars = HashMap::new();
+        vars.insert("project_id".to_string(), "p".to_string());
+        let ibm = training_body(ApiShape::WatsonxTraining, &spec, &vars).unwrap();
+        assert_eq!(ibm["project_id"], "p");
+    }
+
+    #[test]
+    fn bedrock_training_requires_role_and_output_and_says_so() {
+        let spec = TrainingSpec {
+            base_model: "b".into(), training_data: "s3://in".into(),
+            validation_data: None, suffix: None, hyperparameters: HashMap::new(),
+        };
+        match training_body(ApiShape::BedrockCustomizationJob, &spec, &HashMap::new()) {
+            Err(CloudError::MissingVar { var, .. }) => assert_eq!(var, "role_arn"),
+            other => panic!("expected MissingVar(role_arn), got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_chat_shape_is_rejected_as_a_training_shape() {
+        let spec = TrainingSpec {
+            base_model: "b".into(), training_data: "d".into(),
+            validation_data: None, suffix: None, hyperparameters: HashMap::new(),
+        };
+        assert!(training_body(ApiShape::OpenAiChat, &spec, &HashMap::new()).is_err());
+    }
+
+    #[test]
+    fn job_ids_are_read_per_cloud() {
+        assert_eq!(
+            training_ids(ApiShape::AzureFineTune, &serde_json::json!({"id":"ft-1","status":"running"})),
+            (Some("ft-1".into()), Some("running".into()))
+        );
+        assert_eq!(
+            training_ids(ApiShape::WatsonxTraining, &serde_json::json!({"metadata":{"id":"t-1"},"entity":{"status":{"state":"pending"}}})),
+            (Some("t-1".into()), Some("pending".into()))
+        );
+    }
+
+    // ── Eval scoring — deterministic, over real output ───────────────────────
+
+    #[test]
+    fn exact_and_contains_scoring() {
+        assert!(score(&Expectation::Exact { value: "42".into() }, " 42 \n", None).0);
+        assert!(!score(&Expectation::Exact { value: "42".into() }, "43", None).0);
+        assert!(score(&Expectation::Contains { value: "fn main".into() }, "pub fn main() {}", None).0);
+    }
+
+    #[test]
+    fn excludes_names_the_offending_substring() {
+        let (ok, detail) = score(
+            &Expectation::Excludes { values: vec!["unwrap(".into()] },
+            "let x = y.unwrap();",
+            None,
+        );
+        assert!(!ok);
+        assert!(detail.contains("unwrap("), "detail should name the hit: {detail}");
+    }
+
+    #[test]
+    fn json_pointer_scoring_requires_real_json() {
+        let e = Expectation::JsonPointer { pointer: "/name".into() };
+        assert!(score(&e, r#"{"name":"x"}"#, None).0);
+        assert!(!score(&e, r#"{"other":1}"#, None).0);
+        assert!(!score(&e, "not json", None).0);
+        // Null is absent, not present.
+        assert!(!score(&e, r#"{"name":null}"#, None).0);
+    }
+
+    #[test]
+    fn command_scoring_actually_executes() {
+        let dir = std::env::temp_dir().join(format!("vibecody-eval-{}", now_unix()));
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let pass = score(
+            &Expectation::Command { file: "out.txt".into(), command: "grep -q hello out.txt".into() },
+            "hello world",
+            Some(&dir),
+        );
+        assert!(pass.0, "{}", pass.1);
+
+        let fail = score(
+            &Expectation::Command { file: "out.txt".into(), command: "grep -q nothere out.txt".into() },
+            "hello world",
+            Some(&dir),
+        );
+        assert!(!fail.0);
+        assert!(fail.1.contains("exited"), "should report the exit code: {}", fail.1);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn command_scoring_without_a_workdir_fails_rather_than_passing() {
+        let (ok, _) = score(
+            &Expectation::Command { file: "f".into(), command: "true".into() },
+            "x",
+            None,
+        );
+        assert!(!ok, "a case that cannot be executed must never count as a pass");
+    }
+
+    #[test]
+    fn eval_suite_parses_from_toml() {
+        let suite = EvalSuite::from_toml(
+            r#"
+            name = "smoke"
+            model = "gpt-oss-120b"
+
+            [[case]]
+            id = "adds"
+            prompt = "2+2, digits only"
+            expect = { kind = "exact", value = "4" }
+
+            [[case]]
+            id = "compiles"
+            prompt = "a rust hello world"
+            expect = { kind = "command", file = "m.rs", command = "rustc --edition 2021 m.rs -o m" }
+            "#,
+        )
+        .unwrap();
+        assert_eq!(suite.cases.len(), 2);
+        assert_eq!(suite.cases[0].expect, Expectation::Exact { value: "4".into() });
+    }
+
+    #[test]
+    fn pass_rate_counts_errors_against_the_total() {
+        let r = EvalReport {
+            suite: "s".into(), backend_id: "b".into(), model: "m".into(),
+            passed: 3, failed: 1, errored: 1, cases: vec![],
+        };
+        assert!((r.pass_rate() - 0.6).abs() < 1e-9, "errors must not be excluded from the denominator");
+    }
+
+    // ── Routing ──────────────────────────────────────────────────────────────
+
+    fn client_with(cfg: ConfigSource) -> CloudClient {
+        CloudClient::new(Catalog::embedded().unwrap(), cfg)
+    }
+
+    #[test]
+    fn routing_picks_the_first_ready_backend_and_explains_the_skips() {
+        let cfg = ConfigSource::memory().with_credential("digitalocean", "k");
+        let d = client_with(cfg).route(Stage::Serve, &RoutePolicy::FirstReady).unwrap();
+        assert_eq!(d.backend_id, "digitalocean");
+        assert!(!d.skipped.is_empty(), "unconfigured backends should be reported");
+        assert!(d.skipped.iter().any(|(id, why)| id == "azure" && !why.is_empty()));
+    }
+
+    #[test]
+    fn ordered_routing_respects_the_configured_order() {
+        let cfg = ConfigSource::memory()
+            .with_credential("digitalocean", "k")
+            .with_credential("custom_cloud", "k")
+            .with_var("custom", "base_url", "http://localhost:8000/v1");
+        let d = client_with(cfg)
+            .route(Stage::Serve, &RoutePolicy::Ordered { order: vec!["custom".into(), "digitalocean".into()] })
+            .unwrap();
+        assert_eq!(d.backend_id, "custom");
+    }
+
+    #[test]
+    fn cheapest_routing_uses_configured_price() {
+        let cfg = ConfigSource::memory()
+            .with_credential("digitalocean", "k")
+            .with_var("digitalocean", "price_per_mtok", "0.90")
+            .with_credential("custom_cloud", "k")
+            .with_var("custom", "base_url", "http://localhost:8000/v1")
+            .with_var("custom", "price_per_mtok", "0.10");
+        let d = client_with(cfg).route(Stage::Serve, &RoutePolicy::Cheapest).unwrap();
+        assert_eq!(d.backend_id, "custom");
+        assert!(d.reason.contains("0.1"), "reason should quote the price: {}", d.reason);
+    }
+
+    #[test]
+    fn routing_with_nothing_configured_errors_with_a_next_step() {
+        let err = client_with(ConfigSource::memory())
+            .route(Stage::Serve, &RoutePolicy::FirstReady)
+            .unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("vibecli --cloud-ai status"), "should point at the diagnostic: {msg}");
+    }
+
+    #[test]
+    fn training_routing_only_considers_training_backends() {
+        let cfg = ConfigSource::memory()
+            .with_credential("digitalocean", "k") // serve-only
+            .with_credential("ibm_watsonx", "k")
+            .with_var("ibm", "region", "us-south")
+            .with_var("ibm", "project_id", "p")
+            .with_var("ibm", "api_version", "2024-10-08");
+        let d = client_with(cfg).route(Stage::Train, &RoutePolicy::FirstReady).unwrap();
+        assert_eq!(d.backend_id, "ibm", "a serve-only backend must never win a train route");
+    }
+}
+
+// ── CLI ──────────────────────────────────────────────────────────────────────
+
+/// `vibecli --cloud-ai <subcommand> [args...]`
+///
+/// Everything needed to wire up a cloud: inspect the catalog, see exactly what
+/// each backend still needs, set those values, and exercise each stage against
+/// the real provider.
+pub async fn run_cli(subcommand: &str, args: &[String]) -> anyhow::Result<()> {
+    match subcommand {
+        "list" => cli_list(),
+        "status" => cli_status(args),
+        "set" => cli_set(args),
+        "chat" => cli_chat(args).await,
+        "train" => cli_train(args).await,
+        "job" => cli_job(args).await,
+        "eval" => cli_eval(args).await,
+        "route" => cli_route(args),
+        other => {
+            eprintln!("Unknown cloud subcommand: {other}\n");
+            print_cloud_usage();
+            std::process::exit(1);
+        }
+    }
+}
+
+pub fn print_cloud_usage() {
+    eprintln!(
+        "\
+Cloud AI backends — serving, training, eval and routing.
+
+  vibecli --cloud-ai list
+      Show every backend, the stages it serves, and how its endpoints were verified.
+
+  vibecli --cloud-ai status [serve|train]
+      Show which backends are ready, and exactly what each unready one is missing.
+
+  vibecli --cloud-ai set <backend> <var> <value>
+      Store a configuration value (region, project, base_url, price_per_mtok, ...).
+      Credentials go in the encrypted store separately: vibecli set-key <name> <value>
+
+  vibecli --cloud-ai chat <backend> <model> <prompt...>
+      Send one real completion.
+
+  vibecli --cloud-ai train <backend> <base-model> <training-data> [suffix]
+      Submit a real training job and print its id.
+
+  vibecli --cloud-ai job <backend> <job-id>
+      Poll a training job.
+
+  vibecli --cloud-ai eval <backend> <suite.toml> [workdir]
+      Run an eval suite: real completions, deterministic scoring.
+
+  vibecli --cloud-ai route <serve|train> [first-ready|cheapest|ordered:a,b,c]
+      Show which backend a policy selects, and why the others were skipped."
+    );
+}
+
+fn cli_list() -> anyhow::Result<()> {
+    let catalog = Catalog::load()?;
+    println!("{:<15} {:<34} {:<12} {}", "ID", "PROVIDER", "STAGES", "ENDPOINTS VERIFIED");
+    println!("{}", "-".repeat(96));
+    for b in &catalog.backends {
+        let stages: Vec<String> = b.stages.iter().map(|s| s.to_string()).collect();
+        println!(
+            "{:<15} {:<34} {:<12} {}",
+            b.id,
+            b.display_name,
+            stages.join(","),
+            b.verified.clone().unwrap_or_else(|| "-".into())
+        );
+    }
+    println!(
+        "\n{} backends. Eval and routing run on top of any serve-capable backend.",
+        catalog.backends.len()
+    );
+    Ok(())
+}
+
+fn cli_status(args: &[String]) -> anyhow::Result<()> {
+    let stage = args.first().and_then(|s| Stage::parse(s)).unwrap_or(Stage::Serve);
+    let client = CloudClient::open()?;
+    println!("Readiness for the {stage} stage:\n");
+    let mut ready = 0;
+    for row in client.readiness(stage) {
+        if row.ready {
+            ready += 1;
+            println!("  [ready]   {:<14} {}", row.backend_id, row.detail);
+        } else {
+            println!("  [config]  {:<14} {}", row.backend_id, row.detail);
+        }
+    }
+    println!("\n{ready} backend(s) ready.");
+    Ok(())
+}
+
+fn cli_set(args: &[String]) -> anyhow::Result<()> {
+    let [backend, key, value, ..] = args else {
+        anyhow::bail!("usage: vibecli --cloud-ai set <backend> <var> <value>");
+    };
+    let catalog = Catalog::load()?;
+    catalog.get(backend)?; // reject typos before writing
+    let config = ConfigSource::profile()?;
+    config.set_var(backend, key, value)?;
+    println!("Set {backend}.{key}");
+    Ok(())
+}
+
+async fn cli_chat(args: &[String]) -> anyhow::Result<()> {
+    let [backend, model, rest @ ..] = args else {
+        anyhow::bail!("usage: vibecli --cloud-ai chat <backend> <model> <prompt...>");
+    };
+    if rest.is_empty() {
+        anyhow::bail!("no prompt given");
+    }
+    let client = CloudClient::open()?;
+    let req = ChatRequest {
+        model: model.clone(),
+        messages: vec![ChatMessage { role: "user".into(), content: rest.join(" ") }],
+        max_tokens: Some(2048),
+    };
+    let resp = client.chat(backend, &req).await?;
+    println!("{}", resp.text);
+    eprintln!(
+        "\n[{} | {} | {}ms | in {} / out {}]",
+        resp.backend_id,
+        resp.model,
+        resp.latency_ms,
+        resp.input_tokens.map(|t| t.to_string()).unwrap_or_else(|| "?".into()),
+        resp.output_tokens.map(|t| t.to_string()).unwrap_or_else(|| "?".into()),
+    );
+    Ok(())
+}
+
+async fn cli_train(args: &[String]) -> anyhow::Result<()> {
+    let [backend, base_model, training_data, rest @ ..] = args else {
+        anyhow::bail!("usage: vibecli --cloud-ai train <backend> <base-model> <training-data> [suffix]");
+    };
+    let client = CloudClient::open()?;
+    let spec = TrainingSpec {
+        base_model: base_model.clone(),
+        training_data: training_data.clone(),
+        validation_data: None,
+        suffix: rest.first().cloned(),
+        hyperparameters: HashMap::new(),
+    };
+    let job = client.submit_training(backend, &spec).await?;
+    println!("Submitted to {}: job {} ({})", job.backend_id, job.job_id, job.status);
+    println!("Poll with: vibecli --cloud-ai job {} {}", job.backend_id, job.job_id);
+    Ok(())
+}
+
+async fn cli_job(args: &[String]) -> anyhow::Result<()> {
+    let [backend, job_id, ..] = args else {
+        anyhow::bail!("usage: vibecli --cloud-ai job <backend> <job-id>");
+    };
+    let client = CloudClient::open()?;
+    let job = client.training_status(backend, job_id).await?;
+    println!("{}: {}", job.job_id, job.status);
+    Ok(())
+}
+
+async fn cli_eval(args: &[String]) -> anyhow::Result<()> {
+    let [backend, suite_path, rest @ ..] = args else {
+        anyhow::bail!("usage: vibecli --cloud-ai eval <backend> <suite.toml> [workdir]");
+    };
+    let text = std::fs::read_to_string(suite_path)
+        .map_err(|e| anyhow::anyhow!("reading {suite_path}: {e}"))?;
+    let suite = EvalSuite::from_toml(&text)?;
+    let workdir = rest.first().map(PathBuf::from);
+
+    let client = CloudClient::open()?;
+    let report = client.run_eval(backend, &suite, workdir.as_deref()).await?;
+
+    for case in &report.cases {
+        let mark = if case.passed { "pass" } else { "FAIL" };
+        println!("  [{mark}] {:<28} {} ({}ms)", case.id, case.detail, case.latency_ms);
+    }
+    println!(
+        "\n{}: {}/{} passed ({:.0}%) - {} failed, {} errored, on {}",
+        report.suite,
+        report.passed,
+        report.cases.len(),
+        report.pass_rate() * 100.0,
+        report.failed,
+        report.errored,
+        report.backend_id,
+    );
+    if report.errored > 0 {
+        eprintln!("\nNote: errored cases count as not-passed; they are never scored optimistically.");
+    }
+    Ok(())
+}
+
+fn cli_route(args: &[String]) -> anyhow::Result<()> {
+    let stage = args.first().and_then(|s| Stage::parse(s)).unwrap_or(Stage::Serve);
+    let policy = match args.get(1).map(String::as_str) {
+        Some("cheapest") => RoutePolicy::Cheapest,
+        Some(spec) if spec.starts_with("ordered:") => RoutePolicy::Ordered {
+            order: spec
+                .trim_start_matches("ordered:")
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect(),
+        },
+        _ => RoutePolicy::FirstReady,
+    };
+    let client = CloudClient::open()?;
+    let decision = client.route(stage, &policy)?;
+    println!("-> {} ({})", decision.backend_id, decision.reason);
+    if !decision.skipped.is_empty() {
+        println!("\nSkipped:");
+        for (id, why) in &decision.skipped {
+            println!("  {id:<14} {why}");
+        }
+    }
+    Ok(())
+}
+
+// No `From<CloudError> for anyhow::Error` here: CloudError implements
+// std::error::Error, so anyhow's blanket impl already covers `?`.
