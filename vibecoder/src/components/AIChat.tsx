@@ -1863,11 +1863,14 @@ export function AIChat({
         // Reasoning models put a `<thinking>` block in the summary; show it in
         // the collapsible slot rather than inline with the answer.
         const [summary, thinkingText] = extractThinking(e.payload ?? "");
+        // If the whole summary was reasoning, show it rather than a content-free
+        // "Agent task complete." — collapsing it would leave the user with nothing.
+        const hasSummary = summary.trim().length > 0;
         setMessages((prev) => [...prev, {
           role: "assistant",
-          content: summary || "Agent task complete.",
+          content: hasSummary ? summary : thinkingText || "Agent task complete.",
           timestamp: Date.now(),
-          thinking: thinkingText || undefined,
+          thinking: hasSummary ? thinkingText || undefined : undefined,
         }]);
         setPendingApproval(null);
         setAgentSteps([]);

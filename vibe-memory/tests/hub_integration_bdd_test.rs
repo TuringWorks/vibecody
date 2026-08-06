@@ -4,7 +4,6 @@
 //! These tests verify the behavior of the orchestrator that combines
 //! project and global stores with proper weighting and budgeting.
 
-use std::path::PathBuf;
 use tempfile::TempDir;
 use vibe_memory::*;
 
@@ -64,6 +63,15 @@ async fn layered_context_merge() {
 
     // Project entries should be included
     assert!(project_results > 0, "Should have project results");
+
+    // Every returned row must be attributed to one of the two stores — this is
+    // what "merged" means, and it was the only thing `global_results` was
+    // computed for (it was never asserted, so the compiler flagged it unused).
+    assert_eq!(
+        project_results + global_results,
+        results.len(),
+        "every merged result must be tagged Project or Global"
+    );
 
     // Results should be sorted by composite score
     for window in results.windows(2) {
@@ -365,9 +373,19 @@ async fn consolidate_across_stores() {
         .await
         .expect("consolidate");
 
-    // Should have run without error
-    assert!(report.project_purged >= 0);
-    assert!(report.global_purged >= 0);
+    // `PurgeReport` reports totals plus which stores took part. The old
+    // `project_purged`/`global_purged` fields no longer exist, and asserting
+    // `usize >= 0` proved nothing anyway — check the store labels instead,
+    // which is what "across stores" actually means.
+    assert!(
+        !report.project_store.is_empty(),
+        "consolidate should name the project store it processed"
+    );
+    assert!(
+        report.entries_purged <= 2,
+        "only the two seeded entries could have been purged, saw {}",
+        report.entries_purged
+    );
 
     // At minimum, the important memories should survive
     let context = hub
@@ -383,7 +401,7 @@ async fn consolidate_across_stores() {
 #[tokio::test]
 async fn custom_sector_weights() {
     let workspace = TempDir::new().unwrap();
-    let mut hub = MemoryContextHub::new();
+    let hub = MemoryContextHub::new();
 
     // Add memories in different sectors
     hub.store_to_project(workspace.path(), "Yesterday we discussed authentication") // episodic
@@ -394,9 +412,11 @@ async fn custom_sector_weights() {
         .expect("semantic");
 
     // Set high weight for episodic (default is 1.2, let's boost it)
-    let mut weights = hub.sector_weights().clone();
+    // Both accessors are async now (the weights live behind an RwLock), so the
+    // reader already hands back an owned clone — `.await`, not `.clone()`.
+    let mut weights = hub.sector_weights().await;
     weights.insert("episodic".to_string(), 2.0);
-    hub.set_sector_weights(weights);
+    hub.set_sector_weights(weights).await;
 
     // Search should now prioritize episodic
     let results = hub
@@ -480,7 +500,7 @@ async fn concurrent_access_safety() {
 
     // Spawn multiple concurrent queries
     let handles: Vec<_> = (0..10)
-        .map(|i| {
+        .map(|_i| {
             let hub = hub.clone();
             let path = workspace.path().to_path_buf();
             tokio::spawn(async move { hub.search_context(&path, "memory", 5, None).await })
@@ -517,12 +537,14 @@ async fn clear_store() {
         .expect("proj");
     hub.store_global("Global data").await.expect("global");
 
-    // Clear project store
+    // Clear project store. `clear_project()` drops the in-memory handle and
+    // returns nothing; `clear_project_memories(workspace)` is the one that
+    // deletes rows and reports how many — which is what this scenario asserts.
     let cleared = hub
-        .clear_project(workspace.path())
+        .clear_project_memories(workspace.path())
         .await
         .expect("clear project");
-    assert!(cleared >= 1);
+    assert!(cleared >= 1, "the seeded project entry should be cleared");
 
     // Project should be empty
     let proj_results = hub

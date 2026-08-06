@@ -130,6 +130,12 @@ use std::sync::Arc;
 mod async_subagent;
 mod auth_util;
 mod config;
+// The daemon binary only consumes `SERVICE_NAME` (via `serve.rs`'s `/health`).
+// The rest of this module is the client-side bootstrap API used by the Tauri
+// shells through the `vibecli` *library* target, so it is legitimately unused
+// here rather than dead.
+#[allow(dead_code)]
+mod daemon_bootstrap;
 mod diff_viewer;
 mod mcp_apps_payload;
 mod mcp_taint;

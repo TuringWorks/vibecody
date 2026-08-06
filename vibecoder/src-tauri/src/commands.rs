@@ -57272,22 +57272,35 @@ pub(crate) async fn port_open(port: u16) -> bool {
 }
 
 /// Return the current daemon status (is it reachable, and did VibeCoder spawn it?).
+///
+/// `running` means **VibeCLI** answered `/health`, not merely that something
+/// accepted a TCP connection on the port — see `daemon_bootstrap::probe`. The
+/// two are reported separately so the UI can say "port 7878 is taken by another
+/// program" instead of showing a healthy daemon that isn't there.
 #[tauri::command]
 pub async fn get_daemon_status(
     state: tauri::State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
-    let running = port_open(7878).await;
+    use vibecli_cli::daemon_bootstrap as boot;
+    let port = boot::default_port();
+    let identity = boot::probe(port).await;
+    let running = identity.is_some();
+    // Only meaningful when the daemon didn't answer: is the port free, or held
+    // by something that isn't us?
+    let port_taken_by_other = !running && boot::port_is_occupied(port).await;
     let managed = {
         let guard = state.daemon_process.lock().await;
         guard.is_some()
     };
-    let binary_path = find_vibecli_binary().map(|p| p.to_string_lossy().to_string());
+    let binary_path = boot::find_binary().map(|p| p.to_string_lossy().to_string());
     Ok(serde_json::json!({
         "running": running,
         "managed": managed,          // true if VibeCoder spawned this instance
-        "port": 7878,
-        "url": "http://localhost:7878",
+        "port": port,
+        "url": format!("http://localhost:{port}"),
         "binary": binary_path,
+        "version": identity.as_ref().map(|i| i.version.clone()),
+        "port_taken_by_other": port_taken_by_other,
     }))
 }
 

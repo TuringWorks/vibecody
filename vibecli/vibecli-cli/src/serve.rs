@@ -749,6 +749,12 @@ async fn health(State(state): State<ServeState>) -> impl IntoResponse {
     let token_age_seconds = now_unix.saturating_sub(state.api_token_minted_at_unix);
     Json(serde_json::json!({
         "status": "ok",
+        // Service identity. Clients autostarting the daemon need to tell
+        // "vibecli is listening on this port" from "*something* is listening
+        // on this port" — without it, an unrelated local service on 7878 reads
+        // as a healthy daemon and every panel fails with a confusing error.
+        // `daemon_bootstrap::probe` requires this exact value.
+        "service": crate::daemon_bootstrap::SERVICE_NAME,
         "version": env!("CARGO_PKG_VERSION"),
         // Bearer token freshness signal. The daemon mints a fresh token on
         // every `vibecli serve` start; this lets clients detect a daemon

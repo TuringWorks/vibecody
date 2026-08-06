@@ -9,8 +9,8 @@ use crate::policy::AdminPolicy;
 use crate::provider::{AIProvider, Message, MessageRole};
 use crate::skills::SkillLoader;
 use crate::tools::{
-    format_tool_result, parse_tool_calls, unparsed_tool_call_name, ToolCall, ToolResult,
-    AVAILABLE_TOOL_NAMES, TOOL_SYSTEM_PROMPT,
+    format_tool_result, parse_tool_calls, strip_thinking, unparsed_tool_call_name, ToolCall,
+    ToolResult, AVAILABLE_TOOL_NAMES, TOOL_SYSTEM_PROMPT,
 };
 use crate::trace::DecisionWriter;
 use anyhow::Result;
@@ -863,6 +863,11 @@ impl AgentLoop {
         let mut plan_steps: Vec<String> = Vec::new();
         let mut plan_steps_done: usize = 0;
         let mut consecutive_prose_turns: usize = 0;
+        // The most recent completed model turn, kept outside the loop so the
+        // step-limit path below can report where the run got to. `accumulated`
+        // is per-step and is moved into `messages` on the tool-call paths, so
+        // it cannot be read after the loop. Reused buffer, not a per-step clone.
+        let mut last_assistant_turn = String::new();
 
         for step in 0..self.max_steps {
             // ── 0. Context window safety ──────────────────────────────────────
@@ -1026,6 +1031,11 @@ impl AgentLoop {
                 }
                 tracing::debug!(response_len = accumulated.len(), "LLM response complete");
             }
+
+            // Snapshot this turn before any branch below moves `accumulated`
+            // into `messages`. Only the text is needed, so reuse the buffer.
+            last_assistant_turn.clear();
+            last_assistant_turn.push_str(&accumulated);
 
             // ── 2. Parse tool calls ───────────────────────────────────────────
             let tool_calls = parse_tool_calls(&accumulated);
@@ -2109,11 +2119,31 @@ impl AgentLoop {
                 })
                 .await;
         } else {
-            let _ = event_tx
-                .send(AgentEvent::Error(format!(
-                    "Agent reached maximum step limit ({})",
+            // No plan to report against, but the run still did `max_steps` of
+            // real work. Reporting only "step limit reached" throws all of it
+            // away — hand back the model's last substantive turn so the user
+            // sees what was learned and can resume.
+            let last_turn = strip_thinking(&last_assistant_turn);
+            let last_turn = last_turn.trim();
+            let summary = if last_turn.is_empty() {
+                format!(
+                    "Agent reached the step limit ({}) before finishing the task.",
                     self.max_steps
-                )))
+                )
+            } else {
+                format!(
+                    "Agent reached the step limit ({}) before finishing the task. \
+                     Where it got to:\n\n{}",
+                    self.max_steps, last_turn
+                )
+            };
+            let _ = event_tx
+                .send(AgentEvent::Partial {
+                    summary,
+                    steps_completed: self.max_steps,
+                    steps_planned: self.max_steps,
+                    remaining_plan: Vec::new(),
+                })
                 .await;
         }
         Ok(())
@@ -3284,5 +3314,106 @@ mod stream_gate_tests {
         let s = "résumé café naïve crème brûlée"; // many 2-byte chars
         let (end, _) = streamable_prose_end(s, 0);
         assert!(s.is_char_boundary(end));
+    }
+}
+
+#[cfg(test)]
+mod reasoning_turn_tests {
+    use super::*;
+    use crate::mock_provider::MockAIProvider;
+    use std::sync::Arc;
+
+    struct OkExecutor;
+    #[async_trait::async_trait]
+    impl ToolExecutorTrait for OkExecutor {
+        async fn execute(&self, _call: &ToolCall) -> ToolResult {
+            ToolResult::ok("test", "ok")
+        }
+    }
+
+    /// Drain the event channel into a vec once the run finishes.
+    async fn run_agent(responses: Vec<&str>, max_steps: usize) -> Vec<AgentEvent> {
+        let provider: Arc<dyn crate::provider::AIProvider> =
+            Arc::new(MockAIProvider::with_responses("mock", responses));
+        let exec: Arc<dyn ToolExecutorTrait> = Arc::new(OkExecutor);
+        let mut agent = AgentLoop::new(provider, ApprovalPolicy::FullAuto, exec);
+        agent.max_steps = max_steps;
+        let (tx, mut rx) = mpsc::channel::<AgentEvent>(64);
+        let ctx = AgentContext::default();
+        let _ = agent.run("do the thing", ctx, tx).await;
+        let mut events = Vec::new();
+        while let Ok(e) = rx.try_recv() {
+            events.push(e);
+        }
+        events
+    }
+
+    fn completion_text(events: &[AgentEvent]) -> Option<String> {
+        events.iter().find_map(|e| match e {
+            AgentEvent::Complete(s) => Some(s.clone()),
+            AgentEvent::Partial { summary, .. } => Some(summary.clone()),
+            _ => None,
+        })
+    }
+
+    // A reasoning model routinely emits a turn that is only a <thinking> block.
+    // Treating that as the final answer ended runs after one step and reported
+    // the stray thought as the result.
+    #[tokio::test]
+    async fn reasoning_only_turn_is_not_the_final_answer() {
+        let events = run_agent(
+            vec![
+                "<thinking>Let me read key files to understand the project.</thinking>",
+                "<tool_call name=\"task_complete\"><summary>All done: reviewed 3 crates.</summary></tool_call>",
+            ],
+            10,
+        )
+        .await;
+
+        let text = completion_text(&events).unwrap_or_default();
+        assert!(
+            text.contains("reviewed 3 crates"),
+            "expected the real summary, got: {text}"
+        );
+        assert!(
+            !text.contains("<thinking>"),
+            "reasoning must not be reported as the answer: {text}"
+        );
+    }
+
+    #[tokio::test]
+    async fn genuine_prose_answer_still_completes() {
+        let events = run_agent(
+            vec![
+                "<tool_call name=\"list_directory\"><path>.</path></tool_call>",
+                "Here is my report: the code is fine.",
+            ],
+            10,
+        )
+        .await;
+        let text = completion_text(&events).unwrap_or_default();
+        assert!(text.contains("the code is fine"), "got: {text}");
+    }
+
+    // 50 steps of work reported as a bare error threw everything away.
+    #[tokio::test]
+    async fn step_limit_reports_where_the_run_got_to() {
+        let events = run_agent(
+            vec![
+                "<tool_call name=\"list_directory\"><path>.</path></tool_call>",
+                "<tool_call name=\"list_directory\"><path>src</path></tool_call>",
+            ],
+            2,
+        )
+        .await;
+
+        assert!(
+            !events
+                .iter()
+                .any(|e| matches!(e, AgentEvent::Error(_))),
+            "step-limit exhaustion should not surface as a bare error",
+        );
+        let summary = completion_text(&events).unwrap_or_default();
+        assert!(summary.contains("step limit"), "got: {summary}");
     }
 }

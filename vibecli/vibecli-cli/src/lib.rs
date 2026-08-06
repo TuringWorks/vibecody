@@ -157,6 +157,7 @@ pub mod quality_gates;
 pub mod stale_branch;
 // Claw-code parity — Wave 4: config/hooks
 pub mod config;
+pub mod daemon_bootstrap;
 pub mod config_layers;
 pub mod container_runtime;
 pub mod hook_abort;

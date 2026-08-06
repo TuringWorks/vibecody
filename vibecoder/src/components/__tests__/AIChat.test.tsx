@@ -1119,3 +1119,62 @@ describe('AIChat — approval mode selector', () => {
     expect((screen.getByLabelText('Agent approval mode') as HTMLSelectElement).value).toBe('full-auto');
   });
 });
+
+// ── Agent terminal events ────────────────────────────────────────────────────
+
+describe('AIChat — agent terminal events', () => {
+  it('renders the circuit-breaker reason, not [object Object]', async () => {
+    render(<ControlledAgentChat />);
+    await flushAll();
+    await sendUserMessage('go');
+
+    act(() => {
+      emitTauriEvent('agent:circuit_break', {
+        state: 'Blocked',
+        reason: 'no progress after 3 rotations',
+      });
+    });
+    await flushAll();
+
+    expect(screen.getByText(/no progress after 3 rotations/)).toBeInTheDocument();
+    expect(screen.queryByText(/\[object Object\]/)).not.toBeInTheDocument();
+  });
+
+  it('falls back gracefully when the circuit-break payload is a bare string', async () => {
+    render(<ControlledAgentChat />);
+    await flushAll();
+    await sendUserMessage('go');
+
+    act(() => { emitTauriEvent('agent:circuit_break', 'stalled'); });
+    await flushAll();
+    expect(screen.getByText(/stalled/)).toBeInTheDocument();
+  });
+
+  it('shows a reasoning-only completion instead of a content-free placeholder', async () => {
+    render(<ControlledAgentChat />);
+    await flushAll();
+    await sendUserMessage('go');
+
+    act(() => {
+      emitTauriEvent('agent:complete', '<thinking>Let me read key files first.</thinking>');
+    });
+    await flushAll();
+
+    expect(screen.getByText(/Let me read key files first/)).toBeInTheDocument();
+    expect(screen.queryByText('Agent task complete.')).not.toBeInTheDocument();
+  });
+
+  it('keeps reasoning collapsed when there is a real summary', async () => {
+    render(<ControlledAgentChat />);
+    await flushAll();
+    await sendUserMessage('go');
+
+    act(() => {
+      emitTauriEvent('agent:complete', '<thinking>weighing options</thinking>Reviewed 3 crates.');
+    });
+    await flushAll();
+
+    expect(screen.getByText(/Reviewed 3 crates/)).toBeInTheDocument();
+    expect(screen.queryByText(/weighing options/)).not.toBeInTheDocument();
+  });
+});

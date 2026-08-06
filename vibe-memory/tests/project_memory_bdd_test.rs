@@ -3,7 +3,6 @@
 //! Feature: Project Memory Store
 //! These tests verify the behavior of the per-workspace memory store.
 
-use std::path::PathBuf;
 use tempfile::TempDir;
 use vibe_memory::*;
 
@@ -169,9 +168,12 @@ async fn delete_memory_by_id() {
     let workspace = TempDir::new().unwrap();
     let store = ProjectMemStore::open(workspace.path()).expect("open store");
 
-    // Store 5 memories
+    // Store 5 memories. `store` takes `&str`, and the futures outlive the
+    // closure body, so the contents are materialised first rather than
+    // borrowing a temporary that would be dropped before the await.
+    let contents: Vec<String> = (0..5).map(|i| format!("Memory {}", i)).collect();
     let ids: Vec<_> =
-        futures::future::join_all((0..5).map(|i| store.store(format!("Memory {}", i), None)))
+        futures::future::join_all(contents.iter().map(|c| store.store(c, None)))
             .await
             .into_iter()
             .map(|r| r.expect("store").id)
@@ -351,9 +353,11 @@ async fn cross_project_waypoints() {
         .expect("store A")
         .id;
 
-    // Add cross-project waypoint (simulated - normally via GlobalMemStore)
+    // Add cross-project waypoint (simulated - normally via GlobalMemStore).
+    // The `cross_project: bool` parameter became a separate constructor rather
+    // than a flag argument, so this scenario calls the cross-project form.
     store_a
-        .add_waypoint(&id_a, "cross-project-ref", 0.8, true)
+        .add_waypoint_cross_project(&id_a, "cross-project-ref", 0.8)
         .await
         .expect("waypoint");
 

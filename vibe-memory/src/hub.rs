@@ -88,16 +88,27 @@ impl MemoryContextHub {
         }
     }
 
+    /// Takes `&Path` like every other workspace-scoped method here
+    /// (`set_project`, `search_context`, `consolidate`, `get_stats`). It only
+    /// ever borrows the path to open the store, so demanding an owned
+    /// `PathBuf` forced a copy at every call site for nothing.
     pub async fn store_to_project(
         &self,
-        workspace: std::path::PathBuf,
+        workspace: &Path,
         content: &str,
     ) -> Result<crate::MemoryEntry, MemoryError> {
         let mut guard = self.project_store.write().await;
         if guard.is_none() {
-            *guard = Some(ProjectMemStore::open(&workspace)?);
+            *guard = Some(ProjectMemStore::open(workspace)?);
         }
-        guard.as_ref().unwrap().store(content, None).await
+        match guard.as_ref() {
+            Some(store) => store.store(content, None).await,
+            // Unreachable: the branch above installs it. Returning an error
+            // beats `.unwrap()` in a library path.
+            None => Err(MemoryError::StoreNotFound(
+                "project store could not be opened".to_string(),
+            )),
+        }
     }
 
     pub async fn store_global(&self, content: &str) -> Result<crate::MemoryEntry, MemoryError> {
@@ -317,7 +328,7 @@ mod tests {
         let workspace = TempDir::new().unwrap();
         let hub = MemoryContextHub::with_global_at(workspace.path());
 
-        hub.store_to_project(workspace.path().to_path_buf(), "Project knowledge")
+        hub.store_to_project(workspace.path(), "Project knowledge")
             .await
             .expect("store");
         hub.store_global("Global preference").await.ok(); // May fail in sandbox
@@ -339,7 +350,7 @@ mod tests {
         let workspace = TempDir::new().unwrap();
         let hub = MemoryContextHub::with_global_at(workspace.path());
 
-        hub.store_to_project(workspace.path().to_path_buf(), "Rust ownership model")
+        hub.store_to_project(workspace.path(), "Rust ownership model")
             .await
             .expect("store");
 
@@ -375,7 +386,7 @@ mod tests {
         let workspace = TempDir::new().unwrap();
         let hub = MemoryContextHub::new(); // No global store
 
-        hub.store_to_project(workspace.path().to_path_buf(), "Project only")
+        hub.store_to_project(workspace.path(), "Project only")
             .await
             .expect("store");
 
