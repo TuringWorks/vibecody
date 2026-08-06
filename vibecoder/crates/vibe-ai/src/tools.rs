@@ -514,14 +514,16 @@ impl ToolCall {
 
     /// Returns true if this is a destructive / risky operation.
     pub fn is_destructive(&self) -> bool {
-        matches!(
-            self,
-            ToolCall::Bash { .. }
-                | ToolCall::WriteFile { .. }
-                | ToolCall::ApplyPatch { .. }
-                | ToolCall::SpawnAgent { .. }
-                | ToolCall::RecordMemory { .. }
-        )
+        match self {
+            // Inspection commands are not destructive; labelling `find … | sort`
+            // as one trains users to click through the warning that matters.
+            ToolCall::Bash { command } => !bash_is_read_only(command),
+            ToolCall::WriteFile { .. }
+            | ToolCall::ApplyPatch { .. }
+            | ToolCall::SpawnAgent { .. }
+            | ToolCall::RecordMemory { .. } => true,
+            _ => false,
+        }
     }
 
     /// Returns true if this is a no-op reasoning step (think tool).
@@ -581,6 +583,68 @@ impl ToolResult {
 const MAX_TOOL_OUTPUT: usize = 8_000;
 
 // ── Parsing ───────────────────────────────────────────────────────────────────
+
+/// Shell commands that only inspect state. Anything not on this list is
+/// treated as potentially destructive.
+const READ_ONLY_COMMANDS: &[&str] = &[
+    "ls", "find", "grep", "rg", "cat", "head", "tail", "wc", "sort", "uniq", "cut", "tr", "pwd",
+    "tree", "stat", "file", "du", "df", "basename", "dirname", "echo", "printf", "which", "type",
+    "date", "whoami", "hostname", "uname", "column", "nl", "jq", "yq", "diff", "cmp", "md5", "true",
+];
+
+/// `git` subcommands that only read the repository.
+const READ_ONLY_GIT_SUBCOMMANDS: &[&str] = &[
+    "status",
+    "log",
+    "diff",
+    "show",
+    "ls-files",
+    "rev-parse",
+    "blame",
+    "describe",
+    "shortlog",
+    "branch",
+    "remote",
+    "config",
+];
+
+/// Shell syntax that can turn an inspection command into a mutating one.
+const UNSAFE_SHELL_TOKENS: &[&str] = &[
+    ">", "<", ";", "&", "`", "$(", "${", "\n", "--delete", "-delete", "-exec", "-execdir", "-ok",
+    "-fprint", "-fls",
+];
+
+/// True when `command` only inspects state — every pipeline segment starts with
+/// a known read-only command and the line carries no redirection, chaining, or
+/// substitution that could smuggle in a mutation.
+///
+/// Deliberately conservative: an unrecognised command is "not read-only", so a
+/// false negative costs an extra approval prompt while a false positive would
+/// hide a real warning.
+pub fn bash_is_read_only(command: &str) -> bool {
+    let trimmed = command.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+    if UNSAFE_SHELL_TOKENS.iter().any(|t| trimmed.contains(t)) {
+        return false;
+    }
+    trimmed.split('|').all(|segment| {
+        let mut words = segment.split_whitespace();
+        // Skip leading `env`-style prefixes? No — keep it strict.
+        let Some(head) = words.next() else {
+            return false;
+        };
+        // Strip a path prefix: /usr/bin/find → find
+        let head = head.rsplit('/').next().unwrap_or(head);
+        if head == "git" {
+            return words
+                .find(|w| !w.starts_with('-'))
+                .is_some_and(|sub| READ_ONLY_GIT_SUBCOMMANDS.contains(&sub));
+        }
+        READ_ONLY_COMMANDS.contains(&head)
+    })
+}
 
 /// Every tool name [`parse_tool_calls`] recognises. Used to tell a model that
 /// reached for something else (gpt-oss likes its built-in `container.exec`)
@@ -1365,5 +1429,98 @@ mod unknown_tool_tests {
                 "{name} is advertised but absent from the tool prompt"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod bash_risk_tests {
+    use super::*;
+
+    // The approval banner shouts "Destructive tool" based on is_destructive().
+    // Applying that to `find crates -name "*.rs" | sort` trains the user to
+    // click through the warnings that actually matter.
+
+    #[test]
+    fn inspection_commands_are_not_destructive() {
+        for cmd in [
+            "ls -la",
+            "find crates -name \"*.rs\" | sort",
+            "grep -rn TODO src | head -50",
+            "cat Cargo.toml",
+            "rg --files | wc -l",
+            "git status",
+            "git log --oneline -20",
+            "git diff HEAD~1",
+            "/usr/bin/find . -name '*.rs'",
+        ] {
+            assert!(
+                !ToolCall::Bash { command: cmd.into() }.is_destructive(),
+                "{cmd} should not be flagged destructive"
+            );
+        }
+    }
+
+    #[test]
+    fn mutating_commands_stay_destructive() {
+        for cmd in [
+            "rm -rf target",
+            "cargo build",
+            "git commit -m x",
+            "git push",
+            "sed -i '' s/a/b/ f.rs",
+            "mv a b",
+            "npm install",
+        ] {
+            assert!(
+                ToolCall::Bash { command: cmd.into() }.is_destructive(),
+                "{cmd} must stay flagged destructive"
+            );
+        }
+    }
+
+    #[test]
+    fn redirection_and_chaining_defeat_the_allowlist() {
+        for cmd in [
+            "ls > files.txt",
+            "cat a.rs >> b.rs",
+            "ls; rm -rf /",
+            "ls && rm x",
+            "echo `rm -rf x`",
+            "echo $(rm -rf x)",
+            "find . -name '*.rs' -delete",
+            "find . -exec rm {} ;",
+        ] {
+            assert!(
+                ToolCall::Bash { command: cmd.into() }.is_destructive(),
+                "{cmd} must stay flagged destructive"
+            );
+        }
+    }
+
+    #[test]
+    fn every_pipeline_segment_must_be_read_only() {
+        assert!(!bash_is_read_only("find . -name '*.rs' | xargs rm"));
+        assert!(bash_is_read_only("find . -name '*.rs' | sort | head -5"));
+    }
+
+    #[test]
+    fn writing_git_subcommands_are_not_read_only() {
+        assert!(!bash_is_read_only("git commit -am wip"));
+        assert!(!bash_is_read_only("git checkout -b feature"));
+        assert!(!bash_is_read_only("git reset --hard"));
+    }
+
+    #[test]
+    fn empty_or_unknown_commands_are_destructive() {
+        assert!(!bash_is_read_only(""));
+        assert!(!bash_is_read_only("   "));
+        assert!(!bash_is_read_only("some-unknown-binary --flag"));
+    }
+
+    #[test]
+    fn file_mutating_tools_remain_destructive() {
+        assert!(ToolCall::WriteFile { path: "a".into(), content: "b".into() }.is_destructive());
+        assert!(ToolCall::ApplyPatch { path: "a".into(), patch: "b".into() }.is_destructive());
+        assert!(!ToolCall::ReadFile { path: "a".into() }.is_destructive());
     }
 }

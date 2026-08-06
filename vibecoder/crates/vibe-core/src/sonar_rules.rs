@@ -1796,11 +1796,18 @@ fn db_path() -> PathBuf {
 }
 
 fn open_db() -> rusqlite::Result<Connection> {
-    let path = db_path();
+    open_db_at(&db_path())
+}
+
+/// Open (creating if needed) the rule store at an explicit path.
+///
+/// The path is a parameter so the store logic can be exercised against a temp DB
+/// instead of the user's `~/.vibecli/sonar_rules.db` — see the tests below.
+fn open_db_at(path: &std::path::Path) -> rusqlite::Result<Connection> {
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
-    let conn = Connection::open(&path)?;
+    let conn = Connection::open(path)?;
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS sonar_rules (
             key           TEXT PRIMARY KEY,
@@ -1818,19 +1825,42 @@ fn open_db() -> rusqlite::Result<Connection> {
     Ok(conn)
 }
 
-/// Upsert all built-in rules into the local SQLite database.
-/// Returns the number of rules loaded.
-pub fn load_rules_to_db() -> Result<u32, String> {
-    let conn = open_db().map_err(|e| e.to_string())?;
-    let rules = builtin_rules();
-    let count = rules.len() as u32;
-    for r in &rules {
-        let tags_json = serde_json::to_string(&r.tags).unwrap_or_default();
-        conn.execute(
-            "INSERT OR REPLACE INTO sonar_rules
-             (key,name,description,why,how_to_fix,severity,issue_type,language,tags,effort_minutes)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
-            params![
+/// Encode a rule's tags as a JSON array.
+///
+/// `Vec<String>` cannot fail to serialize, so the fallback is unreachable — but it
+/// must still be *valid JSON* rather than `""`, because [`get_rules`] parses this
+/// column back. An empty string would silently decode to "no tags".
+fn encode_tags(tags: &[String]) -> String {
+    serde_json::to_string(tags).unwrap_or_else(|_| "[]".to_string())
+}
+
+const UPSERT_RULE_SQL: &str = "INSERT INTO sonar_rules
+     (key,name,description,why,how_to_fix,severity,issue_type,language,tags,effort_minutes)
+     VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)
+     ON CONFLICT(key) DO UPDATE SET
+       name=excluded.name,
+       description=excluded.description,
+       why=excluded.why,
+       how_to_fix=excluded.how_to_fix,
+       severity=excluded.severity,
+       issue_type=excluded.issue_type,
+       language=excluded.language,
+       tags=excluded.tags,
+       effort_minutes=excluded.effort_minutes";
+
+/// Upsert `rules` into an open connection, in one transaction with one prepared
+/// statement.
+///
+/// Previously each row was its own implicit transaction (one fsync per rule) and
+/// re-prepared the statement every iteration. `ON CONFLICT … DO UPDATE` replaces
+/// `INSERT OR REPLACE`, which deletes and reinserts the row — so any column a
+/// future writer omits would be silently NULLed rather than left alone.
+fn upsert_rules(conn: &mut Connection, rules: &[SonarRule]) -> rusqlite::Result<u32> {
+    let tx = conn.transaction()?;
+    {
+        let mut stmt = tx.prepare(UPSERT_RULE_SQL)?;
+        rules.iter().try_for_each(|r| {
+            stmt.execute(params![
                 r.key,
                 r.name,
                 r.description,
@@ -1839,61 +1869,74 @@ pub fn load_rules_to_db() -> Result<u32, String> {
                 r.severity,
                 r.issue_type,
                 r.language,
-                tags_json,
+                encode_tags(&r.tags),
                 r.effort_minutes
-            ],
-        )
-        .map_err(|e| e.to_string())?;
+            ])
+            .map(|_| ())
+        })?;
     }
-    Ok(count)
+    tx.commit()?;
+    Ok(rules.len() as u32)
 }
 
-/// Retrieve all rules from the local DB (falls back to builtin if DB missing).
-pub fn get_rules(language: Option<&str>) -> Vec<SonarRule> {
-    let rules = match open_db() {
-        Ok(conn) => {
-            let sql = if language.is_some() {
-                "SELECT key,name,description,why,how_to_fix,severity,issue_type,language,tags,effort_minutes FROM sonar_rules WHERE language = ?1 OR language = 'general'"
-            } else {
-                "SELECT key,name,description,why,how_to_fix,severity,issue_type,language,tags,effort_minutes FROM sonar_rules"
-            };
-            let mut stmt = match conn.prepare(sql) {
-                Ok(s) => s,
-                Err(_) => return builtin_rules(),
-            };
-            let mapper = |row: &rusqlite::Row<'_>| -> rusqlite::Result<SonarRule> {
-                let tags_json: String = row.get(8)?;
-                let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
-                Ok(SonarRule {
-                    key: row.get(0)?,
-                    name: row.get(1)?,
-                    description: row.get(2)?,
-                    why: row.get(3)?,
-                    how_to_fix: row.get(4)?,
-                    severity: row.get(5)?,
-                    issue_type: row.get(6)?,
-                    language: row.get(7)?,
-                    tags,
-                    effort_minutes: row.get(9)?,
-                })
-            };
-            let rows = if let Some(lang) = language {
-                stmt.query_map(params![lang], mapper)
-            } else {
-                stmt.query_map([], mapper)
-            };
-            match rows {
-                Ok(iter) => iter.filter_map(|r| r.ok()).collect(),
-                Err(_) => builtin_rules(),
-            }
-        }
-        Err(_) => builtin_rules(),
+/// Upsert all built-in rules into the local SQLite database.
+/// Returns the number of rules loaded.
+pub fn load_rules_to_db() -> Result<u32, String> {
+    let mut conn = open_db().map_err(|e| e.to_string())?;
+    upsert_rules(&mut conn, &builtin_rules()).map_err(|e| e.to_string())
+}
+
+const SELECT_RULE_COLUMNS: &str =
+    "SELECT key,name,description,why,how_to_fix,severity,issue_type,language,tags,effort_minutes FROM sonar_rules";
+
+fn row_to_rule(row: &rusqlite::Row<'_>) -> rusqlite::Result<SonarRule> {
+    let tags_json: String = row.get(8)?;
+    Ok(SonarRule {
+        key: row.get(0)?,
+        name: row.get(1)?,
+        description: row.get(2)?,
+        why: row.get(3)?,
+        how_to_fix: row.get(4)?,
+        severity: row.get(5)?,
+        issue_type: row.get(6)?,
+        language: row.get(7)?,
+        // Written by `encode_tags`, so always a JSON array; a malformed row means
+        // "tags unknown", which we render as none rather than failing the read.
+        tags: serde_json::from_str(&tags_json).unwrap_or_default(),
+        effort_minutes: row.get(9)?,
+    })
+}
+
+/// Query rules from an open connection, optionally narrowed to one language
+/// (plus the always-applicable `general` rules).
+fn query_rules(conn: &Connection, language: Option<&str>) -> rusqlite::Result<Vec<SonarRule>> {
+    let sql = match language {
+        Some(_) => format!("{SELECT_RULE_COLUMNS} WHERE language = ?1 OR language = 'general'"),
+        None => SELECT_RULE_COLUMNS.to_string(),
     };
-    if rules.is_empty() {
-        builtin_rules()
-    } else {
-        rules
-    }
+    let mut stmt = conn.prepare(&sql)?;
+    let rows = match language {
+        Some(lang) => stmt.query_map(params![lang], row_to_rule),
+        None => stmt.query_map([], row_to_rule),
+    }?;
+    rows.collect()
+}
+
+/// Read rules from the local DB. `None` means the DB was unreadable — distinct
+/// from `Some(vec![])`, which means it was readable and empty.
+fn read_rules_from_db(language: Option<&str>) -> Option<Vec<SonarRule>> {
+    query_rules(&open_db().ok()?, language).ok()
+}
+
+/// Retrieve all rules from the local DB.
+///
+/// Falls back to [`builtin_rules`] when the DB is missing, unreadable, or has not
+/// been populated yet. The fallback is the *same data* the DB would have been
+/// seeded with, so it is a cache miss rather than a substituted value.
+pub fn get_rules(language: Option<&str>) -> Vec<SonarRule> {
+    read_rules_from_db(language)
+        .filter(|rules| !rules.is_empty())
+        .unwrap_or_else(builtin_rules)
 }
 
 // ── Pattern-based Scanner ─────────────────────────────────────────────────────

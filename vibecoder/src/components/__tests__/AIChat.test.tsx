@@ -654,7 +654,8 @@ describe('AIChat — response does not disappear (controlled mode)', () => {
     expect(screen.getByText(/Destructive tool/)).toBeInTheDocument();
     const rejectBtn = screen.getByRole('button', { name: /Reject/i });
     expect(rejectBtn).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Approve/i })).toBeInTheDocument();
+    // Exact match — the banner also carries "Approve all for this run".
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeInTheDocument();
 
     // User rejects → respond_to_agent_approval(false)
     fireEvent.click(rejectBtn);
@@ -934,5 +935,111 @@ describe('AIChat — tool-result continuation', () => {
     await flushAll();
 
     expect(screen.getByText(/empty response/i)).toBeInTheDocument();
+  });
+});
+
+// ── Agent approval flow ──────────────────────────────────────────────────────
+// A long agent run prompts for every tool call under the "suggest" policy. The
+// backend keeps ONE pending-approval slot and ONE abort handle, so starting a
+// second run while the first waits orphans it — the first run blocks forever on
+// an approval channel that no longer exists.
+
+function ControlledAgentChat() {
+  const [messages, setMessages] = useState<Message[]>([]);
+  return (
+    <AIChat
+      provider="test-provider"
+      messages={messages}
+      onMessagesChange={setMessages}
+      useAgentLoop={true}
+      onUseAgentLoopChange={() => {}}
+    />
+  );
+}
+
+function emitPending(name: string, summary: string, destructive: boolean) {
+  act(() => {
+    emitTauriEvent('agent:pending', { name, summary, is_destructive: destructive });
+  });
+}
+
+function approvalCalls() {
+  return mockInvoke.mock.calls.filter(c => c[0] === 'respond_to_agent_approval');
+}
+
+describe('AIChat — agent approvals', () => {
+  it('shows the approval banner for a pending tool call', async () => {
+    render(<ControlledAgentChat />);
+    await flushAll();
+    await sendUserMessage('review the codebase');
+
+    emitPending('bash', 'bash(find crates -name "*.rs")', false);
+    await flushAll();
+
+    expect(screen.getByText(/Tool approval required/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Approve all for this run/ })).toBeInTheDocument();
+  });
+
+  it('"Approve all" auto-approves every later call in the run', async () => {
+    render(<ControlledAgentChat />);
+    await flushAll();
+    await sendUserMessage('review the codebase');
+
+    emitPending('bash', 'bash(ls)', false);
+    await flushAll();
+    fireEvent.click(screen.getByRole('button', { name: /Approve all for this run/ }));
+    await flushAll();
+    expect(approvalCalls()).toHaveLength(1);
+
+    // A later call must not stop to ask again.
+    emitPending('read_file', 'read_file(src/lib.rs)', false);
+    await flushAll();
+    expect(screen.queryByText(/approval required/i)).not.toBeInTheDocument();
+    expect(approvalCalls()).toHaveLength(2);
+    expect(approvalCalls()[1][1]).toEqual({ approved: true });
+  });
+
+  it('auto-approval does not carry into the next run', async () => {
+    render(<ControlledAgentChat />);
+    await flushAll();
+    await sendUserMessage('first task');
+    emitPending('bash', 'bash(ls)', false);
+    await flushAll();
+    fireEvent.click(screen.getByRole('button', { name: /Approve all for this run/ }));
+    await flushAll();
+
+    act(() => { emitTauriEvent('agent:complete', 'done'); });
+    await flushAll();
+    await sendUserMessage('second task');
+
+    emitPending('bash', 'bash(ls)', false);
+    await flushAll();
+    expect(screen.getByText(/approval required/i)).toBeInTheDocument();
+  });
+
+  it('refuses to start a second run while an approval is pending', async () => {
+    render(<ControlledAgentChat />);
+    await flushAll();
+    await sendUserMessage('review the codebase');
+    const runsBefore = mockInvoke.mock.calls.filter(c => c[0] === 'start_agent_task').length;
+
+    emitPending('bash', 'bash(ls)', false);
+    await flushAll();
+
+    await sendUserMessage('approve all');
+    const runsAfter = mockInvoke.mock.calls.filter(c => c[0] === 'start_agent_task').length;
+    expect(runsAfter).toBe(runsBefore);
+    // …and the pending call is still there to act on.
+    expect(screen.getByText(/approval required/i)).toBeInTheDocument();
+  });
+
+  it('labels a destructive call differently from a read-only one', async () => {
+    render(<ControlledAgentChat />);
+    await flushAll();
+    await sendUserMessage('review the codebase');
+
+    emitPending('bash', 'bash(rm -rf target)', true);
+    await flushAll();
+    expect(screen.getByText(/Destructive tool — approval required/)).toBeInTheDocument();
   });
 });

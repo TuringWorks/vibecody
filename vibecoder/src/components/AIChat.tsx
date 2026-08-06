@@ -1201,6 +1201,13 @@ export function AIChat({
   // `messages` and clears streaming state when it catches up.
   const pendingClearRef = useRef(0);
 
+  // "Approve all" — once set, every later tool call in the *current* run is
+  // approved without prompting. Reset when a run starts or ends, so it never
+  // silently carries into the next task.
+  const [autoApprove, setAutoApprove] = useState(false);
+  const autoApproveRef = useRef(false);
+  autoApproveRef.current = autoApprove;
+
   useEffect(() => {
     // When messages changes and we have a pending clear, the parent has
     // propagated the new message — safe to clear streaming state now.
@@ -1771,6 +1778,15 @@ export function AIChat({
       const a3 = await listen<{ name: string; summary: string; is_destructive: boolean }>(agentEvent("pending"), (e) => {
         if (!sessionIdRef.current && !agentRunOwnerRef.current) return;
         setStreamingText("");
+        // "Approve all" was pressed earlier in this run — keep going without
+        // stopping to ask again.
+        if (autoApproveRef.current) {
+          setStreamStatus(`Auto-approved: ${e.payload.name}`);
+          invoke("respond_to_agent_approval", { approved: true }).catch((err) =>
+            console.error("[AIChat] auto-approve failed:", err),
+          );
+          return;
+        }
         setPendingApproval(e.payload);
         setStreamStatus(`Awaiting approval: ${e.payload.name}`);
       });
@@ -1793,6 +1809,7 @@ export function AIChat({
         }]);
         setPendingApproval(null);
         setAgentSteps([]);
+        setAutoApprove(false);
         if (onMessagesChangeRef.current) {
           pendingClearRef.current += 1;
         } else {
@@ -1832,6 +1849,7 @@ export function AIChat({
         }]);
         setPendingApproval(null);
         setAgentSteps([]);
+        setAutoApprove(false);
         if (onMessagesChangeRef.current) {
           pendingClearRef.current += 1;
         } else {
@@ -1858,6 +1876,7 @@ export function AIChat({
         }]);
         setPendingApproval(null);
         setAgentSteps([]);
+        setAutoApprove(false);
         if (onMessagesChangeRef.current) {
           pendingClearRef.current += 1;
         } else {
@@ -1905,6 +1924,7 @@ export function AIChat({
         }]);
         setPendingApproval(null);
         setAgentSteps([]);
+        setAutoApprove(false);
         if (onMessagesChangeRef.current) {
           pendingClearRef.current += 1;
         } else {
@@ -1948,6 +1968,17 @@ export function AIChat({
   const sendMessage = useCallback(async (overrideInput?: string) => {
     const text = overrideInput ?? input;
     if (!text.trim() && attachments.length === 0) return;
+
+    // The backend keeps a single pending-approval slot and a single agent
+    // abort handle, so starting a second run while one waits for approval
+    // orphans the first: its approval channel is replaced and it blocks
+    // forever. Make the user resolve the pending call first.
+    if (pendingApproval) {
+      toast.warn(
+        `The agent is waiting on approval for \`${pendingApproval.name}\`. Approve or reject it before sending.`,
+      );
+      return;
+    }
     const messageText = text.trim() || (attachments.length > 0 ? `[Attached ${attachments.length} file(s) — please review]` : "");
 
     // G3.3 — chat-submit hybrid for `/goal <text>`. If the user types
@@ -2016,6 +2047,9 @@ export function AIChat({
       setAgentSteps([]);
       setVerifierResult(null);
       setPendingApproval(null);
+      // Each run starts asking again — "approve all" is never inherited.
+      setAutoApprove(false);
+      autoApproveRef.current = false;
       agentRunOwnerRef.current = true;
       try {
         await invoke("start_agent_task", {
@@ -2095,7 +2129,7 @@ export function AIChat({
       setIsLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [input, provider, context, fileTree, currentFile, messages, backendMode, attachments]);
+  }, [input, provider, context, fileTree, currentFile, messages, backendMode, attachments, pendingApproval, toast]);
 
   const stopMessage = useCallback(async () => {
     cancelledRef.current = true;
@@ -2123,6 +2157,7 @@ export function AIChat({
     });
     setPendingApproval(null);
     setAgentSteps([]);
+    setAutoApprove(false);
     setStreamingText("");
     setTokensPerSec(null);
     setStreamTokenCount(0);
@@ -2617,7 +2652,10 @@ export function AIChat({
                   )}
 
                   <div className="msg-rendered">
-                    {renderContent(streamingParts?.cleaned || streamingText)}
+                    {/* `?? `, not `||`: a turn that is *only* reasoning leaves
+                        `cleaned` empty, and falling back to the raw text would
+                        print the <thinking> tags verbatim. */}
+                    {renderContent(streamingParts ? streamingParts.cleaned : streamingText)}
                     <span className="streaming-cursor" />
                   </div>
                 </>
@@ -2688,7 +2726,23 @@ export function AIChat({
           <div style={{ fontSize: "0.9em", whiteSpace: "pre-wrap" }}>
             {pendingApproval.summary}
           </div>
-          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", alignItems: "center" }}>
+            <button
+              className="chat-action-btn"
+              title="Approve this call and every later one in this run. Resets when the run ends."
+              onClick={async () => {
+                setAutoApprove(true);
+                try {
+                  await invoke("respond_to_agent_approval", { approved: true });
+                } catch (e) {
+                  console.error("[AIChat] approve-all failed:", e);
+                }
+                setPendingApproval(null);
+              }}
+              style={{ marginRight: "auto" }}
+            >
+              Approve all for this run
+            </button>
             <button
               className="chat-action-btn"
               onClick={async () => {

@@ -47,15 +47,27 @@ Every panel that calls an LLM MUST use the provider and model selected in the to
 
 Full rule + audit checklist: [AGENTS.md → Provider-Agnostic Panels — STRICT](./AGENTS.md#provider-agnostic-panels--strict).
 
-### Functional style — Rust & TypeScript
+### Functional style & language idioms — Rust, TypeScript, Swift, Kotlin, Dart
 
 Write new code and refactor existing code toward a functional style: **pure functions over immutable data, effects pushed to the edges, total error handling.**
 
 - **Rust**: iterator combinators (`map`/`filter_map`/`fold`/`collect`) over index loops; `let` (not `let mut`) by default; `?` + `map_err`/`ok_or_else` over `match` pyramids; **no `.unwrap()`/`.expect()`/`panic!` in daemon/library/command paths** — reserve for tests and commented invariants; borrow / `Arc` / `Cow` instead of `.clone()` in hot paths; enums + exhaustive `match` over `bool` flags; `spawn_blocking`/`rayon` for blocking or CPU-bound work.
 - **TypeScript/React**: `const` and immutable updates (never mutate props/state); `map`/`filter`/`reduce` over loops; derive with `useMemo` instead of mirroring state in `useEffect`; discriminated unions with a `never`-exhaustive switch; `unknown` + narrowing, never `any`.
+- **Swift / Kotlin / Dart clients**: `let`/`val`/`final` by default; value types for payloads; `enum` w/ associated values, `sealed class` + exhaustive `when`/`switch` for UI state instead of parallel `isLoading`/`error`/`data` fields. Parse into a typed value once at the transport edge (`WatchNetworkManager.swift`, `api_client.dart`) — everything inward is non-optional.
+- **Use the language's idiom, not the pattern's name.** Most GoF patterns are a language feature here: sum type → `enum`+`match` / `sealed class`+`when` / discriminated union+`switch`; strategy → a function value; RAII → `Drop`/`defer`/`use`/`try…finally`. Refactor toward a pattern when the smell is there (growing type-tag switch, boolean parameter selecting behaviour), never because the pattern is admired.
 - **Refactors must be behaviour-preserving and test-covered.** Pin behaviour with a test first, then refactor; the PostToolUse hooks (`cargo check` / `tsc --noEmit`) must be clean before it's done. Keep style sweeps in their own commit.
 
-Full guidance + refactor-trigger table: [AGENTS.md → Functional Style & Safe Refactoring](./AGENTS.md#functional-style--safe-refactoring--rust--typescript).
+Full guidance + idiom table + refactor triggers: [AGENTS.md → Functional Style & Safe Refactoring](./AGENTS.md#functional-style--safe-refactoring--rust--typescript).
+
+### Performance, honesty, verification — the three that a green build misses
+
+**A green build proves almost nothing, and a good number proves less.** Three rules that override "it compiles":
+
+1. **Measure → attribute (call tree, not leaf list) → fix → re-measure like-for-like → verify the feature still works on screen.** Win order: cadence (is this poll faster than the data changes?) → eager instantiation (`React.lazy` the panel) → recycling → dirty-checks → only then algorithms and allocation. Idle CPU is the cheapest health check we have and nothing in CI watches it — check it by hand after touching any timer, `tokio::interval`, or subscription.
+2. **Never substitute a plausible default for missing data.** `unwrap_or_else(Utc::now)` on a timestamp asserts a fact about the world nobody checked; a clamp bound rendered as a value turns "broken" into "has an opinion". Absent stays absent; a bound that binds says so in the type. `INSERT OR REPLACE` NULLs every column you didn't name — use `ON CONFLICT … DO UPDATE SET`.
+3. **`cargo check` + `tsc --noEmit` clean is the floor, not evidence.** Run it, read stderr, open the panel — including the one behind a tab. A component/command/route is only type-checked when something renders/invokes/calls it. Say which surfaces you exercised and which you did not.
+
+Full playbook + checklist: [AGENTS.md → Performance](./AGENTS.md#performance--measure-attribute-verify) · [Modelling Honesty](./AGENTS.md#modelling-honesty--a-model-that-cannot-be-wrong-is-not-a-model) · [Verification](./AGENTS.md#verification--a-green-build-proves-nothing) · [Traps a Build Cannot Catch](./AGENTS.md#traps-a-build-cannot-catch) · [The Craft Checklist](./AGENTS.md#the-craft-checklist).
 
 ### Tauri commands
 

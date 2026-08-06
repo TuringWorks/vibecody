@@ -231,6 +231,10 @@ VibeCody is shipped to users (developers, integrators, operators) who want to *u
 - **Honour the toolbar model dropdown in every panel that calls an LLM** — see [Provider-Agnostic Panels](#provider-agnostic-panels--strict) below.
 - **Explain non-trivial changes with an ASCII architecture diagram before writing code** (see [Explaining Changes](#explaining-changes--diagrams-before-prose) below).
 - **Write in a functional style and refactor toward it** — pure functions, immutable bindings, iterator/combinator chains, and total error handling. See [Functional Style & Safe Refactoring](#functional-style--safe-refactoring--rust--typescript) below.
+- **Use the target language's own idiom** rather than importing a pattern's name — `enum`+`match`, `sealed class`+`when`, discriminated union+`switch`. See [the idiom table](#reach-for-the-languages-idiom-not-the-patterns-name).
+- **Measure before optimising, and attribute from the call tree** — then re-measure like-for-like and confirm the feature still works on screen. See [Performance](#performance--measure-attribute-verify).
+- **Run it and look at it** before calling a change done — open the panel, hit the route, read stderr. See [Verification](#verification--a-green-build-proves-nothing).
+- **Say what you verified and what you didn't**, including which client surfaces you exercised.
 
 ### DO NOT
 
@@ -245,6 +249,11 @@ VibeCody is shipped to users (developers, integrators, operators) who want to *u
 - **Hard-code Anthropic (or any single provider) as the LLM backend in a panel.** Every panel that talks to an LLM must route through the toolbar's selected provider/model — see [Provider-Agnostic Panels](#provider-agnostic-panels--strict) below.
 - **`.unwrap()` / `.expect()` / `panic!` on a value that can legitimately be absent or fail** in daemon, library, or command code — return `Result`/`Option` and propagate with `?`. Panics are for tests and provably-infallible invariants (with a comment saying why). See [Functional Style & Safe Refactoring](#functional-style--safe-refactoring--rust--typescript).
 - **Reach for `let mut` + an index loop when an iterator chain says it more clearly**, or `.clone()` to dodge the borrow checker in a hot path when a borrow, `Arc`, or `Cow` would do. See [Functional Style & Safe Refactoring](#functional-style--safe-refactoring--rust--typescript).
+- **Substitute a plausible default for missing data** — `unwrap_or_else(Utc::now)` on a timestamp, a clamp bound rendered as if it were a value. Absent stays absent; a bound that binds says so. See [Modelling Honesty](#modelling-honesty--a-model-that-cannot-be-wrong-is-not-a-model).
+- **Claim a change works because `cargo check` and `tsc` are clean.** They are the floor. See [Verification](#verification--a-green-build-proves-nothing).
+- **Optimise something you have not measured as a problem**, or report a number without saying whether the feature still works.
+- **Ship a UI affordance with no code behind it**, or add a route to `serve.rs` without walking the [Change-Surface Cookbook](#change-surface-cookbook--when-i-change-x-i-also-need-to-touch). See [Traps a Build Cannot Catch](#traps-a-build-cannot-catch).
+- **Use `INSERT OR REPLACE` for a partial-column refresh** — it NULLs every column you didn't name. Use `ON CONFLICT … DO UPDATE SET`.
 
 ---
 
@@ -253,6 +262,34 @@ VibeCody is shipped to users (developers, integrators, operators) who want to *u
 VibeCody is a large, long-lived daemon with 13 clients. Code that is **pure, immutable, and total** is easier to test, parallelize, and reason about across that surface. Write new code this way, and when you touch existing code, leave it a little more functional than you found it — as long as the refactor is behaviour-preserving and covered by tests.
 
 **Guiding principle:** separate *computation* (pure, deterministic, easy to test) from *effects* (IO, DB, network, mutation). Push effects to the edges; keep the core a set of pure functions over immutable data. A function that both computes a result and writes to the DB is two functions wearing a trenchcoat.
+
+### The four rules, in priority order
+
+1. **Pure by default.** Output depends only on input. Push IO, clocks, RNG, and mutation to the edges; keep the core a tree of pure transforms.
+2. **Total functions.** Handle every case. Model absence and failure in the type — `Result`/`Option` in Rust, discriminated unions in TS, `sealed class` in Kotlin, `enum` with associated values in Swift.
+3. **Illegal states unrepresentable.** Encode invariants in types so the compiler rejects bad states before runtime.
+4. **Immutability by default.** Reserve mutation for a locally-owned accumulator inside an otherwise-pure function.
+
+The payoff is testability: a pure core can be tested without a process, a socket, or a clock — which is why the hardest logic belongs there. Put the whole grammar / rule / decision in a pure function returning a typed result; keep transport, retries, and persistence outside it. In this repo that means: **protocol semantics belong in a pure function; `serve.rs` / `commands.rs` / `api_client.dart` are transport**.
+
+**Where to stop being pure:** measured hot paths. A render loop, a tokenizer, or an indexing kernel may use indexed loops and reused buffers — with a comment saying a profiler said so, and a link to the measurement. *Functional by default; imperative where measured.*
+
+### Reach for the language's idiom, not the pattern's name
+
+Most GoF patterns already exist as a language feature in every stack this repo ships. Using the feature is shorter, faster, and reads as native to whoever maintains that client.
+
+| Intent | Rust | TypeScript / React | Swift (watchOS) | Kotlin (Wear / JetBrains) | Dart (Flutter) |
+|---|---|---|---|---|---|
+| Sum type / visitor | `enum` + exhaustive `match` | discriminated union + `switch` with `never` default | `enum` w/ associated values + `switch` | `sealed class` + `when` (exhaustive) | `sealed class` + `switch` pattern-match |
+| Strategy | trait object, or `fn` value | function as a prop/param | protocol, or closure property | function type, or `fun interface` | function type / callback |
+| Scope guard / RAII | `Drop` | `try…finally`, cleanup fn from `useEffect` | `defer` | `use { }` | `try…finally` |
+| Builder | typestate builder | options object | result builder / `init` w/ defaults | `apply { }` / named args w/ defaults | named + default constructor args |
+| Iterator pipeline | `Iterator` adapters | `map`/`filter`/`reduce`/`flatMap` | `map`/`filter`/`reduce`, `lazy` | sequences, `map`/`filter`/`fold` | `Iterable` methods, `expand` |
+| Newtype | `struct DeviceId(String)` | branded type | `struct Id: RawRepresentable` | `@JvmInline value class` | `extension type` |
+| Absence / failure | `Option` / `Result` + `?` | `T \| undefined`, `Result`-shaped union | `Optional` + `guard let`, `throws` | nullable `T?` + `?.`, `Result<T>` | `T?` + `??`, `Future`/`Either` |
+| Observation | channel / `watch` | `useSyncExternalStore`, hooks | `@Observable` / Combine | `StateFlow` | `Stream` / `ValueNotifier` |
+
+**Refactor toward a pattern when the smell is there** — a growing `switch` on a type tag, a boolean parameter selecting behaviour, construction logic sprawling across call sites. **Never because the pattern is admired.** A `Factory` that produces one type, or a `Strategy` with a single implementation, is indirection with no payer.
 
 ### Rust
 
@@ -274,6 +311,16 @@ VibeCody is a large, long-lived daemon with 13 clients. Code that is **pure, imm
 - **Total types.** No `any` — use `unknown` + narrowing. Model variants as discriminated unions and switch exhaustively with a `never` default so a new variant is a compile error. Use optional chaining `?.` and nullish coalescing `??` over manual `&&` guards.
 - **Small composable functions** with explicit return types on exported functions. Keep Tauri `invoke` calls (the effects) at the edge; keep transforms pure and unit-testable.
 
+### Swift / Kotlin / Dart clients
+
+The watch and mobile clients are thin, which makes it cheap to keep them pure — and expensive not to, because a bug there is invisible from the daemon's tests.
+
+- **Swift (`vibewatch/VibeCodyWatch*`).** `let` over `var`; `struct` over `class` unless identity or reference semantics are required. Model responses as `Codable` value types and decode once at the boundary — never pass `[String: Any]` inward. `guard let … else { return }` over pyramids of `if let`. `enum` with associated values for state (`case idle / loading / loaded(Session) / failed(Error)`) instead of parallel `isLoading` + `error` + `data` properties. Keep `WatchNetworkManager` as the only place that knows about URLs.
+- **Kotlin (`vibewatch/VibeCodyWear*`, `jetbrains-plugin/`).** `val` over `var`; `data class` for payloads; `sealed interface` + exhaustive `when` for UI state. Prefer `map`/`filter`/`fold` on sequences over index loops. Use `Result`/`runCatching` at the transport edge, never a bare `try { } catch { }` that swallows. Suspend functions for IO; no blocking calls on the main dispatcher.
+- **Dart (`vibemobile/`).** `final` by default; `const` constructors for widgets so Flutter can skip rebuilds. Immutable model classes with `copyWith`. `sealed class` + exhaustive `switch` for screen state. Keep `api_client.dart` the only file that constructs URLs or parses JSON; screens receive typed models.
+
+Whichever client you touch, the decoding boundary is the place to be total: **parse into a typed value once, at the edge, and let everything inward be non-optional.**
+
 ### Refactor triggers (safe, high-value — do these when you see them)
 
 | Smell | Refactor | Wins |
@@ -288,6 +335,27 @@ VibeCody is a large, long-lived daemon with 13 clients. Code that is **pure, imm
 | String built by `+=` in a loop | `push_str` into one buffer, or `join` / `format!` | speed |
 | `useState` mirror kept in sync via `useEffect` | derive with `useMemo` | fewer renders, no drift |
 | `any` on a boundary type | `unknown` + a narrowing type guard | safety |
+| `Vec::new()` then `push` a known number of times | `Vec::with_capacity(n)` / `collect` | one alloc instead of log₂n |
+| Container constructed inside a loop | hoist it, or keep a scratch buffer on the struct | fewer allocs |
+| Owned `String` / `Vec<T>` parameter that's only read | `&str` / `&[T]` / `impl AsRef<str>` | no copy at every call site |
+| `HashMap<A, HashMap<B, V>>` | one map keyed by `(A, B)` | one lookup, one alloc |
+| Regex / JSON parse before a cheap reject | first-byte or length test first | skips the expensive path |
+| Cache that only *ignores* stale entries | evict on insert, or rebuild every N ops | bounded memory |
+| Poll interval faster than the data changes | match cadence to the source | the biggest win on this list |
+
+### Allocation discipline
+
+Apply this **after** cadence and structure — see [Performance](#performance--measure-attribute-verify).
+
+**Do not allocate.** Reuse instead of recreating; hoist containers out of loops; `with_capacity`/`reserve` when the size is known; `static`/`const` tables over lazily-built ones; give every cache an eviction path.
+
+**Do not copy.** View types at boundaries (`&str`, `&[T]`, `Cow<'_, str>`). Borrow, don't clone — clone when you need *ownership*, not to quiet the borrow checker. Move for transfers; store indices instead of duplicating elements.
+
+**Lay it out for the cache.** Flat over pointer-chasing (`Vec`/`HashMap` beats a node-per-entry tree). Order struct fields to cut padding and group hot fields. `u32` indices instead of 64-bit pointers where the domain fits. Flatten nested maps into one compound key. Arrays or bit vectors when the key domain is small and enumerable.
+
+**Do less work.** Fast path first, rare handling out-of-line. Precompute at construction what would be recomputed per call. Hoist loop invariants. Cheap reject before an expensive check. Batch — bulk APIs amortise per-call overhead and often unlock a better algorithm. Sample statistics (one event in 32, power-of-two mask) so instrumentation doesn't dominate what it measures.
+
+> Every item in this subsection is worth less than one correctly-sized poll interval. Reach for it **after** the performance loop below, not instead of it.
 
 ### Discipline for refactors
 
@@ -295,6 +363,158 @@ VibeCody is a large, long-lived daemon with 13 clients. Code that is **pure, imm
 - **Let the hooks gate you.** Every `.rs` edit runs `cargo check --workspace --exclude vibe-collab`; every `.ts`/`.tsx` edit runs `tsc --noEmit` (see CLAUDE.md → Claude Code Setup). A refactor isn't done until both are clean.
 - **One concern per commit.** Don't fold a broad style sweep into a feature change — it makes review and `git bisect` painful. Mechanical FP refactors go in their own commit.
 - **Don't refactor what you can't test or measure.** For a "this is faster" claim on a hot path, prefer a `criterion` bench or a before/after measurement over intuition. Micro-optimizing cold code adds risk for no user-visible win.
+
+---
+
+## Performance — measure, attribute, verify
+
+**A green build proves almost nothing, and a good number proves less.** Every performance change in this repo follows the same five steps, in order:
+
+```
+1. MEASURE      a number, not a hunch. Is this CPU, memory, or latency?
+2. ATTRIBUTE    profile. Read the CALL TREE, not the leaf histogram.
+3. FIX          the cause you attributed, not the symptom you noticed.
+4. RE-MEASURE   same protocol, like-for-like.
+5. VERIFY       the feature still works — on screen, not in a metric.
+```
+
+### Step 1 — measure before you form a theory
+
+The first number should reframe the problem, not confirm your plan.
+
+```bash
+ps -o pid=,rss=,%cpu= -p $(pgrep -x vibecli)      # daemon
+ps -o pid=,rss=,%cpu= -p $(pgrep -x VibeCoder)    # desktop app
+```
+
+**Idle CPU is the cheapest health check we have, and nothing in CI watches it.** A daemon with no active session and an editor with no open job should both cost ~0 %. Check by hand after touching anything on a per-tick path — timers, `tokio::interval`, mDNS announce, the API-key monitor, watch-bridge polling, hosted-loop scheduling, React subscriptions. A regression there is invisible to every test we have.
+
+### Step 2 — attribute, and read the call tree
+
+| Surface | Symptom | Attribution |
+|---|---|---|
+| Rust daemon | `ps`, `tokio-console` | `cargo flamegraph`, `dhat` |
+| macOS (daemon or Tauri shell) | `ps` | `sample <pid> 10`, `vmmap --summary`, `heap <pid>` |
+| VibeCoder frontend | browser Task Manager | DevTools Performance → call tree; Memory → heap snapshot |
+| Flutter | `flutter run --profile` | DevTools timeline |
+
+A flat "hottest functions" list is a list of **symptoms** — it tells you what is expensive, never *who asked for it*. Always walk down from the entry point. For memory, get the **shape** first (`vmmap --summary`: is this our objects, the GPU/scene graph, or the JS VM?) before you start naming types.
+
+### Step 3 — where the wins are, in yield order
+
+Work down this list. The top items routinely return 10–100×; the bottom is where most people start.
+
+1. **Cadence — is it running at all, and how often?** The cheapest work is work you don't do. Match every poll to how fast the data actually changes, and check whether something else already refreshes it. In a system with 13 clients polling one daemon, duplicate cadence is the default failure, not the exception.
+2. **Eager instantiation — is it built before it's needed?** 314 components live under `vibecoder/src/components/`. A panel that mounts on app start because it's a direct child of a tab container costs its whole subtree at launch. Use `React.lazy()` + `Suspense` for panel routes; `OnceCell`/`LazyLock` for expensive Rust singletons. **Defer, don't unload** — latch activation false-until-first-shown, true forever after; tearing down on exit trades startup cost for navigation jank and loses panel state.
+3. **Recycling — is it rebuilt on every scroll or frame?** Virtualise long lists (file trees, log views, chat transcripts). Recycling reduces *churn*, not the resident set — claim the right win. Check the precondition: recycled rows skip one-time init, so per-index work in a mount effect goes silently stale.
+4. **Dirty-checking — does it notify when nothing changed?** A change signal that drives a re-render or an SSE broadcast costs the same whether or not anything moved. **Make a dirty check conservative:** compare *more strictly* than the thing you're guarding, so you may over-notify but never under-notify. A dirty check that can suppress a real update produces a silently stale UI — far worse than the cost it saves. Exclude fields that change every tick by definition (timestamps, sequence numbers); including one makes the check always true.
+5. **Only now:** algorithms, containers, allocation → [Allocation discipline](#allocation-discipline).
+
+### Step 4 — re-measure like-for-like
+
+Same protocol, same warm-up, same state, or you are comparing runs rather than changes. Write the protocol down ("fresh daemon start + 35 s idle"). If a counter reads 397 / 487 / 362 / 415 MB across runs, quote the **peak** and say the metric is noisy.
+
+### Step 5 — verify the feature
+
+**A performance number that improves because a feature stopped working is the easiest way to ship a regression while celebrating it.** Idle CPU of 0 % can mean the app stopped fetching. Memory down 39 % can mean a panel renders empty. Before/after numbers are not evidence on their own — open the panel and look at it.
+
+### Knowing when to stop
+
+Optimising something you haven't measured as a problem is churn that reads as progress. If you fix a latent issue because the fix is genuinely small, **say plainly that it is not a measured win**. "Grows forever" is worth removing from a daemon that runs for weeks even when it's currently trivial — but don't dress it up as a performance result. Record what you deliberately left alone, and why.
+
+---
+
+## Modelling Honesty — a model that cannot be wrong is not a model
+
+These are correctness bugs that no compiler, linter, or type check will ever catch, because the code is valid and the output is plausible.
+
+### A fallback default can be a data-integrity bug
+
+`unwrap_or(now())` on a missing timestamp reads like ordinary defensive coding. It stamps every record with the import time — and anything downstream that classifies by date is then silently wrong, with nothing on screen looking odd. **A blank invites a question; a plausible value does not.**
+
+**Ask what the default asserts.** `unwrap_or(0)` on a count asserts "none" — usually true. `unwrap_or_else(Utc::now)` on a date asserts "this happened now" — a claim about the world nobody checked. `unwrap_or_default()` on a config struct asserts "the user configured nothing", which is a different statement from "we failed to read the config".
+
+Absent data should stay absent: model it (`Option`, or `0` = unknown *contractually*), render it blank, **refuse to derive from it**, and say so at the boundary. This applies directly to provider metadata, token counts, session timestamps, and anything the watch/mobile clients render as a fact.
+
+### A clamp is not a value
+
+A guard rail that silently substitutes its own bound converts "this is broken" into "this has an opinion". If a clamp binds — context-window truncation, a token budget, a rate-limit backoff ceiling, a retry cap — **say so in the type and mark it in the UI**. Return `Clamped { value, bound_hit: true }`, not a bare number.
+
+**Detection habit:** when a displayed number looks wrong, check whether it is *exactly* a bound, a default, or a round multiple of another field on screen.
+
+### Decorative parameters invite false confidence
+
+**If a parameter can be removed without changing any output, it is not modelling anything.** A scoring function whose weights never move the ranking, a config knob every code path ignores, a `temperature` forwarded into a provider that drops it — ship the simple form and name it accurately. When a constant was tuned on a handful of examples, record that it is provisional rather than derived.
+
+### Units and bases don't survive multiplication
+
+Wherever two numbers from different sources meet in one expression, check they share a basis — tokens vs. characters, ms vs. s, per-request vs. per-session, one provider's token accounting vs. another's. Prefer deriving through a **unit-free ratio** the source also supplies, which fixes every affected case rather than the one that was noticed. Two of three sources agreeing is not validation; it's how the bug hid.
+
+---
+
+## Verification — a green build proves nothing
+
+The PostToolUse hooks run `cargo check` and `tsc --noEmit` after every edit. **Treat a clean hook as the floor, not as evidence.** Ranked by what this class of check actually catches:
+
+| Check | What it catches |
+|---|---|
+| typecheck / `cargo check` / build | signature mismatches — rarely the bug you shipped |
+| linter | little that's new when there's a standing warning backlog |
+| **run it and read stderr** | wiring errors, missing config, panics on startup |
+| **open the panel and look at it** | wrong data, empty state, wrong provider |
+| **reconcile one number against an external reference** | unit, clamp, and default bugs |
+| **hit the route / load the page** | runtime crashes a typecheck passes |
+
+A typecheck-clean build can still crash at runtime — e.g. a constant removed while a concurrently-edited file still references it. Type checking does not protect you from concurrent edits to the same file.
+
+### Lazily-validated code is unverified code
+
+A React panel is only exercised when something **renders** it; a Tauri command is only exercised when something **invokes** it; a daemon route is only exercised when a client **calls** it. Anything behind a tab nobody opened during review is unverified no matter how green the build is.
+
+**Corollary for reviews:** "it builds and lints" is not evidence a change works. **If the change is behind a tab, the tab is part of the change.** Say explicitly which surfaces you exercised and which you did not.
+
+### Prove the artifact carries the change
+
+Building a binary is not the same as shipping it. Bundlers and installers can embed a *staged copy* refreshed by a separate step, and a supervisor that reuses an already-running instance will show you correct behaviour from a package that would misbehave on a clean machine.
+
+```bash
+strings /Applications/VibeCoder.app/Contents/MacOS/vibecli | grep -c 'a_string_only_new_code_has'   # 0 means stale
+```
+
+When the artifact is compiled or compressed, `strings` finds nothing — compare the content hash, or `cmp` against the exact build you tested. This matters most for the 13-client matrix, where a stale sidecar looks exactly like a protocol bug.
+
+### Reporting
+
+State plainly what you ran, what you saw, and what you did not check. "Tests pass" without naming the command is not a report. If a step was skipped, say so.
+
+---
+
+## Traps a Build Cannot Catch
+
+### An affordance is a claim
+
+A UI that offers a capability is asserting the system has it. The gap between "the screen offers it" and "the system does it" is where the worst surprises live — a settings toggle nothing reads, a panel writing to a table nobody queries, an enum-driven registry where one variant never appears at a call site.
+
+**Detection habits:**
+- For registry/enum dispatch (providers, transports, tool kinds), grep the dispatch function and confirm **every** variant appears at a real call site. Absence of a compile error proves nothing when the enum is data, not control flow.
+- When auditing capability, trace each UI affordance to the code that fulfils it — panel → Tauri command → daemon route → the thing that actually does the work.
+- **A schema is not a feature.** A table plus its writer can sit behind `#[allow(dead_code)] // wire or remove` for months with the table empty and the writer never called. Either wire it this week or delete it.
+
+### Duplicated contracts drift silently
+
+This repo defines the same contract in up to eight places — `serve.rs`, two Tauri wrappers, `api_client.dart`, `WatchNetworkManager.swift`, Wear Kotlin, `api-client.ts`, and the SDK. **Nothing fails when one copy gains a route and another doesn't** — that client simply can never call it. This is exactly why the [Change-Surface Cookbook](#change-surface-cookbook--when-i-change-x-i-also-need-to-touch) exists; skipping a row there produces a silent capability gap, not a build error. If you add a route and deliberately skip a client, write that down in the PR.
+
+### Porting copies conventions, not just code
+
+When a feature moves between surfaces (desktop → watch, CLI → mobile), the defaults travel differently from the logic. A ported view can look right and be driven by a different window size, page limit, or timeout — neither codebase wrong in isolation. **Diff the inputs, not just the render:** run both surfaces against the same daemon and the same session, and compare.
+
+### Upsert semantics
+
+`INSERT OR REPLACE` deletes the row and reinserts it, so refreshing one column silently NULLs every column the statement didn't name. Use `INSERT … ON CONFLICT(pk) DO UPDATE SET`, touching only the columns you own. **Corollary:** when one row has two independently-refreshed halves, give each its own timestamp — sharing one lets whichever writer ran last decide the other's apparent freshness.
+
+### "An error appeared after my change" ≠ "my change caused it"
+
+Check provenance before you assume causation, and say which it was. A pre-existing bug surfaced by your change is worth fixing and worth *labelling* as pre-existing — otherwise the next reader learns the wrong lesson about the change.
 
 ---
 
@@ -566,3 +786,38 @@ let dir = std::env::temp_dir().join(format!("test_{}", rand::random::<u32>()));
 std::fs::create_dir_all(&dir).unwrap();
 let store = ProfileStore::open_with(&dir.join("test.db"), [42u8; 32]).unwrap();
 ```
+
+---
+
+## The Craft Checklist
+
+Short enough to actually run. Copy the relevant block into the PR description.
+
+**Before optimising**
+- [ ] A measurement, not a hunch — CPU, memory, or latency?
+- [ ] Attributed from the **call tree**, not a leaf list
+- [ ] Baseline recorded, with the exact protocol written down
+
+**While optimising**
+- [ ] Cadence → eager instantiation → recycling → dirty-checks, *before* micro-work
+- [ ] Dirty checks conservative: may over-notify, never under-notify
+- [ ] Nothing "fixed" that was not measured as a problem
+
+**After optimising**
+- [ ] Re-measured like-for-like, same protocol
+- [ ] **The feature still works — checked on screen, not in a metric**
+- [ ] Noisy counters reported at their stable extreme, with the noise stated
+
+**Before calling it shipped**
+- [ ] Ran it and read stderr (`vibecli --serve --port N`, `npm run tauri:dev`)
+- [ ] Opened the panel — including the one behind a tab
+- [ ] Every affordance traces to code that fulfils it
+- [ ] Walked the [Change-Surface Cookbook](#change-surface-cookbook--when-i-change-x-i-also-need-to-touch) row for this change type
+- [ ] Reconciled at least one number against an external reference
+- [ ] Proved the **deployed artifact** contains the change (string, hash, or `cmp`)
+
+**Recording it**
+- [ ] The number before and after
+- [ ] The cause, not just the change
+- [ ] What you deliberately left alone, and why
+- [ ] What is still **untested**, marked as such
