@@ -214,7 +214,7 @@ pub struct CodeContext {
 Builder pattern for provider configuration:
 
 ```rust
-let config = ProviderConfig::new("claude".into(), "claude-3-5-sonnet-20241022".into())
+let config = ProviderConfig::new("claude".into(), "claude-opus-5".into())
     .with_api_key(std::env::var("ANTHROPIC_API_KEY")?)
     .with_max_tokens(4096)
     .with_temperature(0.2);
@@ -222,7 +222,7 @@ let config = ProviderConfig::new("claude".into(), "claude-3-5-sonnet-20241022".i
 
 ### Provider Implementations
 
-All 22 providers follow the same pattern (with shared OpenAI-compat helpers extracted into `providers/openai_compat.rs`):
+All 24 providers follow the same pattern (with shared OpenAI-compat helpers extracted into `providers/openai_compat.rs`):
 
 1. Send HTTP request to provider API using `reqwest`
 2. For `chat()`: wait for full response
@@ -252,6 +252,8 @@ All 22 providers follow the same pattern (with shared OpenAI-compat helpers extr
 | Perplexity | OpenAI-compatible | `https://api.perplexity.ai` |
 | SambaNova | OpenAI-compatible | `https://api.sambanova.ai` |
 | Together | OpenAI-compatible | `https://api.together.xyz` |
+| Poolside | OpenAI-compatible | `https://inference.poolside.ai/v1` |
+| VibeCLI mistralrs | Local daemon passthrough | `http://localhost:7878` |
 | Failover | Meta-provider | Wraps multiple providers with auto-fallback |
 
 ### `ChatEngine`

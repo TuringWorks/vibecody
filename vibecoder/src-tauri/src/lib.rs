@@ -1804,6 +1804,7 @@ pub fn run() {
             commands::company_list_skills,
             // Daemon management
             commands::get_daemon_status,
+            commands::daemon_auth_token,
             commands::start_daemon,
             commands::stop_daemon,
             // SkillForge — SkillLens (analyse) + SkillOpt (train). Thin HTTP

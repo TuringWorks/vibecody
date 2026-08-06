@@ -39,13 +39,39 @@ pub async fn show_window(app: AppHandle) -> Result<(), String> {
     win.set_focus().map_err(|e| e.to_string())
 }
 
+/// Value the daemon reports as `service` in `GET /health`.
+///
+/// Duplicated as a literal rather than pulled from
+/// `vibecli_cli::daemon_bootstrap::SERVICE_NAME`: VibeApp deliberately does not
+/// depend on the `vibecli` crate (it would drag in the whole inference stack
+/// for one constant). Keep it in step — it is the contract, not an
+/// implementation detail. See AGENTS.md → "Touching daemon startup, health, or
+/// discovery".
+const VIBECLI_SERVICE_NAME: &str = "vibecli";
+
 /// Ping the vibecli daemon and return "online" or an error message.
 #[tauri::command]
 pub async fn check_daemon(url: String) -> Result<String, String> {
     let health_url = format!("{}/health", url.trim_end_matches('/'));
-    reqwest::get(&health_url)
+    let body: serde_json::Value = reqwest::get(&health_url)
         .await
-        .map_err(|e| format!("Cannot reach daemon at {}: {}", url, e))?;
+        .map_err(|e| format!("Cannot reach daemon at {}: {}", url, e))?
+        .json()
+        .await
+        .map_err(|e| format!("{} did not return a /health document: {}", url, e))?;
+    // Reaching *something* is not reaching the daemon: the previous version
+    // reported "online" for any response at all, including an error page from
+    // an unrelated service holding the port.
+    let service = body.get("service").and_then(|v| v.as_str());
+    if service != Some(VIBECLI_SERVICE_NAME) {
+        return Err(format!(
+            "{url} answered, but it is not the VibeCLI daemon{}. \
+             Stop that program, or point VibeApp at the right port.",
+            service
+                .map(|s| format!(" (it identifies as `{s}`)"))
+                .unwrap_or_default()
+        ));
+    }
     Ok("online".to_string())
 }
 

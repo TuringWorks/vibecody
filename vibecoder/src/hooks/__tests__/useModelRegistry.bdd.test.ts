@@ -31,9 +31,11 @@ import {
   STATIC_MODELS,
   ALL_PROVIDERS,
   PROVIDER_DEFAULT_MODEL,
+  CACHE_KEY,
 } from '../useModelRegistry';
 
-const CACHE_KEY = 'vibecody:model-registry';
+// Imported, not re-declared: a local copy silently went stale when the hook
+// bumped the key to `:v2`, so these tests wrote to a key nothing reads.
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
 
 beforeEach(() => {
@@ -94,12 +96,12 @@ describe('Given PROVIDER_DEFAULT_MODEL', () => {
     }
   });
 
-  it('Then claude default is claude-opus-4-8', () => {
-    expect(PROVIDER_DEFAULT_MODEL.claude).toBe('claude-opus-4-8');
+  it('Then claude default is claude-opus-5', () => {
+    expect(PROVIDER_DEFAULT_MODEL.claude).toBe('claude-opus-5');
   });
 
-  it('Then openai default is gpt-4o', () => {
-    expect(PROVIDER_DEFAULT_MODEL.openai).toBe('gpt-5.5');
+  it('Then openai default is the current flagship', () => {
+    expect(PROVIDER_DEFAULT_MODEL.openai).toBe('gpt-5.6-sol');
   });
 });
 
@@ -238,7 +240,7 @@ describe('Given a slow backend response', () => {
 
 describe('Given the May 2026 industry delta', () => {
   it('When inspecting STATIC_MODELS.openai, Then GPT-5.5 / 5.4 / 5.3-Codex are listed', () => {
-    expect(STATIC_MODELS.openai).toContain('gpt-5.5');
+    expect(STATIC_MODELS.openai).toContain('gpt-5.6-sol');
     expect(STATIC_MODELS.openai).toContain('gpt-5.4');
     expect(STATIC_MODELS.openai).toContain('gpt-5.3-codex');
   });
@@ -252,8 +254,63 @@ describe('Given the May 2026 industry delta', () => {
     expect(STATIC_MODELS.gemini).toContain('gemini-3.1-pro');
   });
 
-  it('When inspecting PROVIDER_DEFAULT_MODEL, Then OpenAI defaults to GPT-5.5 and Claude to Opus 4.8', () => {
-    expect(PROVIDER_DEFAULT_MODEL.openai).toBe('gpt-5.5');
-    expect(PROVIDER_DEFAULT_MODEL.claude).toBe('claude-opus-4-8');
+  it('When inspecting PROVIDER_DEFAULT_MODEL, Then OpenAI defaults to GPT-5.6 and Claude to Opus 5', () => {
+    expect(PROVIDER_DEFAULT_MODEL.openai).toBe('gpt-5.6-sol');
+    expect(PROVIDER_DEFAULT_MODEL.claude).toBe('claude-opus-5');
+  });
+});
+
+// ── Retired-model guard ──────────────────────────────────────────────────────
+// Selecting a retired model fails at request time with a provider error the
+// user can do nothing about (Ollama Cloud answers 410 Gone). Each id below was
+// confirmed dead on 2026-08-05 — by a live `POST /api/show` for the Ollama
+// tags, and by the provider's own deprecation notice for the rest.
+
+const RETIRED_MODEL_IDS = [
+  // Ollama Cloud — 410 Gone, with the retirement date in the error body
+  'glm-4.6:cloud',
+  'kimi-k2:1t-cloud',
+  'minimax-m2:cloud',
+  'deepseek-v3.1:671b-cloud',
+  // Anthropic — retired 2025-10-28 / 2026-01-05 / 2026-02-19
+  'claude-3-5-sonnet-20241022',
+  'claude-3-opus-20240229',
+  'claude-3-7-sonnet-20250219',
+  'anthropic.claude-3-5-sonnet-20241022-v2:0',
+  'anthropic/claude-3.5-sonnet',
+  // Groq — deprecated 2026-06-17; mixtral long gone
+  'mixtral-8x7b-32768',
+  // Never an API id — the shipped DeepSeek pair is v4-pro / v4-flash
+  'deepseek-v4',
+];
+
+describe('Given the static model catalog', () => {
+  it('Then no provider offers a retired model id', () => {
+    const offenders: string[] = [];
+    for (const [provider, models] of Object.entries(STATIC_MODELS)) {
+      for (const id of models) {
+        if (RETIRED_MODEL_IDS.includes(id)) offenders.push(`${provider}: ${id}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('Then no provider default points at a retired model id', () => {
+    const offenders = Object.entries(PROVIDER_DEFAULT_MODEL)
+      .filter(([, id]) => RETIRED_MODEL_IDS.includes(id))
+      .map(([provider, id]) => `${provider}: ${id}`);
+    expect(offenders).toEqual([]);
+  });
+
+  it('Then every provider default is offered by that provider', () => {
+    const offenders: string[] = [];
+    for (const [provider, def] of Object.entries(PROVIDER_DEFAULT_MODEL)) {
+      if (!def) continue; // vercel_ai has no default
+      const models = STATIC_MODELS[provider];
+      if (models && models.length > 0 && !models.includes(def)) {
+        offenders.push(`${provider}: default "${def}" not in STATIC_MODELS`);
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 });

@@ -66,50 +66,58 @@ pub const OLLAMA_CHAT_MODELS: &[&str] = &[
 ];
 
 const CLAUDE: &[&str] = &[
+    "claude-opus-5",
+    "claude-sonnet-5",
     "claude-opus-4-8",
     "claude-opus-4-7",
     "claude-opus-4-6",
     "claude-sonnet-4-6",
     "claude-haiku-4-5",
     "claude-sonnet-4-5",
-    "claude-3-5-sonnet-20241022",
 ];
 
 const OPENAI: &[&str] = &[
+    "gpt-5.6-sol-pro",
+    "gpt-5.6-sol",
+    "gpt-5.6-terra-pro",
+    "gpt-5.6-terra",
+    "gpt-5.6-luna-pro",
+    "gpt-5.6-luna",
+    "gpt-5.5-pro",
     "gpt-5.5",
     "gpt-5.4",
+    "gpt-5.4-mini",
     "gpt-5.3-codex",
-    "gpt-5.3-codex-spark",
+    "gpt-5.3-chat",
     "gpt-5",
-    "gpt-4o",
-    "gpt-4o-mini",
-    "gpt-4-turbo",
-    "o4-mini",
-    "o3",
-    "o3-mini",
     "gpt-4.1",
     "gpt-4.1-mini",
-    "gpt-4.1-nano",
+    "gpt-4o",
+    "gpt-4o-mini",
 ];
 
 const GEMINI: &[&str] = &[
     "gemini-3.5-pro",
+    "gemini-3.6-flash",
     "gemini-3.5-flash",
+    "gemini-3.5-flash-lite",
     "gemini-3.1-pro",
     "gemini-3-pro",
     "gemini-2.5-pro",
     "gemini-2.5-flash",
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-lite",
 ];
 
-const GROK: &[&str] = &["grok-3", "grok-3-mini", "grok-2"];
+const GROK: &[&str] = &["grok-4.5", "grok-4.3", "grok-4.20"];
 
+// llama-3.1-8b-instant / llama-3.3-70b-versatile deprecated 2026-06-17;
+// mixtral-8x7b-32768 and gemma2-9b-it are gone.
 const GROQ: &[&str] = &[
-    "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant",
-    "mixtral-8x7b-32768",
-    "gemma2-9b-it",
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
+    "qwen/qwen3.6-27b",
+    "minimaxai/minimax-m2.7",
+    "groq/compound",
+    "groq/compound-mini",
 ];
 
 const MISTRAL: &[&str] = &[
@@ -120,20 +128,21 @@ const MISTRAL: &[&str] = &[
 ];
 
 const DEEPSEEK: &[&str] = &[
-    "deepseek-v4",
+    "deepseek-v4-pro",
     "deepseek-v4-flash",
     "deepseek-chat",
     "deepseek-reasoner",
-    "deepseek-coder",
 ];
 
-const CEREBRAS: &[&str] = &["llama-3.3-70b", "llama-3.1-8b"];
+const CEREBRAS: &[&str] = &["gpt-oss-120b", "gemma-4-31b", "zai-glm-4.7"];
 
-const PERPLEXITY: &[&str] = &["sonar-pro", "sonar", "sonar-reasoning"];
+const PERPLEXITY: &[&str] = &["sonar-pro", "sonar", "sonar-reasoning-pro", "sonar-deep-research"];
 
 const TOGETHER: &[&str] = &[
-    "meta-llama/Llama-3.3-70B-Instruct",
-    "mistralai/Mixtral-8x7B-Instruct-v0.1",
+    "moonshotai/Kimi-K2.7-Code",
+    "Qwen/Qwen3.8-Max",
+    "Qwen/Qwen3.5-397B-A17B",
+    "deepseek-ai/DeepSeek-V4-Pro",
 ];
 
 const FIREWORKS: &[&str] = &[
@@ -141,29 +150,36 @@ const FIREWORKS: &[&str] = &[
     "accounts/fireworks/models/mixtral-8x7b-instruct",
 ];
 
+// Verified against the live openrouter.ai/api/v1/models catalog on 2026-08-05.
 const OPENROUTER: &[&str] = &[
+    "moonshotai/kimi-k3",
     "moonshotai/kimi-k2.7-code",
     "moonshotai/kimi-k2.6",
     "z-ai/glm-5.2",
-    "qwen/qwen3.6-coder",
-    "deepseek/deepseek-v4",
-    "anthropic/claude-3.5-sonnet",
-    "openai/gpt-4o",
-    "google/gemini-2.0-flash-001",
+    "qwen/qwen3.8-max",
+    "deepseek/deepseek-v4-pro",
+    "minimax/minimax-m3",
+    "x-ai/grok-4.5",
+    "anthropic/claude-opus-5",
+    "anthropic/claude-sonnet-5",
+    "openai/gpt-5.6-sol",
+    "google/gemini-3.6-flash",
 ];
 
 const AZURE_OPENAI: &[&str] = &["gpt-4o", "gpt-4-turbo"];
 
 const BEDROCK: &[&str] = &[
-    "anthropic.claude-3-5-sonnet-20241022-v2:0",
-    "anthropic.claude-3-haiku-20240307-v1:0",
+    "anthropic.claude-opus-5",
+    "anthropic.claude-sonnet-5",
+    "anthropic.claude-opus-4-8",
+    "anthropic.claude-haiku-4-5",
 ];
 
 const COPILOT: &[&str] = &["gpt-4o"];
 
-const ZHIPU: &[&str] = &["glm-5.2", "glm-5.1", "glm-4-plus", "glm-4-flash"];
+const ZHIPU: &[&str] = &["glm-5.2", "glm-5.1", "glm-5", "glm-4.7", "glm-4.7-flash"];
 
-const MINIMAX: &[&str] = &["MiniMax-M3", "abab6.5s-chat"];
+const MINIMAX: &[&str] = &["MiniMax-M3", "MiniMax-M2.7"];
 
 const SAMBANOVA: &[&str] = &["Meta-Llama-3.3-70B-Instruct"];
 

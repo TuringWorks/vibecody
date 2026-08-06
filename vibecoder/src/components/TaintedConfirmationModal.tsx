@@ -29,6 +29,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { daemonFetch, getDaemonToken } from '../lib/daemonFetch';
 
 export interface PendingPromptEvent {
     request_id: string;
@@ -44,8 +45,12 @@ export interface PendingPromptEvent {
 interface TaintedConfirmationModalProps {
     /** Daemon base URL. Defaults to the standard local daemon address. */
     daemonUrl?: string;
-    /** Bearer token for the daemon. Required for production; tests pass an empty string. */
-    apiToken: string;
+    /**
+     * Bearer token override. Normally omitted — the component reads the live
+     * daemon token itself via `getDaemonToken()`. Tests pass an explicit value
+     * (including `''`) to keep the network surface deterministic.
+     */
+    apiToken?: string;
     /** When false, the component does not subscribe (useful while the daemon is offline). */
     enabled?: boolean;
 }
@@ -58,6 +63,32 @@ export function TaintedConfirmationModal({
     apiToken,
     enabled = true,
 }: TaintedConfirmationModalProps) {
+    /**
+     * Live daemon bearer token.
+     *
+     * This used to come from a `VITE_DAEMON_TOKEN` env var that nothing ever
+     * set, with a comment promising "token plumbing arrives in a follow-up
+     * slice". It never did — so `/v1/tainted/pending` 401'd, no pending event
+     * ever arrived, and this security prompt silently never appeared. The
+     * daemon fails closed (it times out and denies), so the only symptom was
+     * an approval dialog the user was never shown.
+     */
+    const [resolvedToken, setResolvedToken] = useState<string | null>(
+        apiToken !== undefined ? apiToken : null
+    );
+    useEffect(() => {
+        if (apiToken !== undefined) {
+            setResolvedToken(apiToken);
+            return;
+        }
+        let alive = true;
+        getDaemonToken().then((t) => {
+            if (alive) setResolvedToken(t ?? '');
+        });
+        return () => {
+            alive = false;
+        };
+    }, [apiToken]);
     const [pending, setPending] = useState<PendingPromptEvent[]>([]);
     const [error, setError] = useState<string | null>(null);
     // Stable per-component handle to the live EventSource — avoids
@@ -74,13 +105,16 @@ export function TaintedConfirmationModal({
 
     const connect = useCallback(() => {
         if (!enabled) return;
+        // Wait for the token read to settle; connecting without it 401s and
+        // burns a reconnect-backoff cycle for nothing.
+        if (resolvedToken === null) return;
         const url = new URL('/v1/tainted/pending', daemonUrl);
         // EventSource doesn't support custom headers. We append the
         // token as a query param when needed; the daemon's auth
         // middleware accepts either header or `?token=` for SSE
         // endpoints. (See serve.rs `auth_middleware`.)
-        if (apiToken) {
-            url.searchParams.set('token', apiToken);
+        if (resolvedToken) {
+            url.searchParams.set('token', resolvedToken);
         }
         const es = new EventSource(url.toString());
         esRef.current = es;
@@ -110,7 +144,7 @@ export function TaintedConfirmationModal({
             setError(`Disconnected from daemon — retrying in ${Math.round(delay / 1000)}s`);
             reconnectTimerRef.current = window.setTimeout(connect, delay);
         };
-    }, [daemonUrl, apiToken, enabled]);
+    }, [daemonUrl, resolvedToken, enabled]);
 
     useEffect(() => {
         connect();
@@ -131,14 +165,20 @@ export function TaintedConfirmationModal({
             resolvedRef.current.add(request_id);
             setPending((prev) => prev.filter((p) => p.request_id !== request_id));
             try {
-                await fetch(new URL('/v1/tainted/respond', daemonUrl).toString(), {
-                    method: 'POST',
-                    headers: {
-                        'content-type': 'application/json',
-                        ...(apiToken ? { authorization: `Bearer ${apiToken}` } : {}),
-                    },
-                    body: JSON.stringify({ request_id, approve }),
-                });
+                // `daemonFetch` attaches the bearer token and re-reads it on a
+                // 401 — the daemon mints a new one every restart, and a stale
+                // token here means the user's decision is silently dropped.
+                const res = await daemonFetch(
+                    new URL('/v1/tainted/respond', daemonUrl).toString(),
+                    {
+                        method: 'POST',
+                        headers: { 'content-type': 'application/json' },
+                        body: JSON.stringify({ request_id, approve }),
+                    }
+                );
+                if (!res.ok) {
+                    throw new Error(`daemon returned ${res.status}`);
+                }
             } catch {
                 // Network failure: the daemon will time out and deny.
                 // Restore the modal so the user sees the failure.
@@ -147,7 +187,7 @@ export function TaintedConfirmationModal({
                 setError('Failed to send decision — daemon timeout will deny.');
             }
         },
-        [daemonUrl, apiToken],
+        [daemonUrl],
     );
 
     if (pending.length === 0 && !error) return null;

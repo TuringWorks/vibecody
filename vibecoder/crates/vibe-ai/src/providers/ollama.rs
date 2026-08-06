@@ -16,15 +16,31 @@ use serde::{Deserialize, Serialize};
 /// ollama.com. Requires an Ollama Cloud / Turbo token (`OLLAMA_API_KEY` env or
 /// the encrypted ProfileStore key).
 ///
-/// Source: <https://ollama.com/library?c=cloud>
+/// Keep in sync with `vibecoder/src/constants/ollamaModels.ts`. Every tag was
+/// verified against a live `POST /api/show` on 2026-08-05: Ollama Cloud answers
+/// `410 Gone` for a retired model and `404` for a tag that never existed.
+/// Retired and removed that day: `glm-4.6`, `kimi-k2:1t`, `minimax-m2`
+/// (all 2026-06-16) and `deepseek-v3.1:671b` (2026-07-15).
+///
+/// Source: <https://ollama.com/search?c=cloud>
 pub const OLLAMA_CLOUD_MODELS: &[&str] = &[
     "glm-5.2:cloud",
-    "deepseek-v3.1:671b-cloud",
-    "kimi-k2:1t-cloud",
+    "glm-5.1:cloud",
+    "kimi-k3:cloud",
+    "kimi-k2.7-code:cloud",
+    "kimi-k2.6:cloud",
+    "deepseek-v4-pro:cloud",
+    "deepseek-v4-flash:cloud",
+    "qwen3.5:cloud",
+    "minimax-m3:cloud",
+    "minimax-m2.7:cloud",
+    "nemotron-3-ultra:cloud",
+    "nemotron-3-super:cloud",
+    "nemotron-3-nano:30b-cloud",
+    "mistral-large-3:675b-cloud",
+    "gemma4:cloud",
     "gpt-oss:120b-cloud",
     "gpt-oss:20b-cloud",
-    "glm-4.6:cloud",
-    "minimax-m2:cloud",
 ];
 
 #[derive(Debug, Serialize)]

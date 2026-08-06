@@ -4617,6 +4617,25 @@ fn daemon_bearer_token() -> Result<String, String> {
     }
 }
 
+/// Current daemon bearer token, for panels that call daemon routes directly
+/// from the webview instead of through a Tauri proxy command.
+///
+/// Every daemon route except a small public set (`/health`, `/models`, `/pair`,
+/// …) sits behind `require_auth`. Panels that used `fetch()` without this got a
+/// blanket 401 — the Background Jobs panel and the tainted-argument
+/// confirmation flow were both entirely non-functional, with nothing on screen
+/// explaining why.
+///
+/// **Re-read, never cached here.** `vibecli serve` mints a fresh random token on
+/// every start (implicit rotation, see docs/security/key-rotation.md), so a
+/// token captured once goes stale the moment the daemon restarts — which
+/// VibeCoder itself triggers when it autostarts one. The frontend helper
+/// (`src/lib/daemonFetch.ts`) re-invokes this on a 401 for the same reason.
+#[tauri::command]
+pub async fn daemon_auth_token() -> Result<String, String> {
+    daemon_bearer_token()
+}
+
 async fn skillforge_daemon_get(path: &str) -> Result<serde_json::Value, String> {
     let token = daemon_bearer_token()?;
     let client = reqwest::Client::builder()
@@ -11179,13 +11198,17 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
     engine.clear_cloud_providers();
 
     if !settings.anthropic_api_key.is_empty() {
+        // Keep in sync with STATIC_MODELS.claude in useModelRegistry.ts.
+        // The claude-3-* aliases were dropped 2026-08-05 — all retired
+        // (3.5 Sonnet 2025-10-28, 3 Opus 2026-01-05, 3.5 Haiku 2026-02-19).
         let claude_models = [
+            "claude-opus-5",
+            "claude-sonnet-5",
+            "claude-opus-4-8",
+            "claude-opus-4-7",
             "claude-opus-4-6",
             "claude-sonnet-4-6",
-            "claude-haiku-4-5-20251001",
-            "claude-3-5-sonnet-latest",
-            "claude-3-5-haiku-latest",
-            "claude-3-opus-latest",
+            "claude-haiku-4-5",
         ];
         for model_id in &claude_models {
             let config = vibe_ai::provider::ProviderConfig {
@@ -11252,7 +11275,7 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
     }
 
     if !settings.grok_api_key.is_empty() {
-        let grok_models = ["grok-3", "grok-3-mini", "grok-2-latest", "grok-2-mini"];
+        let grok_models = ["grok-4.5", "grok-4.3", "grok-4.20"];
         for model_id in &grok_models {
             let config = vibe_ai::provider::ProviderConfig {
                 provider_type: "grok".to_string(),
@@ -11270,7 +11293,7 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
 
     if !settings.openrouter_api_key.is_empty() {
         let model = if settings.openrouter_model.is_empty() {
-            "anthropic/claude-3.5-sonnet".to_string()
+            "anthropic/claude-opus-5".to_string()
         } else {
             settings.openrouter_model.clone()
         };
@@ -11288,11 +11311,12 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
     }
 
     if !settings.groq_api_key.is_empty() {
+        // llama-3.1-8b-instant / llama-3.3-70b-versatile deprecated 2026-06-17;
+        // mixtral-8x7b-32768 and gemma2-9b-it no longer served.
         for model_id in &[
-            "llama-3.3-70b-versatile",
-            "llama-3.1-8b-instant",
-            "mixtral-8x7b-32768",
-            "gemma2-9b-it",
+            "openai/gpt-oss-120b",
+            "openai/gpt-oss-20b",
+            "qwen/qwen3.6-27b",
         ] {
             let config = vibe_ai::provider::ProviderConfig {
                 provider_type: "groq".to_string(),
@@ -11344,7 +11368,7 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
     }
 
     if !settings.cerebras_api_key.is_empty() {
-        for model_id in &["llama3.3-70b", "llama3.1-8b"] {
+        for model_id in &["gpt-oss-120b", "gemma-4-31b", "zai-glm-4.7"] {
             let config = vibe_ai::provider::ProviderConfig {
                 provider_type: "cerebras".to_string(),
                 api_key: Some(settings.cerebras_api_key.clone()),
@@ -57184,18 +57208,6 @@ pub async fn company_list_skills() -> Result<serde_json::Value, String> {
 // the HTTP API (BackgroundJobs, Collab, ACP…) work without the user needing to
 // run `vibecli --serve` manually.
 
-/// Locate the vibecli binary.
-///
-/// Delegates to `vibecli_cli::daemon_bootstrap::find_binary`, which is the one
-/// implementation shared with VibeDesk and the daemon's own bootstrap. This used
-/// to be a second, independent search (shelling out to `which`, then
-/// `~/.cargo/bin`, then hard-coded prefixes). Two copies of the same contract
-/// drift silently — a fix applied to one leaves the other broken — so the
-/// system-prefix and Scoop-shim cases moved into the shared search instead.
-pub fn find_vibecli_binary() -> Option<std::path::PathBuf> {
-    vibecli_cli::daemon_bootstrap::find_binary()
-}
-
 /// Quick TCP probe — is something listening on 127.0.0.1:port?
 pub(crate) async fn port_open(port: u16) -> bool {
     // Liveness only — deliberately *not* a daemon check. Use
@@ -57220,7 +57232,7 @@ pub async fn get_daemon_status(
     let running = identity.is_some();
     // Only meaningful when the daemon didn't answer: is the port free, or held
     // by something that isn't us?
-    let port_taken_by_other = !running && boot::port_is_occupied(port).await;
+    let port_taken_by_other = !running && port_open(port).await;
     let managed = {
         let guard = state.daemon_process.lock().await;
         guard.is_some()

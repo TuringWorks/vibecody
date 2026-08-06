@@ -4,6 +4,8 @@ import { useToast } from '../hooks/useToast';
 import { Toaster } from './Toaster';
 import { useModelRegistry } from '../hooks/useModelRegistry';
 import type { Recap } from '../types/recap';
+// Daemon routes are behind `require_auth`; a plain fetch() 401s. See daemonFetch.ts.
+import { daemonFetch, getDaemonToken } from '../lib/daemonFetch';
 
 interface JobRecord {
  session_id: string;
@@ -64,7 +66,7 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
 
  const fetchJobs = async () => {
  try {
- const res = await fetch(`${daemonUrl}/jobs`);
+ const res = await daemonFetch(`${daemonUrl}/jobs`);
  if (!res.ok) throw new Error(await res.text());
  const data: JobRecord[] = await res.json();
  setJobs(data);
@@ -79,7 +81,7 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
 
  const fetchMetrics = async () => {
  try {
- const res = await fetch(`${daemonUrl}/v1/metrics/jobs`);
+ const res = await daemonFetch(`${daemonUrl}/v1/metrics/jobs`);
  if (!res.ok) return;
  const data: JobManagerMetrics = await res.json();
  setMetrics(data);
@@ -131,7 +133,7 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  if (!task.trim()) return;
  setSubmitting(true);
  try {
- const res = await fetch(`${daemonUrl}/agent`, {
+ const res = await daemonFetch(`${daemonUrl}/agent`, {
  method: 'POST',
  headers: { 'Content-Type': 'application/json' },
  body: JSON.stringify({ task, approval }),
@@ -155,7 +157,7 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  if (jobId in recapsByJobId) return;
  try {
   const url = `${daemonUrl}/v1/recap?kind=job&subject_id=${encodeURIComponent(jobId)}&limit=1`;
-  const res = await fetch(url);
+  const res = await daemonFetch(url);
   if (!res.ok) { setRecapsByJobId((prev) => ({ ...prev, [jobId]: null })); return; }
   const body = await res.json();
   const recap: Recap | undefined = Array.isArray(body?.recaps) ? body.recaps[0] : undefined;
@@ -171,7 +173,7 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  const resumeFromRecap = async (recap: Recap) => {
  setResumingId(recap.id);
  try {
-  const res = await fetch(`${daemonUrl}/v1/resume`, {
+  const res = await daemonFetch(`${daemonUrl}/v1/resume`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
@@ -193,21 +195,26 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
 
  const cancelJob = async (id: string) => {
  try {
- await fetch(`${daemonUrl}/jobs/${id}/cancel`, { method: 'POST' });
+ await daemonFetch(`${daemonUrl}/jobs/${id}/cancel`, { method: 'POST' });
  await fetchJobs();
  } catch (e) {
  toast.error(`Failed to cancel: ${e}`);
  }
  };
 
- const streamLive = (id: string) => {
+ const streamLive = async (id: string) => {
  if (esRefs.current[id]) {
  esRefs.current[id].close();
  delete esRefs.current[id];
  setLiveEvents((prev) => { const n = { ...prev }; delete n[id]; return n; });
  return;
  }
- const es = new EventSource(`${daemonUrl}/stream/${id}`);
+ // EventSource cannot set an Authorization header, which is exactly why
+ // `require_auth` also accepts `?token=`. Without it the stream 401s and the
+ // job never shows live output.
+ const token = await getDaemonToken();
+ const streamUrl = `${daemonUrl}/stream/${id}${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+ const es = new EventSource(streamUrl);
  es.onmessage = (e) => {
  try {
  const payload = JSON.parse(e.data);

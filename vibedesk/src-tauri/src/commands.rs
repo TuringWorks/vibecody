@@ -45,9 +45,23 @@ fn with_auth(req: reqwest::RequestBuilder, token: Option<String>) -> reqwest::Re
 #[tauri::command]
 pub async fn check_daemon(url: String) -> Result<String, String> {
     let health_url = format!("{}/health", url.trim_end_matches('/'));
-    reqwest::get(&health_url)
+    let body: serde_json::Value = reqwest::get(&health_url)
         .await
-        .map_err(|e| format!("Cannot reach daemon at {}: {}", url, e))?;
+        .map_err(|e| format!("Cannot reach daemon at {}: {}", url, e))?
+        .json()
+        .await
+        .map_err(|e| format!("{} did not return a /health document: {}", url, e))?;
+    // Reaching *something* is not reaching the daemon. Without this, an
+    // unrelated service on the port reports "online" and every later call
+    // fails with an error that points at the daemon instead of the conflict.
+    let service = body.get("service").and_then(|v| v.as_str());
+    if service != Some(vibecli_cli::daemon_bootstrap::SERVICE_NAME) {
+        return Err(format!(
+            "{url} answered, but it is not the VibeCLI daemon{}. \
+             Stop that program, or point VibeDesk at the right port.",
+            service.map(|s| format!(" (it identifies as `{s}`)")).unwrap_or_default()
+        ));
+    }
     Ok("online".to_string())
 }
 

@@ -101,72 +101,77 @@ Below: every provider VibeCody ships, the models we expose in the picker, and wh
 
 ### Anthropic Claude (`claude`)
 
-Three-tier family — Opus (deepest reasoning), Sonnet (balanced workhorse), Haiku (fast/cheap). All three support tool calling, vision, and extended thinking. Default in VibeCody is `claude-opus-4-7`.
+Three-tier family — Opus (deepest reasoning), Sonnet (balanced workhorse), Haiku (fast/cheap). All three support tool calling, vision, and adaptive thinking. Default in VibeCody is `claude-opus-5`.
 
 | Model | Ctx | Tools | Vision | Reasoning | Notes |
 |---|---|---|---|---|---|
-| claude-opus-4-7 | 200k | ✅ | ✅ | ✅ | Flagship reasoning + agent default |
-| claude-sonnet-4-6 | 200k | ✅ | ✅ | ✅ | Current Sonnet — best-bang-for-buck coding agent |
+| claude-opus-5 | 1M | ✅ | ✅ | ✅ | Flagship reasoning + agent default |
+| claude-sonnet-5 | 1M | ✅ | ✅ | ✅ | Current Sonnet — near-Opus coding at Sonnet cost |
 | claude-haiku-4-5 | 200k | ✅ | ✅ | ✅ | Current Haiku — cheap/fast tool calls + classification |
-| claude-opus-4-6 | 200k | ✅ | ✅ | ✅ | Previous-gen flagship |
-| claude-sonnet-4-5 | 200k | ✅ | ✅ | ✅ | Previous-gen Sonnet |
-| claude-3-5-sonnet-20241022 | 200k | ✅ | ✅ | ❌ | Legacy 3.5 — kept for reproducibility |
+| claude-opus-4-8 | 1M | ✅ | ✅ | ✅ | Previous-gen Opus |
+| claude-opus-4-7 | 1M | ✅ | ✅ | ✅ | Older Opus |
+| claude-opus-4-6 | 1M | ✅ | ✅ | ✅ | Older Opus |
+| claude-sonnet-4-6 | 1M | ✅ | ✅ | ✅ | Previous-gen Sonnet |
+| claude-sonnet-4-5 | 200k | ✅ | ✅ | ✅ | Older Sonnet |
 
-**claude-opus-4-7** — Strongest at sustained agentic loops with many tools and many turns. It rarely loses the plot on long sessions and is willing to push back on bad instructions. Most expensive of the three. Use when latency doesn't matter and the work is hard.
+`claude-3-5-sonnet-20241022` was dropped on 2026-08-05 — Anthropic retired it on
+2025-10-28 and it now 404s. Retired alongside it: Claude 3 Opus (2026-01-05),
+Claude 3.5 Haiku and Claude 3.7 Sonnet (both 2026-02-19).
 
-**claude-sonnet-4-6** — The model most VibeCody users will actually run. Roughly Opus-level coding quality on common tasks, ~3-4× cheaper, ~2× faster. Default for the VibeCoder Code panel.
+**claude-opus-5** — Strongest at sustained agentic loops with many tools and many turns. It rarely loses the plot on long sessions and is willing to push back on bad instructions. Most expensive of the three. Use when latency doesn't matter and the work is hard.
+
+**claude-sonnet-5** — The model most VibeCody users will actually run. Roughly Opus-level coding quality on common tasks, ~3-4× cheaper, ~2× faster. Default for the VibeCoder Code panel.
 
 **claude-haiku-4-5** — Surprisingly capable for its tier; handles routine tool-calling, summarization, intent classification. Don't use it for novel architecture or deep debugging — it gets confidently wrong.
 
 ### `claude-code` (local Claude Code CLI passthrough)
 
-Same Anthropic models (Opus 4.7, Sonnet 4.6, Haiku 4.5), but billed against the user's Claude.ai Free/Pro/Max/Team/Enterprise plan instead of API credits. Same capabilities; payment shape differs.
+Same Anthropic models (Opus 5, Sonnet 5, Haiku 4.5), but billed against the user's Claude.ai Free/Pro/Max/Team/Enterprise plan instead of API credits. Same capabilities; payment shape differs.
 
 ### OpenAI (`openai`)
 
-Three parallel lines as of May 2026: the **GPT-5 line** (gpt-5, gpt-5.3, gpt-5.4, gpt-5.5) is the current general-purpose flagship family with built-in adaptive reasoning; the **GPT-5 codex variants** (gpt-5.3-codex, gpt-5.3-codex-spark) are coding-tuned for agent loops; the **GPT-4 line** (gpt-4o, gpt-4.1) remains for compatibility and long-context cases; the **o-line** (o3, o4-mini) is the older explicit-reasoning family. VibeCody's default is `gpt-5.5`.
+As of August 2026: the **GPT-5.6 line** (`-sol`, `-terra`, `-luna`, each with a `-pro` variant) is the current flagship family with built-in adaptive reasoning; **GPT-5.5 / 5.4** remain as cheaper previous flagships; the **codex variants** (gpt-5.3-codex) are coding-tuned for agent loops; the **GPT-4 line** (gpt-4o, gpt-4.1) remains for compatibility and long-context cases. VibeCody's default is `gpt-5.6-sol`. The o-line (o3, o3-mini, o4-mini) and gpt-4-turbo were dropped from the picker on 2026-08-05.
 
 | Model | Ctx | Tools | Vision | Reasoning | Notes |
 |---|---|---|---|---|---|
-| gpt-5.5 | 1M | ✅ | ✅ | ✅ | Current flagship — default in VibeCody |
-| gpt-5.4 | 1M | ✅ | ✅ | ✅ | Previous flagship; cheaper than 5.5 |
+| gpt-5.6-sol | 1M | ✅ | ✅ | ✅ | Current flagship — default in VibeCody |
+| gpt-5.6-sol-pro | 1M | ✅ | ✅ | ✅ | Highest-effort `sol` variant |
+| gpt-5.6-terra / -pro | 1M | ✅ | ✅ | ✅ | Sibling 5.6 tuning |
+| gpt-5.6-luna / -pro | 1M | ✅ | ✅ | ✅ | Sibling 5.6 tuning |
+| gpt-5.5-pro | 1M | ✅ | ✅ | ✅ | Previous flagship, high effort |
+| gpt-5.5 | 1M | ✅ | ✅ | ✅ | Previous flagship |
+| gpt-5.4 | 1M | ✅ | ✅ | ✅ | Older flagship; cheaper |
+| gpt-5.4-mini | 1M | ✅ | ✅ | ⚠️ | Cheap 5.4 variant |
 | gpt-5.3-codex | 200k | ✅ | ❌ | ✅ | Coding-tuned, agent-loop optimised |
-| gpt-5.3-codex-spark | 200k | ✅ | ❌ | ⚠️ | Faster/cheaper codex variant for IDE flows |
+| gpt-5.3-chat | 200k | ✅ | ✅ | ⚠️ | Chat-tuned 5.3 |
 | gpt-5 | 1M | ✅ | ✅ | ✅ | First GPT-5 release; kept for reproducibility |
-| gpt-4o | 128k | ✅ | ✅ | ❌ | Workhorse multimodal, omni input/output |
-| gpt-4o-mini | 128k | ✅ | ✅ | ❌ | Fast/cheap variant |
-| gpt-4-turbo | 128k | ✅ | ✅ | ❌ | Older; kept for reproducibility |
 | gpt-4.1 | 1M | ✅ | ✅ | ❌ | Long-context GPT-4 flagship |
 | gpt-4.1-mini | 1M | ✅ | ✅ | ❌ | Fast long-context |
-| gpt-4.1-nano | 1M | ✅ | ❌ | ❌ | Very cheap classification/extract |
-| o3 | 200k | ✅ | ✅ | ✅ | Hard reasoning, pre-GPT-5 |
-| o3-mini | 200k | ✅ | ❌ | ✅ | Cheaper reasoning |
-| o4-mini | 200k | ✅ | ✅ | ✅ | Reasoning + vision; replaces o3-mini for most use |
+| gpt-4o | 128k | ✅ | ✅ | ❌ | Workhorse multimodal, omni input/output |
+| gpt-4o-mini | 128k | ✅ | ✅ | ❌ | Fast/cheap variant |
 
-**gpt-5.5** — OpenAI's current general-purpose flagship. 1M-token context with strong long-range retrieval, built-in adaptive reasoning (the model decides per-prompt how much "thinking" to spend), native vision, rock-solid tool calling. Default in VibeCody for the OpenAI provider.
+**gpt-5.6-sol** — OpenAI's current general-purpose flagship. 1M-token context with strong long-range retrieval, built-in adaptive reasoning (the model decides per-prompt how much "thinking" to spend), native vision, rock-solid tool calling. Default in VibeCody for the OpenAI provider.
 
-**gpt-5.3-codex** — Coding-specialised GPT-5 variant; tuned for multi-step file edits, run-and-fix loops, and tool-heavy agent flows. Pick this over `gpt-5.5` when the workload is overwhelmingly code-editing. The `-spark` variant trades some quality for sub-second latency — good for inline completions and quick IDE actions.
+**gpt-5.3-codex** — Coding-specialised GPT-5 variant; tuned for multi-step file edits, run-and-fix loops, and tool-heavy agent flows. Pick this over `gpt-5.6-sol` when the workload is overwhelmingly code-editing.
 
 **gpt-4.1** — Still useful when you need a non-reasoning baseline at low cost or want to A/B against GPT-5 outputs. 1M-token context retrieves well. For new work, default to a GPT-5 entry instead.
 
-**o3** — Pre-GPT-5 reasoning flagship. GPT-5.5 generally matches or beats it on most benches now, but o3 is still useful where you want the older reasoning style for reproducibility.
-
-**o4-mini** — A reasonable middle ground when you want some explicit reasoning but not o3 cost. Good for code review and architecture sketches.
-
 ### Google Gemini (`gemini`)
 
-Long context is the headline (1M+ on Pro). The Gemini 3 generation (released Q1 2026) is competitive with GPT-5-class models on most general tasks and remains best-in-class for long-context retrieval. The 2.5 line stays in the picker for cost-sensitive workloads. VibeCody's default is `gemini-3.1-pro`.
+Long context is the headline (1M+ on Pro). The Gemini 3 generation (released Q1 2026) is competitive with GPT-5-class models on most general tasks and remains best-in-class for long-context retrieval. The 2.5 line stays in the picker for cost-sensitive workloads. VibeCody's default is `gemini-3.5-pro`. The 2.0 line was dropped from the picker on 2026-08-05.
 
 | Model | Ctx | Tools | Vision | Reasoning | Notes |
 |---|---|---|---|---|---|
-| gemini-3.1-pro | 1M+ | ✅ | ✅ | ✅ | Current flagship — default in VibeCody |
+| gemini-3.5-pro | 2M | ✅ | ✅ | ✅ | Current flagship — default in VibeCody |
+| gemini-3.6-flash | 1M+ | ✅ | ✅ | ✅ | Newest flash tier |
+| gemini-3.5-flash | 1M+ | ✅ | ✅ | ⚠️ | Cheap workhorse |
+| gemini-3.5-flash-lite | 1M+ | ✅ | ❌ | ❌ | Cheapest tier |
+| gemini-3.1-pro | 1M+ | ✅ | ✅ | ✅ | Previous flagship |
 | gemini-3-pro | 1M+ | ✅ | ✅ | ✅ | Initial Gemini 3 release; kept for reproducibility |
 | gemini-2.5-pro | 1M | ✅ | ✅ | ✅ | Previous-gen long-context flagship |
-| gemini-2.5-flash | 1M | ✅ | ✅ | ⚠️ | Cheap workhorse |
-| gemini-2.0-flash | 1M | ✅ | ✅ | ❌ | Previous-gen flash |
-| gemini-2.0-flash-lite | 1M | ✅ | ❌ | ❌ | Cheapest tier |
+| gemini-2.5-flash | 1M | ✅ | ✅ | ⚠️ | Previous-gen cheap workhorse |
 
-**gemini-3.1-pro** — Google's current flagship. Strongest model in the picker for genuine 1M+ token comprehension (not just acceptance), with native multimodal handling and adaptive reasoning. Tool calling caught up to Claude/GPT-5 with the 3.x line; argument-shape hallucinations on complex tools have largely cleared. Default in VibeCody for the Gemini provider.
+**gemini-3.5-pro** — Google's current flagship. Strongest model in the picker for genuine 1M+ token comprehension (not just acceptance), with native multimodal handling and adaptive reasoning. Tool calling caught up to Claude/GPT-5 with the 3.x line; argument-shape hallucinations on complex tools have largely cleared. Default in VibeCody for the Gemini provider.
 
 **gemini-2.5-pro** — Still a strong long-context option at lower cost than 3.1 Pro. Use when you need depth on a long input but don't need the latest reasoning quality.
 
@@ -174,15 +179,17 @@ Long context is the headline (1M+ on Pro). The Gemini 3 generation (released Q1 
 
 ### xAI Grok (`grok`)
 
-Strong on real-time / news-aware tasks (it has live X data feed integration on the back end). Decent coding ability; tool calling is solid as of grok-3.
+Strong on real-time / news-aware tasks (it has live X data feed integration on the back end). Decent coding ability; tool calling is solid across the 4.x line.
 
 | Model | Ctx | Tools | Vision | Reasoning | Notes |
 |---|---|---|---|---|---|
-| grok-3 | 256k | ✅ | ✅ | ⚠️ | Flagship |
-| grok-3-mini | 256k | ✅ | ❌ | ❌ | Cheap/fast — VibeCody default |
-| grok-2 | 128k | ✅ | ✅ | ❌ | Previous gen |
+| grok-4.5 | 256k | ✅ | ✅ | ✅ | Flagship — VibeCody default |
+| grok-4.3 | 256k | ✅ | ✅ | ✅ | Previous gen |
+| grok-4.20 | 256k | ✅ | ✅ | ✅ | Older 4.x |
 
-**grok-3** — Useful when the task involves recent events, market data, or code where the relevant docs were published in the last few months — it tends to be more current than rivals. Coding capability roughly between gpt-4o and gpt-4.1. Tool calling works but the JSON schema adherence is fussier than Claude's.
+The grok-3 and grok-2 entries were dropped on 2026-08-05 — superseded by the 4.x line.
+
+**grok-4.5** — Useful when the task involves recent events, market data, or code where the relevant docs were published in the last few months — it tends to be more current than rivals. Coding capability roughly between gpt-4o and gpt-4.1. Tool calling works but the JSON schema adherence is fussier than Claude's.
 
 ### Mistral (`mistral`)
 
@@ -203,22 +210,27 @@ Chinese provider; very strong reasoning (R1) and aggressively cheap pricing. Not
 
 | Model | Ctx | Tools | Vision | Reasoning | Notes |
 |---|---|---|---|---|---|
+| deepseek-v4-pro | 128k | ✅ | ❌ | ✅ | Current flagship (MIT, 2026-04-24) |
+| deepseek-v4-flash | 128k | ✅ | ❌ | ⚠️ | Cheaper/faster V4 |
 | deepseek-chat | 128k | ✅ | ❌ | ❌ | General workhorse |
 | deepseek-reasoner | 128k | ✅ | ❌ | ✅ | R1-class reasoning |
-| deepseek-coder | 128k | ✅ | ❌ | ❌ | Coding-tuned |
+
+`deepseek-coder` was dropped on 2026-08-05 (folded into the chat line), as was
+the bare `deepseek-v4` id — the shipped pair is `-pro` / `-flash`.
 
 **deepseek-reasoner** — Strong at math and algorithmic reasoning; meaningfully cheaper than o3 for similar quality on bench tasks. Tool calling support is recent and a bit rough; verify your function schemas round-trip cleanly before relying on it for agent loops.
 
 ### Cerebras (`cerebras`)
 
-Inference-only platform — does not train models, but runs Llama-class open weights at extreme speed (often 10-20× faster than typical cloud endpoints) on their wafer-scale hardware.
+Inference-only platform — does not train models, but runs open weights at extreme speed (often 10-20× faster than typical cloud endpoints) on their wafer-scale hardware. The Llama-class entries were dropped on 2026-08-05; Cerebras no longer serves them.
 
 | Model | Ctx | Tools | Vision | Reasoning | Notes |
 |---|---|---|---|---|---|
-| llama-3.3-70b | 128k | ✅ | ❌ | ❌ | Best-quality option |
-| llama-3.1-8b | 128k | ✅ | ❌ | ❌ | Tiny + extremely fast |
+| gpt-oss-120b | 128k | ✅ | ❌ | ✅ | Best-quality option — VibeCody default |
+| gemma-4-31b | 128k | ✅ | ❌ | ⚠️ | Google open weights |
+| zai-glm-4.7 | 128k | ✅ | ❌ | ✅ | Z.ai GLM on Cerebras hardware |
 
-**llama-3.3-70b** on Cerebras — Use when you want Llama-3.3 quality with 1000+ tokens/sec generation. Great for streaming-heavy chat UIs and agent loops where round-trip count dominates. Tool calling works but the model itself is slightly weaker at strict JSON than GPT-4-class.
+**gpt-oss-120b** on Cerebras — Use when you want frontier open-weights quality with 1000+ tokens/sec generation. Great for streaming-heavy chat UIs and agent loops where round-trip count dominates.
 
 ### Perplexity (`perplexity`)
 
@@ -228,27 +240,35 @@ Web-search-augmented chat. Models include browsing as a native step in their gen
 |---|---|---|---|---|---|
 | sonar-pro | 200k | ⚠️ | ❌ | ❌ | Default. Web-grounded answers + citations |
 | sonar | 128k | ⚠️ | ❌ | ❌ | Cheaper variant |
-| sonar-reasoning | 128k | ⚠️ | ❌ | ✅ | Reasoning + web search |
+| sonar-reasoning-pro | 128k | ⚠️ | ❌ | ✅ | Reasoning + web search |
+| sonar-deep-research | 128k | ⚠️ | ❌ | ✅ | Multi-step research reports |
 
 Use Perplexity for "what's the latest on X" prompts where you need fresh sources. Don't use it for code generation or long agent loops — it isn't shaped for that.
 
 ### Together.ai (`together`)
 
-Inference-only marketplace for open-weights models. We expose a couple of Llama / Mixtral defaults; Together hosts dozens more — extend STATIC_MODELS if you need them.
+Inference-only marketplace for open-weights models. We expose a handful of current frontier open weights; Together hosts dozens more — extend STATIC_MODELS if you need them. The Llama-3.3 / Mixtral defaults were dropped on 2026-08-05.
 
 | Model | Ctx | Tools | Vision | Reasoning | Notes |
 |---|---|---|---|---|---|
-| meta-llama/Llama-3.3-70B-Instruct | 128k | ⚠️ | ❌ | ❌ | Workhorse open weights |
-| mistralai/Mixtral-8x7B-Instruct-v0.1 | 32k | ⚠️ | ❌ | ❌ | Older but cheap MoE |
+| moonshotai/Kimi-K2.7-Code | 256k | ✅ | ❌ | ✅ | Coding flagship — VibeCody default |
+| Qwen/Qwen3.8-Max | 256k | ✅ | ❌ | ✅ | Alibaba flagship |
+| Qwen/Qwen3.5-397B-A17B | 256k | ✅ | ❌ | ✅ | Large MoE |
+| deepseek-ai/DeepSeek-V4-Pro | 128k | ✅ | ❌ | ✅ | Reasoning leader at low cost |
 
 ### Fireworks (`fireworks`)
 
-Same shape as Together — inference-only, open-weights focus, similar Llama/Mixtral lineup.
+Same shape as Together — inference-only, open-weights focus.
 
 | Model | Ctx | Tools | Vision | Reasoning | Notes |
 |---|---|---|---|---|---|
 | accounts/fireworks/models/llama-v3p3-70b-instruct | 128k | ⚠️ | ❌ | ❌ | Llama 3.3 default |
 | accounts/fireworks/models/mixtral-8x7b-instruct | 32k | ⚠️ | ❌ | ❌ | Older Mixtral |
+
+> ⚠️ **Not verified in the 2026-08-05 sweep.** Both ids predate the Mixtral-era
+> lineup and are likely stale, but Fireworks' catalog was not checked against a
+> live source, so they were left as-is rather than replaced with guesses.
+> Same caveat applies to `sambanova`, `azure_openai`, and `copilot`.
 
 ### OpenRouter (`openrouter`)
 
@@ -256,11 +276,23 @@ Aggregator front-end — one API key, hundreds of models routed to the cheapest/
 
 | Model | Ctx | Tools | Vision | Reasoning | Notes |
 |---|---|---|---|---|---|
-| anthropic/claude-3.5-sonnet | 200k | ✅ | ✅ | ❌ | Stable Claude route via OpenRouter |
-| openai/gpt-4o | 128k | ✅ | ✅ | ❌ | OpenAI passthrough |
-| google/gemini-2.0-flash-001 | 1M | ✅ | ✅ | ❌ | Cheap long context |
+| anthropic/claude-opus-5 | 1M | ✅ | ✅ | ✅ | Claude route — VibeCody default |
+| anthropic/claude-sonnet-5 | 1M | ✅ | ✅ | ✅ | Cheaper Claude route |
+| openai/gpt-5.6-sol | 1M | ✅ | ✅ | ✅ | OpenAI passthrough |
+| google/gemini-3.6-flash | 1M+ | ✅ | ✅ | ✅ | Cheap long context |
+| moonshotai/kimi-k3 | 256k | ✅ | ❌ | ✅ | 3T-class open weights |
+| moonshotai/kimi-k2.7-code | 256k | ✅ | ❌ | ✅ | Coding-tuned |
+| moonshotai/kimi-k2.6 | 256k | ✅ | ❌ | ✅ | Previous Kimi |
+| z-ai/glm-5.2 | 200k | ✅ | ❌ | ✅ | Open-weights intelligence leader |
+| qwen/qwen3.8-max | 256k | ✅ | ❌ | ✅ | Alibaba flagship |
+| deepseek/deepseek-v4-pro | 128k | ✅ | ❌ | ✅ | Reasoning at low cost |
+| minimax/minimax-m3 | 1M | ✅ | ✅ | ✅ | 1M context + multimodal |
+| x-ai/grok-4.5 | 256k | ✅ | ✅ | ✅ | News-aware |
 
-OpenRouter's `STATIC_MODELS` keeps a deliberately small, stable list — extend it in `useModelRegistry.ts` if you need the latest Sonnet 4.6 / Opus 4.7 / GPT-5 / Gemini 3.1 routes. Most flagships are exposed under their canonical OpenRouter slugs (`anthropic/claude-opus-4-7`, `openai/gpt-5.5`, `google/gemini-3.1-pro`).
+The previous entries (`anthropic/claude-3.5-sonnet`, `openai/gpt-4o`,
+`google/gemini-2.0-flash-001`, `deepseek/deepseek-v4`) were replaced on
+2026-08-05 — the first is retired and the last was never a valid slug. This list
+is still deliberately small; the full catalog is at `https://openrouter.ai/api/v1/models`.
 
 ### Azure OpenAI (`azure_openai`)
 
@@ -273,14 +305,19 @@ Enterprise Azure-region-pinned OpenAI deployments. Same models as `openai` but b
 
 ### Amazon Bedrock (`bedrock`)
 
-AWS-region-pinned Anthropic Claude (and others). Same models, AWS billing, IAM-gated. Bedrock typically lags the Anthropic API by 1-2 generations on the Sonnet/Haiku slugs that have shipped to the Bedrock catalog.
+AWS-region-pinned Anthropic Claude (and others). Same models, AWS billing, IAM-gated. Bedrock is partner-operated, so availability per region can trail the first-party API and the feature surface is a subset — check the model is listed in your region before pinning it.
 
 | Model | Notes |
 |---|---|
-| anthropic.claude-3-5-sonnet-20241022-v2:0 | Stable Sonnet route on Bedrock |
-| anthropic.claude-3-haiku-20240307-v1:0 | Stable Haiku route on Bedrock |
+| anthropic.claude-opus-5 | Current Opus route — VibeCody default |
+| anthropic.claude-sonnet-5 | Current Sonnet route |
+| anthropic.claude-opus-4-8 | Previous-gen Opus |
+| anthropic.claude-haiku-4-5 | Cheap/fast route |
 
-To use the latest Anthropic models (Opus 4.7, Sonnet 4.6, Haiku 4.5) on Bedrock, add their Bedrock-side model IDs to `useModelRegistry.ts:STATIC_MODELS.bedrock` once AWS lists them in your region.
+Bedrock ids take an `anthropic.` prefix on the otherwise-identical first-party id.
+The previous entries were replaced on 2026-08-05: `claude-3-5-sonnet` retired
+2025-10-28 and `claude-3-haiku` retires 2026-04-19. If a model isn't yet listed in
+your region, pin an older entry from the table above.
 
 ### GitHub Copilot (`copilot`)
 
@@ -302,8 +339,10 @@ VibeCody's default Ollama model is **`devstral-2`** — Mistral's 123B coding-ag
 |---|---|---|---|
 | **devstral-2** | Mistral / France | **Coding agents** | 123B MoE, default. Tool calling native. |
 | devstral-small-2 | Mistral / France | Cheaper coding | Smaller variant of devstral-2 |
-| nemotron-3-super | NVIDIA / US | Reasoning | Llama-derived, RL-tuned for math/code reasoning |
-| nemotron-3-nano | NVIDIA / US | Cheap reasoning | Smaller nemotron |
+| nemotron-3-ultra | NVIDIA / US | Deepest reasoning | 550B A55B, cloud-only |
+| nemotron-3-super | NVIDIA / US | Reasoning | 120B A12B, RL-tuned for math/code reasoning |
+| nemotron-3-nano | NVIDIA / US | Cheap reasoning | 30B A3B (cloud tag `nemotron-3-nano:30b-cloud`) |
+| mistral-large-3 | Mistral / France | General | Cloud tag `mistral-large-3:675b-cloud` |
 | cogito-2.1 | DeepCogito / US | Hybrid reasoning + tools | Newer entry; promising on agent benches |
 | gemma4 | Google / US | General | Open-weights Gemini-adjacent |
 | ministral-3 | Mistral / France | Cheap fast | Small but capable |
@@ -317,9 +356,16 @@ These are technically excellent but may conflict with data-residency rules. List
 | qwen3-coder, qwen3-coder-next | Alibaba | Strong coding model |
 | qwen3-next, qwen3.5 | Alibaba | General-purpose |
 | deepseek-v4-pro, deepseek-v4-flash | DeepSeek | Reasoning leader at low cost |
-| glm-5, glm-5.1 | Zhipu | Strong agent eval scores |
-| kimi-k2.5, kimi-k2.6 | Moonshot | 1T MoE; long context |
-| minimax-m2.5, minimax-m2.7 | MiniMax | Agentic/reasoning hybrid |
+| glm-5.2, glm-5.1 | Zhipu | Strong agent eval scores |
+| kimi-k3, kimi-k2.7-code, kimi-k2.6 | Moonshot | 3T-class; long context |
+| minimax-m3, minimax-m2.7 | MiniMax | Agentic/reasoning hybrid; m3 adds 1M context |
+
+**Retired from Ollama Cloud** (verified by a live `POST /api/show` on 2026-08-05,
+which answers `410 Gone` with the retirement date): `glm-4.6`, `kimi-k2:1t` and
+`minimax-m2` (all 2026-06-16), and `deepseek-v3.1:671b` (2026-07-15). Selecting one
+returns a 410 the user can do nothing about, so re-verify tags the same way when
+refreshing `constants/ollamaModels.ts` — the listing page shows base names without
+their `:cloud` / `:<size>-cloud` suffix.
 
 #### Notable local-pull models
 
@@ -428,7 +474,7 @@ In practice: **expect every model in this doc to be obsolete within 18 months, b
 
 ### Cached-weights floor
 
-When mistralrs first uses a model, weights download once into `~/.cache/huggingface/hub`. From that point forward, the model keeps working *even if HuggingFace removed the upstream tomorrow*. Same applies to Ollama's local pulls (`~/.ollama/models/`). Cloud APIs have no equivalent floor — when Anthropic sunsets `claude-3-5-sonnet-20241022`, every client loses access on the same day.
+When mistralrs first uses a model, weights download once into `~/.cache/huggingface/hub`. From that point forward, the model keeps working *even if HuggingFace removed the upstream tomorrow*. Same applies to Ollama's local pulls (`~/.ollama/models/`). Cloud APIs have no equivalent floor — when Anthropic retired `claude-3-5-sonnet-20241022` on 2025-10-28, every client lost access on the same day. Ollama Cloud does the same: four of the models this doc previously listed went `410 Gone` between 2026-06-16 and 2026-07-15.
 
 Practical implication: if reproducibility matters (audit trail, regulated environment), cache open-weights models on disk and avoid relying on closed APIs for the part of the pipeline that must reproduce identically.
 

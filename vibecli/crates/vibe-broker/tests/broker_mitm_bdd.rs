@@ -125,6 +125,12 @@ fn broker_with_trust(world: &mut MWorld) {
     let trust = world.upstream_trust.clone().unwrap();
     let ca = Arc::new(BrokerCa::generate().unwrap());
     world.broker_ca = Some(ca.clone());
+    // Two rules, because TLS interception evaluates policy *twice*: once on the
+    // CONNECT that opens the tunnel, and again on the inner request after the
+    // broker terminates TLS — which is the whole point of MITM inspection.
+    // With only the CONNECT rule the inner `GET /` fell through to
+    // `default = "deny"` and the scenario got 451 (policy_denied) instead of
+    // the 200 it asserts.
     let policy = Policy::parse_toml(
         r#"
 default = "deny"
@@ -132,6 +138,11 @@ default = "deny"
 [[rule]]
 match.host = "127.0.0.1"
 match.methods = ["CONNECT"]
+match.require_tls = true
+
+[[rule]]
+match.host = "127.0.0.1"
+match.methods = ["GET"]
 match.require_tls = true
 "#,
     )

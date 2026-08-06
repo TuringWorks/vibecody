@@ -69,6 +69,17 @@ Full guidance + idiom table + refactor triggers: [AGENTS.md → Functional Style
 
 Full playbook + checklist: [AGENTS.md → Performance](./AGENTS.md#performance--measure-attribute-verify) · [Modelling Honesty](./AGENTS.md#modelling-honesty--a-model-that-cannot-be-wrong-is-not-a-model) · [Verification](./AGENTS.md#verification--a-green-build-proves-nothing) · [Traps a Build Cannot Catch](./AGENTS.md#traps-a-build-cannot-catch) · [The Craft Checklist](./AGENTS.md#the-craft-checklist).
 
+### Daemon startup — one implementation, identity-checked
+
+Every desktop client autostarts the VibeCLI daemon on launch. **All of that logic lives in `vibecli/vibecli-cli/src/daemon_bootstrap.rs` — do not write another copy.**
+
+- **Check identity, not liveness.** `GET /health` returns `service: "vibecli"`; require it. A TCP connect (or a bare `res.ok`) treats any process on port 7878 as the daemon, and every panel then fails blaming the daemon instead of the port conflict.
+- **Poll to a deadline, never sleep a guess.** A cold daemon measured **~16 s** to answer `/health`. The old autostart slept 2 s and checked once, so a healthy daemon was reported broken on every launch.
+- **Every failure is a distinct state with its own message** — `PortTakenByOther`, `BinaryNotFound`, `SpawnFailed`, `TimedOut`. "Is vibecli on your PATH?" is wrong advice for three of the four.
+- Port: `VIBECLI_DAEMON_PORT` (legacy `VIBEDESK_DAEMON_PORT`), default 7878.
+
+Full rules + the surfaces to touch: [AGENTS.md → Touching daemon startup, health, or discovery](./AGENTS.md#touching-daemon-startup-health-or-discovery).
+
 ### Tauri commands
 
 1,045+ commands registered via `tauri::generate_handler!` in `vibecoder/src-tauri/src/lib.rs`. When adding a new Tauri command: implement in `commands.rs`, register in `tauri::generate_handler!` in `lib.rs`.

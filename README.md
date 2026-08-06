@@ -45,7 +45,7 @@ make cli                    # Build release binary
 ./target/release/vibecli --tui   # Run with TUI
 
 # Or with a specific provider
-./target/release/vibecli --tui --provider claude --model claude-3-5-sonnet-20241022
+./target/release/vibecli --tui --provider claude --model claude-opus-5
 ```
 
 ### Verify Your Environment
@@ -249,7 +249,7 @@ model = "qwen2.5-coder:7b"
 
 [claude]
 enabled = false
-model = "claude-3-5-sonnet-20241022"
+model = "claude-opus-5"
 
 [openai]
 enabled = false

@@ -6,14 +6,41 @@ import { configure } from '@testing-library/react';
 // correct tests. Match the file-level test timeout from vitest.config.ts.
 configure({ asyncUtilTimeout: 5000 });
 
-// jsdom 29 + vitest 4 in this repo's pool config exposes a `localStorage`
-// global that's missing the Storage methods (`setItem`, `getItem`, `clear`),
-// breaking any test that touches localStorage. Install a minimal in-memory
-// polyfill so panels and tests can `localStorage.setItem(...)` etc. The
-// store resets per file; tests that need finer isolation should still
-// `localStorage.clear()` in beforeEach.
-if (typeof globalThis.localStorage === 'undefined' ||
-    typeof (globalThis.localStorage as Storage | undefined)?.clear !== 'function') {
+/**
+ * Does the ambient `localStorage` actually store anything?
+ *
+ * Presence of the methods is not enough. Two different environments break in
+ * two different ways:
+ *
+ *  - jsdom 29 + vitest 4 exposes a `localStorage` missing `setItem`/`getItem`/
+ *    `clear` entirely.
+ *  - Node 26 ships a *native* Web Storage `localStorage` that has every method
+ *    but is inert unless the process was started with `--localstorage-file`
+ *    ("localStorage is not available because --localstorage-file was not
+ *    provided"). It looks correct and silently discards every write.
+ *
+ * The second case is why this probes a real round-trip instead of checking for
+ * a method: a shape check passes and the tests still fail. Verify the
+ * behaviour, not the signature.
+ */
+function localStorageWorks(): boolean {
+  try {
+    const store = globalThis.localStorage as Storage | undefined;
+    if (!store || typeof store.setItem !== 'function') return false;
+    const probeKey = '__vibecoder_storage_probe__';
+    store.setItem(probeKey, 'ok');
+    const roundTripped = store.getItem(probeKey) === 'ok';
+    store.removeItem(probeKey);
+    return roundTripped;
+  } catch {
+    return false;
+  }
+}
+
+// Install a minimal in-memory polyfill so panels and tests can
+// `localStorage.setItem(...)` etc. The store resets per file; tests that need
+// finer isolation should still `localStorage.clear()` in beforeEach.
+if (!localStorageWorks()) {
   const memoryStore = new Map<string, string>();
   const polyfill: Storage = {
     get length() { return memoryStore.size; },

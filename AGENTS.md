@@ -56,6 +56,38 @@ Use this table as a pre-flight checklist. Cross-cutting changes that miss a surf
 | `packages/agent-sdk/src/index.ts` | SDK method if public-facing |
 | `docs/WATCH-INTEGRATION.md` / `docs/connectivity.md` / `docs/vibecli.md` | Docs for the new route |
 
+### Touching daemon startup, health, or discovery
+
+**There is exactly one implementation of "reach the daemon":
+`vibecli/vibecli-cli/src/daemon_bootstrap.rs`.** Every desktop client autostarts
+the daemon on launch; before this module each had its own copy, and each was
+broken differently. Do not add a fourth.
+
+| Rule | Why |
+|---|---|
+| **Identity, not liveness.** Require `service == "vibecli"` from `GET /health`. | A bare TCP connect (or "any HTTP response counts") treats *whatever* holds the port as the daemon. Every panel then fails against a stranger, with an error blaming the daemon. |
+| **Poll to a deadline; never sleep a guess.** | A measured cold start on a dev Mac took **~16 s** (memory-health warm-up + mDNS announce). The old path slept 2 s, checked once, and reported failure — on a daemon that was fine. |
+| **Distinguish every failure.** `PortTakenByOther` / `BinaryNotFound` / `SpawnFailed` / `TimedOut` are separate states with separate messages. | "Is `vibecli` on your PATH?" is wrong advice for a port conflict, and sends the user down a dead end. |
+| **Resolve the binary beyond `PATH`.** | A Finder-launched `.app` gets a minimal `PATH`, so `~/.cargo/bin` and Homebrew prefixes must be probed directly or autostart fails for every GUI launch. |
+| **Reuse, never duplicate.** | The daemon is shared infra for the mobile / watch / IDE clients. |
+| **Check "is this our child?" before "is the port taken?"** | The launch hook spawns the daemon, and the frontend's first poll lands while it is still binding. The wrong order reports our own starting daemon as a foreign process. |
+
+| Also touch | Why |
+|------------|-----|
+| `vibecli/vibecli-cli/src/serve.rs` (`/health`) | The `service` field is the contract clients match on |
+| `vibecli/vibecli-cli/tests/daemon_bootstrap_integration.rs` | Runs the real binary; fails if a short fixed wait comes back |
+| `vibecoder/src-tauri/src/{lib.rs,commands.rs}` · `vibedesk/src-tauri/src/{lib.rs,commands.rs}` | Launch hook + `start_daemon` / `get_daemon_status` |
+| `vibecoder/src/hooks/useDaemonMonitor.ts` | Frontend health poll — must verify `service` too |
+| `vibemobile/lib/services/api_client.dart` (`isVibeCliHealthBody`) + `handoff_service.dart` | Mobile races transports and adopts the first URL that answers — a captive portal must not win |
+| `vscode-extension/src/api-client.ts` · `packages/agent-sdk/src/index.ts` | Same identity check |
+| `docs/api-reference.md` (`GET /health`) | The documented contract |
+
+Remote clients (mobile, VS Code, SDK) accept a pre-`service` daemon via its exact
+legacy body shape (`status: "ok"` **and** a `version`), because they talk to a
+desktop that may not have been upgraded yet. A body naming a *different* service
+is never accepted. The local autostart path requires the exact match — it
+controls the daemon it spawns.
+
 ### Adding a new Tauri command
 
 `vibecoder/src-tauri/src/commands.rs` (implementation) → `vibecoder/src-tauri/src/lib.rs` (register in `tauri::generate_handler!`). VibeApp (`vibeapp/src-tauri/`) has its own `lib.rs` — register there too if the command is needed there. **Frontend consumers**: `vibecoder/src/` panels call `invoke("your_command", …)` from TypeScript. No mobile/watch impact (mobile/watch don't speak Tauri IPC, only HTTP).

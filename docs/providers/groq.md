@@ -37,11 +37,16 @@ model = "llama-3.3-70b-versatile"
 
 | Model | Strengths | Best for |
 |-------|-----------|----------|
-| `llama-3.3-70b-versatile` | Strong general coding | Daily coding tasks |
-| `llama-3.1-8b-instant` | Ultra-fast responses | Quick completions, simple edits |
-| `mixtral-8x7b-32768` | Good balance, 32K context | Longer code analysis |
+| `openai/gpt-oss-120b` | Strong general coding | Daily coding tasks |
+| `openai/gpt-oss-20b` | Ultra-fast responses | Quick completions, simple edits |
+| `qwen/qwen3.6-27b` | Good balance | Longer code analysis |
+| `minimaxai/minimax-m2.7` | Agentic / tool use | Multi-step tasks |
 
-**Default:** `llama-3.3-70b-versatile`
+**Default:** `openai/gpt-oss-120b`
+
+> The Llama 3.x models (`llama-3.3-70b-versatile`, `llama-3.1-8b-instant`) were
+> deprecated on 2026-06-17 — Groq points at `openai/gpt-oss-120b` and
+> `openai/gpt-oss-20b` as replacements. `mixtral-8x7b-32768` is no longer served.
 
 Override from the CLI:
 

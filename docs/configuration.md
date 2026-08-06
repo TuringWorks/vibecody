@@ -118,7 +118,7 @@ model = "gpt-4o"                   # Deployment name
 [bedrock]
 enabled = false
 # Uses AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION env vars
-model = "anthropic.claude-3-5-sonnet-20241022-v2:0"
+model = "anthropic.claude-opus-5"
 
 [mistral]
 enabled = false
@@ -440,7 +440,8 @@ Groq runs open-source models on custom LPU hardware with extremely low latency.
    export GROQ_API_KEY="gsk_..."
    ```
 
-   Available models: `llama-3.3-70b-versatile` (default), `llama-3.1-8b-instant`, `mixtral-8x7b-32768`, `gemma2-9b-it`.
+   Available models: `openai/gpt-oss-120b` (default), `openai/gpt-oss-20b`, `qwen/qwen3.6-27b`, `minimaxai/minimax-m2.7`.
+   (The Llama 3.x models were deprecated 2026-06-17; `mixtral-8x7b-32768` and `gemma2-9b-it` are no longer served.)
 
    Free tier available with rate limits.
 
@@ -504,7 +505,7 @@ Uses your existing AWS credentials. No separate API key needed.
    [bedrock]
    enabled = true
    region = "us-east-1"
-   model = "anthropic.claude-3-5-sonnet-20241022-v2:0"
+   model = "anthropic.claude-opus-5"
    # role_arn = "arn:aws:iam::123456789:role/bedrock-role"  # Optional cross-account
    ```
 
@@ -856,7 +857,7 @@ Override the model for any provider:
 ```bash
 vibecli --tui --provider claude --model claude-opus-4-6
 vibecli --tui --provider openai --model gpt-4o-mini
-vibecli --tui --provider groq --model mixtral-8x7b-32768
+vibecli --tui --provider groq --model openai/gpt-oss-120b
 ```
 
 **VibeCoder:**

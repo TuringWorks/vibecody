@@ -9,10 +9,19 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { OLLAMA_CHAT_MODELS, OLLAMA_CLOUD_MODELS } from "../constants/ollamaModels";
 
-// Versioned: bump when the static catalog / merge logic changes so a stale cache
-// (e.g. one saved before Ollama Cloud models were added) is discarded on load
-// instead of lingering until the TTL expires and hiding the newer models.
-const CACHE_KEY = "vibecody:model-registry:v2";
+/**
+ * Versioned: bump when the static catalog / merge logic changes so a stale
+ * cache (e.g. one saved before Ollama Cloud models were added) is discarded on
+ * load instead of lingering until the TTL expires and hiding the newer models.
+ *
+ * Exported so tests seed and assert against the *same* constant. When the key
+ * was duplicated as a literal in the test file, the `:v2` bump silently left
+ * the tests writing to a key nothing reads — they failed without anything
+ * being wrong with the hook.
+ */
+// v3 (2026-08-05): retired-model sweep — a v2 cache still holds
+// deepseek-v3.1:671b-cloud and friends, which now 410.
+export const CACHE_KEY = "vibecody:model-registry:v3";
 const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 /**
@@ -30,26 +39,32 @@ export const STATIC_MODELS: Record<string, string[]> = {
   // claude-opus-4-8 is the highest *available* Anthropic model as of 2026-06: Fable 5 /
   // Mythos 5 are deliberately omitted here — both were suspended for all customers by US
   // export-control directive on 2026-06-12 and are not a routable production option.
-  "claude-code": ["claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5"],
-  claude: ["claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5", "claude-sonnet-4-5", "claude-3-5-sonnet-20241022"],
-  openai: ["gpt-5.5", "gpt-5.4", "gpt-5.3-codex", "gpt-5.3-codex-spark", "gpt-5", "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o4-mini", "o3", "o3-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"],
-  // gemini-3.5-pro GA'd end-June 2026 (2M context, Deep Think); 3.5-flash GA'd at I/O (2026-05-19).
-  gemini: ["gemini-3.5-pro", "gemini-3.5-flash", "gemini-3.1-pro", "gemini-3-pro", "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite"],
-  groq: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"],
-  grok: ["grok-3", "grok-3-mini", "grok-2"],
+  "claude-code": ["claude-opus-5", "claude-sonnet-5", "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5"],
+  // claude-3-5-sonnet-20241022 removed 2026-08-05 — retired 2025-10-28 (404s).
+  claude: ["claude-opus-5", "claude-sonnet-5", "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5", "claude-sonnet-4-5"],
+  openai: ["gpt-5.6-sol-pro", "gpt-5.6-sol", "gpt-5.6-terra-pro", "gpt-5.6-terra", "gpt-5.6-luna-pro", "gpt-5.6-luna", "gpt-5.5-pro", "gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-5.3-codex", "gpt-5.3-chat", "gpt-5", "gpt-4.1", "gpt-4.1-mini", "gpt-4o", "gpt-4o-mini"],
+  // gemini-3.5-pro GA'd end-June 2026 (2M context, Deep Think); 3.6-flash shipped 2026-07.
+  gemini: ["gemini-3.5-pro", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-pro", "gemini-3-pro", "gemini-2.5-pro", "gemini-2.5-flash"],
+  // llama-3.1-8b-instant / llama-3.3-70b-versatile were deprecated 2026-06-17 (Groq
+  // points at gpt-oss-20b / gpt-oss-120b); mixtral-8x7b-32768 and gemma2-9b-it are gone.
+  groq: ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b", "minimaxai/minimax-m2.7", "groq/compound", "groq/compound-mini"],
+  grok: ["grok-4.5", "grok-4.3", "grok-4.20"],
   mistral: ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest", "codestral-latest"],
-  // deepseek-v4 (Pro) / deepseek-v4-flash reset the open-weight cost floor (released 2026-04-24, MIT).
-  deepseek: ["deepseek-v4", "deepseek-v4-flash", "deepseek-chat", "deepseek-reasoner", "deepseek-coder"],
-  cerebras: ["llama-3.3-70b", "llama-3.1-8b"],
-  perplexity: ["sonar-pro", "sonar", "sonar-reasoning"],
-  together: ["meta-llama/Llama-3.3-70B-Instruct", "mistralai/Mixtral-8x7B-Instruct-v0.1"],
+  // "deepseek-v4" was never an API id — the shipped pair is v4-pro / v4-flash.
+  deepseek: ["deepseek-v4-pro", "deepseek-v4-flash", "deepseek-chat", "deepseek-reasoner"],
+  cerebras: ["gpt-oss-120b", "gemma-4-31b", "zai-glm-4.7"],
+  perplexity: ["sonar-pro", "sonar", "sonar-reasoning-pro", "sonar-deep-research"],
+  together: ["moonshotai/Kimi-K2.7-Code", "Qwen/Qwen3.8-Max", "Qwen/Qwen3.5-397B-A17B", "deepseek-ai/DeepSeek-V4-Pro"],
   fireworks: ["accounts/fireworks/models/llama-v3p3-70b-instruct", "accounts/fireworks/models/mixtral-8x7b-instruct"],
   // OpenRouter doubles as the home for frontier open-weight models that have no dedicated
   // VibeCody provider key yet — notably Moonshot's Kimi K2.7 Code (2026-06-13), which cuts
   // thinking tokens ~30% vs K2.6. Add a first-class Moonshot provider (6-file dance) if usage warrants.
-  openrouter: ["moonshotai/kimi-k2.7-code", "moonshotai/kimi-k2.6", "z-ai/glm-5.2", "qwen/qwen3.6-coder", "deepseek/deepseek-v4", "anthropic/claude-3.5-sonnet", "openai/gpt-4o", "google/gemini-2.0-flash-001"],
+  // Verified against the live https://openrouter.ai/api/v1/models catalog on 2026-08-05.
+  openrouter: ["moonshotai/kimi-k3", "moonshotai/kimi-k2.7-code", "moonshotai/kimi-k2.6", "z-ai/glm-5.2", "qwen/qwen3.8-max", "deepseek/deepseek-v4-pro", "minimax/minimax-m3", "x-ai/grok-4.5", "anthropic/claude-opus-5", "anthropic/claude-sonnet-5", "openai/gpt-5.6-sol", "google/gemini-3.6-flash"],
   azure_openai: ["gpt-4o", "gpt-4-turbo"],
-  bedrock: ["anthropic.claude-3-5-sonnet-20241022-v2:0", "anthropic.claude-3-haiku-20240307-v1:0"],
+  // Bedrock ids take an `anthropic.` prefix. The previous entries were both dead:
+  // claude-3-5-sonnet retired 2025-10-28, claude-3-haiku retires 2026-04-19.
+  bedrock: ["anthropic.claude-opus-5", "anthropic.claude-sonnet-5", "anthropic.claude-opus-4-8", "anthropic.claude-haiku-4-5"],
   copilot: ["gpt-4o"],
   ollama: OLLAMA_CHAT_MODELS,
   // vibecli-mistralrs talks to the local vibecli daemon (default :7878) and
@@ -73,10 +88,13 @@ export const STATIC_MODELS: Record<string, string[]> = {
     "microsoft/Phi-3.5-mini-instruct",
   ],
   // glm-5.2 (Z.ai, 744B, 2026-06-13) leads the Artificial Analysis open-weight intelligence index.
-  zhipu: ["glm-5.2", "glm-5.1", "glm-4-plus", "glm-4-flash"],
+  // glm-4-plus / glm-4-flash dropped 2026-08-05 — the whole GLM-4.x line below 4.7 is retired
+  // (Ollama Cloud reports glm-4.6 retired 2026-06-16).
+  zhipu: ["glm-5.2", "glm-5.1", "glm-5", "glm-4.7", "glm-4.7-flash"],
   vercel_ai: [],
   // MiniMax-M3 (2026-06-01): 1M-token context + native multimodality in one open-weight model.
-  minimax: ["MiniMax-M3", "abab6.5s-chat"],
+  // abab6.5s-chat dropped 2026-08-05 — superseded by the M-series.
+  minimax: ["MiniMax-M3", "MiniMax-M2.7"],
   sambanova: ["Meta-Llama-3.3-70B-Instruct"],
   // Poolside AI — purpose-built coding models (Poolside AI).
   poolside: ["poolside/laguna-s-2.1", "poolside/laguna-xs-2.1", "poolside/laguna-m-1"],
@@ -152,21 +170,21 @@ export async function probeAndCacheDefaultProvider(): Promise<void> {
 
 /** Default model to pre-select when a provider is chosen in a dropdown. */
 export const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
-  "claude-code": "claude-opus-4-8",
-  claude:       "claude-opus-4-8",
-  openai:       "gpt-5.5",
+  "claude-code": "claude-opus-5",
+  claude:       "claude-opus-5",
+  openai:       "gpt-5.6-sol",
   gemini:       "gemini-3.5-pro",
-  groq:         "llama-3.3-70b-versatile",
-  grok:         "grok-3-mini",
+  groq:         "openai/gpt-oss-120b",
+  grok:         "grok-4.5",
   mistral:      "mistral-large-latest",
   deepseek:     "deepseek-chat",
-  cerebras:     "llama-3.3-70b",
+  cerebras:     "gpt-oss-120b",
   perplexity:   "sonar-pro",
-  together:     "meta-llama/Llama-3.3-70B-Instruct",
+  together:     "moonshotai/Kimi-K2.7-Code",
   fireworks:    "accounts/fireworks/models/llama-v3p3-70b-instruct",
-  openrouter:   "anthropic/claude-3.5-sonnet",
+  openrouter:   "anthropic/claude-opus-5",
   azure_openai: "gpt-4o",
-  bedrock:      "anthropic.claude-3-5-sonnet-20241022-v2:0",
+  bedrock:      "anthropic.claude-opus-5",
   copilot:      "gpt-4o",
   ollama:       "devstral-2",
   "vibecli-mistralrs": "meta-llama/Llama-3.1-8B-Instruct",
