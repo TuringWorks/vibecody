@@ -62,11 +62,11 @@ pub fn run() {
             // banner reflects the result as the daemon comes online.
             tauri::async_runtime::spawn(async {
                 let port = commands::daemon_port();
-                if commands::ensure_daemon_running(port).await {
-                    eprintln!("vibedesk: VibeCLI daemon ready on port {port}");
-                } else {
-                    eprintln!("vibedesk: could not autostart VibeCLI daemon on port {port} — is `vibecli` on PATH?");
-                }
+                let state = commands::ensure_daemon_state(port).await;
+                // Log the specific outcome, not a generic guess at the cause —
+                // "is vibecli on PATH?" is wrong advice when the real problem
+                // is a port conflict or a daemon that exited on startup.
+                eprintln!("vibedesk: {}", state.user_message());
             });
             Ok(())
         })

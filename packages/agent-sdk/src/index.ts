@@ -23,6 +23,28 @@
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+/**
+ * Value the daemon reports as `service` in `GET /health`. Must match
+ * `vibecli_cli::daemon_bootstrap::SERVICE_NAME`.
+ */
+const VIBECLI_SERVICE_NAME = "vibecli";
+
+/**
+ * True when a `/health` body actually came from a VibeCLI daemon.
+ *
+ * A 200 alone is only liveness: any local service on the port would pass, and
+ * every later call then fails in a way that looks like a daemon bug rather
+ * than "you are pointed at the wrong thing". Daemons predating the `service`
+ * field are still accepted via their exact legacy shape, but a body naming a
+ * different service never is.
+ */
+function isVibeCliHealth(body: unknown): boolean {
+  if (typeof body !== "object" || body === null) return false;
+  const b = body as { service?: unknown; status?: unknown; version?: unknown };
+  if (typeof b.service === "string") return b.service === VIBECLI_SERVICE_NAME;
+  return b.status === "ok" && typeof b.version === "string";
+}
+
 export interface AgentOptions {
   /** AI provider: 'ollama' | 'claude' | 'openai' | 'gemini' | 'grok'. Default: 'ollama' */
   provider?: string;
@@ -699,7 +721,8 @@ export class VibeCLIAgent {
   async isConnected(): Promise<boolean> {
     try {
       const res = await fetch(`${this.baseUrl}/health`);
-      return res.ok;
+      if (!res.ok) return false;
+      return isVibeCliHealth(await res.json().catch(() => null));
     } catch {
       return false;
     }

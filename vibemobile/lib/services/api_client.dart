@@ -5,6 +5,33 @@ import '../models/machine.dart';
 import '../models/recap.dart';
 import 'auth_service.dart';
 
+/// Value the daemon reports as `service` in `GET /health`. Must match
+/// `vibecli_cli::daemon_bootstrap::SERVICE_NAME`.
+const String kVibeCliServiceName = 'vibecli';
+
+/// True when a `/health` body actually came from a VibeCLI daemon.
+///
+/// A 200 status alone is not enough. Mobile races every reachable transport
+/// (mDNS LAN → Tailscale → ngrok → phone-relay) and takes the first URL that
+/// answers, so a captive portal, a proxy, or an unrelated service on the same
+/// port can win the race and become "the daemon" — after which every request
+/// fails in a way that looks like a daemon bug.
+///
+/// Older daemons predate the `service` field, so a body carrying the daemon's
+/// exact legacy shape (`status: "ok"` plus a `version`) is still accepted; a
+/// body naming a *different* service never is.
+bool isVibeCliHealthBody(String body) {
+  try {
+    final decoded = jsonDecode(body);
+    if (decoded is! Map<String, dynamic>) return false;
+    final service = decoded['service'];
+    if (service is String) return service == kVibeCliServiceName;
+    return decoded['status'] == 'ok' && decoded['version'] is String;
+  } catch (_) {
+    return false;
+  }
+}
+
 /// HTTP client for the VibeCody daemon REST API.
 class ApiClient {
   final AuthService auth;
@@ -448,13 +475,16 @@ class ApiClient {
 
   // ── Health Check ───────────────────────────────────────────
 
-  /// Check if a daemon is reachable.
+  /// Check if a VibeCLI daemon is reachable.
+  ///
+  /// Verifies *identity*, not just a 200 — see [isVibeCliHealthBody].
   Future<bool> healthCheck(String baseUrl) async {
     try {
       final resp = await _client.get(Uri.parse('$baseUrl/health')).timeout(
         const Duration(seconds: 5),
       );
-      return resp.statusCode == 200;
+      if (resp.statusCode != 200) return false;
+      return isVibeCliHealthBody(resp.body);
     } catch (_) {
       return false;
     }

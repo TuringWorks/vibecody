@@ -161,25 +161,56 @@ pub fn run() {
                 let daemon_proc = app.state::<AppState>().daemon_process.clone();
                 tauri::async_runtime::spawn(async move {
                     use tauri::Emitter;
-                    // Give the main window time to render before we try to spawn.
-                    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-                    // Skip if something is already listening on 7878.
-                    let already_up = tokio::net::TcpStream::connect("127.0.0.1:7878").await.is_ok();
-                    if already_up { return; }
-                    let Some(binary) = crate::commands::find_vibecli_binary() else {
-                        eprintln!("[daemon] vibecli binary not found — daemon will not auto-start");
+                    use vibecli_cli::daemon_bootstrap as boot;
+                    let port = boot::default_port();
+
+                    // Let the webview mount its event listeners before the
+                    // first emit, otherwise `daemon:online` fires into a window
+                    // that isn't listening yet and the UI never learns the
+                    // daemon came up.
+                    tokio::time::sleep(tokio::time::Duration::from_millis(800)).await;
+
+                    // Reuse a daemon that's already up. Identity-checked: a
+                    // bare TCP connect would treat *any* process on the port as
+                    // the daemon and skip startup, leaving every panel broken.
+                    if let Some(identity) = boot::probe(port).await {
+                        let _ = app_handle2.emit(
+                            "daemon:online",
+                            serde_json::json!({ "port": port, "auto": false, "version": identity.version }),
+                        );
+                        return;
+                    }
+
+                    // Port held by something else — say so instead of spawning
+                    // a process that cannot bind.
+                    if boot::port_is_occupied(port).await {
+                        let state = boot::DaemonState::PortTakenByOther { port };
+                        eprintln!("[daemon] {}", state.user_message());
+                        let _ = app_handle2.emit(
+                            "daemon:error",
+                            serde_json::json!({
+                                "stage": "port-taken",
+                                "port": port,
+                                "message": state.user_message(),
+                            }),
+                        );
+                        return;
+                    }
+
+                    let Some(binary) = boot::find_binary() else {
+                        let state = boot::DaemonState::BinaryNotFound;
+                        eprintln!("[daemon] {}", state.user_message());
                         let _ = app_handle2.emit(
                             "daemon:error",
                             serde_json::json!({
                                 "stage": "find-binary",
-                                "message": "vibecli binary not found on PATH or in ~/.cargo/bin. \
-                                            Build with `cargo install --path vibecli/vibecli-cli` or set PATH.",
+                                "message": state.user_message(),
                             }),
                         );
                         return;
                     };
                     let spawn_result = tokio::process::Command::new(&binary)
-                        .args(["--serve", "--port", "7878"])
+                        .args(["--serve", "--port", &port.to_string()])
                         .stdout(std::process::Stdio::null())
                         .stderr(std::process::Stdio::piped())
                         .kill_on_drop(true)
@@ -216,21 +247,42 @@ pub fn run() {
                         });
                     }
                     *daemon_proc.lock().await = Some(child);
-                    // Wait for it to come up, then notify the frontend.
-                    tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
-                    if tokio::net::TcpStream::connect("127.0.0.1:7878").await.is_ok() {
-                        let _ = app_handle2.emit(
-                            "daemon:online",
-                            serde_json::json!({ "port": 7878, "auto": true }),
-                        );
-                    } else {
-                        let _ = app_handle2.emit(
-                            "daemon:error",
-                            serde_json::json!({
-                                "stage": "wait-for-listen",
-                                "message": "spawned vibecli but it did not start listening on 127.0.0.1:7878 within 2s",
-                            }),
-                        );
+
+                    // Poll until it actually answers `/health`. The old code
+                    // slept a fixed 2s and checked once, so a daemon that took
+                    // 2.1s to bind was reported as failed on every launch.
+                    let started = std::time::Instant::now();
+                    let deadline = boot::DEFAULT_STARTUP_TIMEOUT;
+                    loop {
+                        if let Some(identity) = boot::probe(port).await {
+                            eprintln!("[daemon] VibeCLI {} ready on port {port}", identity.version);
+                            let _ = app_handle2.emit(
+                                "daemon:online",
+                                serde_json::json!({
+                                    "port": port,
+                                    "auto": true,
+                                    "version": identity.version,
+                                }),
+                            );
+                            break;
+                        }
+                        if started.elapsed() >= deadline {
+                            let state = boot::DaemonState::TimedOut {
+                                port,
+                                waited: started.elapsed(),
+                            };
+                            eprintln!("[daemon] {}", state.user_message());
+                            let _ = app_handle2.emit(
+                                "daemon:error",
+                                serde_json::json!({
+                                    "stage": "wait-for-listen",
+                                    "port": port,
+                                    "message": state.user_message(),
+                                }),
+                            );
+                            break;
+                        }
+                        tokio::time::sleep(tokio::time::Duration::from_millis(250)).await;
                     }
                 });
             }

@@ -31,12 +31,35 @@ function makeNotify() {
   return vi.fn();
 }
 
-/** Mock fetch to return HTTP 200 (daemon online) or throw (daemon offline). */
+/**
+ * Mock fetch to look like the real daemon: HTTP 200 *and* a `/health` body
+ * identifying the service. The hook requires both — `ok` alone is liveness,
+ * not identity.
+ */
 function mockFetchOnline() {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }));
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ service: 'vibecli', status: 'ok', version: '0.5.7' }),
+    })
+  );
 }
 function mockFetchOffline() {
   vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('ECONNREFUSED')));
+}
+/**
+ * A different local service answering 200 JSON on the daemon's port. Must be
+ * treated as "daemon offline", not as a healthy daemon.
+ */
+function mockFetchForeignService() {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ status: 'ok', service: 'some-other-app' }),
+    })
+  );
 }
 
 // ── Setup / teardown ──────────────────────────────────────────────────────────
@@ -329,6 +352,76 @@ describe('vibecoder:daemon-status custom event', () => {
 
   it('carries online: false when daemon is down', async () => {
     mockFetchOffline();
+    mockInvoke.mockResolvedValue('started');
+    const events: CustomEvent[] = [];
+    window.addEventListener('vibecoder:daemon-status', (e) => events.push(e as CustomEvent));
+
+    renderHook(() =>
+      useDaemonMonitor({ toast: makeToast(), addNotification: makeNotify() }));
+
+    await act(async () => { vi.advanceTimersByTime(3100); });
+    await act(async () => {});
+
+    expect(events.length).toBeGreaterThanOrEqual(1);
+    expect(events[0].detail.online).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BDD Scenario: another program occupies the daemon port
+//
+// A bare `res.ok` check treated any 200 on port 7878 as a healthy daemon, so
+// every panel then failed against a service that isn't VibeCLI. `/health`
+// reports `service: "vibecli"` so clients can tell the two apart.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('Given a different service is listening on the daemon port', () => {
+  it('When the health check fires, Then the daemon is reported offline', async () => {
+    mockFetchForeignService();
+    mockInvoke.mockResolvedValue('started');
+    const events: CustomEvent[] = [];
+    window.addEventListener('vibecoder:daemon-status', (e) => events.push(e as CustomEvent));
+
+    renderHook(() =>
+      useDaemonMonitor({ toast: makeToast(), addNotification: makeNotify() }));
+
+    await act(async () => { vi.advanceTimersByTime(3100); });
+    await act(async () => {});
+
+    expect(events.length).toBeGreaterThanOrEqual(1);
+    expect(events[0].detail.online).toBe(false);
+  });
+
+  it('When the health check fires, Then no "daemon is running" success toast is shown', async () => {
+    mockFetchForeignService();
+    mockInvoke.mockResolvedValue('started');
+    const toast = makeToast();
+
+    renderHook(() =>
+      useDaemonMonitor({ toast, addNotification: makeNotify() }));
+
+    await act(async () => { vi.advanceTimersByTime(3100); });
+    await act(async () => {});
+
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BDD Scenario: /health answers 200 but the body is not JSON
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('Given the port answers 200 with a non-JSON body', () => {
+  it('When the health check fires, Then it is treated as offline rather than throwing', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => {
+          throw new SyntaxError('Unexpected token < in JSON');
+        },
+      })
+    );
     mockInvoke.mockResolvedValue('started');
     const events: CustomEvent[] = [];
     window.addEventListener('vibecoder:daemon-status', (e) => events.push(e as CustomEvent));

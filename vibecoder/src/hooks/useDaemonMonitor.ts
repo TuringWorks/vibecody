@@ -29,6 +29,14 @@ const INITIAL_DELAY = 3000;
 /** Daemon URL used for the health check. */
 const HEALTH_PATH = "/health";
 
+/**
+ * Value `/health` reports as `service`. Must match
+ * `vibecli_cli::daemon_bootstrap::SERVICE_NAME` — the daemon and every client
+ * agree on this one string to distinguish "VibeCLI is here" from "something is
+ * listening on this port".
+ */
+const DAEMON_SERVICE_NAME = "vibecli";
+
 interface UseDaemonMonitorOpts {
   toast: ToastApi;
   addNotification: (opts: AddNotificationOpts) => void;
@@ -62,7 +70,15 @@ export function useDaemonMonitor({
       const res = await fetch(`${daemonUrlRef.current}${HEALTH_PATH}`, {
         signal: AbortSignal.timeout(4000),
       });
-      isOnline = res.ok;
+      // `res.ok` alone is liveness, not identity: any local service that
+      // answers 200 on this port would read as a healthy daemon and every
+      // panel would then fail with a confusing error. `/health` reports
+      // `service: "vibecli"` precisely so clients can tell the difference.
+      const body: unknown = res.ok ? await res.json().catch(() => null) : null;
+      isOnline =
+        typeof body === "object" &&
+        body !== null &&
+        (body as { service?: unknown }).service === DAEMON_SERVICE_NAME;
     } catch {
       isOnline = false;
     }
@@ -115,17 +131,22 @@ export function useDaemonMonitor({
             startingRef.current = false;
           }
           // If result === "starting", keep startingRef=true and wait for next tick.
-        } catch {
-          // vibecli not installed or spawn failed — fall through to warning.
+        } catch (e) {
+          // Autostart failed. The backend returns a message that names the
+          // actual cause and its fix — binary missing, port held by another
+          // program, daemon exited on boot. Show *that* rather than a generic
+          // "install vibecli", which is wrong advice for two of the three.
           startingRef.current = false;
+          const reason = e instanceof Error ? e.message : String(e);
+          const detail =
+            reason.trim().length > 0
+              ? reason
+              : "Could not auto-start the VibeCLI daemon. Install vibecli or start it manually.";
           if (prev === null || prev) {
-            toastRef.current.warn(
-              "VibeCLI daemon is not running and could not be auto-started. " +
-              "Install or run: vibecli --serve --port 7878"
-            );
+            toastRef.current.warn(detail);
             addNotificationRef.current({
               title: "Daemon unavailable",
-              body: "Could not auto-start the VibeCLI daemon. Install vibecli or start it manually.",
+              body: detail,
               severity: "warn",
               category: "system",
             });

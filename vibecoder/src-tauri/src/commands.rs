@@ -57184,91 +57184,24 @@ pub async fn company_list_skills() -> Result<serde_json::Value, String> {
 // the HTTP API (BackgroundJobs, Collab, ACP…) work without the user needing to
 // run `vibecli --serve` manually.
 
-/// Locate the vibecli binary: check PATH via `which`, then ~/.cargo/bin, then
-/// common install prefixes.
+/// Locate the vibecli binary.
+///
+/// Delegates to `vibecli_cli::daemon_bootstrap::find_binary`, which is the one
+/// implementation shared with VibeDesk and the daemon's own bootstrap. This used
+/// to be a second, independent search (shelling out to `which`, then
+/// `~/.cargo/bin`, then hard-coded prefixes). Two copies of the same contract
+/// drift silently — a fix applied to one leaves the other broken — so the
+/// system-prefix and Scoop-shim cases moved into the shared search instead.
 pub fn find_vibecli_binary() -> Option<std::path::PathBuf> {
-    let home = std::env::var("HOME")
-        .or_else(|_| std::env::var("USERPROFILE"))
-        .ok();
-    find_vibecli_binary_with_home(home.as_deref())
-}
-
-/// Inner implementation that accepts an explicit home directory so it can be
-/// tested without mutating the process-global HOME environment variable.
-pub(crate) fn find_vibecli_binary_with_home(home: Option<&str>) -> Option<std::path::PathBuf> {
-    // 1. Let the shell resolve it (handles shims, nvm, asdf, etc.)
-    #[cfg(unix)]
-    if let Ok(out) = std::process::Command::new("which").arg("vibecli").output() {
-        if out.status.success() {
-            let p = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            if !p.is_empty() {
-                return Some(std::path::PathBuf::from(p));
-            }
-        }
-    }
-    #[cfg(windows)]
-    if let Ok(out) = std::process::Command::new("where").arg("vibecli").output() {
-        if out.status.success() {
-            let p = String::from_utf8_lossy(&out.stdout)
-                .lines()
-                .next()
-                .unwrap_or("")
-                .trim()
-                .to_string();
-            if !p.is_empty() {
-                return Some(std::path::PathBuf::from(p));
-            }
-        }
-    }
-
-    // 2. ~/.cargo/bin (Rust installation default). Windows needs the `.exe`
-    //    suffix or `Path::exists` returns false even when the binary is there.
-    if let Some(h) = home {
-        let bin_name = if cfg!(windows) {
-            "vibecli.exe"
-        } else {
-            "vibecli"
-        };
-        let p = std::path::PathBuf::from(h)
-            .join(".cargo")
-            .join("bin")
-            .join(bin_name);
-        if p.exists() {
-            return Some(p);
-        }
-    }
-
-    // 3. Common system-wide prefixes
-    #[cfg(unix)]
-    for prefix in &[
-        "/usr/local/bin/vibecli",
-        "/opt/homebrew/bin/vibecli",
-        "/usr/bin/vibecli",
-    ] {
-        let p = std::path::PathBuf::from(prefix);
-        if p.exists() {
-            return Some(p);
-        }
-    }
-    #[cfg(windows)]
-    if let Some(h) = home {
-        let p = std::path::PathBuf::from(h)
-            .join("scoop")
-            .join("shims")
-            .join("vibecli.exe");
-        if p.exists() {
-            return Some(p);
-        }
-    }
-
-    None
+    vibecli_cli::daemon_bootstrap::find_binary()
 }
 
 /// Quick TCP probe — is something listening on 127.0.0.1:port?
 pub(crate) async fn port_open(port: u16) -> bool {
-    tokio::net::TcpStream::connect(format!("127.0.0.1:{}", port))
-        .await
-        .is_ok()
+    // Liveness only — deliberately *not* a daemon check. Use
+    // `daemon_bootstrap::probe` for "is VibeCLI there?"; this answers the
+    // narrower "is this port free?" question the two are easy to confuse.
+    vibecli_cli::daemon_bootstrap::port_is_occupied(port).await
 }
 
 /// Return the current daemon status (is it reachable, and did VibeCoder spawn it?).
@@ -57304,22 +57237,42 @@ pub async fn get_daemon_status(
     }))
 }
 
+/// How long `start_daemon` waits for a freshly-spawned daemon before handing
+/// control back to the frontend's poller.
+///
+/// The previous value was a single 1800 ms sleep followed by one check — any
+/// machine where the daemon took longer than that to bind (cold start, large
+/// workspace index, slow disk) reported failure for a daemon that was about to
+/// work. Polling means we return the instant it is ready, and only wait this
+/// long in the genuinely-slow case.
+const DAEMON_START_WAIT: std::time::Duration = std::time::Duration::from_secs(12);
+
 /// Ensure the vibecli daemon is running.
-/// - If it is already reachable on port 7878, returns immediately.
-/// - Otherwise locates the vibecli binary and spawns it with `--serve --port 7878`.
-/// - The child process is stored in `AppState.daemon_process` so VibeCoder can
-///   stop it cleanly on exit.
+/// - If **VibeCLI** already answers `/health`, returns immediately.
+/// - If the port is held by something that isn't VibeCLI, fails with that,
+///   rather than spawning a process doomed to fail binding.
+/// - Otherwise locates the binary and spawns it, then polls until it answers.
+/// - The child is stored in `AppState.daemon_process` so VibeCoder can stop it
+///   cleanly on exit.
 #[tauri::command]
 pub async fn start_daemon(
     state: tauri::State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, String> {
+    use vibecli_cli::daemon_bootstrap as boot;
+    let port = boot::default_port();
+
     // Already reachable — nothing to do.
-    if port_open(7878).await {
+    if boot::probe(port).await.is_some() {
         return Ok("running".to_string());
     }
 
-    // If we already have a child stored, check if it exited.
+    // Do we already own a live child? This must be checked *before* the
+    // port-conflict branch: the launch hook spawns the daemon a few hundred ms
+    // after startup, and the frontend's first poll lands while it is binding
+    // but not yet serving `/health`. Without this ordering, our own starting
+    // daemon looks like a stranger holding the port and the user gets an
+    // alarming — and wrong — "port is in use by another program".
     {
         let mut guard = state.daemon_process.lock().await;
         if let Some(ref mut child) = *guard {
@@ -57335,31 +57288,60 @@ pub async fn start_daemon(
         }
     }
 
-    let binary = find_vibecli_binary().ok_or_else(|| {
-        "vibecli binary not found. Install with: cargo install vibecli".to_string()
-    })?;
+    // Nothing of ours is running, yet the port answers: a genuinely foreign
+    // process owns it. Spawning would fail to bind and leave a confusing
+    // "started but not reachable" state, so report the real cause.
+    if boot::port_is_occupied(port).await {
+        return Err(boot::DaemonState::PortTakenByOther { port }.user_message());
+    }
+
+    let binary = boot::find_binary().ok_or_else(|| boot::DaemonState::BinaryNotFound.user_message())?;
 
     let child = tokio::process::Command::new(&binary)
-        .args(["--serve", "--port", "7878"])
+        .args(["--serve", "--port", &port.to_string()])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .kill_on_drop(true)
         .spawn()
-        .map_err(|e| format!("Failed to start daemon: {}", e))?;
+        .map_err(|e| {
+            boot::DaemonState::SpawnFailed {
+                binary: binary.clone(),
+                error: e.to_string(),
+            }
+            .user_message()
+        })?;
 
     {
         let mut guard = state.daemon_process.lock().await;
         *guard = Some(child);
     }
 
-    // Brief warm-up wait, then emit an event so the UI can re-check.
-    tokio::time::sleep(tokio::time::Duration::from_millis(1800)).await;
-    if port_open(7878).await {
-        let _ = app_handle.emit("daemon:online", serde_json::json!({ "port": 7878 }));
-        Ok("started".to_string())
-    } else {
-        Ok("starting".to_string()) // still booting — frontend should poll /health
+    // Poll until it answers rather than sleeping a guessed interval.
+    let started = std::time::Instant::now();
+    while started.elapsed() < DAEMON_START_WAIT {
+        if let Some(identity) = boot::probe(port).await {
+            let _ = app_handle.emit(
+                "daemon:online",
+                serde_json::json!({ "port": port, "version": identity.version }),
+            );
+            return Ok("started".to_string());
+        }
+        // Surface an immediate crash instead of waiting out the full window.
+        {
+            let mut guard = state.daemon_process.lock().await;
+            if let Some(ref mut child) = *guard {
+                if let Ok(Some(status)) = child.try_wait() {
+                    *guard = None;
+                    return Err(format!(
+                        "The vibecli daemon exited immediately ({status}). \
+                         Run `vibecli --serve --port {port}` in a terminal to see why."
+                    ));
+                }
+            }
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
     }
+    Ok("starting".to_string()) // still booting — frontend keeps polling /health
 }
 
 /// Stop the daemon process that VibeCoder spawned (if any).
@@ -58353,45 +58335,11 @@ mod daemon_tests {
     use super::*;
     use std::net::TcpListener;
 
-    // ── find_vibecli_binary_with_home (no process-env mutation) ─────────────
-
-    /// Given: a home directory that has no .cargo/bin/vibecli
-    ///   AND: `which` / system prefixes find nothing
-    /// When:  find_vibecli_binary_with_home(Some(empty_dir)) is called
-    /// Then:  returns None (cargo-bin fallback finds nothing)
-    ///
-    /// Note: on systems where vibecli is in PATH, `which` still fires and the
-    /// function may return Some.  This test only asserts it doesn't panic.
-    #[test]
-    fn find_vibecli_binary_with_empty_home_does_not_panic() {
-        let dir = std::env::temp_dir().join(format!("vibe_nohome_{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let result = find_vibecli_binary_with_home(Some(dir.to_str().unwrap()));
-        let _ = std::fs::remove_dir_all(&dir);
-        // No assertion on Some/None — depends on whether vibecli is in PATH.
-        drop(result);
-    }
-
-    /// Given: a fake vibecli executable at <tmp>/.cargo/bin/vibecli
-    /// When:  find_vibecli_binary_with_home(Some(tmp)) is called
-    /// Then:  the cargo-bin path OR a PATH-found path is returned (both valid)
-    #[test]
-    fn find_vibecli_binary_with_home_finds_cargo_bin() {
-        use std::os::unix::fs::PermissionsExt;
-        let tmp = std::env::temp_dir().join(format!("vibe_cargo_{}", std::process::id()));
-        let cargo_bin = tmp.join(".cargo").join("bin");
-        std::fs::create_dir_all(&cargo_bin).unwrap();
-        let fake = cargo_bin.join("vibecli");
-        std::fs::write(&fake, "#!/bin/sh\n").unwrap();
-        std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).unwrap();
-
-        let result = find_vibecli_binary_with_home(Some(tmp.to_str().unwrap()));
-        let _ = std::fs::remove_dir_all(&tmp);
-
-        // Either the system vibecli (found via `which`) or our fake was returned.
-        assert!(result.is_some(), "should find a vibecli binary");
-        assert!(result.unwrap().ends_with("vibecli"));
-    }
+    // Binary-resolution coverage now lives with the single implementation, in
+    // `vibecli_cli::daemon_bootstrap::tests` (PATH precedence, ~/.cargo/bin
+    // fallback for GUI launches with no PATH, directories rejected, missing
+    // binary returns None). Duplicating it here is what let the two searches
+    // drift apart in the first place.
 
     // ── port_open ────────────────────────────────────────────────────────────
 
@@ -58440,40 +58388,6 @@ mod daemon_tests {
         assert!(!port_open(port).await, "port {port} should now be closed");
     }
 
-    // ── find_vibecli_binary: common prefix paths ─────────────────────────────
-
-    /// Given: PATH contains a vibecli binary (real or fake)
-    ///   AND: ~/.cargo/bin also contains a vibecli binary
-    /// When:  find_vibecli_binary scans
-    /// Then:  returns a valid path to a vibecli binary (PATH wins, which is correct)
-    ///
-    /// This test verifies that the lookup succeeds and returns a readable path.
-    /// It does NOT assert which source wins — `which` takes priority by design
-    /// (e.g. vibecli installed via cargo install into ~/.local/bin or /usr/local/bin).
-    /// Given: cargo-bin home with fake vibecli OR system vibecli in PATH
-    /// When:  find_vibecli_binary_with_home is called
-    /// Then:  returned path (if any) ends with "vibecli"
-    #[test]
-    fn find_vibecli_binary_path_ends_with_vibecli_when_found() {
-        use std::os::unix::fs::PermissionsExt;
-        let tmp = std::env::temp_dir().join(format!("vibe_pref_{}", std::process::id()));
-        let cargo_bin = tmp.join(".cargo").join("bin");
-        std::fs::create_dir_all(&cargo_bin).unwrap();
-        let fake = cargo_bin.join("vibecli");
-        std::fs::write(&fake, "#!/bin/sh\n").unwrap();
-        std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).unwrap();
-
-        let result = find_vibecli_binary_with_home(Some(tmp.to_str().unwrap()));
-        let _ = std::fs::remove_dir_all(&tmp);
-
-        assert!(result.is_some(), "should find a vibecli binary");
-        let p = result.unwrap();
-        assert!(
-            p.ends_with("vibecli"),
-            "path should end with 'vibecli', got {}",
-            p.display()
-        );
-    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

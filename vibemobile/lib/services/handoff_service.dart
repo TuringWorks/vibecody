@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'api_client.dart' show isVibeCliHealthBody;
 import 'auth_service.dart';
 import 'discovery_service.dart';
 
@@ -264,7 +265,13 @@ class HandoffService extends ChangeNotifier {
       final resp = await _http
           .get(Uri.parse('$baseUrl/health'))
           .timeout(const Duration(seconds: 3));
-      if (resp.statusCode == 200) return baseUrl;
+      // Identity, not just a 200: this ping decides which transport wins the
+      // connectivity race, so anything that merely answers on the port (a
+      // captive portal, a proxy, an unrelated service) must not be able to
+      // claim it. See isVibeCliHealthBody.
+      if (resp.statusCode == 200 && isVibeCliHealthBody(resp.body)) {
+        return baseUrl;
+      }
     } catch (_) {}
     return null;
   }

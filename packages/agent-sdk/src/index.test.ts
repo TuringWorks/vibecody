@@ -466,12 +466,47 @@ describe('VibeCLIAgent.stop', () => {
 // ── VibeCLIAgent.isConnected ──────────────────────────────────────────────────
 
 describe('VibeCLIAgent.isConnected', () => {
-  it('returns true when /health returns 200', async () => {
+  it('returns true when /health identifies the VibeCLI daemon', async () => {
     const agent = new VibeCLIAgent();
-    fetchMock.mockResolvedValueOnce({ ok: true });
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ service: 'vibecli', status: 'ok', version: '0.5.7' }),
+    });
 
     expect(await agent.isConnected()).toBe(true);
     expect(fetchMock.mock.calls[0][0]).toMatch(/\/health$/);
+  });
+
+  it('returns true for a pre-`service` daemon via its legacy body shape', async () => {
+    const agent = new VibeCLIAgent();
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ status: 'ok', version: '0.3.3' }),
+    });
+
+    expect(await agent.isConnected()).toBe(true);
+  });
+
+  it('returns false when a different service answers 200 on the port', async () => {
+    const agent = new VibeCLIAgent();
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ status: 'ok', service: 'some-other-app' }),
+    });
+
+    expect(await agent.isConnected()).toBe(false);
+  });
+
+  it('returns false when the body is not JSON', async () => {
+    const agent = new VibeCLIAgent();
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => {
+        throw new SyntaxError('Unexpected token <');
+      },
+    });
+
+    expect(await agent.isConnected()).toBe(false);
   });
 
   it('returns false when /health returns non-2xx', async () => {

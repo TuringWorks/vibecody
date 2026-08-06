@@ -235,6 +235,10 @@ pub struct BinarySearchPaths {
     /// The running executable's directory — a sibling `vibecli` next to a Tauri
     /// binary covers both dev (`target/debug/`) and a bundled layout.
     pub current_exe_dir: Option<PathBuf>,
+    /// System-wide install prefixes to check when `PATH` is unhelpful. A
+    /// Finder-launched `.app` gets a minimal `PATH`, so a Homebrew install is
+    /// invisible without this.
+    pub system_prefixes: Vec<PathBuf>,
 }
 
 impl BinarySearchPaths {
@@ -249,7 +253,27 @@ impl BinarySearchPaths {
             current_exe_dir: std::env::current_exe()
                 .ok()
                 .and_then(|p| p.parent().map(PathBuf::from)),
+            system_prefixes: default_system_prefixes(),
         }
+    }
+}
+
+/// Well-known install directories, per platform.
+fn default_system_prefixes() -> Vec<PathBuf> {
+    #[cfg(windows)]
+    {
+        // Scoop shims live under the user profile, handled via `home` below.
+        std::env::var_os("USERPROFILE")
+            .map(PathBuf::from)
+            .map(|h| vec![h.join("scoop").join("shims")])
+            .unwrap_or_default()
+    }
+    #[cfg(not(windows))]
+    {
+        ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"]
+            .iter()
+            .map(PathBuf::from)
+            .collect()
     }
 }
 
@@ -278,10 +302,14 @@ pub fn find_binary_in(paths: &BinarySearchPaths) -> Option<PathBuf> {
 
     let on_path = paths.path_entries.iter().map(|d| d.join(name));
 
+    let system = paths.system_prefixes.iter().map(|d| d.join(name));
+
     // PATH first (respects a user's deliberate override / version manager
-    // shim), then the well-known install dir, then a sibling build.
+    // shim), then the Rust install dir, then system prefixes (Homebrew et al,
+    // which a GUI launch cannot see via PATH), then a sibling build.
     on_path
         .chain(cargo_bin)
+        .chain(system)
         .chain(sibling)
         .find(|candidate| is_executable_file(candidate))
 }
@@ -474,6 +502,7 @@ mod tests {
         let found = find_binary_in(&BinarySearchPaths {
             home: Some(dir.join("home")),
             path_entries: vec![path_dir.clone()],
+            system_prefixes: Vec::new(),
             current_exe_dir: None,
         });
         assert_eq!(found, Some(path_dir.join(binary_name())));
@@ -497,6 +526,7 @@ mod tests {
         let found = find_binary_in(&BinarySearchPaths {
             home: Some(dir.clone()),
             path_entries: Vec::new(),
+            system_prefixes: Vec::new(),
             current_exe_dir: None,
         });
         assert_eq!(found, Some(f));
@@ -509,6 +539,7 @@ mod tests {
             home: Some(PathBuf::from("/nonexistent-home-xyz")),
             path_entries: vec![PathBuf::from("/nonexistent-path-xyz")],
             current_exe_dir: Some(PathBuf::from("/nonexistent-exe-xyz")),
+            system_prefixes: Vec::new(),
         });
         assert_eq!(found, None);
     }
@@ -523,6 +554,7 @@ mod tests {
         let found = find_binary_in(&BinarySearchPaths {
             home: None,
             path_entries: vec![path_dir],
+            system_prefixes: Vec::new(),
             current_exe_dir: None,
         });
         assert_eq!(found, None);

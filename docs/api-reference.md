@@ -92,20 +92,33 @@ Retry-After: 5
 
 ### GET /health
 
-Liveness check. No authentication required.
+Liveness **and identity** check. No authentication required.
 
-**Response** `200 OK`:
+**Response** `200 OK` (abridged — the live response also reports provider,
+graph, skillforge and token-freshness status):
 
 ```json
 {
   "status": "ok",
-  "version": "0.3.3"
+  "service": "vibecli",
+  "version": "0.5.7"
 }
 ```
 
 ```bash
 curl http://localhost:7878/health
 ```
+
+> **Clients must check `service`, not just the status code.** A 200 from this
+> port only proves *something* is listening; any local service could answer.
+> `service: "vibecli"` is the contract that distinguishes "the daemon is here"
+> from "the port is taken by another program" — and those two need very
+> different messages in the UI. The autostart path
+> (`vibecli_cli::daemon_bootstrap::probe`) requires an exact match, and so
+> should every client health check.
+
+The daemon port defaults to `7878` and is overridable with
+`VIBECLI_DAEMON_PORT` (the legacy `VIBEDESK_DAEMON_PORT` is still honoured).
 
 
 ### POST /chat
