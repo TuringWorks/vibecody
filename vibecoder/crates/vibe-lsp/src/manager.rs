@@ -70,9 +70,12 @@ impl LspManager {
         server_configs.insert("zig".into(), s("zls", &[]));
         server_configs.insert("nim".into(), s("nimlangserver", &[]));
         server_configs.insert("d".into(), s("serve-d", &[]));
-        server_configs.insert("dlang".into(), s("serve-d", &[]));
         server_configs.insert("v".into(), s("v-analyzer", &[]));
         server_configs.insert("vala".into(), s("vala-language-server", &[]));
+        server_configs.insert("odin".into(), s("ols", &[]));
+        server_configs.insert("gleam".into(), s("gleam", &["lsp"]));
+        // CUDA is a clangd language; `.cu` / `.cuh` need no separate server.
+        server_configs.insert("cuda".into(), s("clangd", &[]));
 
         // ── Web languages ──
         server_configs.insert(
@@ -92,6 +95,38 @@ impl LspManager {
             "json".into(),
             s("vscode-json-language-server", &["--stdio"]),
         );
+        // Component frameworks. These are *not* covered by Monaco's built-in
+        // HTML service even though `.vue` / `.svelte` highlight as HTML: the
+        // real value (script blocks, props, type-checked templates) only comes
+        // from the framework's own server. See `hasBuiltinLanguageService`.
+        server_configs.insert("svelte".into(), s("svelteserver", &["--stdio"]));
+        server_configs.insert("vue".into(), s("vue-language-server", &["--stdio"]));
+        server_configs.insert("astro".into(), s("astro-ls", &["--stdio"]));
+        server_configs.insert(
+            "purescript".into(),
+            s("purescript-language-server", &["--stdio"]),
+        );
+        server_configs.insert(
+            "rescript".into(),
+            s("rescript-language-server", &["--stdio"]),
+        );
+        server_configs.insert("elm".into(), s("elm-language-server", &["--stdio"]));
+
+        // ── Infrastructure / build ──
+        server_configs.insert("terraform".into(), s("terraform-ls", &["serve"]));
+        server_configs.insert("nix".into(), s("nil", &[]));
+        server_configs.insert("cmake".into(), s("cmake-language-server", &[]));
+        server_configs.insert("protobuf".into(), s("protols", &[]));
+
+        // ── Shaders / hardware description ──
+        server_configs.insert("glsl".into(), s("glsl_analyzer", &[]));
+        server_configs.insert("wgsl".into(), s("wgsl-analyzer", &[]));
+        server_configs.insert("systemverilog".into(), s("svls", &[]));
+        server_configs.insert("vhdl".into(), s("vhdl_ls", &[]));
+
+        // ── Typesetting / shell ──
+        server_configs.insert("latex".into(), s("texlab", &[]));
+        server_configs.insert("nushell".into(), s("nu", &["--lsp"]));
 
         // ── JVM languages ──
         server_configs.insert("java".into(), s("jdtls", &[]));
@@ -374,9 +409,32 @@ impl LspManager {
         // Pre-existing servers that had no hint: "not installed" with no way to
         // fix it is only half a message.
         h.insert("vb", "https://github.com/OmniSharp/omnisharp-roslyn");
-        h.insert("dlang", "https://github.com/Pure-D/serve-d");
         h.insert("lisp", "https://github.com/cxxxr/cl-lsp");
         h.insert("cfml", "https://github.com/KamasamaK/vscode-cfml");
+        // Modern / emerging languages
+        h.insert("odin", "https://github.com/DanielGavin/ols");
+        h.insert("gleam", "Included with the Gleam toolchain — https://gleam.run/getting-started");
+        h.insert("cuda", "brew install llvm (macOS) | apt install clangd");
+        // Component frameworks
+        h.insert("svelte", "npm i -g svelte-language-server");
+        h.insert("vue", "npm i -g @vue/language-server");
+        h.insert("astro", "npm i -g @astrojs/language-server");
+        h.insert("purescript", "npm i -g purescript-language-server");
+        h.insert("rescript", "npm i -g @rescript/language-server");
+        h.insert("elm", "npm i -g @elm-tooling/elm-language-server");
+        // Infrastructure / build
+        h.insert("terraform", "brew install hashicorp/tap/terraform-ls");
+        h.insert("nix", "nix profile install nixpkgs#nil");
+        h.insert("cmake", "pip install cmake-language-server");
+        h.insert("protobuf", "cargo install protols");
+        // Shaders / hardware description
+        h.insert("glsl", "https://github.com/nolanderc/glsl_analyzer");
+        h.insert("wgsl", "cargo install --git https://github.com/wgsl-analyzer/wgsl-analyzer wgsl-analyzer");
+        h.insert("systemverilog", "cargo install svls");
+        h.insert("vhdl", "cargo install --git https://github.com/VHDL-LS/rust_hdl vhdl_ls");
+        // Typesetting / shell
+        h.insert("latex", "brew install texlab | cargo install texlab");
+        h.insert("nushell", "Included with Nushell — https://www.nushell.sh");
         h.insert(
             "matlab",
             "https://github.com/mathworks/MATLAB-language-server",
@@ -1058,6 +1116,62 @@ mod tests {
                 "{dialect}'s hint must admit it is not dialect-aware"
             );
         }
+    }
+
+    /// Languages outside the TIOBE list that people actually work in daily.
+    /// Not a ranking — a list of "if this is missing, someone notices".
+    const POPULAR_BEYOND_TIOBE: [(&str, &str); 22] = [
+        ("zig", "zls"),
+        ("nim", "nimlangserver"),
+        ("crystal", "crystalline"),
+        ("v", "v-analyzer"),
+        ("d", "serve-d"),
+        ("vala", "vala-language-server"),
+        ("odin", "ols"),
+        ("gleam", "gleam"),
+        ("elixir", "elixir-ls"),
+        ("elm", "elm-language-server"),
+        ("purescript", "purescript-language-server"),
+        ("rescript", "rescript-language-server"),
+        ("svelte", "svelteserver"),
+        ("vue", "vue-language-server"),
+        ("astro", "astro-ls"),
+        ("terraform", "terraform-ls"),
+        ("nix", "nil"),
+        ("cmake", "cmake-language-server"),
+        ("protobuf", "protols"),
+        ("latex", "texlab"),
+        ("wgsl", "wgsl-analyzer"),
+        ("cuda", "clangd"),
+    ];
+
+    #[test]
+    fn popular_non_tiobe_languages_have_the_expected_server() {
+        let mgr = LspManager::new();
+        let wrong: Vec<String> = POPULAR_BEYOND_TIOBE
+            .iter()
+            .filter_map(|(language, expected)| {
+                match mgr.server_configs.get(*language) {
+                    Some((cmd, _)) if cmd == expected => None,
+                    Some((cmd, _)) => {
+                        Some(format!("{language}: configured as `{cmd}`, expected `{expected}`"))
+                    }
+                    None => Some(format!("{language}: not configured (expected `{expected}`)")),
+                }
+            })
+            .collect();
+        assert!(wrong.is_empty(), "{wrong:#?}");
+    }
+
+    #[test]
+    fn no_server_is_configured_under_two_names() {
+        // `dlang` used to duplicate `d` with the same binary and no extension
+        // routed to it — a config that could never be reached and would drift.
+        let mgr = LspManager::new();
+        assert!(
+            !mgr.server_configs.contains_key("dlang"),
+            "`dlang` is an unreachable alias of `d`"
+        );
     }
 
     #[test]

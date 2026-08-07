@@ -260,6 +260,7 @@ const EXACT_FILENAME_LANGUAGE: Record<string, string> = {
   dockerfile: "dockerfile",
   "cargo.toml": "toml",
   "cargo.lock": "toml",
+  "cmakelists.txt": "cmake",
 };
 
 /**
@@ -402,6 +403,53 @@ const EXTENSION_LANGUAGE: Record<string, string> = {
 
   // Web3
   sol: "solidity",
+
+  // Component frameworks — their own servers, not Monaco's HTML service
+  svelte: "svelte",
+  vue: "vue",
+  astro: "astro",
+  purs: "purescript",
+  res: "rescript",
+  resi: "rescript",
+  elm: "elm",
+
+  // Modern / emerging
+  odin: "odin",
+  gleam: "gleam",
+  // CUDA is clangd's, and `.cu` is unambiguous.
+  cu: "cuda",
+  cuh: "cuda",
+
+  // Infrastructure / build
+  tf: "terraform",
+  tfvars: "terraform",
+  hcl: "terraform",
+  nix: "nix",
+  cmake: "cmake",
+  proto: "protobuf",
+
+  // Shaders — `.v` stays V (vlang), so SystemVerilog uses only `.sv`/`.svh`
+  glsl: "glsl",
+  vert: "glsl",
+  frag: "glsl",
+  comp: "glsl",
+  geom: "glsl",
+  wgsl: "wgsl",
+  sv: "systemverilog",
+  svh: "systemverilog",
+  vhd: "vhdl",
+  vhdl: "vhdl",
+
+  // Typesetting / shell
+  tex: "latex",
+  ltx: "latex",
+  sty: "latex",
+  bib: "latex",
+  nu: "nushell",
+
+  // ColdFusion — the server was configured but unreachable without these.
+  cfm: "cfml",
+  cfc: "cfml",
   // Markup / config
   yaml: "yaml",
   yml: "yaml",
@@ -414,8 +462,8 @@ const EXTENSION_LANGUAGE: Record<string, string> = {
 };
 
 /**
- * Monaco languages that already have a full in-browser language service (its
- * TypeScript, CSS, HTML and JSON web workers).
+ * Languages Monaco already services well enough in-browser via its own
+ * TypeScript, CSS, HTML and JSON web workers.
  *
  * We deliberately do **not** attach LSP providers to these. Monaco's built-in
  * providers cannot be unregistered, so adding ours would show every suggestion
@@ -424,6 +472,13 @@ const EXTENSION_LANGUAGE: Record<string, string> = {
  * model at a real `file://` URI, so Monaco's TypeScript service can finally
  * resolve imports *across* open files instead of seeing one shared
  * `inmemory://model/1`.
+ *
+ * **Keyed on the LSP language, not the Monaco one.** `.vue` and `.svelte`
+ * highlight as `html`, so keying this on the Monaco language would silently
+ * skip Volar and svelteserver — the two servers that supply everything Monaco's
+ * HTML worker cannot (script blocks, props, type-checked templates). Those
+ * files do get some HTML suggestions alongside, which is the right trade: a
+ * little overlap beats no framework IntelliSense at all.
  */
 const MONACO_SERVICED_LANGUAGES = new Set([
   "typescript",
@@ -438,9 +493,12 @@ const MONACO_SERVICED_LANGUAGES = new Set([
   "razor",
 ]);
 
-/** Does Monaco already provide IntelliSense for this (Monaco) language id? */
-export function hasBuiltinLanguageService(monacoLanguage: string): boolean {
-  return MONACO_SERVICED_LANGUAGES.has(monacoLanguage);
+/**
+ * Does Monaco already provide IntelliSense for this **LSP** language id?
+ * Pass the output of {@link lspLanguageForPath}, not a Monaco language id.
+ */
+export function hasBuiltinLanguageService(lspLanguage: string): boolean {
+  return MONACO_SERVICED_LANGUAGES.has(lspLanguage);
 }
 
 /**
@@ -1171,7 +1229,7 @@ export function createLspBridge(
       if (!language) return;
       // Starting a server whose suggestions we would refuse to show is pure
       // cost — several hundred MB for tsserver on a large repo.
-      if (hasBuiltinLanguageService(monacoLanguage)) return;
+      if (hasBuiltinLanguageService(language)) return;
       const rootPath = rootFor(path);
       const uri = fileUri(path);
 

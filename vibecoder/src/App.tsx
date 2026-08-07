@@ -714,6 +714,16 @@ function App() {
       { id: "cobol", extensions: [".cob", ".cbl", ".cpy", ".cbo"], aliases: ["COBOL"] },
       { id: "sas", extensions: [".sas"], aliases: ["SAS"] },
       { id: "foxpro", extensions: [".prg"], aliases: ["FoxPro"] },
+      { id: "odin", extensions: [".odin"], aliases: ["Odin"] },
+      { id: "gleam", extensions: [".gleam"], aliases: ["Gleam"] },
+      { id: "nix", extensions: [".nix"], aliases: ["Nix"] },
+      { id: "elm", extensions: [".elm"], aliases: ["Elm"] },
+      { id: "purescript", extensions: [".purs"], aliases: ["PureScript"] },
+      { id: "rescript", extensions: [".res", ".resi"], aliases: ["ReScript"] },
+      { id: "astro", extensions: [".astro"], aliases: ["Astro"] },
+      { id: "cmake", extensions: [".cmake"], aliases: ["CMake"] },
+      { id: "vhdl", extensions: [".vhd", ".vhdl"], aliases: ["VHDL"] },
+      { id: "latex", extensions: [".tex", ".ltx", ".sty", ".bib"], aliases: ["LaTeX"] },
       { id: "haskell", extensions: [".hs", ".lhs"], aliases: ["Haskell"] },
       { id: "fortran", extensions: [".f", ".f90", ".f95", ".f03", ".f08"], aliases: ["Fortran"] },
       { id: "prolog", extensions: [".pro", ".pl"], aliases: ["Prolog"] },
@@ -2329,7 +2339,6 @@ function App() {
           {currentFile && !activeFile?.isImage && !activeFile?.isDocument && (
             <LspStatus
               filePath={currentFile}
-              monacoLanguage={editorLanguage}
               workspaceRoot={workspaceFolders[0] ?? ""}
               invoke={invoke}
             />

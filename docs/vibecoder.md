@@ -717,9 +717,34 @@ adding a third exemption requires stating a reason.
 Beyond the top 30, ranks 31–50 add servers for Lisp, Julia, ML/OCaml/Caml,
 TypeScript, Haskell, ABAP, Zig, Erlang, Scala, T-SQL, PowerShell and Solidity.
 Four have no LSP in existence (VBScript, X++, GML, FoxPro) and two more are
-visual languages (LabVIEW, Ladder Logic). Roughly 60 language ids are configured
-in total, including Bash, YAML, TOML, Dockerfile, Markdown, GraphQL, Elixir,
-Clojure, Groovy, F#, Nim, Crystal, D, V, Vala and Racket.
+visual languages (LabVIEW, Ladder Logic).
+
+#### Beyond TIOBE
+
+**84 languages get IntelliSense**: 79 through a language server, plus the 10
+Monaco services in-browser (some overlap). Two invariants are enforced by tests:
+every configured server is reachable from at least one file extension, and every
+routed extension has a server — the halves cannot drift apart.
+
+| Area | Languages |
+|---|---|
+| Modern systems | Zig `zls` · Nim `nimlangserver` · Crystal `crystalline` · V `v-analyzer` · D `serve-d` · Odin `ols` · Vala · CUDA `clangd` |
+| Functional | Gleam `gleam lsp` · Elixir · Erlang · Haskell · OCaml · F# · Elm · PureScript · ReScript · Clojure · Racket · Lisp · Scala |
+| Web frameworks | Svelte `svelteserver` · Vue `vue-language-server` · Astro `astro-ls` |
+| Infrastructure | Terraform/HCL `terraform-ls` · Nix `nil` · CMake · Docker · Protobuf `protols` · YAML · TOML |
+| Shaders / hardware | GLSL `glsl_analyzer` · WGSL `wgsl-analyzer` · SystemVerilog `svls` · VHDL `vhdl_ls` |
+| Shell / docs | Bash · PowerShell · Nushell `nu --lsp` · LaTeX `texlab` · Markdown · GraphQL |
+
+**Svelte, Vue and Astro are a deliberate exception to the built-in-service
+rule.** All three highlight as `html`, and `html` is Monaco-serviced — so the
+check is keyed on the *LSP* language, not the Monaco one. Keying it on the
+Monaco language (as it originally was) silently skipped Volar and svelteserver,
+the only things that understand script blocks, props and typed templates. Those
+files therefore get some HTML suggestions alongside the framework server's: a
+little overlap beats no framework IntelliSense.
+
+`.v` stays V (vlang); SystemVerilog is reached through the unambiguous `.sv` /
+`.svh`. See the ambiguity table above for `.pl` and `.m`.
 
 **Two extensions are genuinely ambiguous**, and IntelliSense follows the same
 choice `detectLanguage` makes for highlighting, so a file never highlights as one

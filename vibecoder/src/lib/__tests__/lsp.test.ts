@@ -18,6 +18,7 @@ import { URI } from "monaco-editor/esm/vs/base/common/uri.js";
 import {
   createLspBridge,
   fileUri,
+  hasBuiltinLanguageService,
   lspLanguageForPath,
   parentDirectory,
   toLspPosition,
@@ -171,6 +172,54 @@ describe("lspLanguageForPath", () => {
     expect(lspLanguageForPath("/w/main.cr")).toBe("crystal");
     expect(lspLanguageForPath("/w/main.ml")).toBe("ocaml");
     expect(lspLanguageForPath("/w/main.d")).toBe("d");
+  });
+
+  it("routes the modern systems languages people actually ask about", () => {
+    expect(lspLanguageForPath("/w/main.zig")).toBe("zig");
+    expect(lspLanguageForPath("/w/app.nim")).toBe("nim");
+    expect(lspLanguageForPath("/w/app.cr")).toBe("crystal");
+    expect(lspLanguageForPath("/w/main.v")).toBe("v");
+    expect(lspLanguageForPath("/w/main.odin")).toBe("odin");
+    expect(lspLanguageForPath("/w/app.gleam")).toBe("gleam");
+    expect(lspLanguageForPath("/w/lib.d")).toBe("d");
+    expect(lspLanguageForPath("/w/app.vala")).toBe("vala");
+  });
+
+  it("routes component frameworks to their own server, not Monaco's HTML", () => {
+    // These are the ones the built-in-service check would swallow if it were
+    // keyed on the Monaco language: all three highlight as `html`.
+    expect(lspLanguageForPath("/w/App.vue")).toBe("vue");
+    expect(lspLanguageForPath("/w/App.svelte")).toBe("svelte");
+    expect(lspLanguageForPath("/w/index.astro")).toBe("astro");
+    for (const language of ["vue", "svelte", "astro"]) {
+      expect(hasBuiltinLanguageService(language)).toBe(false);
+    }
+  });
+
+  it("routes infrastructure, shader and hardware files", () => {
+    expect(lspLanguageForPath("/w/main.tf")).toBe("terraform");
+    expect(lspLanguageForPath("/w/flake.nix")).toBe("nix");
+    expect(lspLanguageForPath("/w/CMakeLists.txt")).toBe("cmake");
+    expect(lspLanguageForPath("/w/api.proto")).toBe("protobuf");
+    expect(lspLanguageForPath("/w/shader.wgsl")).toBe("wgsl");
+    expect(lspLanguageForPath("/w/shader.frag")).toBe("glsl");
+    expect(lspLanguageForPath("/w/cpu.sv")).toBe("systemverilog");
+    expect(lspLanguageForPath("/w/alu.vhd")).toBe("vhdl");
+    expect(lspLanguageForPath("/w/kernel.cu")).toBe("cuda");
+    expect(lspLanguageForPath("/w/paper.tex")).toBe("latex");
+  });
+
+  it("keeps .v as V, not Verilog", () => {
+    // Both claim `.v` (as does Coq). V keeps it; SystemVerilog is reached
+    // through `.sv` / `.svh`, which is unambiguous.
+    expect(lspLanguageForPath("/w/main.v")).toBe("v");
+    expect(lspLanguageForPath("/w/cpu.sv")).toBe("systemverilog");
+  });
+
+  it("still skips the languages Monaco genuinely services", () => {
+    for (const language of ["typescript", "javascript", "json", "css", "html"]) {
+      expect(hasBuiltinLanguageService(language)).toBe(true);
+    }
   });
 
   it("returns null for files with no language server", () => {

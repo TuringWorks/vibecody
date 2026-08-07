@@ -125,6 +125,27 @@ export function detectLanguage(filename: string): string {
         // Prolog
         'pro': 'prolog',
 
+        // Modern / emerging (Monaco has no grammar; ids registered at mount)
+        'odin': 'odin', 'gleam': 'gleam', 'nix': 'nix', 'elm': 'elm',
+        'purs': 'purescript', 'res': 'rescript', 'resi': 'rescript',
+        'astro': 'astro', 'nu': 'shell',      // Nushell → shell syntax
+        'cu': 'cpp', 'cuh': 'cpp',            // CUDA → C++ syntax
+
+        // Infrastructure (`.tf` / `.tfvars` / `.proto` are mapped further down)
+        'hcl': 'hcl',
+
+        // Shaders / hardware description
+        'glsl': 'cpp', 'vert': 'cpp', 'frag': 'cpp', 'comp': 'cpp', 'geom': 'cpp',
+        'wgsl': 'wgsl',
+        'sv': 'systemverilog', 'svh': 'systemverilog',
+        'vhd': 'vhdl', 'vhdl': 'vhdl',
+
+        // Typesetting — texlab drives these; Monaco has no LaTeX grammar
+        'sty': 'latex', 'ltx': 'latex', 'bib': 'latex',
+
+        // ColdFusion
+        'cfm': 'html', 'cfc': 'html',
+
         // Config / Data
         'json': 'json', 'jsonc': 'json', 'json5': 'json',
         'yaml': 'yaml', 'yml': 'yaml',
@@ -135,7 +156,10 @@ export function detectLanguage(filename: string): string {
 
         // Markup
         'md': 'markdown', 'markdown': 'markdown', 'mdx': 'markdown',
-        'rst': 'plaintext', 'tex': 'plaintext', 'latex': 'plaintext',
+        'rst': 'plaintext',
+        // `latex` is a registered id (no Monaco grammar) so texlab's providers
+        // attach; as plaintext they never would.
+        'tex': 'latex', 'latex': 'latex',
         'txt': 'plaintext',
         'ps': 'postscript', 'eps': 'postscript',  // PostScript files (text-based)
 
@@ -153,7 +177,9 @@ export function detectLanguage(filename: string): string {
 
         // Other
         'vim': 'plaintext',
-        'makefile': 'shell', 'cmake': 'plaintext',
+        // `cmake` is a registered id (no Monaco grammar) rather than plaintext,
+        // so cmake-language-server's providers attach to these files.
+        'makefile': 'shell', 'cmake': 'cmake',
         'gradle': 'java',
         'lock': 'json',
     };

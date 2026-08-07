@@ -87,7 +87,6 @@ describe("<LspStatus />", () => {
     render(
       <LspStatus
         filePath="/w/src/main.rs"
-        monacoLanguage="rust"
         workspaceRoot="/w"
         invoke={invokeStub(support())}
       />,
@@ -104,7 +103,6 @@ describe("<LspStatus />", () => {
     render(
       <LspStatus
         filePath="/w/src/App.tsx"
-        monacoLanguage="typescript"
         workspaceRoot="/w"
         invoke={invoke}
       />,
@@ -117,7 +115,6 @@ describe("<LspStatus />", () => {
     render(
       <LspStatus
         filePath="/w/a.css"
-        monacoLanguage="css"
         workspaceRoot="/w"
         invoke={invokeStub(support())}
       />,
@@ -125,10 +122,22 @@ describe("<LspStatus />", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
+  it("probes a server for .vue, which only looks like a built-in language", () => {
+    // `.vue` highlights as `html`, and `html` *is* Monaco-serviced. Keying the
+    // built-in check on the Monaco language would silently skip Volar — the
+    // one thing that understands script blocks and typed templates.
+    const invoke = invokeStub(support({ language: "vue" }));
+    render(
+      <LspStatus filePath="/w/App.vue" workspaceRoot="/w" invoke={invoke} />,
+    );
+    expect(screen.queryByText("IntelliSense: built-in")).not.toBeInTheDocument();
+    expect(invoke).toHaveBeenCalled();
+  });
+
   it("renders nothing for a file with no language server", () => {
     const invoke = invokeStub(support());
     const { container } = render(
-      <LspStatus filePath="/w/notes.txt" monacoLanguage="plaintext" workspaceRoot="/w" invoke={invoke} />,
+      <LspStatus filePath="/w/notes.txt" workspaceRoot="/w" invoke={invoke} />,
     );
     expect(container).toBeEmptyDOMElement();
     expect(invoke).not.toHaveBeenCalled();
@@ -136,7 +145,7 @@ describe("<LspStatus />", () => {
 
   it("renders nothing when no file is open", () => {
     const { container } = render(
-      <LspStatus filePath={null} monacoLanguage="plaintext" workspaceRoot="/w" invoke={invokeStub(support())} />,
+      <LspStatus filePath={null} workspaceRoot="/w" invoke={invokeStub(support())} />,
     );
     expect(container).toBeEmptyDOMElement();
   });
@@ -149,7 +158,7 @@ describe("<LspStatus />", () => {
       support({ state: "running" }),
     ]);
     render(
-      <LspStatus filePath="/w/src/main.rs" monacoLanguage="rust" workspaceRoot="/w" invoke={invoke} />,
+      <LspStatus filePath="/w/src/main.rs" workspaceRoot="/w" invoke={invoke} />,
     );
 
     expect(await screen.findByRole("button")).toHaveTextContent("starting");
@@ -166,7 +175,7 @@ describe("<LspStatus />", () => {
   it("does not keep polling after it settles", async () => {
     const invoke = invokeStub(support({ state: "running" }));
     render(
-      <LspStatus filePath="/w/src/main.rs" monacoLanguage="rust" workspaceRoot="/w" invoke={invoke} />,
+      <LspStatus filePath="/w/src/main.rs" workspaceRoot="/w" invoke={invoke} />,
     );
     await screen.findByRole("button");
     const afterFirstProbe = (invoke as unknown as { mock: { calls: unknown[] } })
@@ -191,7 +200,7 @@ describe("<LspStatus />", () => {
       onRestart,
     );
     render(
-      <LspStatus filePath="/w/src/main.rs" monacoLanguage="rust" workspaceRoot="/w" invoke={invoke} />,
+      <LspStatus filePath="/w/src/main.rs" workspaceRoot="/w" invoke={invoke} />,
     );
 
     const button = await screen.findByRole("button");
@@ -214,7 +223,7 @@ describe("<LspStatus />", () => {
       throw new Error("daemon down");
     }) as never;
     render(
-      <LspStatus filePath="/w/src/main.rs" monacoLanguage="rust" workspaceRoot="/w" invoke={invoke} />,
+      <LspStatus filePath="/w/src/main.rs" workspaceRoot="/w" invoke={invoke} />,
     );
 
     const button = await screen.findByRole("button");
@@ -234,14 +243,14 @@ describe("<LspStatus />", () => {
       support({ language: String(args?.language ?? "") }),
     ) as never;
     const { rerender } = render(
-      <LspStatus filePath="/w/a.rs" monacoLanguage="rust" workspaceRoot="/w" invoke={invoke} />,
+      <LspStatus filePath="/w/a.rs" workspaceRoot="/w" invoke={invoke} />,
     );
     expect(await screen.findByRole("button")).toHaveTextContent(
       "IntelliSense: rust",
     );
 
     rerender(
-      <LspStatus filePath="/w/b.py" monacoLanguage="python" workspaceRoot="/w" invoke={invoke} />,
+      <LspStatus filePath="/w/b.py" workspaceRoot="/w" invoke={invoke} />,
     );
     await waitFor(() =>
       expect(screen.getByRole("button")).toHaveTextContent(
@@ -253,13 +262,13 @@ describe("<LspStatus />", () => {
   it("does not re-probe when switching between files of the same language", async () => {
     const invoke = invokeStub(support({ state: "running" }));
     const { rerender } = render(
-      <LspStatus filePath="/w/a.rs" monacoLanguage="rust" workspaceRoot="/w" invoke={invoke} />,
+      <LspStatus filePath="/w/a.rs" workspaceRoot="/w" invoke={invoke} />,
     );
     await screen.findByRole("button");
     const before = (invoke as unknown as { mock: { calls: unknown[] } }).mock
       .calls.length;
 
-    rerender(<LspStatus filePath="/w/b.rs" monacoLanguage="rust" workspaceRoot="/w" invoke={invoke} />);
+    rerender(<LspStatus filePath="/w/b.rs" workspaceRoot="/w" invoke={invoke} />);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(100);
     });
@@ -273,7 +282,6 @@ describe("<LspStatus />", () => {
     render(
       <LspStatus
         filePath="/w/src/main.rs"
-        monacoLanguage="rust"
         workspaceRoot="/w"
         invoke={invokeStub(
           support({

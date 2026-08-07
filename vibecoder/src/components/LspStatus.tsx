@@ -22,8 +22,6 @@ import {
 export interface LspStatusProps {
   /** Absolute path of the file in the editor, or null when none is open. */
   filePath: string | null;
-  /** Monaco's language id for the file — decides whether a server is used. */
-  monacoLanguage: string;
   /** Workspace root; the backend needs it to know where to root a server. */
   workspaceRoot: string;
   invoke: InvokeFn;
@@ -85,22 +83,18 @@ const TONE_COLOR: Record<Display["tone"], string> = {
   muted: "var(--text-secondary, #9ca3af)",
 };
 
-export function LspStatus({
-  filePath,
-  monacoLanguage,
-  workspaceRoot,
-  invoke,
-}: LspStatusProps) {
+export function LspStatus({ filePath, workspaceRoot, invoke }: LspStatusProps) {
   const [support, setSupport] = useState<LspLanguageSupport | null>(null);
   const [busy, setBusy] = useState(false);
   const recheckRef = useRef<number | null>(null);
 
+  const fileLanguage = filePath === null ? null : lspLanguageForPath(filePath);
   // Monaco services these itself, so no server is started and none is missing.
   // Probing would report `typescript-language-server` as "not installed" and
-  // warn about a gap that does not exist.
-  const builtin = hasBuiltinLanguageService(monacoLanguage);
-  const language =
-    filePath === null || builtin ? null : lspLanguageForPath(filePath);
+  // warn about a gap that does not exist. Keyed on the LSP language so `.vue`
+  // and `.svelte` — which highlight as `html` — are not mistaken for it.
+  const builtin = fileLanguage !== null && hasBuiltinLanguageService(fileLanguage);
+  const language = builtin ? null : fileLanguage;
   // A single-file window has no folder; the backend roots the server at the
   // file's directory, so an empty root is still a valid probe.
   const rootPath = workspaceRoot;
@@ -175,7 +169,7 @@ export function LspStatus({
   if (builtin) {
     return (
       <span className="status-item" style={{ color: TONE_COLOR.ok }}
-        title={`Monaco's built-in ${monacoLanguage} service provides IntelliSense for this file`}>
+        title={`Monaco's built-in ${fileLanguage} service provides IntelliSense for this file`}>
         IntelliSense: built-in
       </span>
     );
