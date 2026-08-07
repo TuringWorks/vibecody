@@ -1,0 +1,19 @@
+# Paths remark should not lint.
+#
+# Dependencies and build caches. These hold vendored third-party markdown
+# (plugin READMEs, dependency CHANGELOGs, bundled LICENSE files) that we do not
+# author and must not reformat.
+node_modules/
+docs/.jekyll-cache/
+target/
+dist/
+build/
+vibe-rl-py/.venv/
+vibemobile/ios/.symlinks/
+vibemobile/*/flutter/ephemeral/
+
+# The skills corpus is prompt text authored for models, not project
+# documentation. Whitespace and bullet indentation there can be
+# semantically load-bearing, so markdown style rules do not apply and
+# reformatting it risks changing prompt behaviour.
+vibecli/vibecli-cli/skills/

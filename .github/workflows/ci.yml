@@ -248,12 +248,22 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+      # This install line previously named packages that do not exist, so the
+      # job died here before remark ever ran: `@wooorm/storyline-preset` (404,
+      # and not referenced by .remarkrc.json at all), `remark-lint-max-blank-lines`
+      # (404 — the real rule is no-consecutive-blank-lines),
+      # `remark-lint-no-duplicate-headers` (404 — it is -headings), and
+      # `remark-lint-maximum-line-length@6` (no such major; 4.x is latest).
+      # Plugins now come from the preset, so only two packages are needed.
       - name: Install remark and plugins
-        run: npm install remark-cli@12 @wooorm/storyline-preset@1 remark-preset-lint-recommended@6 remark-lint-no-duplicate-headers@4 remark-lint-max-blank-lines@2 remark-lint-heading-style@3 remark-lint-list-item-indent@2 remark-lint-maximum-line-length@6
+        run: npm install remark-cli@12 remark-preset-lint-recommended@7
 
       - name: Lint Markdown files
         if: matrix.check == 'lint'
-        run: npx remark . --frail --quiet --ignore-component-path=false
+        # `--ignore-component-path` is not a remark-cli option — it aborted the
+        # run with "Unknown option". `--no-stdout` keeps remark from echoing
+        # every linted document; we only want the report.
+        run: npx remark . --frail --quiet --no-stdout
 
   # ─── Aggregate gate ────────────────────────────────────────────────────
   # Single required check for branch protection — easier than listing every
