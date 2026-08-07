@@ -126,8 +126,6 @@ use vibe_core::index::embeddings::{EmbeddingIndex, EmbeddingProvider};
 
 use std::io::{self, Write};
 use std::sync::Arc;
-
-mod async_subagent;
 mod auth_util;
 mod config;
 // The daemon binary only consumes `SERVICE_NAME` (via `serve.rs`'s `/health`).
@@ -137,21 +135,16 @@ mod config;
 #[allow(dead_code)]
 mod daemon_bootstrap;
 mod diff_viewer;
-mod mcp_apps_payload;
 mod mcp_taint;
-mod mcp_well_known;
 mod mcpb_bundle;
 mod memory;
-mod rag_taint;
 mod redact;
 mod schema;
-mod session_resume_protocol;
 mod syntax;
 mod tainted;
 mod tainted_http_bridge;
 mod tainted_prompter;
 mod tool_executor;
-mod verify_loop;
 // B2.1 — `vibecli-plugin.toml` inner manifest. See lib.rs comment.
 #[allow(dead_code)]
 mod plugin_manifest;
@@ -162,7 +155,6 @@ mod plugin_signing;
 #[allow(dead_code)]
 mod plugin_install;
 // B2.5 — runtime view: per-policy filtered component enumeration.
-mod acp_stdio;
 mod ci;
 mod context_assembler;
 mod mcp_server;
@@ -176,8 +168,6 @@ mod plugin;
 mod plugin_runtime;
 mod review;
 mod serve;
-mod skill_watcher;
-mod workspace_roots;
 use plugin::PluginLoader;
 mod profile;
 use diff_viewer::DiffViewer;
@@ -186,7 +176,6 @@ use profile::{ProfileManager, ProfileOverrides};
 use tool_executor::{ToolExecutor, VibeCoreWorktreeManager};
 
 mod background_agents;
-mod branch_agent;
 mod bugbot;
 mod gateway;
 #[allow(dead_code)]
@@ -219,24 +208,17 @@ mod plugin_lifecycle;
 mod plugin_registry;
 #[allow(dead_code)]
 mod plugin_sdk;
-mod screen_recorder;
 mod transform;
 use rustyline::error::ReadlineError;
 
 #[allow(dead_code)]
 mod agent_host;
 #[allow(dead_code)]
-mod agent_modes;
 #[allow(dead_code)]
-mod agent_skills_compat;
 #[allow(dead_code)]
-mod agent_teams_v2;
 #[allow(dead_code)]
-mod agent_teams_v2_enhanced;
 #[allow(dead_code)]
-mod app_builder;
 #[allow(dead_code)]
-mod ast_edit;
 #[allow(dead_code)]
 mod automations;
 #[allow(dead_code)]
@@ -244,58 +226,39 @@ mod batch_builder;
 #[allow(dead_code)]
 mod calendar_client;
 #[allow(dead_code)]
-mod ci_status_check;
 #[allow(dead_code)]
-mod clarifying_questions;
 #[allow(dead_code)]
-mod cloud_autofix;
 #[allow(dead_code)]
-mod cloud_ide;
 #[allow(dead_code)]
-mod cloud_sandbox;
-mod computer_use;
 mod container_runtime;
-mod container_tool_executor;
 #[allow(dead_code)]
-mod conversational_search;
 #[allow(dead_code)]
 mod database_client;
 #[allow(dead_code)]
-mod debug_mode;
 mod discovery;
 #[allow(dead_code)]
-mod discussion_mode;
 #[allow(dead_code)]
 mod distributed_training;
 #[allow(dead_code)]
-mod docgen;
 mod docker_runtime;
 #[allow(dead_code)]
 mod document_ingest;
 #[allow(dead_code)]
-mod edit_prediction;
 #[allow(dead_code)]
 mod email_client;
 #[allow(dead_code)]
-mod fast_context;
 mod feature_demo;
 #[allow(dead_code)]
-mod fine_tuning;
 #[allow(dead_code)]
-mod fullstack_gen;
 #[allow(dead_code)]
-mod gh_actions_agent;
 #[allow(dead_code)]
-mod git_platform;
 #[allow(dead_code)]
 mod gpu_cluster;
 #[allow(dead_code)]
-mod gpu_terminal;
 mod handoff;
 #[allow(dead_code)]
 mod home_assistant;
 #[allow(dead_code)]
-mod image_gen_agent;
 #[allow(dead_code)]
 mod inference;
 #[allow(dead_code)]
@@ -303,62 +266,46 @@ mod inference_routes;
 #[allow(dead_code)]
 mod inference_server;
 #[allow(dead_code)]
-mod infinite_context;
 #[allow(dead_code)]
-mod knowledge_graph;
 #[allow(dead_code)]
 mod legacy_migration;
 #[allow(dead_code)]
-mod mcp_apps;
 #[allow(dead_code)]
 mod migrate;
 #[allow(dead_code)]
-mod next_edit;
 mod ngrok;
 mod opensandbox_client;
 mod pairing;
 #[allow(dead_code)]
-mod plan_document;
 mod podman_runtime;
 #[allow(dead_code)]
 mod productivity;
 #[allow(dead_code)]
 mod qa_validation;
 #[allow(dead_code)]
-mod remote_control;
 #[allow(dead_code)]
-mod render_optimize;
 #[allow(dead_code)]
-mod security_scan;
 #[allow(dead_code)]
-mod security_scanning;
 #[allow(dead_code)]
 mod self_review;
 #[allow(dead_code)]
-mod semantic_mcp;
 mod setup;
 #[allow(dead_code)]
 mod skill_catalog;
 #[allow(dead_code)]
-mod streaming_client;
 #[allow(dead_code)]
-mod sub_agent_roles;
 #[allow(dead_code)]
-mod sub_agents;
 mod tailscale;
 #[allow(dead_code)]
-mod team_governance;
 mod tui;
 #[allow(dead_code)]
 mod usage_metering;
 #[allow(dead_code)]
 mod v1_messages;
 #[allow(dead_code)]
-mod vector_db;
 mod verification;
 mod voice;
 #[allow(dead_code)]
-mod vscode_sessions;
 #[allow(dead_code)]
 mod web_crawler;
 mod workflow_orchestration;
@@ -2927,38 +2874,25 @@ fn run_k8s_command(args: &[String]) {
 }
 
 #[allow(dead_code)]
-mod acp_protocol;
 #[allow(dead_code)]
-mod auto_research;
 #[allow(dead_code)]
-mod blue_team;
 #[allow(dead_code)]
 mod cloud_ai;
-mod cloud_providers;
 #[allow(dead_code)]
-mod compliance_controls;
 #[allow(dead_code)]
 mod compressed_hnsw;
 #[allow(dead_code)]
-mod context_bundles;
 #[allow(dead_code)]
 mod idp;
 #[allow(dead_code)]
-mod mcp_directory;
 #[allow(dead_code)]
-mod mcp_lazy;
 #[allow(dead_code)]
-mod multimodal_agent;
 #[allow(dead_code)]
 mod open_memory;
 #[allow(dead_code)]
-mod purple_team;
 #[allow(dead_code)]
-mod quantum_computing;
 #[allow(dead_code)]
-mod security_hardening;
 #[allow(dead_code)]
-mod session_memory;
 mod soul_generator;
 #[allow(dead_code)]
 mod swe_bench;
@@ -2982,14 +2916,12 @@ mod sync_ext;
 #[allow(dead_code)]
 pub mod agentic_cicd;
 #[allow(dead_code)]
-mod audio_output;
 pub mod channel_daemon;
 pub mod ci_gates;
 pub mod context_streaming;
 #[allow(dead_code)]
 pub mod cross_surface_routing;
 pub mod data_analysis;
-mod design_import;
 pub mod diagnostics;
 #[allow(dead_code)]
 mod diff_chain;
@@ -3006,38 +2938,27 @@ pub mod recipe;
 #[allow(dead_code)]
 mod resource_manager;
 mod session_sharing;
-mod spec_pipeline;
 mod vm_orchestrator;
 #[allow(dead_code)]
 mod vulnerability_db;
 pub mod warp_features;
 pub mod workspace_detect;
 // Design platform — multi-provider (Pencil, Penpot, Draw.io, Figma, in-house)
-mod a2a_http;
 mod a2a_protocol;
 #[allow(dead_code)]
-mod agent_analytics;
 #[allow(dead_code)]
-mod agent_trust;
 mod api_key_monitor;
 #[allow(dead_code)]
 mod browser_agent;
-mod counsel;
 pub mod design_providers;
 pub mod design_system_hub;
-mod desktop_agent;
 pub mod diagram_generator;
 #[allow(dead_code)]
 mod doc_sync;
 pub mod drawio_connector;
-mod jetbrains_hooks;
 #[allow(dead_code)]
-mod langgraph_bridge;
-mod large_codebase_bench;
 #[allow(dead_code)]
-mod mcp_http;
 #[allow(dead_code)]
-mod mcp_streamable;
 // MCP Tasks extension + stateless _meta (2026-07-28 RC, gap C3).
 #[allow(dead_code)]
 mod mcp_tasks;
@@ -3053,7 +2974,6 @@ mod security_watch_daemon;
 mod webmcp;
 // Design Mode → diffcomplete-into-source.
 #[allow(dead_code)]
-mod design_diff;
 // Dynamic large-scale workflow primitive (gap C2).
 #[allow(dead_code)]
 mod dynamic_workflow;
@@ -3062,35 +2982,26 @@ mod graph_index;
 mod mcts_repair;
 mod mobile_gateway;
 #[allow(dead_code)]
-mod native_connectors;
 #[allow(dead_code)]
-mod next_task;
 #[allow(dead_code)]
-mod observe_act;
 pub mod pencil_connector;
 pub mod penpot_connector;
 mod proactive_agent;
 #[allow(dead_code)]
-mod proactive_scanner;
 #[allow(dead_code)]
-mod rlcef_loop;
 mod signed_agent_card;
 #[allow(dead_code)]
-mod sketch_canvas;
 #[allow(dead_code)]
 mod skillforge_index;
 #[allow(dead_code)]
 mod smart_deps;
 mod spawn_agent;
-mod superbrain;
 #[allow(dead_code)]
 mod visual_verify;
 #[allow(dead_code)]
 mod voice_local;
 #[allow(dead_code)]
-mod voice_whisper;
 #[allow(dead_code)]
-mod vscode_compat_ext;
 #[allow(dead_code)]
 mod web_client;
 mod web_grounding;
@@ -3104,7 +3015,6 @@ mod worktree_reaper;
 // Phase 32: New capabilities
 mod code_replay;
 mod code_review_agent;
-mod context_protocol;
 mod cost_router;
 mod diff_review;
 mod explainable_agent;
@@ -3119,242 +3029,138 @@ mod company_cmd;
 mod company_documents;
 mod company_goals;
 mod company_heartbeat;
-mod company_meeting_notes;
-mod company_orchestrator;
 mod company_portability;
-mod company_priority_map;
 mod company_routines;
 mod company_secrets;
 mod company_store;
 mod company_tasks;
-mod company_workspace_config;
 mod health_score;
 mod intent_refactor;
 mod policy_engine;
 mod profile_store;
 mod review_protocol;
-mod self_improving_skills;
 mod skill_distillation;
 mod workspace_store;
 // Phase 33-39: FIT-GAP v8
 #[allow(dead_code)]
-mod auto_deploy;
 #[allow(dead_code)]
-mod clawcode_compat;
 #[allow(dead_code)]
-mod design_mode;
 #[allow(dead_code)]
-mod hard_problem;
 #[allow(dead_code)]
-mod ide_bridge;
 #[allow(dead_code)]
-mod on_device;
 #[allow(dead_code)]
-mod repro_agent;
 #[allow(dead_code)]
-mod team_onboarding;
 // FIT-GAP v9 — P0 modules
 #[allow(dead_code)]
-mod cost_predictor;
 #[allow(dead_code)]
-mod polyglot_refactor;
 #[allow(dead_code)]
-mod supply_chain;
 #[allow(dead_code)]
-mod test_gen;
 // FIT-GAP v9 — P1 modules
 #[allow(dead_code)]
-mod collab_session;
 #[allow(dead_code)]
-mod hybrid_search;
 #[allow(dead_code)]
-mod reasoning_video;
 #[allow(dead_code)]
-mod threat_model;
 // FIT-GAP v9 — P2 modules
 #[allow(dead_code)]
-mod a11y_agent;
 #[allow(dead_code)]
-mod api_sketch;
 #[allow(dead_code)]
-mod perf_profiler;
 #[allow(dead_code)]
-mod schema_migration;
 #[allow(dead_code)]
-mod symbolic_exec;
 #[allow(dead_code)]
-mod temporal_debug;
 // FIT-GAP v9 — P3 modules
 #[allow(dead_code)]
-mod federated_orchestrator;
 #[allow(dead_code)]
-mod incident_response;
 #[allow(dead_code)]
-mod local_embed_refresh;
 #[allow(dead_code)]
-mod workload_model_sel;
 // Claw-code parity — Wave 1: correctness/reliability
 #[allow(dead_code)]
-mod session_health_probe;
-mod tool_pair_compaction;
 #[allow(dead_code)]
-mod workspace_fingerprint;
 // Claw-code parity — Wave 2: agent coordination
 #[allow(dead_code)]
-mod bash_classifier;
-mod branch_lock;
 #[allow(dead_code)]
-mod recovery_recipe;
 #[allow(dead_code)]
-mod worker_bootstrap;
 // Claw-code parity — Wave 3: governance
-mod lane_events;
 #[allow(dead_code)]
-mod quality_gates;
 #[allow(dead_code)]
-mod stale_branch;
 // Claw-code parity — Wave 4: config/hooks
-mod config_layers;
 #[allow(dead_code)]
-mod hook_abort;
-mod trust_resolution;
 // FIT-GAP v10 — Phase 40: Execution Engine (P0)
-mod context_budget;
-mod parallel_tool_scheduler;
-mod smart_diff;
 // FIT-GAP v10 — Phase 41: Agent Intelligence (P1)
-mod agent_state_machine;
-mod cost_estimator;
 mod file_watcher;
 // FIT-GAP v10 — Phase 42: Reliability (P1)
-mod rate_limit_backoff;
-mod stream_patcher;
-mod test_impact;
 // FIT-GAP v10 — Phase 43: Developer Experience (P2)
-mod auto_stub;
-mod conversation_branch;
 // FIT-GAP v10 — Phase 44: P3 Gaps (closed)
 mod agent_replay;
-mod ai_merge;
-mod cache_advisor;
-mod code_templates;
-mod cursor_overlay;
-mod plugin_marketplace;
-mod symbol_rename;
-mod voice_history;
 // MemPalace techniques — LongMemEval benchmark
 mod mem_benchmark;
 // FIT-GAP v11 — Phase 45: Agent-OS (P0)
 #[allow(dead_code)]
-mod agent_autoscale;
 #[allow(dead_code)]
 mod agent_quota;
 #[allow(dead_code)]
-mod agent_recruiter;
 #[allow(dead_code)]
 mod agent_registry;
 // FIT-GAP v11 — Phase 46: Context & Workspace (P1)
 #[allow(dead_code)]
-mod agent_persistence;
 #[allow(dead_code)]
-mod inline_diff;
 #[allow(dead_code)]
-mod multi_repo_context;
 #[allow(dead_code)]
-mod workspace_snapshot;
 // FIT-GAP v11 — Phase 47: Developer Workflow (P2)
 #[allow(dead_code)]
-mod changelog_gen;
 #[allow(dead_code)]
-mod dep_update_advisor;
 #[allow(dead_code)]
-mod pr_description;
 #[allow(dead_code)]
-mod spec_to_test;
 // FIT-GAP v11 — Phase 48: P3 Gaps (closed)
 #[allow(dead_code)]
-mod capability_discovery;
 #[allow(dead_code)]
-mod explain_depth;
 #[allow(dead_code)]
-mod perf_regression;
 #[allow(dead_code)]
-mod prompt_vcs;
 #[allow(dead_code)]
-mod repl_macros;
 #[allow(dead_code)]
-mod semantic_search_v2;
 #[allow(dead_code)]
-mod session_export;
 #[allow(dead_code)]
-mod token_dashboard;
 // FIT-GAP v12 — P0
 #[allow(dead_code)]
-mod auto_approve;
 #[allow(dead_code)]
-mod github_action;
 #[allow(dead_code)]
-mod mcp_tool_search;
 #[allow(dead_code)]
-mod sandbox_bwrap;
 #[allow(dead_code)]
-mod sandbox_entry;
 #[allow(dead_code)]
-mod tool_operations;
 #[allow(dead_code)]
-mod zdr_mode;
 // FIT-GAP v12 — P1
 #[allow(dead_code)]
-mod alt_explore;
 #[allow(dead_code)]
-mod app_server;
 #[allow(dead_code)]
-mod autodream;
 #[allow(dead_code)]
 mod context_handoff;
 #[allow(dead_code)]
-mod prompt_cache;
 #[allow(dead_code)]
 mod reasoning_provider;
 // FIT-GAP v12 — P2
 #[allow(dead_code)]
-mod plugin_bundle;
 #[allow(dead_code)]
-mod task_scheduler;
 // FIT-GAP v12 — P3
 #[allow(dead_code)]
-mod dispatch_remote;
 #[allow(dead_code)]
-mod focus_view;
 #[allow(dead_code)]
-mod long_session;
 #[allow(dead_code)]
-mod sandbox_windows;
 // RL-OS: Unified Reinforcement Learning Lifecycle Platform
 mod rl_advanced;
 mod rl_deploy;
 #[allow(dead_code)]
-mod rl_env_os;
 mod rl_envs;
 mod rl_eval;
 #[allow(dead_code)]
-mod rl_eval_os;
 mod rl_executor;
 #[allow(dead_code)]
-mod rl_model_hub;
 #[allow(dead_code)]
-mod rl_observe;
 #[allow(dead_code)]
-mod rl_opti_os;
 mod rl_policies;
 #[allow(dead_code)]
-mod rl_rlhf;
 mod rl_runs;
 mod rl_runtime;
 #[allow(dead_code)]
-mod rl_serve_os;
 #[allow(dead_code)]
-mod rl_train_os;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]
@@ -21616,28 +21422,17 @@ mod tests {
 
 // Pi-mono gap bridge — Phases A1-D1
 #[allow(dead_code)]
-mod dual_log;
 #[allow(dead_code)]
-mod event_bus;
 #[allow(dead_code)]
-mod message_queue;
 mod oauth_login; // inner `#![allow(dead_code)]` in the file
 mod parallel_tools; // inner `#![allow(dead_code)]` in the file
 #[allow(dead_code)]
-mod paste_guard;
-mod pod_manager;
 #[allow(dead_code)]
-mod rpc_mode;
 #[allow(dead_code)]
-mod session_share;
 #[allow(dead_code)]
-mod session_tree;
 #[allow(dead_code)]
-mod stream_tool_args;
 #[allow(dead_code)]
-mod thinking_levels;
 #[allow(dead_code)]
-mod tui_images;
 #[allow(dead_code)]
 mod tui_ime; // inner `#![allow(dead_code)]` in the file
 
