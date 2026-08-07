@@ -1469,7 +1469,7 @@ requires-dist = [
     { name = "accelerate", marker = "extra == 'rlhf'", specifier = ">=0.27,<2.0" },
     { name = "gymnasium", specifier = ">=0.29,<2.0" },
     { name = "gymnasium", extras = ["atari"], marker = "extra == 'atari'", specifier = ">=0.29" },
-    { name = "gymnasium", extras = ["box2d"], marker = "extra == 'box2d'", specifier = ">=0.29" },
+    { name = "gymnasium", extras = ["box2d"], marker = "extra == 'box2d'", specifier = ">=1.3.0" },
     { name = "gymnasium", extras = ["mujoco"], marker = "extra == 'mujoco'", specifier = ">=0.29" },
     { name = "mpe2", marker = "extra == 'marl'", specifier = ">=1.0,<2.0" },
     { name = "mujoco", marker = "extra == 'mujoco'", specifier = ">=3.0" },
