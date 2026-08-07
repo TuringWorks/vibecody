@@ -317,8 +317,11 @@ impl LspClient {
         self.notify("initialized", json!({})).await?;
         // Servers that read settings (pyright, yaml-language-server) wait for
         // this before doing anything; empty settings means "use your defaults".
-        self.notify("workspace/didChangeConfiguration", json!({ "settings": {} }))
-            .await?;
+        self.notify(
+            "workspace/didChangeConfiguration",
+            json!({ "settings": {} }),
+        )
+        .await?;
 
         self.initialized.store(true, Ordering::Release);
         Ok(())
@@ -551,7 +554,11 @@ impl LspClient {
     /// different from `Some(vec![])` — "it published, and the file is clean".
     /// Callers clear markers on the latter and leave them alone on the former.
     pub async fn diagnostics_for(&self, uri: &str) -> Option<Vec<Value>> {
-        self.diagnostics.lock().await.get(&normalize_uri(uri)).cloned()
+        self.diagnostics
+            .lock()
+            .await
+            .get(&normalize_uri(uri))
+            .cloned()
     }
 
     // ── Requests ─────────────────────────────────────────────────────────────
@@ -602,7 +609,10 @@ impl LspClient {
     }
 
     /// Signature help (parameter hints) at a position.
-    pub async fn signature_help(&self, params: SignatureHelpParams) -> Result<Option<SignatureHelp>> {
+    pub async fn signature_help(
+        &self,
+        params: SignatureHelpParams,
+    ) -> Result<Option<SignatureHelp>> {
         let res = self
             .request(
                 "textDocument/signatureHelp",
@@ -629,7 +639,10 @@ impl LspClient {
     }
 
     /// Request full-document formatting edits.
-    pub async fn formatting(&self, params: DocumentFormattingParams) -> Result<Option<Vec<TextEdit>>> {
+    pub async fn formatting(
+        &self,
+        params: DocumentFormattingParams,
+    ) -> Result<Option<Vec<TextEdit>>> {
         let res = self
             .request(
                 "textDocument/formatting",
@@ -760,8 +773,8 @@ async fn read_message<R: AsyncBufReadExt + AsyncReadExt + Unpin>(
         }
     }
 
-    let length = content_length
-        .ok_or_else(|| anyhow!("LSP message header had no usable Content-Length"))?;
+    let length =
+        content_length.ok_or_else(|| anyhow!("LSP message header had no usable Content-Length"))?;
     let mut body = vec![0u8; length];
     reader.read_exact(&mut body).await?;
     serde_json::from_slice(&body)
@@ -778,7 +791,10 @@ async fn route_message(
     outbound: &mpsc::Sender<Value>,
     workspace_folders: &Arc<Mutex<Value>>,
 ) {
-    let method = msg.get("method").and_then(Value::as_str).map(str::to_string);
+    let method = msg
+        .get("method")
+        .and_then(Value::as_str)
+        .map(str::to_string);
     let id = msg.get("id").cloned();
 
     match (method, id) {
@@ -1121,7 +1137,13 @@ mod tests {
 
     // ── Routing ─────────────────────────────────────────────────────────────
 
-    fn routing_fixture() -> (PendingMap, DiagnosticMap, mpsc::Receiver<Value>, mpsc::Sender<Value>, Arc<Mutex<Value>>) {
+    fn routing_fixture() -> (
+        PendingMap,
+        DiagnosticMap,
+        mpsc::Receiver<Value>,
+        mpsc::Sender<Value>,
+        Arc<Mutex<Value>>,
+    ) {
         let (tx, rx) = mpsc::channel(16);
         (
             Arc::new(Mutex::new(HashMap::new())),

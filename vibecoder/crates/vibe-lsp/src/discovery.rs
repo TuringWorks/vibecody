@@ -54,7 +54,9 @@ fn home_dir() -> Option<PathBuf> {
     let var = "USERPROFILE";
     #[cfg(not(windows))]
     let var = "HOME";
-    std::env::var_os(var).map(PathBuf::from).filter(|p| !p.as_os_str().is_empty())
+    std::env::var_os(var)
+        .map(PathBuf::from)
+        .filter(|p| !p.as_os_str().is_empty())
 }
 
 /// Well-known language-server install directories, per platform.
@@ -188,9 +190,7 @@ pub fn augmented_path(paths: &ServerSearchPaths) -> OsString {
         .directories()
         .filter(|dir| !dir.as_os_str().is_empty() && seen.insert((*dir).clone()))
         .collect();
-    std::env::join_paths(ordered).unwrap_or_else(|_| {
-        std::env::var_os("PATH").unwrap_or_default()
-    })
+    std::env::join_paths(ordered).unwrap_or_else(|_| std::env::var_os("PATH").unwrap_or_default())
 }
 
 #[cfg(test)]
@@ -282,8 +282,7 @@ mod tests {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644))
-                .expect("chmod");
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).expect("chmod");
         }
         let paths = ServerSearchPaths {
             path_entries: vec![dir],

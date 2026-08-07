@@ -235,7 +235,10 @@ async fn completion_still_works_after_the_server_floods_notifications() {
     let client = client_or_skip!();
 
     wait_for("the notification flood to be routed", || async {
-        client.diagnostics_for("file:///fake/answered").await.is_some()
+        client
+            .diagnostics_for("file:///fake/answered")
+            .await
+            .is_some()
     })
     .await;
 
@@ -263,9 +266,15 @@ async fn server_request_is_answered() {
     // The fixture only publishes this diagnostic after it receives our reply to
     // its `workspace/configuration` request.
     let client = client_or_skip!();
-    wait_for("the server's configuration request to be answered", || async {
-        client.diagnostics_for("file:///fake/answered").await.is_some()
-    })
+    wait_for(
+        "the server's configuration request to be answered",
+        || async {
+            client
+                .diagnostics_for("file:///fake/answered")
+                .await
+                .is_some()
+        },
+    )
     .await;
 
     let published = client
@@ -365,8 +374,14 @@ async fn change_before_open_falls_back_to_did_open() {
 #[tokio::test]
 async fn reopening_a_document_does_not_duplicate_it() {
     let client = client_or_skip!();
-    client.open_document(DOC, "rust", "first").await.expect("open");
-    client.open_document(DOC, "rust", "second").await.expect("reopen");
+    client
+        .open_document(DOC, "rust", "first")
+        .await
+        .expect("open");
+    client
+        .open_document(DOC, "rust", "second")
+        .await
+        .expect("reopen");
 
     let items = completion_items(
         client
@@ -435,7 +450,10 @@ async fn snippet_completions_arrive_with_their_insert_text_format() {
     // Monaco needs insertTextFormat==2 to insert `call(${1:arg})` as a snippet
     // instead of typing the placeholder syntax literally.
     let client = client_or_skip!();
-    client.open_document(DOC, "rust", "x").await.expect("didOpen");
+    client
+        .open_document(DOC, "rust", "x")
+        .await
+        .expect("didOpen");
 
     let response = client
         .completion(completion_params(DOC, 0, 0))
@@ -471,7 +489,10 @@ async fn completion_items_can_be_resolved_for_documentation() {
 async fn an_unanswered_request_times_out_and_the_connection_keeps_working() {
     let client = client_or_skip!();
     client.set_request_timeout(Duration::from_millis(400));
-    client.open_document(DOC, "rust", "alive").await.expect("didOpen");
+    client
+        .open_document(DOC, "rust", "alive")
+        .await
+        .expect("didOpen");
 
     let started = Instant::now();
     let err = client

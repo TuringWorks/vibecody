@@ -16,10 +16,7 @@ use vibe_lsp::discovery::{server_available, ServerSearchPaths};
 use vibe_lsp::path_to_uri;
 
 fn scratch_dir(tag: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!(
-        "vibe-lsp-real-{}-{tag}",
-        std::process::id()
-    ));
+    let dir = std::env::temp_dir().join(format!("vibe-lsp-real-{}-{tag}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).expect("create scratch dir");
     dir

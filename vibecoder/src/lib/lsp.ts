@@ -203,7 +203,14 @@ export type LspLanguageState =
 export interface LspLanguageSupport {
   language: string;
   state: LspLanguageState;
+  /** Human-readable prose for the status bar and its tooltip. */
   detail: string;
+  /**
+   * The raw install hint, when the server is missing — kept separate from
+   * `detail` so {@link parseInstallHint} parses the hint itself rather than a
+   * sentence the backend composed around it.
+   */
+  installHint?: string;
   supported: boolean;
   completionTriggerCharacters: string[];
   signatureHelpTriggerCharacters: string[];
@@ -230,6 +237,80 @@ export function fileUri(path: string): string {
     })
     .join("");
   return `file://${encoded}`;
+}
+
+/**
+ * How a missing server can be installed, extracted from the backend's hint.
+ *
+ * The hints are our own strings (`LspManager::install_hints`), and they come in
+ * two shapes: a shell command (`rustup component add rust-analyzer`) or a
+ * project URL for the ones with no one-liner. Telling those apart is what turns
+ * "not installed" from a dead end into one click — a hint the user has to
+ * retype by hand is barely better than no hint.
+ */
+export interface InstallAction {
+  /** A runnable shell command, if the hint contains one. */
+  command?: string;
+  /** A documentation URL, if the hint points at one. */
+  url?: string;
+}
+
+/** Package-manager invocations we recognise as the start of a real command. */
+const INSTALL_COMMAND_PREFIX = new RegExp(
+  "^(?:" +
+    [
+      String.raw`rustup\s+component\s+add`,
+      String.raw`cargo\s+install`,
+      String.raw`npm\s+i(?:nstall)?\s+-g`,
+      String.raw`pip3?\s+install`,
+      String.raw`brew\s+install`,
+      String.raw`go\s+install`,
+      String.raw`gem\s+install`,
+      String.raw`opam\s+install`,
+      String.raw`nimble\s+install`,
+      String.raw`dotnet\s+tool\s+install`,
+      String.raw`raco\s+pkg\s+install`,
+      String.raw`nix\s+profile\s+install`,
+      String.raw`alr\s+install`,
+      String.raw`ghcup\s+install`,
+      String.raw`apt(?:-get)?\s+install`,
+      String.raw`cpanm\s`,
+    ].join("|") +
+    ")",
+);
+
+/**
+ * Pull the actionable parts out of an install hint.
+ *
+ * A hint may list alternatives separated by `|`
+ * (`brew install llvm (macOS) | apt install clangd (Linux)`); the first
+ * alternative wins, and its trailing platform note is dropped so the result is
+ * runnable verbatim.
+ *
+ * Note that some commands legitimately *contain* a URL
+ * (`cargo install --git https://… vhdl_ls`). Splitting the command at the URL
+ * would hand back `cargo install --git`, which looks plausible and does
+ * nothing — so a segment that starts with a known package manager is taken
+ * whole, URL included.
+ */
+export function parseInstallHint(hint: string): InstallAction {
+  const action: InstallAction = {};
+  const segments = hint.split("|").map((segment) => segment.trim());
+
+  for (const segment of segments) {
+    const withoutNote = segment.replace(/\s*\([^)]*\)\s*$/, "").trim();
+    if (action.command === undefined && INSTALL_COMMAND_PREFIX.test(withoutNote)) {
+      action.command = withoutNote;
+    }
+    if (action.url === undefined) {
+      const url = segment.match(/https?:\/\/\S+/);
+      // A URL that is an argument of the command is not a documentation link.
+      if (url && !(action.command?.includes(url[0]) ?? false)) {
+        action.url = url[0].replace(/[).,]+$/, "");
+      }
+    }
+  }
+  return action;
 }
 
 /** Directory part of a path, used as a fallback workspace root. */

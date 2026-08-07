@@ -15,6 +15,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   hasBuiltinLanguageService,
   lspLanguageForPath,
+  parseInstallHint,
   type LspLanguageSupport,
   type InvokeFn,
 } from "../lib/lsp";
@@ -86,6 +87,7 @@ const TONE_COLOR: Record<Display["tone"], string> = {
 export function LspStatus({ filePath, workspaceRoot, invoke }: LspStatusProps) {
   const [support, setSupport] = useState<LspLanguageSupport | null>(null);
   const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
   const recheckRef = useRef<number | null>(null);
 
   const fileLanguage = filePath === null ? null : lspLanguageForPath(filePath);
@@ -178,17 +180,45 @@ export function LspStatus({ filePath, workspaceRoot, invoke }: LspStatusProps) {
   const display = describeSupport(support);
   if (display.label === "") return null;
 
+  // A hint the user has to retype is barely better than no hint, so when the
+  // server is missing we offer the command itself.
+  const install = support.installHint
+    ? parseInstallHint(support.installHint)
+    : {};
+
   return (
-    <button
-      type="button"
-      className="status-item"
-      onClick={display.actionable ? retry : undefined}
-      disabled={!display.actionable || busy}
-      title={display.title}
-      aria-label={display.title || display.label}
-      style={{ color: TONE_COLOR[display.tone] }}
-    >
-      {busy ? `Restarting ${language}…` : display.label}
-    </button>
+    <>
+      <button
+        type="button"
+        className="status-item"
+        onClick={display.actionable ? retry : undefined}
+        disabled={!display.actionable || busy}
+        title={display.title}
+        aria-label={display.title || display.label}
+        style={{ color: TONE_COLOR[display.tone] }}
+      >
+        {busy ? `Restarting ${language}…` : display.label}
+      </button>
+      {install.command !== undefined && (
+        <button
+          type="button"
+          className="status-item"
+          onClick={() => {
+            setCopied(false);
+            // Copy rather than run: installing software on someone's machine
+            // is their decision, and several hints need a platform choice.
+            void navigator.clipboard
+              ?.writeText(install.command as string)
+              .then(() => setCopied(true))
+              .catch(() => setCopied(false));
+          }}
+          title={`Copy to clipboard:\n${install.command}`}
+          aria-label={`Copy install command for ${language}: ${install.command}`}
+          style={{ color: TONE_COLOR.muted }}
+        >
+          {copied ? "Copied ✓" : "Copy install"}
+        </button>
+      )}
+    </>
   );
 }

@@ -4748,7 +4748,11 @@ pub async fn skilllens_refresh() -> Result<serde_json::Value, String> {
 /// `POST /v1/skilllens/convert` — raw agent runs (JSONL) → ExperiencePool.
 #[tauri::command]
 pub async fn skilllens_convert(runs: String) -> Result<serde_json::Value, String> {
-    skillforge_daemon_post("/v1/skilllens/convert", &serde_json::json!({ "runs": runs })).await
+    skillforge_daemon_post(
+        "/v1/skilllens/convert",
+        &serde_json::json!({ "runs": runs }),
+    )
+    .await
 }
 
 /// `POST /v1/skilllens/extract` — distil candidate skills from a pool. LLM.
@@ -5512,10 +5516,7 @@ pub async fn lsp_did_close(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let client = lsp_client_for(&state, &language, &root_path).await?;
-    client
-        .close_document(&uri)
-        .await
-        .map_err(|e| e.to_string())
+    client.close_document(&uri).await.map_err(|e| e.to_string())
 }
 
 /// LSP: the diagnostics the server last published for a document.
@@ -5559,18 +5560,30 @@ pub async fn lsp_language_support(
 
     let (status, existing) = {
         let manager = state.lsp_manager.lock().await;
-        (manager.language_status(&language), manager.get_client(&language))
+        (
+            manager.language_status(&language),
+            manager.get_client(&language),
+        )
     };
 
-    let (state_name, detail) = match &status {
-        vibe_lsp::LanguageStatus::Running => ("running", String::new()),
-        vibe_lsp::LanguageStatus::Available { command } => ("available", command.clone()),
+    // `detail` is prose for a human; `install_hint` is the raw hint, kept
+    // separate so the editor can offer the command itself rather than having to
+    // scrape it back out of a sentence we just composed.
+    let (state_name, detail, install_hint) = match &status {
+        vibe_lsp::LanguageStatus::Running => ("running", String::new(), String::new()),
+        vibe_lsp::LanguageStatus::Available { command } => {
+            ("available", command.clone(), String::new())
+        }
         vibe_lsp::LanguageStatus::NotInstalled {
             command,
             install_hint,
-        } => ("not_installed", format!("{command} — install: {install_hint}")),
-        vibe_lsp::LanguageStatus::Unconfigured => ("unconfigured", String::new()),
-        vibe_lsp::LanguageStatus::Failed { reason } => ("failed", reason.clone()),
+        } => (
+            "not_installed",
+            format!("{command} — install: {install_hint}"),
+            install_hint.clone(),
+        ),
+        vibe_lsp::LanguageStatus::Unconfigured => ("unconfigured", String::new(), String::new()),
+        vibe_lsp::LanguageStatus::Failed { reason } => ("failed", reason.clone(), String::new()),
     };
 
     // Trigger characters are only known once the server has answered
@@ -5587,6 +5600,7 @@ pub async fn lsp_language_support(
         "language": language,
         "state": state_name,
         "detail": detail,
+        "installHint": install_hint,
         // `supported` = worth registering providers for. "not_installed" is
         // still worth it: the user may install the server mid-session.
         "supported": !matches!(status, vibe_lsp::LanguageStatus::Unconfigured),
@@ -11627,7 +11641,11 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
     }
 
     if !settings.poolside_api_key.is_empty() {
-        for model_id in &["poolside/laguna-s-2.1", "poolside/laguna-xs-2.1", "poolside/laguna-m-1"] {
+        for model_id in &[
+            "poolside/laguna-s-2.1",
+            "poolside/laguna-xs-2.1",
+            "poolside/laguna-m-1",
+        ] {
             let config = vibe_ai::provider::ProviderConfig {
                 provider_type: "poolside".to_string(),
                 api_key: Some(settings.poolside_api_key.clone()),
@@ -17126,7 +17144,10 @@ pub async fn run_coverage(
         let mut reader = TokioBufReader::new(stdout).lines();
         while let Ok(Some(line)) = reader.next_line().await {
             let _ = app_out.emit("coverage:log", line.clone());
-            lines_out.lock().unwrap_or_else(|e| e.into_inner()).push(line);
+            lines_out
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .push(line);
         }
     });
 
@@ -17136,7 +17157,10 @@ pub async fn run_coverage(
         let mut reader = TokioBufReader::new(stderr).lines();
         while let Ok(Some(line)) = reader.next_line().await {
             let _ = app_err.emit("coverage:log", line.clone());
-            lines_err.lock().unwrap_or_else(|e| e.into_inner()).push(line);
+            lines_err
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .push(line);
         }
     });
 
@@ -17146,7 +17170,10 @@ pub async fn run_coverage(
         .map_err(|e| format!("Process error: {e}"))?;
     let _ = tokio::join!(stdout_task, stderr_task);
 
-    let raw_output = raw_lines.lock().unwrap_or_else(|e| e.into_inner()).join("\n");
+    let raw_output = raw_lines
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .join("\n");
 
     if !status.success() {
         let _ = app.emit(
@@ -17946,7 +17973,9 @@ pub async fn save_arena_vote(vote: ArenaVote) -> Result<(), String> {
 #[tauri::command]
 pub async fn get_arena_history() -> Result<(Vec<ArenaVote>, Vec<ArenaStats>), String> {
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    let path = PathBuf::from(home).join(".vibecoder").join("arena-votes.json");
+    let path = PathBuf::from(home)
+        .join(".vibecoder")
+        .join("arena-votes.json");
     let votes: Vec<ArenaVote> = if path.exists() {
         let data = std::fs::read_to_string(&path).unwrap_or_else(|_| "[]".into());
         serde_json::from_str(&data).unwrap_or_default()
@@ -18047,12 +18076,16 @@ pub struct CostMetrics {
 
 fn cost_log_path() -> PathBuf {
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    PathBuf::from(home).join(".vibecoder").join("cost-log.jsonl")
+    PathBuf::from(home)
+        .join(".vibecoder")
+        .join("cost-log.jsonl")
 }
 
 fn cost_config_path() -> PathBuf {
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    PathBuf::from(home).join(".vibecoder").join("cost-config.json")
+    PathBuf::from(home)
+        .join(".vibecoder")
+        .join("cost-config.json")
 }
 
 /// Append a cost entry to the JSONL log. Called from send_chat_message / agent flow.
@@ -19222,12 +19255,20 @@ mod tests {
     fn build_temp_provider_covers_every_toolbar_provider() {
         let cases = [
             ("azure_openai", "AZURE_OPENAI_API_KEY", "gpt-4o"),
-            ("bedrock", "AWS_SECRET_ACCESS_KEY", "anthropic.claude-3-haiku-20240307-v1:0"),
+            (
+                "bedrock",
+                "AWS_SECRET_ACCESS_KEY",
+                "anthropic.claude-3-haiku-20240307-v1:0",
+            ),
             ("copilot", "GITHUB_TOKEN", "gpt-4o"),
             ("zhipu", "ZHIPU_API_KEY", "glm-5.2"),
             ("vercel_ai", "VERCEL_AI_API_KEY", "gpt-4o"),
             ("minimax", "MINIMAX_API_KEY", "MiniMax-M3"),
-            ("sambanova", "SAMBANOVA_API_KEY", "Meta-Llama-3.3-70B-Instruct"),
+            (
+                "sambanova",
+                "SAMBANOVA_API_KEY",
+                "Meta-Llama-3.3-70B-Instruct",
+            ),
         ];
         for (provider, env_key, model) in cases {
             std::env::set_var(env_key, "test-key");
@@ -25359,7 +25400,9 @@ pub struct Bookmark {
 
 fn bookmarks_path() -> PathBuf {
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    PathBuf::from(home).join(".vibecoder").join("bookmarks.json")
+    PathBuf::from(home)
+        .join(".vibecoder")
+        .join("bookmarks.json")
 }
 
 const SOURCE_EXTENSIONS: &[&str] = &[
@@ -33220,7 +33263,9 @@ pub async fn cloud_provider_cost(
 
 fn acp_state_path() -> PathBuf {
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    PathBuf::from(home).join(".vibecoder").join("acp-state.json")
+    PathBuf::from(home)
+        .join(".vibecoder")
+        .join("acp-state.json")
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -44377,7 +44422,9 @@ pub async fn reset_render_stats() -> Result<(), String> {
 
 fn image_gen_path() -> PathBuf {
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    PathBuf::from(home).join(".vibecoder").join("image-gen.json")
+    PathBuf::from(home)
+        .join(".vibecoder")
+        .join("image-gen.json")
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -51536,7 +51583,11 @@ pub async fn docsync_get_links(workspace_path: String) -> Result<serde_json::Val
     // Known doc→code pairs
     let known: &[(&str, &str, &str)] = &[
         ("README.md", "src/main.rs", "Overview"),
-        ("AGENTS.md", "vibecoder/src-tauri/src/commands.rs", "Reference"),
+        (
+            "AGENTS.md",
+            "vibecoder/src-tauri/src/commands.rs",
+            "Reference",
+        ),
         ("CHANGELOG.md", "src/version.rs", "Version"),
         ("docs/api.md", "src/", "Implementation"),
         ("docs/arch.md", "src/", "Reference"),
@@ -57643,7 +57694,8 @@ pub async fn start_daemon(
         return Err(boot::DaemonState::PortTakenByOther { port }.user_message());
     }
 
-    let binary = boot::find_binary().ok_or_else(|| boot::DaemonState::BinaryNotFound.user_message())?;
+    let binary =
+        boot::find_binary().ok_or_else(|| boot::DaemonState::BinaryNotFound.user_message())?;
 
     let child = tokio::process::Command::new(&binary)
         .args(["--serve", "--port", &port.to_string()])
@@ -58735,7 +58787,6 @@ mod daemon_tests {
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
         assert!(!port_open(port).await, "port {port} should now be closed");
     }
-
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -61884,7 +61935,10 @@ pub async fn graph_build() -> Result<serde_json::Value, String> {
 }
 
 #[tauri::command]
-pub async fn graph_query(query: String, budget: Option<usize>) -> Result<serde_json::Value, String> {
+pub async fn graph_query(
+    query: String,
+    budget: Option<usize>,
+) -> Result<serde_json::Value, String> {
     let body = serde_json::json!({ "query": query, "budget": budget.unwrap_or(2000) });
     exec_goal_authed_json(reqwest::Method::POST, "/v1/graph/query", body).await
 }
@@ -61905,7 +61959,10 @@ pub async fn graph_path(from: String, to: String) -> Result<serde_json::Value, S
 }
 
 #[tauri::command]
-pub async fn graph_blast(name: String, max_hops: Option<usize>) -> Result<serde_json::Value, String> {
+pub async fn graph_blast(
+    name: String,
+    max_hops: Option<usize>,
+) -> Result<serde_json::Value, String> {
     let body = serde_json::json!({ "name": name, "max_hops": max_hops.unwrap_or(2) });
     exec_goal_authed_json(reqwest::Method::POST, "/v1/graph/blast", body).await
 }
@@ -62332,13 +62389,21 @@ pub async fn fluxo_list_runs(status: Option<String>) -> Result<serde_json::Value
 /// `POST /fluxo/workflow/run/{id}/pause` — pause a running workflow.
 #[tauri::command]
 pub async fn fluxo_pause_run(workflow_id: String) -> Result<serde_json::Value, String> {
-    fluxo_post(&format!("/workflow/run/{workflow_id}/pause"), &serde_json::json!({})).await
+    fluxo_post(
+        &format!("/workflow/run/{workflow_id}/pause"),
+        &serde_json::json!({}),
+    )
+    .await
 }
 
 /// `POST /fluxo/workflow/run/{id}/resume` — resume a paused workflow.
 #[tauri::command]
 pub async fn fluxo_resume_run(workflow_id: String) -> Result<serde_json::Value, String> {
-    fluxo_post(&format!("/workflow/run/{workflow_id}/resume"), &serde_json::json!({})).await
+    fluxo_post(
+        &format!("/workflow/run/{workflow_id}/resume"),
+        &serde_json::json!({}),
+    )
+    .await
 }
 
 /// `POST /fluxo/workflow/run/{id}/terminate` — terminate a workflow with an optional reason.
@@ -62372,8 +62437,8 @@ pub async fn fluxo_signal(
 // to Tauri `fluxo:run` events, since Tauri commands are request/response. One background
 // stream per workflow id; starting a new one for the same id aborts the previous.
 
-fn fluxo_streams() -> &'static std::sync::Mutex<std::collections::HashMap<String, tokio::task::AbortHandle>>
-{
+fn fluxo_streams(
+) -> &'static std::sync::Mutex<std::collections::HashMap<String, tokio::task::AbortHandle>> {
     static STREAMS: std::sync::OnceLock<
         std::sync::Mutex<std::collections::HashMap<String, tokio::task::AbortHandle>>,
     > = std::sync::OnceLock::new();

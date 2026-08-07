@@ -21,6 +21,7 @@ import {
   hasBuiltinLanguageService,
   lspLanguageForPath,
   parentDirectory,
+  parseInstallHint,
   toLspPosition,
   toMonacoCompletionItem,
   toMonacoCompletionKind,
@@ -140,6 +141,81 @@ describe("fileUri", () => {
       const ours = fileUri(path);
       expect(URI.parse(ours).toString()).toBe(ours);
     }
+  });
+});
+
+describe("parseInstallHint", () => {
+  it("extracts a runnable command", () => {
+    expect(parseInstallHint("rustup component add rust-analyzer")).toEqual({
+      command: "rustup component add rust-analyzer",
+    });
+    expect(parseInstallHint("npm i -g typescript-language-server typescript").command).toBe(
+      "npm i -g typescript-language-server typescript",
+    );
+    expect(parseInstallHint("cargo install asm-lsp").command).toBe(
+      "cargo install asm-lsp",
+    );
+    expect(parseInstallHint("pip install cmake-language-server").command).toBe(
+      "pip install cmake-language-server",
+    );
+  });
+
+  it("takes the first platform's command and drops the parenthetical", () => {
+    // "brew install llvm (macOS) | apt install clangd (Linux)"
+    const action = parseInstallHint(
+      "brew install llvm (macOS) | apt install clangd (Linux)",
+    );
+    expect(action.command).toBe("brew install llvm");
+  });
+
+  it("extracts a URL when there is no one-line command", () => {
+    const action = parseInstallHint("https://github.com/DanielGavin/ols");
+    expect(action).toEqual({ url: "https://github.com/DanielGavin/ols" });
+  });
+
+  it("finds both when a hint has a command and a link", () => {
+    const action = parseInstallHint(
+      "opam install superbol-free | https://github.com/OCamlPro/superbol-studio-oss",
+    );
+    expect(action.command).toBe("opam install superbol-free");
+    expect(action.url).toBe("https://github.com/OCamlPro/superbol-studio-oss");
+  });
+
+  it("keeps a URL that is part of the command", () => {
+    // Truncating at the URL yields `cargo install --git` — plausible-looking
+    // and does nothing. The whole segment is the command.
+    const action = parseInstallHint(
+      "cargo install --git https://github.com/VHDL-LS/rust_hdl vhdl_ls",
+    );
+    expect(action.command).toBe(
+      "cargo install --git https://github.com/VHDL-LS/rust_hdl vhdl_ls",
+    );
+    expect(action.url).toBeUndefined();
+  });
+
+  it("never offers a command ending in a dangling flag", () => {
+    // The failure mode above, stated as a property over every real hint.
+    for (const hint of [
+      "cargo install --git https://github.com/wgsl-analyzer/wgsl-analyzer wgsl-analyzer",
+      "cargo install --git https://github.com/VHDL-LS/rust_hdl vhdl_ls",
+      "rustup component add rust-analyzer",
+      "npm i -g @vue/language-server",
+    ]) {
+      const command = parseInstallHint(hint).command;
+      if (command === undefined) continue;
+      expect(command.split(/\s+/).at(-1)?.startsWith("-"), hint).toBe(false);
+    }
+  });
+
+  it("returns nothing actionable for prose", () => {
+    expect(parseInstallHint("Included with Xcode")).toEqual({});
+    expect(parseInstallHint("Check your package manager")).toEqual({});
+  });
+
+  it("strips trailing punctuation from a URL", () => {
+    expect(parseInstallHint("see https://example.com/x).").url).toBe(
+      "https://example.com/x",
+    );
   });
 });
 

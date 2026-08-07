@@ -16,6 +16,7 @@ import { BrowserPanel } from "./components/BrowserPanel";
 import { detectLanguage, getFileIcon } from "./utils/fileUtils";
 import { createLspBridge, fileUri, type LspBridge, type LspLanguageSupport } from "./lib/lsp";
 import { LspStatus } from "./components/LspStatus";
+import { registerMonarchLanguages } from "./lib/monarch";
 import { EFFORT_LEVELS, type EffortLevel, getSelectedEffort, setSelectedEffort, effortLabel } from "./utils/effort";
 import { ImageViewer, isImageFile } from "./components/ImageViewer";
 import { DocumentViewer, isDocumentFile } from "./components/DocumentViewer";
@@ -701,51 +702,12 @@ function App() {
     // Register VibeCoder theme with Monaco so the editor matches the app theme
     defineEditorTheme(monaco);
 
-    // Register languages Monaco has no grammar for.
-    //
-    // Registration alone gives no syntax highlighting — it makes the language
-    // *id* valid, which is what `setModelLanguage` and every provider
-    // registration key require. Without it `detectLanguage("x.cob")` returns
-    // "cobol", Monaco rejects the unknown id, and the file gets neither
-    // highlighting nor IntelliSense even with a COBOL server installed.
-    const extraLangs: Array<{ id: string; extensions: string[]; aliases?: string[] }> = [
-      { id: "matlab", extensions: [".m", ".mlx", ".mlapp"], aliases: ["MATLAB"] },
-      { id: "asm", extensions: [".asm", ".s", ".nasm"], aliases: ["Assembly"] },
-      { id: "cobol", extensions: [".cob", ".cbl", ".cpy", ".cbo"], aliases: ["COBOL"] },
-      { id: "sas", extensions: [".sas"], aliases: ["SAS"] },
-      { id: "foxpro", extensions: [".prg"], aliases: ["FoxPro"] },
-      { id: "odin", extensions: [".odin"], aliases: ["Odin"] },
-      { id: "gleam", extensions: [".gleam"], aliases: ["Gleam"] },
-      { id: "nix", extensions: [".nix"], aliases: ["Nix"] },
-      { id: "elm", extensions: [".elm"], aliases: ["Elm"] },
-      { id: "purescript", extensions: [".purs"], aliases: ["PureScript"] },
-      { id: "rescript", extensions: [".res", ".resi"], aliases: ["ReScript"] },
-      { id: "astro", extensions: [".astro"], aliases: ["Astro"] },
-      { id: "cmake", extensions: [".cmake"], aliases: ["CMake"] },
-      { id: "vhdl", extensions: [".vhd", ".vhdl"], aliases: ["VHDL"] },
-      { id: "latex", extensions: [".tex", ".ltx", ".sty", ".bib"], aliases: ["LaTeX"] },
-      { id: "haskell", extensions: [".hs", ".lhs"], aliases: ["Haskell"] },
-      { id: "fortran", extensions: [".f", ".f90", ".f95", ".f03", ".f08"], aliases: ["Fortran"] },
-      { id: "prolog", extensions: [".pro", ".pl"], aliases: ["Prolog"] },
-      { id: "toml", extensions: [".toml"], aliases: ["TOML"] },
-      { id: "zig", extensions: [".zig"], aliases: ["Zig"] },
-      { id: "nim", extensions: [".nim", ".nims"], aliases: ["Nim"] },
-      { id: "d", extensions: [".d"], aliases: ["D"] },
-      { id: "crystal", extensions: [".cr"], aliases: ["Crystal"] },
-      { id: "v", extensions: [".v"], aliases: ["V"] },
-      { id: "ada", extensions: [".adb", ".ads"], aliases: ["Ada"] },
-      { id: "ocaml", extensions: [".ml", ".mli"], aliases: ["OCaml"] },
-      { id: "erlang", extensions: [".erl", ".hrl"], aliases: ["Erlang"] },
-      { id: "racket", extensions: [".rkt"], aliases: ["Racket"] },
-      { id: "vala", extensions: [".vala"], aliases: ["Vala"] },
-      { id: "postscript", extensions: [".ps", ".eps"], aliases: ["PostScript", "PS", "EPS"] },
-    ];
-    const registered = new Set(monaco.languages.getLanguages().map((l: { id: string }) => l.id));
-    for (const lang of extraLangs) {
-      if (!registered.has(lang.id)) {
-        monaco.languages.register({ id: lang.id, extensions: lang.extensions, aliases: lang.aliases });
-      }
-    }
+    // Register the 27 languages Monaco ships no grammar for — with a real
+    // tokenizer and language configuration, not just an id. An id alone (which
+    // is all this used to do) makes `setModelLanguage` accept the language and
+    // the LSP providers attach, but leaves the file rendering as flat grey text
+    // with ⌘/ doing nothing. See `lib/monarch`.
+    registerMonarchLanguages(monaco);
 
     // ── Cmd+. : DiffComplete (diff-mode AI edit) ──
     editor.addCommand(

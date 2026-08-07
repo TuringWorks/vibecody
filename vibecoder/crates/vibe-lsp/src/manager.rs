@@ -178,10 +178,7 @@ impl LspManager {
         server_configs.insert("objective-c".into(), s("clangd", &[]));
 
         // ── Scientific / engineering ──
-        server_configs.insert(
-            "matlab".into(),
-            s("matlab-language-server", &["--stdio"]),
-        );
+        server_configs.insert("matlab".into(), s("matlab-language-server", &["--stdio"]));
 
         // ── Systems / low-level ──
         server_configs.insert("asm".into(), s("asm-lsp", &[]));
@@ -205,7 +202,10 @@ impl LspManager {
             s("powershell-editor-services", &["--stdio"]),
         );
         server_configs.insert("bash".into(), s("bash-language-server", &["start"]));
-        server_configs.insert("solidity".into(), s("nomicfoundation-solidity-language-server", &["--stdio"]));
+        server_configs.insert(
+            "solidity".into(),
+            s("nomicfoundation-solidity-language-server", &["--stdio"]),
+        );
 
         // ── Other compiled ──
         server_configs.insert("crystal".into(), s("crystalline", &[]));
@@ -405,7 +405,10 @@ impl LspManager {
         h.insert("v", "https://github.com/nickolasgasworker/v-analyzer");
         h.insert("vala", "https://github.com/vala-lang/vala-language-server");
         h.insert("prolog", "swipl (SWI-Prolog with lsp_server pack)");
-        h.insert("objective-c", "brew install llvm (macOS) | apt install clangd");
+        h.insert(
+            "objective-c",
+            "brew install llvm (macOS) | apt install clangd",
+        );
         // Pre-existing servers that had no hint: "not installed" with no way to
         // fix it is only half a message.
         h.insert("vb", "https://github.com/OmniSharp/omnisharp-roslyn");
@@ -413,7 +416,10 @@ impl LspManager {
         h.insert("cfml", "https://github.com/KamasamaK/vscode-cfml");
         // Modern / emerging languages
         h.insert("odin", "https://github.com/DanielGavin/ols");
-        h.insert("gleam", "Included with the Gleam toolchain — https://gleam.run/getting-started");
+        h.insert(
+            "gleam",
+            "Included with the Gleam toolchain — https://gleam.run/getting-started",
+        );
         h.insert("cuda", "brew install llvm (macOS) | apt install clangd");
         // Component frameworks
         h.insert("svelte", "npm i -g svelte-language-server");
@@ -429,9 +435,15 @@ impl LspManager {
         h.insert("protobuf", "cargo install protols");
         // Shaders / hardware description
         h.insert("glsl", "https://github.com/nolanderc/glsl_analyzer");
-        h.insert("wgsl", "cargo install --git https://github.com/wgsl-analyzer/wgsl-analyzer wgsl-analyzer");
+        h.insert(
+            "wgsl",
+            "cargo install --git https://github.com/wgsl-analyzer/wgsl-analyzer wgsl-analyzer",
+        );
         h.insert("systemverilog", "cargo install svls");
-        h.insert("vhdl", "cargo install --git https://github.com/VHDL-LS/rust_hdl vhdl_ls");
+        h.insert(
+            "vhdl",
+            "cargo install --git https://github.com/VHDL-LS/rust_hdl vhdl_ls",
+        );
         // Typesetting / shell
         h.insert("latex", "brew install texlab | cargo install texlab");
         h.insert("nushell", "Included with Nushell — https://www.nushell.sh");
@@ -448,10 +460,7 @@ impl LspManager {
             "cobol",
             "opam install superbol-free | https://github.com/OCamlPro/superbol-studio-oss",
         );
-        h.insert(
-            "sas",
-            "https://github.com/sassoftware/vscode-sas-extension",
-        );
+        h.insert("sas", "https://github.com/sassoftware/vscode-sas-extension");
         h.insert("abap", "https://github.com/abaplint/abaplint-vscode");
         h.insert(
             "plsql",
@@ -514,21 +523,25 @@ impl LspManager {
                 .get(language)
                 .copied()
                 .unwrap_or("Check your package manager");
-            let reason =
-                format!("'{cmd}' is not installed, so {language} has no IntelliSense. Install it: {hint}");
-            self.unavailable.insert(language.to_string(), reason.clone());
+            let reason = format!(
+                "'{cmd}' is not installed, so {language} has no IntelliSense. Install it: {hint}"
+            );
+            self.unavailable
+                .insert(language.to_string(), reason.clone());
             return Err(anyhow!("{reason}"));
         }
 
         let mut client = LspClient::new(cmd.clone(), args);
         if let Err(e) = client.initialize(root_path.to_path_buf()).await {
             let reason = format!("'{cmd}' failed to start for {language}: {e}");
-            self.unavailable.insert(language.to_string(), reason.clone());
+            self.unavailable
+                .insert(language.to_string(), reason.clone());
             return Err(anyhow!("{reason}"));
         }
 
         let client = Arc::new(client);
-        self.clients.insert(language.to_string(), Arc::clone(&client));
+        self.clients
+            .insert(language.to_string(), Arc::clone(&client));
         Ok(client)
     }
 
@@ -868,7 +881,10 @@ mod tests {
     #[test]
     fn unconfigured_language_status() {
         let mgr = manager_with_no_servers();
-        assert_eq!(mgr.language_status("brainfuck"), LanguageStatus::Unconfigured);
+        assert_eq!(
+            mgr.language_status("brainfuck"),
+            LanguageStatus::Unconfigured
+        );
     }
 
     #[test]
@@ -922,9 +938,15 @@ mod tests {
             .await
             .expect_err("nothing installed");
         assert!(first.to_string().contains("not installed"), "{first}");
-        assert!(first.to_string().contains("rustup"), "must say how to fix it");
+        assert!(
+            first.to_string().contains("rustup"),
+            "must say how to fix it"
+        );
 
-        assert!(mgr.unavailable.contains_key("rust"), "failure is remembered");
+        assert!(
+            mgr.unavailable.contains_key("rust"),
+            "failure is remembered"
+        );
 
         let second = mgr
             .get_client_for_language("rust", root)
@@ -981,7 +1003,10 @@ mod tests {
         // A crashed server must not be handed out again — every request through
         // it would fail. The manager drops it and tries a fresh start.
         let mut mgr = manager_with_no_servers();
-        mgr.add_client("rust".into(), LspClient::new("rust-analyzer".into(), vec![]));
+        mgr.add_client(
+            "rust".into(),
+            LspClient::new("rust-analyzer".into(), vec![]),
+        );
         let err = mgr
             .get_client_for_language("rust", std::path::Path::new("/tmp"))
             .await
@@ -997,7 +1022,10 @@ mod tests {
     async fn shutdown_all_drops_every_client() {
         let mut mgr = LspManager::new();
         mgr.add_client("go".into(), LspClient::new("gopls".into(), vec![]));
-        mgr.add_client("rust".into(), LspClient::new("rust-analyzer".into(), vec![]));
+        mgr.add_client(
+            "rust".into(),
+            LspClient::new("rust-analyzer".into(), vec![]),
+        );
         mgr.shutdown_all().await;
         assert!(mgr.clients.is_empty());
     }
@@ -1150,15 +1178,17 @@ mod tests {
         let mgr = LspManager::new();
         let wrong: Vec<String> = POPULAR_BEYOND_TIOBE
             .iter()
-            .filter_map(|(language, expected)| {
-                match mgr.server_configs.get(*language) {
+            .filter_map(
+                |(language, expected)| match mgr.server_configs.get(*language) {
                     Some((cmd, _)) if cmd == expected => None,
-                    Some((cmd, _)) => {
-                        Some(format!("{language}: configured as `{cmd}`, expected `{expected}`"))
-                    }
-                    None => Some(format!("{language}: not configured (expected `{expected}`)")),
-                }
-            })
+                    Some((cmd, _)) => Some(format!(
+                        "{language}: configured as `{cmd}`, expected `{expected}`"
+                    )),
+                    None => Some(format!(
+                        "{language}: not configured (expected `{expected}`)"
+                    )),
+                },
+            )
             .collect();
         assert!(wrong.is_empty(), "{wrong:#?}");
     }
@@ -1195,6 +1225,9 @@ mod tests {
 
         mgr.restart_language("go").await;
         assert!(!mgr.clients.contains_key("go"));
-        assert!(mgr.unavailable.contains_key("python"), "unrelated cache kept");
+        assert!(
+            mgr.unavailable.contains_key("python"),
+            "unrelated cache kept"
+        );
     }
 }

@@ -7,21 +7,26 @@ export function detectLanguage(filename: string): string {
     const languageMap: Record<string, string> = {
         // JavaScript/TypeScript
         'js': 'javascript', 'jsx': 'javascript', 'ts': 'typescript', 'tsx': 'typescript',
-        'mjs': 'javascript', 'cjs': 'javascript',
+        'mjs': 'javascript', 'cjs': 'javascript', 'mts': 'typescript', 'cts': 'typescript',
 
         // Web
         'html': 'html', 'htm': 'html', 'css': 'css', 'scss': 'scss', 'sass': 'scss', 'less': 'less',
         'vue': 'html', 'svelte': 'html',
 
-        // Systems
+        // Systems. Zig/D/V/Vala have their own grammars now (lib/monarch), so
+        // they no longer borrow C++/C#: an approximation mis-colours the
+        // keywords each language actually has, and left the LSP providers
+        // registered against `cpp`.
         'rs': 'rust', 'c': 'c', 'cpp': 'cpp', 'cc': 'cpp', 'cxx': 'cpp', 'h': 'c', 'hpp': 'cpp',
-        'go': 'go', 'zig': 'cpp',  // Zig → C++ syntax (closest match)
-        'd': 'cpp',                 // D → C++ syntax
-        'v': 'cpp',                 // V (vlang) → C++ syntax
-        'vala': 'csharp',           // Vala → C# syntax (similar)
+        'hh': 'cpp', 'hxx': 'cpp',
+        'go': 'go', 'zig': 'zig', 'zon': 'zig',
+        'd': 'd', 'di': 'd',
+        'v': 'v', 'vsh': 'v',
+        'vala': 'vala', 'vapi': 'vala',
+        'odin': 'odin', 'gleam': 'gleam',
 
         // JVM
-        'java': 'java', 'kt': 'kotlin', 'kts': 'kotlin', 'scala': 'scala',
+        'java': 'java', 'kt': 'kotlin', 'kts': 'kotlin', 'scala': 'scala', 'sc': 'scala',
         'groovy': 'java',           // Groovy → Java syntax
         'clj': 'clojure', 'cljs': 'clojure', 'cljc': 'clojure', 'edn': 'clojure',
 
@@ -57,10 +62,9 @@ export function detectLanguage(filename: string): string {
         'scm': 'scheme',
         'lisp': 'scheme', 'cl': 'scheme', 'el': 'scheme',
 
-        // Crystal / Nim
-        'cr': 'ruby',               // Crystal → Ruby syntax (very similar)
-        'nim': 'python',            // Nim → Python syntax (similar indentation)
-        'nims': 'python',
+        // Crystal / Nim — own grammars, no longer Ruby/Python approximations
+        'cr': 'crystal',
+        'nim': 'nim', 'nims': 'nim', 'nimble': 'nim',
 
         // Perl
         'pl': 'perl', 'pm': 'perl', 'pod': 'perl',
@@ -74,14 +78,14 @@ export function detectLanguage(filename: string): string {
 
         // Shell
         'sh': 'shell', 'bash': 'shell', 'zsh': 'shell', 'fish': 'shell',
-        'ps1': 'powershell', 'psm1': 'powershell',
+        'ps1': 'powershell', 'psm1': 'powershell', 'psd1': 'powershell',
 
         // Fortran
         'f': 'fortran', 'f90': 'fortran', 'f95': 'fortran', 'f03': 'fortran', 'f08': 'fortran',
         'ftn': 'fortran', 'for': 'fortran',
 
         // Pascal
-        'pas': 'pascal', 'pp': 'pascal',
+        'pas': 'pascal', 'pp': 'pascal', 'dpr': 'pascal',
 
         // Ada
         'adb': 'ada', 'ads': 'ada', 'ada': 'ada',
@@ -93,7 +97,7 @@ export function detectLanguage(filename: string): string {
         'asm': 'asm', 's': 'asm', 'nasm': 'asm', 'S': 'asm',
 
         // COBOL
-        'cob': 'cobol', 'cbl': 'cobol', 'cpy': 'cobol',
+        'cob': 'cobol', 'cbl': 'cobol', 'cpy': 'cobol', 'cbo': 'cobol',
 
         // SAS
         'sas': 'sas',
@@ -123,10 +127,10 @@ export function detectLanguage(filename: string): string {
         'xpp': 'csharp', 'axpp': 'csharp',
 
         // Prolog
-        'pro': 'prolog',
+        'pro': 'prolog', 'prolog': 'prolog',
 
-        // Modern / emerging (Monaco has no grammar; ids registered at mount)
-        'odin': 'odin', 'gleam': 'gleam', 'nix': 'nix', 'elm': 'elm',
+        // Modern / emerging (grammars supplied by lib/monarch)
+        'nix': 'nix', 'elm': 'elm',
         'purs': 'purescript', 'res': 'rescript', 'resi': 'rescript',
         'astro': 'astro', 'nu': 'shell',      // Nushell → shell syntax
         'cu': 'cpp', 'cuh': 'cpp',            // CUDA → C++ syntax

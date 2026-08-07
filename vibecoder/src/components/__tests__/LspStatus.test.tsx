@@ -217,6 +217,67 @@ describe("<LspStatus />", () => {
     );
   });
 
+  it("offers the install command for copying when a server is missing", async () => {
+    // A hint the user must retype from a tooltip is barely better than none.
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    render(
+      <LspStatus
+        filePath="/w/src/main.rs"
+        workspaceRoot="/w"
+        invoke={invokeStub(
+          support({
+            state: "not_installed",
+            detail: "rust-analyzer — install: rustup component add rust-analyzer",
+            installHint: "rustup component add rust-analyzer",
+          }),
+        )}
+      />,
+    );
+
+    const copy = await screen.findByRole("button", { name: /copy install/i });
+    await act(async () => {
+      fireEvent.click(copy);
+    });
+    expect(writeText).toHaveBeenCalledWith("rustup component add rust-analyzer");
+    await waitFor(() => expect(copy).toHaveTextContent("Copied"));
+  });
+
+  it("offers no copy button when the server is running", async () => {
+    render(
+      <LspStatus
+        filePath="/w/src/main.rs"
+        workspaceRoot="/w"
+        invoke={invokeStub(support({ state: "running" }))}
+      />,
+    );
+    await screen.findByRole("button");
+    expect(
+      screen.queryByRole("button", { name: /copy install/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers no copy button when the hint has no runnable command", async () => {
+    render(
+      <LspStatus
+        filePath="/w/App.swift"
+        workspaceRoot="/w"
+        invoke={invokeStub(
+          support({
+            language: "swift",
+            state: "not_installed",
+            detail: "sourcekit-lsp — install: Included with Xcode",
+            installHint: "Included with Xcode",
+          }),
+        )}
+      />,
+    );
+    await screen.findByRole("button");
+    expect(
+      screen.queryByRole("button", { name: /copy install/i }),
+    ).not.toBeInTheDocument();
+  });
+
   it("keeps the last known state when a probe fails", async () => {
     const invoke = vi.fn(async (command: string) => {
       if (command === "lsp_language_support") return support({ state: "running" });

@@ -755,11 +755,51 @@ language and completes as another:
 | `.pl` | Perl | Prolog | name Prolog files `.pro` / `.prolog` |
 | `.m` | MATLAB | Objective-C | `.mm` is unambiguously Objective-C |
 
-Languages Monaco has no grammar for (MATLAB, Assembly, COBOL, SAS, Ada, Fortran,
-Prolog, Haskell, Zig, Nim, Crystal, D, V, Vala, FoxPro) are registered as
-language *ids* at editor mount. That is what makes providers attach and
-IntelliSense work; it does **not** add syntax highlighting, which those files
-still render without.
+#### Syntax highlighting
+
+Monaco ships grammars for ~91 languages. VibeCoder supplies **27 more** from
+`vibecoder/src/lib/monarch` — Zig, Nim, Crystal, V, D, Vala, Odin, Gleam,
+Haskell, Elm, PureScript, ReScript, Erlang, Nix, CMake, Protobuf, LaTeX,
+PostScript, MATLAB, Assembly, COBOL, SAS, Ada, Fortran, Prolog, VHDL, FoxPro and
+Astro. Each is a declarative `LanguageSpec` (keywords, comment markers, string
+forms) that a shared factory turns into a Monarch tokenizer plus a language
+configuration, so ⌘/ comments correctly and brackets match too.
+
+Registration happens at editor mount and never overrides a Monaco built-in — if
+Monaco gains one of these, theirs wins and ours is skipped (a test enforces it).
+Grammars are built lazily via `onLanguage`, so mount cost stays flat.
+
+Two invariants are test-enforced, both of which were silently broken before:
+
+* **Every id `detectLanguage` can return is registered.** Monaco rejects an
+  unknown language id, so `matlab`, `cobol`, `sas` and `cmake` files got neither
+  highlighting *nor* IntelliSense — the LSP providers are keyed on the same id.
+* **Every server-backed extension has a highlighting entry.** A file with a
+  language server and no `detectLanguage` mapping renders as plain text.
+
+Zig, Nim, Crystal, D and V no longer borrow C++/Python/Ruby highlighting. The
+approximation mis-coloured the keywords each language actually has, and left
+their LSP providers registered against `cpp`.
+
+Grammar tests run Monaco's own Monarch engine and assert on real tokens, not on
+the shape of the definition — the only way to catch the cases that actually
+break: nested comments that un-comment the rest of the file (`{- -}`, `/+ +/`,
+`#[ ]#`), MATLAB's `A'` transpose versus `'a char array'`, Ada's `Obj'Length`
+attribute versus `'x'`, PostScript's nested `(a (b) c)` strings, and
+case-insensitive keywords in COBOL/Ada/Fortran/VHDL/SAS/CMake.
+
+#### Installing a missing server
+
+The status bar shows the active server, or the missing one with its install
+command and a **Copy install** button. `parseInstallHint` splits the backend's
+hint into a runnable command and a documentation link — 51 of the 79 servers
+yield a copyable one-liner, 23 a project URL, and 5 are genuinely prose
+("Included with Xcode"). A test runs the parser over the real hint table and
+rejects any command that could not be pasted as-is, which is how
+`cargo install --git` — plausible-looking and inert — was caught.
+
+The command is copied, never run: installing software is the user's decision,
+and several hints need a platform choice first.
 
 ### AI Operations
 
