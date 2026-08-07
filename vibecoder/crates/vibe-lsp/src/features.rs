@@ -23,7 +23,7 @@ use crate::client::LspClient;
 ///
 /// Returns `None` when the language server provides no completions.
 pub async fn get_completions(
-    client: &mut LspClient,
+    client: &LspClient,
     params: CompletionParams,
 ) -> Result<Option<CompletionResponse>> {
     client.completion(params).await
@@ -32,7 +32,7 @@ pub async fn get_completions(
 // ── Hover ─────────────────────────────────────────────────────────────────────
 
 /// Fetch hover information (type signature, documentation) at a position.
-pub async fn get_hover(client: &mut LspClient, params: HoverParams) -> Result<Option<Hover>> {
+pub async fn get_hover(client: &LspClient, params: HoverParams) -> Result<Option<Hover>> {
     client.hover(params).await
 }
 
@@ -40,7 +40,7 @@ pub async fn get_hover(client: &mut LspClient, params: HoverParams) -> Result<Op
 
 /// Resolve the definition location(s) for the symbol at a position.
 pub async fn goto_definition(
-    client: &mut LspClient,
+    client: &LspClient,
     params: GotoDefinitionParams,
 ) -> Result<Option<GotoDefinitionResponse>> {
     client.goto_definition(params).await
@@ -50,7 +50,7 @@ pub async fn goto_definition(
 
 /// List all symbols (functions, classes, variables, …) in a document.
 pub async fn get_document_symbols(
-    client: &mut LspClient,
+    client: &LspClient,
     params: DocumentSymbolParams,
 ) -> Result<Option<DocumentSymbolResponse>> {
     client.document_symbols(params).await
@@ -60,7 +60,7 @@ pub async fn get_document_symbols(
 
 /// Request full-document formatting edits from the language server.
 pub async fn format_document(
-    client: &mut LspClient,
+    client: &LspClient,
     params: DocumentFormattingParams,
 ) -> Result<Option<Vec<TextEdit>>> {
     client.formatting(params).await
@@ -70,7 +70,7 @@ pub async fn format_document(
 
 /// Find all references to the symbol at a position.
 pub async fn find_references(
-    client: &mut LspClient,
+    client: &LspClient,
     params: ReferenceParams,
 ) -> Result<Option<Vec<Location>>> {
     client.references(params).await
@@ -80,7 +80,7 @@ pub async fn find_references(
 
 /// Compute workspace-wide rename edits for the symbol at a position.
 pub async fn rename_symbol(
-    client: &mut LspClient,
+    client: &LspClient,
     params: RenameParams,
 ) -> Result<Option<WorkspaceEdit>> {
     client.rename(params).await

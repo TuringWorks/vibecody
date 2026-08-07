@@ -260,7 +260,7 @@ export function RLTrainingDashboard(props: { workspacePath?: string | null; prov
   // ── Setup Wizard ─────────────────────────────────────────────────
 
   const renderStepBar = () => (
-    <div style={{ display: "flex", gap: 4, marginBottom: 14, flexWrap: "wrap" }}>
+    <div style={{ display: "flex", gap: 4, marginBottom: 14, flexWrap: "wrap", flex: "0 0 auto" }}>
       {STEPS.map((s, i) => (
         <div key={s.id} style={stepBarItem(i === step, i < step)} onClick={() => { if (i < step) setStep(i); }}>
           {i < step ? "\u2713 " : ""}{s.label}
@@ -561,21 +561,30 @@ export function RLTrainingDashboard(props: { workspacePath?: string | null; prov
 
   const renderSetupWizard = () => (
     <>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flex: "0 0 auto" }}>
         <h2 style={{ margin: 0, fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>New Training Run</h2>
         <button className="panel-btn panel-btn-secondary" onClick={() => { setMode("list"); setStep(0); }}>Cancel</button>
       </div>
       {renderStepBar()}
 
-      {step === 0 && renderAlgorithmStep()}
-      {step === 1 && renderEnvironmentStep()}
-      {step === 2 && renderNetworkStep()}
-      {step === 3 && renderHyperparamsStep()}
-      {step === 4 && renderDistributedStep()}
-      {step === 5 && renderCurriculumStep()}
-      {step === 6 && renderReviewStep()}
+      {/* The step body is the only region that grows and scrolls — long steps
+          (hyperparams, review) would otherwise be clipped by the panel's
+          `overflow: hidden`. */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+        {step === 0 && renderAlgorithmStep()}
+        {step === 1 && renderEnvironmentStep()}
+        {step === 2 && renderNetworkStep()}
+        {step === 3 && renderHyperparamsStep()}
+        {step === 4 && renderDistributedStep()}
+        {step === 5 && renderCurriculumStep()}
+        {step === 6 && renderReviewStep()}
+      </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12 }}>
+      {/* `flex: "0 0 auto"` is load-bearing: App.css gives the panel's last
+          child `flex: 1`, which stretched this row — and with it the buttons —
+          over the full panel height. `alignItems: center` keeps the buttons at
+          their intrinsic height if the row ever grows again. */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border-color)", flex: "0 0 auto" }}>
         <button className="panel-btn panel-btn-secondary" disabled={step === 0} onClick={() => setStep(s => s - 1)}>Back</button>
         {step < STEPS.length - 1 ? (
           <button className="panel-btn panel-btn-primary" onClick={() => setStep(s => s + 1)}>Next: {STEPS[step + 1].label}</button>

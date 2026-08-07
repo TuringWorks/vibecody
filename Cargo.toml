@@ -115,6 +115,18 @@ tree-sitter-python = "0.23"
 tree-sitter-go = "0.23"
 petgraph = "0.7"
 
+# mistral.rs (TuringWorks fork) pins candle to a git rev of 0.11.0 rather than
+# the crates.io release. `vibe-infer` implements `mistralrs::core::KvCacheCodec`,
+# whose methods take `candle_core::Tensor` — a registry candle and a git candle
+# are *different crates* to cargo even at the same version, so the impl would
+# not typecheck without forcing both onto one source. Keep this rev in lockstep
+# with `Cargo.toml` in the fork; bump both together or the build breaks loudly.
+[patch.crates-io]
+candle-core = { git = "https://github.com/huggingface/candle.git", rev = "27f20fea993c81ea6d32ce44018f42b68466525e" }
+candle-nn = { git = "https://github.com/huggingface/candle.git", rev = "27f20fea993c81ea6d32ce44018f42b68466525e" }
+candle-transformers = { git = "https://github.com/huggingface/candle.git", rev = "27f20fea993c81ea6d32ce44018f42b68466525e" }
+candle-metal-kernels = { git = "https://github.com/huggingface/candle.git", rev = "27f20fea993c81ea6d32ce44018f42b68466525e" }
+
 [profile.dev]
 opt-level = 0
 debug = true

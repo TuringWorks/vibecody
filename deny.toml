@@ -92,7 +92,7 @@ ignore = [
     { id = "RUSTSEC-2024-0384", reason = "instant unmaintained — transitive time crate, web_time / std::time::Instant are the modern replacements. Owning dep needs to migrate. [review-by 2026-08-19]" },
     { id = "RUSTSEC-2024-0388", reason = "derivative unmaintained — transitive via keyring → secret-service → zbus 3.x. Tied to the keyring dep upgrade. [review-by 2026-08-19]" },
     { id = "RUSTSEC-2024-0436", reason = "paste unmaintained — widely-transitive macro helper. No direct project use; no security implications beyond maintenance status. [review-by 2026-08-19]" },
-    { id = "RUSTSEC-2025-0057", reason = "fxhash unmaintained — transitive via mistralrs-core → bm25. Pinned through the TuringWorks/mistral.rs fork; bump on next fork sync. [review-by 2026-08-19]" },
+    { id = "RUSTSEC-2025-0057", reason = "fxhash unmaintained — transitive via mistralrs-core → bm25. NOT cleared by the 2026-08-06 fork sync to upstream v0.9.0: bm25 is still 2.3.2 and still depends on fxhash, so this is upstream bm25's to fix, not ours. Re-check when bm25 releases past 2.3.2 or mistralrs drops it. [review-by 2026-11-06]" },
     { id = "RUSTSEC-2025-0119", reason = "number_prefix unmaintained — transitive (likely via a progress-bar lib). [review-by 2026-08-19]" },
     { id = "RUSTSEC-2025-0134", reason = "rustls-pemfile unmaintained — superseded by rustls-pki-types. Transitive; tied to the broader rustls ecosystem upgrade. [review-by 2026-08-19]" },
     { id = "RUSTSEC-2025-0141", reason = "bincode 1.x unmaintained — transitive via syntect 5.3 and vibe-memory. bincode 2.x is a non-trivial API rewrite; track syntect's migration. [review-by 2026-08-19]" },

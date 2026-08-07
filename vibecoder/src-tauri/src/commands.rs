@@ -2941,6 +2941,25 @@ pub async fn git_discard_changes(
 }
 
 /// LSP operations
+///
+/// Every one of these resolves the client, **releases the manager lock**, and
+/// only then awaits the request. Holding the lock across the await serialises
+/// all IntelliSense behind the slowest server: one cold `rust-analyzer` would
+/// freeze hover and completion in every other open file.
+async fn lsp_client_for(
+    state: &tauri::State<'_, AppState>,
+    language: &str,
+    root_path: &str,
+) -> Result<std::sync::Arc<vibe_lsp::LspClient>, String> {
+    // DREAD #2 — never root a language server in a credential dir; it would
+    // index `.ssh` / `.aws` and surface the contents back to the WebView.
+    let _ = reject_sensitive_path(root_path)?;
+    let mut manager = state.lsp_manager.lock().await;
+    manager
+        .get_client_for_language(language, &PathBuf::from(root_path))
+        .await
+        .map_err(|e| e.to_string())
+}
 
 #[tauri::command]
 pub async fn lsp_completion(
@@ -2949,12 +2968,27 @@ pub async fn lsp_completion(
     params: CompletionParams,
     state: tauri::State<'_, AppState>,
 ) -> Result<Option<CompletionResponse>, String> {
-    let mut manager = state.lsp_manager.lock().await;
-    let client = manager
-        .get_client_for_language(&language, &PathBuf::from(root_path))
-        .await
-        .map_err(|e| e.to_string())?;
+    let client = lsp_client_for(&state, &language, &root_path).await?;
     client.completion(params).await.map_err(|e| e.to_string())
+}
+
+/// Fill in documentation / detail / extra edits for one completion item.
+///
+/// Servers deliberately send a thin item list and expect the client to resolve
+/// the one the user highlights — without this, rust-analyzer and
+/// typescript-language-server completions show no docs at all.
+#[tauri::command]
+pub async fn lsp_resolve_completion(
+    language: String,
+    root_path: String,
+    item: serde_json::Value,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let client = lsp_client_for(&state, &language, &root_path).await?;
+    client
+        .resolve_completion_item(item)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -2964,11 +2998,7 @@ pub async fn lsp_hover(
     params: HoverParams,
     state: tauri::State<'_, AppState>,
 ) -> Result<Option<Hover>, String> {
-    let mut manager = state.lsp_manager.lock().await;
-    let client = manager
-        .get_client_for_language(&language, &PathBuf::from(root_path))
-        .await
-        .map_err(|e| e.to_string())?;
+    let client = lsp_client_for(&state, &language, &root_path).await?;
     client.hover(params).await.map_err(|e| e.to_string())
 }
 
@@ -2979,13 +3009,24 @@ pub async fn lsp_goto_definition(
     params: GotoDefinitionParams,
     state: tauri::State<'_, AppState>,
 ) -> Result<Option<GotoDefinitionResponse>, String> {
-    let mut manager = state.lsp_manager.lock().await;
-    let client = manager
-        .get_client_for_language(&language, &PathBuf::from(root_path))
-        .await
-        .map_err(|e| e.to_string())?;
+    let client = lsp_client_for(&state, &language, &root_path).await?;
     client
         .goto_definition(params)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Parameter hints for the call being typed.
+#[tauri::command]
+pub async fn lsp_signature_help(
+    language: String,
+    root_path: String,
+    params: lsp_types::SignatureHelpParams,
+    state: tauri::State<'_, AppState>,
+) -> Result<Option<lsp_types::SignatureHelp>, String> {
+    let client = lsp_client_for(&state, &language, &root_path).await?;
+    client
+        .signature_help(params)
         .await
         .map_err(|e| e.to_string())
 }
@@ -5406,6 +5447,9 @@ pub async fn git_stash_pop(path: String, state: tauri::State<'_, AppState>) -> R
 }
 
 /// LSP: notify that a document was opened.
+///
+/// Idempotent — reopening a tab resyncs rather than double-registering the
+/// document, which servers report as duplicated diagnostics.
 #[tauri::command]
 pub async fn lsp_did_open(
     language: String,
@@ -5414,63 +5458,32 @@ pub async fn lsp_did_open(
     text: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
-    // DREAD #2 — refuse to spawn an LSP server rooted in a
-    // credential dir. The server would otherwise index `.ssh` /
-    // `.aws` etc. and surface contents back to the WebView.
-    let _ = reject_sensitive_path(&root_path)?;
-    use lsp_types::{DidOpenTextDocumentParams, TextDocumentItem};
-    let mut manager = state.lsp_manager.lock().await;
-    let client = manager
-        .get_client_for_language(&language, &PathBuf::from(&root_path))
-        .await
-        .map_err(|e| e.to_string())?;
-    let doc_uri: lsp_types::Uri = uri.parse().map_err(|_| "Invalid URI".to_string())?;
+    let client = lsp_client_for(&state, &language, &root_path).await?;
     client
-        .did_open(DidOpenTextDocumentParams {
-            text_document: TextDocumentItem {
-                uri: doc_uri,
-                language_id: language.clone(),
-                version: 1,
-                text,
-            },
-        })
+        .open_document(&uri, &language, &text)
         .await
         .map_err(|e| e.to_string())
 }
 
-/// LSP: notify that a document's content changed.
+/// LSP: push the document's current text to the server.
+///
+/// **This is what makes completion track your edits.** Without it the server
+/// keeps answering against the text as it was when the file was opened, so
+/// every symbol you just typed is invisible to IntelliSense.
+///
+/// The document version is owned by the client, not the caller: versions must
+/// increase monotonically per document or the server discards the change.
 #[tauri::command]
 pub async fn lsp_did_change(
     language: String,
     root_path: String,
     uri: String,
     text: String,
-    version: i32,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
-    let _ = reject_sensitive_path(&root_path)?;
-    use lsp_types::{
-        DidChangeTextDocumentParams, TextDocumentContentChangeEvent,
-        VersionedTextDocumentIdentifier,
-    };
-    let mut manager = state.lsp_manager.lock().await;
-    let client = manager
-        .get_client_for_language(&language, &PathBuf::from(&root_path))
-        .await
-        .map_err(|e| e.to_string())?;
-    let doc_uri: lsp_types::Uri = uri.parse().map_err(|_| "Invalid URI".to_string())?;
+    let client = lsp_client_for(&state, &language, &root_path).await?;
     client
-        .did_change(DidChangeTextDocumentParams {
-            text_document: VersionedTextDocumentIdentifier {
-                uri: doc_uri,
-                version,
-            },
-            content_changes: vec![TextDocumentContentChangeEvent {
-                range: None,
-                range_length: None,
-                text,
-            }],
-        })
+        .change_document(&uri, &language, &text)
         .await
         .map_err(|e| e.to_string())
 }
@@ -5483,21 +5496,116 @@ pub async fn lsp_did_save(
     uri: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
-    let _ = reject_sensitive_path(&root_path)?;
-    use lsp_types::{DidSaveTextDocumentParams, TextDocumentIdentifier};
-    let mut manager = state.lsp_manager.lock().await;
-    let client = manager
-        .get_client_for_language(&language, &PathBuf::from(&root_path))
-        .await
-        .map_err(|e| e.to_string())?;
-    let doc_uri: lsp_types::Uri = uri.parse().map_err(|_| "Invalid URI".to_string())?;
+    let client = lsp_client_for(&state, &language, &root_path).await?;
     client
-        .did_save(DidSaveTextDocumentParams {
-            text_document: TextDocumentIdentifier { uri: doc_uri },
-            text: None,
-        })
+        .save_document(&uri, None)
         .await
         .map_err(|e| e.to_string())
+}
+
+/// LSP: notify that a document was closed, so the server can release it.
+#[tauri::command]
+pub async fn lsp_did_close(
+    language: String,
+    root_path: String,
+    uri: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let client = lsp_client_for(&state, &language, &root_path).await?;
+    client
+        .close_document(&uri)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// LSP: the diagnostics the server last published for a document.
+///
+/// Diagnostics arrive as unsolicited notifications, so the WebView polls for
+/// them rather than requesting them. `null` means "the server has not published
+/// for this file yet" — distinct from `[]`, "it published, and the file is
+/// clean". The editor must not clear its squiggles on the former.
+#[tauri::command]
+pub async fn lsp_diagnostics(
+    language: String,
+    root_path: String,
+    uri: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<Option<Vec<serde_json::Value>>, String> {
+    let _ = reject_sensitive_path(&root_path)?;
+    // Deliberately does *not* start a server: polling must never spawn one.
+    let client = {
+        let manager = state.lsp_manager.lock().await;
+        manager.get_client(&language)
+    };
+    match client {
+        Some(client) => Ok(client.diagnostics_for(&uri).await),
+        None => Ok(None),
+    }
+}
+
+/// LSP: what IntelliSense this language can get, and how to trigger it.
+///
+/// The editor calls this once per language and uses the answer to decide
+/// whether to register providers at all, and which characters re-trigger
+/// completion (`.`, `::`, `->`). Registering with no trigger characters is why
+/// `foo.` shows nothing while mid-identifier completion appears to work.
+#[tauri::command]
+pub async fn lsp_language_support(
+    language: String,
+    root_path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    let _ = reject_sensitive_path(&root_path)?;
+
+    let (status, existing) = {
+        let manager = state.lsp_manager.lock().await;
+        (manager.language_status(&language), manager.get_client(&language))
+    };
+
+    let (state_name, detail) = match &status {
+        vibe_lsp::LanguageStatus::Running => ("running", String::new()),
+        vibe_lsp::LanguageStatus::Available { command } => ("available", command.clone()),
+        vibe_lsp::LanguageStatus::NotInstalled {
+            command,
+            install_hint,
+        } => ("not_installed", format!("{command} — install: {install_hint}")),
+        vibe_lsp::LanguageStatus::Unconfigured => ("unconfigured", String::new()),
+        vibe_lsp::LanguageStatus::Failed { reason } => ("failed", reason.clone()),
+    };
+
+    // Trigger characters are only known once the server has answered
+    // `initialize`; before that the editor uses its per-language defaults.
+    let (completion_triggers, signature_triggers) = match existing {
+        Some(client) => (
+            client.completion_trigger_characters().await,
+            client.signature_help_trigger_characters().await,
+        ),
+        None => (Vec::new(), Vec::new()),
+    };
+
+    Ok(serde_json::json!({
+        "language": language,
+        "state": state_name,
+        "detail": detail,
+        // `supported` = worth registering providers for. "not_installed" is
+        // still worth it: the user may install the server mid-session.
+        "supported": !matches!(status, vibe_lsp::LanguageStatus::Unconfigured),
+        "completionTriggerCharacters": completion_triggers,
+        "signatureHelpTriggerCharacters": signature_triggers,
+    }))
+}
+
+/// LSP: stop a language's server and allow a fresh start on the next request.
+/// Also clears the "not installed" memo, so this is the action to take after
+/// installing a server without restarting the app.
+#[tauri::command]
+pub async fn lsp_restart_language(
+    language: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let mut manager = state.lsp_manager.lock().await;
+    manager.restart_language(&language).await;
+    Ok(())
 }
 
 /// List all supported LSP servers with their availability status and install instructions.
@@ -15916,6 +16024,57 @@ fn extract_json(text: &str) -> String {
     trimmed.to_string()
 }
 
+/// Extract the first *balanced, parseable* JSON array from an LLM response.
+///
+/// Models asked for a bare array routinely wrap it in prose or a markdown
+/// fence, and the prose often contains its own brackets ("Here's the analysis
+/// [see below]:"). Slicing `find('[')..=rfind(']')` starts at that prose and
+/// fails with `expected value at line 1 column 2`. Instead, scan for each `[`
+/// that closes at depth zero — tracking string literals and their escapes so
+/// brackets inside strings don't shift the depth — and return the first such
+/// span that actually parses. Returns `None` for a response with no array, or
+/// one truncated mid-array (unbalanced), so callers can report that distinctly
+/// rather than surfacing a column number.
+fn extract_json_array(text: &str) -> Option<&str> {
+    let (mut start, mut depth, mut in_str, mut escaped) = (None, 0usize, false, false);
+
+    for (i, b) in text.bytes().enumerate() {
+        if in_str {
+            match b {
+                _ if escaped => escaped = false,
+                b'\\' => escaped = true,
+                b'"' => in_str = false,
+                _ => {}
+            }
+            continue;
+        }
+        match b {
+            b'"' => in_str = true,
+            b'[' => {
+                if depth == 0 {
+                    start = Some(i);
+                }
+                depth += 1;
+            }
+            b']' if depth > 0 => {
+                depth -= 1;
+                if depth == 0 {
+                    // `[` and `]` are ASCII, so these byte offsets are char boundaries.
+                    let candidate = start.map(|s| &text[s..=i]);
+                    match candidate {
+                        Some(c) if serde_json::from_str::<serde_json::Value>(c).is_ok() => {
+                            return Some(c)
+                        }
+                        _ => start = None,
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
 // ── Auto-Memories ─────────────────────────────────────────────────────────────
 //
 // Auto-extracted facts from agent sessions, stored at `~/.vibecoder/auto-memory.json`.
@@ -16161,44 +16320,84 @@ Code to analyze:
         resp
     };
 
-    // Parse JSON from response
-    let json_start = raw_response.find('[').unwrap_or(0);
-    let json_end = raw_response
-        .rfind(']')
-        .map(|i| i + 1)
-        .unwrap_or(raw_response.len());
-    let json_str = if json_start < json_end {
-        &raw_response[json_start..json_end]
-    } else {
-        "[]"
-    };
+    parse_bugbot_reports(&raw_response)
+}
 
-    #[derive(Deserialize)]
+/// Turn a BugBot model reply into reports. Pure, so the wire-format handling
+/// below is testable without a provider.
+fn parse_bugbot_reports(raw_response: &str) -> Result<Vec<BugReport>, String> {
+    // Every field is optional at the wire edge: a model that omits
+    // `suggestion` on one issue must not discard the whole scan, and
+    // `line_hint` comes back as a bare number about as often as a string.
+    #[derive(Deserialize, Default)]
+    #[serde(default)]
     struct RawReport {
         severity: String,
         category: String,
         title: String,
         description: String,
+        #[serde(alias = "file", alias = "path")]
         file_path: Option<String>,
-        line_hint: Option<u32>,
+        #[serde(alias = "line", alias = "line_number")]
+        line_hint: Option<serde_json::Value>,
         suggestion: String,
         fix_snippet: Option<String>,
     }
 
-    let raw: Vec<RawReport> =
-        serde_json::from_str(json_str).map_err(|e| format!("Parse error: {e}"))?;
+    let json_str = extract_json_array(raw_response).ok_or_else(|| {
+        let preview: String = raw_response.trim().chars().take(200).collect();
+        if preview.is_empty() {
+            "The model returned an empty response — try again or pick a different model."
+                .to_string()
+        } else {
+            format!("The model did not return a JSON array. It said: {preview}")
+        }
+    })?;
+
+    let raw: Vec<RawReport> = serde_json::from_str(json_str).map_err(|e| {
+        let preview: String = json_str.chars().take(200).collect();
+        format!("Could not read the model's issue list ({e}). It returned: {preview}")
+    })?;
+
+    // The model picks these strings freely; the panel indexes colour and label
+    // maps by them, so an unrecognised value renders as `undefined`. Fold
+    // anything unknown into the catch-all bucket here rather than in each of
+    // the clients.
+    let norm_severity = |s: String| match s.trim().to_ascii_lowercase().as_str() {
+        "critical" => "critical".to_string(),
+        "high" => "high".to_string(),
+        "medium" => "medium".to_string(),
+        "low" => "low".to_string(),
+        _ => "info".to_string(),
+    };
+    let norm_category = |c: String| match c.trim().to_ascii_lowercase().as_str() {
+        "security" => "security".to_string(),
+        "perf" | "performance" => "perf".to_string(),
+        "style" => "style".to_string(),
+        "smell" => "smell".to_string(),
+        _ => "bug".to_string(),
+    };
+    let norm_line = |v: Option<serde_json::Value>| -> Option<u32> {
+        match v? {
+            serde_json::Value::Number(n) => n.as_u64().map(|n| n as u32),
+            serde_json::Value::String(s) => s.trim().parse::<u32>().ok(),
+            _ => None,
+        }
+    };
 
     let mut reports: Vec<BugReport> = raw
         .into_iter()
+        // An entry with no title has nothing to render in the list.
+        .filter(|r| !r.title.trim().is_empty())
         .enumerate()
         .map(|(i, r)| BugReport {
             id: format!("bug-{}", i),
-            severity: r.severity,
-            category: r.category,
+            severity: norm_severity(r.severity),
+            category: norm_category(r.category),
             title: r.title,
             description: r.description,
             file_path: r.file_path,
-            line_hint: r.line_hint,
+            line_hint: norm_line(r.line_hint),
             suggestion: r.suggestion,
             fix_snippet: r.fix_snippet,
         })
@@ -19316,6 +19515,143 @@ mod tests {
     fn extract_json_passthrough_plain_json() {
         let input = "{\"key\": \"value\"}";
         assert_eq!(extract_json(input), "{\"key\": \"value\"}");
+    }
+
+    // ── extract_json_array ──────────────────────────────────────────────────
+
+    #[test]
+    fn extract_json_array_passthrough_plain_array() {
+        assert_eq!(extract_json_array("[{\"a\": 1}]"), Some("[{\"a\": 1}]"));
+    }
+
+    #[test]
+    fn extract_json_array_strips_fence_and_prose() {
+        let input = "Sure! Here you go:\n```json\n[{\"a\": 1}]\n```\nHope that helps.";
+        assert_eq!(extract_json_array(input), Some("[{\"a\": 1}]"));
+    }
+
+    #[test]
+    fn extract_json_array_skips_bracketed_prose() {
+        // The regression: a naive first-`[`..last-`]` slice starts inside
+        // "[see below]" and dies at column 2.
+        let input = "Here's the analysis [see below]:\n[{\"a\": 1}]";
+        assert_eq!(extract_json_array(input), Some("[{\"a\": 1}]"));
+    }
+
+    #[test]
+    fn extract_json_array_ignores_brackets_inside_strings() {
+        let input = r#"[{"title": "index [0] is off by one"}]"#;
+        assert_eq!(extract_json_array(input), Some(input));
+    }
+
+    #[test]
+    fn extract_json_array_ignores_escaped_quote_in_string() {
+        let input = r#"[{"title": "the \" char [x]"}]"#;
+        assert_eq!(extract_json_array(input), Some(input));
+    }
+
+    #[test]
+    fn extract_json_array_finds_nested_array_in_wrapper_object() {
+        let input = r#"{"issues": [{"a": 1}]}"#;
+        assert_eq!(extract_json_array(input), Some(r#"[{"a": 1}]"#));
+    }
+
+    #[test]
+    fn extract_json_array_none_when_truncated() {
+        assert_eq!(extract_json_array("[{\"a\": 1}, {\"b\""), None);
+    }
+
+    #[test]
+    fn extract_json_array_none_when_no_array() {
+        assert_eq!(extract_json_array("I cannot analyze this code."), None);
+    }
+
+    #[test]
+    fn extract_json_array_handles_multibyte_prose() {
+        // Byte offsets must land on char boundaries — em dashes ahead of the array.
+        let input = "Analysis — findings [none inline] — below:\n[{\"a\": 1}]";
+        assert_eq!(extract_json_array(input), Some("[{\"a\": 1}]"));
+    }
+
+    // ── parse_bugbot_reports ────────────────────────────────────────────────
+
+    #[test]
+    fn parse_bugbot_reports_reads_prose_wrapped_array() {
+        // The panel's "Parse error: expected value at line 1 column 2".
+        let raw = r#"Here's the analysis [summary below]:
+```json
+[{"severity": "high", "category": "bug", "title": "Off-by-one",
+  "description": "d", "file_path": "src/a.rs", "line_hint": 12,
+  "suggestion": "s", "fix_snippet": null}]
+```"#;
+        let reports = parse_bugbot_reports(raw).expect("prose-wrapped array parses");
+        assert_eq!(reports.len(), 1);
+        assert_eq!(reports[0].title, "Off-by-one");
+        assert_eq!(reports[0].line_hint, Some(12));
+    }
+
+    #[test]
+    fn parse_bugbot_reports_sorts_by_severity_and_ids_are_contiguous() {
+        let raw = r#"[
+            {"severity": "low", "category": "style", "title": "a", "suggestion": "s"},
+            {"severity": "critical", "category": "security", "title": "b", "suggestion": "s"}
+        ]"#;
+        let reports = parse_bugbot_reports(raw).expect("parses");
+        assert_eq!(reports[0].title, "b");
+        assert_eq!(reports[1].title, "a");
+        // ids are assigned pre-sort but must still be unique — the panel keys on them.
+        assert_ne!(reports[0].id, reports[1].id);
+    }
+
+    #[test]
+    fn parse_bugbot_reports_tolerates_missing_fields() {
+        // No `suggestion`, no `description` — one sloppy issue must not void the scan.
+        let raw = r#"[{"severity": "high", "category": "bug", "title": "t"}]"#;
+        let reports = parse_bugbot_reports(raw).expect("parses");
+        assert_eq!(reports.len(), 1);
+        assert_eq!(reports[0].suggestion, "");
+        assert_eq!(reports[0].file_path, None);
+    }
+
+    #[test]
+    fn parse_bugbot_reports_normalises_unknown_severity_and_category() {
+        // The panel indexes colour maps by these; unknown values would render undefined.
+        let raw = r#"[{"severity": "Warning", "category": "performance", "title": "t"}]"#;
+        let reports = parse_bugbot_reports(raw).expect("parses");
+        assert_eq!(reports[0].severity, "info");
+        assert_eq!(reports[0].category, "perf");
+    }
+
+    #[test]
+    fn parse_bugbot_reports_accepts_line_and_file_aliases() {
+        let raw = r#"[{"severity": "low", "category": "bug", "title": "t",
+                       "file": "src/a.rs", "line": "42"}]"#;
+        let reports = parse_bugbot_reports(raw).expect("parses");
+        assert_eq!(reports[0].file_path.as_deref(), Some("src/a.rs"));
+        assert_eq!(reports[0].line_hint, Some(42));
+    }
+
+    #[test]
+    fn parse_bugbot_reports_drops_untitled_entries() {
+        let raw = r#"[{"severity": "low", "category": "bug", "title": "  "}]"#;
+        assert!(parse_bugbot_reports(raw).expect("parses").is_empty());
+    }
+
+    #[test]
+    fn parse_bugbot_reports_empty_array_is_a_clean_scan() {
+        assert!(parse_bugbot_reports("[]").expect("parses").is_empty());
+    }
+
+    #[test]
+    fn parse_bugbot_reports_reports_refusal_text_verbatim() {
+        let err = parse_bugbot_reports("I cannot analyze this code.").unwrap_err();
+        assert!(err.contains("I cannot analyze this code."), "got: {err}");
+    }
+
+    #[test]
+    fn parse_bugbot_reports_names_an_empty_response() {
+        let err = parse_bugbot_reports("   ").unwrap_err();
+        assert!(err.contains("empty response"), "got: {err}");
     }
 
     // ── is_secret_key ───────────────────────────────────────────────────────

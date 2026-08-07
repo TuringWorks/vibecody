@@ -14,6 +14,8 @@ import { DiffCompleteModal } from "./components/DiffCompleteModal";
 import { Terminal } from "./components/Terminal";
 import { BrowserPanel } from "./components/BrowserPanel";
 import { detectLanguage, getFileIcon } from "./utils/fileUtils";
+import { createLspBridge, fileUri, type LspBridge, type LspLanguageSupport } from "./lib/lsp";
+import { LspStatus } from "./components/LspStatus";
 import { EFFORT_LEVELS, type EffortLevel, getSelectedEffort, setSelectedEffort, effortLabel } from "./utils/effort";
 import { ImageViewer, isImageFile } from "./components/ImageViewer";
 import { DocumentViewer, isDocumentFile } from "./components/DocumentViewer";
@@ -62,22 +64,9 @@ interface GitStatus {
   file_statuses: Record<string, string>; // path -> status
 }
 
-/* LSP + Monaco structural types (replace `any` in editor providers). */
+/* Monaco structural types. The LSP wire types and every conversion between
+   them live in `lib/lsp.ts`; App only drives the document lifecycle. */
 type MonacoEditor = Parameters<OnMount>[0];
-type LspModel = { getLanguageId(): string; uri: { toString(): string } };
-type LspPosition = { lineNumber: number; column: number };
-interface LspRange {
-  start: { line: number; character: number };
-  end: { line: number; character: number };
-}
-interface LspCompletionItem {
-  label: string; kind?: number; insertText?: string; detail?: string;
-  documentation?: unknown; textEdit?: { range: LspRange };
-}
-interface LspHoverResponse {
-  contents: string | { kind?: string; value: string } | Array<string | { value: string }>;
-}
-interface LspLocation { uri: string; range: LspRange; }
 
 interface OpenFile {
   path: string;
@@ -567,12 +556,10 @@ function App() {
       // Phase 3: Flow tracking
       invoke("track_flow_event", { kind: "file_open", data: path }).catch(() => {});
 
-      // Phase 3: LSP lifecycle — notify server that document was opened
-      const rootPath = workspaceFolders[0] || "";
-      if (rootPath) {
-        const uri = `file://${path}`;
-        invoke("lsp_did_open", { language, rootPath, uri, text: content }).catch(() => {});
-      }
+      // IntelliSense: register the document with its language server. The
+      // bridge starts the server on demand and registers Monaco providers for
+      // this language the first time we see it.
+      lspBridgeRef.current?.openDocument(path, language, content);
     } catch (error) {
       console.error("Failed to open file:", error);
       toast.error("Failed to open file: " + error);
@@ -590,6 +577,9 @@ function App() {
       const lastFile = newOpenFiles[newOpenFiles.length - 1];
       setActiveFilePath(lastFile ? lastFile.path : null);
     }
+
+    // Release the document on the language server and drop its markers.
+    lspBridgeRef.current?.closeDocument(path);
   };
 
   const saveFile = async () => {
@@ -601,6 +591,8 @@ function App() {
       setOpenFiles(prev => prev.map(f =>
         f.path === activeFilePath ? { ...f, isDirty: false } : f
       ));
+      // Some servers only run the full analysis on save (clangd, jdtls).
+      lspBridgeRef.current?.saveDocument(activeFilePath);
     } catch (error) {
       console.error("Failed to save file:", error);
       toast.error("Failed to save file: " + error);
@@ -614,6 +606,11 @@ function App() {
       setOpenFiles(prev => prev.map(f =>
         f.path === activeFilePath ? { ...f, content: value, isDirty: true } : f
       ));
+      // Push the edit to the language server (debounced inside the bridge, and
+      // flushed before any completion request). Without this the server keeps
+      // answering against the text as it was when the file was opened, so
+      // nothing you just typed can be completed.
+      lspBridgeRef.current?.changeDocument(activeFilePath, value);
       // Phase 3: Flow tracking (fire-and-forget)
       invoke("track_flow_event", { kind: "file_edit", data: activeFilePath }).catch(() => {});
     }
@@ -635,8 +632,71 @@ function App() {
   const currentDirectoryRef = useRef(currentDirectory);
   currentDirectoryRef.current = currentDirectory;
 
+  // ── IntelliSense ──────────────────────────────────────────────────────────
+  // The bridge is created once, on editor mount, and lives as long as the
+  // editor. Providers registered at mount close over these refs rather than
+  // render values: `workspaceFolders` is still empty when the editor first
+  // mounts for anyone who opens a file before a folder, and a captured empty
+  // root disables IntelliSense for the rest of the session.
+  const workspaceFoldersRef = useRef(workspaceFolders);
+  workspaceFoldersRef.current = workspaceFolders;
+  // `onMount` fires once, so anything it closes over is frozen at the render
+  // that first showed the editor. Cursor sync and ⌘. read the active file
+  // through this ref, or they keep acting on whichever tab was open first.
+  const activeFilePathRef = useRef(activeFilePath);
+  activeFilePathRef.current = activeFilePath;
+  const lspBridgeRef = useRef<LspBridge | null>(null);
+  const lspNoticesRef = useRef(new Set<string>());
+
+  /** Tell the user once per language why IntelliSense is quiet. */
+  const reportLspUnavailable = useCallback((support: LspLanguageSupport) => {
+    if (lspNoticesRef.current.has(support.language)) return;
+    lspNoticesRef.current.add(support.language);
+    if (support.state === "unconfigured") return; // no server exists; not news
+    toast.warn(`No IntelliSense for ${support.language}: ${support.detail}`);
+  }, [toast]);
+
+  const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
+
+  const lspBridge = useCallback((monaco: Parameters<OnMount>[1]): LspBridge => {
+    const existing = lspBridgeRef.current;
+    if (existing) return existing;
+    const bridge = createLspBridge(monaco, {
+      invoke: <T,>(command: string, args?: Record<string, unknown>) =>
+        invoke<T>(command, args),
+      getWorkspaceRoot: () => workspaceFoldersRef.current[0] ?? "",
+      onLanguageUnavailable: reportLspUnavailable,
+    });
+    lspBridgeRef.current = bridge;
+    return bridge;
+  }, [reportLspUnavailable]);
+
+  useEffect(() => () => {
+    lspBridgeRef.current?.dispose();
+    lspBridgeRef.current = null;
+  }, []);
+
+  // Now that each file gets its own Monaco model (see the editor's `path`
+  // prop), something has to dispose them: nothing does it when a tab closes,
+  // so a long session would hold a tokenized copy of every file ever opened.
+  // Reconcile after each change to the tab set, never touching the model the
+  // editor is currently showing or the `inmemory://` models other panels own.
+  useEffect(() => {
+    const monaco = monacoRef.current;
+    if (!monaco) return;
+    const open = new Set(openFiles.map((file) => fileUri(file.path)));
+    const showing = editorRef.current?.getModel()?.uri.toString();
+    type Model = { uri: { toString(): string }; dispose(): void };
+    (monaco.editor.getModels() as Model[]).forEach((model) => {
+      const uri = model.uri.toString();
+      if (!uri.startsWith("file://") || uri === showing || open.has(uri)) return;
+      model.dispose();
+    });
+  }, [openFiles]);
+
   const handleEditorDidMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
+    monacoRef.current = monaco;
 
     // Register VibeCoder theme with Monaco so the editor matches the app theme
     defineEditorTheme(monaco);
@@ -667,8 +727,6 @@ function App() {
       }
     }
 
-    const getRootPath = () => workspaceFolders[0] || ""; // Simple assumption for MVP
-
     // ── Cmd+. : DiffComplete (diff-mode AI edit) ──
     editor.addCommand(
       monaco.KeyMod.CtrlCmd | monaco.KeyCode.Period,
@@ -679,7 +737,7 @@ function App() {
         const hasSelection = selection && !selection.isEmpty();
         const selectedText = hasSelection ? model.getValueInRange(selection) : "";
         setDiffComplete({
-          filePath: activeFilePath ?? "",
+          filePath: activeFilePathRef.current ?? "",
           language: model.getLanguageId(),
           originalContent: model.getValue(),
           selectionText: selectedText,
@@ -689,133 +747,24 @@ function App() {
       }
     );
 
-    monaco.languages.registerCompletionItemProvider('*', {
-      provideCompletionItems: async (model: LspModel, position: LspPosition) => {
-        const language = model.getLanguageId();
-        const rootPath = getRootPath();
-        if (!rootPath) return { suggestions: [] };
-
-        try {
-          const response = await invoke<LspCompletionItem[] | { items: LspCompletionItem[] }>("lsp_completion", {
-            language,
-            rootPath,
-            params: {
-              textDocument: { uri: model.uri.toString() },
-              position: { line: position.lineNumber - 1, character: position.column - 1 },
-              context: { triggerKind: 1 } // Invoked
-            }
-          });
-
-          if (!response) return { suggestions: [] };
-
-          // Transform LSP items to Monaco items
-          const suggestions = (Array.isArray(response) ? response : response.items).map((item) => ({
-            label: item.label,
-            kind: item.kind, // Map LSP kind to Monaco kind if needed
-            insertText: item.insertText || item.label,
-            detail: item.detail,
-            documentation: item.documentation,
-            range: item.textEdit ? {
-              startLineNumber: item.textEdit.range.start.line + 1,
-              startColumn: item.textEdit.range.start.character + 1,
-              endLineNumber: item.textEdit.range.end.line + 1,
-              endColumn: item.textEdit.range.end.character + 1
-            } : undefined
-          }));
-
-          return { suggestions };
-        } catch (e) {
-          console.error("LSP Completion failed:", e);
-          return { suggestions: [] };
-        }
-      }
-    });
-
-    monaco.languages.registerHoverProvider('*', {
-      provideHover: async (model: LspModel, position: LspPosition) => {
-        const language = model.getLanguageId();
-        const rootPath = getRootPath();
-        if (!rootPath) return null;
-
-        try {
-          const response = await invoke<LspHoverResponse>("lsp_hover", {
-            language,
-            rootPath,
-            params: {
-              textDocument: { uri: model.uri.toString() },
-              position: { line: position.lineNumber - 1, character: position.column - 1 }
-            }
-          });
-
-          if (!response || !response.contents) return null;
-
-          // Handle different content formats (MarkupContent, MarkedString, etc.)
-          let contents: { value: string }[] = [];
-          if (typeof response.contents === 'string') {
-            contents = [{ value: response.contents }];
-          } else if ('kind' in response.contents) {
-            contents = [{ value: response.contents.value }];
-          } else if (Array.isArray(response.contents)) {
-            contents = response.contents.map((c) => typeof c === 'string' ? { value: c } : { value: c.value });
-          }
-
-          return {
-            contents
-          };
-        } catch (e) {
-          console.error("LSP Hover failed:", e);
-          return null;
-        }
-      }
-    });
-
-    monaco.languages.registerDefinitionProvider('*', {
-      provideDefinition: async (model: LspModel, position: LspPosition) => {
-        const language = model.getLanguageId();
-        const rootPath = getRootPath();
-        if (!rootPath) return null;
-
-        try {
-          const response = await invoke<LspLocation | LspLocation[]>("lsp_goto_definition", {
-            language,
-            rootPath,
-            params: {
-              textDocument: { uri: model.uri.toString() },
-              position: { line: position.lineNumber - 1, character: position.column - 1 }
-            }
-          });
-
-          if (!response) return null;
-
-          // Handle Location or Location[] or LocationLink[]
-          const locations = Array.isArray(response) ? response : [response];
-
-          return locations.map((loc) => ({
-            uri: monaco.Uri.parse(loc.uri),
-            range: {
-              startLineNumber: loc.range.start.line + 1,
-              startColumn: loc.range.start.character + 1,
-              endLineNumber: loc.range.end.line + 1,
-              endColumn: loc.range.end.character + 1
-            }
-          }));
-        } catch (e) {
-          console.error("LSP Definition failed:", e);
-          return null;
-        }
-      }
-    });
+    // IntelliSense: completion, hover, go-to-definition, signature help and
+    // diagnostics, all driven from `lib/lsp.ts`. Providers are registered
+    // lazily, per language, the first time a file of that language is opened —
+    // so we know the server's real trigger characters, and we never register
+    // providers for a language with no server installed.
+    lspBridge(monaco);
 
     editor.onDidChangeCursorSelection(() => {
-      if (!activeFilePath) return;
+      if (!activeFilePathRef.current) return;
 
       if (cursorUpdateTimeoutRef.current) {
         window.clearTimeout(cursorUpdateTimeoutRef.current);
       }
 
       cursorUpdateTimeoutRef.current = window.setTimeout(() => {
+        const path = activeFilePathRef.current;
         const selections = editor.getSelections();
-        if (!selections) return;
+        if (!path || !selections) return;
 
         const cursors = selections.map((sel) => ({
           position: { line: sel.positionLineNumber - 1, column: sel.positionColumn - 1 },
@@ -825,7 +774,7 @@ function App() {
           }
         }));
 
-        invoke("update_cursors", { path: activeFilePath, cursors })
+        invoke("update_cursors", { path, cursors })
           .catch(() => { /* best-effort: cursor sync failures are non-critical */ });
       }, 100); // Debounce 100ms
     });
@@ -1968,6 +1917,9 @@ function App() {
                         try {
                           setOpenFiles((prev) => prev.map((f) => f.path === path ? { ...f, content: original, isDirty: false } : f));
                           setActiveFilePath(path);
+                          // The file changed underneath the server; resync or
+                          // IntelliSense answers against the undone text.
+                          lspBridgeRef.current?.openDocument(path, detectLanguage(path), original);
                         } catch (e) { console.error("Undo state sync failed:", e); }
                       }, 50);
                     }}
@@ -2055,16 +2007,22 @@ function App() {
                                     ...(isImage ? { base64Data: result } : {})
                                   } : f
                                 );
-                                return [...prev, { 
-                                  path: diffPath, 
-                                  content: result, 
-                                  language, 
+                                return [...prev, {
+                                  path: diffPath,
+                                  content: result,
+                                  language,
                                   isDirty: false,
                                   isImage,
                                   ...(isImage ? { base64Data: result } : {})
                                 }];
                               });
                               setActiveFilePath(diffPath);
+                              // An AI-applied edit is still an edit: push it to
+                              // the language server so completion, hover and
+                              // diagnostics reflect the new text.
+                              if (!isImage) {
+                                lspBridgeRef.current?.openDocument(diffPath, language, result);
+                              }
                             } catch (err) {
                               console.error("Post-apply Monaco sync failed:", err);
                             }
@@ -2101,6 +2059,14 @@ function App() {
                   ) : (
                     <Editor
                       height="100%"
+                      /* `path` gives each file its own model with a real
+                         `file://` URI. Without it every file shares one model
+                         at `inmemory://model/1` — a URI no language server has
+                         heard of, so every LSP request returns nothing, and
+                         Monaco's own TypeScript service cannot resolve across
+                         files either. It must be the same URI the bridge sends
+                         with didOpen, so both come from `fileUri`. */
+                      path={fileUri(activeFile.path)}
                       language={editorLanguage}
                       theme={editorTheme}
                       value={editorContent}
@@ -2113,6 +2079,14 @@ function App() {
                         roundedSelection: false,
                         scrollBeyondLastLine: false,
                         automaticLayout: true,
+                        // Parameter hints and quick suggestions are what make
+                        // the LSP providers visible while typing. Matches
+                        // VS Code's defaults — suggestions inside strings are
+                        // noise everywhere except import paths.
+                        quickSuggestions: { other: true, comments: false, strings: false },
+                        suggestOnTriggerCharacters: true,
+                        parameterHints: { enabled: true },
+                        tabCompletion: "on",
                       }}
                     />
                   )
@@ -2342,6 +2316,14 @@ function App() {
             </span>
           )}
           {currentFile && <span>• {activeFile?.isImage ? 'Image' : editorLanguage}</span>}
+          {currentFile && !activeFile?.isImage && !activeFile?.isDocument && (
+            <LspStatus
+              filePath={currentFile}
+              monacoLanguage={editorLanguage}
+              workspaceRoot={workspaceFolders[0] ?? ""}
+              invoke={invoke}
+            />
+          )}
           {gitStatus && (
             <span style={{ marginLeft: '10px', display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ fontSize: '10px' }}>Branch:</span>

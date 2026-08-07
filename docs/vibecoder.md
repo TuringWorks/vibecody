@@ -641,11 +641,43 @@ The React frontend communicates with the Rust backend using Tauri's `invoke()` I
 | Command | Description |
 |---------|-------------|
 | `lsp_completion(language, root_path, params)` | Request completions from language server |
+| `lsp_resolve_completion(language, root_path, item)` | Fill in documentation / auto-import edits for one item |
 | `lsp_hover(language, root_path, params)` | Request hover info |
 | `lsp_goto_definition(language, root_path, params)` | Go to definition |
-| `lsp_did_open(language, root_path, uri, text)` | Notify LSP of document open |
-| `lsp_did_change(language, root_path, uri, text, version)` | Notify LSP of document change |
+| `lsp_signature_help(language, root_path, params)` | Parameter hints for the call being typed |
+| `lsp_did_open(language, root_path, uri, text)` | Register a document (idempotent — reopening resyncs) |
+| `lsp_did_change(language, root_path, uri, text)` | Push the document's current text; the client owns the version |
 | `lsp_did_save(language, root_path, uri)` | Notify LSP of document save |
+| `lsp_did_close(language, root_path, uri)` | Release the document and drop its diagnostics |
+| `lsp_diagnostics(language, root_path, uri)` | Latest published diagnostics; `null` = nothing published yet, `[]` = clean |
+| `lsp_language_support(language, root_path)` | Server state + trigger characters for a language |
+| `lsp_restart_language(language)` | Stop the server and clear the "not installed" memo |
+| `lsp_list_servers()` | Every supported language, its server binary, and whether it's installed |
+
+**IntelliSense in the editor.** `vibecoder/src/lib/lsp.ts` bridges these to Monaco:
+completion (with snippets, auto-imports and resolved docs), hover,
+go-to-definition, signature help, and diagnostics as squiggles. Four
+non-obvious invariants hold it together — all four have failed in the past, and
+each one alone makes IntelliSense look broken:
+
+1. **Model URIs must be real file URIs.** The `<Editor>` needs a `path` prop, or
+   every file shares one model at `inmemory://model/1` — a URI no server has
+   heard of. `fileUri()` and `vibe_lsp::path_to_uri` must encode identically.
+2. **Edits must be pushed** with `lsp_did_change`, debounced but always flushed
+   before a request; otherwise the server answers against the text as it was
+   when the file opened.
+3. **Completion kinds are mapped by name**, not by number: LSP `Text` is 1,
+   Monaco's is 18, and Monaco renumbers between versions.
+4. **Trigger characters come from the server** and are registered up front.
+   Without them `foo.` shows nothing while mid-identifier completion works.
+
+Servers are found at their install locations, not just on `PATH` — a
+Finder-launched app inherits launchd's bare `PATH` and would find none of them.
+Languages Monaco already services in-browser (TypeScript, JavaScript, JSON, CSS,
+HTML) deliberately get **no** LSP providers: Monaco's cannot be unregistered, so
+adding ours would duplicate every suggestion. The status bar shows which source
+is active for the current file, and offers a retry with the install hint when a
+server is missing.
 
 ### AI Operations
 

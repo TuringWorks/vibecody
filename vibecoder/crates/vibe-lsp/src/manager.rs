@@ -1,14 +1,28 @@
 //! LSP manager for handling multiple language servers
 
 use crate::client::LspClient;
-use anyhow::Result;
+use crate::discovery::{server_available, ServerSearchPaths};
+use anyhow::{anyhow, Result};
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::Arc;
 
 /// LSP manager
 pub struct LspManager {
-    clients: HashMap<String, LspClient>, // language_id -> client
+    /// language_id -> live client. `Arc` so a caller can await a slow request
+    /// after releasing the manager lock; otherwise one cold rust-analyzer
+    /// blocks hover and completion in every other open language.
+    clients: HashMap<String, Arc<LspClient>>,
     server_configs: HashMap<String, (String, Vec<String>)>, // language_id -> (cmd, args)
+    /// Languages we already failed to start, and why.
+    ///
+    /// Without this, Monaco's per-keystroke completion retries the spawn on
+    /// every character: for an uninstalled server that is a process-spawn storm
+    /// and a guaranteed multi-second stall per keypress.
+    unavailable: HashMap<String, String>,
+    /// Where to look for server binaries. Held so tests can inject a fixture
+    /// directory instead of depending on what the developer has installed.
+    search_paths: ServerSearchPaths,
 }
 
 /// LSP server metadata: command, args, install instructions
@@ -16,6 +30,27 @@ pub struct LspServerInfo {
     pub command: String,
     pub args: Vec<String>,
     pub install_hint: String,
+}
+
+/// Whether a language can currently get IntelliSense, and why not if it can't.
+///
+/// The frontend uses this to stop asking: an "unsupported" answer is cached, so
+/// a `.cbl` file never pays for a failed lookup twice.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LanguageStatus {
+    /// A server is running and initialized.
+    Running,
+    /// A server is configured and its binary is installed, but not started yet.
+    Available { command: String },
+    /// A server is configured, but its binary isn't installed.
+    NotInstalled {
+        command: String,
+        install_hint: String,
+    },
+    /// We have no server configured for this language at all.
+    Unconfigured,
+    /// We tried and it failed.
+    Failed { reason: String },
 }
 
 impl LspManager {
@@ -146,6 +181,18 @@ impl LspManager {
         Self {
             clients: HashMap::new(),
             server_configs,
+            unavailable: HashMap::new(),
+            search_paths: ServerSearchPaths::from_env(),
+        }
+    }
+
+    /// Same table of servers, but searching an explicit set of directories.
+    /// Lets tests exercise availability and start-up without depending on
+    /// whatever the developer happens to have installed.
+    pub fn with_search_paths(search_paths: ServerSearchPaths) -> Self {
+        Self {
+            search_paths,
+            ..Self::new()
         }
     }
 
@@ -163,18 +210,57 @@ impl LspManager {
             .collect()
     }
 
-    /// Check which LSP servers are available on PATH.
+    /// Check which LSP servers are installed.
+    ///
+    /// A directory scan, not ~60 `which` subprocesses — and it searches the
+    /// same standard install dirs we spawn from, so a GUI-launched app doesn't
+    /// report every server as missing just because launchd's `PATH` is bare.
     pub fn check_available(&self) -> Vec<(String, String, bool)> {
         self.server_configs
             .iter()
             .map(|(lang, (cmd, _))| {
-                let available = std::process::Command::new("which")
-                    .arg(cmd)
-                    .output()
-                    .map(|o| o.status.success())
-                    .unwrap_or(false);
+                let available = server_available(cmd, &self.search_paths);
                 (lang.clone(), cmd.clone(), available)
             })
+            .collect()
+    }
+
+    /// What IntelliSense this language can currently get.
+    pub fn language_status(&self, language: &str) -> LanguageStatus {
+        if let Some(client) = self.clients.get(language) {
+            if client.is_alive() {
+                return LanguageStatus::Running;
+            }
+        }
+        if let Some(reason) = self.unavailable.get(language) {
+            return LanguageStatus::Failed {
+                reason: reason.clone(),
+            };
+        }
+        let Some((cmd, _)) = self.server_configs.get(language) else {
+            return LanguageStatus::Unconfigured;
+        };
+        if server_available(cmd, &self.search_paths) {
+            LanguageStatus::Available {
+                command: cmd.clone(),
+            }
+        } else {
+            LanguageStatus::NotInstalled {
+                command: cmd.clone(),
+                install_hint: Self::install_hints()
+                    .get(language)
+                    .unwrap_or(&"Check your package manager")
+                    .to_string(),
+            }
+        }
+    }
+
+    /// Languages with a live server right now.
+    pub fn running_languages(&self) -> Vec<String> {
+        self.clients
+            .iter()
+            .filter(|(_, client)| client.is_alive())
+            .map(|(lang, _)| lang.clone())
             .collect()
     }
 
@@ -255,40 +341,93 @@ impl LspManager {
         h
     }
 
-    /// Get or create a client for the given language
+    /// Get or start a client for the given language.
+    ///
+    /// Returns a handle, not a borrow: the caller drops the manager lock before
+    /// awaiting the actual request, so a slow server in one language cannot
+    /// stall every other language's completion behind the same mutex.
+    ///
+    /// A start failure is remembered — see [`Self::unavailable`] — and every
+    /// later call for that language fails immediately with the same message
+    /// until [`Self::retry_language`] clears it.
     pub async fn get_client_for_language(
         &mut self,
         language: &str,
         root_path: &Path,
-    ) -> Result<&mut LspClient> {
-        if !self.clients.contains_key(language) {
-            if let Some((cmd, args)) = self.server_configs.get(language) {
-                let mut client = LspClient::new(cmd.clone(), args.clone());
-                client.initialize(root_path.to_path_buf()).await?;
-                self.clients.insert(language.to_string(), client);
-            } else {
-                return Err(anyhow::anyhow!(
-                    "No LSP server configured for language: {}",
-                    language
-                ));
+    ) -> Result<Arc<LspClient>> {
+        // A dead client (server crashed, or was killed by the OS) must be
+        // replaced, not reused — every request through it would time out.
+        if let Some(existing) = self.clients.get(language) {
+            if existing.is_alive() {
+                return Ok(Arc::clone(existing));
             }
+            tracing::info!("{language}: language server died; restarting");
+            self.clients.remove(language);
         }
 
-        self.clients.get_mut(language).ok_or_else(|| {
-            anyhow::anyhow!("LSP client for '{}' missing after initialization", language)
-        })
+        if let Some(reason) = self.unavailable.get(language) {
+            return Err(anyhow!("{reason}"));
+        }
+
+        let (cmd, args) = self
+            .server_configs
+            .get(language)
+            .cloned()
+            .ok_or_else(|| anyhow!("No LSP server configured for language: {language}"))?;
+
+        // Check before spawning so "not installed" is an install hint rather
+        // than a `No such file or directory` from deep inside tokio.
+        if !server_available(&cmd, &self.search_paths) {
+            let hint = Self::install_hints()
+                .get(language)
+                .copied()
+                .unwrap_or("Check your package manager");
+            let reason =
+                format!("'{cmd}' is not installed, so {language} has no IntelliSense. Install it: {hint}");
+            self.unavailable.insert(language.to_string(), reason.clone());
+            return Err(anyhow!("{reason}"));
+        }
+
+        let mut client = LspClient::new(cmd.clone(), args);
+        if let Err(e) = client.initialize(root_path.to_path_buf()).await {
+            let reason = format!("'{cmd}' failed to start for {language}: {e}");
+            self.unavailable.insert(language.to_string(), reason.clone());
+            return Err(anyhow!("{reason}"));
+        }
+
+        let client = Arc::new(client);
+        self.clients.insert(language.to_string(), Arc::clone(&client));
+        Ok(client)
+    }
+
+    /// Forget that a language's server failed, so the next request retries it.
+    /// Called after the user installs a server, or from a "restart server" action.
+    pub fn retry_language(&mut self, language: &str) {
+        self.unavailable.remove(language);
+        self.search_paths = ServerSearchPaths::from_env();
+    }
+
+    /// Stop a language's server and allow a fresh start on the next request.
+    pub async fn restart_language(&mut self, language: &str) {
+        if let Some(client) = self.clients.remove(language) {
+            let _ = client.shutdown().await;
+        }
+        self.retry_language(language);
+    }
+
+    /// Stop every server. Call on app shutdown so we don't orphan processes.
+    pub async fn shutdown_all(&mut self) {
+        for (_, client) in std::mem::take(&mut self.clients) {
+            let _ = client.shutdown().await;
+        }
     }
 
     pub fn add_client(&mut self, language: String, client: LspClient) {
-        self.clients.insert(language, client);
+        self.clients.insert(language, Arc::new(client));
     }
 
-    pub fn get_client(&self, language: &str) -> Option<&LspClient> {
-        self.clients.get(language)
-    }
-
-    pub fn get_client_mut(&mut self, language: &str) -> Option<&mut LspClient> {
-        self.clients.get_mut(language)
+    pub fn get_client(&self, language: &str) -> Option<Arc<LspClient>> {
+        self.clients.get(language).map(Arc::clone)
     }
 }
 
@@ -353,9 +492,9 @@ mod tests {
     }
 
     #[test]
-    fn get_client_mut_for_unknown_returns_none() {
-        let mut mgr = LspManager::new();
-        assert!(mgr.get_client_mut("cobol").is_none());
+    fn get_client_for_unstarted_language_returns_none() {
+        let mgr = LspManager::new();
+        assert!(mgr.get_client("cobol").is_none());
     }
 
     #[test]
@@ -373,11 +512,17 @@ mod tests {
     }
 
     #[test]
-    fn add_client_is_retrievable_via_get_client_mut() {
+    fn added_client_handle_can_be_cloned_out() {
         let mut mgr = LspManager::new();
-        let client = LspClient::new("server".to_string(), vec![]);
-        mgr.add_client("go".to_string(), client);
-        assert!(mgr.get_client_mut("go").is_some());
+        mgr.add_client(
+            "go".to_string(),
+            LspClient::new("server".to_string(), vec![]),
+        );
+        let handle = mgr.get_client("go").expect("client present");
+        assert_eq!(handle.command(), "server");
+        // A second handle to the same client, not a second client.
+        assert!(mgr.get_client("go").is_some());
+        assert_eq!(mgr.clients.len(), 1);
     }
 
     #[test]
@@ -492,7 +637,6 @@ mod tests {
             LspClient::new("sourcekit-lsp".to_string(), vec![]),
         );
         assert!(mgr.get_client("swift").is_some());
-        assert!(mgr.get_client_mut("swift").is_some());
     }
 
     #[test]
@@ -575,5 +719,165 @@ mod tests {
         // Should still have exactly one entry for "go"
         assert_eq!(mgr.clients.len(), 1);
         assert!(mgr.get_client("go").is_some());
+    }
+
+    // ── Availability, status, and the negative cache ─────────────────────────
+
+    /// A manager whose server search finds nothing installed.
+    fn manager_with_no_servers() -> LspManager {
+        LspManager::with_search_paths(ServerSearchPaths {
+            path_entries: vec![std::path::PathBuf::from("/nonexistent-bin")],
+            extra_prefixes: vec![],
+        })
+    }
+
+    #[test]
+    fn unconfigured_language_status() {
+        let mgr = manager_with_no_servers();
+        assert_eq!(mgr.language_status("brainfuck"), LanguageStatus::Unconfigured);
+    }
+
+    #[test]
+    fn configured_but_missing_binary_reports_install_hint() {
+        let mgr = manager_with_no_servers();
+        match mgr.language_status("rust") {
+            LanguageStatus::NotInstalled {
+                command,
+                install_hint,
+            } => {
+                assert_eq!(command, "rust-analyzer");
+                assert!(install_hint.contains("rustup"), "{install_hint}");
+            }
+            other => panic!("expected NotInstalled, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn every_configured_language_has_a_status_that_is_not_unconfigured() {
+        let mgr = manager_with_no_servers();
+        let languages: Vec<String> = mgr.server_configs.keys().cloned().collect();
+        for language in languages {
+            assert_ne!(
+                mgr.language_status(&language),
+                LanguageStatus::Unconfigured,
+                "{language} is configured, so its status must say so"
+            );
+        }
+    }
+
+    #[test]
+    fn check_available_covers_every_configured_language() {
+        let mgr = manager_with_no_servers();
+        let reported = mgr.check_available();
+        assert_eq!(reported.len(), mgr.server_configs.len());
+        assert!(
+            reported.iter().all(|(_, _, available)| !available),
+            "nothing is installed under a bogus search path"
+        );
+    }
+
+    #[tokio::test]
+    async fn missing_server_is_reported_once_and_then_cached() {
+        // The point of the cache: Monaco asks for completion on every
+        // keystroke, and each miss used to attempt a fresh process spawn.
+        let mut mgr = manager_with_no_servers();
+        let root = std::path::Path::new("/tmp");
+
+        let first = mgr
+            .get_client_for_language("rust", root)
+            .await
+            .expect_err("nothing installed");
+        assert!(first.to_string().contains("not installed"), "{first}");
+        assert!(first.to_string().contains("rustup"), "must say how to fix it");
+
+        assert!(mgr.unavailable.contains_key("rust"), "failure is remembered");
+
+        let second = mgr
+            .get_client_for_language("rust", root)
+            .await
+            .expect_err("still nothing installed");
+        assert_eq!(first.to_string(), second.to_string());
+        assert_eq!(
+            mgr.language_status("rust"),
+            LanguageStatus::Failed {
+                reason: first.to_string()
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn retry_language_clears_the_negative_cache() {
+        let mut mgr = manager_with_no_servers();
+        let _ = mgr
+            .get_client_for_language("go", std::path::Path::new("/tmp"))
+            .await;
+        assert!(mgr.unavailable.contains_key("go"));
+
+        mgr.retry_language("go");
+        assert!(!mgr.unavailable.contains_key("go"));
+        // A retry re-reads PATH, so a server installed since startup is found.
+        assert!(!matches!(
+            mgr.language_status("go"),
+            LanguageStatus::Failed { .. }
+        ));
+    }
+
+    #[tokio::test]
+    async fn unconfigured_language_is_not_negatively_cached() {
+        // No spawn was attempted, so there is nothing to remember — and the
+        // answer can never change at runtime.
+        let mut mgr = manager_with_no_servers();
+        let _ = mgr
+            .get_client_for_language("brainfuck", std::path::Path::new("/tmp"))
+            .await;
+        assert!(!mgr.unavailable.contains_key("brainfuck"));
+    }
+
+    #[test]
+    fn a_dead_client_is_not_reported_as_running() {
+        // `add_client` inserts an un-started client: alive == false.
+        let mut mgr = LspManager::new();
+        mgr.add_client("go".into(), LspClient::new("gopls".into(), vec![]));
+        assert_ne!(mgr.language_status("go"), LanguageStatus::Running);
+        assert!(mgr.running_languages().is_empty());
+    }
+
+    #[tokio::test]
+    async fn get_client_for_language_replaces_a_dead_client() {
+        // A crashed server must not be handed out again — every request through
+        // it would fail. The manager drops it and tries a fresh start.
+        let mut mgr = manager_with_no_servers();
+        mgr.add_client("rust".into(), LspClient::new("rust-analyzer".into(), vec![]));
+        let err = mgr
+            .get_client_for_language("rust", std::path::Path::new("/tmp"))
+            .await
+            .expect_err("restart is attempted, and fails: nothing installed");
+        assert!(err.to_string().contains("not installed"), "{err}");
+        assert!(
+            !mgr.clients.contains_key("rust"),
+            "the dead client must be dropped"
+        );
+    }
+
+    #[tokio::test]
+    async fn shutdown_all_drops_every_client() {
+        let mut mgr = LspManager::new();
+        mgr.add_client("go".into(), LspClient::new("gopls".into(), vec![]));
+        mgr.add_client("rust".into(), LspClient::new("rust-analyzer".into(), vec![]));
+        mgr.shutdown_all().await;
+        assert!(mgr.clients.is_empty());
+    }
+
+    #[tokio::test]
+    async fn restart_language_removes_the_client_and_clears_the_cache() {
+        let mut mgr = manager_with_no_servers();
+        mgr.add_client("go".into(), LspClient::new("gopls".into(), vec![]));
+        let _ = mgr
+            .get_client_for_language("python", std::path::Path::new("/tmp"))
+            .await;
+
+        mgr.restart_language("go").await;
+        assert!(!mgr.clients.contains_key("go"));
+        assert!(mgr.unavailable.contains_key("python"), "unrelated cache kept");
     }
 }
