@@ -228,7 +228,9 @@ async fn computer_level_encryption() {
     drop(project_store);
 
     // Global and project stores should have different paths (different keys)
-    let global_path = GlobalMemStore::open_at(_gdir.path()).expect("reopen global").path();
+    let global_path = GlobalMemStore::open_at(_gdir.path())
+        .expect("reopen global")
+        .path();
     let proj_path = ProjectMemStore::open(workspace.path())
         .expect("reopen project")
         .path();

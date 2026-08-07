@@ -93,17 +93,21 @@ impl<'a> EvalContext<'a> {
                 match kind {
                     "input" => traverse(self.workflow_input, path),
                     "output" => traverse(self.workflow_output, path),
-                    "variables" => {
-                        traverse(&Value::Object(self.workflow_variables.clone()), path)
-                    }
+                    "variables" => traverse(&Value::Object(self.workflow_variables.clone()), path),
                     _ => None,
                 }
             }
             task_ref if !task_ref.is_empty() => {
                 let (kind, path) = split_first(rest);
                 match kind {
-                    "output" => self.task_outputs.get(task_ref).and_then(|v| traverse(v, path)),
-                    "input" => self.task_inputs.get(task_ref).and_then(|v| traverse(v, path)),
+                    "output" => self
+                        .task_outputs
+                        .get(task_ref)
+                        .and_then(|v| traverse(v, path)),
+                    "input" => self
+                        .task_inputs
+                        .get(task_ref)
+                        .and_then(|v| traverse(v, path)),
                     _ => None,
                 }
             }

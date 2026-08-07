@@ -62,7 +62,11 @@ pub trait Store: Send + Sync {
     async fn put_workflow_def(&self, def: &WorkflowDef) -> Result<()>;
 
     /// Fetch a definition by name; `version = None` returns the latest.
-    async fn get_workflow_def(&self, name: &str, version: Option<u32>) -> Result<Option<WorkflowDef>>;
+    async fn get_workflow_def(
+        &self,
+        name: &str,
+        version: Option<u32>,
+    ) -> Result<Option<WorkflowDef>>;
 
     /// List all registered `(name, version)` pairs.
     async fn list_workflow_defs(&self) -> Result<Vec<(String, u32)>>;

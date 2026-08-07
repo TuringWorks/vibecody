@@ -65,7 +65,9 @@ pub async fn check_daemon(url: String) -> Result<String, String> {
         return Err(format!(
             "{url} answered, but it is not the VibeCLI daemon{}. \
              Stop that program, or point VibeDesk at the right port.",
-            service.map(|s| format!(" (it identifies as `{s}`)")).unwrap_or_default()
+            service
+                .map(|s| format!(" (it identifies as `{s}`)"))
+                .unwrap_or_default()
         ));
     }
     Ok("online".to_string())
@@ -96,12 +98,10 @@ pub fn daemon_port() -> u16 {
 /// bare `PATH` (a Finder-launched bundle has no `~/.cargo/bin`), and it reports
 /// *why* it failed instead of a bare `false`.
 pub async fn ensure_daemon_state(port: u16) -> vibecli_cli::daemon_bootstrap::DaemonState {
-    vibecli_cli::daemon_bootstrap::ensure_running(
-        &vibecli_cli::daemon_bootstrap::BootstrapConfig {
-            port,
-            ..Default::default()
-        },
-    )
+    vibecli_cli::daemon_bootstrap::ensure_running(&vibecli_cli::daemon_bootstrap::BootstrapConfig {
+        port,
+        ..Default::default()
+    })
     .await
 }
 
@@ -559,8 +559,14 @@ fn normalize_browser_url(input: &str) -> Result<String, String> {
     // and opening something the user didn't ask for.
     if let Some(scheme_end) = raw.find(':') {
         let scheme = &lower[..scheme_end];
-        if !scheme.is_empty() && scheme.chars().all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '-' || c == '.') {
-            return Err(format!("Only http and https addresses can be opened (got \"{scheme}:\")."));
+        if !scheme.is_empty()
+            && scheme
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '-' || c == '.')
+        {
+            return Err(format!(
+                "Only http and https addresses can be opened (got \"{scheme}:\")."
+            ));
         }
     }
     Ok(format!("https://{raw}"))
@@ -624,10 +630,13 @@ pub async fn create_loop(
 ) -> Result<serde_json::Value, String> {
     let u = format!("{}/v1/loops", url.trim_end_matches('/'));
     let client = reqwest::Client::new();
-    let resp = with_auth(client.post(&u).json(&serde_json::json!({ "args": args })), token)
-        .send()
-        .await
-        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    let resp = with_auth(
+        client.post(&u).json(&serde_json::json!({ "args": args })),
+        token,
+    )
+    .send()
+    .await
+    .map_err(|e| format!("Cannot reach daemon: {}", e))?;
     if !resp.status().is_success() {
         let s = resp.status();
         let b = resp.text().await.unwrap_or_default();
@@ -789,10 +798,7 @@ pub async fn cancel_agent_session(
 /// summary, source). Backs the Skills browser, which was a disabled
 /// "coming soon" nav item despite the catalog already being served.
 #[tauri::command]
-pub async fn list_skills(
-    url: String,
-    token: Option<String>,
-) -> Result<serde_json::Value, String> {
+pub async fn list_skills(url: String, token: Option<String>) -> Result<serde_json::Value, String> {
     daemon_get(url, "/v1/skilllens/skills", None, token).await
 }
 
@@ -1006,8 +1012,10 @@ pub async fn stream_agent(
                     // transcript); the live path never sees it, because the
                     // daemon publishes it before this forwarder connects.
                     Some(kind @ ("user" | "chunk" | "system")) => {
-                        let _ = app
-                            .emit(&channel, serde_json::json!({ "kind": kind, "text": content }));
+                        let _ = app.emit(
+                            &channel,
+                            serde_json::json!({ "kind": kind, "text": content }),
+                        );
                     }
                     Some("step") => {
                         // Tool-use step — forward the tool name + summary so the
@@ -1027,8 +1035,10 @@ pub async fn stream_agent(
                         } else {
                             content
                         };
-                        let _ =
-                            app.emit(&channel, serde_json::json!({ "kind": "error", "text": text }));
+                        let _ = app.emit(
+                            &channel,
+                            serde_json::json!({ "kind": "error", "text": text }),
+                        );
                     }
                     _ => {}
                 }

@@ -22,7 +22,12 @@ use std::path::PathBuf;
 #[command(name = "fluxo", version, about = "Fluxo workflow CLI")]
 struct Cli {
     /// Base URL of the fluxo-server.
-    #[arg(long, env = "FLUXO_URL", default_value = "http://127.0.0.1:8080", global = true)]
+    #[arg(
+        long,
+        env = "FLUXO_URL",
+        default_value = "http://127.0.0.1:8080",
+        global = true
+    )]
     url: String,
     #[command(subcommand)]
     command: Command,
@@ -95,11 +100,19 @@ async fn main() -> Result<()> {
         Command::Register { file } => {
             let text = std::fs::read_to_string(&file)
                 .with_context(|| format!("reading {}", file.display()))?;
-            let def: Value = serde_json::from_str(&text).context("workflow file is not valid JSON")?;
+            let def: Value =
+                serde_json::from_str(&text).context("workflow file is not valid JSON")?;
             let body = post(&client, &format!("{base}/workflow"), def).await?;
             print_json(&body.unwrap_or(Value::Null));
         }
-        Command::Run { name, version, input, input_file, correlation_id, wait } => {
+        Command::Run {
+            name,
+            version,
+            input,
+            input_file,
+            correlation_id,
+            wait,
+        } => {
             let input_value = load_input(input, input_file)?;
             let mut req = json!({ "input": input_value });
             if let Some(v) = version {
@@ -137,7 +150,11 @@ async fn main() -> Result<()> {
             let body = get(&client, &url).await?;
             print_json(&body);
         }
-        Command::Signal { workflow_id, reference_name, output } => {
+        Command::Signal {
+            workflow_id,
+            reference_name,
+            output,
+        } => {
             let output_value = match output {
                 Some(s) => serde_json::from_str(&s).context("--output is not valid JSON")?,
                 None => json!({}),
@@ -177,7 +194,12 @@ async fn get(client: &reqwest::Client, url: &str) -> Result<Value> {
 }
 
 async fn post(client: &reqwest::Client, url: &str, body: Value) -> Result<Option<Value>> {
-    let response = client.post(url).json(&body).send().await.context("request failed")?;
+    let response = client
+        .post(url)
+        .json(&body)
+        .send()
+        .await
+        .context("request failed")?;
     let status = response.status();
     let text = response.text().await.unwrap_or_default();
     if !status.is_success() {
@@ -193,7 +215,11 @@ async fn post(client: &reqwest::Client, url: &str, body: Value) -> Result<Option
 /// Stream the SSE timeline, printing each snapshot, until the run is terminal.
 async fn tail(client: &reqwest::Client, base: &str, workflow_id: &str) -> Result<()> {
     let url = format!("{base}/workflow/run/{workflow_id}/stream");
-    let response = client.get(&url).send().await.context("stream request failed")?;
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .context("stream request failed")?;
     if !response.status().is_success() {
         bail!("{} {}", response.status().as_u16(), url);
     }

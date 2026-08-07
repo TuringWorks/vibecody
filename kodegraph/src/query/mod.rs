@@ -8,8 +8,10 @@
 pub mod traversal;
 
 use crate::analyze::{blast_radius as blast_radius_fn, BlastRadius};
-use crate::analyze::{detect_communities, god_nodes as god_nodes_fn, surprising_edges,
-                     Community, GodNode, SurprisingEdge};
+use crate::analyze::{
+    detect_communities, god_nodes as god_nodes_fn, surprising_edges, Community, GodNode,
+    SurprisingEdge,
+};
 use crate::model::edge::{EdgeKind, Provenance};
 use crate::model::graph::{CodeGraph, NodeData, NodeId};
 use petgraph::visit::EdgeRef;
@@ -33,7 +35,10 @@ pub struct Subgraph {
 /// Matching: symbols whose name (case-insensitive) contains any query term are seeds;
 /// the subgraph expands 1 hop out + 1 hop in until the token budget is hit.
 pub fn query_graph(graph: &CodeGraph, query: &str, budget: usize) -> Subgraph {
-    let terms: Vec<String> = query.split_whitespace().map(|s| s.to_ascii_lowercase()).collect();
+    let terms: Vec<String> = query
+        .split_whitespace()
+        .map(|s| s.to_ascii_lowercase())
+        .collect();
     let mut seeds: Vec<NodeId> = Vec::new();
     for id in graph.backbone().node_indices() {
         if let Some(NodeData::Symbol(s)) = graph.node(id) {
@@ -92,18 +97,28 @@ pub fn query_graph(graph: &CodeGraph, query: &str, budget: usize) -> Subgraph {
         }
     }
 
-    Subgraph { seeds, nodes, edges, est_tokens }
+    Subgraph {
+        seeds,
+        nodes,
+        edges,
+        est_tokens,
+    }
 }
 
 /// `get_node` — retrieve a single node's payload by name (qualified or unqualified).
 pub fn get_node(graph: &CodeGraph, name: &str) -> Option<NodeData> {
-    let id = graph.find_by_qualified(name).or_else(|| graph.find_by_name(name))?;
+    let id = graph
+        .find_by_qualified(name)
+        .or_else(|| graph.find_by_name(name))?;
     graph.node(id).cloned()
 }
 
 /// `get_neighbors` — adjacent nodes (outgoing + incoming) of `name`.
 pub fn get_neighbors(graph: &CodeGraph, name: &str) -> Vec<NodeData> {
-    let Some(id) = graph.find_by_qualified(name).or_else(|| graph.find_by_name(name)) else {
+    let Some(id) = graph
+        .find_by_qualified(name)
+        .or_else(|| graph.find_by_name(name))
+    else {
         return Vec::new();
     };
     let bb = graph.backbone();
@@ -131,10 +146,17 @@ pub fn get_neighbors(graph: &CodeGraph, name: &str) -> Vec<NodeData> {
 /// `shortest_path` — BFS shortest path between two named nodes (edge count + node path).
 pub fn shortest_path(graph: &CodeGraph, from: &str, to: &str) -> Option<(usize, Vec<NodeData>)> {
     use crate::query::traversal::shortest_path_bfs;
-    let a = graph.find_by_qualified(from).or_else(|| graph.find_by_name(from))?;
-    let b = graph.find_by_qualified(to).or_else(|| graph.find_by_name(to))?;
+    let a = graph
+        .find_by_qualified(from)
+        .or_else(|| graph.find_by_name(from))?;
+    let b = graph
+        .find_by_qualified(to)
+        .or_else(|| graph.find_by_name(to))?;
     let path = shortest_path_bfs(graph, a, b)?;
-    let nodes: Vec<NodeData> = path.into_iter().filter_map(|id| graph.node(id).cloned()).collect();
+    let nodes: Vec<NodeData> = path
+        .into_iter()
+        .filter_map(|id| graph.node(id).cloned())
+        .collect();
     let hops = nodes.len().saturating_sub(1);
     Some((hops, nodes))
 }

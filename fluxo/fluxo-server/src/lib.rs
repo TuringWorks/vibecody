@@ -188,7 +188,10 @@ async fn register<S: Store>(
     Json(def): Json<WorkflowDef>,
 ) -> std::result::Result<Json<RegisterResponse>, AppError> {
     engine.register(&def).await?;
-    Ok(Json(RegisterResponse { name: def.name, version: def.version }))
+    Ok(Json(RegisterResponse {
+        name: def.name,
+        version: def.version,
+    }))
 }
 
 async fn list_defs<S: Store>(
@@ -212,7 +215,12 @@ async fn get_def<S: Store>(
         .get_workflow_def(&name, q.version)
         .await?
         .map(Json)
-        .ok_or_else(|| AppError(StatusCode::NOT_FOUND, format!("workflow '{}' not found", name)))
+        .ok_or_else(|| {
+            AppError(
+                StatusCode::NOT_FOUND,
+                format!("workflow '{}' not found", name),
+            )
+        })
 }
 
 async fn execute<S: Store>(
@@ -220,7 +228,9 @@ async fn execute<S: Store>(
     Path(name): Path<String>,
     Json(req): Json<ExecuteRequest>,
 ) -> std::result::Result<Json<ExecuteResponse>, AppError> {
-    let id = engine.start(&name, req.version, req.input, req.correlation_id).await?;
+    let id = engine
+        .start(&name, req.version, req.input, req.correlation_id)
+        .await?;
     Ok(Json(ExecuteResponse { workflow_id: id }))
 }
 
@@ -295,7 +305,9 @@ async fn complete_task<S: Store>(
     Json(req): Json<CompleteRequest>,
 ) -> std::result::Result<StatusCode, AppError> {
     let status = req.status.unwrap_or(TaskStatus::Completed);
-    engine.complete_task(&req.workflow_id, &task_id, status, req.output).await?;
+    engine
+        .complete_task(&req.workflow_id, &task_id, status, req.output)
+        .await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -326,7 +338,13 @@ async fn stream_run<S: Store + 'static>(
         done: bool,
     }
 
-    let init = StreamState { engine, id, last_updated: i64::MIN, first: true, done: false };
+    let init = StreamState {
+        engine,
+        id,
+        last_updated: i64::MIN,
+        first: true,
+        done: false,
+    };
 
     let stream = futures::stream::unfold(init, |mut st| async move {
         if st.done {

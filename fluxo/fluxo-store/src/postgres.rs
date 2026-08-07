@@ -77,14 +77,20 @@ impl Store for PostgresStore {
         Ok(())
     }
 
-    async fn get_workflow_def(&self, name: &str, version: Option<u32>) -> Result<Option<WorkflowDef>> {
+    async fn get_workflow_def(
+        &self,
+        name: &str,
+        version: Option<u32>,
+    ) -> Result<Option<WorkflowDef>> {
         let row = match version {
-            Some(v) => sqlx::query("SELECT json FROM workflow_def WHERE name = $1 AND version = $2")
-                .bind(name)
-                .bind(v as i32)
-                .fetch_optional(&self.pool)
-                .await
-                .map_err(backend)?,
+            Some(v) => {
+                sqlx::query("SELECT json FROM workflow_def WHERE name = $1 AND version = $2")
+                    .bind(name)
+                    .bind(v as i32)
+                    .fetch_optional(&self.pool)
+                    .await
+                    .map_err(backend)?
+            }
             None => sqlx::query(
                 "SELECT json FROM workflow_def WHERE name = $1 ORDER BY version DESC LIMIT 1",
             )
@@ -175,11 +181,13 @@ impl Store for PostgresStore {
 
     async fn list_runs(&self, status: Option<WorkflowStatus>) -> Result<Vec<WorkflowRun>> {
         let rows = match status {
-            Some(s) => sqlx::query("SELECT json FROM workflow_run WHERE status = $1 ORDER BY created_at")
-                .bind(status_str(&s))
-                .fetch_all(&self.pool)
-                .await
-                .map_err(backend)?,
+            Some(s) => {
+                sqlx::query("SELECT json FROM workflow_run WHERE status = $1 ORDER BY created_at")
+                    .bind(status_str(&s))
+                    .fetch_all(&self.pool)
+                    .await
+                    .map_err(backend)?
+            }
             None => sqlx::query("SELECT json FROM workflow_run ORDER BY created_at")
                 .fetch_all(&self.pool)
                 .await

@@ -26,14 +26,18 @@ impl SqliteStore {
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
         let conn = Connection::open(path).map_err(backend)?;
         Self::init(&conn)?;
-        Ok(Self { conn: Mutex::new(conn) })
+        Ok(Self {
+            conn: Mutex::new(conn),
+        })
     }
 
     /// Open a private in-memory database (for tests).
     pub fn open_in_memory() -> Result<Self> {
         let conn = Connection::open_in_memory().map_err(backend)?;
         Self::init(&conn)?;
-        Ok(Self { conn: Mutex::new(conn) })
+        Ok(Self {
+            conn: Mutex::new(conn),
+        })
     }
 
     fn init(conn: &Connection) -> Result<()> {
@@ -74,7 +78,11 @@ impl Store for SqliteStore {
         Ok(())
     }
 
-    async fn get_workflow_def(&self, name: &str, version: Option<u32>) -> Result<Option<WorkflowDef>> {
+    async fn get_workflow_def(
+        &self,
+        name: &str,
+        version: Option<u32>,
+    ) -> Result<Option<WorkflowDef>> {
         let conn = self.lock()?;
         let json: Option<String> = match version {
             Some(v) => conn
@@ -94,7 +102,8 @@ impl Store for SqliteStore {
                 .optional()
                 .map_err(backend)?,
         };
-        json.map(|j| serde_json::from_str(&j).map_err(StoreError::from)).transpose()
+        json.map(|j| serde_json::from_str(&j).map_err(StoreError::from))
+            .transpose()
     }
 
     async fn list_workflow_defs(&self) -> Result<Vec<(String, u32)>> {
@@ -103,7 +112,9 @@ impl Store for SqliteStore {
             .prepare("SELECT name, version FROM workflow_def ORDER BY name, version")
             .map_err(backend)?;
         let rows = stmt
-            .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, u32>(1)?)))
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, u32>(1)?))
+            })
             .map_err(backend)?;
         rows.collect::<rusqlite::Result<Vec<_>>>().map_err(backend)
     }
@@ -139,7 +150,8 @@ impl Store for SqliteStore {
             )
             .optional()
             .map_err(backend)?;
-        json.map(|j| serde_json::from_str(&j).map_err(StoreError::from)).transpose()
+        json.map(|j| serde_json::from_str(&j).map_err(StoreError::from))
+            .transpose()
     }
 
     async fn update_run(&self, run: &WorkflowRun) -> Result<()> {
@@ -173,7 +185,8 @@ impl Store for SqliteStore {
                 let rows = stmt
                     .query_map(params![status_str(&s)], |row| row.get::<_, String>(0))
                     .map_err(backend)?;
-                rows.collect::<rusqlite::Result<Vec<_>>>().map_err(backend)?
+                rows.collect::<rusqlite::Result<Vec<_>>>()
+                    .map_err(backend)?
             }
             None => {
                 let mut stmt = conn
@@ -182,7 +195,8 @@ impl Store for SqliteStore {
                 let rows = stmt
                     .query_map([], |row| row.get::<_, String>(0))
                     .map_err(backend)?;
-                rows.collect::<rusqlite::Result<Vec<_>>>().map_err(backend)?
+                rows.collect::<rusqlite::Result<Vec<_>>>()
+                    .map_err(backend)?
             }
         };
         jsons

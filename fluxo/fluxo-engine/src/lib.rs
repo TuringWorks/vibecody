@@ -166,9 +166,7 @@ impl<S: Store> Engine<S> {
                     && !t.status.is_terminal()
                     && matches!(t.task_type, TaskType::Wait | TaskType::Human)
             })
-            .ok_or_else(|| {
-                EngineError::NotFound(format!("waiting task '{}'", reference_name))
-            })?;
+            .ok_or_else(|| EngineError::NotFound(format!("waiting task '{}'", reference_name)))?;
         run.tasks[idx].status = TaskStatus::Completed;
         run.tasks[idx].output = output;
         run.tasks[idx].updated_at = now;
@@ -351,16 +349,29 @@ mod tests {
             .expect("start");
 
         // First external task is `charge` — a worker claims it by name.
-        let polled = engine.poll("charge", "worker-1").await.expect("poll").expect("a task");
+        let polled = engine
+            .poll("charge", "worker-1")
+            .await
+            .expect("poll")
+            .expect("a task");
         assert_eq!(polled.task.reference_name, "charge");
         assert_eq!(polled.task.input, json!({ "amount": 42 }));
         engine
-            .complete_task(&id, &polled.task.task_id, TaskStatus::Completed, json!({ "ok": true }))
+            .complete_task(
+                &id,
+                &polled.task.task_id,
+                TaskStatus::Completed,
+                json!({ "ok": true }),
+            )
             .await
             .expect("complete charge");
 
         // Switch routed to the "eu" case → ship_eu is now the pollable task.
-        let ship = engine.poll("ship_eu", "worker-1").await.expect("poll").expect("ship task");
+        let ship = engine
+            .poll("ship_eu", "worker-1")
+            .await
+            .expect("poll")
+            .expect("ship task");
         assert_eq!(ship.task.reference_name, "ship_eu");
         engine
             .complete_task(&id, &ship.task.task_id, TaskStatus::Completed, json!({}))
@@ -384,23 +395,39 @@ mod tests {
         )
         .expect("parse");
         engine.register(&def).await.expect("register");
-        let id = engine.start("approval", None, json!({}), None).await.expect("start");
+        let id = engine
+            .start("approval", None, json!({}), None)
+            .await
+            .expect("start");
 
         // Blocked on the human task.
         let run = engine.get_run(&id).await.expect("run");
         assert_eq!(run.status, WorkflowStatus::Running);
-        assert_eq!(run.task_by_ref("review").unwrap().status, TaskStatus::Scheduled);
+        assert_eq!(
+            run.task_by_ref("review").unwrap().status,
+            TaskStatus::Scheduled
+        );
         assert!(engine.poll("finalize", "w").await.expect("poll").is_none());
 
-        engine.signal(&id, "review", json!({ "approved": true })).await.expect("signal");
+        engine
+            .signal(&id, "review", json!({ "approved": true }))
+            .await
+            .expect("signal");
 
         // Now the follow-up worker task is available.
-        let fin = engine.poll("finalize", "w").await.expect("poll").expect("finalize");
+        let fin = engine
+            .poll("finalize", "w")
+            .await
+            .expect("poll")
+            .expect("finalize");
         engine
             .complete_task(&id, &fin.task.task_id, TaskStatus::Completed, json!({}))
             .await
             .expect("complete");
-        assert_eq!(engine.get_run(&id).await.unwrap().status, WorkflowStatus::Completed);
+        assert_eq!(
+            engine.get_run(&id).await.unwrap().status,
+            WorkflowStatus::Completed
+        );
     }
 
     #[tokio::test]
@@ -413,10 +440,17 @@ mod tests {
         )
         .expect("parse");
         engine.register(&def).await.expect("register");
-        let id = engine.start("retryable", None, json!({}), None).await.expect("start");
+        let id = engine
+            .start("retryable", None, json!({}), None)
+            .await
+            .expect("start");
 
         // First attempt fails.
-        let a1 = engine.poll("work", "w1").await.expect("poll").expect("task");
+        let a1 = engine
+            .poll("work", "w1")
+            .await
+            .expect("poll")
+            .expect("task");
         assert_eq!(a1.task.retry_count, 0);
         engine
             .complete_task(&id, &a1.task.task_id, TaskStatus::Failed, json!({}))
@@ -424,14 +458,26 @@ mod tests {
             .expect("fail 1");
 
         // A retry attempt is available (zero backoff) and succeeds.
-        let a2 = engine.poll("work", "w1").await.expect("poll").expect("retry task");
+        let a2 = engine
+            .poll("work", "w1")
+            .await
+            .expect("poll")
+            .expect("retry task");
         assert_eq!(a2.task.retry_count, 1);
         engine
-            .complete_task(&id, &a2.task.task_id, TaskStatus::Completed, json!({ "ok": true }))
+            .complete_task(
+                &id,
+                &a2.task.task_id,
+                TaskStatus::Completed,
+                json!({ "ok": true }),
+            )
             .await
             .expect("complete 2");
 
-        assert_eq!(engine.get_run(&id).await.unwrap().status, WorkflowStatus::Completed);
+        assert_eq!(
+            engine.get_run(&id).await.unwrap().status,
+            WorkflowStatus::Completed
+        );
     }
 
     #[tokio::test]
@@ -444,7 +490,10 @@ mod tests {
         )
         .expect("parse");
         engine.register(&def).await.expect("register");
-        let id = engine.start("stuck", None, json!({}), None).await.expect("start");
+        let id = engine
+            .start("stuck", None, json!({}), None)
+            .await
+            .expect("start");
         let _ = engine.poll("slow", "w1").await.expect("poll");
 
         // Sweep until the run reaches its terminal state, rather than sleeping a
@@ -466,6 +515,9 @@ mod tests {
             );
             tokio::time::sleep(std::time::Duration::from_millis(10)).await;
         }
-        assert_eq!(engine.get_run(&id).await.unwrap().status, WorkflowStatus::Failed);
+        assert_eq!(
+            engine.get_run(&id).await.unwrap().status,
+            WorkflowStatus::Failed
+        );
     }
 }

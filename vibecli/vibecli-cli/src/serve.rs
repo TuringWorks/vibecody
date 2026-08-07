@@ -72,8 +72,8 @@ use tower_http::cors::CorsLayer;
 use tower_http::set_header::SetResponseHeaderLayer;
 
 use crate::job_manager::{CreateJobReq, JobManager, JobStatus};
-use crate::sync_ext::RwLockRecover;
 use crate::session_store::{render_session_html, render_sessions_index_html, SessionStore};
+use crate::sync_ext::RwLockRecover;
 use crate::tainted_http_bridge::{PromptResponse, PromptResponseResult};
 use axum::extract::ws::{Message as WsMessage, WebSocket, WebSocketUpgrade};
 use axum::extract::{ConnectInfo, Query};
@@ -493,9 +493,7 @@ fn configured_provider_names_with(
             // `features.diffcomplete.available` on, since it gates on count > 0.
             let mut v: Vec<String> = v
                 .into_iter()
-                .filter(|name| {
-                    crate::api_key_monitor::AI_PROVIDER_NAMES.contains(&name.as_str())
-                })
+                .filter(|name| crate::api_key_monitor::AI_PROVIDER_NAMES.contains(&name.as_str()))
                 .collect();
             v.sort();
             v
@@ -1871,8 +1869,7 @@ async fn create_task(
         if create_worktree {
             let repo = std::path::PathBuf::from(&project_path);
             if vibe_core::git::is_git_repo(&repo) {
-                let branch =
-                    format!("task/{}-{}", &id[..id.len().min(8)], slugify_title(&title));
+                let branch = format!("task/{}-{}", &id[..id.len().min(8)], slugify_title(&title));
                 let base_dir = repo.join(".vibecli").join("worktrees");
                 let mut pool = crate::worktree_git::GitWorktreePool::new(&repo, &base_dir, 16);
                 match pool.spawn(&id, &branch) {
@@ -2016,7 +2013,12 @@ async fn update_task(
             .set_session(&id, sid, now_unix())
             .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("update: {e}")))?;
     }
-    if let Some(title) = req.title.as_deref().map(str::trim).filter(|t| !t.is_empty()) {
+    if let Some(title) = req
+        .title
+        .as_deref()
+        .map(str::trim)
+        .filter(|t| !t.is_empty())
+    {
         store
             .set_title(&id, title, now_unix())
             .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("update: {e}")))?;
@@ -7430,41 +7432,41 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         None => app,
     };
     app.fallback(|| async {
-            (
-                StatusCode::NOT_FOUND,
-                Json(serde_json::json!({"error":"Not found"})),
-            )
-        })
-        .layer(DefaultBodyLimit::max(1024 * 1024)) // 1 MB max request body
-        // Security response headers
-        .layer(SetResponseHeaderLayer::overriding(
-            header::X_CONTENT_TYPE_OPTIONS,
-            HeaderValue::from_static("nosniff"),
-        ))
-        .layer(SetResponseHeaderLayer::overriding(
-            header::X_FRAME_OPTIONS,
-            HeaderValue::from_static("DENY"),
-        ))
-        .layer(SetResponseHeaderLayer::overriding(
-            axum::http::HeaderName::from_static("referrer-policy"),
-            HeaderValue::from_static("no-referrer"),
-        ))
-        .layer(SetResponseHeaderLayer::overriding(
-            axum::http::HeaderName::from_static("content-security-policy"),
-            HeaderValue::from_static(
-                "default-src 'self'; script-src 'none'; style-src 'unsafe-inline'",
-            ),
-        ))
-        .layer(SetResponseHeaderLayer::overriding(
-            axum::http::HeaderName::from_static("permissions-policy"),
-            HeaderValue::from_static("camera=(), microphone=(), geolocation=()"),
-        ))
-        .layer(SetResponseHeaderLayer::overriding(
-            axum::http::HeaderName::from_static("strict-transport-security"),
-            HeaderValue::from_static("max-age=31536000; includeSubDomains"),
-        ))
-        .layer(cors)
-        .with_state(state)
+        (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error":"Not found"})),
+        )
+    })
+    .layer(DefaultBodyLimit::max(1024 * 1024)) // 1 MB max request body
+    // Security response headers
+    .layer(SetResponseHeaderLayer::overriding(
+        header::X_CONTENT_TYPE_OPTIONS,
+        HeaderValue::from_static("nosniff"),
+    ))
+    .layer(SetResponseHeaderLayer::overriding(
+        header::X_FRAME_OPTIONS,
+        HeaderValue::from_static("DENY"),
+    ))
+    .layer(SetResponseHeaderLayer::overriding(
+        axum::http::HeaderName::from_static("referrer-policy"),
+        HeaderValue::from_static("no-referrer"),
+    ))
+    .layer(SetResponseHeaderLayer::overriding(
+        axum::http::HeaderName::from_static("content-security-policy"),
+        HeaderValue::from_static(
+            "default-src 'self'; script-src 'none'; style-src 'unsafe-inline'",
+        ),
+    ))
+    .layer(SetResponseHeaderLayer::overriding(
+        axum::http::HeaderName::from_static("permissions-policy"),
+        HeaderValue::from_static("camera=(), microphone=(), geolocation=()"),
+    ))
+    .layer(SetResponseHeaderLayer::overriding(
+        axum::http::HeaderName::from_static("strict-transport-security"),
+        HeaderValue::from_static("max-age=31536000; includeSubDomains"),
+    ))
+    .layer(cors)
+    .with_state(state)
 }
 
 /// Start the VibeCLI HTTP daemon. Blocks until shutdown.
@@ -8239,14 +8241,22 @@ async fn handle_collab_ws(
         peers,
     };
     let welcome_json = serde_json::to_string(&welcome).unwrap_or_default();
-    if socket.send(WsMessage::Text(welcome_json.into())).await.is_err() {
+    if socket
+        .send(WsMessage::Text(welcome_json.into()))
+        .await
+        .is_err()
+    {
         room.remove_peer(&peer_id).await;
         return;
     }
 
     // Send current doc state as SyncStep1
     let state_msg = room.encode_state().await;
-    if socket.send(WsMessage::Binary(state_msg.into())).await.is_err() {
+    if socket
+        .send(WsMessage::Binary(state_msg.into()))
+        .await
+        .is_err()
+    {
         room.remove_peer(&peer_id).await;
         return;
     }

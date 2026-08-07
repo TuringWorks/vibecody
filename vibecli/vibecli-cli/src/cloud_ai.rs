@@ -303,18 +303,30 @@ pub struct Resolved {
 /// encrypted ProfileStore in production; the in-memory variant exists so the
 /// resolution logic is testable without touching the real store.
 pub enum ConfigSource {
-    Profile { store: ProfileStore, profile_id: String },
-    Memory { vars: HashMap<String, HashMap<String, String>>, creds: HashMap<String, String> },
+    Profile {
+        store: ProfileStore,
+        profile_id: String,
+    },
+    Memory {
+        vars: HashMap<String, HashMap<String, String>>,
+        creds: HashMap<String, String>,
+    },
 }
 
 impl ConfigSource {
     pub fn profile() -> Result<Self> {
         let store = ProfileStore::new().map_err(CloudError::Catalog)?;
-        Ok(Self::Profile { store, profile_id: "default".to_string() })
+        Ok(Self::Profile {
+            store,
+            profile_id: "default".to_string(),
+        })
     }
 
     pub fn memory() -> Self {
-        Self::Memory { vars: HashMap::new(), creds: HashMap::new() }
+        Self::Memory {
+            vars: HashMap::new(),
+            creds: HashMap::new(),
+        }
     }
 
     pub fn with_var(mut self, backend: &str, key: &str, value: &str) -> Self {
@@ -379,7 +391,11 @@ impl CloudClient {
             .connect_timeout(Duration::from_secs(15))
             .build()
             .unwrap_or_default();
-        Self { catalog, config, http }
+        Self {
+            catalog,
+            config,
+            http,
+        }
     }
 
     /// Production constructor: embedded/user catalog + encrypted store.
@@ -401,10 +417,12 @@ impl CloudClient {
                 stage,
             });
         }
-        let endpoint = backend.endpoint(stage).ok_or(CloudError::StageUnsupported {
-            backend: backend_id.to_string(),
-            stage,
-        })?;
+        let endpoint = backend
+            .endpoint(stage)
+            .ok_or(CloudError::StageUnsupported {
+                backend: backend_id.to_string(),
+                stage,
+            })?;
 
         // Collect declared variables plus anything referenced in the templates.
         let mut vars: HashMap<String, String> = HashMap::new();
@@ -551,7 +569,10 @@ impl CloudClient {
         let status = resp.status();
         let body = resp.text().await.unwrap_or_default();
         if !status.is_success() {
-            return Err(CloudError::Remote { status: status.as_u16(), body });
+            return Err(CloudError::Remote {
+                status: status.as_u16(),
+                body,
+            });
         }
         let json: serde_json::Value = serde_json::from_str(&body)
             .map_err(|e| CloudError::Response(format!("IAM token: {e}")))?;
@@ -560,12 +581,18 @@ impl CloudClient {
             .and_then(|v| v.as_str())
             .ok_or_else(|| CloudError::Response("IAM response had no access_token".into()))?
             .to_string();
-        let ttl = json.get("expires_in").and_then(|v| v.as_u64()).unwrap_or(3600);
+        let ttl = json
+            .get("expires_in")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(3600);
 
         if let Ok(mut guard) = cache.lock() {
             guard.insert(
                 api_key.to_string(),
-                CachedToken { token: token.clone(), expires_at_unix: now_unix() + ttl },
+                CachedToken {
+                    token: token.clone(),
+                    expires_at_unix: now_unix() + ttl,
+                },
             );
         }
         Ok(token)
@@ -671,9 +698,8 @@ fn sigv4_authorization(
     let canonical_headers =
         format!("content-type:application/json\nhost:{host}\nx-amz-date:{datetime}\n");
     let signed_headers = "content-type;host;x-amz-date";
-    let canonical_request = format!(
-        "POST\n{path}\n\n{canonical_headers}\n{signed_headers}\n{payload_hash}"
-    );
+    let canonical_request =
+        format!("POST\n{path}\n\n{canonical_headers}\n{signed_headers}\n{payload_hash}");
     let scope = format!("{date}/{region}/{service}/aws4_request");
     let string_to_sign = format!(
         "AWS4-HMAC-SHA256\n{datetime}\n{scope}\n{}",
@@ -716,7 +742,11 @@ pub struct ChatResponse {
 }
 
 /// Render a generic chat request onto a provider's wire format.
-fn chat_body(shape: ApiShape, req: &ChatRequest, vars: &HashMap<String, String>) -> serde_json::Value {
+fn chat_body(
+    shape: ApiShape,
+    req: &ChatRequest,
+    vars: &HashMap<String, String>,
+) -> serde_json::Value {
     let messages: Vec<serde_json::Value> = req
         .messages
         .iter()
@@ -852,13 +882,19 @@ impl CloudClient {
             }
             AuthKind::AwsSigv4 => {
                 let creds = AwsCredential::parse(&cred, &resolved.backend_id)?;
-                let region = resolved.vars.get("region").cloned().ok_or_else(|| {
-                    CloudError::MissingVar {
-                        backend: resolved.backend_id.clone(),
-                        var: "region".into(),
-                    }
-                })?;
-                let service = resolved.auth_service.clone().unwrap_or_else(|| "bedrock".into());
+                let region =
+                    resolved
+                        .vars
+                        .get("region")
+                        .cloned()
+                        .ok_or_else(|| CloudError::MissingVar {
+                            backend: resolved.backend_id.clone(),
+                            var: "region".into(),
+                        })?;
+                let service = resolved
+                    .auth_service
+                    .clone()
+                    .unwrap_or_else(|| "bedrock".into());
                 let parsed = reqwest::Url::parse(url)
                     .map_err(|e| CloudError::Transport(format!("bad URL {url}: {e}")))?;
                 let host = parsed.host_str().unwrap_or_default().to_string();
@@ -903,7 +939,9 @@ impl CloudClient {
             .header("Content-Type", "application/json")
             .header("Accept", "application/json")
             .body(payload.clone());
-        let builder = self.authorize(builder, &resolved, &resolved.url, &payload).await?;
+        let builder = self
+            .authorize(builder, &resolved, &resolved.url, &payload)
+            .await?;
 
         let started = SystemTime::now();
         let resp = builder
@@ -920,8 +958,12 @@ impl CloudClient {
                 body: text.chars().take(600).collect(),
             });
         }
-        let json: serde_json::Value = serde_json::from_str(&text)
-            .map_err(|e| CloudError::Response(format!("{e}: {}", text.chars().take(200).collect::<String>())))?;
+        let json: serde_json::Value = serde_json::from_str(&text).map_err(|e| {
+            CloudError::Response(format!(
+                "{e}: {}",
+                text.chars().take(200).collect::<String>()
+            ))
+        })?;
         let out = chat_text(resolved.api, &json).ok_or_else(|| {
             CloudError::Response(format!(
                 "no assistant text in {} response",
@@ -1003,10 +1045,12 @@ fn training_body(
                 backend: "aws".into(),
                 var: "role_arn".into(),
             })?;
-            let output = vars.get("output_uri").ok_or_else(|| CloudError::MissingVar {
-                backend: "aws".into(),
-                var: "output_uri".into(),
-            })?;
+            let output = vars
+                .get("output_uri")
+                .ok_or_else(|| CloudError::MissingVar {
+                    backend: "aws".into(),
+                    var: "output_uri".into(),
+                })?;
             let name = spec
                 .suffix
                 .clone()
@@ -1022,10 +1066,12 @@ fn training_body(
             }))
         }
         ApiShape::WatsonxTraining => {
-            let project = vars.get("project_id").ok_or_else(|| CloudError::MissingVar {
-                backend: "ibm".into(),
-                var: "project_id".into(),
-            })?;
+            let project = vars
+                .get("project_id")
+                .ok_or_else(|| CloudError::MissingVar {
+                    backend: "ibm".into(),
+                    var: "project_id".into(),
+                })?;
             Ok(serde_json::json!({
                 "name": spec.suffix.clone().unwrap_or_else(|| "vibecody-tuning".into()),
                 "project_id": project,
@@ -1075,7 +1121,9 @@ impl CloudClient {
             .header("Content-Type", "application/json")
             .header("Accept", "application/json")
             .body(payload.clone());
-        let builder = self.authorize(builder, &resolved, &resolved.url, &payload).await?;
+        let builder = self
+            .authorize(builder, &resolved, &resolved.url, &payload)
+            .await?;
 
         let resp = builder
             .send()
@@ -1219,15 +1267,27 @@ impl TryFrom<ExpectSpec> for Expectation {
 impl From<Expectation> for ExpectSpec {
     fn from(e: Expectation) -> Self {
         match e {
-            Expectation::Exact { value } => Self { exact: Some(value), ..Self::default() },
-            Expectation::Contains { value } => Self { contains: Some(value), ..Self::default() },
-            Expectation::Excludes { values } => Self { excludes: Some(values), ..Self::default() },
-            Expectation::JsonPointer { pointer } => {
-                Self { json_pointer: Some(pointer), ..Self::default() }
-            }
-            Expectation::Command { file, command } => {
-                Self { file: Some(file), command: Some(command), ..Self::default() }
-            }
+            Expectation::Exact { value } => Self {
+                exact: Some(value),
+                ..Self::default()
+            },
+            Expectation::Contains { value } => Self {
+                contains: Some(value),
+                ..Self::default()
+            },
+            Expectation::Excludes { values } => Self {
+                excludes: Some(values),
+                ..Self::default()
+            },
+            Expectation::JsonPointer { pointer } => Self {
+                json_pointer: Some(pointer),
+                ..Self::default()
+            },
+            Expectation::Command { file, command } => Self {
+                file: Some(file),
+                command: Some(command),
+                ..Self::default()
+            },
         }
     }
 }
@@ -1291,27 +1351,49 @@ impl EvalReport {
 ///
 /// Pure and total — the scoring rule is testable without a network, while the
 /// *output* it scores always comes from a real call.
-pub fn score(expect: &Expectation, output: &str, workdir: Option<&std::path::Path>) -> (bool, String) {
+pub fn score(
+    expect: &Expectation,
+    output: &str,
+    workdir: Option<&std::path::Path>,
+) -> (bool, String) {
     match expect {
         Expectation::Exact { value } => {
             let ok = output.trim() == value.trim();
-            (ok, if ok { "exact match".into() } else { format!("expected exactly {value:?}") })
+            (
+                ok,
+                if ok {
+                    "exact match".into()
+                } else {
+                    format!("expected exactly {value:?}")
+                },
+            )
         }
         Expectation::Contains { value } => {
             let ok = output.contains(value.as_str());
-            (ok, if ok { "substring found".into() } else { format!("missing {value:?}") })
+            (
+                ok,
+                if ok {
+                    "substring found".into()
+                } else {
+                    format!("missing {value:?}")
+                },
+            )
         }
-        Expectation::Excludes { values } => match values.iter().find(|v| output.contains(v.as_str())) {
-            Some(hit) => (false, format!("contained forbidden {hit:?}")),
-            None => (true, "no forbidden substrings".into()),
-        },
-        Expectation::JsonPointer { pointer } => match serde_json::from_str::<serde_json::Value>(output) {
-            Ok(v) => match v.pointer(pointer) {
-                Some(found) if !found.is_null() => (true, format!("{pointer} present")),
-                _ => (false, format!("no value at {pointer}")),
-            },
-            Err(e) => (false, format!("output is not JSON: {e}")),
-        },
+        Expectation::Excludes { values } => {
+            match values.iter().find(|v| output.contains(v.as_str())) {
+                Some(hit) => (false, format!("contained forbidden {hit:?}")),
+                None => (true, "no forbidden substrings".into()),
+            }
+        }
+        Expectation::JsonPointer { pointer } => {
+            match serde_json::from_str::<serde_json::Value>(output) {
+                Ok(v) => match v.pointer(pointer) {
+                    Some(found) if !found.is_null() => (true, format!("{pointer} present")),
+                    _ => (false, format!("no value at {pointer}")),
+                },
+                Err(e) => (false, format!("output is not JSON: {e}")),
+            }
+        }
         Expectation::Command { file, command } => {
             let dir = match workdir {
                 Some(d) => d.to_path_buf(),
@@ -1338,7 +1420,10 @@ pub fn score(expect: &Expectation, output: &str, workdir: Option<&std::path::Pat
                     format!(
                         "command exited {}: {}",
                         out.status.code().unwrap_or(-1),
-                        String::from_utf8_lossy(&out.stderr).chars().take(300).collect::<String>()
+                        String::from_utf8_lossy(&out.stderr)
+                            .chars()
+                            .take(300)
+                            .collect::<String>()
                     ),
                 ),
                 Err(e) => (false, format!("command failed to start: {e}")),
@@ -1368,9 +1453,15 @@ impl CloudClient {
         for case in &suite.cases {
             let mut messages = Vec::new();
             if let Some(sys) = &case.system {
-                messages.push(ChatMessage { role: "system".into(), content: sys.clone() });
+                messages.push(ChatMessage {
+                    role: "system".into(),
+                    content: sys.clone(),
+                });
             }
-            messages.push(ChatMessage { role: "user".into(), content: case.prompt.clone() });
+            messages.push(ChatMessage {
+                role: "user".into(),
+                content: case.prompt.clone(),
+            });
 
             let req = ChatRequest {
                 model: suite.model.clone(),
@@ -1454,7 +1545,12 @@ impl CloudClient {
 
         let candidates: Vec<String> = match policy {
             RoutePolicy::Ordered { order } => order.clone(),
-            _ => self.catalog.for_stage(stage).iter().map(|b| b.id.clone()).collect(),
+            _ => self
+                .catalog
+                .for_stage(stage)
+                .iter()
+                .map(|b| b.id.clone())
+                .collect(),
         };
 
         let mut ready: Vec<(String, Option<f64>)> = Vec::new();
@@ -1519,13 +1615,24 @@ mod tests {
     fn embedded_catalog_parses() {
         let c = Catalog::embedded().expect("embedded catalog must parse");
         assert_eq!(c.schema_version, 1);
-        assert!(c.backends.len() >= 7, "expected the seven named clouds + escape hatches");
+        assert!(
+            c.backends.len() >= 7,
+            "expected the seven named clouds + escape hatches"
+        );
     }
 
     #[test]
     fn every_named_cloud_is_present() {
         let c = Catalog::embedded().unwrap();
-        for id in ["digitalocean", "azure", "google", "aws", "oracle", "ibm", "akamai"] {
+        for id in [
+            "digitalocean",
+            "azure",
+            "google",
+            "aws",
+            "oracle",
+            "ibm",
+            "akamai",
+        ] {
             assert!(c.get(id).is_ok(), "catalog is missing '{id}'");
         }
     }
@@ -1625,7 +1732,9 @@ mod tests {
         let cfg = ConfigSource::memory().with_var("digitalocean", "x", "y");
         let client = CloudClient::new(Catalog::embedded().unwrap(), cfg);
         match client.resolve("digitalocean", Stage::Serve) {
-            Err(CloudError::MissingCredential { backend, .. }) => assert_eq!(backend, "digitalocean"),
+            Err(CloudError::MissingCredential { backend, .. }) => {
+                assert_eq!(backend, "digitalocean")
+            }
             other => panic!("expected MissingCredential, got {other:?}"),
         }
     }
@@ -1636,7 +1745,10 @@ mod tests {
         let client = CloudClient::new(Catalog::embedded().unwrap(), cfg);
         let err = client.resolve("azure", Stage::Serve).unwrap_err();
         let msg = err.to_string();
-        assert!(msg.contains("vibecli --cloud-ai set azure"), "unhelpful error: {msg}");
+        assert!(
+            msg.contains("vibecli --cloud-ai set azure"),
+            "unhelpful error: {msg}"
+        );
     }
 
     #[test]
@@ -1655,7 +1767,11 @@ mod tests {
     #[test]
     fn train_capable_backends_are_the_expected_four() {
         let c = Catalog::embedded().unwrap();
-        let mut ids: Vec<&str> = c.for_stage(Stage::Train).iter().map(|b| b.id.as_str()).collect();
+        let mut ids: Vec<&str> = c
+            .for_stage(Stage::Train)
+            .iter()
+            .map(|b| b.id.as_str())
+            .collect();
         ids.sort_unstable();
         assert_eq!(ids, vec!["aws", "azure", "google", "ibm"]);
     }
@@ -1675,8 +1791,14 @@ mod tests {
         let cfg = ConfigSource::memory().with_credential("digitalocean", "k");
         let client = CloudClient::new(Catalog::embedded().unwrap(), cfg);
         let rows = client.readiness(Stage::Serve);
-        let du = rows.iter().find(|r| r.backend_id == "digitalocean").unwrap();
-        assert!(du.ready, "digitalocean should be ready with just a credential");
+        let du = rows
+            .iter()
+            .find(|r| r.backend_id == "digitalocean")
+            .unwrap();
+        assert!(
+            du.ready,
+            "digitalocean should be ready with just a credential"
+        );
         let az = rows.iter().find(|r| r.backend_id == "azure").unwrap();
         assert!(!az.ready);
         assert!(az.detail.contains("resource") || az.detail.contains("credential"));
@@ -1703,7 +1825,12 @@ mod exec_tests {
     #[test]
     fn sigv4_signing_key_matches_the_aws_worked_example() {
         // From AWS's "Examples of the signature calculation" documentation.
-        let key = derive_signing_key("wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY", "20150830", "us-east-1", "iam");
+        let key = derive_signing_key(
+            "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY",
+            "20150830",
+            "us-east-1",
+            "iam",
+        );
         assert_eq!(
             hex::encode(key),
             "c4afb1cc5771d871763a393e44b703571b55cc28424d1a5e86da6ed3c154a4b9"
@@ -1713,19 +1840,44 @@ mod exec_tests {
     #[test]
     fn sigv4_authorization_has_the_required_parts() {
         let auth = sigv4_authorization(
-            "AKIDEXAMPLE", "secret", "us-east-1", "bedrock",
-            "bedrock-runtime.us-east-1.amazonaws.com", "/model/m/converse",
-            b"{}", "20260806T000000Z",
+            "AKIDEXAMPLE",
+            "secret",
+            "us-east-1",
+            "bedrock",
+            "bedrock-runtime.us-east-1.amazonaws.com",
+            "/model/m/converse",
+            b"{}",
+            "20260806T000000Z",
         );
-        assert!(auth.starts_with("AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20260806/us-east-1/bedrock/aws4_request"));
+        assert!(auth.starts_with(
+            "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20260806/us-east-1/bedrock/aws4_request"
+        ));
         assert!(auth.contains("SignedHeaders=content-type;host;x-amz-date"));
         assert!(auth.contains("Signature="));
     }
 
     #[test]
     fn sigv4_signature_changes_with_the_payload() {
-        let one = sigv4_authorization("A", "s", "r", "bedrock", "h", "/p", b"{\"a\":1}", "20260806T000000Z");
-        let two = sigv4_authorization("A", "s", "r", "bedrock", "h", "/p", b"{\"a\":2}", "20260806T000000Z");
+        let one = sigv4_authorization(
+            "A",
+            "s",
+            "r",
+            "bedrock",
+            "h",
+            "/p",
+            b"{\"a\":1}",
+            "20260806T000000Z",
+        );
+        let two = sigv4_authorization(
+            "A",
+            "s",
+            "r",
+            "bedrock",
+            "h",
+            "/p",
+            b"{\"a\":2}",
+            "20260806T000000Z",
+        );
         assert_ne!(one, two, "signature must cover the body");
     }
 
@@ -1735,7 +1887,10 @@ mod exec_tests {
     fn openai_shape_is_flat() {
         let req = ChatRequest {
             model: "gpt-oss-120b".into(),
-            messages: vec![ChatMessage { role: "user".into(), content: "hi".into() }],
+            messages: vec![ChatMessage {
+                role: "user".into(),
+                content: "hi".into(),
+            }],
             max_tokens: Some(64),
         };
         let body = chat_body(ApiShape::OpenAiChat, &req, &HashMap::new());
@@ -1749,8 +1904,14 @@ mod exec_tests {
         let req = ChatRequest {
             model: "anthropic.claude-opus-5".into(),
             messages: vec![
-                ChatMessage { role: "system".into(), content: "be terse".into() },
-                ChatMessage { role: "user".into(), content: "hi".into() },
+                ChatMessage {
+                    role: "system".into(),
+                    content: "be terse".into(),
+                },
+                ChatMessage {
+                    role: "user".into(),
+                    content: "hi".into(),
+                },
             ],
             max_tokens: Some(32),
         };
@@ -1766,11 +1927,17 @@ mod exec_tests {
     fn oci_and_watsonx_shapes_carry_their_scoping_ids() {
         let req = ChatRequest {
             model: "m".into(),
-            messages: vec![ChatMessage { role: "user".into(), content: "hi".into() }],
+            messages: vec![ChatMessage {
+                role: "user".into(),
+                content: "hi".into(),
+            }],
             max_tokens: None,
         };
         let mut vars = HashMap::new();
-        vars.insert("compartment_id".to_string(), "ocid1.compartment".to_string());
+        vars.insert(
+            "compartment_id".to_string(),
+            "ocid1.compartment".to_string(),
+        );
         vars.insert("project_id".to_string(), "proj".to_string());
 
         let oci = chat_body(ApiShape::OciChat, &req, &vars);
@@ -1787,10 +1954,16 @@ mod exec_tests {
     #[test]
     fn each_shape_extracts_its_own_response_text() {
         let openai = serde_json::json!({"choices":[{"message":{"content":"A"}}]});
-        assert_eq!(chat_text(ApiShape::OpenAiChat, &openai).as_deref(), Some("A"));
+        assert_eq!(
+            chat_text(ApiShape::OpenAiChat, &openai).as_deref(),
+            Some("A")
+        );
 
         let bedrock = serde_json::json!({"output":{"message":{"content":[{"text":"B"}]}}});
-        assert_eq!(chat_text(ApiShape::BedrockConverse, &bedrock).as_deref(), Some("B"));
+        assert_eq!(
+            chat_text(ApiShape::BedrockConverse, &bedrock).as_deref(),
+            Some("B")
+        );
 
         let oci = serde_json::json!({"chatResponse":{"choices":[{"message":{"content":[{"text":"C"}]}}]}});
         assert_eq!(chat_text(ApiShape::OciChat, &oci).as_deref(), Some("C"));
@@ -1799,15 +1972,24 @@ mod exec_tests {
     #[test]
     fn missing_text_is_none_not_empty_string() {
         // An empty string would read as a successful empty completion.
-        assert_eq!(chat_text(ApiShape::OpenAiChat, &serde_json::json!({})), None);
+        assert_eq!(
+            chat_text(ApiShape::OpenAiChat, &serde_json::json!({})),
+            None
+        );
     }
 
     #[test]
     fn usage_is_read_per_shape() {
         let bedrock = serde_json::json!({"usage":{"inputTokens":10,"outputTokens":3}});
-        assert_eq!(usage_pair(ApiShape::BedrockConverse, &bedrock), (Some(10), Some(3)));
+        assert_eq!(
+            usage_pair(ApiShape::BedrockConverse, &bedrock),
+            (Some(10), Some(3))
+        );
         let openai = serde_json::json!({"usage":{"prompt_tokens":7,"completion_tokens":2}});
-        assert_eq!(usage_pair(ApiShape::OpenAiChat, &openai), (Some(7), Some(2)));
+        assert_eq!(
+            usage_pair(ApiShape::OpenAiChat, &openai),
+            (Some(7), Some(2))
+        );
     }
 
     // ── Training ─────────────────────────────────────────────────────────────
@@ -1837,8 +2019,11 @@ mod exec_tests {
     #[test]
     fn bedrock_training_requires_role_and_output_and_says_so() {
         let spec = TrainingSpec {
-            base_model: "b".into(), training_data: "s3://in".into(),
-            validation_data: None, suffix: None, hyperparameters: HashMap::new(),
+            base_model: "b".into(),
+            training_data: "s3://in".into(),
+            validation_data: None,
+            suffix: None,
+            hyperparameters: HashMap::new(),
         };
         match training_body(ApiShape::BedrockCustomizationJob, &spec, &HashMap::new()) {
             Err(CloudError::MissingVar { var, .. }) => assert_eq!(var, "role_arn"),
@@ -1849,8 +2034,11 @@ mod exec_tests {
     #[test]
     fn a_chat_shape_is_rejected_as_a_training_shape() {
         let spec = TrainingSpec {
-            base_model: "b".into(), training_data: "d".into(),
-            validation_data: None, suffix: None, hyperparameters: HashMap::new(),
+            base_model: "b".into(),
+            training_data: "d".into(),
+            validation_data: None,
+            suffix: None,
+            hyperparameters: HashMap::new(),
         };
         assert!(training_body(ApiShape::OpenAiChat, &spec, &HashMap::new()).is_err());
     }
@@ -1858,11 +2046,17 @@ mod exec_tests {
     #[test]
     fn job_ids_are_read_per_cloud() {
         assert_eq!(
-            training_ids(ApiShape::AzureFineTune, &serde_json::json!({"id":"ft-1","status":"running"})),
+            training_ids(
+                ApiShape::AzureFineTune,
+                &serde_json::json!({"id":"ft-1","status":"running"})
+            ),
             (Some("ft-1".into()), Some("running".into()))
         );
         assert_eq!(
-            training_ids(ApiShape::WatsonxTraining, &serde_json::json!({"metadata":{"id":"t-1"},"entity":{"status":{"state":"pending"}}})),
+            training_ids(
+                ApiShape::WatsonxTraining,
+                &serde_json::json!({"metadata":{"id":"t-1"},"entity":{"status":{"state":"pending"}}})
+            ),
             (Some("t-1".into()), Some("pending".into()))
         );
     }
@@ -1873,23 +2067,39 @@ mod exec_tests {
     fn exact_and_contains_scoring() {
         assert!(score(&Expectation::Exact { value: "42".into() }, " 42 \n", None).0);
         assert!(!score(&Expectation::Exact { value: "42".into() }, "43", None).0);
-        assert!(score(&Expectation::Contains { value: "fn main".into() }, "pub fn main() {}", None).0);
+        assert!(
+            score(
+                &Expectation::Contains {
+                    value: "fn main".into()
+                },
+                "pub fn main() {}",
+                None
+            )
+            .0
+        );
     }
 
     #[test]
     fn excludes_names_the_offending_substring() {
         let (ok, detail) = score(
-            &Expectation::Excludes { values: vec!["unwrap(".into()] },
+            &Expectation::Excludes {
+                values: vec!["unwrap(".into()],
+            },
             "let x = y.unwrap();",
             None,
         );
         assert!(!ok);
-        assert!(detail.contains("unwrap("), "detail should name the hit: {detail}");
+        assert!(
+            detail.contains("unwrap("),
+            "detail should name the hit: {detail}"
+        );
     }
 
     #[test]
     fn json_pointer_scoring_requires_real_json() {
-        let e = Expectation::JsonPointer { pointer: "/name".into() };
+        let e = Expectation::JsonPointer {
+            pointer: "/name".into(),
+        };
         assert!(score(&e, r#"{"name":"x"}"#, None).0);
         assert!(!score(&e, r#"{"other":1}"#, None).0);
         assert!(!score(&e, "not json", None).0);
@@ -1903,19 +2113,29 @@ mod exec_tests {
         std::fs::create_dir_all(&dir).unwrap();
 
         let pass = score(
-            &Expectation::Command { file: "out.txt".into(), command: "grep -q hello out.txt".into() },
+            &Expectation::Command {
+                file: "out.txt".into(),
+                command: "grep -q hello out.txt".into(),
+            },
             "hello world",
             Some(&dir),
         );
         assert!(pass.0, "{}", pass.1);
 
         let fail = score(
-            &Expectation::Command { file: "out.txt".into(), command: "grep -q nothere out.txt".into() },
+            &Expectation::Command {
+                file: "out.txt".into(),
+                command: "grep -q nothere out.txt".into(),
+            },
             "hello world",
             Some(&dir),
         );
         assert!(!fail.0);
-        assert!(fail.1.contains("exited"), "should report the exit code: {}", fail.1);
+        assert!(
+            fail.1.contains("exited"),
+            "should report the exit code: {}",
+            fail.1
+        );
 
         let _ = std::fs::remove_dir_all(&dir);
     }
@@ -1923,11 +2143,17 @@ mod exec_tests {
     #[test]
     fn command_scoring_without_a_workdir_fails_rather_than_passing() {
         let (ok, _) = score(
-            &Expectation::Command { file: "f".into(), command: "true".into() },
+            &Expectation::Command {
+                file: "f".into(),
+                command: "true".into(),
+            },
             "x",
             None,
         );
-        assert!(!ok, "a case that cannot be executed must never count as a pass");
+        assert!(
+            !ok,
+            "a case that cannot be executed must never count as a pass"
+        );
     }
 
     #[test]
@@ -1950,7 +2176,10 @@ mod exec_tests {
         )
         .unwrap();
         assert_eq!(suite.cases.len(), 2);
-        assert_eq!(suite.cases[0].expect, Expectation::Exact { value: "4".into() });
+        assert_eq!(
+            suite.cases[0].expect,
+            Expectation::Exact { value: "4".into() }
+        );
         // `name` is accepted wherever `id` is.
         assert_eq!(suite.cases[1].id, "compiles");
     }
@@ -1970,7 +2199,10 @@ mod exec_tests {
         .unwrap_err()
         .to_string();
         assert!(err.contains("contian"), "should name the bad key: {err}");
-        assert!(err.contains("contains"), "should list the valid keys: {err}");
+        assert!(
+            err.contains("contains"),
+            "should list the valid keys: {err}"
+        );
     }
 
     #[test]
@@ -1987,7 +2219,10 @@ mod exec_tests {
         )
         .unwrap_err()
         .to_string();
-        assert!(err.contains("exactly one"), "should explain the conflict: {err}");
+        assert!(
+            err.contains("exactly one"),
+            "should explain the conflict: {err}"
+        );
     }
 
     #[test]
@@ -2015,10 +2250,18 @@ mod exec_tests {
     #[test]
     fn pass_rate_counts_errors_against_the_total() {
         let r = EvalReport {
-            suite: "s".into(), backend_id: "b".into(), model: "m".into(),
-            passed: 3, failed: 1, errored: 1, cases: vec![],
+            suite: "s".into(),
+            backend_id: "b".into(),
+            model: "m".into(),
+            passed: 3,
+            failed: 1,
+            errored: 1,
+            cases: vec![],
         };
-        assert!((r.pass_rate() - 0.6).abs() < 1e-9, "errors must not be excluded from the denominator");
+        assert!(
+            (r.pass_rate() - 0.6).abs() < 1e-9,
+            "errors must not be excluded from the denominator"
+        );
     }
 
     // ── Routing ──────────────────────────────────────────────────────────────
@@ -2030,10 +2273,18 @@ mod exec_tests {
     #[test]
     fn routing_picks_the_first_ready_backend_and_explains_the_skips() {
         let cfg = ConfigSource::memory().with_credential("digitalocean", "k");
-        let d = client_with(cfg).route(Stage::Serve, &RoutePolicy::FirstReady).unwrap();
+        let d = client_with(cfg)
+            .route(Stage::Serve, &RoutePolicy::FirstReady)
+            .unwrap();
         assert_eq!(d.backend_id, "digitalocean");
-        assert!(!d.skipped.is_empty(), "unconfigured backends should be reported");
-        assert!(d.skipped.iter().any(|(id, why)| id == "azure" && !why.is_empty()));
+        assert!(
+            !d.skipped.is_empty(),
+            "unconfigured backends should be reported"
+        );
+        assert!(d
+            .skipped
+            .iter()
+            .any(|(id, why)| id == "azure" && !why.is_empty()));
     }
 
     #[test]
@@ -2043,7 +2294,12 @@ mod exec_tests {
             .with_credential("custom_cloud", "k")
             .with_var("custom", "base_url", "http://localhost:8000/v1");
         let d = client_with(cfg)
-            .route(Stage::Serve, &RoutePolicy::Ordered { order: vec!["custom".into(), "digitalocean".into()] })
+            .route(
+                Stage::Serve,
+                &RoutePolicy::Ordered {
+                    order: vec!["custom".into(), "digitalocean".into()],
+                },
+            )
             .unwrap();
         assert_eq!(d.backend_id, "custom");
     }
@@ -2056,9 +2312,15 @@ mod exec_tests {
             .with_credential("custom_cloud", "k")
             .with_var("custom", "base_url", "http://localhost:8000/v1")
             .with_var("custom", "price_per_mtok", "0.10");
-        let d = client_with(cfg).route(Stage::Serve, &RoutePolicy::Cheapest).unwrap();
+        let d = client_with(cfg)
+            .route(Stage::Serve, &RoutePolicy::Cheapest)
+            .unwrap();
         assert_eq!(d.backend_id, "custom");
-        assert!(d.reason.contains("0.1"), "reason should quote the price: {}", d.reason);
+        assert!(
+            d.reason.contains("0.1"),
+            "reason should quote the price: {}",
+            d.reason
+        );
     }
 
     #[test]
@@ -2067,7 +2329,10 @@ mod exec_tests {
             .route(Stage::Serve, &RoutePolicy::FirstReady)
             .unwrap_err();
         let msg = err.to_string();
-        assert!(msg.contains("vibecli --cloud-ai status"), "should point at the diagnostic: {msg}");
+        assert!(
+            msg.contains("vibecli --cloud-ai status"),
+            "should point at the diagnostic: {msg}"
+        );
     }
 
     #[test]
@@ -2078,8 +2343,13 @@ mod exec_tests {
             .with_var("ibm", "region", "us-south")
             .with_var("ibm", "project_id", "p")
             .with_var("ibm", "api_version", "2024-10-08");
-        let d = client_with(cfg).route(Stage::Train, &RoutePolicy::FirstReady).unwrap();
-        assert_eq!(d.backend_id, "ibm", "a serve-only backend must never win a train route");
+        let d = client_with(cfg)
+            .route(Stage::Train, &RoutePolicy::FirstReady)
+            .unwrap();
+        assert_eq!(
+            d.backend_id, "ibm",
+            "a serve-only backend must never win a train route"
+        );
     }
 }
 
@@ -2149,7 +2419,10 @@ Cloud AI backends — serving, training, eval and routing.
 
 fn cli_list() -> anyhow::Result<()> {
     let catalog = Catalog::load()?;
-    println!("{:<15} {:<34} {:<12} {}", "ID", "PROVIDER", "STAGES", "ENDPOINTS VERIFIED");
+    println!(
+        "{:<15} {:<34} {:<12} {}",
+        "ID", "PROVIDER", "STAGES", "ENDPOINTS VERIFIED"
+    );
     println!("{}", "-".repeat(96));
     for b in &catalog.backends {
         let stages: Vec<String> = b.stages.iter().map(|s| s.to_string()).collect();
@@ -2169,7 +2442,10 @@ fn cli_list() -> anyhow::Result<()> {
 }
 
 fn cli_status(args: &[String]) -> anyhow::Result<()> {
-    let stage = args.first().and_then(|s| Stage::parse(s)).unwrap_or(Stage::Serve);
+    let stage = args
+        .first()
+        .and_then(|s| Stage::parse(s))
+        .unwrap_or(Stage::Serve);
     let client = CloudClient::open()?;
     println!("Readiness for the {stage} stage:\n");
     let mut ready = 0;
@@ -2211,7 +2487,10 @@ async fn cli_chat(args: &[String]) -> anyhow::Result<()> {
     let client = CloudClient::open()?;
     let req = ChatRequest {
         model: model.clone(),
-        messages: vec![ChatMessage { role: "user".into(), content: rest.join(" ") }],
+        messages: vec![ChatMessage {
+            role: "user".into(),
+            content: rest.join(" "),
+        }],
         max_tokens: Some(2048),
     };
     let resp = client.chat(backend, &req).await?;
@@ -2221,15 +2500,21 @@ async fn cli_chat(args: &[String]) -> anyhow::Result<()> {
         resp.backend_id,
         resp.model,
         resp.latency_ms,
-        resp.input_tokens.map(|t| t.to_string()).unwrap_or_else(|| "?".into()),
-        resp.output_tokens.map(|t| t.to_string()).unwrap_or_else(|| "?".into()),
+        resp.input_tokens
+            .map(|t| t.to_string())
+            .unwrap_or_else(|| "?".into()),
+        resp.output_tokens
+            .map(|t| t.to_string())
+            .unwrap_or_else(|| "?".into()),
     );
     Ok(())
 }
 
 async fn cli_train(args: &[String]) -> anyhow::Result<()> {
     let [backend, base_model, training_data, rest @ ..] = args else {
-        anyhow::bail!("usage: vibecli --cloud-ai train <backend> <base-model> <training-data> [suffix]");
+        anyhow::bail!(
+            "usage: vibecli --cloud-ai train <backend> <base-model> <training-data> [suffix]"
+        );
     };
     let client = CloudClient::open()?;
     let spec = TrainingSpec {
@@ -2240,8 +2525,14 @@ async fn cli_train(args: &[String]) -> anyhow::Result<()> {
         hyperparameters: HashMap::new(),
     };
     let job = client.submit_training(backend, &spec).await?;
-    println!("Submitted to {}: job {} ({})", job.backend_id, job.job_id, job.status);
-    println!("Poll with: vibecli --cloud-ai job {} {}", job.backend_id, job.job_id);
+    println!(
+        "Submitted to {}: job {} ({})",
+        job.backend_id, job.job_id, job.status
+    );
+    println!(
+        "Poll with: vibecli --cloud-ai job {} {}",
+        job.backend_id, job.job_id
+    );
     Ok(())
 }
 
@@ -2269,7 +2560,10 @@ async fn cli_eval(args: &[String]) -> anyhow::Result<()> {
 
     for case in &report.cases {
         let mark = if case.passed { "pass" } else { "FAIL" };
-        println!("  [{mark}] {:<28} {} ({}ms)", case.id, case.detail, case.latency_ms);
+        println!(
+            "  [{mark}] {:<28} {} ({}ms)",
+            case.id, case.detail, case.latency_ms
+        );
     }
     println!(
         "\n{}: {}/{} passed ({:.0}%) - {} failed, {} errored, on {}",
@@ -2282,13 +2576,18 @@ async fn cli_eval(args: &[String]) -> anyhow::Result<()> {
         report.backend_id,
     );
     if report.errored > 0 {
-        eprintln!("\nNote: errored cases count as not-passed; they are never scored optimistically.");
+        eprintln!(
+            "\nNote: errored cases count as not-passed; they are never scored optimistically."
+        );
     }
     Ok(())
 }
 
 fn cli_route(args: &[String]) -> anyhow::Result<()> {
-    let stage = args.first().and_then(|s| Stage::parse(s)).unwrap_or(Stage::Serve);
+    let stage = args
+        .first()
+        .and_then(|s| Stage::parse(s))
+        .unwrap_or(Stage::Serve);
     let policy = match args.get(1).map(String::as_str) {
         Some("cheapest") => RoutePolicy::Cheapest,
         Some(spec) if spec.starts_with("ordered:") => RoutePolicy::Ordered {

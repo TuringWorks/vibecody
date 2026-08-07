@@ -69,22 +69,38 @@ impl Provenance {
                 ProvenanceTag::Inferred
             }
         };
-        Self { source, tag, confidence }
+        Self {
+            source,
+            tag,
+            confidence,
+        }
     }
 
     /// An explicitly inferred edge with a custom confidence.
     pub fn inferred(confidence: f32) -> Self {
-        Self { source: EdgeSource::Inferred, tag: ProvenanceTag::Inferred, confidence }
+        Self {
+            source: EdgeSource::Inferred,
+            tag: ProvenanceTag::Inferred,
+            confidence,
+        }
     }
 
     /// An explicitly extracted edge with a custom confidence.
     pub fn extracted(source: EdgeSource, confidence: f32) -> Self {
-        Self { source, tag: ProvenanceTag::Extracted, confidence }
+        Self {
+            source,
+            tag: ProvenanceTag::Extracted,
+            confidence,
+        }
     }
 
     /// An ambiguous edge flagged for review.
     pub fn ambiguous(source: EdgeSource, confidence: f32) -> Self {
-        Self { source, tag: ProvenanceTag::Ambiguous, confidence }
+        Self {
+            source,
+            tag: ProvenanceTag::Ambiguous,
+            confidence,
+        }
     }
 }
 

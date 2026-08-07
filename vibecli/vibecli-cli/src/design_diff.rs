@@ -85,9 +85,7 @@ pub fn parse_design_diff(element: &SelectedElement, reply: &str) -> Result<Desig
         || lowered.contains("queryselector"))
         && !is_unified_diff(trimmed);
     if looks_like_dom_mutation {
-        return Err(
-            "rejected: reply looks like live-DOM mutation, not a source diff".to_string(),
-        );
+        return Err("rejected: reply looks like live-DOM mutation, not a source diff".to_string());
     }
 
     if !is_unified_diff(trimmed) {

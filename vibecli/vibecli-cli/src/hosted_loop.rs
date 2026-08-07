@@ -237,7 +237,10 @@ mod tests {
 
         // Terminal jobs are never due.
         jobs[0].status = LoopStatus::Stopped;
-        assert!(due_hosted_jobs(&jobs, 120, &last).is_empty() || !due_hosted_jobs(&jobs, 120, &last).contains(&"a".to_string()));
+        assert!(
+            due_hosted_jobs(&jobs, 120, &last).is_empty()
+                || !due_hosted_jobs(&jobs, 120, &last).contains(&"a".to_string())
+        );
     }
 
     #[test]

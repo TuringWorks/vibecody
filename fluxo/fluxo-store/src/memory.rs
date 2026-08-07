@@ -36,11 +36,17 @@ impl MemoryStore {
 impl Store for MemoryStore {
     async fn put_workflow_def(&self, def: &WorkflowDef) -> Result<()> {
         let mut inner = self.lock()?;
-        inner.defs.insert((def.name.clone(), def.version), def.clone());
+        inner
+            .defs
+            .insert((def.name.clone(), def.version), def.clone());
         Ok(())
     }
 
-    async fn get_workflow_def(&self, name: &str, version: Option<u32>) -> Result<Option<WorkflowDef>> {
+    async fn get_workflow_def(
+        &self,
+        name: &str,
+        version: Option<u32>,
+    ) -> Result<Option<WorkflowDef>> {
         let inner = self.lock()?;
         let found = match version {
             Some(v) => inner.defs.get(&(name.to_string(), v)).cloned(),
@@ -62,7 +68,10 @@ impl Store for MemoryStore {
     async fn create_run(&self, run: &WorkflowRun) -> Result<()> {
         let mut inner = self.lock()?;
         if inner.runs.contains_key(&run.workflow_id) {
-            return Err(StoreError::Conflict(format!("run {} exists", run.workflow_id)));
+            return Err(StoreError::Conflict(format!(
+                "run {} exists",
+                run.workflow_id
+            )));
         }
         inner.runs.insert(run.workflow_id.clone(), run.clone());
         Ok(())
@@ -85,7 +94,12 @@ impl Store for MemoryStore {
         Ok(inner
             .runs
             .values()
-            .filter(|r| wanted.as_deref().map(|w| status_str(&r.status) == w).unwrap_or(true))
+            .filter(|r| {
+                wanted
+                    .as_deref()
+                    .map(|w| status_str(&r.status) == w)
+                    .unwrap_or(true)
+            })
             .cloned()
             .collect())
     }

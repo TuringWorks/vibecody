@@ -61,7 +61,11 @@ pub fn render_report(graph: &CodeGraph) -> String {
         for e in surprising.iter().take(20) {
             s.push_str(&format!(
                 "| {} | {} | {} | {} | {} |\n",
-                e.from, e.to, e.kind.as_str(), e.from_file, e.to_file
+                e.from,
+                e.to,
+                e.kind.as_str(),
+                e.from_file,
+                e.to_file
             ));
         }
         s.push('\n');

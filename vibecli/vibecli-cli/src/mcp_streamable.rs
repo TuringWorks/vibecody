@@ -495,7 +495,10 @@ impl McpStreamableServer {
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string();
-                let progress = params.get("progress").and_then(|v| v.as_u64()).map(|v| v as u8);
+                let progress = params
+                    .get("progress")
+                    .and_then(|v| v.as_u64())
+                    .map(|v| v as u8);
                 let state = params
                     .get("state")
                     .and_then(|v| v.as_str())
@@ -504,7 +507,10 @@ impl McpStreamableServer {
                     Some(v) if !v.is_null() => Some(v.clone()),
                     _ => None,
                 };
-                let error = params.get("error").and_then(|v| v.as_str()).map(|s| s.to_string());
+                let error = params
+                    .get("error")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
                 self.tasks
                     .update(&tid, progress, state, result, error)
                     .map(|t| serde_json::to_value(t).unwrap_or_default())

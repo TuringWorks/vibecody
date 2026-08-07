@@ -2907,9 +2907,9 @@ mod exec_goal;
 #[allow(dead_code)]
 mod exec_goal_repl;
 // /loop — recurring + self-paced loop-until-done engine (gap C1).
+mod hosted_loop;
 #[allow(dead_code)]
 mod loop_engine;
-mod hosted_loop;
 mod sync_ext;
 // Recap & Resume — Phase D1.1: diffcomplete chain types + encrypted
 // store on workspace.db.
@@ -3161,7 +3161,6 @@ mod rl_runs;
 mod rl_runtime;
 #[allow(dead_code)]
 #[allow(dead_code)]
-
 #[derive(Parser)]
 #[command(name = "vibecli")]
 #[command(version)]
@@ -6443,7 +6442,9 @@ async fn main() -> Result<()> {
                                     }
                                 }
                                 _ => {
-                                    println!("Usage: /webmcp list  |  /webmcp call <tool> k=v ...\n");
+                                    println!(
+                                        "Usage: /webmcp list  |  /webmcp call <tool> k=v ...\n"
+                                    );
                                 }
                             }
                         }
@@ -6482,7 +6483,9 @@ async fn main() -> Result<()> {
                                     .unwrap_or_default(),
                             };
                             if files.is_empty() {
-                                println!("No files to process (none given and no git-changed files).\n");
+                                println!(
+                                    "No files to process (none given and no git-changed files).\n"
+                                );
                                 continue;
                             }
                             let mut wf = crate::dynamic_workflow::DynamicWorkflow::new(
@@ -6511,7 +6514,11 @@ async fn main() -> Result<()> {
                                         report.verified,
                                         report.failed,
                                         report.total,
-                                        if report.success { " — all passed" } else { "" }
+                                        if report.success {
+                                            " — all passed"
+                                        } else {
+                                            ""
+                                        }
                                     );
                                 }
                                 Err(e) => eprintln!("❌ workflow error: {e}\n"),

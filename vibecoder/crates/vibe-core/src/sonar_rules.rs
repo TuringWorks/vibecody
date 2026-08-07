@@ -3412,7 +3412,11 @@ mod tests {
         assert_eq!(count as usize, rules.len());
 
         let read = query_rules(&conn, None).unwrap();
-        assert_eq!(read.len(), rules.len(), "every rule survives the round trip");
+        assert_eq!(
+            read.len(),
+            rules.len(),
+            "every rule survives the round trip"
+        );
 
         // Tags must survive as data, not decay to empty.
         let tagged = rules.iter().filter(|r| !r.tags.is_empty()).count();

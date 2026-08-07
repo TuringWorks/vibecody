@@ -252,7 +252,10 @@ impl KvCacheCodec for NativeTurboQuantCodec {
             Device::Cpu => self.cpu_encode_fallback(tensor),
             device => {
                 // Materialise / refresh the device matrices.
-                let mut guard = self.device_matrices.lock().unwrap_or_else(|e| e.into_inner());
+                let mut guard = self
+                    .device_matrices
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner());
                 let needs_rebuild = match &*guard {
                     Some(dm) => !dm.device.same_device(device),
                     None => true,

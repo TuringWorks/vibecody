@@ -177,7 +177,10 @@ mod tests {
         .expect("parse");
         let mut run = new_run(&def, json!({}));
         drive(&def, &mut run, |t| {
-            Some((TaskStatus::Completed, json!({ "value": format!("{}-done", t.reference_name) })))
+            Some((
+                TaskStatus::Completed,
+                json!({ "value": format!("{}-done", t.reference_name) }),
+            ))
         });
         assert_eq!(run.status, WorkflowStatus::Completed);
         // b received a's output via expression.
@@ -214,7 +217,9 @@ mod tests {
 
         // Unknown value falls through to the default case.
         let mut run2 = new_run(&def, json!({ "lang": "de" }));
-        drive(&def, &mut run2, |_| Some((TaskStatus::Completed, json!({}))));
+        drive(&def, &mut run2, |_| {
+            Some((TaskStatus::Completed, json!({})))
+        });
         assert!(run2.task_by_ref("def_task").is_some());
         assert_eq!(run2.status, WorkflowStatus::Completed);
     }
@@ -260,7 +265,10 @@ mod tests {
         let mut run = new_run(&def, json!({}));
         drive(&def, &mut run, |_| Some((TaskStatus::Completed, json!({}))));
         assert_eq!(run.variables.get("tenant"), Some(&json!("acme")));
-        assert_eq!(run.task_by_ref("use").unwrap().input, json!({ "t": "acme" }));
+        assert_eq!(
+            run.task_by_ref("use").unwrap().input,
+            json!({ "t": "acme" })
+        );
     }
 
     #[test]
@@ -327,7 +335,11 @@ mod tests {
             }
         });
         assert_eq!(run.status, WorkflowStatus::Completed);
-        let attempts: Vec<_> = run.tasks.iter().filter(|t| t.reference_name == "w").collect();
+        let attempts: Vec<_> = run
+            .tasks
+            .iter()
+            .filter(|t| t.reference_name == "w")
+            .collect();
         assert_eq!(attempts.len(), 2, "one failure + one retry");
         assert_eq!(attempts.last().unwrap().status, TaskStatus::Completed);
     }
@@ -379,7 +391,10 @@ mod tests {
         // Apply it; with no retry budget, the next pass fails the workflow.
         run.tasks[0].status = TaskStatus::TimedOut;
         let decision = decide(&def, &run, 5000).expect("decide");
-        assert_eq!(decision.terminal.expect("terminal").status, WorkflowStatus::Failed);
+        assert_eq!(
+            decision.terminal.expect("terminal").status,
+            WorkflowStatus::Failed
+        );
     }
 
     #[test]
@@ -406,7 +421,10 @@ mod tests {
         assert!(run.task_by_ref("b__2").is_some());
         assert!(run.task_by_ref("b__3").is_some());
         assert!(run.task_by_ref("b__4").is_none(), "loops exactly 3 times");
-        assert_eq!(run.task_by_ref("loop").unwrap().status, TaskStatus::Completed);
+        assert_eq!(
+            run.task_by_ref("loop").unwrap().status,
+            TaskStatus::Completed
+        );
     }
 
     #[test]
@@ -493,6 +511,9 @@ mod tests {
             }
         });
         assert_eq!(run.status, WorkflowStatus::Completed);
-        assert!(run.task_by_ref("after").is_some(), "empty fork still proceeds");
+        assert!(
+            run.task_by_ref("after").is_some(),
+            "empty fork still proceeds"
+        );
     }
 }

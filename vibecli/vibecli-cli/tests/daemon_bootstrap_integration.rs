@@ -135,7 +135,10 @@ async fn real_daemon_identifies_itself_and_is_reused() {
     .await;
     match state {
         DaemonState::AlreadyRunning(id) => assert_eq!(id.version, identity.version),
-        other => panic!("expected AlreadyRunning, got {other:?} ({})", other.user_message()),
+        other => panic!(
+            "expected AlreadyRunning, got {other:?} ({})",
+            other.user_message()
+        ),
     }
 }
 
@@ -149,7 +152,10 @@ async fn a_foreign_listener_is_never_mistaken_for_the_daemon() {
         .expect("bind");
     let port = listener.local_addr().expect("addr").port();
 
-    assert!(port_is_occupied(port).await, "listener should hold the port");
+    assert!(
+        port_is_occupied(port).await,
+        "listener should hold the port"
+    );
     assert_eq!(probe(port).await, None, "a raw listener is not the daemon");
 
     let state = ensure_running(&BootstrapConfig {
@@ -161,7 +167,10 @@ async fn a_foreign_listener_is_never_mistaken_for_the_daemon() {
     assert!(!state.is_ready());
     // The message has to name the conflict and the way out.
     let msg = state.user_message();
-    assert!(msg.contains(&port.to_string()), "message must name the port: {msg}");
+    assert!(
+        msg.contains(&port.to_string()),
+        "message must name the port: {msg}"
+    );
     assert!(
         msg.contains("VIBECLI_DAEMON_PORT"),
         "message must offer the override: {msg}"

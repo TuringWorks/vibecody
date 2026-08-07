@@ -12,13 +12,19 @@ pub fn render_mermaid(graph: &CodeGraph, title: &str) -> String {
     s.push_str("flowchart LR\n");
     let bb = graph.backbone();
     for id in bb.node_indices() {
-        let Some(nd) = bb.node_weight(id) else { continue };
+        let Some(nd) = bb.node_weight(id) else {
+            continue;
+        };
         let label = mermaid_safe(&nd.label());
         s.push_str(&format!("  n{}[\"{}\"]\n", id.index(), label));
     }
     for e in bb.edge_indices() {
-        let Some((from, to)) = bb.edge_endpoints(e) else { continue };
-        let Some(ed) = bb.edge_weight(e) else { continue };
+        let Some((from, to)) = bb.edge_endpoints(e) else {
+            continue;
+        };
+        let Some(ed) = bb.edge_weight(e) else {
+            continue;
+        };
         s.push_str(&format!(
             "  n{} -.{}-> n{}\n",
             from.index(),
@@ -37,7 +43,9 @@ pub fn render_dot(graph: &CodeGraph, name: &str) -> String {
     s.push_str("  node [shape=box];\n");
     let bb = graph.backbone();
     for id in bb.node_indices() {
-        let Some(nd) = bb.node_weight(id) else { continue };
+        let Some(nd) = bb.node_weight(id) else {
+            continue;
+        };
         s.push_str(&format!(
             "  n{} [label=\"{}\"];\n",
             id.index(),
@@ -45,8 +53,12 @@ pub fn render_dot(graph: &CodeGraph, name: &str) -> String {
         ));
     }
     for e in bb.edge_indices() {
-        let Some((from, to)) = bb.edge_endpoints(e) else { continue };
-        let Some(ed) = bb.edge_weight(e) else { continue };
+        let Some((from, to)) = bb.edge_endpoints(e) else {
+            continue;
+        };
+        let Some(ed) = bb.edge_weight(e) else {
+            continue;
+        };
         s.push_str(&format!(
             "  n{} -> n{} [label=\"{}\"];\n",
             from.index(),
@@ -60,7 +72,13 @@ pub fn render_dot(graph: &CodeGraph, name: &str) -> String {
 
 fn mermaid_safe(s: &str) -> String {
     s.chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '_' { c } else { '_' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect()
 }
 
@@ -94,7 +112,12 @@ mod tests {
         let mut g = CodeGraph::new();
         let a = g.add_symbol(sym("alpha"));
         let b = g.add_symbol(sym("beta"));
-        g.add_edge(a, b, EdgeKind::Calls, Provenance::from_source(EdgeSource::TreeSitter));
+        g.add_edge(
+            a,
+            b,
+            EdgeKind::Calls,
+            Provenance::from_source(EdgeSource::TreeSitter),
+        );
         let m = render_mermaid(&g, "test");
         assert!(m.contains("flowchart LR"));
         assert!(m.contains("alpha"));
@@ -106,7 +129,12 @@ mod tests {
         let mut g = CodeGraph::new();
         let a = g.add_symbol(sym("a"));
         let b = g.add_symbol(sym("b"));
-        g.add_edge(a, b, EdgeKind::Imports, Provenance::from_source(EdgeSource::TreeSitter));
+        g.add_edge(
+            a,
+            b,
+            EdgeKind::Imports,
+            Provenance::from_source(EdgeSource::TreeSitter),
+        );
         let d = render_dot(&g, "g");
         assert!(d.starts_with("digraph g {"));
         assert!(d.contains("->"));

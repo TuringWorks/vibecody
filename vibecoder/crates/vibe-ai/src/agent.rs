@@ -3408,9 +3408,7 @@ mod reasoning_turn_tests {
         .await;
 
         assert!(
-            !events
-                .iter()
-                .any(|e| matches!(e, AgentEvent::Error(_))),
+            !events.iter().any(|e| matches!(e, AgentEvent::Error(_))),
             "step-limit exhaustion should not surface as a bare error",
         );
         let summary = completion_text(&events).unwrap_or_default();

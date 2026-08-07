@@ -122,11 +122,9 @@ impl DaemonState {
                 "Port {port} is in use by another program (it answered, but it is not VibeCLI). \
                  Stop it, or set VIBECLI_DAEMON_PORT to a free port and restart."
             ),
-            DaemonState::BinaryNotFound => {
-                "Could not find the `vibecli` binary. Install it with \
+            DaemonState::BinaryNotFound => "Could not find the `vibecli` binary. Install it with \
                  `cargo install --path vibecli/vibecli-cli`, or add it to your PATH."
-                    .to_string()
-            }
+                .to_string(),
             DaemonState::SpawnFailed { binary, error } => {
                 format!("Failed to launch {}: {error}", binary.display())
             }
@@ -480,9 +478,7 @@ mod tests {
             // Each message must point somewhere: a command, a variable, or a
             // path. A bare "failed" is what this type exists to prevent.
             assert!(
-                msg.contains("vibecli")
-                    || msg.contains("VIBECLI_DAEMON_PORT")
-                    || msg.contains('/'),
+                msg.contains("vibecli") || msg.contains("VIBECLI_DAEMON_PORT") || msg.contains('/'),
                 "{state:?} message is not actionable: {msg}"
             );
         }

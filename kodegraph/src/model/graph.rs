@@ -18,8 +18,9 @@ use petgraph::stable_graph::{EdgeIndex, NodeIndex, StableDiGraph};
 use petgraph::visit::EdgeRef;
 use serde::{Deserialize, Serialize};
 
-use super::edge::{ApiContract, CallEdge, EdgeKind, ImportEdge, Provenance,
-                  TypeRelation, TypeRelationType};
+use super::edge::{
+    ApiContract, CallEdge, EdgeKind, ImportEdge, Provenance, TypeRelation, TypeRelationType,
+};
 use super::hyperedge::Hyperedge;
 use super::symbol::Symbol;
 
@@ -135,7 +136,10 @@ impl CodeGraph {
         if let Some(id) = self.by_key.get(&key) {
             return *id;
         }
-        let id = self.g.add_node(NodeData::Module { name: name.clone(), file_path });
+        let id = self.g.add_node(NodeData::Module {
+            name: name.clone(),
+            file_path,
+        });
         self.by_key.insert(key, id);
         self.by_name.entry(name).or_default().push(id);
         id
@@ -192,7 +196,10 @@ impl CodeGraph {
 
     /// Record an import edge (file → file when both are known).
     pub fn add_import(&mut self, edge: ImportEdge) {
-        let from = self.by_key.get(&format!("file:{}", edge.source_file)).copied();
+        let from = self
+            .by_key
+            .get(&format!("file:{}", edge.source_file))
+            .copied();
         let to_key = format!("file:{}", edge.target);
         if let (Some(f), Some(t)) = (from, self.by_key.get(&to_key).copied()) {
             self.add_edge(f, t, EdgeKind::Imports, edge.provenance);
@@ -207,9 +214,9 @@ impl CodeGraph {
         if let (Some(f), Some(t)) = (from, to) {
             let kind = match rel.relation {
                 TypeRelationType::Implements | TypeRelationType::TraitImpl => EdgeKind::Implements,
-                TypeRelationType::Inherits | TypeRelationType::Extends | TypeRelationType::Mixin => {
-                    EdgeKind::Extends
-                }
+                TypeRelationType::Inherits
+                | TypeRelationType::Extends
+                | TypeRelationType::Mixin => EdgeKind::Extends,
             };
             self.add_edge(f, t, kind, rel.provenance);
         }
@@ -319,12 +326,18 @@ impl CodeGraph {
 
     /// All files/modules that import symbols from `target`.
     pub fn dependents(&self, target: &str) -> Vec<&ImportEdge> {
-        self.import_graph.iter().filter(|e| e.target == target).collect()
+        self.import_graph
+            .iter()
+            .filter(|e| e.target == target)
+            .collect()
     }
 
     /// All targets imported by `source_file`.
     pub fn dependencies(&self, source_file: &str) -> Vec<&ImportEdge> {
-        self.import_graph.iter().filter(|e| e.source_file == source_file).collect()
+        self.import_graph
+            .iter()
+            .filter(|e| e.source_file == source_file)
+            .collect()
     }
 
     // ── graph analysis (ported from dep_visualizer.rs) ────────────────────────
@@ -369,8 +382,14 @@ impl CodeGraph {
 
     /// Coupling for a node: `(fan_in, fan_out)` — incoming + outgoing edge counts.
     pub fn coupling(&self, id: NodeId) -> (usize, usize) {
-        let fan_in = self.g.edges_directed(id, petgraph::Direction::Incoming).count();
-        let fan_out = self.g.edges_directed(id, petgraph::Direction::Outgoing).count();
+        let fan_in = self
+            .g
+            .edges_directed(id, petgraph::Direction::Incoming)
+            .count();
+        let fan_out = self
+            .g
+            .edges_directed(id, petgraph::Direction::Outgoing)
+            .count();
         (fan_in, fan_out)
     }
 
@@ -401,7 +420,9 @@ impl CodeGraph {
             .g
             .node_indices()
             .filter(|id| {
-                self.g.node_weight(*id).map_or(false, |n| n.file_path() == Some(file_path))
+                self.g
+                    .node_weight(*id)
+                    .map_or(false, |n| n.file_path() == Some(file_path))
             })
             .collect();
         for id in to_remove {
@@ -418,8 +439,7 @@ impl CodeGraph {
         }
 
         // Re-validate type relations against surviving symbol nodes.
-        let surviving: HashSet<String> =
-            self.symbols().map(|s| s.qualified_name.clone()).collect();
+        let surviving: HashSet<String> = self.symbols().map(|s| s.qualified_name.clone()).collect();
         self.type_hierarchy
             .retain(|r| surviving.contains(&r.child) || surviving.contains(&r.parent));
     }
@@ -493,9 +513,24 @@ mod tests {
         let a = g.add_symbol(sym("a", "a.rs"));
         let b = g.add_symbol(sym("b", "b.rs"));
         let c = g.add_symbol(sym("c", "c.rs"));
-        g.add_edge(a, b, EdgeKind::Calls, Provenance::from_source(EdgeSource::TreeSitter));
-        g.add_edge(b, c, EdgeKind::Calls, Provenance::from_source(EdgeSource::TreeSitter));
-        g.add_edge(c, a, EdgeKind::Calls, Provenance::from_source(EdgeSource::TreeSitter));
+        g.add_edge(
+            a,
+            b,
+            EdgeKind::Calls,
+            Provenance::from_source(EdgeSource::TreeSitter),
+        );
+        g.add_edge(
+            b,
+            c,
+            EdgeKind::Calls,
+            Provenance::from_source(EdgeSource::TreeSitter),
+        );
+        g.add_edge(
+            c,
+            a,
+            EdgeKind::Calls,
+            Provenance::from_source(EdgeSource::TreeSitter),
+        );
         let cycles = g.detect_cycles();
         assert_eq!(cycles.len(), 1);
         assert_eq!(cycles[0].len(), 3);
@@ -506,7 +541,12 @@ mod tests {
         let mut g = CodeGraph::new();
         let a = g.add_symbol(sym("a", "a.rs"));
         let b = g.add_symbol(sym("b", "b.rs"));
-        g.add_edge(a, b, EdgeKind::Calls, Provenance::from_source(EdgeSource::TreeSitter));
+        g.add_edge(
+            a,
+            b,
+            EdgeKind::Calls,
+            Provenance::from_source(EdgeSource::TreeSitter),
+        );
         let (in_b, out_b) = g.coupling(b);
         assert_eq!((in_b, out_b), (1, 0));
         let (in_a, out_a) = g.coupling(a);
@@ -532,9 +572,18 @@ mod tests {
     fn provenance_defaults_match_source() {
         assert_eq!(Provenance::from_source(EdgeSource::Scip).confidence, 1.0);
         assert_eq!(Provenance::from_source(EdgeSource::Lsp).confidence, 0.95);
-        assert_eq!(Provenance::from_source(EdgeSource::TreeSitter).confidence, 0.7);
-        assert_eq!(Provenance::from_source(EdgeSource::Lsp).tag, ProvenanceTag::Extracted);
-        assert_eq!(Provenance::from_source(EdgeSource::TreeSitter).tag, ProvenanceTag::Inferred);
+        assert_eq!(
+            Provenance::from_source(EdgeSource::TreeSitter).confidence,
+            0.7
+        );
+        assert_eq!(
+            Provenance::from_source(EdgeSource::Lsp).tag,
+            ProvenanceTag::Extracted
+        );
+        assert_eq!(
+            Provenance::from_source(EdgeSource::TreeSitter).tag,
+            ProvenanceTag::Inferred
+        );
     }
 
     #[test]
@@ -556,8 +605,18 @@ mod tests {
         let a = g.add_symbol(sym("a", "a.rs"));
         let b = g.add_symbol(sym("b", "b.rs"));
         let c = g.add_symbol(sym("c", "c.rs"));
-        g.add_edge(a, b, EdgeKind::Calls, Provenance::from_source(EdgeSource::TreeSitter));
-        g.add_edge(b, c, EdgeKind::Calls, Provenance::from_source(EdgeSource::TreeSitter));
+        g.add_edge(
+            a,
+            b,
+            EdgeKind::Calls,
+            Provenance::from_source(EdgeSource::TreeSitter),
+        );
+        g.add_edge(
+            b,
+            c,
+            EdgeKind::Calls,
+            Provenance::from_source(EdgeSource::TreeSitter),
+        );
         let deps = g.transitive_deps(a);
         assert!(deps.contains(&a));
         assert!(deps.contains(&b));

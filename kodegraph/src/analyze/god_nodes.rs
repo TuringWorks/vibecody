@@ -46,7 +46,12 @@ pub fn god_nodes(graph: &CodeGraph, n: usize) -> Vec<GodNode> {
             let node = graph.node(id)?;
             let name = node.label();
             let file = node.file_path().unwrap_or("").to_string();
-            Some(GodNode { id, name, file, coupling })
+            Some(GodNode {
+                id,
+                name,
+                file,
+                coupling,
+            })
         })
         .collect()
 }
@@ -57,9 +62,14 @@ pub fn surprising_edges(graph: &CodeGraph) -> Vec<SurprisingEdge> {
     let backbone = graph.backbone();
     let mut out = Vec::new();
     for e in backbone.edge_indices() {
-        let Some((from, to)) = backbone.edge_endpoints(e) else { continue };
-        let Some(ed) = backbone.edge_weight(e) else { continue };
-        let (Some(from_node), Some(to_node)) = (backbone.node_weight(from), backbone.node_weight(to))
+        let Some((from, to)) = backbone.edge_endpoints(e) else {
+            continue;
+        };
+        let Some(ed) = backbone.edge_weight(e) else {
+            continue;
+        };
+        let (Some(from_node), Some(to_node)) =
+            (backbone.node_weight(from), backbone.node_weight(to))
         else {
             continue;
         };
@@ -99,8 +109,8 @@ fn tokens(s: &str) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::edge::Provenance;
     use crate::model::edge::EdgeSource;
+    use crate::model::edge::Provenance;
     use crate::model::symbol::{Language, Symbol, SymbolKind, Visibility};
 
     fn sym(name: &str, file: &str) -> Symbol {
@@ -141,6 +151,8 @@ mod tests {
         let p = Provenance::from_source(EdgeSource::TreeSitter);
         g.add_edge(auth, render, EdgeKind::Calls, p);
         let surprising = surprising_edges(&g);
-        assert!(surprising.iter().any(|s| s.from == "authenticate" && s.to == "render_tree"));
+        assert!(surprising
+            .iter()
+            .any(|s| s.from == "authenticate" && s.to == "render_tree"));
     }
 }

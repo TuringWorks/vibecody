@@ -157,9 +157,9 @@ pub mod quality_gates;
 pub mod stale_branch;
 // Claw-code parity — Wave 4: config/hooks
 pub mod config;
-pub mod daemon_bootstrap;
 pub mod config_layers;
 pub mod container_runtime;
+pub mod daemon_bootstrap;
 pub mod hook_abort;
 pub mod trust_resolution;
 // FIT-GAP v10 — Phase 40: Execution Engine (P0)
@@ -227,8 +227,8 @@ pub mod resume;
 // /goal — durable execution intent. See docs/design/goal/.
 pub mod exec_goal;
 // /loop — recurring + self-paced loop-until-done engine (gap C1).
-pub mod loop_engine;
 pub mod hosted_loop;
+pub mod loop_engine;
 pub mod sync_ext;
 // /goal — REPL handlers (display + direct-DB CRUD).
 pub mod exec_goal_repl;
@@ -358,9 +358,9 @@ pub mod ci;
 pub mod ci_status_check;
 pub mod clarifying_questions;
 pub mod cloud_agent;
+pub mod cloud_ai;
 pub mod cloud_autofix;
 pub mod cloud_ide;
-pub mod cloud_ai;
 pub mod cloud_providers;
 pub mod cloud_sandbox;
 pub mod code_replay;

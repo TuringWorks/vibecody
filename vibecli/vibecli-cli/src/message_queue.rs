@@ -162,9 +162,7 @@ impl MessageQueue {
 
     /// Return the number of messages currently in the queue.
     pub fn len(&self) -> usize {
-        self.inner
-            .lock_recover()
-            .len()
+        self.inner.lock_recover().len()
     }
 
     /// Return `true` when the queue contains no messages.
@@ -174,9 +172,7 @@ impl MessageQueue {
 
     /// Discard all queued messages.
     pub fn clear(&self) {
-        self.inner
-            .lock_recover()
-            .clear();
+        self.inner.lock_recover().clear();
     }
 
     /// Return the drain mode for this queue.

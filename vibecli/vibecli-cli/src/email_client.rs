@@ -244,23 +244,16 @@ impl EmailClient {
 
     fn auth_header(&self) -> String {
         // Brief lock — clone out and drop the guard before awaiting.
-        let tok = self
-            .access_token
-            .lock_recover()
-            .clone();
+        let tok = self.access_token.lock_recover().clone();
         format!("Bearer {}", tok)
     }
 
     fn current_access_token(&self) -> String {
-        self.access_token
-            .lock_recover()
-            .clone()
+        self.access_token.lock_recover().clone()
     }
 
     fn store_new_access_token(&self, new_token: &str) {
-        *self
-            .access_token
-            .lock_recover() = new_token.to_string();
+        *self.access_token.lock_recover() = new_token.to_string();
     }
 
     fn can_refresh(&self) -> bool {

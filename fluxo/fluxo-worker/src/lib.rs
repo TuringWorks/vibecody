@@ -165,7 +165,10 @@ impl Worker {
                 Ok(Some((parsed.workflow_id, parsed.task)))
             }
             204 => Ok(None),
-            code => Err(WorkerError::Status(code, response.text().await.unwrap_or_default())),
+            code => Err(WorkerError::Status(
+                code,
+                response.text().await.unwrap_or_default(),
+            )),
         }
     }
 
@@ -197,6 +200,9 @@ async fn ensure_success(response: reqwest::Response) -> Result<()> {
         Ok(())
     } else {
         let code = response.status().as_u16();
-        Err(WorkerError::Status(code, response.text().await.unwrap_or_default()))
+        Err(WorkerError::Status(
+            code,
+            response.text().await.unwrap_or_default(),
+        ))
     }
 }

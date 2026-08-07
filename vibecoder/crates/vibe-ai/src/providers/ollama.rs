@@ -535,9 +535,7 @@ impl AIProvider for OllamaProvider {
                             if let Some(msg) = response.message {
                                 let mut open =
                                     thinking_open.lock().unwrap_or_else(|e| e.into_inner());
-                                if let Some(t) =
-                                    msg.thinking.as_deref().filter(|t| !t.is_empty())
-                                {
+                                if let Some(t) = msg.thinking.as_deref().filter(|t| !t.is_empty()) {
                                     if !*open {
                                         result.push_str("<thinking>");
                                         *open = true;
@@ -883,7 +881,8 @@ mod tests {
 
     #[test]
     fn thinking_field_is_captured() {
-        let json = r#"{"message":{"role":"assistant","content":"","thinking":"pondering"},"done":false}"#;
+        let json =
+            r#"{"message":{"role":"assistant","content":"","thinking":"pondering"},"done":false}"#;
         let resp: OllamaChatResponse = serde_json::from_str(json).unwrap();
         let msg = resp.message.unwrap();
         assert_eq!(msg.thinking.as_deref(), Some("pondering"));

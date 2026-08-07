@@ -61,7 +61,9 @@ pub fn run() {
     }
 
     // Initialize workspace
-    let workspace = Arc::new(Mutex::new(Workspace::new("VibeCoder Workspace".to_string())));
+    let workspace = Arc::new(Mutex::new(Workspace::new(
+        "VibeCoder Workspace".to_string(),
+    )));
 
     // Load AI configuration — resolve from ~/.vibecoder/vibe.toml so it works
     // when the app is launched from Finder (where cwd is /).

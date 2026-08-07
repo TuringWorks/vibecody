@@ -41,7 +41,14 @@ use std::path::{Path, PathBuf};
 
 /// Directories that hold credentials or daemon state. Any normalized
 /// component matching one of these (case-insensitively) is denied.
-pub const DENIED_SEGMENTS: &[&str] = &[".vibecli", ".vibecoder", ".claude", ".ssh", ".aws", ".gnupg"];
+pub const DENIED_SEGMENTS: &[&str] = &[
+    ".vibecli",
+    ".vibecoder",
+    ".claude",
+    ".ssh",
+    ".aws",
+    ".gnupg",
+];
 
 /// Filenames that hold credentials directly. Any path whose final
 /// component matches one of these (case-insensitively) is denied,

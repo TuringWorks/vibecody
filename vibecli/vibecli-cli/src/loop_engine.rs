@@ -652,8 +652,8 @@ mod tests {
 
     #[test]
     fn parse_extracts_secret_flags_from_prompt() {
-        let spec = parse_loop_args("5m --secret OPENAI_KEY deploy the service --secret DB_URL")
-            .unwrap();
+        let spec =
+            parse_loop_args("5m --secret OPENAI_KEY deploy the service --secret DB_URL").unwrap();
         assert_eq!(spec.prompt, "deploy the service");
         assert_eq!(spec.secrets, vec!["OPENAI_KEY", "DB_URL"]);
 
@@ -684,7 +684,10 @@ mod tests {
             resolve_loop_secrets(&names, |k| store.get(k).map(|v| v.to_string()));
         assert_eq!(
             resolved,
-            vec![("A".to_string(), "1".to_string()), ("C".to_string(), "3".to_string())]
+            vec![
+                ("A".to_string(), "1".to_string()),
+                ("C".to_string(), "3".to_string())
+            ]
         );
         assert_eq!(missing, vec!["B".to_string()]);
     }

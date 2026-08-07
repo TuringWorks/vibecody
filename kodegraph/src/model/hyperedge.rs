@@ -37,7 +37,11 @@ impl Hyperedge {
     /// Construct a hyperedge, rejecting groups with fewer than 2 members (a 1-member
     /// "hyperedge" is just a node).
     pub fn new(label: impl Into<String>, kind: HyperedgeKind, members: Vec<String>) -> Self {
-        Self { label: label.into(), kind, members }
+        Self {
+            label: label.into(),
+            kind,
+            members,
+        }
     }
 
     /// True if this hyperedge has at least 3 members (the "hyper" threshold).

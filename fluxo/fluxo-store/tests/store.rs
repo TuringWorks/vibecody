@@ -52,9 +52,29 @@ async fn exercise(store: &dyn Store) {
     // Definition versioning.
     store.put_workflow_def(&sample_def(1)).await.unwrap();
     store.put_workflow_def(&sample_def(2)).await.unwrap();
-    assert_eq!(store.get_workflow_def("demo", None).await.unwrap().unwrap().version, 2);
-    assert_eq!(store.get_workflow_def("demo", Some(1)).await.unwrap().unwrap().version, 1);
-    assert!(store.get_workflow_def("missing", None).await.unwrap().is_none());
+    assert_eq!(
+        store
+            .get_workflow_def("demo", None)
+            .await
+            .unwrap()
+            .unwrap()
+            .version,
+        2
+    );
+    assert_eq!(
+        store
+            .get_workflow_def("demo", Some(1))
+            .await
+            .unwrap()
+            .unwrap()
+            .version,
+        1
+    );
+    assert!(store
+        .get_workflow_def("missing", None)
+        .await
+        .unwrap()
+        .is_none());
     assert_eq!(store.list_workflow_defs().await.unwrap().len(), 2);
 
     // Run round-trip + durability.
@@ -64,14 +84,36 @@ async fn exercise(store: &dyn Store) {
     assert_eq!(fetched.tasks.len(), 1);
 
     // Status filter.
-    assert_eq!(store.list_runs(Some(WorkflowStatus::Running)).await.unwrap().len(), 1);
-    assert_eq!(store.list_runs(Some(WorkflowStatus::Completed)).await.unwrap().len(), 0);
+    assert_eq!(
+        store
+            .list_runs(Some(WorkflowStatus::Running))
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        store
+            .list_runs(Some(WorkflowStatus::Completed))
+            .await
+            .unwrap()
+            .len(),
+        0
+    );
 
     // Poll claims the scheduled worker task and flips it to InProgress.
-    let polled = store.poll_task("do_work", "worker-x").await.unwrap().unwrap();
+    let polled = store
+        .poll_task("do_work", "worker-x")
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(polled.task.reference_name, "w");
     assert_eq!(polled.task.status, TaskStatus::InProgress);
-    assert!(store.poll_task("do_work", "worker-x").await.unwrap().is_none());
+    assert!(store
+        .poll_task("do_work", "worker-x")
+        .await
+        .unwrap()
+        .is_none());
 
     // The claim persisted.
     let after = store.get_run("wf-a").await.unwrap().unwrap();

@@ -23,7 +23,9 @@ pub fn validate(def: &WorkflowDef) -> Result<()> {
         return Err(FluxoError::InvalidDefinition("name is empty".into()));
     }
     if def.tasks.is_empty() {
-        return Err(FluxoError::InvalidDefinition("workflow has no tasks".into()));
+        return Err(FluxoError::InvalidDefinition(
+            "workflow has no tasks".into(),
+        ));
     }
 
     let mut refs = BTreeSet::new();
@@ -68,8 +70,10 @@ fn validate_tasks(tasks: &[WorkflowTask], all_refs: &BTreeSet<String>) -> Result
     for (i, t) in tasks.iter().enumerate() {
         match t.task_type {
             TaskType::ForkJoinDynamic => {
-                let next_is_join =
-                    tasks.get(i + 1).map(|n| n.task_type == TaskType::Join).unwrap_or(false);
+                let next_is_join = tasks
+                    .get(i + 1)
+                    .map(|n| n.task_type == TaskType::Join)
+                    .unwrap_or(false);
                 if !next_is_join {
                     return Err(FluxoError::InvalidDefinition(format!(
                         "dynamic fork '{}' must be immediately followed by a JOIN",
@@ -117,7 +121,12 @@ fn validate_tasks(tasks: &[WorkflowTask], all_refs: &BTreeSet<String>) -> Result
                         t.task_reference_name
                     )));
                 }
-                if t.loop_condition.as_deref().map(str::trim).unwrap_or("").is_empty() {
+                if t.loop_condition
+                    .as_deref()
+                    .map(str::trim)
+                    .unwrap_or("")
+                    .is_empty()
+                {
                     return Err(FluxoError::InvalidDefinition(format!(
                         "do-while '{}' has no loopCondition",
                         t.task_reference_name

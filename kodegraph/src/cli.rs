@@ -48,14 +48,9 @@ pub enum Cmd {
         budget: usize,
     },
     /// Find the shortest path between two named symbols.
-    Path {
-        from: String,
-        to: String,
-    },
+    Path { from: String, to: String },
     /// Explain a symbol: node + neighbors + 2-hop blast radius.
-    Explain {
-        name: String,
-    },
+    Explain { name: String },
     /// Render the graph backbone.
     Viz {
         /// Emit Mermaid.
@@ -105,7 +100,10 @@ pub fn run() -> Result<()> {
             let nbrs = query::get_neighbors(&g, &name);
             println!(
                 "neighbors: {}",
-                nbrs.iter().map(|n| n.label()).collect::<Vec<_>>().join(", ")
+                nbrs.iter()
+                    .map(|n| n.label())
+                    .collect::<Vec<_>>()
+                    .join(", ")
             );
             let br = query::blast_radius(&g, &name, 2);
             println!("blast radius (2 hops): {} affected", br.affected());
@@ -181,7 +179,10 @@ fn build(path: &Path, out: &Path, db: &Path, quiet: bool) -> Result<()> {
 
 fn load(db: &Path) -> Result<crate::model::graph::CodeGraph> {
     let store = SQLiteStore::open(db)?;
-    store
-        .load_graph()?
-        .ok_or_else(|| anyhow!("no graph at {}. Run `kodegraph build <dir>` first.", db.display()))
+    store.load_graph()?.ok_or_else(|| {
+        anyhow!(
+            "no graph at {}. Run `kodegraph build <dir>` first.",
+            db.display()
+        )
+    })
 }

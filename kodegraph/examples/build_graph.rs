@@ -6,9 +6,7 @@ use kodegraph::builder::CodeGraphBuilder;
 use kodegraph::query;
 
 fn main() -> anyhow::Result<()> {
-    let dir = std::env::args()
-        .nth(1)
-        .unwrap_or_else(|| ".".to_string());
+    let dir = std::env::args().nth(1).unwrap_or_else(|| ".".to_string());
 
     let (graph, _hashes) = CodeGraphBuilder::new().scan_dir(&dir)?.build()?;
 
@@ -27,7 +25,11 @@ fn main() -> anyhow::Result<()> {
 
     // Sample query: anything matching "build".
     let sub = query::query_graph(&graph, "build", 500);
-    println!("query 'build' -> {} nodes, ~{} tokens", sub.nodes.len(), sub.est_tokens);
+    println!(
+        "query 'build' -> {} nodes, ~{} tokens",
+        sub.nodes.len(),
+        sub.est_tokens
+    );
 
     Ok(())
 }

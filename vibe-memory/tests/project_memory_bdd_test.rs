@@ -204,12 +204,11 @@ async fn delete_memory_by_id() {
     // closure body, so the contents are materialised first rather than
     // borrowing a temporary that would be dropped before the await.
     let contents: Vec<String> = (0..5).map(|i| format!("Memory {}", i)).collect();
-    let ids: Vec<_> =
-        futures::future::join_all(contents.iter().map(|c| store.store(c, None)))
-            .await
-            .into_iter()
-            .map(|r| r.expect("store").id)
-            .collect();
+    let ids: Vec<_> = futures::future::join_all(contents.iter().map(|c| store.store(c, None)))
+        .await
+        .into_iter()
+        .map(|r| r.expect("store").id)
+        .collect();
 
     assert_eq!(ids.len(), 5);
 

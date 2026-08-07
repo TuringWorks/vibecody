@@ -136,7 +136,12 @@ const DEEPSEEK: &[&str] = &[
 
 const CEREBRAS: &[&str] = &["gpt-oss-120b", "gemma-4-31b", "zai-glm-4.7"];
 
-const PERPLEXITY: &[&str] = &["sonar-pro", "sonar", "sonar-reasoning-pro", "sonar-deep-research"];
+const PERPLEXITY: &[&str] = &[
+    "sonar-pro",
+    "sonar",
+    "sonar-reasoning-pro",
+    "sonar-deep-research",
+];
 
 const TOGETHER: &[&str] = &[
     "moonshotai/Kimi-K2.7-Code",
@@ -292,6 +297,10 @@ mod tests {
             );
         }
         let set: HashSet<_> = OLLAMA_CHAT_MODELS.iter().collect();
-        assert_eq!(set.len(), OLLAMA_CHAT_MODELS.len(), "duplicate ollama chat model");
+        assert_eq!(
+            set.len(),
+            OLLAMA_CHAT_MODELS.len(),
+            "duplicate ollama chat model"
+        );
     }
 }

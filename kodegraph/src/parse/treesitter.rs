@@ -27,41 +27,121 @@ struct KindSpec {
 
 fn rust_specs() -> &'static [KindSpec] {
     &[
-        KindSpec { kind: "function_item", symbol_kind: SymbolKind::Function, name_field: Some("name") },
-        KindSpec { kind: "struct_item", symbol_kind: SymbolKind::Struct, name_field: Some("name") },
-        KindSpec { kind: "enum_item", symbol_kind: SymbolKind::Enum, name_field: Some("name") },
-        KindSpec { kind: "trait_item", symbol_kind: SymbolKind::Trait, name_field: Some("name") },
-        KindSpec { kind: "type_item", symbol_kind: SymbolKind::TypeAlias, name_field: Some("name") },
-        KindSpec { kind: "const_item", symbol_kind: SymbolKind::Constant, name_field: Some("name") },
-        KindSpec { kind: "mod_item", symbol_kind: SymbolKind::Module, name_field: Some("name") },
-        KindSpec { kind: "union_item", symbol_kind: SymbolKind::Struct, name_field: Some("name") },
+        KindSpec {
+            kind: "function_item",
+            symbol_kind: SymbolKind::Function,
+            name_field: Some("name"),
+        },
+        KindSpec {
+            kind: "struct_item",
+            symbol_kind: SymbolKind::Struct,
+            name_field: Some("name"),
+        },
+        KindSpec {
+            kind: "enum_item",
+            symbol_kind: SymbolKind::Enum,
+            name_field: Some("name"),
+        },
+        KindSpec {
+            kind: "trait_item",
+            symbol_kind: SymbolKind::Trait,
+            name_field: Some("name"),
+        },
+        KindSpec {
+            kind: "type_item",
+            symbol_kind: SymbolKind::TypeAlias,
+            name_field: Some("name"),
+        },
+        KindSpec {
+            kind: "const_item",
+            symbol_kind: SymbolKind::Constant,
+            name_field: Some("name"),
+        },
+        KindSpec {
+            kind: "mod_item",
+            symbol_kind: SymbolKind::Module,
+            name_field: Some("name"),
+        },
+        KindSpec {
+            kind: "union_item",
+            symbol_kind: SymbolKind::Struct,
+            name_field: Some("name"),
+        },
     ]
 }
 
 fn ts_specs() -> &'static [KindSpec] {
     &[
-        KindSpec { kind: "function_declaration", symbol_kind: SymbolKind::Function, name_field: Some("name") },
-        KindSpec { kind: "class_declaration", symbol_kind: SymbolKind::Class, name_field: Some("name") },
-        KindSpec { kind: "interface_declaration", symbol_kind: SymbolKind::Interface, name_field: Some("name") },
-        KindSpec { kind: "enum_declaration", symbol_kind: SymbolKind::Enum, name_field: Some("name") },
-        KindSpec { kind: "type_alias_declaration", symbol_kind: SymbolKind::TypeAlias, name_field: Some("name") },
-        KindSpec { kind: "method_definition", symbol_kind: SymbolKind::Method, name_field: Some("name") },
-        KindSpec { kind: "class", symbol_kind: SymbolKind::Class, name_field: None },
-        KindSpec { kind: "function", symbol_kind: SymbolKind::Function, name_field: Some("name") },
+        KindSpec {
+            kind: "function_declaration",
+            symbol_kind: SymbolKind::Function,
+            name_field: Some("name"),
+        },
+        KindSpec {
+            kind: "class_declaration",
+            symbol_kind: SymbolKind::Class,
+            name_field: Some("name"),
+        },
+        KindSpec {
+            kind: "interface_declaration",
+            symbol_kind: SymbolKind::Interface,
+            name_field: Some("name"),
+        },
+        KindSpec {
+            kind: "enum_declaration",
+            symbol_kind: SymbolKind::Enum,
+            name_field: Some("name"),
+        },
+        KindSpec {
+            kind: "type_alias_declaration",
+            symbol_kind: SymbolKind::TypeAlias,
+            name_field: Some("name"),
+        },
+        KindSpec {
+            kind: "method_definition",
+            symbol_kind: SymbolKind::Method,
+            name_field: Some("name"),
+        },
+        KindSpec {
+            kind: "class",
+            symbol_kind: SymbolKind::Class,
+            name_field: None,
+        },
+        KindSpec {
+            kind: "function",
+            symbol_kind: SymbolKind::Function,
+            name_field: Some("name"),
+        },
     ]
 }
 
 fn py_specs() -> &'static [KindSpec] {
     &[
-        KindSpec { kind: "function_definition", symbol_kind: SymbolKind::Function, name_field: Some("name") },
-        KindSpec { kind: "class_definition", symbol_kind: SymbolKind::Class, name_field: Some("name") },
+        KindSpec {
+            kind: "function_definition",
+            symbol_kind: SymbolKind::Function,
+            name_field: Some("name"),
+        },
+        KindSpec {
+            kind: "class_definition",
+            symbol_kind: SymbolKind::Class,
+            name_field: Some("name"),
+        },
     ]
 }
 
 fn go_specs() -> &'static [KindSpec] {
     &[
-        KindSpec { kind: "function_declaration", symbol_kind: SymbolKind::Function, name_field: Some("name") },
-        KindSpec { kind: "method_declaration", symbol_kind: SymbolKind::Method, name_field: Some("name") },
+        KindSpec {
+            kind: "function_declaration",
+            symbol_kind: SymbolKind::Function,
+            name_field: Some("name"),
+        },
+        KindSpec {
+            kind: "method_declaration",
+            symbol_kind: SymbolKind::Method,
+            name_field: Some("name"),
+        },
     ]
 }
 
@@ -433,7 +513,9 @@ fn parse_ts_import(raw: &str, node: &Node<'_>, src: &str) -> (String, Vec<String
     let mut cursor = node.walk();
     for child in node.named_children(&mut cursor) {
         if child.kind() == "string" {
-            target = text_of(&child, src).trim_matches(|c| c == '\'' || c == '"' || c == '`').to_string();
+            target = text_of(&child, src)
+                .trim_matches(|c| c == '\'' || c == '"' || c == '`')
+                .to_string();
         }
     }
     if target.is_empty() {
@@ -502,9 +584,15 @@ pub fn build_temp_provider(name: &str) -> u32 {
 fn helper(y: &str) -> u32 { 0 }
 "#;
         let parsed = p.parse_file(&PathBuf::from("builder.rs"), src, Language::Rust);
-        assert!(parsed.symbols.iter().any(|s| s.name == "build_temp_provider"));
+        assert!(parsed
+            .symbols
+            .iter()
+            .any(|s| s.name == "build_temp_provider"));
         assert!(parsed.symbols.iter().any(|s| s.name == "helper"));
-        assert!(parsed.calls.iter().any(|c| c.callee == "helper" && c.caller.contains("build_temp_provider")));
+        assert!(parsed
+            .calls
+            .iter()
+            .any(|c| c.callee == "helper" && c.caller.contains("build_temp_provider")));
     }
 
     #[test]
@@ -518,8 +606,14 @@ pub struct CodeGraph { nodes: usize }
 pub trait Parser { fn parse_file(&self); }
 "#;
         let parsed = p.parse_file(&PathBuf::from("model.rs"), src, Language::Rust);
-        assert!(parsed.symbols.iter().any(|s| s.name == "CodeGraph" && s.kind == SymbolKind::Struct));
-        assert!(parsed.symbols.iter().any(|s| s.name == "Parser" && s.kind == SymbolKind::Trait));
+        assert!(parsed
+            .symbols
+            .iter()
+            .any(|s| s.name == "CodeGraph" && s.kind == SymbolKind::Struct));
+        assert!(parsed
+            .symbols
+            .iter()
+            .any(|s| s.name == "Parser" && s.kind == SymbolKind::Trait));
         assert!(parsed.imports.iter().any(|i| i.target.contains("HashMap")));
     }
 
@@ -569,7 +663,10 @@ func Build(name string) int {
 "#;
         let parsed = p.parse_file(&PathBuf::from("builder.go"), src, Language::Go);
         assert!(parsed.symbols.iter().any(|s| s.name == "Build"));
-        assert!(parsed.calls.iter().any(|c| c.callee == "Println" || c.callee == "helper"));
+        assert!(parsed
+            .calls
+            .iter()
+            .any(|c| c.callee == "Println" || c.callee == "helper"));
         assert!(parsed.imports.iter().any(|i| i.target == "fmt"));
     }
 

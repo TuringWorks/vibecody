@@ -179,7 +179,14 @@ impl Sandbox for HyperlightSandbox {
 /// Reject bind sources that traverse a credential directory. Same
 /// deny-list parity as Tier-0 native + Tier-3 Firecracker.
 fn validate_bind_path(host: &Path) -> Result<()> {
-    const DENIED_SEGMENTS: &[&str] = &[".vibecli", ".vibecoder", ".claude", ".ssh", ".aws", ".gnupg"];
+    const DENIED_SEGMENTS: &[&str] = &[
+        ".vibecli",
+        ".vibecoder",
+        ".claude",
+        ".ssh",
+        ".aws",
+        ".gnupg",
+    ];
     const DENIED_FILENAMES: &[&str] = &[
         "daemon.token",
         "profile_settings.db",

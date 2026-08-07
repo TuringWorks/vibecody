@@ -29,7 +29,9 @@ impl SQLiteStore {
                 hash TEXT NOT NULL
              );",
         )?;
-        Ok(Self { conn: std::sync::Mutex::new(conn) })
+        Ok(Self {
+            conn: std::sync::Mutex::new(conn),
+        })
     }
 
     /// Open an in-memory store (useful for tests + ephemeral sessions).
@@ -39,7 +41,9 @@ impl SQLiteStore {
             "CREATE TABLE IF NOT EXISTS graph (id INTEGER PRIMARY KEY, payload TEXT NOT NULL, updated_at TEXT NOT NULL);
              CREATE TABLE IF NOT EXISTS file_hashes (path TEXT PRIMARY KEY, hash TEXT NOT NULL);",
         )?;
-        Ok(Self { conn: std::sync::Mutex::new(conn) })
+        Ok(Self {
+            conn: std::sync::Mutex::new(conn),
+        })
     }
 }
 
@@ -61,8 +65,8 @@ impl Store for SQLiteStore {
         let row: rusqlite::Result<String> = stmt.query_row([], |r| r.get(0));
         match row {
             Ok(payload) => {
-                let g: CodeGraph = serde_json::from_str(&payload)
-                    .map_err(|e| anyhow!("decode graph: {e}"))?;
+                let g: CodeGraph =
+                    serde_json::from_str(&payload).map_err(|e| anyhow!("decode graph: {e}"))?;
                 Ok(Some(g))
             }
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
@@ -91,8 +95,7 @@ impl Store for SQLiteStore {
             |r| r.get(0),
         );
         match row {
-            Ok(json) => Ok(FileHashes::from_json(&json)
-                .unwrap_or_else(|_| FileHashes::new())),
+            Ok(json) => Ok(FileHashes::from_json(&json).unwrap_or_else(|_| FileHashes::new())),
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(FileHashes::new()),
             Err(e) => Err(e.into()),
         }

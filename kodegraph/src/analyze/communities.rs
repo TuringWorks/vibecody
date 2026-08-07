@@ -101,7 +101,11 @@ impl CommunityDetector {
                 .node_weight(seed)
                 .map(NodeData::label)
                 .unwrap_or_else(|| format!("community_{}", seed.index()));
-            out.push(Community { id: seed, label, members });
+            out.push(Community {
+                id: seed,
+                label,
+                members,
+            });
         }
         // Largest communities first.
         out.sort_by(|a, b| b.members.len().cmp(&a.members.len()));

@@ -36,7 +36,9 @@ fn file_uri(path: &Path) -> Result<Uri> {
     Uri::from_str(url.as_str()).map_err(|e| anyhow!("bad uri: {e}"))
 }
 
-use crate::model::edge::{CallEdge, CallType, EdgeSource, Provenance, TypeRelation, TypeRelationType};
+use crate::model::edge::{
+    CallEdge, CallType, EdgeSource, Provenance, TypeRelation, TypeRelationType,
+};
 use crate::model::symbol::{Language, Symbol};
 use crate::parse::EdgeProvider;
 
@@ -72,8 +74,16 @@ impl LspClient {
             .map_err(|e| anyhow!("failed to spawn {cmd}: {e}"))?;
         let stdin = child.stdin.take().expect("stdin piped");
         let stdout = BufReader::new(child.stdout.take().expect("stdout piped"));
-        let inner = LspClientInner { stdin, stdout, next_id: AtomicU64::new(1) };
-        let client = Self { inner: Mutex::new(inner), root: root.to_path_buf(), language };
+        let inner = LspClientInner {
+            stdin,
+            stdout,
+            next_id: AtomicU64::new(1),
+        };
+        let client = Self {
+            inner: Mutex::new(inner),
+            root: root.to_path_buf(),
+            language,
+        };
 
         // initialize
         let root_uri = Url::from_file_path(&client.root).map_err(|_| anyhow!("bad root path"))?;
@@ -94,7 +104,12 @@ impl LspClient {
         let id = inner.next_id.fetch_add(1, Ordering::SeqCst);
         let body = json!({ "jsonrpc": "2.0", "id": id, "method": method, "params": params });
         let serialized = serde_json::to_string(&body)?;
-        write!(inner.stdin, "Content-Length: {}\r\n\r\n{}", serialized.len(), serialized)?;
+        write!(
+            inner.stdin,
+            "Content-Length: {}\r\n\r\n{}",
+            serialized.len(),
+            serialized
+        )?;
         inner.stdin.flush()?;
 
         // Read frames until we get a response with our id.
@@ -115,7 +130,12 @@ impl LspClient {
         let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         let body = json!({ "jsonrpc": "2.0", "method": method, "params": params });
         let serialized = serde_json::to_string(&body)?;
-        write!(inner.stdin, "Content-Length: {}\r\n\r\n{}", serialized.len(), serialized)?;
+        write!(
+            inner.stdin,
+            "Content-Length: {}\r\n\r\n{}",
+            serialized.len(),
+            serialized
+        )?;
         inner.stdin.flush()?;
         Ok(())
     }
@@ -179,7 +199,10 @@ impl LspEdgeProvider {
             },
             work_done_progress_params: WorkDoneProgressParams::default(),
         };
-        let res = self.client.request("textDocument/prepareCallHierarchy", serde_json::to_value(&params)?)?;
+        let res = self.client.request(
+            "textDocument/prepareCallHierarchy",
+            serde_json::to_value(&params)?,
+        )?;
         let items: Vec<CallHierarchyItem> = serde_json::from_value(res).unwrap_or_default();
         Ok(items)
     }
@@ -189,11 +212,17 @@ impl LspEdgeProvider {
         let params = TypeHierarchyPrepareParams {
             text_document_position_params: TextDocumentPositionParams {
                 text_document: TextDocumentIdentifier { uri },
-                position: Position { line: (sym.line_start.saturating_sub(1)) as u32, character: 0 },
+                position: Position {
+                    line: (sym.line_start.saturating_sub(1)) as u32,
+                    character: 0,
+                },
             },
             work_done_progress_params: WorkDoneProgressParams::default(),
         };
-        let res = self.client.request("textDocument/prepareTypeHierarchy", serde_json::to_value(&params)?)?;
+        let res = self.client.request(
+            "textDocument/prepareTypeHierarchy",
+            serde_json::to_value(&params)?,
+        )?;
         let items: Vec<TypeHierarchyItem> = serde_json::from_value(res).unwrap_or_default();
         Ok(items)
     }
@@ -213,10 +242,12 @@ impl EdgeProvider for LspEdgeProvider {
                 work_done_progress_params: WorkDoneProgressParams::default(),
                 partial_result_params: PartialResultParams::default(),
             };
-            let res = self
-                .client
-                .request("callHierarchy/incomingCalls", serde_json::to_value(&params)?)?;
-            let calls: Vec<CallHierarchyIncomingCall> = serde_json::from_value(res).unwrap_or_default();
+            let res = self.client.request(
+                "callHierarchy/incomingCalls",
+                serde_json::to_value(&params)?,
+            )?;
+            let calls: Vec<CallHierarchyIncomingCall> =
+                serde_json::from_value(res).unwrap_or_default();
             for c in calls {
                 let caller_name = c.from.name;
                 let from_uri = c.from.uri.to_string();
@@ -224,7 +255,11 @@ impl EdgeProvider for LspEdgeProvider {
                     caller: caller_name,
                     callee: sym.name.clone(),
                     file: from_uri,
-                    line: c.from_ranges.first().map(|r| r.start.line as usize + 1).unwrap_or(0),
+                    line: c
+                        .from_ranges
+                        .first()
+                        .map(|r| r.start.line as usize + 1)
+                        .unwrap_or(0),
                     call_type: CallType::Direct,
                     provenance: LSP_PROVENANCE,
                 });
@@ -242,10 +277,12 @@ impl EdgeProvider for LspEdgeProvider {
                 work_done_progress_params: WorkDoneProgressParams::default(),
                 partial_result_params: PartialResultParams::default(),
             };
-            let res = self
-                .client
-                .request("callHierarchy/outgoingCalls", serde_json::to_value(&params)?)?;
-            let calls: Vec<CallHierarchyOutgoingCall> = serde_json::from_value(res).unwrap_or_default();
+            let res = self.client.request(
+                "callHierarchy/outgoingCalls",
+                serde_json::to_value(&params)?,
+            )?;
+            let calls: Vec<CallHierarchyOutgoingCall> =
+                serde_json::from_value(res).unwrap_or_default();
             for c in calls {
                 let callee_name = c.to.name;
                 let to_uri = c.to.uri.to_string();
@@ -253,7 +290,11 @@ impl EdgeProvider for LspEdgeProvider {
                     caller: sym.name.clone(),
                     callee: callee_name,
                     file: to_uri,
-                    line: c.from_ranges.first().map(|r| r.start.line as usize + 1).unwrap_or(0),
+                    line: c
+                        .from_ranges
+                        .first()
+                        .map(|r| r.start.line as usize + 1)
+                        .unwrap_or(0),
                     call_type: CallType::Direct,
                     provenance: LSP_PROVENANCE,
                 });

@@ -589,7 +589,8 @@ const MAX_TOOL_OUTPUT: usize = 8_000;
 const READ_ONLY_COMMANDS: &[&str] = &[
     "ls", "find", "grep", "rg", "cat", "head", "tail", "wc", "sort", "uniq", "cut", "tr", "pwd",
     "tree", "stat", "file", "du", "df", "basename", "dirname", "echo", "printf", "which", "type",
-    "date", "whoami", "hostname", "uname", "column", "nl", "jq", "yq", "diff", "cmp", "md5", "true",
+    "date", "whoami", "hostname", "uname", "column", "nl", "jq", "yq", "diff", "cmp", "md5",
+    "true",
 ];
 
 /// `git` subcommands that only read the repository.
@@ -725,8 +726,7 @@ pub fn strip_thinking(text: &str) -> String {
     let block_re = Regex::new(r"(?s)<(think|thinking)>.*?</(?:think|thinking)>")
         .expect("hardcoded regex is valid");
     let stripped = block_re.replace_all(text, "");
-    let unclosed_re =
-        Regex::new(r"(?s)<(?:think|thinking)>.*$").expect("hardcoded regex is valid");
+    let unclosed_re = Regex::new(r"(?s)<(?:think|thinking)>.*$").expect("hardcoded regex is valid");
     unclosed_re.replace(&stripped, "").into_owned()
 }
 
@@ -1362,7 +1362,8 @@ mod thinking_tests {
 
     #[test]
     fn unclosed_thinking_block_discards_its_tail() {
-        let text = r#"prose <thinking>I will <tool_call name="bash"><command>ls</command></tool_call>"#;
+        let text =
+            r#"prose <thinking>I will <tool_call name="bash"><command>ls</command></tool_call>"#;
         assert!(parse_tool_calls(text).is_empty());
     }
 
@@ -1454,7 +1455,10 @@ mod bash_risk_tests {
             "/usr/bin/find . -name '*.rs'",
         ] {
             assert!(
-                !ToolCall::Bash { command: cmd.into() }.is_destructive(),
+                !ToolCall::Bash {
+                    command: cmd.into()
+                }
+                .is_destructive(),
                 "{cmd} should not be flagged destructive"
             );
         }
@@ -1472,7 +1476,10 @@ mod bash_risk_tests {
             "npm install",
         ] {
             assert!(
-                ToolCall::Bash { command: cmd.into() }.is_destructive(),
+                ToolCall::Bash {
+                    command: cmd.into()
+                }
+                .is_destructive(),
                 "{cmd} must stay flagged destructive"
             );
         }
@@ -1491,7 +1498,10 @@ mod bash_risk_tests {
             "find . -exec rm {} ;",
         ] {
             assert!(
-                ToolCall::Bash { command: cmd.into() }.is_destructive(),
+                ToolCall::Bash {
+                    command: cmd.into()
+                }
+                .is_destructive(),
                 "{cmd} must stay flagged destructive"
             );
         }
@@ -1519,8 +1529,16 @@ mod bash_risk_tests {
 
     #[test]
     fn file_mutating_tools_remain_destructive() {
-        assert!(ToolCall::WriteFile { path: "a".into(), content: "b".into() }.is_destructive());
-        assert!(ToolCall::ApplyPatch { path: "a".into(), patch: "b".into() }.is_destructive());
+        assert!(ToolCall::WriteFile {
+            path: "a".into(),
+            content: "b".into()
+        }
+        .is_destructive());
+        assert!(ToolCall::ApplyPatch {
+            path: "a".into(),
+            patch: "b".into()
+        }
+        .is_destructive());
         assert!(!ToolCall::ReadFile { path: "a".into() }.is_destructive());
     }
 }

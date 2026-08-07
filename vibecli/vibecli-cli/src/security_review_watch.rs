@@ -209,13 +209,7 @@ where
     let batches = watcher.with(|w| w.poll());
     let mut all = Vec::new();
     for batch in &batches {
-        let found = review_batch(
-            cfg,
-            batch,
-            |p| std::fs::read_to_string(p).ok(),
-            reviewer,
-        )
-        .await;
+        let found = review_batch(cfg, batch, |p| std::fs::read_to_string(p).ok(), reviewer).await;
         all.extend(found);
     }
     all
@@ -370,7 +364,13 @@ mod tests {
         };
         // Only src/auth.rs passes the .rs gate (README excluded) → one review.
         let reviewer = MockReviewer("critical|7|hardcoded secret|use a vault".into());
-        let findings = review_batch(&cfg, &rs_batch(), |_| Some("let k=\"secret\";".into()), &reviewer).await;
+        let findings = review_batch(
+            &cfg,
+            &rs_batch(),
+            |_| Some("let k=\"secret\";".into()),
+            &reviewer,
+        )
+        .await;
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].check, CheckKind::Security);
         assert_eq!(findings[0].line, Some(7));

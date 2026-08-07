@@ -159,7 +159,9 @@ pub struct WorkflowRun {
 impl WorkflowRun {
     /// Find a task execution by reference name.
     pub fn task_by_ref(&self, reference_name: &str) -> Option<&TaskExecution> {
-        self.tasks.iter().find(|t| t.reference_name == reference_name)
+        self.tasks
+            .iter()
+            .find(|t| t.reference_name == reference_name)
     }
 
     /// Find a task execution by id.

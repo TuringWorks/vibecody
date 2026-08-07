@@ -29,7 +29,9 @@ pub struct McpServer {
 impl McpServer {
     /// Construct with a loaded graph.
     pub fn new(graph: CodeGraph) -> Self {
-        Self { graph: Arc::new(Mutex::new(graph)) }
+        Self {
+            graph: Arc::new(Mutex::new(graph)),
+        }
     }
 
     /// Run the stdio loop until EOF.
@@ -133,8 +135,12 @@ fn tool_call(graph: &CodeGraph, name: &str, args: Value) -> Value {
         "get_node" => {
             let n = args.get("name").and_then(|v| v.as_str()).unwrap_or("");
             match query::get_node(graph, n) {
-                Some(node) => json!({ "content": [{ "type": "text", "text": format!("{:#?}", node) }] }),
-                None => json!({ "content": [{ "type": "text", "text": format!("no node named {n}") }], "isError": true }),
+                Some(node) => {
+                    json!({ "content": [{ "type": "text", "text": format!("{:#?}", node) }] })
+                }
+                None => {
+                    json!({ "content": [{ "type": "text", "text": format!("no node named {n}") }], "isError": true })
+                }
             }
         }
         "get_neighbors" => {
@@ -151,7 +157,9 @@ fn tool_call(graph: &CodeGraph, name: &str, args: Value) -> Value {
                     let labels: Vec<String> = nodes.iter().map(|n| n.label()).collect();
                     json!({ "content": [{ "type": "text", "text": format!("hops={hops}; {}", labels.join(" -> ")) }] })
                 }
-                None => json!({ "content": [{ "type": "text", "text": "no path" }], "isError": true }),
+                None => {
+                    json!({ "content": [{ "type": "text", "text": "no path" }], "isError": true })
+                }
             }
         }
         "blast_radius" => {
@@ -171,7 +179,9 @@ fn tool_call(graph: &CodeGraph, name: &str, args: Value) -> Value {
             }
             json!({ "content": [{ "type": "text", "text": lines.join("\n") }], "affected": br.affected() })
         }
-        _ => json!({ "content": [{ "type": "text", "text": format!("unknown tool {name}") }], "isError": true }),
+        _ => {
+            json!({ "content": [{ "type": "text", "text": format!("unknown tool {name}") }], "isError": true })
+        }
     }
 }
 

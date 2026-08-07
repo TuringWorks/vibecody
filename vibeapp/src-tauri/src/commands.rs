@@ -341,7 +341,11 @@ pub async fn skilllens_refresh() -> Result<serde_json::Value, String> {
 /// `POST /v1/skilllens/convert` — raw agent runs (JSONL) → ExperiencePool.
 #[tauri::command]
 pub async fn skilllens_convert(runs: String) -> Result<serde_json::Value, String> {
-    skillforge_daemon_post("/v1/skilllens/convert", &serde_json::json!({ "runs": runs })).await
+    skillforge_daemon_post(
+        "/v1/skilllens/convert",
+        &serde_json::json!({ "runs": runs }),
+    )
+    .await
 }
 
 /// `POST /v1/skilllens/extract` — distil candidate skills from a pool. LLM.

@@ -215,16 +215,12 @@ impl HttpPromptQueue {
     /// Cancel a pending entry — called by `HttpBridgePrompter::prompt`
     /// on timeout to clean up the map.
     fn cancel(&self, request_id: &str) {
-        self.pending
-            .lock_recover()
-            .remove(request_id);
+        self.pending.lock_recover().remove(request_id);
     }
 
     /// Currently-pending count. Used by `/health` exposure and tests.
     pub fn pending_count(&self) -> usize {
-        self.pending
-            .lock_recover()
-            .len()
+        self.pending.lock_recover().len()
     }
 }
 

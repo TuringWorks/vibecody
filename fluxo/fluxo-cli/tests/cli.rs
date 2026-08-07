@@ -9,7 +9,9 @@ use tokio::process::Command;
 async fn spawn_server() -> String {
     let engine = Arc::new(Engine::new(MemoryStore::new()));
     let app = fluxo_server::router(engine);
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("bind");
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
     let addr = listener.local_addr().expect("addr");
     tokio::spawn(async move {
         let _ = axum::serve(listener, app).await;
@@ -37,11 +39,19 @@ async fn register_ls_run_get() {
         .output()
         .await
         .expect("register");
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     assert!(String::from_utf8_lossy(&out.stdout).contains("\"demo\""));
 
     // ls
-    let out = Command::new(bin()).args(["--url", &url, "ls"]).output().await.expect("ls");
+    let out = Command::new(bin())
+        .args(["--url", &url, "ls"])
+        .output()
+        .await
+        .expect("ls");
     assert!(out.status.success());
     assert!(String::from_utf8_lossy(&out.stdout).contains("demo"));
 
@@ -51,9 +61,16 @@ async fn register_ls_run_get() {
         .output()
         .await
         .expect("run");
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     let started: Value = serde_json::from_slice(&out.stdout).expect("run json");
-    let id = started["workflowId"].as_str().expect("workflowId").to_string();
+    let id = started["workflowId"]
+        .as_str()
+        .expect("workflowId")
+        .to_string();
 
     // get
     let out = Command::new(bin())

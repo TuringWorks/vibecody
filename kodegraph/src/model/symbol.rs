@@ -175,7 +175,10 @@ impl Language {
 
     /// Whether the tree-sitter backbone can parse this language in v0.1.
     pub fn supported_by_treesitter(self) -> bool {
-        matches!(self, Self::Rust | Self::TypeScript | Self::Python | Self::Go)
+        matches!(
+            self,
+            Self::Rust | Self::TypeScript | Self::Python | Self::Go
+        )
     }
 }
 

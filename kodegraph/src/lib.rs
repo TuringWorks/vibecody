@@ -52,12 +52,12 @@
 #![warn(missing_docs)]
 #![allow(clippy::module_inception)]
 
+pub mod analyze;
+pub mod incremental;
 pub mod model;
 pub mod parse;
-pub mod analyze;
 pub mod query;
 pub mod report;
-pub mod incremental;
 
 #[cfg(feature = "sqlite")]
 pub mod store;
@@ -70,5 +70,5 @@ pub mod mcp;
 #[cfg(feature = "cli")]
 pub mod cli;
 
-pub use model::{graph::CodeGraph, edge::Provenance, symbol::Symbol};
 pub use builder::CodeGraphBuilder;
+pub use model::{edge::Provenance, graph::CodeGraph, symbol::Symbol};

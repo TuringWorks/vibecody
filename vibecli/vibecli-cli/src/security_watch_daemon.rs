@@ -68,7 +68,6 @@ impl SecurityFindingsQueue {
             .cloned()
             .collect()
     }
-
 }
 
 /// Provider-backed [`SecurityReviewer`]: reviews a file by sending the prompt as
@@ -154,8 +153,8 @@ where
 
     // notify → inject bridge: raw OS events become FileChangeEvents.
     let inject_target = shared.clone_handle();
-    let mut watcher = match notify::recommended_watcher(
-        move |res: notify::Result<notify::Event>| {
+    let mut watcher =
+        match notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
             if let Ok(event) = res {
                 if let Some(kind) = map_kind(&event.kind) {
                     for path in event.paths {
@@ -164,11 +163,10 @@ where
                     }
                 }
             }
-        },
-    ) {
-        Ok(w) => w,
-        Err(_) => return None,
-    };
+        }) {
+            Ok(w) => w,
+            Err(_) => return None,
+        };
     if watcher
         .watch(workspace_root, RecursiveMode::Recursive)
         .is_err()
@@ -209,7 +207,11 @@ mod tests {
     }
 
     fn finding(msg: &str) -> Finding {
-        Finding::new(crate::self_review::CheckKind::Security, Severity::Error, msg)
+        Finding::new(
+            crate::self_review::CheckKind::Security,
+            Severity::Error,
+            msg,
+        )
     }
 
     #[test]
@@ -220,12 +222,17 @@ mod tests {
         assert_eq!(q.snapshot().len(), 2);
         assert_eq!(q.snapshot().len(), 2);
         // Overflow the cap → oldest evicted, newest retained.
-        let flood: Vec<Finding> = (0..FINDINGS_CAP + 10).map(|i| finding(&format!("f{i}"))).collect();
+        let flood: Vec<Finding> = (0..FINDINGS_CAP + 10)
+            .map(|i| finding(&format!("f{i}")))
+            .collect();
         q.push_all(flood);
         assert_eq!(q.snapshot().len(), FINDINGS_CAP);
         // The very last pushed finding is still present.
         let snap = q.snapshot();
-        assert_eq!(snap.last().unwrap().message, format!("f{}", FINDINGS_CAP + 9));
+        assert_eq!(
+            snap.last().unwrap().message,
+            format!("f{}", FINDINGS_CAP + 9)
+        );
     }
 
     #[test]
@@ -250,7 +257,10 @@ mod tests {
             map_kind(&EventKind::Remove(RemoveKind::File)),
             Some(ChangeKind::Deleted)
         );
-        assert_eq!(map_kind(&EventKind::Access(notify::event::AccessKind::Any)), None);
+        assert_eq!(
+            map_kind(&EventKind::Access(notify::event::AccessKind::Any)),
+            None
+        );
     }
 
     #[test]

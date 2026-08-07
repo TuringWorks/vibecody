@@ -59,7 +59,10 @@ impl CodeGraphBuilder {
     pub fn scan_dir(mut self, root: impl Into<PathBuf>) -> Result<Self> {
         let root = root.into();
         if !root.is_dir() {
-            return Err(anyhow::anyhow!("scan dir does not exist: {}", root.display()));
+            return Err(anyhow::anyhow!(
+                "scan dir does not exist: {}",
+                root.display()
+            ));
         }
         self.root = Some(root);
         Ok(self)
@@ -95,7 +98,10 @@ impl CodeGraphBuilder {
 
     /// Build the graph. Returns the new graph and the updated file-hash cache.
     pub fn build(self) -> Result<(CodeGraph, FileHashes)> {
-        let root = self.root.as_ref().ok_or_else(|| anyhow::anyhow!("no scan dir set"))?;
+        let root = self
+            .root
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("no scan dir set"))?;
         let mut graph = self.existing.unwrap_or_default();
         let mut hashes = FileHashes::new();
 

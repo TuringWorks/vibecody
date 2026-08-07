@@ -81,7 +81,13 @@ pub fn blast_radius(graph: &CodeGraph, symbol_name: &str, max_hops: usize) -> Bl
     }
 
     let affected_count = all.len().saturating_sub(if seed.is_some() { 1 } else { 0 });
-    BlastRadius { seed, seed_name, by_hop, all, affected_count }
+    BlastRadius {
+        seed,
+        seed_name,
+        by_hop,
+        all,
+        affected_count,
+    }
 }
 
 #[cfg(test)]

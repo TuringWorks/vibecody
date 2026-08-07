@@ -59,9 +59,7 @@ impl PromptCache {
             self.stats.entries = self.store.len();
         }
         // Present in both branches above (pre-existing, or just inserted).
-        self.store
-            .get(&key)
-            .expect("key present or just inserted")
+        self.store.get(&key).expect("key present or just inserted")
     }
 
     pub fn invalidate(&mut self, key: CacheKey) {

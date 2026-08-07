@@ -183,12 +183,16 @@ impl<'a> ApprovalStore<'a> {
     pub fn list(&self, company_id: &str, status_filter: Option<&str>) -> Result<Vec<Approval>> {
         // Match on the Option directly — no bool flag mirroring `is_some()`, no unwrap.
         let sql = match status_filter {
-            Some(_) => "SELECT id, company_id, request_type, subject_id, requester_id, status,
+            Some(_) => {
+                "SELECT id, company_id, request_type, subject_id, requester_id, status,
                      reason, decided_by, decided_at, created_at
-              FROM approvals WHERE company_id = ?1 AND status = ?2 ORDER BY created_at DESC",
-            None => "SELECT id, company_id, request_type, subject_id, requester_id, status,
+              FROM approvals WHERE company_id = ?1 AND status = ?2 ORDER BY created_at DESC"
+            }
+            None => {
+                "SELECT id, company_id, request_type, subject_id, requester_id, status,
                      reason, decided_by, decided_at, created_at
-              FROM approvals WHERE company_id = ?1 ORDER BY created_at DESC",
+              FROM approvals WHERE company_id = ?1 ORDER BY created_at DESC"
+            }
         };
         let mut stmt = self.conn.prepare(sql)?;
         let rows = match status_filter {

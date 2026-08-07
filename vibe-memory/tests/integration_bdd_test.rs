@@ -89,12 +89,9 @@ async fn hub_applies_sector_weights_to_ranking() {
     hub.store_to_project(workspace.path(), "Yesterday we had a meeting")
         .await
         .expect("episodic");
-    hub.store_to_project(
-        workspace.path(),
-        "The definition of an API is a contract",
-    )
-    .await
-    .expect("semantic");
+    hub.store_to_project(workspace.path(), "The definition of an API is a contract")
+        .await
+        .expect("semantic");
     hub.store_to_project(workspace.path(), "Step 1: run cargo build")
         .await
         .expect("procedural");

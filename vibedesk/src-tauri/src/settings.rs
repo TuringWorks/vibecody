@@ -69,10 +69,8 @@ mod tests {
     fn tmp_store() -> ProfileStore {
         // Unique path per call so parallel tests never share a DB; key is fixed.
         let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-        let path = std::env::temp_dir().join(format!(
-            "vibedesk-migrate-{}-{n}.db",
-            std::process::id()
-        ));
+        let path =
+            std::env::temp_dir().join(format!("vibedesk-migrate-{}-{n}.db", std::process::id()));
         let _ = std::fs::remove_file(&path);
         ProfileStore::open_with(&path, [42u8; 32]).expect("open test store")
     }

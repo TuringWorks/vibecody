@@ -377,10 +377,7 @@ impl PerfProfiler {
             return None;
         }
         let first = &self.mem_snapshots[0];
-        let last = self
-            .mem_snapshots
-            .last()
-            .expect("len >= 2 checked above");
+        let last = self.mem_snapshots.last().expect("len >= 2 checked above");
         let delta_ms = (last.timestamp_ms - first.timestamp_ms) as f64;
         if delta_ms == 0.0 {
             return None;

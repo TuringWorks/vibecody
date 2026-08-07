@@ -246,10 +246,7 @@ pub fn parse_sse_stream(response: reqwest::Response) -> CompletionStream {
         // A stream that ends without `[DONE]` still has to release whatever
         // the accumulator is holding.
         .chain(futures::stream::once(async move {
-            Ok(tail_acc
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .finish())
+            Ok(tail_acc.lock().unwrap_or_else(|e| e.into_inner()).finish())
         }))
         .boxed()
 }
@@ -454,7 +451,10 @@ mod tests {
     #[test]
     fn content_only_stream_is_unchanged() {
         let mut acc = SseAccumulator::default();
-        let out = acc.push(&sse(&[r#"{"choices":[{"delta":{"content":"hi"}}]}"#, "[DONE]"]));
+        let out = acc.push(&sse(&[
+            r#"{"choices":[{"delta":{"content":"hi"}}]}"#,
+            "[DONE]",
+        ]));
         assert_eq!(out, "hi");
     }
 
@@ -473,7 +473,10 @@ mod tests {
     #[test]
     fn openrouter_reasoning_field_is_also_read() {
         let mut acc = SseAccumulator::default();
-        let out = acc.push(&sse(&[r#"{"choices":[{"delta":{"reasoning":"hmm"}}]}"#, "[DONE]"]));
+        let out = acc.push(&sse(&[
+            r#"{"choices":[{"delta":{"reasoning":"hmm"}}]}"#,
+            "[DONE]",
+        ]));
         assert_eq!(out, "<thinking>hmm</thinking>\n");
     }
 
@@ -481,7 +484,9 @@ mod tests {
     fn reasoning_only_turn_is_closed_at_stream_end() {
         let mut acc = SseAccumulator::default();
         // No [DONE] — the transport just ends.
-        let mut out = acc.push(&sse(&[r#"{"choices":[{"delta":{"reasoning_content":"x"}}]}"#]));
+        let mut out = acc.push(&sse(&[
+            r#"{"choices":[{"delta":{"reasoning_content":"x"}}]}"#,
+        ]));
         out.push_str(&acc.finish());
         assert_eq!(out, "<thinking>x</thinking>\n");
     }
@@ -494,7 +499,10 @@ mod tests {
             r#"{"choices":[{"delta":{"tool_calls":[{"function":{"arguments":"\"src\"}"}}]}}]}"#,
             "[DONE]",
         ]));
-        assert_eq!(out, r#"<tool_call name="list_directory"><path>src</path></tool_call>"#);
+        assert_eq!(
+            out,
+            r#"<tool_call name="list_directory"><path>src</path></tool_call>"#
+        );
         assert_eq!(crate::tools::parse_tool_calls(&out).len(), 1);
     }
 
@@ -523,8 +531,8 @@ mod tests {
     #[test]
     fn malformed_events_are_skipped() {
         let mut acc = SseAccumulator::default();
-        let out = acc.push("data: not json\ndata: {\"choices\":[{\"delta\":{\"content\":\"ok\"}}]}\n");
+        let out =
+            acc.push("data: not json\ndata: {\"choices\":[{\"delta\":{\"content\":\"ok\"}}]}\n");
         assert_eq!(out, "ok");
     }
-
 }

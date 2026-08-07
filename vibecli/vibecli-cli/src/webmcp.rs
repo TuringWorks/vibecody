@@ -239,7 +239,11 @@ mod tests {
 
     #[test]
     fn parse_kv_args_splits_pairs_and_bare_flags() {
-        let toks = vec!["q=rust".to_string(), "limit=10".to_string(), "verbose".to_string()];
+        let toks = vec![
+            "q=rust".to_string(),
+            "limit=10".to_string(),
+            "verbose".to_string(),
+        ];
         let args = parse_kv_args(&toks);
         assert_eq!(args[0], ("q".to_string(), "rust".to_string()));
         assert_eq!(args[1], ("limit".to_string(), "10".to_string()));
@@ -264,11 +268,17 @@ mod tests {
         assert!(!WebMcpFlag::from_env().enabled() || std::env::var("VIBECLI_WEBMCP").is_ok());
         // Truthy parsing is covered by matching the accepted set directly.
         for v in ["1", "true", "on", "yes", "TRUE", "On"] {
-            let on = matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "on" | "yes");
+            let on = matches!(
+                v.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "on" | "yes"
+            );
             assert!(on, "{v} should be truthy");
         }
         for v in ["0", "false", "off", ""] {
-            let on = matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "on" | "yes");
+            let on = matches!(
+                v.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "on" | "yes"
+            );
             assert!(!on, "{v} should be falsy");
         }
     }

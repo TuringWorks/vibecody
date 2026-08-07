@@ -10,7 +10,9 @@ use std::sync::Arc;
 
 async fn spawn_server(engine: Arc<Engine<MemoryStore>>) -> String {
     let app = fluxo_server::router(engine);
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("bind");
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
     let addr = listener.local_addr().expect("addr");
     tokio::spawn(async move {
         let _ = axum::serve(listener, app).await;
@@ -31,7 +33,10 @@ async fn worker_drives_a_two_step_workflow() {
     )
     .expect("parse");
     engine.register(&def).await.expect("register");
-    let id = engine.start("pipeline", None, json!({ "seed": 10 }), None).await.expect("start");
+    let id = engine
+        .start("pipeline", None, json!({ "seed": 10 }), None)
+        .await
+        .expect("start");
 
     let base = spawn_server(engine.clone()).await;
 
@@ -64,7 +69,10 @@ async fn worker_reports_failure() {
     )
     .expect("parse");
     engine.register(&def).await.expect("register");
-    let id = engine.start("flaky", None, json!({}), None).await.expect("start");
+    let id = engine
+        .start("flaky", None, json!({}), None)
+        .await
+        .expect("start");
 
     let base = spawn_server(engine.clone()).await;
 

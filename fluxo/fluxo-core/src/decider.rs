@@ -86,7 +86,9 @@ pub fn decide(def: &WorkflowDef, run: &WorkflowRun, now_ms: i64) -> Result<Decis
         if t.status.is_terminal() {
             continue;
         }
-        let timeout = plan.resolve_ref(reference).and_then(|task| task.timeout_ms());
+        let timeout = plan
+            .resolve_ref(reference)
+            .and_then(|task| task.timeout_ms());
         if let Some(timeout) = timeout {
             if now_ms - t.scheduled_at > timeout {
                 updates.push(TaskUpdate {
@@ -99,7 +101,10 @@ pub fn decide(def: &WorkflowDef, run: &WorkflowRun, now_ms: i64) -> Result<Decis
         }
     }
     if !updates.is_empty() {
-        return Ok(Decision { updates, ..Default::default() });
+        return Ok(Decision {
+            updates,
+            ..Default::default()
+        });
     }
 
     // --- Phase 2: fail the workflow on an exhausted, non-optional failure.
@@ -165,7 +170,10 @@ pub fn decide(def: &WorkflowDef, run: &WorkflowRun, now_ms: i64) -> Result<Decis
         }
     }
     if !retries.is_empty() {
-        return Ok(Decision { schedule: retries, ..Default::default() });
+        return Ok(Decision {
+            schedule: retries,
+            ..Default::default()
+        });
     }
 
     // --- Phase 4: normal scheduling.
@@ -190,9 +198,12 @@ pub fn decide(def: &WorkflowDef, run: &WorkflowRun, now_ms: i64) -> Result<Decis
             {
                 continue;
             }
-            let ready = deps
-                .iter()
-                .all(|d| latest.get(d.as_str()).map(|t| t.status.is_success()).unwrap_or(false));
+            let ready = deps.iter().all(|d| {
+                latest
+                    .get(d.as_str())
+                    .map(|t| t.status.is_success())
+                    .unwrap_or(false)
+            });
             if ready {
                 to_schedule.push(join_ref.clone());
             }
@@ -203,9 +214,12 @@ pub fn decide(def: &WorkflowDef, run: &WorkflowRun, now_ms: i64) -> Result<Decis
                 continue;
             }
             if let Some(refs) = plan.forked_refs(fork_ref, run) {
-                let ready = refs
-                    .iter()
-                    .all(|r| latest.get(r.as_str()).map(|t| t.status.is_success()).unwrap_or(false));
+                let ready = refs.iter().all(|r| {
+                    latest
+                        .get(r.as_str())
+                        .map(|t| t.status.is_success())
+                        .unwrap_or(false)
+                });
                 if ready {
                     to_schedule.push(join_ref.clone());
                 }
@@ -228,7 +242,11 @@ pub fn decide(def: &WorkflowDef, run: &WorkflowRun, now_ms: i64) -> Result<Decis
                 .unwrap_or_default();
             let mut forked = Vec::new();
             for (k, spec) in specs.iter().enumerate() {
-                let name = spec.get("name").and_then(Value::as_str).unwrap_or_default().to_string();
+                let name = spec
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string();
                 let branch_input = spec
                     .get("input")
                     .or_else(|| spec.get("inputParameters"))
@@ -280,7 +298,11 @@ pub fn decide(def: &WorkflowDef, run: &WorkflowRun, now_ms: i64) -> Result<Decis
         if exec.task_type == TaskType::Terminate {
             let terminal = terminate_outcome(&exec.input);
             schedule.push(exec);
-            return Ok(Decision { schedule, terminal: Some(terminal), ..Default::default() });
+            return Ok(Decision {
+                schedule,
+                terminal: Some(terminal),
+                ..Default::default()
+            });
         }
         schedule.push(exec);
     }
@@ -307,7 +329,11 @@ pub fn decide(def: &WorkflowDef, run: &WorkflowRun, now_ms: i64) -> Result<Decis
         }
     }
 
-    Ok(Decision { schedule, updates: loop_updates, terminal: None })
+    Ok(Decision {
+        schedule,
+        updates: loop_updates,
+        terminal: None,
+    })
 }
 
 fn is_failure(status: TaskStatus) -> bool {
@@ -330,7 +356,10 @@ fn terminate_outcome(input: &Value) -> Terminal {
     Terminal {
         status,
         output: input.get("workflowOutput").cloned().unwrap_or(Value::Null),
-        reason: input.get("terminationReason").and_then(Value::as_str).map(str::to_string),
+        reason: input
+            .get("terminationReason")
+            .and_then(Value::as_str)
+            .map(str::to_string),
     }
 }
 
@@ -343,9 +372,9 @@ fn materialize(
     reference: &str,
     now_ms: i64,
 ) -> Result<TaskExecution> {
-    let task = plan
-        .resolve_ref(reference)
-        .ok_or_else(|| FluxoError::InvalidState(format!("no definition for reference '{}'", reference)))?;
+    let task = plan.resolve_ref(reference).ok_or_else(|| {
+        FluxoError::InvalidState(format!("no definition for reference '{}'", reference))
+    })?;
     let input = Value::Object(ctx.resolve_map(&task.input_parameters));
     let mut exec = TaskExecution::scheduled(
         reference.to_string(),
@@ -382,7 +411,10 @@ fn materialize(
             exec.status = TaskStatus::Completed;
         }
         TaskType::ForkJoinDynamic | TaskType::JsonJqTransform | TaskType::StartWorkflow => {
-            return Err(FluxoError::UnsupportedTaskType(format!("{:?}", task.task_type)));
+            return Err(FluxoError::UnsupportedTaskType(format!(
+                "{:?}",
+                task.task_type
+            )));
         }
         // External (Simple/Other/Wait/Human/SubWorkflow/Http/Event) and DoWhile bodies stay Scheduled.
         _ => {}
@@ -565,7 +597,9 @@ fn evaluate_switch(task: &WorkflowTask, input: &Value, ctx: &EvalContext) -> Str
     match &task.expression {
         Some(e) => {
             let inner = e.trim().trim_start_matches("${").trim_end_matches('}');
-            ctx.lookup(inner).map(|v| value_to_case(&v)).unwrap_or_default()
+            ctx.lookup(inner)
+                .map(|v| value_to_case(&v))
+                .unwrap_or_default()
         }
         None => String::new(),
     }
@@ -634,9 +668,12 @@ impl<'a> ExecPlan<'a> {
                         cases.insert(case.clone(), first_refs(sub, &next));
                         self.compile_seq(sub, &next)?;
                     }
-                    self.switch_cases.insert(t.task_reference_name.clone(), cases);
-                    self.switch_default
-                        .insert(t.task_reference_name.clone(), first_refs(&t.default_case, &next));
+                    self.switch_cases
+                        .insert(t.task_reference_name.clone(), cases);
+                    self.switch_default.insert(
+                        t.task_reference_name.clone(),
+                        first_refs(&t.default_case, &next),
+                    );
                     self.compile_seq(&t.default_case, &next)?;
                 }
                 TaskType::ForkJoin => {
@@ -664,11 +701,15 @@ impl<'a> ExecPlan<'a> {
                     }
                     self.loops.insert(
                         t.task_reference_name.clone(),
-                        LoopDef { body_refs, condition: t.loop_condition.clone().unwrap_or_default() },
+                        LoopDef {
+                            body_refs,
+                            condition: t.loop_condition.clone().unwrap_or_default(),
+                        },
                     );
                 }
                 TaskType::Terminate => {
-                    self.successors.insert(t.task_reference_name.clone(), Vec::new());
+                    self.successors
+                        .insert(t.task_reference_name.clone(), Vec::new());
                 }
                 TaskType::ForkJoinDynamic => {
                     // Branches are created at runtime from resolved input; the following JOIN
@@ -700,7 +741,9 @@ impl<'a> ExecPlan<'a> {
     }
 
     fn is_optional(&self, reference: &str) -> bool {
-        self.resolve_ref(reference).map(|t| t.optional).unwrap_or(false)
+        self.resolve_ref(reference)
+            .map(|t| t.optional)
+            .unwrap_or(false)
     }
 
     /// The runtime branch refs spawned by a completed dynamic fork, if it has completed.
@@ -710,7 +753,11 @@ impl<'a> ExecPlan<'a> {
             return None;
         }
         let list = exec.output.get("forkedTasks")?.as_array()?;
-        Some(list.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+        Some(
+            list.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect(),
+        )
     }
 
     /// Whether a completed/optional-failed task should unlock its successors.
@@ -738,12 +785,23 @@ impl<'a> ExecPlan<'a> {
                         .and_then(|m| m.get(&case))
                         .cloned()
                         .unwrap_or_else(|| {
-                            self.switch_default.get(reference).cloned().unwrap_or_default()
+                            self.switch_default
+                                .get(reference)
+                                .cloned()
+                                .unwrap_or_default()
                         }),
-                    None => self.switch_default.get(reference).cloned().unwrap_or_default(),
+                    None => self
+                        .switch_default
+                        .get(reference)
+                        .cloned()
+                        .unwrap_or_default(),
                 }
             }
-            TaskType::ForkJoin => self.fork_branch_entries.get(reference).cloned().unwrap_or_default(),
+            TaskType::ForkJoin => self
+                .fork_branch_entries
+                .get(reference)
+                .cloned()
+                .unwrap_or_default(),
             // Dynamic-fork branches are scheduled at entry; the JOIN is scheduled by readiness.
             TaskType::ForkJoinDynamic => Vec::new(),
             _ => self.successors.get(reference).cloned().unwrap_or_default(),

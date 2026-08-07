@@ -881,11 +881,13 @@ pub async fn handle_calendar_command(args: &str) -> String {
                 .get(1)
                 .and_then(|s| parse_date_loose(s))
                 .unwrap_or_else(|| chrono::Local::now().date_naive());
-            let (date_start, date_end) =
-                match (local_rfc3339(date, 0, 0, 0), local_rfc3339(date, 23, 59, 59)) {
-                    (Ok(s), Ok(e)) => (s, e),
-                    (Err(e), _) | (_, Err(e)) => return format!("❌ Calendar error: {e}\n"),
-                };
+            let (date_start, date_end) = match (
+                local_rfc3339(date, 0, 0, 0),
+                local_rfc3339(date, 23, 59, 59),
+            ) {
+                (Ok(s), Ok(e)) => (s, e),
+                (Err(e), _) | (_, Err(e)) => return format!("❌ Calendar error: {e}\n"),
+            };
             match client.list_events(&date_start, &date_end, 50).await {
                 Ok(events) => {
                     let slots = compute_free_slots(&events, date);

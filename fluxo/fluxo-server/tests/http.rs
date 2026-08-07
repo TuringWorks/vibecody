@@ -4,8 +4,8 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use axum::Router;
 use fluxo_engine::Engine;
-use fluxo_store::memory::MemoryStore;
 use fluxo_server::router;
+use fluxo_store::memory::MemoryStore;
 use serde_json::{json, Value};
 use std::sync::Arc;
 use tower::ServiceExt;
@@ -22,7 +22,9 @@ async fn send(app: &Router, method: &str, uri: &str, body: Option<Value>) -> (St
         .expect("request");
     let response = app.clone().oneshot(request).await.expect("response");
     let status = response.status();
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.expect("body");
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("body");
     let value = if bytes.is_empty() {
         Value::Null
     } else {
@@ -50,7 +52,13 @@ async fn register_execute_poll_complete() {
     assert_eq!(status, StatusCode::OK);
 
     // Execute.
-    let (status, body) = send(&app, "POST", "/workflow/demo/execute", Some(json!({ "input": {} }))).await;
+    let (status, body) = send(
+        &app,
+        "POST",
+        "/workflow/demo/execute",
+        Some(json!({ "input": {} })),
+    )
+    .await;
     assert_eq!(status, StatusCode::OK);
     let workflow_id = body["workflowId"].as_str().expect("workflowId").to_string();
 
