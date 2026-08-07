@@ -113,7 +113,7 @@ tree-sitter-rust = "0.23"
 tree-sitter-typescript = "0.23"
 tree-sitter-python = "0.23"
 tree-sitter-go = "0.23"
-petgraph = "0.7"
+petgraph = "0.8"
 
 # mistral.rs (TuringWorks fork) pins candle to a git rev of 0.11.0 rather than
 # the crates.io release. `vibe-infer` implements `mistralrs::core::KvCacheCodec`,
