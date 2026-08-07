@@ -114,9 +114,24 @@ class HandoffService extends ChangeNotifier {
   bool _probing = false;
   Timer? _timer;
 
+  /// When [probe] last finished. Null until the first probe completes —
+  /// "never probed" is a distinct state from "probed a moment ago", so callers
+  /// must render it as such rather than defaulting it to zero.
+  DateTime? _lastProbeAt;
+
   List<HandoffCandidate> get candidates => List.unmodifiable(_candidates);
   bool get hasHandoff => _candidates.isNotEmpty;
   bool get probing => _probing;
+
+  /// Most recent beacon per machineId. Read-only view — the diagnostics screen
+  /// needs it, and reaching into the private map from another library does not
+  /// compile.
+  Map<String, BeaconResponse> get beacons => Map.unmodifiable(_beacons);
+
+  /// Seconds since [probe] last completed, or null if it never has.
+  int? get secondsSinceLastProbe => _lastProbeAt == null
+      ? null
+      : DateTime.now().difference(_lastProbeAt!).inSeconds;
 
   /// Returns the best known URL for a machine, falling back to stored baseUrl.
   String resolvedUrl(String machineId) =>
@@ -231,6 +246,7 @@ class HandoffService extends ChangeNotifier {
 
     _candidates = newCandidates;
     _probing = false;
+    _lastProbeAt = DateTime.now();
     notifyListeners();
   }
 

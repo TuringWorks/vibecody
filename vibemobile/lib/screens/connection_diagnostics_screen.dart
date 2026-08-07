@@ -4,6 +4,9 @@ import '../services/auth_service.dart';
 import '../services/handoff_service.dart';
 import '../services/discovery_service.dart';
 import '../theme/app_theme.dart';
+// VibePalette is the type `context.vibeColors` returns; app_theme imports it
+// but does not re-export it, so it needs naming directly.
+import '../theme/vibe_tokens.dart';
 
 /// Screen showing connection diagnostics for paired machines.
 class ConnectionDiagnosticsScreen extends StatelessWidget {
@@ -68,7 +71,7 @@ class _ConnectionStatusCard extends StatelessWidget {
   });
 
   final HandoffService handoff;
-  final ColorScheme c;
+  final VibePalette c;
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +86,7 @@ class _ConnectionStatusCard extends StatelessWidget {
               style: Theme.of(context)
                   .textTheme
                   .titleLarge
-                  ?.copyWith(color: c.onBackground),
+                  ?.copyWith(color: c.textPrimary),
             ),
             const SizedBox(height: 8),
             Row(
@@ -116,6 +119,7 @@ class _ConnectionStatusCard extends StatelessWidget {
 /// Card showing diagnostics for a single machine.
 class MachineDiagnosticsCard extends StatelessWidget {
   const MachineDiagnosticsCard({
+    super.key,
     required this.credential,
     required this.handoff,
     required this.discovery,
@@ -125,11 +129,11 @@ class MachineDiagnosticsCard extends StatelessWidget {
   final MachineCredential credential;
   final HandoffService handoff;
   final DiscoveryService discovery;
-  final ColorScheme c;
+  final VibePalette c;
 
   @override
   Widget build(BuildContext context) {
-    final beacon = handoff._beacons[credential.machineId];
+    final beacon = handoff.beacons[credential.machineId];
     final resolvedUrl = handoff.resolvedUrl(credential.machineId);
     final candidates = handoff.candidates
         .where((cand) => cand.machineId == credential.machineId)
@@ -158,7 +162,7 @@ class MachineDiagnosticsCard extends StatelessWidget {
                     style: Theme.of(context)
                         .textTheme
                         .titleMedium
-                        ?.copyWith(color: c.onBackground),
+                        ?.copyWith(color: c.textPrimary),
                   ),
                 ),
                 IconButton(
@@ -197,7 +201,7 @@ class MachineDiagnosticsCard extends StatelessWidget {
               ),
               _InfoRow(
                 label: 'LAN IPs',
-                value: beacon.lanIsEmpty ? 'None' : beacon.lanIps.join(', '),
+                value: beacon.lanIps.lanIsEmpty ? 'None' : beacon.lanIps.join(', '),
                 c: c,
               ),
               _InfoRow(
@@ -284,7 +288,7 @@ class MachineDiagnosticsCard extends StatelessWidget {
             const SizedBox(height: 4),
             _InfoRow(
               label: 'Resolved URL',
-              value: resolvedUrl ?? 'None',
+              value: resolvedUrl,
               c: c,
             ),
             _InfoRow(
@@ -317,7 +321,9 @@ class MachineDiagnosticsCard extends StatelessWidget {
               label: 'Last Probed',
               value: handoff.probing
                   ? 'Just now...'
-                  : '${_formatDuration(handoff._lastProbeTime ?? 0)} ago',
+                  : handoff.secondsSinceLastProbe == null
+                      ? 'never'
+                      : '${_formatDuration(handoff.secondsSinceLastProbe!)} ago',
               c: c,
             ),
           ],
@@ -344,7 +350,7 @@ class _InfoRow extends StatelessWidget {
 
   final String label;
   final String value;
-  final ColorScheme c;
+  final VibePalette c;
 
   @override
   Widget build(BuildContext context) {
@@ -375,5 +381,5 @@ class _InfoRow extends StatelessWidget {
 
 // Extension to check if lanIps is empty.
 extension on List<String> {
-  bool get lanIsEmpty => this.isEmpty || (this.length == 1 && this.first.isEmpty);
+  bool get lanIsEmpty => isEmpty || (length == 1 && first.isEmpty);
 }
