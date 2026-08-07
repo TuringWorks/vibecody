@@ -105,7 +105,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        check: [lint, typecheck, test]
+        check: [lint, typecheck, test, build]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
@@ -129,6 +129,15 @@ jobs:
       - name: Unit tests (vitest)
         if: matrix.check == 'test'
         run: npm test
+
+      # Nothing else here bundles the app, and neither `tsc` nor `vitest`
+      # notices a module that only the bundler resolves. A monaco-editor bump
+      # once broke every `monaco-editor/esm/vs/**` worker import — the editor
+      # would have shipped stuck on "Loading..." — while typecheck and 1359
+      # unit tests stayed green. This step is the only thing that sees it.
+      - name: Production bundle (vite build)
+        if: matrix.check == 'build'
+        run: npx vite build
 
   # ─── VibeApp: TypeScript ───────────────────────────────────────────────
   vibeapp-checks:
