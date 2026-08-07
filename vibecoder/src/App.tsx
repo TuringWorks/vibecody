@@ -701,9 +701,19 @@ function App() {
     // Register VibeCoder theme with Monaco so the editor matches the app theme
     defineEditorTheme(monaco);
 
-    // Register languages that Monaco doesn't have built-in support for.
-    // Map them to similar languages for syntax highlighting.
+    // Register languages Monaco has no grammar for.
+    //
+    // Registration alone gives no syntax highlighting — it makes the language
+    // *id* valid, which is what `setModelLanguage` and every provider
+    // registration key require. Without it `detectLanguage("x.cob")` returns
+    // "cobol", Monaco rejects the unknown id, and the file gets neither
+    // highlighting nor IntelliSense even with a COBOL server installed.
     const extraLangs: Array<{ id: string; extensions: string[]; aliases?: string[] }> = [
+      { id: "matlab", extensions: [".m", ".mlx", ".mlapp"], aliases: ["MATLAB"] },
+      { id: "asm", extensions: [".asm", ".s", ".nasm"], aliases: ["Assembly"] },
+      { id: "cobol", extensions: [".cob", ".cbl", ".cpy", ".cbo"], aliases: ["COBOL"] },
+      { id: "sas", extensions: [".sas"], aliases: ["SAS"] },
+      { id: "foxpro", extensions: [".prg"], aliases: ["FoxPro"] },
       { id: "haskell", extensions: [".hs", ".lhs"], aliases: ["Haskell"] },
       { id: "fortran", extensions: [".f", ".f90", ".f95", ".f03", ".f08"], aliases: ["Fortran"] },
       { id: "prolog", extensions: [".pro", ".pl"], aliases: ["Prolog"] },

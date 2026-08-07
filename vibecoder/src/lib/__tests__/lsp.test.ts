@@ -188,6 +188,96 @@ describe("lspLanguageForPath", () => {
   });
 });
 
+/**
+ * TIOBE top 30 (April 2026, mirroring `useLanguageRegistry.ts`) → a real
+ * filename and the LSP language id it must route to.
+ *
+ * This is the frontend half of the coverage commitment; `manager.rs` holds the
+ * other half (id → server binary). Both are needed: an extension that routes
+ * nowhere gets no IntelliSense however many servers are configured, and that
+ * was the actual state of MATLAB, Assembly, Ada, PL/SQL, COBOL, SAS and
+ * Objective-C files.
+ *
+ * `null` = no language server exists to route to. Scratch is a block language
+ * whose `.sb3` is a zip, and VB6 has no LSP implementation anywhere.
+ */
+const TIOBE_TOP_30: ReadonlyArray<
+  readonly [rank: number, name: string, file: string, language: string | null]
+> = [
+  [1, "Python", "main.py", "python"],
+  [2, "C", "main.c", "c"],
+  [3, "C++", "main.cpp", "cpp"],
+  [4, "Java", "Main.java", "java"],
+  [5, "C#", "Program.cs", "csharp"],
+  [6, "JavaScript", "app.js", "javascript"],
+  [7, "Visual Basic", "Module.vb", "vb"],
+  [8, "SQL", "query.sql", "sql"],
+  [9, "R", "analysis.r", "r"],
+  [10, "Delphi/Object Pascal", "unit.pas", "pascal"],
+  [11, "Scratch", "project.sb3", null],
+  [12, "Perl", "script.pl", "perl"],
+  [13, "Fortran", "solver.f90", "fortran"],
+  [14, "PHP", "index.php", "php"],
+  [15, "Go", "main.go", "go"],
+  [16, "Rust", "main.rs", "rust"],
+  [17, "MATLAB", "model.m", "matlab"],
+  [18, "Assembly", "boot.asm", "asm"],
+  [19, "Swift", "App.swift", "swift"],
+  [20, "Ada", "main.adb", "ada"],
+  [21, "PL/SQL", "package.pls", "plsql"],
+  [22, "Prolog", "rules.pro", "prolog"],
+  [23, "COBOL", "payroll.cbl", "cobol"],
+  [24, "Kotlin", "Main.kt", "kotlin"],
+  [25, "SAS", "report.sas", "sas"],
+  [26, "Classic Visual Basic", "Form1.frm", null],
+  [27, "Objective-C", "Bridge.mm", "objective-c"],
+  [28, "Dart", "main.dart", "dart"],
+  [29, "Ruby", "app.rb", "ruby"],
+  [30, "Lua", "init.lua", "lua"],
+];
+
+describe("TIOBE top-30 coverage", () => {
+  it("routes every top-30 language's files to a language server", () => {
+    const unrouted = TIOBE_TOP_30.filter(
+      ([, , file, language]) =>
+        language !== null && lspLanguageForPath(`/w/${file}`) !== language,
+    ).map(
+      ([rank, name, file, language]) =>
+        `#${rank} ${name}: ${file} → ${lspLanguageForPath(`/w/${file}`)} (want ${language})`,
+    );
+    expect(unrouted).toEqual([]);
+  });
+
+  it("declares the two exemptions deliberately", () => {
+    const exempt = TIOBE_TOP_30.filter(([, , , language]) => language === null).map(
+      ([, name]) => name,
+    );
+    expect(exempt).toEqual(["Scratch", "Classic Visual Basic"]);
+  });
+
+  it("resolves .pl to Perl and .pro to Prolog", () => {
+    // Both languages claim `.pl`. Perl wins (as in every other editor and in
+    // GitHub linguist); Prolog reaches its server through `.pro` / `.prolog`.
+    // Before this was pinned, every Prolog file was handed to Perl's server.
+    expect(lspLanguageForPath("/w/script.pl")).toBe("perl");
+    expect(lspLanguageForPath("/w/rules.pro")).toBe("prolog");
+    expect(lspLanguageForPath("/w/rules.prolog")).toBe("prolog");
+  });
+
+  it("resolves .m to MATLAB and .mm to Objective-C", () => {
+    // The same split `detectLanguage` makes for highlighting, so a file never
+    // highlights as one language and completes as another.
+    expect(lspLanguageForPath("/w/model.m")).toBe("matlab");
+    expect(lspLanguageForPath("/w/Bridge.mm")).toBe("objective-c");
+  });
+
+  it("keeps SQL dialects distinct so the status bar can name them", () => {
+    expect(lspLanguageForPath("/w/q.sql")).toBe("sql");
+    expect(lspLanguageForPath("/w/pkg.pls")).toBe("plsql");
+    expect(lspLanguageForPath("/w/proc.tsql")).toBe("tsql");
+  });
+});
+
 describe("triggerCharacters", () => {
   it("splits multi-character server triggers into single characters", () => {
     // Monaco only accepts single characters; `::` passed through verbatim

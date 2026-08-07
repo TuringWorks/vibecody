@@ -679,6 +679,63 @@ adding ours would duplicate every suggestion. The status bar shows which source
 is active for the current file, and offers a retry with the install hint when a
 server is missing.
 
+#### Language coverage — TIOBE top 30
+
+**28 of 30 have a language server; the 2 that don't, can't.** Coverage is pinned
+by tests on both sides — `manager.rs::every_tiobe_top_30_language_has_a_configured_server`
+(language id → server binary) and `lsp.test.ts` → "TIOBE top-30 coverage"
+(file extension → language id). Both halves are required: an extension that
+routes nowhere gets no IntelliSense however many servers are configured.
+
+| # | Language | Server | # | Language | Server |
+|---|----------|--------|---|----------|--------|
+| 1 | Python | `pyright-langserver` | 16 | Rust | `rust-analyzer` |
+| 2 | C | `clangd` | 17 | MATLAB | `matlab-language-server` |
+| 3 | C++ | `clangd` | 18 | Assembly | `asm-lsp` |
+| 4 | Java | `jdtls` | 19 | Swift | `sourcekit-lsp` |
+| 5 | C# | `OmniSharp` | 20 | Ada | `ada_language_server` |
+| 6 | JavaScript | Monaco built-in | 21 | PL/SQL | `sqls` † |
+| 7 | Visual Basic | `OmniSharp` | 22 | Prolog | `swipl` |
+| 8 | SQL | `sqls` | 23 | COBOL | `superbol-free` |
+| 9 | R | `R` + languageserver | 24 | Kotlin | `kotlin-language-server` |
+| 10 | Delphi/Object Pascal | `pasls` | 25 | SAS | `sas-lsp` |
+| 11 | Scratch | — ‡ | 26 | Classic Visual Basic | — ‡ |
+| 12 | Perl | `perl-language-server` | 27 | Objective-C | `clangd` |
+| 13 | Fortran | `fortls` | 28 | Dart | `dart language-server` |
+| 14 | PHP | `intelephense` | 29 | Ruby | `solargraph` |
+| 15 | Go | `gopls` | 30 | Lua | `lua-language-server` |
+
+† PL/SQL and T-SQL get **generic** SQL analysis — no dialect-aware server for
+either exists. They keep their own language ids so the status bar names the
+dialect and a real server can be dropped in later.
+
+‡ The two exemptions are not gaps we intend to close: **Scratch** is a block
+language whose `.sb3` is a zip archive, not source text, and **VB6** has no LSP
+implementation in existence. Both are asserted as deliberate in the tests, so
+adding a third exemption requires stating a reason.
+
+Beyond the top 30, ranks 31–50 add servers for Lisp, Julia, ML/OCaml/Caml,
+TypeScript, Haskell, ABAP, Zig, Erlang, Scala, T-SQL, PowerShell and Solidity.
+Four have no LSP in existence (VBScript, X++, GML, FoxPro) and two more are
+visual languages (LabVIEW, Ladder Logic). Roughly 60 language ids are configured
+in total, including Bash, YAML, TOML, Dockerfile, Markdown, GraphQL, Elixir,
+Clojure, Groovy, F#, Nim, Crystal, D, V, Vala and Racket.
+
+**Two extensions are genuinely ambiguous**, and IntelliSense follows the same
+choice `detectLanguage` makes for highlighting, so a file never highlights as one
+language and completes as another:
+
+| Extension | Resolves to | Other claimant | How to reach the other |
+|---|---|---|---|
+| `.pl` | Perl | Prolog | name Prolog files `.pro` / `.prolog` |
+| `.m` | MATLAB | Objective-C | `.mm` is unambiguously Objective-C |
+
+Languages Monaco has no grammar for (MATLAB, Assembly, COBOL, SAS, Ada, Fortran,
+Prolog, Haskell, Zig, Nim, Crystal, D, V, Vala, FoxPro) are registered as
+language *ids* at editor mount. That is what makes providers attach and
+IntelliSense work; it does **not** add syntax highlighting, which those files
+still render without.
+
 ### AI Operations
 
 | Command | Description |

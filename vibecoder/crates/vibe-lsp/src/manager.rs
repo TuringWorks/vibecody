@@ -139,6 +139,38 @@ impl LspManager {
             "dart".into(),
             s("dart", &["language-server", "--protocol=lsp"]),
         );
+        // Objective-C is a first-class clangd language, not an approximation.
+        server_configs.insert("objective-c".into(), s("clangd", &[]));
+
+        // ── Scientific / engineering ──
+        server_configs.insert(
+            "matlab".into(),
+            s("matlab-language-server", &["--stdio"]),
+        );
+
+        // ── Systems / low-level ──
+        server_configs.insert("asm".into(), s("asm-lsp", &[]));
+        server_configs.insert("ada".into(), s("ada_language_server", &[]));
+
+        // ── Enterprise / legacy ──
+        // SuperBOL is the maintained COBOL LSP (GnuCOBOL ecosystem).
+        server_configs.insert("cobol".into(), s("superbol-free", &["lsp"]));
+        server_configs.insert("sas".into(), s("sas-lsp", &["--stdio"]));
+        server_configs.insert("abap".into(), s("abaplsp", &[]));
+        // PL/SQL and T-SQL get generic SQL analysis from `sqls` — dialect-aware
+        // servers for either do not exist. Named separately (rather than folded
+        // into `sql`) so the status bar can say which dialect it resolved, and
+        // so a real PL/SQL server can be swapped in here later.
+        server_configs.insert("plsql".into(), s("sqls", &[]));
+        server_configs.insert("tsql".into(), s("sqls", &[]));
+
+        // ── Scripting / shell / web3 ──
+        server_configs.insert(
+            "powershell".into(),
+            s("powershell-editor-services", &["--stdio"]),
+        );
+        server_configs.insert("bash".into(), s("bash-language-server", &["start"]));
+        server_configs.insert("solidity".into(), s("nomicfoundation-solidity-language-server", &["--stdio"]));
 
         // ── Other compiled ──
         server_configs.insert("crystal".into(), s("crystalline", &[]));
@@ -338,6 +370,48 @@ impl LspManager {
         h.insert("v", "https://github.com/nickolasgasworker/v-analyzer");
         h.insert("vala", "https://github.com/vala-lang/vala-language-server");
         h.insert("prolog", "swipl (SWI-Prolog with lsp_server pack)");
+        h.insert("objective-c", "brew install llvm (macOS) | apt install clangd");
+        // Pre-existing servers that had no hint: "not installed" with no way to
+        // fix it is only half a message.
+        h.insert("vb", "https://github.com/OmniSharp/omnisharp-roslyn");
+        h.insert("dlang", "https://github.com/Pure-D/serve-d");
+        h.insert("lisp", "https://github.com/cxxxr/cl-lsp");
+        h.insert("cfml", "https://github.com/KamasamaK/vscode-cfml");
+        h.insert(
+            "matlab",
+            "https://github.com/mathworks/MATLAB-language-server",
+        );
+        h.insert("asm", "cargo install asm-lsp");
+        h.insert(
+            "ada",
+            "alr install ada_language_server | https://github.com/AdaCore/ada_language_server",
+        );
+        h.insert(
+            "cobol",
+            "opam install superbol-free | https://github.com/OCamlPro/superbol-studio-oss",
+        );
+        h.insert(
+            "sas",
+            "https://github.com/sassoftware/vscode-sas-extension",
+        );
+        h.insert("abap", "https://github.com/abaplint/abaplint-vscode");
+        h.insert(
+            "plsql",
+            "go install github.com/sqls-server/sqls@latest (generic SQL — no PL/SQL-specific server exists)",
+        );
+        h.insert(
+            "tsql",
+            "go install github.com/sqls-server/sqls@latest (generic SQL — no T-SQL-specific server exists)",
+        );
+        h.insert(
+            "powershell",
+            "https://github.com/PowerShell/PowerShellEditorServices",
+        );
+        h.insert("bash", "npm i -g bash-language-server");
+        h.insert(
+            "solidity",
+            "npm i -g @nomicfoundation/solidity-language-server",
+        );
         h
     }
 
@@ -666,9 +740,11 @@ mod tests {
 
     #[tokio::test]
     async fn get_client_for_language_unknown_returns_descriptive_error() {
+        // Deliberately a language nobody would configure — `cobol` used to
+        // stand in here and became a false negative once COBOL gained a server.
         let mut mgr = LspManager::new();
         let result = mgr
-            .get_client_for_language("cobol", std::path::Path::new("/tmp"))
+            .get_client_for_language("malbolge", std::path::Path::new("/tmp"))
             .await;
         match result {
             Err(e) => {
@@ -677,7 +753,7 @@ mod tests {
                     msg.contains("No LSP server configured"),
                     "error should mention missing config"
                 );
-                assert!(msg.contains("cobol"), "error should name the language");
+                assert!(msg.contains("malbolge"), "error should name the language");
             }
             Ok(_) => panic!("Expected error for unsupported language"),
         }
@@ -866,6 +942,133 @@ mod tests {
         mgr.add_client("rust".into(), LspClient::new("rust-analyzer".into(), vec![]));
         mgr.shutdown_all().await;
         assert!(mgr.clients.is_empty());
+    }
+
+    // ── TIOBE coverage ───────────────────────────────────────────────────────
+
+    /// The TIOBE top 30 (April 2026 ranking, mirroring
+    /// `vibecoder/src/hooks/useLanguageRegistry.ts`) paired with the language id
+    /// that must resolve to a server — the id the frontend's
+    /// `lspLanguageForPath` produces for that language's files.
+    ///
+    /// `None` means "no language server exists for this, and pretending
+    /// otherwise would be a lie": Scratch is a block language with no text
+    /// files, and VB6 has no LSP implementation anywhere.
+    const TIOBE_TOP_30: [(u32, &str, Option<&str>); 30] = [
+        (1, "Python", Some("python")),
+        (2, "C", Some("c")),
+        (3, "C++", Some("cpp")),
+        (4, "Java", Some("java")),
+        (5, "C#", Some("csharp")),
+        (6, "JavaScript", Some("javascript")),
+        (7, "Visual Basic", Some("vb")),
+        (8, "SQL", Some("sql")),
+        (9, "R", Some("r")),
+        (10, "Delphi/Object Pascal", Some("pascal")),
+        (11, "Scratch", None),
+        (12, "Perl", Some("perl")),
+        (13, "Fortran", Some("fortran")),
+        (14, "PHP", Some("php")),
+        (15, "Go", Some("go")),
+        (16, "Rust", Some("rust")),
+        (17, "MATLAB", Some("matlab")),
+        (18, "Assembly", Some("asm")),
+        (19, "Swift", Some("swift")),
+        (20, "Ada", Some("ada")),
+        (21, "PL/SQL", Some("plsql")),
+        (22, "Prolog", Some("prolog")),
+        (23, "COBOL", Some("cobol")),
+        (24, "Kotlin", Some("kotlin")),
+        (25, "SAS", Some("sas")),
+        (26, "Classic Visual Basic", None),
+        (27, "Objective-C", Some("objective-c")),
+        (28, "Dart", Some("dart")),
+        (29, "Ruby", Some("ruby")),
+        (30, "Lua", Some("lua")),
+    ];
+
+    #[test]
+    fn every_tiobe_top_30_language_has_a_configured_server() {
+        // The product commitment. A language whose server config is renamed or
+        // dropped fails here rather than becoming a silently dead file type.
+        let mgr = LspManager::new();
+        let missing: Vec<String> = TIOBE_TOP_30
+            .iter()
+            .filter_map(|(rank, name, language)| {
+                let language = (*language)?;
+                (!mgr.server_configs.contains_key(language))
+                    .then(|| format!("#{rank} {name} (expected id `{language}`)"))
+            })
+            .collect();
+        assert!(
+            missing.is_empty(),
+            "TIOBE top-30 languages with no configured LSP server: {missing:#?}"
+        );
+    }
+
+    #[test]
+    fn every_configured_server_has_an_install_hint() {
+        // "Not installed" is only actionable with the command that installs it.
+        let mgr = LspManager::new();
+        let hints = LspManager::install_hints();
+        let missing: Vec<&String> = mgr
+            .server_configs
+            .keys()
+            .filter(|language| !hints.contains_key(language.as_str()))
+            .collect();
+        assert!(
+            missing.is_empty(),
+            "configured servers with no install hint: {missing:#?}"
+        );
+    }
+
+    #[test]
+    fn languages_without_a_server_are_declared_deliberately() {
+        // Guards the *shape* of the commitment: if someone marks a language
+        // `None` to make the coverage test pass, this says why that is allowed.
+        let declared: Vec<&str> = TIOBE_TOP_30
+            .iter()
+            .filter(|(_, _, language)| language.is_none())
+            .map(|(_, name, _)| *name)
+            .collect();
+        assert_eq!(
+            declared,
+            vec!["Scratch", "Classic Visual Basic"],
+            "only a block language and a dialect with no LSP in existence may \
+             be exempt; adding an entry here needs a reason in the table comment"
+        );
+    }
+
+    #[test]
+    fn sql_dialects_are_named_separately_from_generic_sql() {
+        // PL/SQL and T-SQL share `sqls`, but keep their own ids so the status
+        // bar can name the dialect and a real server can be swapped in later.
+        let mgr = LspManager::new();
+        for dialect in ["plsql", "tsql"] {
+            let (cmd, _) = mgr
+                .server_configs
+                .get(dialect)
+                .unwrap_or_else(|| panic!("{dialect} must be configured"));
+            assert_eq!(cmd, "sqls", "{dialect} currently rides on generic SQL");
+        }
+        let hints = LspManager::install_hints();
+        for dialect in ["plsql", "tsql"] {
+            assert!(
+                hints[dialect].contains("generic SQL"),
+                "{dialect}'s hint must admit it is not dialect-aware"
+            );
+        }
+    }
+
+    #[test]
+    fn objective_c_uses_clangd() {
+        // Not an approximation — clangd supports Objective-C directly.
+        let mgr = LspManager::new();
+        let (cmd, _) = mgr
+            .server_configs
+            .get("objective-c")
+            .expect("objective-c configured");
+        assert_eq!(cmd, "clangd");
     }
 
     #[tokio::test]

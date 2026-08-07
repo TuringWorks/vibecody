@@ -326,10 +326,20 @@ const EXTENSION_LANGUAGE: Record<string, string> = {
   rake: "ruby",
   gemspec: "ruby",
   php: "php",
+  // `.pl` is claimed by both Perl and Prolog. Perl wins, matching every other
+  // editor and GitHub's own linguist; Prolog files reach their server through
+  // `.pro` / `.prolog`.
   pl: "perl",
   pm: "perl",
+  pod: "perl",
   lua: "lua",
   r: "r",
+  ps1: "powershell",
+  psm1: "powershell",
+  psd1: "powershell",
+  sh: "bash",
+  bash: "bash",
+  zsh: "bash",
   // Functional
   hs: "haskell",
   lhs: "haskell",
@@ -345,6 +355,10 @@ const EXTENSION_LANGUAGE: Record<string, string> = {
   // Apple / mobile
   swift: "swift",
   dart: "dart",
+  // `.mm` is unambiguously Objective-C++. Bare `.m` goes to MATLAB below —
+  // the same call `detectLanguage` makes for highlighting, kept consistent so
+  // one file never highlights as one language and completes as another.
+  mm: "objective-c",
   // Other compiled
   cr: "crystal",
   f: "fortran",
@@ -354,8 +368,40 @@ const EXTENSION_LANGUAGE: Record<string, string> = {
   f08: "fortran",
   pas: "pascal",
   pp: "pascal",
+  dpr: "pascal",
   jl: "julia",
   pro: "prolog",
+  prolog: "prolog",
+
+  // Scientific / engineering
+  m: "matlab",
+  mlx: "matlab",
+  mlapp: "matlab",
+
+  // Systems / low-level
+  asm: "asm",
+  s: "asm",
+  nasm: "asm",
+  adb: "ada",
+  ads: "ada",
+  ada: "ada",
+
+  // Enterprise / legacy
+  cob: "cobol",
+  cbl: "cobol",
+  cpy: "cobol",
+  cbo: "cobol",
+  sas: "sas",
+  abap: "abap",
+  // Oracle PL/SQL and MS T-SQL: generic SQL analysis (see the Rust table).
+  pls: "plsql",
+  plsql: "plsql",
+  pkb: "plsql",
+  pks: "plsql",
+  tsql: "tsql",
+
+  // Web3
+  sol: "solidity",
   // Markup / config
   yaml: "yaml",
   yml: "yaml",
