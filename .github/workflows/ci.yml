@@ -252,7 +252,7 @@ jobs:
         run: npm install remark-cli@12 @wooorm/storyline-preset@1 remark-preset-lint-recommended@6 remark-lint-no-duplicate-headers@4 remark-lint-max-blank-lines@2 remark-lint-heading-style@3 remark-lint-list-item-indent@2 remark-lint-maximum-line-length@6
 
       - name: Lint Markdown files
-        if: matrix.check == "lint"
+        if: matrix.check == 'lint'
         run: npx remark . --frail --quiet --ignore-component-path=false
 
   # ─── Aggregate gate ────────────────────────────────────────────────────
