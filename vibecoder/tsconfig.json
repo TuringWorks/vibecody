@@ -14,6 +14,12 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* Incremental type-checking — caches results so the PostToolUse hook
+       re-checks only what the edit touched. Cache lives under node_modules,
+       which is already gitignored. Delete it to force a full check. */
+    "incremental": true,
+    "tsBuildInfoFile": "./node_modules/.cache/tsc/tsconfig.tsbuildinfo",
+
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,

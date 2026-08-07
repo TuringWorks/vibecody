@@ -9,9 +9,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "f=$(jq -r '.tool_input.file_path // empty' 2>/dev/null); case \"$f\" in *.rs) cargo check --workspace --exclude vibe-collab 2>&1 | tail -8 ;; *.tsx|*.ts) npx --prefix vibecoder tsc --noEmit --project vibecoder/tsconfig.json 2>&1 | tail -5 ;; esac",
+            "command": "f=$(jq -r '.tool_input.file_path // empty' 2>/dev/null); case \"$f\" in *.rs) d=$(dirname \"$f\"); p=\"\"; while [ -n \"$d\" ] && [ \"$d\" != \"/\" ] && [ \"$d\" != \".\" ]; do if [ -f \"$d/Cargo.toml\" ]; then p=$(awk '/^\\[package\\]/{f=1;next} /^\\[/{f=0} f&&$1==\"name\"{gsub(/\"/,\"\",$3);print $3;exit}' \"$d/Cargo.toml\"); [ -n \"$p\" ] && break; fi; d=$(dirname \"$d\"); done; case \"$p\" in \"\") echo \"hook: no Cargo package above $f — skipped cargo check\" ;; vibe-collab) echo \"hook: vibe-collab is excluded from checks — skipped\" ;; *) cargo check -p \"$p\" 2>&1 | tail -8 ;; esac ;; *.tsx|*.ts) npx --prefix vibecoder tsc --noEmit --project vibecoder/tsconfig.json 2>&1 | tail -5 ;; esac",
             "timeout": 120,
-            "statusMessage": "Checking types..."
+            "statusMessage": "Type-checking affected crate..."
           }
         ]
       }
