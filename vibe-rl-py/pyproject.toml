@@ -11,7 +11,7 @@ dependencies = [
     "numpy>=1.26,<3.0",
     "torch>=2.13.0,<3.0",  # >=2.13.0: CVE-2025-3000 (torch.jit.script memory corruption)
     "pyyaml>=6.0,<7.0",        # config files from the daemon
-    "tyro>=0.7,<1.0",          # CleanRL's CLI parser of choice — light, typed
+    "tyro>=1.0.15,<2.0",          # CleanRL's CLI parser of choice — light, typed
     "tensorboardX>=2.6,<3.0",  # CleanRL writes here; we ignore the events
 ]
 
