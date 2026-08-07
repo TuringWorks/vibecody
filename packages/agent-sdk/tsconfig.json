@@ -11,7 +11,15 @@
     "sourceMap": true,
     "strict": true,
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    // TypeScript 6: @types packages are no longer auto-included under
+    // moduleResolution "bundler", so resolveDaemonToken()'s require()/
+    // node:* usage needs @types/node named explicitly.
+    "types": ["node"],
+    // tsup's dts build still injects the deprecated "baseUrl"; TS 6 errors
+    // on it (TS5101) unless deprecations are acknowledged. Remove once tsup
+    // stops setting it — it stops functioning in TS 7.0 regardless.
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
