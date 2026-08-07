@@ -97,6 +97,24 @@ updates:
       vscode-extension-minor:
         update-types: [minor, patch]
 
+  # ─── vibe-rl-py (Python, uv.lock) ─────────────────────────────────────────
+  # Dependabot already *alerts* on vibe-rl-py/uv.lock via the dependency graph,
+  # but without an entry here it never opened a fix PR — the pillow and
+  # setuptools advisories had to be bumped by hand.
+  - package-ecosystem: uv
+    directory: /vibe-rl-py
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - python
+    groups:
+      vibe-rl-py-minor:
+        update-types: [minor, patch]
+
   # ─── VibeCody Mobile (Flutter/Dart) ───────────────────────────────────────
   - package-ecosystem: pub
     directory: /vibemobile
@@ -108,6 +126,35 @@ updates:
     labels:
       - dependencies
       - flutter
+
+  # ─── JetBrains plugin (Kotlin/Gradle) ─────────────────────────────────────
+  # Ships as a client per the Product Matrix but had no coverage at all;
+  # declares gson + junit directly.
+  - package-ecosystem: gradle
+    directory: /jetbrains-plugin
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - kotlin
+
+  # ─── VibeMobile Android host (Kotlin/Gradle) ──────────────────────────────
+  # The `pub` entry above covers pubspec.yaml only — it does not see the
+  # Android host's Gradle deps, which include okhttp (network-facing, used by
+  # the Wear relay) and play-services-wearable.
+  - package-ecosystem: gradle
+    directory: /vibemobile/android
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - kotlin
 
   # ─── Wear OS (Kotlin/Gradle) ──────────────────────────────────────────────
   - package-ecosystem: gradle

@@ -17,7 +17,9 @@ dependencies = [
 
 [project.optional-dependencies]
 mujoco = ["mujoco>=3.0", "gymnasium[mujoco]>=0.29"]
-atari = ["gymnasium[atari,accept-rom-license]>=0.29"]
+# No `accept-rom-license` extra: gymnasium dropped it in 1.0 (ale-py bundles the
+# ROMs now). Requesting it made every resolve warn and was silently ignored.
+atari = ["gymnasium[atari]>=0.29"]
 box2d = ["gymnasium[box2d]>=0.29", "swig"]
 onnx = ["onnx>=1.22.0", "onnxruntime>=1.16"]
 # Slice 7a — distill + quantize + prune. Distill reuses the base PPO loop

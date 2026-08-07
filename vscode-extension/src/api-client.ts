@@ -14,6 +14,13 @@
  * ```
  */
 
+// Node built-ins. This extension has no `browser` entry point, so it only ever
+// runs in the VS Code Node host; these were previously lazy `require()` calls
+// guarded by a try/catch, which only ever needed to guard the readFileSync.
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+
 /**
  * Value the daemon reports as `service` in `GET /health`. Must match
  * `vibecli_cli::daemon_bootstrap::SERVICE_NAME`.
@@ -122,10 +129,6 @@ function resolveDaemonToken(explicit?: string): string | undefined {
   const env = process?.env?.VIBECLI_DAEMON_TOKEN;
   if (env) return env;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const fs = require('node:fs') as typeof import('node:fs');
-    const os = require('node:os') as typeof import('node:os');
-    const path = require('node:path') as typeof import('node:path');
     const token = fs
       .readFileSync(path.join(os.homedir(), '.vibecli', 'daemon.token'), 'utf8')
       .trim();
