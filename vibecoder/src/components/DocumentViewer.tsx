@@ -642,18 +642,27 @@ const EPUB_SANITIZE_CONFIG = {
   // Belt-and-suspenders against the bypasses the prior regex missed.
   FORBID_TAGS: ["script", "iframe", "object", "embed", "link", "meta", "base", "form", "input", "button", "textarea", "select", "option", "style"],
   FORBID_ATTR: ["style", "srcset", "formaction", "action"],
-  // Strip href="javascript:…" / src="javascript:…" / data: URIs (DOMPurify
-  // does this by default for href/xlink:href, but make it explicit).
+  // Drop data-* attributes. NOTE: this option governs `data-*` ATTRIBUTES only
+  // — it has nothing to do with `data:` URIs. Those are handled by DOMPurify's
+  // default ALLOWED_URI_REGEXP, which permits `data:` solely on media tags
+  // (img/audio/video/source/track), where it cannot execute. javascript: URLs
+  // are stripped by that same default.
   ALLOW_DATA_ATTR: false,
   // Disallow <a target="_blank"> from popping a new context window etc. —
   // EPUB renders inline; we don't need rich link semantics.
   ADD_ATTR: [],
-  // Remove on*= handlers entirely (default, but explicit).
-  USE_PROFILES: { html: true },
+  // NO `USE_PROFILES` HERE — DO NOT ADD IT BACK. Setting USE_PROFILES makes
+  // DOMPurify ignore ALLOWED_TAGS and ALLOWED_ATTR entirely and fall back to
+  // the profile's much broader default set. While `USE_PROFILES: {html:true}`
+  // was set, every list above was inert: <video>, <audio>, <canvas>,
+  // <marquee>, <progress>, <dialog> and <slot> all rendered despite not being
+  // allowed, and every SVG tag listed was silently dropped despite being
+  // allowed (svg lives in a different profile). On*= handlers are removed by
+  // default, which is all USE_PROFILES was reached for.
 };
 
 /** Sanitize EPUB HTML for safe rendering (DREAD #10). */
-function sanitizeEpubHtml(html: string): string {
+export function sanitizeEpubHtml(html: string): string {
   return DOMPurify.sanitize(html, EPUB_SANITIZE_CONFIG);
 }
 

@@ -25,7 +25,6 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  # cargo-audit / cargo-deny need a Cargo.lock; ours is gitignored, so CI generates one.
   CARGO_NET_RETRY: 3
 
 jobs:
@@ -51,8 +50,16 @@ jobs:
       - name: Install cargo-audit
         run: cargo install cargo-audit --locked
 
-      - name: Generate Cargo.lock (gitignored)
-        run: cargo generate-lockfile
+      # DO NOT regenerate Cargo.lock here. It is committed, and regenerating it
+      # re-resolves every dependency to the newest semver-compatible release —
+      # so the audit passed against versions that were never shipped while the
+      # committed lock carried unpatched ones. That is exactly how quinn-proto
+      # 0.11.14 (RUSTSEC-2026-0222 et al.) sat in the lock with a green audit.
+      # Audit the lockfile the build actually uses.
+      - name: Verify Cargo.lock is committed and current
+        run: |
+          test -f Cargo.lock || { echo "::error::Cargo.lock is missing — it must be committed"; exit 1; }
+          cargo metadata --locked --format-version 1 >/dev/null
 
       # No `|| true` — this MUST fail the build on any unpatched advisory.
       # Suppressions live in deny.toml [advisories.ignore] (authoritative
@@ -90,7 +97,8 @@ jobs:
             --ignore RUSTSEC-2025-0119 \
             --ignore RUSTSEC-2025-0134 \
             --ignore RUSTSEC-2025-0141 \
-            --ignore RUSTSEC-2026-0002
+            --ignore RUSTSEC-2026-0002 \
+            --ignore RUSTSEC-2026-0215
 
   # ─── Rust policy (licenses, sources, banned crates, duplicates) ────────────
   cargo-deny:
@@ -119,7 +127,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        path: [vibecoder, vibeapp, packages/agent-sdk]
+        # EVERY directory with a package.json belongs here. vibedesk and
+        # vscode-extension were missing, and vscode-extension alone was
+        # carrying 8 high-severity advisories that nothing ever reported.
+        path: [vibecoder, vibeapp, vibedesk, packages/agent-sdk, vscode-extension]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
@@ -138,26 +149,35 @@ jobs:
             echo "::notice::No package.json at ${{ matrix.path }} — skipping"
           fi
 
-      # Lockfile is gitignored; generate it for the audit only.
-      - name: Generate package-lock.json
+      # DO NOT regenerate the lockfile. package-lock.json is committed now
+      # (see .gitignore) and regenerating re-resolves to the newest
+      # semver-compatible releases, so the audit graded dependencies nobody
+      # installs. While these were regenerated, agent-sdk's committed state
+      # pinned vitest 1.6.1 with a critical advisory and CI audited 4.x.
+      - name: Verify lockfile is committed
         if: steps.precheck.outputs.exists == 'true'
         working-directory: ${{ matrix.path }}
-        run: npm install --package-lock-only --ignore-scripts
+        run: test -f package-lock.json || { echo "::error::${{ matrix.path }}/package-lock.json is missing — it must be committed"; exit 1; }
 
-      - name: Run npm audit
+      # Two tiers, because severity alone is a bad proxy for risk here.
+      #
+      # Production deps at MODERATE: dompurify shipped 17 open sanitizer-bypass
+      # advisories in vibecoder — every one rated moderate, on a runtime dep
+      # that sanitizes attacker-controlled EPUB HTML. A `high` threshold is
+      # blind to precisely the class of bug that matters most in a renderer.
+      #
+      # Dev deps at HIGH: build tooling churns and a moderate there is rarely
+      # shipped risk. Holding dev deps to moderate would keep this job red,
+      # and a permanently-red security job is one nobody reads.
+      - name: Run npm audit (production deps, moderate+)
         if: steps.precheck.outputs.exists == 'true'
         working-directory: ${{ matrix.path }}
-        # packages/agent-sdk is a published library with ZERO runtime
-        # dependencies — every advisory comes from build tooling
-        # (tsup / vitest → esbuild), which a consumer of the SDK never
-        # installs. Audit production deps only there. The apps (vibecoder,
-        # vibeapp) bundle and ship, so they keep the full dev+prod audit.
-        run: |
-          if [ "${{ matrix.path }}" = "packages/agent-sdk" ]; then
-            npm audit --audit-level=high --omit=dev
-          else
-            npm audit --audit-level=high
-          fi
+        run: npm audit --omit=dev --audit-level=moderate
+
+      - name: Run npm audit (all deps incl. dev, high+)
+        if: steps.precheck.outputs.exists == 'true'
+        working-directory: ${{ matrix.path }}
+        run: npm audit --audit-level=high
 
   # ─── Python supply-chain (vibe-rl-py) ──────────────────────────────────────
   # vibe-rl-py uses uv.lock — outside the npm/cargo coverage above. pip-audit

@@ -96,6 +96,7 @@ ignore = [
     { id = "RUSTSEC-2025-0119", reason = "number_prefix unmaintained — transitive (likely via a progress-bar lib). [review-by 2026-08-19]" },
     { id = "RUSTSEC-2025-0134", reason = "rustls-pemfile unmaintained — superseded by rustls-pki-types. Transitive; tied to the broader rustls ecosystem upgrade. [review-by 2026-08-19]" },
     { id = "RUSTSEC-2025-0141", reason = "bincode 1.x unmaintained — transitive via syntect 5.3 and vibe-memory. bincode 2.x is a non-trivial API rewrite; track syntect's migration. [review-by 2026-08-19]" },
+    { id = "RUSTSEC-2026-0215", reason = "smallstr 0.3.1 unmaintained — transitive via yrs 0.27 (CRDT layer behind vibe-collab). No patched release exists; the fix is yrs dropping the dep. Unmaintained-only: no vulnerability is claimed against smallstr. [review-by 2026-11-06]" },
 
     # ── Unsound transitives caught by cargo-audit only ────────────────
     # cargo-audit and cargo-deny use the same RustSec advisory DB but
@@ -164,4 +165,9 @@ allow-git = [
     # mistral.rs fork pinned to a TuringWorks branch with quant/Metal patches
     # for the TurboQuant work. The rev is pinned in Cargo.toml.
     "https://github.com/TuringWorks/mistral.rs",
+    # candle, pinned by rev via [patch.crates-io]. This pin is load-bearing for
+    # the mistral.rs fork above — the two must agree on the candle rev, so it
+    # cannot be moved to a crates.io release independently. Supplies
+    # candle-core / -kernels / -metal-kernels / -nn / -transformers.
+    "https://github.com/huggingface/candle.git",
 ]

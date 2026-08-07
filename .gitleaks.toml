@@ -26,7 +26,11 @@ tags = ["llm", "anthropic"]
 [[rules]]
 id = "vibecli-openai-key"
 description = "OpenAI API key literal"
-regex = '''sk-(proj-)?[A-Za-z0-9_\-]{20,}'''
+# \b is load-bearing: without it this matched *inside* identifiers, e.g. the CSS
+# class `.vibedesk-banner__dot--offline` contains "sk-banner__dot--offline",
+# which is 20+ key-shaped chars. That false positive kept the secret-scanning
+# job red on main, which is worse than no scanning at all.
+regex = '''\bsk-(proj-)?[A-Za-z0-9_\-]{20,}'''
 tags = ["llm", "openai"]
 
 [[rules]]

@@ -14,8 +14,10 @@ thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 
-# WASM runtime for extensions
-wasmtime = "45.0"
+# WASM runtime for extensions.
+# Pinned >=47.0.3: RUSTSEC-2026-0222 (stores can mix up type indices between
+# engines) is unpatched in the 45.x line.
+wasmtime = "47.0.3"
 
 # Home directory resolution
 dirs-next = "2.0"

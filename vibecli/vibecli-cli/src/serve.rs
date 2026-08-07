@@ -10918,7 +10918,7 @@ mod tests {
             let masked = super::super::mask_secret(unicode);
             assert!(masked.contains("..."), "long values are masked head...tail");
             // A realistic 32-hex token.
-            let token = "0123456789abcdef0123456789abcdef";
+            let token = "0123456789abcdef0123456789abcdef"; // gitleaks:allow — sequential-hex test fixture, not a credential
             assert_eq!(super::super::mask_secret(token), "0123...cdef");
         }
 
