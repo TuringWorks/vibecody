@@ -834,22 +834,44 @@ fn map_language(l: KgLanguage) -> VcLanguage {
 mod tests {
     use super::*;
 
-    fn fixture_dir() -> tempfile::TempDir {
-        let dir = tempfile::tempdir().unwrap();
-        std::fs::write(
-            dir.path().join("lib.rs"),
-            "pub fn alpha() {}\npub fn beta() { alpha(); }\n",
-        )
-        .unwrap();
-        std::fs::write(dir.path().join("other.rs"), "pub fn gamma() { beta(); }\n").unwrap();
-        dir
+    /// One fixture workspace for the whole test binary, deliberately leaked for
+    /// the process lifetime.
+    ///
+    /// `GRAPH` is a `OnceLock`, so the first `init_graph_handle` call binds the
+    /// workspace root for every later caller — including `build_graph_blocking`,
+    /// which resolves its handle through the same global. A per-test `TempDir`
+    /// therefore breaks two ways at once: the second test to run receives a
+    /// handle pointing at the *first* test's directory, and that directory has
+    /// already been deleted by `TempDir::drop`, so the store's `codegraph.db`
+    /// path no longer exists. That surfaced as
+    /// `graph_aware_symbols_seeds_from_query` panicking on
+    /// `build_graph_blocking(..).unwrap()` — reliably under `--test-threads=1`,
+    /// and intermittently in a full parallel run depending on drop order.
+    ///
+    /// Matching the fixture's lifetime to the global's removes the hazard: every
+    /// test shares one root, which is exactly what the global already assumes.
+    fn fixture_dir() -> &'static Path {
+        static FIXTURE: OnceLock<tempfile::TempDir> = OnceLock::new();
+        FIXTURE
+            .get_or_init(|| {
+                let dir = tempfile::tempdir().unwrap();
+                std::fs::write(
+                    dir.path().join("lib.rs"),
+                    "pub fn alpha() {}\npub fn beta() { alpha(); }\n",
+                )
+                .unwrap();
+                std::fs::write(dir.path().join("other.rs"), "pub fn gamma() { beta(); }\n")
+                    .unwrap();
+                dir
+            })
+            .path()
     }
 
     #[test]
     fn build_and_query() {
         let dir = fixture_dir();
-        let handle = init_graph_handle(dir.path());
-        let probe = build_graph_blocking(dir.path()).unwrap();
+        let handle = init_graph_handle(dir);
+        let probe = build_graph_blocking(dir).unwrap();
         assert_eq!(probe.status, GraphStatus::Ready);
         assert!(probe.node_count >= 3, "node_count={}", probe.node_count);
 
@@ -903,8 +925,8 @@ mod tests {
     #[test]
     fn graph_aware_symbols_seeds_from_query() {
         let dir = fixture_dir();
-        init_graph_handle(dir.path());
-        build_graph_blocking(dir.path()).unwrap();
+        init_graph_handle(dir);
+        build_graph_blocking(dir).unwrap();
         let syms = graph_aware_symbols("alpha", 10);
         assert!(!syms.is_empty(), "should seed symbols from query 'alpha'");
         assert!(syms

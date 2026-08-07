@@ -297,13 +297,17 @@ fn call_target_tail(node: &Node<'_>, src: &str, _lang: Language) -> Option<Strin
     let raw = if let Some(func) = node.child_by_field_name("function") {
         text_of(&func, src)
     } else {
-        // Fallback: first named child (e.g. macro_invocation). Use it inside the loop.
+        // Fallback: first named child (e.g. macro_invocation). Taken via `next()`
+        // rather than a `for`+`break`, which clippy denies as `never_loop`; the
+        // Node stays inside the closure so nothing borrowed escapes the cursor.
         let mut cursor = node.walk();
-        let mut found = String::new();
-        for child in node.named_children(&mut cursor) {
-            found = text_of(&child, src);
-            break;
-        }
+        // Bound to a local so the iterator temporary is dropped at the end of
+        // this statement, i.e. before `cursor` goes out of scope.
+        let found = node
+            .named_children(&mut cursor)
+            .next()
+            .map(|child| text_of(&child, src))
+            .unwrap_or_default();
         found
     };
     if raw.is_empty() {
