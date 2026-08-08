@@ -23,7 +23,10 @@ const TARGETS: Target[] = [
   { file: "AppBuilderPanel.tsx", line: 424, desc: "close error message" },
   { file: "ArchitectureSpecPanel.tsx", line: 605, desc: "close report" },
   { file: "ArchitectureSpecPanel.tsx", line: 768, desc: "close cell editing" },
-  { file: "BrowserPanel.tsx", line: 202, desc: "refresh browser" },
+  // Line numbers here shift whenever the file above the target changes; when a
+  // case starts failing, check whether the line still points at the intended
+  // button before assuming a real regression.
+  { file: "BrowserPanel.tsx", line: 226, desc: "refresh browser" },
   { file: "CodeMetricsPanel.tsx", line: 151, desc: "close error message" },
   { file: "ColorPalettePanel.tsx", line: 104, desc: "delete color token" },
   { file: "ColorPalettePanel.tsx", line: 235, desc: "delete palette" },

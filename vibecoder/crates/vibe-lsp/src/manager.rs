@@ -299,26 +299,39 @@ impl LspManager {
                 return LanguageStatus::Running;
             }
         }
-        if let Some(reason) = self.unavailable.get(language) {
-            return LanguageStatus::Failed {
-                reason: reason.clone(),
-            };
-        }
+
         let Some((cmd, _)) = self.server_configs.get(language) else {
             return LanguageStatus::Unconfigured;
         };
-        if server_available(cmd, &self.search_paths) {
-            LanguageStatus::Available {
-                command: cmd.clone(),
-            }
-        } else {
-            LanguageStatus::NotInstalled {
+
+        // A missing binary is reported as `NotInstalled` even when a start has
+        // already been attempted and cached in `unavailable`.
+        //
+        // Checking the cache first (as this did) turned every uninstalled server
+        // into `Failed` the moment a file of that language was opened — because
+        // `get_client_for_language` records the "not installed" reason there. The
+        // status bar then said "IntelliSense failed: markdown" instead of naming
+        // the install command, and the Copy-install button never appeared, since
+        // `Failed` carries no install hint. `Failed` must mean "the binary is
+        // there and starting it went wrong" — an actually different problem.
+        if !server_available(cmd, &self.search_paths) {
+            return LanguageStatus::NotInstalled {
                 command: cmd.clone(),
                 install_hint: Self::install_hints()
                     .get(language)
                     .unwrap_or(&"Check your package manager")
                     .to_string(),
-            }
+            };
+        }
+
+        if let Some(reason) = self.unavailable.get(language) {
+            return LanguageStatus::Failed {
+                reason: reason.clone(),
+            };
+        }
+
+        LanguageStatus::Available {
+            command: cmd.clone(),
         }
     }
 
@@ -952,13 +965,78 @@ mod tests {
             .get_client_for_language("rust", root)
             .await
             .expect_err("still nothing installed");
+        // Same message, served from the cache — no second spawn attempt.
         assert_eq!(first.to_string(), second.to_string());
-        assert_eq!(
-            mgr.language_status("rust"),
-            LanguageStatus::Failed {
-                reason: first.to_string()
-            }
+
+        // But the *status* stays `NotInstalled`, not `Failed`: the cache records
+        // that we tried, and says nothing about which problem it is. Reporting
+        // `Failed` here is what put "IntelliSense failed: markdown" on screen
+        // and hid the install command.
+        assert!(
+            matches!(
+                mgr.language_status("rust"),
+                LanguageStatus::NotInstalled { .. }
+            ),
+            "got {:?}",
+            mgr.language_status("rust")
         );
+    }
+
+    #[tokio::test]
+    async fn a_missing_binary_stays_not_installed_after_a_failed_attempt() {
+        // The bug this pins showed up on screen as "IntelliSense failed:
+        // markdown". Opening a `.md` file attempts a start, which caches the
+        // "not installed" reason in `unavailable`; reading the cache before
+        // checking the binary then reported `Failed`. That loses the install
+        // command *and* the Copy-install button, which only `NotInstalled`
+        // carries — so the one actionable state became the least useful one.
+        let mut mgr = manager_with_no_servers();
+        let _ = mgr
+            .get_client_for_language("markdown", std::path::Path::new("/tmp"))
+            .await;
+        assert!(
+            mgr.unavailable.contains_key("markdown"),
+            "the attempt must be remembered"
+        );
+
+        match mgr.language_status("markdown") {
+            LanguageStatus::NotInstalled {
+                command,
+                install_hint,
+            } => {
+                assert_eq!(command, "marksman");
+                assert!(install_hint.contains("marksman"), "{install_hint}");
+            }
+            other => panic!("expected NotInstalled, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn failed_is_reserved_for_an_installed_server_that_would_not_start() {
+        // `Failed` must mean something different from `NotInstalled`, or the
+        // status bar cannot tell the user which problem they have. Simulated by
+        // caching a reason for a language whose binary *is* resolvable.
+        let dir = std::env::temp_dir().join(format!("vibe-lsp-status-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        let exe = dir.join("rust-analyzer");
+        std::fs::write(&exe, b"#!/bin/sh\n").expect("write");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        }
+
+        let mut mgr = LspManager::with_search_paths(ServerSearchPaths {
+            path_entries: vec![dir],
+            extra_prefixes: vec![],
+        });
+        mgr.unavailable
+            .insert("rust".into(), "'rust-analyzer' failed to start: boom".into());
+
+        match mgr.language_status("rust") {
+            LanguageStatus::Failed { reason } => assert!(reason.contains("boom"), "{reason}"),
+            other => panic!("expected Failed, got {other:?}"),
+        }
     }
 
     #[tokio::test]

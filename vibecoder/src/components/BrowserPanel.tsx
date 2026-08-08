@@ -19,6 +19,28 @@ interface CdpTarget {
  type: string;
 }
 
+/**
+ * Is this a local dev server, which will embed happily?
+ *
+ * Local servers do not send `X-Frame-Options`, so these are the URLs the panel
+ * can actually preview. Anything remote may be refused by the site itself, and
+ * the parent frame cannot detect that cross-origin.
+ */
+export function isLocalPreview(url: string): boolean {
+  try {
+    const { hostname } = new URL(url);
+    return (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "[::1]" ||
+      hostname === "0.0.0.0" ||
+      hostname.endsWith(".localhost")
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function BrowserPanel() {
  const { toasts, toast, dismiss } = useToast();
  const [urlInput, setUrlInput] = useState('http://localhost:3000');
@@ -191,12 +213,14 @@ export function BrowserPanel() {
  onClick={goBack}
  disabled={histIdx <= 0}
  title="Back"
+ aria-label="Back"
  style={navBtnStyle}
  >←</button>
  <button
  onClick={goForward}
  disabled={histIdx >= history.length - 1}
  title="Forward"
+ aria-label="Forward"
  style={navBtnStyle}
  >→</button>
  <button className="panel-btn" onClick={refresh} disabled={!iframeSrc} title="Refresh" aria-label="Refresh" style={navBtnStyle}><RefreshCw size={14} /></button>
@@ -310,6 +334,7 @@ export function BrowserPanel() {
  {/* Webview / iframe */}
  <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
  {iframeSrc ? (
+ <>
  <iframe
  ref={iframeRef}
  src={iframeSrc}
@@ -317,6 +342,27 @@ export function BrowserPanel() {
  style={{ width: '100%', height: '100%', border: 'none' }}
  title="Browser preview"
  />
+ {/* Most large sites send `X-Frame-Options: deny` or a
+ `frame-ancestors` CSP, and a refused frame renders as a blank
+ panel with no error anywhere — indistinguishable from a broken
+ app. Nothing in the parent can detect that cross-origin, so say
+ so up front for remote URLs rather than guess. */}
+ {!isLocalPreview(iframeSrc) && (
+ <div style={{
+ position: 'absolute', top: 0, left: 0, right: 0,
+ background: 'var(--bg-secondary)',
+ borderBottom: '1px solid var(--border-color)',
+ padding: '6px 10px', fontSize: '11px',
+ color: 'var(--text-secondary)',
+ display: 'flex', alignItems: 'center', gap: '8px',
+ }}>
+ <span>
+ Blank page? Many sites refuse to be embedded. Use ↗ to open it
+ in your browser.
+ </span>
+ </div>
+ )}
+ </>
  ) : (
  <div style={{
  display: 'flex', alignItems: 'center', justifyContent: 'center',
