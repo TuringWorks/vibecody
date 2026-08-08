@@ -67,12 +67,38 @@ fn decode_hex_key(hex_str: &str) -> Option<[u8; 32]> {
     Some(key)
 }
 
+/// Test seam for [`get_or_create_master_key`]: keys live in a process-local
+/// map and nothing is persisted.
+///
+/// The real implementation resolves `ProfileStore::new()`, whose `db_path()`
+/// is `$HOME/.vibecli/profile_settings.db` — the developer's actual encrypted
+/// credential store, alongside their real API keys. Because each test mints a
+/// fresh `tst-<uuid>` company id, every `cargo test` run wrote a batch of new,
+/// permanent `master_keys` rows there; 231 rows across 89 runs had accumulated
+/// before this seam existed. Per CLAUDE.md, tests must not open real user
+/// stores.
+#[cfg(test)]
+pub fn get_or_create_master_key(company_id: &str) -> Result<[u8; 32]> {
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
+
+    static KEYS: OnceLock<Mutex<HashMap<String, [u8; 32]>>> = OnceLock::new();
+    let mut map = KEYS
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    Ok(*map
+        .entry(company_id.to_string())
+        .or_insert_with(generate_key))
+}
+
 /// Load or create a 32-byte master key for the company.
 ///
 /// Storage priority:
 ///   1. profile_settings.db `master_keys` table (ChaCha20-Poly1305 encrypted)
 ///   2. OS keychain — migrated to profile store on first access
 ///   3. Legacy key file — migrated to profile store on first access
+#[cfg(not(test))]
 pub fn get_or_create_master_key(company_id: &str) -> Result<[u8; 32]> {
     use crate::profile_store::ProfileStore;
 
