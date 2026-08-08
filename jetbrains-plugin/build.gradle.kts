@@ -23,6 +23,10 @@ dependencies {
             providers.gradleProperty("platformVersion"),
         )
         bundledPlugins("com.intellij.java")
+        // IntelliJ Platform Gradle Plugin 2.x does not ship the form/NotNull
+        // instrumenter by default; without this, :instrumentCode fails with
+        // "No Java Compiler dependency found".
+        instrumentationTools()
         pluginVerifier()
         zipSigner()
         testFramework(TestFrameworkType.Platform)

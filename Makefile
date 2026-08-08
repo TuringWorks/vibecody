@@ -51,7 +51,7 @@ NPM              ?= npm
 UV               ?= uv
 FLUTTER          ?= flutter
 XCODEBUILD       ?= xcodebuild
-GRADLE           ?= gradle
+GRADLE_JETBRAINS := ./gradlew
 GRADLE_WEAR      := ./gradlew
 MOBILE_DIR       := vibemobile
 WATCH_IOS_DIR    := vibewatch
@@ -274,12 +274,12 @@ lint-vscode: $(VSCODE_DIR)/node_modules ## Lint the VS Code extension (eslint)
 	cd $(VSCODE_DIR) && $(NPM) run lint
 
 build-jetbrains: ## Build the JetBrains plugin (gradle buildPlugin)
-	@command -v $(GRADLE) >/dev/null || (echo "✗ gradle not found — install: brew install gradle" && exit 1)
-	cd $(JETBRAINS_DIR) && $(GRADLE) buildPlugin
+	@[ -x $(JETBRAINS_DIR)/gradlew ] || (echo "✗ gradlew missing" && exit 1)
+	cd $(JETBRAINS_DIR) && $(GRADLE_JETBRAINS) buildPlugin
 
 test-jetbrains: ## Test the JetBrains plugin (gradle test)
-	@command -v $(GRADLE) >/dev/null || (echo "✗ gradle not found — install: brew install gradle" && exit 1)
-	cd $(JETBRAINS_DIR) && $(GRADLE) test
+	@[ -x $(JETBRAINS_DIR)/gradlew ] || (echo "✗ gradlew missing" && exit 1)
+	cd $(JETBRAINS_DIR) && $(GRADLE_JETBRAINS) test
 
 check-neovim: ## Lint the Neovim plugin (luacheck, if installed)
 	@if command -v luacheck >/dev/null; then \

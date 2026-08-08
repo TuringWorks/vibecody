@@ -46,8 +46,8 @@ class HookExecutor {
 
     /**
      * Fire `event` through every configured hook of that kind, in
-     * order. Returns the first non-ALLOW decision, or
-     * `HookDecision(ALLOW)` when every hook permitted the action.
+     * order. Returns the first non-ALLOW decision; failing that, the
+     * first non-zero-exit warning; failing that, a plain ALLOW.
      */
     fun fire(event: String, payloadJson: String): HookDecision =
         fireChain(VibeCLISettings.getInstance().state.hooks, event, payloadJson)
@@ -65,13 +65,19 @@ class HookExecutor {
         val configured = all.filter { it.enabled && it.event == event }
         if (configured.isEmpty()) return HookDecision(HookAction.ALLOW)
 
+        // A hook exiting non-0/non-2 is a *generic error* (`HookExitCode::
+        // GenericError` on the CLI side): it does not block, but its exit code
+        // and stderr have to survive the chain or the user can never be warned
+        // — which is the whole point of the non-blocking-error state. Returning
+        // a fresh HookDecision(ALLOW) here flattened exit_code back to 0 and
+        // dropped the message. A BLOCK still short-circuits immediately.
+        var warning: HookDecision? = null
         for (hook in configured) {
             val decision = runOne(hook, payloadJson)
-            if (decision.action != HookAction.ALLOW) {
-                return decision
-            }
+            if (decision.action != HookAction.ALLOW) return decision
+            if (warning == null && decision.exit_code != 0) warning = decision
         }
-        return HookDecision(HookAction.ALLOW)
+        return warning ?: HookDecision(HookAction.ALLOW)
     }
 
     private fun runOne(hook: HookConfig, payloadJson: String): HookDecision {
@@ -86,7 +92,18 @@ class HookExecutor {
             val proc = ProcessBuilder(argv)
                 .redirectErrorStream(false)
                 .start()
-            proc.outputStream.use { it.write(payloadJson.toByteArray()) }
+            // A hook is free to ignore stdin and exit straight away — `exit 3`
+            // does exactly that. Writing the payload into an already-closed
+            // stdin then throws "broken pipe", which must NOT be mistaken for
+            // a spawn failure: the process ran, and its exit code is the whole
+            // decision. Whether the write wins the race against the child
+            // exiting is pure timing, so conflating the two made the exit-code
+            // path non-deterministic.
+            try {
+                proc.outputStream.use { it.write(payloadJson.toByteArray()) }
+            } catch (_: IOException) {
+                // hook closed stdin without reading it; carry on to waitFor
+            }
             val finished = proc.waitFor(HOOK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             if (!finished) {
                 proc.destroyForcibly()

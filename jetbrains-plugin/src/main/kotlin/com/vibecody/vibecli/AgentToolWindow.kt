@@ -39,8 +39,13 @@ private val INPUT_BG = Color(45, 45, 45)
 private val ACCENT   = Color(100, 180, 255)
 private val TEXT_FG  = Color(204, 204, 204)
 private val DIM_FG   = Color(128, 128, 128)
-private val SUCCESS  = Color(100, 220, 100)
-private val ERROR    = Color(255, 100, 100)
+// The _FG suffix on these two is load-bearing, not decoration. Every panel here
+// extends JPanel, and java.awt.Component implements ImageObserver, which
+// declares `int ERROR = 64`. An inherited member wins over a file-level
+// property, so a constant named plain `ERROR` silently resolves to that Int
+// inside any of these classes — "inferred type is Int but Color was expected".
+private val SUCCESS_FG = Color(100, 220, 100)
+private val ERROR_FG   = Color(255, 100, 100)
 
 private fun basePanel(): JPanel = JPanel(BorderLayout()).apply {
     background = PANEL_BG
@@ -147,10 +152,10 @@ private class ChatPanel(private val project: Project) : JPanel(BorderLayout()) {
             SwingUtilities.invokeLater {
                 if (ok) {
                     statusLbl.text = "● Connected to ${VibeCLISettings.getInstance().state.daemonUrl}"
-                    statusLbl.foreground = SUCCESS
+                    statusLbl.foreground = SUCCESS_FG
                 } else {
                     statusLbl.text = "○ Daemon not reachable — run: vibecli serve"
-                    statusLbl.foreground = ERROR
+                    statusLbl.foreground = ERROR_FG
                 }
             }
         }.start()
@@ -169,7 +174,7 @@ private class ChatPanel(private val project: Project) : JPanel(BorderLayout()) {
             SwingUtilities.invokeLater {
                 sendBtn.isEnabled = true
                 if (err != null) {
-                    appendOutput("Error: ${err.message}\n", ERROR)
+                    appendOutput("Error: ${err.message}\n", ERROR_FG)
                 } else {
                     appendOutput("$reply\n\n", TEXT_FG)
                 }
@@ -258,7 +263,7 @@ private class AgentPanel(private val project: Project) : JPanel(BorderLayout()) 
             output.append("🚫 Blocked by hook")
             gate.reason?.takeIf { it.isNotBlank() }?.let { output.append(": $it") }
             output.append("\n")
-            setStatus("Blocked by hook", ERROR)
+            setStatus("Blocked by hook", ERROR_FG)
             return
         }
 
@@ -272,7 +277,7 @@ private class AgentPanel(private val project: Project) : JPanel(BorderLayout()) 
         service.startAgent(task).whenComplete { sessionId, err ->
             SwingUtilities.invokeLater {
                 if (err != null) {
-                    setStatus("Error: ${err.message}", ERROR)
+                    setStatus("Error: ${err.message}", ERROR_FG)
                     runBtn.isEnabled = true
                     stopBtn.isEnabled = false
                     return@invokeLater
@@ -288,7 +293,7 @@ private class AgentPanel(private val project: Project) : JPanel(BorderLayout()) 
                             runBtn.isEnabled = true
                             stopBtn.isEnabled = false
                             if (statusLbl.text.startsWith("Running")) {
-                                setStatus("Complete ✓", SUCCESS)
+                                setStatus("Complete ✓", SUCCESS_FG)
                             }
                         }
                     }
@@ -305,11 +310,11 @@ private class AgentPanel(private val project: Project) : JPanel(BorderLayout()) 
             is AgentEvent.ToolResult  -> output.append("   → ${event.output.take(240)}\n")
             is AgentEvent.Complete    -> {
                 output.append("\n\n${"─".repeat(60)}\n✅ ${event.summary}\n")
-                setStatus("Complete ✓", SUCCESS)
+                setStatus("Complete ✓", SUCCESS_FG)
             }
             is AgentEvent.Error       -> {
                 output.append("\n❌ ${event.message}\n")
-                setStatus("Failed", ERROR)
+                setStatus("Failed", ERROR_FG)
             }
         }
         output.caretPosition = output.document.length
@@ -386,7 +391,7 @@ private class JobsPanel(private val project: Project) : JPanel(BorderLayout()) {
             SwingUtilities.invokeLater {
                 if (err != null) {
                     statusLbl.text = "Could not load — daemon running?"
-                    statusLbl.foreground = ERROR
+                    statusLbl.foreground = ERROR_FG
                     return@invokeLater
                 }
                 allJobs.clear()
