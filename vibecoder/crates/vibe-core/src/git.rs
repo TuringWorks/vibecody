@@ -289,17 +289,90 @@ pub fn get_commit_files(repo_path: &Path, hash: &str) -> Result<Vec<String>> {
     Ok(files)
 }
 
+/// Discard local changes to one path, tracked or not.
+///
+/// Two distinct cases used to collapse into the same silent no-op:
+///
+/// * **Tracked and modified** — restore it from HEAD. `CheckoutBuilder::path`
+///   takes a *repo-relative* pathspec, but callers hand us a canonicalised
+///   absolute path, which matched nothing; `checkout_head` then returned `Ok`
+///   having done nothing at all.
+/// * **Untracked** — it is not in HEAD, so there is nothing to restore. The
+///   only way to discard it is to remove it, which is what `git clean -fd`
+///   does. `checkout_head` can never do this, whatever the pathspec.
+///
+/// Removal is irreversible — untracked content exists nowhere else — so the
+/// path is resolved inside the working tree first and an empty or `.` pathspec
+/// is refused rather than treated as "the whole repository".
 pub fn discard_changes(repo_path: &Path, file_path: &str) -> Result<()> {
     let repo = Repository::open(repo_path)?;
+    let workdir = repo
+        .workdir()
+        .ok_or_else(|| anyhow::anyhow!("bare repository has no working tree"))?
+        .to_path_buf();
+    let rel = repo_relative_pathspec(&workdir, file_path)?;
 
-    // Checkout the file from HEAD
-    let mut checkout_builder = git2::build::CheckoutBuilder::new();
-    checkout_builder.path(file_path);
-    checkout_builder.force();
+    if is_tracked(&repo, &rel) {
+        let mut checkout_builder = git2::build::CheckoutBuilder::new();
+        checkout_builder.path(&rel);
+        checkout_builder.force();
+        checkout_builder.remove_untracked(false);
+        repo.checkout_head(Some(&mut checkout_builder))?;
+        return Ok(());
+    }
 
-    repo.checkout_head(Some(&mut checkout_builder))?;
-
+    let target = workdir.join(&rel);
+    if target.is_dir() {
+        std::fs::remove_dir_all(&target)?;
+    } else if target.exists() {
+        std::fs::remove_file(&target)?;
+    }
     Ok(())
+}
+
+/// Turn an absolute-or-relative path into a repo-relative pathspec.
+///
+/// Both sides are canonicalised before stripping: on macOS `/var` reports as
+/// `/private/var`, so comparing an OS-reported path against a raw workdir would
+/// spuriously look like an escape.
+fn repo_relative_pathspec(workdir: &Path, file_path: &str) -> Result<String> {
+    let raw = Path::new(file_path);
+    let rel = if raw.is_absolute() {
+        let canon_workdir = workdir.canonicalize().unwrap_or_else(|_| workdir.to_path_buf());
+        let canon_target = raw.canonicalize().unwrap_or_else(|_| raw.to_path_buf());
+        canon_target
+            .strip_prefix(&canon_workdir)
+            .map_err(|_| {
+                anyhow::anyhow!(
+                    "'{file_path}' is outside the repository at {}",
+                    workdir.display()
+                )
+            })?
+            .to_path_buf()
+    } else {
+        raw.to_path_buf()
+    };
+
+    // git status reports untracked directories with a trailing slash ("vibeui/").
+    let spec = rel.to_string_lossy().trim_end_matches('/').to_string();
+    if spec.is_empty() || spec == "." {
+        anyhow::bail!("refusing to discard the entire working tree");
+    }
+    Ok(spec)
+}
+
+/// Is `rel` tracked — either an index entry itself, or a directory containing one?
+fn is_tracked(repo: &Repository, rel: &str) -> bool {
+    let Ok(index) = repo.index() else {
+        return false;
+    };
+    if index.get_path(Path::new(rel), 0).is_some() {
+        return true;
+    }
+    let prefix = format!("{rel}/");
+    index
+        .iter()
+        .any(|entry| String::from_utf8_lossy(&entry.path).starts_with(&prefix))
 }
 
 pub fn is_git_repo(path: &Path) -> bool {
@@ -738,6 +811,115 @@ mod tests {
         run(&["add", "README.md"]);
         run(&["commit", "-m", "init"]);
         dir
+    }
+
+    // ── discard_changes ───────────────────────────────────────────────────────
+
+    /// Regression: callers pass a canonicalised *absolute* path, but a
+    /// CheckoutBuilder pathspec is repo-relative — so it matched nothing and
+    /// checkout_head reported success having restored nothing.
+    #[test]
+    fn discard_restores_a_tracked_file_given_an_absolute_path() {
+        let dir = make_git_repo();
+        let file = dir.path().join("README.md");
+        std::fs::write(&file, "locally modified").unwrap();
+
+        discard_changes(dir.path(), &file.to_string_lossy()).unwrap();
+
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "init");
+    }
+
+    #[test]
+    fn discard_restores_a_tracked_file_given_a_relative_path() {
+        let dir = make_git_repo();
+        let file = dir.path().join("README.md");
+        std::fs::write(&file, "locally modified").unwrap();
+
+        discard_changes(dir.path(), "README.md").unwrap();
+
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "init");
+    }
+
+    #[test]
+    fn discard_restores_a_deleted_tracked_file() {
+        let dir = make_git_repo();
+        let file = dir.path().join("README.md");
+        std::fs::remove_file(&file).unwrap();
+
+        discard_changes(dir.path(), "README.md").unwrap();
+
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "init");
+    }
+
+    /// Regression: an untracked file is not in HEAD, so checkout_head could
+    /// never discard it — the UI reported success while the entry stayed put.
+    #[test]
+    fn discard_removes_an_untracked_file() {
+        let dir = make_git_repo();
+        let stray = dir.path().join("stray.txt");
+        std::fs::write(&stray, "not committed").unwrap();
+
+        discard_changes(dir.path(), "stray.txt").unwrap();
+
+        assert!(!stray.exists(), "untracked file survived discard");
+    }
+
+    /// The reported case: git status names untracked directories "vibeui/".
+    #[test]
+    fn discard_removes_an_untracked_directory_with_a_trailing_slash() {
+        let dir = make_git_repo();
+        let nested = dir.path().join("vibeui/node_modules/pkg");
+        std::fs::create_dir_all(&nested).unwrap();
+        std::fs::write(nested.join("index.js"), "x").unwrap();
+
+        discard_changes(dir.path(), "vibeui/").unwrap();
+
+        assert!(
+            !dir.path().join("vibeui").exists(),
+            "untracked directory survived discard"
+        );
+    }
+
+    #[test]
+    fn discard_leaves_tracked_siblings_alone() {
+        let dir = make_git_repo();
+        let stray = dir.path().join("stray.txt");
+        std::fs::write(&stray, "not committed").unwrap();
+
+        discard_changes(dir.path(), "stray.txt").unwrap();
+
+        assert!(!stray.exists());
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("README.md")).unwrap(),
+            "init",
+            "discarding an untracked path must not touch tracked files"
+        );
+    }
+
+    /// Removal is irreversible, so an empty or "." pathspec must never be read
+    /// as "everything".
+    #[test]
+    fn discard_refuses_to_wipe_the_whole_working_tree() {
+        let dir = make_git_repo();
+
+        for spec in ["", ".", "/"] {
+            assert!(
+                discard_changes(dir.path(), spec).is_err(),
+                "pathspec {spec:?} should be refused"
+            );
+        }
+        assert!(dir.path().join("README.md").exists());
+    }
+
+    #[test]
+    fn discard_refuses_a_path_outside_the_repository() {
+        let dir = make_git_repo();
+        let outside = TempDir::new().unwrap();
+        let victim = outside.path().join("keep.txt");
+        std::fs::write(&victim, "important").unwrap();
+
+        assert!(discard_changes(dir.path(), &victim.to_string_lossy()).is_err());
+        assert!(victim.exists(), "file outside the repo must not be removed");
     }
 
     // ── is_git_repo ───────────────────────────────────────────────────────────
