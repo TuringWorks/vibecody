@@ -11,6 +11,7 @@
 // This module must be imported before anything renders <Editor> (see main.tsx).
 import { loader } from "@monaco-editor/react";
 import * as monaco from "monaco-editor";
+import { registerMonarchLanguages } from "./lib/monarch";
 
 import EditorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import JsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
@@ -42,3 +43,17 @@ import TsWorker from "monaco-editor/esm/vs/language/typescript/ts.worker?worker"
 
 // Resolve @monaco-editor/react against the bundled instance — no network fetch.
 loader.config({ monaco });
+
+// Grammars for the languages Monaco ships none for (Zig, Nim, COBOL, MATLAB, …).
+//
+// This has to happen here, at module load, and not from the editor's `onMount`.
+// `@monaco-editor/react` creates the model *before* `onMount` fires — the order
+// inside its own create callback is `beforeMount(monaco)` → `getOrCreateModel()`
+// → `editor.create()` → (a later effect) `onMount()`. Monaco resolves an
+// unregistered language id to plaintext at `createModel` time, and the
+// component's language effect skips its first run, so nothing corrects it
+// afterwards: opening a `.zig` file as the *first* file of a session would show
+// no highlighting until you switched files. Registering before anything renders
+// also covers every other Monaco surface (`<DiffEditor>` in the git and diff
+// panels), which have the same ordering.
+registerMonarchLanguages(monaco);

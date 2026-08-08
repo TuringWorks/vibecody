@@ -337,7 +337,6 @@ const nix: LanguageSpec = {
     [/\.{0,2}\/[\w./-]+/, "string.link"],
     [/<[\w./-]+>/, "string.link"],
   ],
-  trailing: [],
 };
 
 // Extra state for Nix's indented strings, merged in below.

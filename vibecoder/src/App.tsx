@@ -16,7 +16,6 @@ import { BrowserPanel } from "./components/BrowserPanel";
 import { detectLanguage, getFileIcon } from "./utils/fileUtils";
 import { createLspBridge, fileUri, type LspBridge, type LspLanguageSupport } from "./lib/lsp";
 import { LspStatus } from "./components/LspStatus";
-import { registerMonarchLanguages } from "./lib/monarch";
 import { EFFORT_LEVELS, type EffortLevel, getSelectedEffort, setSelectedEffort, effortLabel } from "./utils/effort";
 import { ImageViewer, isImageFile } from "./components/ImageViewer";
 import { DocumentViewer, isDocumentFile } from "./components/DocumentViewer";
@@ -702,12 +701,9 @@ function App() {
     // Register VibeCoder theme with Monaco so the editor matches the app theme
     defineEditorTheme(monaco);
 
-    // Register the 27 languages Monaco ships no grammar for — with a real
-    // tokenizer and language configuration, not just an id. An id alone (which
-    // is all this used to do) makes `setModelLanguage` accept the language and
-    // the LSP providers attach, but leaves the file rendering as flat grey text
-    // with ⌘/ doing nothing. See `lib/monarch`.
-    registerMonarchLanguages(monaco);
+    // Grammars for the languages Monaco lacks are registered in
+    // `monaco-setup.ts`, at module load — doing it here would be too late for
+    // the first file of a session, whose model is created before `onMount`.
 
     // ── Cmd+. : DiffComplete (diff-mode AI edit) ──
     editor.addCommand(
