@@ -15,21 +15,21 @@
     "test:composer": "tsc scripts/composer-parsing.test.ts src/components/slashCommands.ts src/lib/composerParsing.ts src/lib/attachments.ts --outDir node_modules/.cache/composer-test --module commonjs --target es2022 --moduleResolution node --skipLibCheck && node node_modules/.cache/composer-test/scripts/composer-parsing.test.js"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2.11.0",
-    "@tauri-apps/plugin-dialog": "^2.7.1",
+    "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/plugin-dialog": "^2.7.2",
     "lucide-react": "^1.28.0",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
     "@types/node": "^26.1.2",
-    "@types/react": "^19.2.15",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.0",
-    "typescript": "^5.6.0",
-    "vite": "^8.0.0"
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.0.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.0"
   }
 }
