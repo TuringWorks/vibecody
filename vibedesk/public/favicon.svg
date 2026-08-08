@@ -1,11 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
   <defs>
-    <linearGradient id="v" x1="0.05" y1="0" x2="0.95" y2="1"><stop offset="0" stop-color="#7d99ff"/><stop offset="0.55" stop-color="#7d99ff"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient>
+    <linearGradient id="v" x1="0.05" y1="0" x2="0.95" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset="0.55" stop-color="#22d3ee"/><stop offset="1" stop-color="#3b82f6"/></linearGradient>
     <radialGradient id="c" cx="0.35" cy="0.28" r="0.85"><stop offset="0" stop-color="#ffe9a3"/><stop offset="1" stop-color="#f0b429"/></radialGradient>
     <linearGradient id="bg" x1="0.15" y1="0" x2="0.85" y2="1"><stop offset="0" stop-color="#151a26"/><stop offset="1" stop-color="#0a0c11"/></linearGradient>
   </defs>
-  <rect width="16" height="16" rx="3.5152" fill="url(#bg)"/>
-  <g transform="translate(0,0) scale(0.16)"><g transform="translate(-6,-4.32) scale(1.12)">
+  <rect width="64" height="64" rx="14.0608" fill="url(#bg)"/>
+  <g transform="translate(0,0) scale(0.64)"><g transform="translate(0,1.5) scale(1)">
       <path d="M 10,19 L 27,19 L 50,58 L 73,19 L 90,19 L 50,75 Z" fill="url(#v)" stroke="url(#v)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+      <rect x="68.5" y="59" width="16" height="16" rx="4.6" fill="url(#c)"/>
     </g></g>
 </svg>
