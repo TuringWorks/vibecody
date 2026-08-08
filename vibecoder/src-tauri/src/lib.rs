@@ -450,6 +450,7 @@ pub fn run() {
             commands::spawn_terminal,
             commands::write_terminal,
             commands::resize_terminal,
+            commands::close_terminal,
             commands::apply_batch_edits,
             commands::update_cursors,
             commands::lsp_completion,

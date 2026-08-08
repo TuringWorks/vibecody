@@ -88,7 +88,14 @@ export function Terminal({ onClose }: TerminalProps) {
         const initTerminal = async () => {
             try {
                 const id = await invoke<number>('spawn_terminal');
-                if (disposed) return;
+                // The panel can unmount while the spawn is still in flight; the
+                // PTY exists by then, so it has to be reaped explicitly rather
+                // than abandoned with no id recorded anywhere.
+                const abandon = () => {
+                    invoke('close_terminal', { id })
+                        .catch((e) => console.error('Failed to close terminal:', e));
+                };
+                if (disposed) { abandon(); return; }
                 terminalIdRef.current = id;
 
                 const u = await listen<[number, string]>('terminal-output', (event) => {
@@ -97,7 +104,7 @@ export function Terminal({ onClose }: TerminalProps) {
                         term.write(data);
                     }
                 });
-                if (disposed) { u(); return; }
+                if (disposed) { u(); abandon(); terminalIdRef.current = null; return; }
                 unlisten = u;
 
                 term.onData((data) => {
@@ -121,6 +128,13 @@ export function Terminal({ onClose }: TerminalProps) {
             disposed = true;
             resizeObserver.disconnect();
             if (unlisten) unlisten();
+            // Kill the backing shell — disposing the xterm view alone left the
+            // PTY (and its reader thread) alive for the life of the app.
+            if (terminalIdRef.current !== null) {
+                invoke('close_terminal', { id: terminalIdRef.current })
+                    .catch((e) => console.error('Failed to close terminal:', e));
+                terminalIdRef.current = null;
+            }
             term.dispose();
         };
     }, []);

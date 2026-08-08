@@ -2693,6 +2693,20 @@ pub async fn write_terminal(
         .map_err(|e| e.to_string())
 }
 
+/// Terminate a terminal and release its PTY.
+///
+/// The frontend calls this when the terminal panel unmounts; without it the
+/// shell outlives the panel for the life of the app.
+#[tauri::command]
+pub async fn close_terminal(id: u32, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let tm = state.terminal_manager.clone();
+    // kill + wait block; keep them off the async runtime's worker thread.
+    tokio::task::spawn_blocking(move || tm.close(id))
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub async fn resize_terminal(
     id: u32,
