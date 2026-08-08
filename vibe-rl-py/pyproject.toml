@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-mujoco = ["mujoco>=3.0", "gymnasium[mujoco]>=0.29"]
+mujoco = ["mujoco>=3.0", "gymnasium[mujoco]>=1.3.0"]
 # No `accept-rom-license` extra: gymnasium dropped it in 1.0 (ale-py bundles the
 # ROMs now). Requesting it made every resolve warn and was silently ignored.
 atari = ["gymnasium[atari]>=1.3.0"]
