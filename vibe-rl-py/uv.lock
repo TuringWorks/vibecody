@@ -1174,15 +1174,6 @@ wheels = [
 ]
 
 [[package]]
-name = "shtab"
-version = "1.8.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/b0/7a/7f131b6082d8b592c32e4312d0a6da3d0b28b8f0d305ddd93e49c9d89929/shtab-1.8.0.tar.gz", hash = "sha256:75f16d42178882b7f7126a0c2cb3c848daed2f4f5a276dd1ded75921cc4d073a", size = 46062, upload-time = "2025-11-18T10:57:47.601Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/8e/e1/202a31727b0d096a04380f78e809074d7a1d0a22d9d5a39fea1d2353fd02/shtab-1.8.0-py3-none-any.whl", hash = "sha256:f0922a82174b4007e06ac0bac4f79abd826c5cca88e201bfd927f889803c571d", size = 14457, upload-time = "2025-11-18T10:57:45.906Z" },
-]
-
-[[package]]
 name = "supersuit"
 version = "3.10.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1402,19 +1393,16 @@ wheels = [
 
 [[package]]
 name = "tyro"
-version = "0.9.35"
+version = "1.0.15"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
     { name = "docstring-parser" },
-    { name = "rich" },
-    { name = "shtab" },
     { name = "typeguard" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4d/40/7a84e7652f75526b31f45c2565b5db9e9e21d37201fd44bc341ea90edc53/tyro-0.9.35.tar.gz", hash = "sha256:e38dd3528ae6f8fc74e21c7e21ac412d22d237739758d521f470e7a20eb46e92", size = 325648, upload-time = "2025-10-13T08:55:57.631Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/12/78/a5749a6c1ee9abc2999e294f339f8f72476d1a60bb95fc0e86156aafed3b/tyro-1.0.15.tar.gz", hash = "sha256:3f1d60887723eecb9c489f195d11f079c4a1f33df74b723552ad31ec57c667bb", size = 593822, upload-time = "2026-06-20T08:48:28.364Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bb/bc/943b35b1a139a602a730e56592a3639bf796a87c91eebcd40cc51043ee5b/tyro-0.9.35-py3-none-any.whl", hash = "sha256:82d656389d3041c04dd68542f8ba9b77baf91a4aaaa627cd5c88af3b3dc6a2cd", size = 132641, upload-time = "2025-10-13T08:55:56.54Z" },
+    { url = "https://files.pythonhosted.org/packages/5d/28/d607636187cf6c18eb72efb5d65c1d1b9e451db03d84676f835dd488fdbd/tyro-1.0.15-py3-none-any.whl", hash = "sha256:982da1d566005f1b2a6b56f6be6c6929c96f0e5fab9d61bc6097573ddfaf8d13", size = 215045, upload-time = "2026-06-20T08:48:27.104Z" },
 ]
 
 [[package]]
@@ -1487,7 +1475,7 @@ requires-dist = [
     { name = "tensorboardx", specifier = ">=2.6,<3.0" },
     { name = "torch", specifier = ">=2.13.0,<3.0" },
     { name = "transformers", marker = "extra == 'rlhf'", specifier = ">=5.5.0,<6.0" },
-    { name = "tyro", specifier = ">=0.7,<1.0" },
+    { name = "tyro", specifier = ">=1.0.15,<2.0" },
 ]
 provides-extras = ["mujoco", "atari", "box2d", "onnx", "opt", "marl", "rlhf", "dev"]
 
