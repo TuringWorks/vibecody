@@ -47,7 +47,7 @@ dependencies {
     // Wear OS Data Layer — receives relay requests from VibeCodyWear when
     // the watch has no direct network. See:
     //   vibemobile/android/app/src/main/kotlin/.../wear/WearDataLayerService.kt
-    implementation("com.google.android.gms:play-services-wearable:18.2.0")
+    implementation("com.google.android.gms:play-services-wearable:20.0.1")
     // OkHttp powers the relay HTTP forwarding inside WearDataLayerService.
     implementation("com.squareup.okhttp3:okhttp:5.4.0")
 }
