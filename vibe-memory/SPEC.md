@@ -19,39 +19,39 @@ The user wants **OB1-style memory per project and per computer**, using SQLite a
 
 ## Architecture
 
-```
+```txt
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                           VibeCody Daemon (vibecli)                        │
+│                           VibeCody Daemon (vibecli)                         │
 │                                                                             │
-│  ┌─────────────┐   ┌──────────────────┐   ┌────────────────────────────┐  │
-│  │ open_memory │──▶│ MemoryContextHub │──▶│ vibe-memory (this crate)   │  │
-│  │   .rs       │   │                  │   │                            │  │
-│  └─────────────┘   └────────┬─────────┘   └───────────┬────────────────┘  │
-│                              │                       │                    │
-│                    ┌─────────┴─────────┐   ┌────────┴────────┐          │
-│                    │  ProjectContext    │   │ GlobalContext   │          │
-│                    │  (per-workspace)   │   │  (per-machine)  │          │
-│                    └─────────┬─────────┘   └────────┬────────┘          │
-│                              │                       │                    │
-│                    ┌─────────┴─────────┐   ┌────────┴────────┐          │
-│                    │ ProjectMemStore    │   │ GlobalMemStore  │          │
-│                    │  sqlite-vec  768d  │   │  sqlite-vec 768d│          │
-│                    │ ~/.vibecli/        │   │ ~/.vibecli/      │          │
-│                    │ workspaces/{id}/   │   │ memory.db       │          │
-│                    │ memory.db           │   │                 │          │
-│                    └────────────────────┘   └─────────────────┘          │
+│  ┌─────────────┐   ┌──────────────────┐   ┌────────────────────────────┐    │
+│  │ open_memory │──▶│ MemoryContextHub │──▶│ vibe-memory (this crate)   │    │
+│  │   .rs       │   │                  │   │                            │    │
+│  └─────────────┘   └────────┬─────────┘   └────────┬───────────────────┘    │
+│                             │                      │                        │
+│                    ┌────────┴─────────┐   ┌────────┴────────┐               │
+│                    │  ProjectContext  │   │ GlobalContext   │               │
+│                    │  (per-workspace) │   │  (per-machine)  │               │
+│                    └─────────┬────────┘   └────────┬────────┘               │
+│                              │                     │                        │
+│                    ┌─────────┴─────────┐   ┌───────┴──────────┐             │
+│                    │ ProjectMemStore   │   │ GlobalMemStore   │             │
+│                    │  sqlite-vec  768d │   │  sqlite-vec 768d │             │
+│                    │ ~/.vibecli/       │   │ ~/.vibecli/      │             │
+│                    │ workspaces/{id}/  │   │ memory.db        │             │
+│                    │ memory.db         │   │                  │             │
+│                    └───────────────────┘   └──────────────────┘             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Request Flow
 
-```
+```txt
 User query "how does auth work here?"
         │
         ▼
 ┌─────────────────────────────────┐
 │      MemoryContextHub           │
-│  (scopes query to project+global)│
+│ (scopes query to project+global)│
 └───────────────┬─────────────────┘
                 │
         ┌───────┴────────┐
@@ -76,7 +76,7 @@ User query "how does auth work here?"
 
 ### Storage Layout
 
-```
+```csh
 ~/.vibecli/
 ├── profile_settings.db       ← encrypted API keys (unchanged)
 ├── sessions.db                ← session history (unchanged)
@@ -97,7 +97,7 @@ Both stores use **ChaCha20-Poly1305** for encryption, matching the existing secu
 
 ## Module Structure
 
-```
+```csh
 vibe-memory/
 ├── Cargo.toml
 ├── src/
