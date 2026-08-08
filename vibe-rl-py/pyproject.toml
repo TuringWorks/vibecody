@@ -8,7 +8,7 @@ readme = "README.md"
 authors = [{ name = "VibeCody" }]
 dependencies = [
     "gymnasium>=0.29,<2.0",
-    "numpy>=1.26,<3.0",
+    "numpy>=2.4.6,<3.0",
     "torch>=2.13.0,<3.0",  # >=2.13.0: CVE-2025-3000 (torch.jit.script memory corruption)
     "pyyaml>=6.0,<7.0",        # config files from the daemon
     "tyro>=1.0.15,<2.0",          # CleanRL's CLI parser of choice — light, typed
@@ -16,24 +16,24 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-mujoco = ["mujoco>=3.0", "gymnasium[mujoco]>=1.3.0"]
+mujoco = ["mujoco>=3.11.0", "gymnasium[mujoco]>=1.3.0"]
 # No `accept-rom-license` extra: gymnasium dropped it in 1.0 (ale-py bundles the
 # ROMs now). Requesting it made every resolve warn and was silently ignored.
 atari = ["gymnasium[atari]>=1.3.0"]
 box2d = ["gymnasium[box2d]>=1.3.0", "swig"]
-onnx = ["onnx>=1.22.0", "onnxruntime>=1.16"]
+onnx = ["onnx>=1.22.0", "onnxruntime>=1.28.0"]
 # Slice 7a — distill + quantize + prune. Distill reuses the base PPO loop
 # (no extra dep). Quantize needs onnx + onnxruntime.quantization. Prune
 # uses torch.nn.utils.prune which is in core torch already.
-opt = ["onnx>=1.22.0", "onnxruntime>=1.16"]
+opt = ["onnx>=1.22.0", "onnxruntime>=1.28.0"]
 # Slice 7b — multi-agent. PettingZoo provides the env API; mpe2 is the
 # maintained replacement for PettingZoo's deprecated MPE suite (the
 # canonical cooperative-MARL benchmarks). supersuit gives us
 # pad_observations / vector wrappers when agent observation shapes differ.
 marl = [
     "pettingzoo>=1.24,<2.0",
-    "supersuit>=3.9,<4.0",
-    "mpe2>=1.0,<2.0",
+    "supersuit>=3.11.0,<4.0",
+    "mpe2>=1.1.0,<2.0",
 ]
 # Slice 7c — RLHF via DPO (Direct Preference Optimization, Rafailov et al.
 # 2023). Single-stage alignment: load base + frozen reference, compute
@@ -42,9 +42,9 @@ marl = [
 # style alignment) is 7c-extras.
 rlhf = [
     "transformers>=5.5.0,<6.0",  # >=5.5.0: CVE-2026-5241 (ACE in LightGlue model loading)
-    "accelerate>=0.27,<2.0",
+    "accelerate>=1.14.0,<2.0",
 ]
-dev = ["pytest>=7", "pytest-timeout>=2"]
+dev = ["pytest>=9.1.1", "pytest-timeout>=2"]
 
 [project.scripts]
 vibe-rl = "vibe_rl.cli:main"
