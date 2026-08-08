@@ -30,7 +30,7 @@ Introduced in **v0.5.5**.
 | Desktop | VibeCLI or VibeCoder ≥ 0.5.5 running `--serve` |
 | ADB (for sideload) | latest |
 
-> **Build SDK** — `compileSdk = 36` and `targetSdk = 36` (Android 16 / Wear OS 6) as of v0.5.5; `minSdk = 30` preserves Wear OS 3 compatibility. AGP 8.7.3, Kotlin 2.1.0, JDK 17.
+> **Build SDK** — `compileSdk = 37` (Android 17), required by `androidx.lifecycle` 2.11.0; `targetSdk = 36` (Android 16 / Wear OS 6) still governs runtime behaviour and `minSdk = 30` preserves Wear OS 3 compatibility. AGP 9.2.1, Kotlin 2.1.0, Gradle 9.6.1, JDK 17.
 
 ---
 

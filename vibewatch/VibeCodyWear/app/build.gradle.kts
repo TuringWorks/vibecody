@@ -1,12 +1,16 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 }
 
 android {
     namespace = "com.vibecody.wear"
-    compileSdk = 36          // Android 16 / Wear OS 6
+    // compileSdk only widens the API surface available at compile time;
+    // runtime behaviour still follows targetSdk below. androidx.lifecycle
+    // 2.11.0 refuses to link against anything older than 37.
+    compileSdk = 37          // Android 17
 
     defaultConfig {
         applicationId = "com.vibecody.wear"
@@ -26,18 +30,13 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
+}
 
-    lint {
-        // androidx.lifecycle's NonNullableMutableLiveDataDetector crashes under
-        // AGP 8.7.3's bundled lint with an IncompatibleClassChangeError
-        // (KaCallableMemberCall class-vs-interface — a Kotlin analysis-API
-        // version skew), aborting lintVitalAnalyzeRelease and thus the release
-        // build. This is a Compose app with no LiveData usage, so the check has
-        // nothing to verify here — disable it to unblock assembleRelease.
-        disable += "NullSafeMutableLiveData"
-    }
+// AGP 9 supplies the Kotlin plugin itself, so the compiler options move out of
+// android{} (where `kotlinOptions` no longer exists) into the Kotlin extension.
+kotlin {
+    compilerOptions { jvmTarget = JvmTarget.JVM_17 }
 }
 
 dependencies {
