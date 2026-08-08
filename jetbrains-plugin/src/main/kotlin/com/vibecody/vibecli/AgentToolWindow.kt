@@ -46,6 +46,8 @@ private val DIM_FG   = Color(128, 128, 128)
 // inside any of these classes — "inferred type is Int but Color was expected".
 private val SUCCESS_FG = Color(100, 220, 100)
 private val ERROR_FG   = Color(255, 100, 100)
+/** Retrying, or terminal-but-unfinished — neither success nor hard failure. */
+private val WARN_FG    = Color(230, 170, 60)
 
 private fun basePanel(): JPanel = JPanel(BorderLayout()).apply {
     background = PANEL_BG
@@ -304,15 +306,30 @@ private class AgentPanel(private val project: Project) : JPanel(BorderLayout()) 
 
     private fun renderEvent(event: AgentEvent) {
         when (event) {
-            is AgentEvent.Thinking    -> output.append("[Thinking] ${event.text}\n")
-            is AgentEvent.Text        -> output.append(event.text)
-            is AgentEvent.ToolCall    -> output.append("\n🔧 ${event.name}(${event.input.take(120)})\n")
-            is AgentEvent.ToolResult  -> output.append("   → ${event.output.take(240)}\n")
-            is AgentEvent.Complete    -> {
+            is AgentEvent.Text   -> output.append(event.text)
+            is AgentEvent.Step   ->
+                output.append("\n🔧 [${event.stepNum + 1}] ${event.tool} → ${if (event.success) "ok" else "failed"}\n")
+            is AgentEvent.System -> output.append("\nℹ ${event.text}\n")
+            is AgentEvent.Retry  -> {
+                val secs = String.format("%.1f", event.backoffMs / 1000.0)
+                output.append("\n⟳ Retrying (${event.attempt + 1}/${event.maxAttempts}) in ${secs}s — ${event.message}\n")
+                setStatus("Retrying…", WARN_FG)
+            }
+            is AgentEvent.Complete -> {
                 output.append("\n\n${"─".repeat(60)}\n✅ ${event.summary}\n")
                 setStatus("Complete ✓", SUCCESS_FG)
             }
-            is AgentEvent.Error       -> {
+            // Terminal but unfinished — must never render as a success.
+            is AgentEvent.Partial -> {
+                output.append("\n\n${"─".repeat(60)}\n")
+                output.append("⚠ Incomplete — stopped after ${event.stepsCompleted}/${event.stepsPlanned} planned steps\n")
+                if (event.summary.isNotEmpty()) output.append("${event.summary}\n")
+                event.remainingPlan.forEachIndexed { i, item ->
+                    output.append("   ${event.stepsCompleted + i + 1}. $item\n")
+                }
+                setStatus("Incomplete", WARN_FG)
+            }
+            is AgentEvent.Error -> {
                 output.append("\n❌ ${event.message}\n")
                 setStatus("Failed", ERROR_FG)
             }

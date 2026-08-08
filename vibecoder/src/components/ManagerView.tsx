@@ -8,14 +8,17 @@ import { Check, X, ChevronDown } from "lucide-react";
 interface AgentInstance {
  id: string;
  task: string;
- /** "pending" | "running" | "done" | "failed" */
+ /** "pending" | "running" | "done" | "partial" | "failed" */
  status: AgentStatus;
  step_count: number;
  branch: string;
  worktree_path: string;
 }
 
-type AgentStatus = "pending" | "running" | "done" | "failed";
+// "partial" is terminal but means the agent stopped with planned work left.
+// Without it a partial run had no status to land on and the card stayed
+// "running" forever.
+type AgentStatus = "pending" | "running" | "done" | "partial" | "failed";
 
 interface AgentStepEvent {
  id: string;
@@ -40,6 +43,7 @@ function statusColor(status: AgentStatus): string {
  case "pending": return "var(--text-secondary)";
  case "running": return "var(--accent-color)";
  case "done": return "var(--success-color)";
+ case "partial": return "var(--warning-color)";
  case "failed": return "var(--error-color)";
  }
 }
@@ -49,6 +53,7 @@ function statusIcon(status: AgentStatus): string {
  case "pending": return "";
  case "running": return "";
  case "done": return "";
+ case "partial": return "";
  case "failed": return "";
  }
 }
@@ -221,7 +226,9 @@ export function ManagerView({ provider }: ManagerViewProps) {
  status: update.status as AgentStatus,
  step_count: update.step_count || existing.step_count,
  // If update has an error message in task, store it
- ...(update.status === "failed" && update.task ? { task: update.task } : {}),
+ ...((update.status === "failed" || update.status === "partial") && update.task
+ ? { task: update.task }
+ : {}),
  });
  } else {
  next.set(update.id, { ...update, status: update.status as AgentStatus });
@@ -303,6 +310,7 @@ export function ManagerView({ provider }: ManagerViewProps) {
  const agentList = Array.from(agents.values());
  const running = agentList.filter((a) => a.status === "running").length;
  const done = agentList.filter((a) => a.status === "done").length;
+ const partial = agentList.filter((a) => a.status === "partial").length;
  const failed = agentList.filter((a) => a.status === "failed").length;
 
  return (
@@ -315,6 +323,7 @@ export function ManagerView({ provider }: ManagerViewProps) {
  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
  {running > 0 && <span style={{ color: "var(--accent-color)", marginRight: "8px" }}> {running} running</span>}
  {done > 0 && <span style={{ color: "var(--success-color)", marginRight: "8px" }}> {done} done</span>}
+ {partial > 0 && <span style={{ color: "var(--warning-color)", marginRight: "8px" }}> {partial} incomplete</span>}
  {failed > 0 && <span style={{ color: "var(--error-color)" }}> {failed} failed</span>}
  </div>
  )}

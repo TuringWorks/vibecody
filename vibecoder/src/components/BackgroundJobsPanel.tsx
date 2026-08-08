@@ -223,7 +223,9 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  ...prev,
  [id]: [...(prev[id] ?? []).slice(-49), line],
  }));
- if (payload.type === 'complete' || payload.type === 'error') {
+ // `partial` is terminal too — omitting it held the EventSource open
+ // until the browser errored it out, and the job list never refreshed.
+ if (payload.type === 'complete' || payload.type === 'partial' || payload.type === 'error') {
  es.close();
  delete esRefs.current[id];
  fetchJobs();

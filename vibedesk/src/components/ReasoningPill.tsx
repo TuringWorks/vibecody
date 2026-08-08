@@ -1,9 +1,26 @@
 import { useState } from "react";
 import { Brain, ChevronUp } from "lucide-react";
 
-export type ReasoningEffort = "minimal" | "low" | "medium" | "high" | "extra-high" | "custom";
+export type ReasoningEffort =
+  | "off"
+  | "minimal"
+  | "low"
+  | "medium"
+  | "high"
+  | "extra-high"
+  | "custom";
+
+/** No extended thinking is requested. The composer default.
+ *
+ * Sent as "no `reasoning` field at all" rather than a value, because the
+ * daemon maps an unrecognised effort to `None` and leaves the provider on its
+ * own default (`serve.rs: reasoning_effort_to_budget`). Note this asks for no
+ * *extra* thinking budget; a model that always reasons (minimax-m3) still
+ * returns a thinking block, which the UI keeps collapsed. */
+export const REASONING_OFF: ReasoningEffort = "off";
 
 const LABELS: Record<ReasoningEffort, string> = {
+  off: "Off",
   minimal: "Minimal",
   low: "Low",
   medium: "Medium",
