@@ -1030,8 +1030,10 @@ mod tests {
             path_entries: vec![dir],
             extra_prefixes: vec![],
         });
-        mgr.unavailable
-            .insert("rust".into(), "'rust-analyzer' failed to start: boom".into());
+        mgr.unavailable.insert(
+            "rust".into(),
+            "'rust-analyzer' failed to start: boom".into(),
+        );
 
         match mgr.language_status("rust") {
             LanguageStatus::Failed { reason } => assert!(reason.contains("boom"), "{reason}"),

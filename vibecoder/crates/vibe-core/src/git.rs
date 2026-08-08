@@ -338,7 +338,9 @@ pub fn discard_changes(repo_path: &Path, file_path: &str) -> Result<()> {
 fn repo_relative_pathspec(workdir: &Path, file_path: &str) -> Result<String> {
     let raw = Path::new(file_path);
     let rel = if raw.is_absolute() {
-        let canon_workdir = workdir.canonicalize().unwrap_or_else(|_| workdir.to_path_buf());
+        let canon_workdir = workdir
+            .canonicalize()
+            .unwrap_or_else(|_| workdir.to_path_buf());
         let canon_target = raw.canonicalize().unwrap_or_else(|_| raw.to_path_buf());
         canon_target
             .strip_prefix(&canon_workdir)
