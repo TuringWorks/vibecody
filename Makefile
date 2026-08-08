@@ -357,7 +357,7 @@ watch-ios-archive: ## Archive watchOS app for distribution (requires signing)
 watch-wear: ## Build Wear OS APK (release) — vibewatch/VibeCodyWear
 	@[ -x $(WATCH_WEAR_DIR)/gradlew ] || (echo "✗ gradlew missing — run setup" && exit 1)
 	cd $(WATCH_WEAR_DIR) && $(GRADLE_WEAR) :app:assembleRelease
-	@echo "✓ Wear OS APK: $(WATCH_WEAR_DIR)/app/build/outputs/apk/release/app-release.apk"
+	@echo "✓ Wear OS APK: $(WATCH_WEAR_DIR)/app/build/outputs/apk/release/app-release-unsigned.apk"
 
 watch-wear-bundle: ## Build Wear OS App Bundle (.aab)
 	@[ -x $(WATCH_WEAR_DIR)/gradlew ] || (echo "✗ gradlew missing" && exit 1)
@@ -428,7 +428,7 @@ fmt-check: ## Check Rust formatting without modifying
 	$(CARGO) fmt --all -- --check
 
 # Mirror the GitHub CI gate (.github/workflows/ci.yml) locally.
-ci: fmt-check ## Run the same checks CI does (Rust + VibeCoder + VibeApp + SDK + Mobile)
+ci: fmt-check ## Run the same checks CI does (Rust + VibeCoder + VibeApp + SDK + Mobile + Wear + JetBrains)
 	@echo "── Rust: clippy + test ──────────────────────────────"
 	$(CARGO) clippy --workspace
 	$(CARGO) test --workspace --exclude vibe-memory --exclude vibe-broker
@@ -443,6 +443,18 @@ ci: fmt-check ## Run the same checks CI does (Rust + VibeCoder + VibeApp + SDK +
 		$(MAKE) analyze-mobile test-mobile; \
 	else \
 		echo "Flutter not installed — skipping mobile checks (CI runs them)"; \
+	fi
+	@echo "── Wear OS: release build ───────────────────────────"
+	@if [ -n "$$ANDROID_HOME$$ANDROID_SDK_ROOT" ]; then \
+		$(MAKE) watch-wear; \
+	else \
+		echo "Android SDK not found — skipping Wear OS build (CI runs it)"; \
+	fi
+	@echo "── JetBrains plugin: build + test ───────────────────"
+	@if command -v java >/dev/null; then \
+		$(MAKE) build-jetbrains test-jetbrains; \
+	else \
+		echo "JDK not found — skipping JetBrains plugin (CI runs it)"; \
 	fi
 	@echo ""
 	@echo "✓ Local CI gate passed."

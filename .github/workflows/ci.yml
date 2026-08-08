@@ -74,8 +74,11 @@ jobs:
 
       # NOTE: --all-features is intentionally omitted. Several workspace
       # features (candle-metal, mistralrs-metal) require macOS/Apple
-      # platforms and won't compile on Linux. The release workflow uses
-      # --all-features on macOS runners where those features are available.
+      # platforms and won't compile on Linux. Those features are covered by
+      # the `metal-gpu-tests` job below — NOT by the release workflow, which
+      # does not pass --all-features either (it gets mistralrs-metal via the
+      # cfg(target_os = "macos") dep in vibecli/Cargo.toml, and never runs
+      # these tests).
       - name: Run clippy
         if: matrix.check == 'clippy'
         run: cargo clippy --workspace
@@ -265,6 +268,147 @@ jobs:
         # every linted document; we only want the report.
         run: npx remark . --frail --quiet --no-stdout
 
+  # ─── Metal GPU tests (macOS) ───────────────────────────────────────────
+  # The only job that exercises the TurboQuant KV-cache codec on a real GPU.
+  # Everything else in this workflow runs on ubuntu-latest, where
+  # `mistralrs-metal` cannot build — so without this job the GPU path is
+  # compiled in macOS release builds but never *executed* anywhere in CI.
+  #
+  # This is not hypothetical. The 2026-08 mistral.rs v0.9 sync introduced two
+  # bugs that only this test catches: an output buffer bound as an input
+  # (kernel dispatched fine, values wrong by 1.48 vs a 5e-3 tolerance), and a
+  # file-scope `SIMD_SIZE` that collided in the concatenated runtime
+  # translation unit and disabled *every* quant kernel. A green `cargo check`
+  # and a successful dispatch both looked like success.
+  #
+  # Both Metal paths are run because they exercise different code and each
+  # caught a different one of those two bugs:
+  #   - default            → precompiled AOT metallib
+  #   - PRECOMPILE=0       → kernels compiled at runtime into one combined TU
+  metal-gpu-tests:
+    name: Metal GPU tests (macOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
+
+      - name: Cache Cargo registry + target
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: cargo-metal-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: cargo-metal-
+
+      # AOT path: build.rs precompiles the .metal sources into a metallib.
+      - name: Test TurboQuant codec (precompiled metallib)
+        run: cargo test -p vibe-infer --features mistralrs,mistralrs-metal
+
+      # Runtime path: no metallib, so mistralrs-metal-compile concatenates every
+      # .metal source into a single translation unit and compiles it on first
+      # use. This is also the fallback when the Apple Metal Toolchain component
+      # is unavailable, so it must keep working.
+      - name: Test TurboQuant codec (runtime-compiled kernels)
+        env:
+          MISTRALRS_METAL_PRECOMPILE: "0"
+        run: cargo test -p vibe-infer --features mistralrs,mistralrs-metal
+
+  # ─── Wear OS: release build ────────────────────────────────────────────
+  # assembleRelease, not assembleDebug: the release variant is the one that
+  # runs lintVital and R8, and every fault that had accumulated here — the AGP
+  # 9 Kotlin-plugin clash, the missing proguard-rules.pro, the compileSdk floor
+  # demanded by androidx.lifecycle — surfaced only in that variant. Until now
+  # this module was built solely by release.yml, so it broke at release time.
+  wear-checks:
+    name: Wear OS (${{ matrix.check }})
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: vibewatch/VibeCodyWear
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [build]
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Java
+        uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      # compileSdk is 37, so the platform package is android-37.0 — note the
+      # minor-version suffix; `platforms;android-37` does not exist.
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          packages: "platforms;android-37.0 build-tools;37.0.0"
+
+      - name: Cache Gradle
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-wear-ci-${{ hashFiles('vibewatch/VibeCodyWear/**/*.gradle*', 'vibewatch/VibeCodyWear/**/gradle-wrapper.properties', 'vibewatch/VibeCodyWear/gradle/libs.versions.toml') }}
+          restore-keys: gradle-wear-ci-
+
+      - name: Release build (assembleRelease)
+        if: matrix.check == 'build'
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :app:assembleRelease
+
+  # ─── JetBrains plugin: build + unit tests ──────────────────────────────
+  # This module was in no workflow at all, which is how it reached a state
+  # where it did not compile and its 14 HookExecutor tests had never run.
+  # A cold cache downloads the IntelliJ IDEA Community distribution (~1 GB);
+  # the Gradle cache below makes subsequent runs cheap.
+  jetbrains-checks:
+    name: JetBrains plugin (${{ matrix.check }})
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: jetbrains-plugin
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [build, test]
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup Java
+        uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Cache Gradle
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-jetbrains-ci-${{ hashFiles('jetbrains-plugin/**/*.gradle*', 'jetbrains-plugin/gradle.properties', 'jetbrains-plugin/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-jetbrains-ci-
+
+      - name: Build plugin
+        if: matrix.check == 'build'
+        run: |
+          chmod +x ./gradlew
+          ./gradlew buildPlugin verifyPluginStructure
+
+      - name: Unit tests
+        if: matrix.check == 'test'
+        run: |
+          chmod +x ./gradlew
+          ./gradlew test
+
   # ─── Aggregate gate ────────────────────────────────────────────────────
   # Single required check for branch protection — easier than listing every
   # individual job in repo settings.
@@ -273,20 +417,26 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - rust-checks
+      - metal-gpu-tests
       - vibecoder-checks
       - vibeapp-checks
       - agent-sdk-checks
       - mobile-checks
+      - wear-checks
+      - jetbrains-checks
       - docs-check
     if: always()
     steps:
       - name: Aggregate result
         run: |
           if [[ "${{ needs.rust-checks.result }}"      != "success" ]] || \
+             [[ "${{ needs.metal-gpu-tests.result }}"  != "success" ]] || \
              [[ "${{ needs.vibecoder-checks.result }}"    != "success" ]] || \
              [[ "${{ needs.vibeapp-checks.result }}"   != "success" ]] || \
              [[ "${{ needs.agent-sdk-checks.result }}" != "success" ]] || \
              [[ "${{ needs.mobile-checks.result }}"    != "success" ]] || \
+             [[ "${{ needs.wear-checks.result }}"      != "success" ]] || \
+             [[ "${{ needs.jetbrains-checks.result }}" != "success" ]] || \
              [[ "${{ needs.docs-check.result }}"       != "success" ]]; then
             echo "::error::One or more CI checks failed. See individual job logs."
             exit 1

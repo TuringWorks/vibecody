@@ -66,7 +66,7 @@ cd vibewatch/VibeCodyWear
 ./gradlew :app:assembleRelease
 ```
 
-Output: `vibewatch/VibeCodyWear/app/build/outputs/apk/release/app-release.apk`
+Output: `vibewatch/VibeCodyWear/app/build/outputs/apk/release/app-release-unsigned.apk` — the build carries no signing config, so the release variant comes out unsigned.
 
 ---
 
