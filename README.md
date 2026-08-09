@@ -93,6 +93,8 @@ make check              Fast type-check (Rust + UI/App/VibeDesk TypeScript)
 make lint               Run clippy + UI TypeScript check
 make clean              Remove build artifacts
 make docker             Build Docker image
+make icons              Regenerate every app icon from the shared brand mark
+make icons-check        Fail if a committed icon is stale (see assets/brand/)
 
 # Mobile (Flutter — iOS / Android)
 make mobile-setup       flutter pub get

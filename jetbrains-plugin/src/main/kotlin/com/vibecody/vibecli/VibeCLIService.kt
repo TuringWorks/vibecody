@@ -185,22 +185,50 @@ class VibeCLIService {
         return gson.fromJson(text, com.google.gson.JsonElement::class.java)
     }
 
+    /**
+     * Parse one `/stream/{id}` SSE payload.
+     *
+     * The daemon's wire shape is `AgentEventPayload` in `job_manager.rs`:
+     * `{type, content, step_num, tool_name, success, …}`. This used to look
+     * for `thinking`/`text`/`tool_call`/`tool_result` and read `summary` /
+     * `message` / `text` — kinds and fields the daemon has never emitted — so
+     * every streamed token fell through to `null` and the agent tool window
+     * stayed blank while `complete` rendered an empty summary.
+     */
     private fun parseEvent(raw: String): AgentEvent? = try {
         val obj = gson.fromJson(raw, JsonObject::class.java)
+        val content = obj.get("content")?.takeIf { !it.isJsonNull }?.asString ?: ""
         when (obj.get("type")?.asString) {
-            "thinking"   -> AgentEvent.Thinking(obj.get("text")?.asString ?: "")
-            "text"       -> AgentEvent.Text(obj.get("text")?.asString ?: "")
-            "tool_call"  -> AgentEvent.ToolCall(
-                name = obj.get("name")?.asString ?: "",
-                input = obj.get("input")?.toString() ?: "",
+            "chunk"    -> AgentEvent.Text(content)
+            "step"     -> AgentEvent.Step(
+                stepNum = obj.get("step_num")?.takeIf { !it.isJsonNull }?.asInt ?: 0,
+                tool = obj.get("tool_name")?.takeIf { !it.isJsonNull }?.asString ?: "tool",
+                // Nullable on purpose: `?: true` would paint a step whose
+                // outcome the daemon never reported as a success.
+                success = obj.get("success")?.takeIf { !it.isJsonNull }?.asBoolean,
             )
-            "tool_result" -> AgentEvent.ToolResult(
-                name = obj.get("name")?.asString ?: "",
-                output = obj.get("output")?.asString ?: "",
+            "system"   -> AgentEvent.System(content)
+            "retry"    -> AgentEvent.Retry(
+                message = content,
+                attempt = obj.get("attempt")?.takeIf { !it.isJsonNull }?.asInt ?: 0,
+                maxAttempts = obj.get("max_attempts")?.takeIf { !it.isJsonNull }?.asInt ?: 0,
+                backoffMs = obj.get("backoff_ms")?.takeIf { !it.isJsonNull }?.asLong ?: 0L,
             )
-            "complete"   -> AgentEvent.Complete(obj.get("summary")?.asString ?: "")
-            "error"      -> AgentEvent.Error(obj.get("message")?.asString ?: "unknown error")
-            else         -> null
+            "complete" -> AgentEvent.Complete(content)
+            "partial"  -> AgentEvent.Partial(
+                summary = content,
+                stepsCompleted = obj.get("steps_completed")?.takeIf { !it.isJsonNull }?.asInt ?: 0,
+                stepsPlanned = obj.get("steps_planned")?.takeIf { !it.isJsonNull }?.asInt ?: 0,
+                remainingPlan = obj.get("remaining_plan")
+                    ?.takeIf { it.isJsonArray }
+                    ?.asJsonArray
+                    ?.map { it.asString }
+                    ?: emptyList(),
+            )
+            "error"    -> AgentEvent.Error(content.ifEmpty { "unknown error" })
+            // `user` is replay-only; anything else is a kind added after this
+            // build. Both are safely ignored.
+            else       -> null
         }
     } catch (_: Exception) {
         null
@@ -218,13 +246,39 @@ class VibeCLIService {
 
 // ── Data classes ───────────────────────────────────────────────────────────────
 
+/** Mirrors the daemon's `AgentEventPayload` kinds — see `job_manager.rs`. */
 sealed interface AgentEvent {
-    data class Thinking(val text: String)  : AgentEvent
-    data class Text(val text: String)       : AgentEvent
-    data class ToolCall(val name: String, val input: String) : AgentEvent
-    data class ToolResult(val name: String, val output: String) : AgentEvent
+    /** A streamed model token (`chunk`). */
+    data class Text(val text: String) : AgentEvent
+
+    /** A completed tool call (`step`). `success` is null when the daemon
+     *  reported no outcome — rendered as unknown, never as ok. */
+    data class Step(val stepNum: Int, val tool: String, val success: Boolean?) : AgentEvent
+
+    /** A daemon advisory that isn't model output (`system`). */
+    data class System(val text: String) : AgentEvent
+
+    /** Non-terminal: a transient failure is being backed off and retried. */
+    data class Retry(
+        val message: String,
+        val attempt: Int,
+        val maxAttempts: Int,
+        val backoffMs: Long,
+    ) : AgentEvent
+
+    /** Terminal: the agent finished the task. */
     data class Complete(val summary: String) : AgentEvent
-    data class Error(val message: String)   : AgentEvent
+
+    /** Terminal, but the agent stopped with planned work outstanding. */
+    data class Partial(
+        val summary: String,
+        val stepsCompleted: Int,
+        val stepsPlanned: Int,
+        val remainingPlan: List<String>,
+    ) : AgentEvent
+
+    /** Terminal: the run failed. */
+    data class Error(val message: String) : AgentEvent
 }
 
 data class JobRecord(

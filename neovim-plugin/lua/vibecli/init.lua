@@ -199,6 +199,40 @@ function M._stream_session(session_id)
                   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
                   vim.notify("[VibeCLI] Task complete.", vim.log.levels.INFO)
                 end)
+              elseif ev.type == "partial" then
+                -- Terminal, but the agent stopped with planned work left.
+                -- Reported as a warning, never as "✅ Complete".
+                -- `%d` throws on a non-integral float, and a throw in this
+                -- handler kills the whole stream — floor what JSON gave us.
+                local done = math.floor(tonumber(ev.steps_completed) or 0)
+                local planned = math.floor(tonumber(ev.steps_planned) or 0)
+                table.insert(lines, "")
+                table.insert(lines, "---")
+                table.insert(lines, ("⚠ Incomplete — %d/%d planned steps done"):format(done, planned))
+                if ev.content and ev.content ~= "" then
+                  table.insert(lines, ev.content)
+                end
+                for i, item in ipairs(ev.remaining_plan or {}) do
+                  table.insert(lines, ("   %d. %s"):format(done + i, item))
+                end
+                vim.schedule(function()
+                  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+                  vim.notify(
+                    ("[VibeCLI] Task incomplete — %d/%d steps done."):format(done, planned),
+                    vim.log.levels.WARN
+                  )
+                end)
+              elseif ev.type == "retry" then
+                -- Non-terminal: without this the buffer just stops updating
+                -- for the whole backoff and looks hung.
+                table.insert(lines, ("⟳ Retrying (%d/%d) in %.1fs — %s"):format(
+                  math.floor(tonumber(ev.attempt) or 0) + 1,
+                  math.floor(tonumber(ev.max_attempts) or 0),
+                  (tonumber(ev.backoff_ms) or 0) / 1000, ev.content or ""
+                ))
+                vim.schedule(function()
+                  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+                end)
               elseif ev.type == "error" then
                 table.insert(lines, "")
                 table.insert(lines, "❌ Error: " .. (ev.content or "unknown"))

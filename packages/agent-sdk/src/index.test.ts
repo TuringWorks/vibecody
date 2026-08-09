@@ -9,6 +9,7 @@ import {
   VibeCLIAgent,
   AgentError,
   createAgent,
+  isTerminalAgentEvent,
 } from './index';
 import type { AgentEvent, JobRecord, ChatMessage, SkilloptTrainEvent } from './index';
 
@@ -633,6 +634,82 @@ describe('SSE stream — multi-chunk buffering', () => {
 
     expect(received).toHaveLength(1);
     expect(received[0].content).toBe('trailing');
+  });
+});
+
+// ── Terminal events ───────────────────────────────────────────────────────────
+//
+// A run that stops with planned work outstanding ends in `partial`, not
+// `complete`. The daemon used to swallow that event and publish
+// `complete("Agent finished.")` instead, so every SDK consumer was told an
+// unfinished task had succeeded.
+
+describe('terminal agent events', () => {
+  const sseBody = (events: AgentEvent[]) => {
+    const encoder = new TextEncoder();
+    return new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const e of events) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(e)}\n`));
+        }
+        controller.close();
+      },
+    });
+  };
+
+  it('classifies complete, partial and error as terminal — and nothing else', () => {
+    expect(isTerminalAgentEvent({ type: 'complete' })).toBe(true);
+    expect(isTerminalAgentEvent({ type: 'partial' })).toBe(true);
+    expect(isTerminalAgentEvent({ type: 'error' })).toBe(true);
+    expect(isTerminalAgentEvent({ type: 'chunk' })).toBe(false);
+    expect(isTerminalAgentEvent({ type: 'step' })).toBe(false);
+    expect(isTerminalAgentEvent({ type: 'retry' })).toBe(false);
+    expect(isTerminalAgentEvent({ type: 'system' })).toBe(false);
+  });
+
+  it('ends the stream on partial and surfaces the remaining plan', async () => {
+    const agent = new VibeCLIAgent();
+    const partial: AgentEvent = {
+      type: 'partial',
+      content: 'Refactored the parser.',
+      steps_completed: 1,
+      steps_planned: 3,
+      remaining_plan: ['update the call sites', 'run the test suite'],
+    };
+    // A stray event after the terminal one must not be yielded.
+    const body = sseBody([{ type: 'chunk', content: 'working…' }, partial, { type: 'chunk', content: 'never' }]);
+
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ session_id: SESSION_ID }) });
+    fetchMock.mockResolvedValueOnce({ ok: true, body });
+
+    const received: AgentEvent[] = [];
+    for await (const e of agent.run('task')) received.push(e);
+
+    expect(received).toHaveLength(2);
+    const last = received[1];
+    expect(last.type).toBe('partial');
+    expect(last.type).not.toBe('complete');
+    expect(last.steps_completed).toBe(1);
+    expect(last.steps_planned).toBe(3);
+    expect(last.remaining_plan).toEqual(['update the call sites', 'run the test suite']);
+  });
+
+  it('keeps streaming through a retry — it is not terminal', async () => {
+    const agent = new VibeCLIAgent();
+    const body = sseBody([
+      { type: 'retry', content: '503 overloaded', attempt: 0, max_attempts: 5, backoff_ms: 1000 },
+      { type: 'complete', content: 'recovered and finished' },
+    ]);
+
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ session_id: SESSION_ID }) });
+    fetchMock.mockResolvedValueOnce({ ok: true, body });
+
+    const received: AgentEvent[] = [];
+    for await (const e of agent.run('task')) received.push(e);
+
+    expect(received.map((e) => e.type)).toEqual(['retry', 'complete']);
+    expect(received[0].backoff_ms).toBe(1000);
+    expect(received[1].content).toBe('recovered and finished');
   });
 });
 

@@ -130,7 +130,13 @@ Single-turn chat completion (non-streaming). Collects the full response before r
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `messages` | `ChatMessage[]` | Yes | Conversation history |
-| `model` | `string` | No | Override the provider's default model |
+| `provider` | `string` | No | Provider to answer with (e.g. `"anthropic"`, `"ollama"`) |
+| `model` | `string` | No | Model to answer with |
+
+`provider` and `model` are honoured **only together** — both non-empty, matching
+`POST /agent`. Either one alone, an unknown provider, or a missing API key falls
+back to the daemon's configured provider rather than failing the turn. Applies to
+`/chat` and `/chat/stream` alike.
 
 **ChatMessage:**
 
@@ -221,6 +227,17 @@ Start a background agent task. Returns immediately with a session ID. Subscribe 
 |-------|------|----------|-------------|
 | `task` | `string` | Yes | Natural language task description |
 | `approval` | `string` | No | Override approval policy: `"suggest"`, `"auto-edit"`, or `"full-auto"` |
+| `max_step_extensions` | `number` | No | How many times a run that is **still making progress** may extend its step budget past `max_steps`. Ceiling is `max_steps × (1 + this)`. Omit for the harness default (`3`); `0` restores a hard `max_steps` wall |
+
+> **Approval over HTTP.** Only `"full-auto"` and `"auto-edit"` let a run finish
+> unattended. There is no interactive tool-approval channel on this route, so a
+> tool gated by `"suggest"` is rejected with a `system` event explaining why —
+> the run continues and adapts rather than hanging.
+
+> **Step budget.** `max_steps` (50) is a runaway guard. A run that exhausts it
+> while still landing successful tool calls, with a healthy circuit breaker, is
+> granted more runway instead of stopping mid-plan; a stalled or spinning run is
+> not. Raise `max_step_extensions` for long tasks, lower it to cap cost.
 
 **Response** `200 OK`:
 
@@ -255,20 +272,47 @@ Each event's `data` field is a JSON object with these fields:
 
 | Field | Type | Present when |
 |-------|------|-------------|
-| `type` | `string` | Always. One of: `chunk`, `step`, `complete`, `error` |
-| `content` | `string` | `chunk`, `complete`, `error` |
+| `type` | `string` | Always. One of: `chunk`, `step`, `system`, `retry`, `complete`, `partial`, `error` |
+| `content` | `string` | `chunk`, `system`, `retry`, `complete`, `partial`, `error` |
 | `step_num` | `number` | `step` |
 | `tool_name` | `string` | `step` |
 | `success` | `boolean` | `step` |
+| `steps_completed` | `number` | `partial` |
+| `steps_planned` | `number` | `partial` |
+| `remaining_plan` | `string[]` | `partial` |
+| `attempt` | `number` | `retry` (0-based) |
+| `max_attempts` | `number` | `retry` |
+| `backoff_ms` | `number` | `retry` |
 
 **Event types:**
 
-| Type | Description |
-|------|-------------|
-| `chunk` | Incremental text from the LLM |
-| `step` | A tool was executed (e.g., `read_file`, `bash`) |
-| `complete` | Agent finished. `content` has the summary |
-| `error` | Agent failed. `content` has the error message |
+| Type | Terminal | Description |
+|------|----------|-------------|
+| `chunk` | no | Incremental text from the LLM |
+| `step` | no | A tool was executed (e.g., `read_file`, `bash`) |
+| `system` | no | Daemon advisory that isn't model output |
+| `retry` | no | Transient provider error; backing off before another attempt |
+| `complete` | **yes** | Agent finished the task. `content` has the summary |
+| `partial` | **yes** | Agent stopped with planned work outstanding |
+| `error` | **yes** | Agent failed. `content` has the error message |
+
+The stream closes after a terminal event. **Break your read loop on `complete`,
+`partial` *or* `error`** — treating only `complete` as success is wrong:
+`partial` means the agent stopped before finishing everything it planned, and
+`remaining_plan` lists exactly what it never executed. The corresponding job
+record ends in status `partial` (terminal, but neither `complete` nor
+`failed`), and the run is resumable from its checkpoint.
+
+Unknown `type` values should be ignored rather than treated as errors — new
+non-terminal kinds may be added.
+
+**A partial run:**
+
+```
+data: {"type":"step","step_num":1,"tool_name":"read_file","success":true}
+
+data: {"type":"partial","content":"Refactored the parser.\n\nRemaining (2 of 3 steps not done):\n  2. update the call sites\n  3. run the test suite","steps_completed":1,"steps_planned":3,"remaining_plan":["update the call sites","run the test suite"]}
+```
 
 **Example:**
 
@@ -324,7 +368,7 @@ List all persisted job records, sorted by most recent first.
 |-------|------|-------------|
 | `session_id` | `string` | Unique job identifier |
 | `task` | `string` | Original task description |
-| `status` | `string` | `"running"`, `"complete"`, `"failed"`, `"cancelled"` |
+| `status` | `string` | `"queued"`, `"running"`, `"complete"`, `"partial"`, `"failed"`, `"cancelled"`. `"partial"` is terminal but means the agent stopped with planned work outstanding — resumable, and not a success |
 | `provider` | `string` | AI provider name |
 | `started_at` | `number` | Unix timestamp (milliseconds) |
 | `finished_at` | `number?` | Unix timestamp (milliseconds), null if running |

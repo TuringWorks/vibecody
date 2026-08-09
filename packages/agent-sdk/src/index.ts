@@ -71,11 +71,30 @@ export interface AgentOptions {
 // `auto_link_to_pinned_goal` so SDK / VibeCoder / CLI consumers can
 // render it as a distinct attribution chip before the model's first
 // token.
-export type AgentEventType = 'chunk' | 'step' | 'complete' | 'error' | 'system';
+// `partial` is terminal, like `complete` and `error`: the agent stopped with
+// planned work outstanding (step budget exhausted, or it would not act on the
+// rest of its plan). Treat it as "not finished" — `remaining_plan` lists what
+// was never executed. `retry` is non-terminal: the provider call failed with a
+// transient error and the agent is backing off before another attempt.
+export type AgentEventType =
+  | 'chunk'
+  | 'step'
+  | 'complete'
+  | 'partial'
+  | 'error'
+  | 'retry'
+  | 'system';
+
+/** Event types after which no further events arrive for a session. */
+export const TERMINAL_AGENT_EVENTS = ['complete', 'partial', 'error'] as const;
+
+export function isTerminalAgentEvent(event: AgentEvent): boolean {
+  return (TERMINAL_AGENT_EVENTS as readonly string[]).includes(event.type);
+}
 
 export interface AgentEvent {
   type: AgentEventType;
-  /** Text content (for 'chunk' and 'complete' events) */
+  /** Text content (for 'chunk', 'complete', 'partial', 'error' and 'system') */
   content?: string;
   /** Step index (0-based) for 'step' events */
   step_num?: number;
@@ -83,6 +102,18 @@ export interface AgentEvent {
   tool_name?: string;
   /** Whether the tool call succeeded for 'step' events */
   success?: boolean;
+  /** 'partial': plan steps finished before the agent stopped */
+  steps_completed?: number;
+  /** 'partial': plan steps the agent had planned in total */
+  steps_planned?: number;
+  /** 'partial': plan items that were never executed */
+  remaining_plan?: string[];
+  /** 'retry': 0-based index of the attempt that just failed */
+  attempt?: number;
+  /** 'retry': total attempts the retry policy allows */
+  max_attempts?: number;
+  /** 'retry': backoff before the next attempt */
+  backoff_ms?: number;
 }
 
 export interface ChatMessage {
@@ -103,8 +134,12 @@ export interface JobRecord {
   session_id: string;
   /** Natural-language task description */
   task: string;
-  /** Job status */
-  status: 'running' | 'complete' | 'failed' | 'cancelled';
+  /**
+   * Job status. `partial` is terminal but means the agent stopped with
+   * planned work outstanding — the work done so far is real and the run is
+   * resumable, so do not treat it as either success or hard failure.
+   */
+  status: 'queued' | 'running' | 'complete' | 'partial' | 'failed' | 'cancelled';
   /** AI provider used */
   provider: string;
   /** Unix milliseconds when the job started */
@@ -795,7 +830,7 @@ export class VibeCLIAgent {
       try {
         const event: AgentEvent = JSON.parse(data);
         yield event;
-        if (event.type === 'complete' || event.type === 'error') break;
+        if (isTerminalAgentEvent(event)) break;
       } catch {
         // Skip unparseable lines
       }

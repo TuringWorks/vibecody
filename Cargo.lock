@@ -5734,7 +5734,7 @@ dependencies = [
 [[package]]
 name = "mistralrs"
 version = "0.9.0"
-source = "git+https://github.com/TuringWorks/mistral.rs?rev=5860f8153e2cd4bac0dd1e3f5e155a6ac29fe909#5860f8153e2cd4bac0dd1e3f5e155a6ac29fe909"
+source = "git+https://github.com/TuringWorks/mistral.rs?rev=2a95851962d3959807771fed5ddeb4fed96162d8#2a95851962d3959807771fed5ddeb4fed96162d8"
 dependencies = [
  "anyhow",
  "candle-core",
@@ -5761,7 +5761,7 @@ dependencies = [
 [[package]]
 name = "mistralrs-audio"
 version = "0.9.0"
-source = "git+https://github.com/TuringWorks/mistral.rs?rev=5860f8153e2cd4bac0dd1e3f5e155a6ac29fe909#5860f8153e2cd4bac0dd1e3f5e155a6ac29fe909"
+source = "git+https://github.com/TuringWorks/mistral.rs?rev=2a95851962d3959807771fed5ddeb4fed96162d8#2a95851962d3959807771fed5ddeb4fed96162d8"
 dependencies = [
  "anyhow",
  "apodize",
@@ -5772,7 +5772,7 @@ dependencies = [
 [[package]]
 name = "mistralrs-code-exec"
 version = "0.9.0"
-source = "git+https://github.com/TuringWorks/mistral.rs?rev=5860f8153e2cd4bac0dd1e3f5e155a6ac29fe909#5860f8153e2cd4bac0dd1e3f5e155a6ac29fe909"
+source = "git+https://github.com/TuringWorks/mistral.rs?rev=2a95851962d3959807771fed5ddeb4fed96162d8#2a95851962d3959807771fed5ddeb4fed96162d8"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -5791,7 +5791,7 @@ dependencies = [
 [[package]]
 name = "mistralrs-core"
 version = "0.9.0"
-source = "git+https://github.com/TuringWorks/mistral.rs?rev=5860f8153e2cd4bac0dd1e3f5e155a6ac29fe909#5860f8153e2cd4bac0dd1e3f5e155a6ac29fe909"
+source = "git+https://github.com/TuringWorks/mistral.rs?rev=2a95851962d3959807771fed5ddeb4fed96162d8#2a95851962d3959807771fed5ddeb4fed96162d8"
 dependencies = [
  "ahash",
  "akin",
@@ -5895,7 +5895,7 @@ dependencies = [
 [[package]]
 name = "mistralrs-flash-attn"
 version = "0.9.0"
-source = "git+https://github.com/TuringWorks/mistral.rs?rev=5860f8153e2cd4bac0dd1e3f5e155a6ac29fe909#5860f8153e2cd4bac0dd1e3f5e155a6ac29fe909"
+source = "git+https://github.com/TuringWorks/mistral.rs?rev=2a95851962d3959807771fed5ddeb4fed96162d8#2a95851962d3959807771fed5ddeb4fed96162d8"
 dependencies = [
  "anyhow",
  "candle-core",
@@ -5906,7 +5906,7 @@ dependencies = [
 [[package]]
 name = "mistralrs-macros"
 version = "0.9.0"
-source = "git+https://github.com/TuringWorks/mistral.rs?rev=5860f8153e2cd4bac0dd1e3f5e155a6ac29fe909#5860f8153e2cd4bac0dd1e3f5e155a6ac29fe909"
+source = "git+https://github.com/TuringWorks/mistral.rs?rev=2a95851962d3959807771fed5ddeb4fed96162d8#2a95851962d3959807771fed5ddeb4fed96162d8"
 dependencies = [
  "darling 0.23.0",
  "proc-macro2",
@@ -5917,7 +5917,7 @@ dependencies = [
 [[package]]
 name = "mistralrs-mcp"
 version = "0.9.0"
-source = "git+https://github.com/TuringWorks/mistral.rs?rev=5860f8153e2cd4bac0dd1e3f5e155a6ac29fe909#5860f8153e2cd4bac0dd1e3f5e155a6ac29fe909"
+source = "git+https://github.com/TuringWorks/mistral.rs?rev=2a95851962d3959807771fed5ddeb4fed96162d8#2a95851962d3959807771fed5ddeb4fed96162d8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5938,7 +5938,7 @@ dependencies = [
 [[package]]
 name = "mistralrs-metal-compile"
 version = "0.9.0"
-source = "git+https://github.com/TuringWorks/mistral.rs?rev=5860f8153e2cd4bac0dd1e3f5e155a6ac29fe909#5860f8153e2cd4bac0dd1e3f5e155a6ac29fe909"
+source = "git+https://github.com/TuringWorks/mistral.rs?rev=2a95851962d3959807771fed5ddeb4fed96162d8#2a95851962d3959807771fed5ddeb4fed96162d8"
 dependencies = [
  "candle-metal-kernels",
  "objc2-metal",
@@ -5947,7 +5947,7 @@ dependencies = [
 [[package]]
 name = "mistralrs-paged-attn"
 version = "0.9.0"
-source = "git+https://github.com/TuringWorks/mistral.rs?rev=5860f8153e2cd4bac0dd1e3f5e155a6ac29fe909#5860f8153e2cd4bac0dd1e3f5e155a6ac29fe909"
+source = "git+https://github.com/TuringWorks/mistral.rs?rev=2a95851962d3959807771fed5ddeb4fed96162d8#2a95851962d3959807771fed5ddeb4fed96162d8"
 dependencies = [
  "anyhow",
  "candle-core",
@@ -5965,7 +5965,7 @@ dependencies = [
 [[package]]
 name = "mistralrs-quant"
 version = "0.9.0"
-source = "git+https://github.com/TuringWorks/mistral.rs?rev=5860f8153e2cd4bac0dd1e3f5e155a6ac29fe909#5860f8153e2cd4bac0dd1e3f5e155a6ac29fe909"
+source = "git+https://github.com/TuringWorks/mistral.rs?rev=2a95851962d3959807771fed5ddeb4fed96162d8#2a95851962d3959807771fed5ddeb4fed96162d8"
 dependencies = [
  "byteorder",
  "candle-core",
@@ -6002,7 +6002,7 @@ dependencies = [
 [[package]]
 name = "mistralrs-sandbox"
 version = "0.9.0"
-source = "git+https://github.com/TuringWorks/mistral.rs?rev=5860f8153e2cd4bac0dd1e3f5e155a6ac29fe909#5860f8153e2cd4bac0dd1e3f5e155a6ac29fe909"
+source = "git+https://github.com/TuringWorks/mistral.rs?rev=2a95851962d3959807771fed5ddeb4fed96162d8#2a95851962d3959807771fed5ddeb4fed96162d8"
 dependencies = [
  "anyhow",
  "itoa",
@@ -6019,7 +6019,7 @@ dependencies = [
 [[package]]
 name = "mistralrs-vision"
 version = "0.9.0"
-source = "git+https://github.com/TuringWorks/mistral.rs?rev=5860f8153e2cd4bac0dd1e3f5e155a6ac29fe909#5860f8153e2cd4bac0dd1e3f5e155a6ac29fe909"
+source = "git+https://github.com/TuringWorks/mistral.rs?rev=2a95851962d3959807771fed5ddeb4fed96162d8#2a95851962d3959807771fed5ddeb4fed96162d8"
 dependencies = [
  "candle-core",
  "image",
@@ -7639,7 +7639,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "27c6023962132f4b30eb4c172c91ce92d933da334c59c23cddee82358ddafb0b"
 dependencies = [
  "anyhow",
- "itertools 0.14.0",
+ "itertools 0.13.0",
  "proc-macro2",
  "quote",
  "syn 2.0.117",
@@ -9009,7 +9009,7 @@ checksum = "4db5a4a562bcc0017c34cd0efbabf447be783f00576a2a516947f884e6a7ed57"
 dependencies = [
  "ahash",
  "annotate-snippets",
- "base64 0.22.1",
+ "base64 0.21.7",
  "encoding_rs_io",
  "nohash-hasher",
  "num-traits",

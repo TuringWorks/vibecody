@@ -36,7 +36,7 @@
         test-ui test-app test-vibedesk test-sdk test-mobile test-rl test-jetbrains test-watch \
         check check-cli check-ui check-app check-vibedesk \
         lint lint-ui lint-sdk lint-vscode lint-vibedesk check-neovim \
-        fmt fmt-check ci analyze-mobile \
+        fmt fmt-check ci analyze-mobile icons icons-check \
         mobile-setup mobile-ios mobile-ios-ipa mobile-android mobile-android-bundle \
         mobile-clean watch-ios watch-ios-archive watch-wear watch-wear-bundle \
         watch-clean build-mobile build-watch \
@@ -426,6 +426,14 @@ fmt: ## Format all Rust code
 
 fmt-check: ## Check Rust formatting without modifying
 	$(CARGO) fmt --all -- --check
+
+# App icons are generated from assets/brand/ and committed, so a normal build
+# needs neither this target nor librsvg. Run it after editing the brand mark.
+icons: ## Regenerate every app icon from the shared brand mark
+	python3 scripts/brand/gen_icons.py
+
+icons-check: ## Fail if any committed icon is out of date with the brand mark
+	python3 scripts/brand/gen_icons.py --check
 
 # Mirror the GitHub CI gate (.github/workflows/ci.yml) locally.
 ci: fmt-check ## Run the same checks CI does (Rust + VibeCoder + VibeApp + SDK + Mobile + Wear + JetBrains)

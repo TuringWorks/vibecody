@@ -92,7 +92,7 @@ Install the companion desktop/phone app first — pair the watch from the **Watc
 
 ### macOS install: first-launch warning
 
-VibeCoder and Vibe App for macOS ship **ad-hoc signed by default** (until Apple Developer credentials are added to CI — see [macOS code signing setup](#macos-code-signing-setup-for-maintainers) below). Ad-hoc signing is enough to avoid the "is damaged and can't be opened" Gatekeeper error, but the first launch still shows an **"unidentified developer"** dialog.
+VibeCoder, Vibe App and VibeDesk for macOS ship **ad-hoc signed by default** (until Apple Developer credentials are added to CI — see [macOS code signing setup](#macos-code-signing-setup-for-maintainers) below). Ad-hoc signing is enough to avoid the "is damaged and can't be opened" Gatekeeper error, but the first launch still shows an **"unidentified developer"** dialog.
 
 Two options:
 
@@ -101,6 +101,7 @@ Two options:
    ```bash
    xattr -dr com.apple.quarantine /Applications/VibeCoder.app
    xattr -dr com.apple.quarantine "/Applications/Vibe App.app"
+   xattr -dr com.apple.quarantine /Applications/VibeDesk.app
    ```
 
 If you see *"is damaged and can't be opened"* (not "from an unidentified developer"), the DMG download was corrupted — re-download and verify against [SHA256SUMS.txt](https://github.com/TuringWorks/vibecody/releases/download/v0.5.7/SHA256SUMS.txt).
@@ -120,6 +121,70 @@ To ship fully Apple-notarized builds (no first-launch warning at all), add the f
 | `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password generated at appleid.apple.com (NOT your regular Apple ID password) |
 
 The `build-vibecoder` and `build-vibeapp` jobs auto-detect these secrets — when `APPLE_CERT_P12_BASE64` is unset, the build emits a workflow `::notice::` and falls back to ad-hoc signing. The watchOS-signed track uses a parallel set of secrets (`APPLE_PROVISIONING_PROFILE_BASE64` + App Store Connect API key) — see `.github/workflows/release.yml` `build-watchos-signed` for that path.
+
+> **VibeDesk ships from the next tag.** It gained a `build-vibedesk` release job (same five-platform matrix and dual-mode signing as the other two shells) and a `vibedesk-checks` CI job, so it was absent from v0.5.7 and earlier. Two things to know about it:
+>
+> - It is **not** in the `release` job's critical `if:` gate yet. The job has never run on Linux or Windows, so a failure there must not block the whole release. Promote it by adding `needs.build-vibedesk.result == 'success'` once it has shipped green.
+> - Its `src-tauri` embeds the whole `vibecli` crate for direct ProfileStore access — exactly as VibeCoder does — so its build cost tracks VibeCoder's, not Vibe App's (which embeds no Rust of its own). On macOS that includes the Metal mistral.rs backend, which `vibecli` pulls unconditionally through a `[target.'cfg(target_os = "macos")']` block regardless of feature flags.
+
+#### Signing and notarizing locally
+
+CI is not required — a local `make build-ui` will sign and notarize once the same variables are in your environment. Two prerequisites:
+
+1. **The Developer ID Application certificate must be in your login keychain.** The `APPLE_CERT_P12_BASE64` secret is a CI-only mechanism for importing it into a throwaway runner keychain; locally you install the cert once from your Apple Developer account. Confirm it is there:
+   ```bash
+   security find-identity -v -p codesigning | grep "Developer ID Application"
+   ```
+2. **`APPLE_PASSWORD` must be an app-specific password**, generated at [appleid.apple.com](https://appleid.apple.com) → Sign-In and Security → App-Specific Passwords. Your normal Apple ID password is rejected.
+
+Then export the four variables and build:
+
+```bash
+export APPLE_SIGNING_IDENTITY="Developer ID Application: Acme Inc (TEAMID)"
+export APPLE_TEAM_ID="XXXXXXXXXX"
+export APPLE_ID="you@example.com"
+export APPLE_PASSWORD="xxxx-xxxx-xxxx-xxxx"   # app-specific, not your Apple ID password
+
+make build-ui
+```
+
+`APPLE_SIGNING_IDENTITY` **overrides** the `"signingIdentity": "-"` in `tauri.conf.json`, so the committed config stays ad-hoc and no one needs a certificate for an ordinary development build. Leave the variable unset and you get today's behaviour.
+
+Notarization is a round trip to Apple's servers — budget **2–15 minutes per build** on top of compile time. If you only want a runnable app, skip it; the warning in the build log (`skipping app notarization…`) is informational, not an error.
+
+Verify the result:
+
+```bash
+codesign -dv --verbose=4 target/release/bundle/macos/VibeCoder.app   # expect your Developer ID, not "adhoc"
+xcrun stapler validate target/release/bundle/macos/VibeCoder.app     # expect "The validate action worked!"
+spctl -a -vvv -t install target/release/bundle/macos/VibeCoder.app   # expect "accepted / source=Notarized Developer ID"
+```
+
+#### DMG bundling fails with `error running bundle_dmg.sh`
+
+`bundle_dmg.sh` drives Finder over AppleScript to position icons and set the window background. When that `osascript` call fails the script exits `64`, and Tauri reports only `failed to run …/bundle_dmg.sh` — the underlying reason is not surfaced.
+
+**The reliable fix is to skip the AppleScript**, which Tauri does when it is told it is running in CI:
+
+```bash
+CI=true make build-ui        # note: CI=true, not CI=1
+```
+
+Tauri binds the `CI` environment variable to its own `--ci` flag, which accepts only `true` or `false` — `CI=1` fails immediately with `error: invalid value '1' for '--ci'`. With `CI=true` the bundler passes `--skip-jenkins`, the `osascript` call never happens, and the DMG builds. You lose only the cosmetics: custom window size, icon positions and background image. Drag-to-Applications still works, because the `Applications` symlink is created before the AppleScript runs.
+
+This was verified on a machine where the styled path failed twice and `CI=true` succeeded immediately.
+
+Other things worth checking:
+
+- **A leaked scratch volume.** A failed run leaves its disk image mounted, which breaks every retry with a confusing second error. Always clean up before rebuilding:
+  ```bash
+  ls -d /Volumes/dmg.*                     # any match is a leftover
+  hdiutil detach /Volumes/dmg.XXXXXX
+  rm -f target/release/bundle/macos/rw.*.dmg
+  ```
+- **Automation permission**, if you want the styled DMG: System Settings → Privacy & Security → Automation → your terminal app → enable Finder. A previous "Don't Allow" is remembered and must be re-enabled here. Note this is per-app, and the process that actually sends the Apple event is `node`/`osascript` under your shell — a grant for one terminal does not cover a build launched from another.
+- **The `-1728` "Can't get disk" race.** `bundle_dmg.sh` guards it with a fixed 2-second sleep after mounting, which is not always enough on a machine that has just finished a heavy LTO link. Running the same script standalone on an idle machine can succeed where it failed under the build — so an intermittent failure here does not mean your permissions changed.
+- **No GUI session at all** (SSH, a headless runner): there is no Finder to talk to, so `CI=true` is the only option.
 
 ---
 
