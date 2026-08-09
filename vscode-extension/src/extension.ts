@@ -8,7 +8,13 @@
  */
 
 import * as vscode from 'vscode';
-import { VibeCLIClient, type AgentEvent, type ExecGoalSummary, type JobRecord } from './api-client';
+import {
+  VibeCLIClient,
+  isTerminalAgentEvent,
+  type AgentEvent,
+  type ExecGoalSummary,
+  type JobRecord,
+} from './api-client';
 import { GoalsTreeProvider, GoalTreeItem } from './goals-tree';
 import { gatePromptSubmission } from './hook-executor';
 
@@ -180,7 +186,7 @@ async function handleStartAgent(): Promise<void> {
 
     for await (const event of client.streamAgent(sessionId)) {
       formatEventToOutput(outputChannel, event);
-      if (event.type === 'complete' || event.type === 'error') break;
+      if (isTerminalAgentEvent(event)) break;
     }
     updateStatusBar('●');
   } catch (err) {
@@ -261,7 +267,7 @@ async function handleInlineEdit(): Promise<void> {
     const { sessionId } = await client.startAgent(task, approval);
     for await (const event of client.streamAgent(sessionId)) {
       formatEventToOutput(outputChannel, event);
-      if (event.type === 'complete' || event.type === 'error') break;
+      if (isTerminalAgentEvent(event)) break;
     }
   } catch (err) {
     outputChannel.appendLine(`[error] ${err}`);
@@ -283,7 +289,15 @@ async function handleViewJobs(): Promise<void> {
   }
 
   const statusIcon = (s: JobRecord['status']) =>
-    s === 'complete' ? '✅' : s === 'running' ? '🟡' : s === 'failed' ? '❌' : '⛔';
+    s === 'complete'
+      ? '✅'
+      : s === 'partial'
+        ? '⚠️'
+        : s === 'running'
+          ? '🟡'
+          : s === 'failed'
+            ? '❌'
+            : '⛔';
 
   const picks = jobs.map((j) => ({
     label: `${statusIcon(j.status)} ${j.task.slice(0, 60)}${j.task.length > 60 ? '…' : ''}`,
@@ -313,7 +327,7 @@ async function handleViewJobs(): Promise<void> {
       ch.appendLine(`[streaming] ${job.task}`);
       for await (const event of client.streamAgent(job.session_id)) {
         formatEventToOutput(ch, event);
-        if (event.type === 'complete' || event.type === 'error') break;
+        if (isTerminalAgentEvent(event)) break;
       }
     } else if (action === 'Cancel job') {
       await client.cancelJob(job.session_id);
@@ -512,7 +526,7 @@ async function handleSendSelection(): Promise<void> {
     const { sessionId } = await client.startAgent(task, approval);
     for await (const event of client.streamAgent(sessionId)) {
       formatEventToOutput(outputChannel, event);
-      if (event.type === 'complete' || event.type === 'error') break;
+      if (isTerminalAgentEvent(event)) break;
     }
   } catch (err) {
     outputChannel.appendLine(`[error] ${err}`);
@@ -532,8 +546,24 @@ function formatEventToOutput(channel: vscode.OutputChannel, event: AgentEvent): 
       // attribution). Distinct prefix so it's clearly not model output.
       channel.appendLine(`\n[goal] ${event.content ?? ''}`);
       break;
+    case 'retry':
+      channel.appendLine(
+        `\n[retry] attempt ${(event.attempt ?? 0) + 1}/${event.max_attempts ?? '?'} in ` +
+          `${((event.backoff_ms ?? 0) / 1000).toFixed(1)}s — ${event.content ?? ''}`,
+      );
+      break;
     case 'complete':
       channel.appendLine(`\n[done] ${event.content}`);
+      break;
+    case 'partial':
+      // Terminal but unfinished — never let this read like `[done]`.
+      channel.appendLine(
+        `\n[incomplete] stopped after ${event.steps_completed ?? 0}/${event.steps_planned ?? 0} ` +
+          `planned steps\n${event.content ?? ''}`,
+      );
+      for (const [i, item] of (event.remaining_plan ?? []).entries()) {
+        channel.appendLine(`  ${(event.steps_completed ?? 0) + i + 1}. ${item}`);
+      }
       break;
     case 'error':
       channel.appendLine(`\n[error] ${event.content}`);

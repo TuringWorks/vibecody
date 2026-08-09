@@ -1,5 +1,6 @@
 {
   "name": "vibecli",
+  "icon": "icon.png",
   "displayName": "VibeCLI",
   "description": "AI-powered coding assistant powered by VibeCLI — multi-provider, open-source",
   "version": "0.1.0",

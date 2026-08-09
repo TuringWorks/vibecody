@@ -65,17 +65,40 @@ export interface AgentEvent {
   // isn't a model token, tool step, completion, or error. Today it
   // carries the "Auto-linked to pinned goal …" attribution emitted
   // by `auto_link_to_pinned_goal`.
-  type: 'chunk' | 'step' | 'complete' | 'error' | 'system';
+  //
+  // `partial` is terminal like `complete`/`error`, but means the agent
+  // stopped with planned work outstanding; `remaining_plan` lists what it
+  // never executed. `retry` is non-terminal — a transient provider error
+  // is being backed off and retried.
+  type: 'chunk' | 'step' | 'complete' | 'partial' | 'error' | 'retry' | 'system';
   content?: string;
   step_num?: number;
   tool_name?: string;
   success?: boolean;
+  /** 'partial' only */
+  steps_completed?: number;
+  /** 'partial' only */
+  steps_planned?: number;
+  /** 'partial' only */
+  remaining_plan?: string[];
+  /** 'retry' only */
+  attempt?: number;
+  /** 'retry' only */
+  max_attempts?: number;
+  /** 'retry' only */
+  backoff_ms?: number;
+}
+
+/** No further events arrive for a session after one of these. */
+export function isTerminalAgentEvent(event: AgentEvent): boolean {
+  return event.type === 'complete' || event.type === 'partial' || event.type === 'error';
 }
 
 export interface JobRecord {
   session_id: string;
   task: string;
-  status: 'running' | 'complete' | 'failed' | 'cancelled';
+  /** `partial` — terminal, but stopped with planned work outstanding. */
+  status: 'queued' | 'running' | 'complete' | 'partial' | 'failed' | 'cancelled';
   provider: string;
   started_at: number;
   finished_at?: number;
