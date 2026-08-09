@@ -9,4 +9,7 @@ description = "Settings Tauri commands shared by the VibeCody desktop shells (Vi
 [dependencies]
 tauri = { version = "2" }
 serde_json = { workspace = true }
-vibecli_cli = { package = "vibecli", path = "../../vibecli/vibecli-cli" }
+# Only the store, not the CLI. Depending on `vibecli` here pulled the whole
+# inference stack into every shell that renders a settings screen —
+# including VibeAIChat, which documents that it avoids exactly that.
+vibe-profile-store = { path = "../vibe-profile-store" }

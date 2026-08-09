@@ -2,7 +2,7 @@ import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { toWire } from "../lib/sandbox";
 import { effortParam } from "../lib/effort";
 import { ArrowUp, Square, Trash2 } from "lucide-react";
-import { Markdown } from "./Markdown";
+import { Markdown } from "@vibe/shared/markdown/Markdown";
 import { ToolUseBlock } from "./ToolUseBlock";
 import { useAgentStream } from "../hooks/useAgentStream";
 import type { ComposerPrefs } from "../hooks/useComposerPrefs";

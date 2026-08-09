@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { X, Sparkles } from "lucide-react";
-import { Markdown } from "./Markdown";
+import { Markdown } from "@vibe/shared/markdown/Markdown";
 
 interface SkillsViewProps {
   daemonUrl: string;

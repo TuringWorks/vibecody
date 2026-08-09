@@ -22,6 +22,8 @@ export default defineConfig(async () => ({
       { find: /^react\//, replacement: resolve(__dirname, "node_modules/react") + "/" },
       { find: /^react-dom$/, replacement: resolve(__dirname, "node_modules/react-dom") },
       { find: /^react-dom\//, replacement: resolve(__dirname, "node_modules/react-dom") + "/" },
+      { find: /^react-markdown$/, replacement: resolve(__dirname, "node_modules/react-markdown") },
+      { find: /^remark-gfm$/, replacement: resolve(__dirname, "node_modules/remark-gfm") },
       { find: /^lucide-react$/, replacement: resolve(__dirname, "node_modules/lucide-react") },
       { find: /^@tauri-apps\/api\//, replacement: resolve(__dirname, "node_modules/@tauri-apps/api") + "/" },
     ],

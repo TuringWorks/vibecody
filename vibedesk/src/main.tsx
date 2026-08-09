@@ -7,6 +7,7 @@ import "./App.css";
 // Settings screens ship their own CSS with the shared package; it must come
 // after tokens.css, whose variables it consumes.
 import "@vibe/shared/settings/settings.css";
+import "@vibe/shared/markdown/markdown.css";
 
 // Carry pre-rename (VibeX) theme prefs forward before the app reads them.
 migrateLegacyVibexStorage();

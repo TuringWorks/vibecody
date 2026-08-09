@@ -91,6 +91,11 @@ body {
 .btn-icon {
   background: none;
   border: none;
+  /* Buttons do NOT inherit `color` — the UA stylesheet gives them `buttontext`,
+     which is near-black whatever the theme. These icons stroke with
+     `currentColor`, so without this they render dark-on-dark and vanish in the
+     dark theme while looking fine in light. Set it from a token explicitly. */
+  color: var(--text-secondary);
   font-size: var(--font-size-lg);
   cursor: pointer;
   padding: 2px var(--space-1);
@@ -103,7 +108,7 @@ body {
   justify-content: center;
 }
 
-.btn-icon:hover { opacity: 1; background: rgba(255,255,255,0.08); }
+.btn-icon:hover { opacity: 1; color: var(--text-primary); background: var(--bg-elevated); }
 .btn-icon.pinned { opacity: 1; color: var(--accent-blue); }
 
 /* ── Model selector bar ────────────────────────────────────────────────────── */
@@ -135,28 +140,23 @@ body {
 
 /* ── Settings panel ────────────────────────────────────────────────────────── */
 
-.settings-panel {
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
-  padding: var(--space-3) 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.settings-panel label {
+/* Connection settings — the tab VibeAIChat contributes to the shared settings
+   screens. The bespoke .settings-panel these styles used to dress is gone; they
+   now dress the fields inside that tab. Unstyled inputs inherit the UA's
+   white-on-white, which is invisible in the dark theme. */
+.settings-field {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  margin-bottom: 10px;
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
-.settings-panel input,
-.settings-panel select {
+.settings-field input,
+.settings-field select {
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
@@ -164,17 +164,39 @@ body {
   padding: 5px var(--space-2);
   font-size: var(--font-size-md);
   font-family: var(--font-family);
+  text-transform: none;
+  letter-spacing: normal;
   outline: none;
 }
 
-.settings-panel input:focus,
-.settings-panel select:focus { border-color: var(--accent-blue); }
+.settings-field input:focus,
+.settings-field select:focus { border-color: var(--accent-blue); }
+
+.settings-hint {
+  margin: -4px 0 12px;
+  font-size: var(--font-size-sm);
+  color: var(--text-tertiary);
+  line-height: 1.5;
+}
 
 .settings-actions {
   display: flex;
   gap: var(--space-2);
   justify-content: flex-end;
 }
+
+/* Bare <button>s do not inherit color; without this the label is UA-black on a
+   dark surface. Same trap as .btn-icon above. */
+.settings-actions button {
+  padding: 5px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--accent-blue);
+  color: var(--btn-primary-fg);
+  font-size: var(--font-size-md);
+  cursor: pointer;
+}
+.settings-actions button:hover { filter: brightness(1.08); }
 
 .settings-actions button {
   background: var(--bg-tertiary);

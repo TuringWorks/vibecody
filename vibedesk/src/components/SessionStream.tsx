@@ -3,7 +3,7 @@ import { toWire } from "../lib/sandbox";
 import { ArrowDown, RotateCcw } from "lucide-react";
 import { TaskPrompt, type ComposerSubmit } from "./TaskPrompt";
 import { ToolUseBlock } from "./ToolUseBlock";
-import { CopyButton, Markdown } from "./Markdown";
+import { CopyButton, Markdown } from "@vibe/shared/markdown/Markdown";
 import { ReasoningBlock } from "./ReasoningBlock";
 import { splitThinking } from "@vibe/shared/lib/thinking";
 import { effortParam } from "../lib/effort";

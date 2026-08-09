@@ -3078,7 +3078,7 @@ mod company_tasks;
 mod health_score;
 mod intent_refactor;
 mod policy_engine;
-mod profile_store;
+use vibe_profile_store as profile_store;
 mod review_protocol;
 mod skill_distillation;
 mod workspace_store;

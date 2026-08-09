@@ -34,7 +34,7 @@
       "iconPath": "icons/icon.png",
       "iconAsTemplate": true,
       "menuOnLeftClick": false,
-      "tooltip": "VibeAIChat — AI Coding Assistant"
+      "tooltip": "VibeAIChat \u2014 ask anything"
     }
   },
   "bundle": {

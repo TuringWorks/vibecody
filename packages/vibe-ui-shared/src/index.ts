@@ -15,6 +15,7 @@
  * routing, or layout. These modules talk to the daemon through Tauri commands
  * that both shells register, and to nothing else.
  */
+export { Markdown, CopyButton } from "./markdown/Markdown";
 export { SettingsView } from "./settings/SettingsView";
 export { AccountSection } from "./settings/AccountSection";
 export { useTheme, type ThemeMode } from "./hooks/useTheme";

@@ -8,7 +8,7 @@
 //! settings tables. We reuse VibeCLI's `ProfileStore` directly rather than
 //! re-implementing crypto.
 
-use vibecli_cli::profile_store::ProfileStore;
+use vibe_profile_store::ProfileStore;
 
 const DEFAULT_PROFILE: &str = "default";
 

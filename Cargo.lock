@@ -12059,7 +12059,7 @@ version = "0.5.7"
 dependencies = [
  "serde_json",
  "tauri",
- "vibecli",
+ "vibe-profile-store",
 ]
 
 [[package]]
@@ -12155,6 +12155,19 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid 1.24.0",
+]
+
+[[package]]
+name = "vibe-profile-store"
+version = "0.5.7"
+dependencies = [
+ "chacha20poly1305",
+ "hex",
+ "rand 0.10.2",
+ "rusqlite",
+ "serde_json",
+ "sha2",
+ "tempfile",
 ]
 
 [[package]]
@@ -12291,6 +12304,7 @@ dependencies = [
  "vibe-core",
  "vibe-infer",
  "vibe-memory",
+ "vibe-profile-store",
  "vibe-sandbox",
  "vibe-sandbox-firecracker",
  "vibe-sandbox-hyperlight",

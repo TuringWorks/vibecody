@@ -188,48 +188,8 @@ html, body, #root {
 }
 
 /* ── Copy affordance (messages + code blocks) ───────────────────────────── */
-.vx-copy {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 2px 8px; border: 1px solid var(--border-color); border-radius: 6px;
-  background: var(--bg-elevated); color: var(--text-secondary);
-  cursor: pointer; font-size: 11px; font-family: inherit;
-}
-.vx-copy:hover { color: var(--text-primary); }
 
 /* ── Markdown rendering of agent output ─────────────────────────────────── */
-.vx-md > :first-child { margin-top: 0; }
-.vx-md > :last-child { margin-bottom: 0; }
-.vx-md p { margin: 0 0 10px; }
-.vx-md h1, .vx-md h2, .vx-md h3, .vx-md h4 { margin: 16px 0 8px; line-height: 1.3; }
-.vx-md h1 { font-size: 18px; }
-.vx-md h2 { font-size: 16px; }
-.vx-md h3 { font-size: 14px; }
-.vx-md h4 { font-size: 13px; }
-.vx-md ul, .vx-md ol { margin: 0 0 10px; padding-left: 22px; }
-.vx-md li { margin: 2px 0; }
-.vx-md blockquote { margin: 0 0 10px; padding: 2px 12px; border-left: 3px solid var(--border-color); color: var(--text-secondary); }
-.vx-md hr { border: none; border-top: 1px solid var(--border-color); margin: 14px 0; }
-.vx-md__link { color: var(--accent-blue); text-decoration: underline; text-underline-offset: 2px; }
-.vx-md__inline-code {
-  padding: 1px 5px; border-radius: 4px; background: var(--bg-elevated);
-  font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.92em;
-}
-.vx-md__pre-wrap {
-  position: relative; margin: 0 0 12px;
-  border: 1px solid var(--border-color); border-radius: 8px;
-  background: var(--bg-secondary); overflow: hidden;
-}
-.vx-md__pre-bar { position: absolute; top: 6px; right: 6px; z-index: 2; opacity: 0; transition: opacity 0.12s ease; }
-.vx-md__pre-wrap:hover .vx-md__pre-bar, .vx-md__pre-bar:focus-within { opacity: 1; }
-.vx-md__pre {
-  margin: 0; padding: 10px 12px; overflow-x: auto;
-  font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; line-height: 1.5;
-}
-.vx-md__code { background: none; padding: 0; font: inherit; }
-.vx-md__table-wrap { overflow-x: auto; margin: 0 0 12px; }
-.vx-md__table { border-collapse: collapse; font-size: 12px; }
-.vx-md__table th, .vx-md__table td { border: 1px solid var(--border-color); padding: 5px 10px; text-align: left; }
-.vx-md__table th { background: var(--bg-elevated); font-weight: 600; }
 
 /* ── Chat search palette (⌘P) ───────────────────────────────────────────── */
 .vx-palette__scrim {

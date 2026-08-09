@@ -42,6 +42,14 @@ pub fn run() {
                     tauri::image::Image::from_bytes(icon_bytes).expect("Failed to load app icon");
                 let _ = window.set_icon(icon);
             }
+
+            // The tray icon is declared in tauri.conf.json, so it appears — but
+            // Tauri does not give it any behaviour. Without the handlers below,
+            // "send to tray" hid the window and nothing brought it back: the
+            // icon was there, and clicking it did nothing. Hiding a window with
+            // no way to restore it is losing it.
+            wire_tray(app.handle())?;
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -85,4 +93,63 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running vibeaichat");
+}
+
+/// Give the tray icon its behaviour: left-click toggles the window, and a menu
+/// offers Show / Quit for anyone who right-clicks or whose platform routes the
+/// click to a menu instead of an event.
+fn wire_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
+    use tauri::menu::{Menu, MenuItem};
+    use tauri::tray::{MouseButton, MouseButtonState, TrayIconEvent};
+    use tauri::Manager;
+
+    let show = MenuItem::with_id(app, "show", "Show VibeAIChat", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&show, &quit])?;
+
+    // Declared in tauri.conf.json without an explicit `id`, which Tauri names
+    // "main". If that ever changes this returns None and the tray goes inert
+    // again, so fail loudly rather than silently skipping the wiring.
+    let Some(tray) = app.tray_by_id("main") else {
+        eprintln!(
+            "[vibeaichat] no tray icon with id \"main\" — the tray will not respond to clicks"
+        );
+        return Ok(());
+    };
+
+    tray.set_menu(Some(menu))?;
+    tray.on_menu_event(|app, event| match event.id.as_ref() {
+        "show" => reveal(app),
+        "quit" => app.exit(0),
+        _ => {}
+    });
+    tray.on_tray_icon_event(|tray, event| {
+        // Only the release of a left click; press-and-release would fire twice.
+        if let TrayIconEvent::Click {
+            button: MouseButton::Left,
+            button_state: MouseButtonState::Up,
+            ..
+        } = event
+        {
+            let app = tray.app_handle();
+            match app.get_webview_window("main") {
+                Some(w) if w.is_visible().unwrap_or(false) => {
+                    let _ = w.hide();
+                }
+                _ => reveal(app),
+            }
+        }
+    });
+    Ok(())
+}
+
+/// Show and focus the main window. `show()` alone leaves it behind whatever the
+/// user is looking at, which reads as the click having done nothing.
+fn reveal(app: &tauri::AppHandle) {
+    use tauri::Manager;
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.show();
+        let _ = w.unminimize();
+        let _ = w.set_focus();
+    }
 }

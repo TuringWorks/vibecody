@@ -1,3 +1,15 @@
+//! The encrypted profile store — API keys, provider config, and UI prefs, in
+//! `~/.vibecli/profile_settings.db`.
+//!
+//! Its own crate so a client can read settings without linking the CLI. It used
+//! to live inside `vibecli`, which meant anything touching one API key pulled in
+//! the entire inference stack — VibeAIChat carries a comment saying it avoids
+//! `vibecli` for exactly that reason, and the shared settings crate had
+//! reintroduced the dependency behind its back.
+//!
+//! `vibecli` re-exports this as `vibecli_cli::profile_store`, so the ~30
+//! existing call sites are unchanged.
+
 #![allow(dead_code)]
 //! System-level encrypted settings store.
 //!

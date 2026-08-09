@@ -68,3 +68,12 @@ ollama-launch-codex-app.config.toml
 
 # local one-shot maintenance script (not for publication)
 purge-history.sh
+
+# Emitted JS beside the shared TypeScript sources. A stray `thinking.js` here
+# takes precedence over `thinking.ts` in Vite's extension resolution, so the app
+# silently loads a stale module — an export added later comes back `undefined`
+# and the first component to call it blanks the screen. Test scripts must always
+# compile with --outDir; this is the backstop.
+packages/vibe-ui-shared/src/**/*.js
+packages/vibe-ui-shared/src/**/*.d.ts
+packages/vibe-ui-shared/src/**/*.js.map

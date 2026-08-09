@@ -97,7 +97,10 @@ pub mod job_manager;
 pub mod langgraph_bridge;
 pub mod next_task;
 pub mod policy_engine;
-pub mod profile_store;
+// Moved to its own crate so clients can read settings without linking the
+// CLI. Re-exported under the original path, so every `crate::profile_store`
+// / `vibecli_cli::profile_store` call site is unchanged.
+pub use vibe_profile_store as profile_store;
 pub mod review_protocol;
 pub mod self_improving_skills;
 pub mod skill_distillation;

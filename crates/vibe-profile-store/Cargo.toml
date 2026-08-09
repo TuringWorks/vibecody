@@ -1,0 +1,18 @@
+[package]
+name = "vibe-profile-store"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Encrypted profile settings store (~/.vibecli/profile_settings.db) — API keys, provider config, and UI prefs."
+
+[dependencies]
+chacha20poly1305 = "0.10"
+rand = "0.10"
+rusqlite = { workspace = true }
+serde_json = { workspace = true }
+hex = { workspace = true }
+sha2 = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

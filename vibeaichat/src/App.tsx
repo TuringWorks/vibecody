@@ -2,12 +2,14 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { SettingsView, type SettingsTab } from "@vibe/shared/settings/SettingsView";
 import { Plug } from "lucide-react";
 import { visibleAnswer } from "@vibe/shared/lib/thinking";
+import { Markdown } from "@vibe/shared/markdown/Markdown";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import "./App.css";
 // The shared settings screens ship their own CSS; it must come after
 // App.css, which imports the design-system tokens its var()s consume.
 import "@vibe/shared/settings/settings.css";
+import "@vibe/shared/markdown/markdown.css";
 
 // ── Thin SVG Icons ───────────────────────────────────────────────────────────
 
@@ -478,7 +480,7 @@ export default function App() {
             <div className="empty-subtitle">
               {daemonOk === false
                 ? "Start the daemon: vibecli --serve"
-                : "Ask anything about your code"}
+                : "Ask anything"}
             </div>
           </div>
         )}
@@ -487,10 +489,23 @@ export default function App() {
             {msg.role === "user" && <div className="msg-label">You</div>}
             {msg.role === "assistant" && <div className="msg-label">AI</div>}
             <div className="msg-content">
-              {/* `<thinking>` is transport markup, not prose — chat mode strips
+              {/* Assistant turns are Markdown — models answer with headings,
+                  lists, tables and fenced code whatever the question is, and
+                  showing the source text makes every one of those unreadable.
+                  User and system messages stay literal: their text is whatever
+                  was typed, and rendering it would eat characters like `*`.
+
+                  `<thinking>` is transport markup, not prose — chat mode strips
                   it server-side, this covers everything else. */}
-              {(msg.role === "assistant" ? visibleAnswer(msg.content) : msg.content) ||
-                (msg.streaming ? <span className="cursor">▋</span> : null)}
+              {msg.role === "assistant" ? (
+                visibleAnswer(msg.content) ? (
+                  <Markdown text={visibleAnswer(msg.content)} />
+                ) : msg.streaming ? (
+                  <span className="cursor">▋</span>
+                ) : null
+              ) : (
+                msg.content
+              )}
             </div>
           </div>
         ))}

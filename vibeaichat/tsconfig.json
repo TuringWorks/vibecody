@@ -40,6 +40,12 @@
       ],
       "@tauri-apps/api/*": [
         "./node_modules/@tauri-apps/api/*"
+      ],
+      "react-markdown": [
+        "./node_modules/react-markdown"
+      ],
+      "remark-gfm": [
+        "./node_modules/remark-gfm"
       ]
     }
   },
