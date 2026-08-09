@@ -202,12 +202,14 @@ pub async fn download_model(model: &WhisperModel) -> Result<PathBuf> {
     Ok(dest)
 }
 
-/// Transcribe an audio file using the local `whisper-cpp` CLI tool or the `whisper` CLI.
+/// Transcribe an audio file with a locally installed Whisper runtime.
 ///
-/// Tries these in order:
-/// 1. `whisper-cpp` (Homebrew: `brew install whisper-cpp`)
-/// 2. `whisper` (Python: `pip install openai-whisper`)
-/// 3. `main` from whisper.cpp build directory
+/// Candidates are tried in the order given by [`local_whisper_candidates`]:
+/// `whisper-cli` (current Homebrew), `whisper-cpp` (older Homebrew), `main`
+/// (source build), then Python `openai-whisper`.
+///
+/// Non-WAV input is converted by ffmpeg first — see [`ensure_wav_16k`], whose
+/// absence is reported as itself rather than as a missing Whisper runtime.
 pub async fn transcribe_local(
     audio_path: &Path,
     model: &WhisperModel,
@@ -359,6 +361,12 @@ pub(crate) fn clean_whisper_stdout(raw: &str) -> String {
 /// Ensure an audio file is WAV 16kHz mono (required by whisper.cpp).
 /// If the file is already .wav, try to use it directly.
 /// Otherwise, convert via ffmpeg.
+///
+/// A missing ffmpeg is an error here, not a shrug. It used to return the
+/// unconverted file with a warning on stderr; whisper then failed to read it
+/// and the caller reported "No local Whisper runtime found" — advice to install
+/// the one component that was already present. Browser clients record WebM, so
+/// this was the default path for the most common client.
 async fn ensure_wav_16k(audio_path: &Path) -> Result<PathBuf> {
     let ext = audio_path
         .extension()
@@ -369,8 +377,17 @@ async fn ensure_wav_16k(audio_path: &Path) -> Result<PathBuf> {
         return Ok(audio_path.to_path_buf());
     }
 
-    // Convert via ffmpeg
-    let tmp = std::env::temp_dir().join("vibecli_voice_input.wav");
+    // Convert via ffmpeg. Unique per call: the daemon serves concurrent
+    // requests, and a fixed /tmp name means two simultaneous transcriptions
+    // overwrite each other's audio — one caller silently gets the other's words.
+    let tmp = std::env::temp_dir().join(format!(
+        "vibecli_voice_{}_{}.wav",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0)
+    ));
     let status = tokio::process::Command::new("ffmpeg")
         .args([
             "-y",
@@ -391,11 +408,17 @@ async fn ensure_wav_16k(audio_path: &Path) -> Result<PathBuf> {
 
     match status {
         Ok(s) if s.success() => Ok(tmp),
-        _ => {
-            // If ffmpeg is not available, try the original file anyway
-            eprintln!("Warning: ffmpeg not found — trying original file format (may fail)");
-            Ok(audio_path.to_path_buf())
-        }
+        Ok(_) => anyhow::bail!(
+            "ffmpeg could not convert '{}' to 16 kHz mono WAV. The recording may be corrupt.",
+            audio_path.display()
+        ),
+        Err(_) => anyhow::bail!(
+            "Local transcription of '.{ext}' audio needs ffmpeg to convert it to WAV. Install it:\n  \
+             macOS:  brew install ffmpeg\n  \
+             Linux:  sudo apt install ffmpeg\n  \
+             Windows: choco install ffmpeg\n\
+             (Cloud transcription accepts this format directly — set GROQ_API_KEY to skip the conversion.)"
+        ),
     }
 }
 
@@ -657,9 +680,13 @@ impl VoiceDispatcher {
             local_model_downloaded: is_model_downloaded(&self.local_model),
             prefer_local: self.prefer_local,
             language: self.language.clone(),
-            whisper_cpp_installed: binary_present("whisper-cpp", "--help"),
+            // `whisper-cli` is what current Homebrew installs; `whisper-cpp`
+            // only exists on older builds. Probing just one under-reports.
+            whisper_cpp_installed: binary_present("whisper-cli", "--help")
+                || binary_present("whisper-cpp", "--help"),
             whisper_python_installed: binary_present("whisper", "--help"),
             sox_installed: binary_present("sox", "--version"),
+            ffmpeg_installed: binary_present("ffmpeg", "-version"),
         }
     }
 
@@ -697,6 +724,7 @@ impl VoiceDispatcher {
                 yes_no(s.whisper_python_installed)
             ),
             format!("  sox (mic capture):        {}", yes_no(s.sox_installed)),
+            format!("  ffmpeg (format convert):  {}", yes_no(s.ffmpeg_installed)),
         ]
         .join("\n")
     }
@@ -715,6 +743,10 @@ pub struct VoiceStatus {
     pub whisper_cpp_installed: bool,
     pub whisper_python_installed: bool,
     pub sox_installed: bool,
+    /// Required for *local* transcription of anything that isn't already WAV.
+    /// Browser clients record WebM, so without this their audio can only be
+    /// transcribed in the cloud.
+    pub ffmpeg_installed: bool,
 }
 
 impl VoiceStatus {
@@ -1059,5 +1091,56 @@ mod tests {
             assert!(url.contains("ggml-"));
             assert!(url.ends_with(".bin"));
         }
+    }
+
+    // ── Local runtime discovery ────────────────────────────────────────────
+
+    #[test]
+    fn whisper_candidates_lead_with_the_binary_homebrew_actually_installs() {
+        // Homebrew's `whisper-cpp` formula ships `whisper-cli`; it has not
+        // shipped a `whisper-cpp` binary for several releases. Probing only the
+        // old names made the error message recommend an install that then still
+        // failed to be found.
+        let candidates =
+            local_whisper_candidates("base", "/models/ggml-base.bin", "en", "/tmp/a.wav");
+        let names: Vec<&str> = candidates.iter().map(|c| c.binary).collect();
+        assert_eq!(names[0], "whisper-cli");
+        assert!(names.contains(&"whisper-cpp"), "older Homebrew builds still work");
+        assert!(names.contains(&"main"), "source builds name the binary `main`");
+        assert!(names.contains(&"whisper"), "Python openai-whisper is the fallback");
+    }
+
+    #[test]
+    fn whisper_cpp_candidates_pass_the_model_path_and_python_passes_the_model_name() {
+        // The two families disagree: whisper.cpp takes a path to the ggml file,
+        // openai-whisper takes a model *name* and downloads its own weights.
+        let candidates =
+            local_whisper_candidates("base", "/models/ggml-base.bin", "de", "/tmp/a.wav");
+        let cli = candidates.iter().find(|c| c.binary == "whisper-cli").unwrap();
+        assert!(cli.args.contains(&"/models/ggml-base.bin".to_string()));
+        assert!(cli.args.contains(&"de".to_string()));
+        assert!(cli.args.contains(&"/tmp/a.wav".to_string()));
+
+        let py = candidates.iter().find(|c| c.binary == "whisper").unwrap();
+        assert!(py.args.contains(&"base".to_string()));
+        assert!(!py.args.contains(&"/models/ggml-base.bin".to_string()));
+    }
+
+    #[test]
+    fn whisper_stdout_is_stripped_of_ansi_and_joined_to_one_line() {
+        // whisper-cli emits a colour reset and leading padding per segment even
+        // with --no-timestamps; passing it through puts escape codes into the
+        // user's composer.
+        let raw = "\u{1b}[2K   Add a test for the parser\n\u{1b}[2K   and fix the build\n\n";
+        assert_eq!(
+            clean_whisper_stdout(raw),
+            "Add a test for the parser and fix the build"
+        );
+    }
+
+    #[test]
+    fn whisper_stdout_cleaning_is_a_no_op_for_plain_text() {
+        assert_eq!(clean_whisper_stdout("  hello world  "), "hello world");
+        assert_eq!(clean_whisper_stdout(""), "");
     }
 }

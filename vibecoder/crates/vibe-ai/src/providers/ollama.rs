@@ -334,27 +334,76 @@ impl OllamaProvider {
             .await
             .context("Failed to parse model list")?;
 
-        // Filter out known embedding-only model families and names
-        let embedding_families = ["nomic-bert", "bert", "all-minilm"];
-        let embedding_names = [
-            "nomic-embed-text",
-            "all-minilm",
-            "mxbai-embed",
-            "snowflake-arctic-embed",
-        ];
+        // Embedding models are not chat models. The classifier lives in
+        // `vibe_embed::catalog` so this filter and the embedding-model picker
+        // can never disagree about which is which — they read the same rule.
         let chat_models: Vec<String> = list
             .models
             .into_iter()
             .filter(|m| {
-                !embedding_families.contains(&m.details.family.as_str())
-                    && !embedding_names
-                        .iter()
-                        .any(|prefix| m.name.starts_with(prefix))
+                !vibe_embed::catalog::looks_like_embedding_model(&m.name, &m.details.family)
             })
             .map(|m| m.name)
             .collect();
 
         Ok(chat_models)
+    }
+
+    /// List the locally-pulled models that look like **embedding** models.
+    ///
+    /// The complement of the filter in [`list_models`](Self::list_models),
+    /// and the reason it exists: a user who has run `ollama pull bge-m3`
+    /// should see `bge-m3` in the embedding-model picker. Before this, every
+    /// embedding model was stripped from the only listing path, so the
+    /// registry could not offer one even though it was installed.
+    ///
+    /// Returned names are exactly as Ollama reports them, tag included
+    /// (`nomic-embed-text:latest`) — that is what must be sent back on
+    /// `/api/embed`.
+    pub async fn list_embedding_models(base_url: Option<String>) -> Result<Vec<String>> {
+        let base_url = base_url.unwrap_or_else(|| "http://127.0.0.1:11434".to_string());
+        let api_key = std::env::var("OLLAMA_API_KEY").ok();
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new());
+
+        let mut req = client.get(format!("{}/api/tags", base_url));
+        if let Some(ref key) = api_key {
+            req = req.header("Authorization", format!("Bearer {}", key));
+        }
+        let response = req.send().await.context("Failed to connect to Ollama")?;
+
+        #[derive(Deserialize)]
+        struct ModelListResponse {
+            models: Vec<ModelInfo>,
+        }
+        #[derive(Deserialize)]
+        struct ModelInfo {
+            name: String,
+            #[serde(default)]
+            details: ModelDetails,
+        }
+        #[derive(Deserialize, Default)]
+        struct ModelDetails {
+            #[serde(default)]
+            family: String,
+        }
+
+        let list: ModelListResponse = response
+            .json()
+            .await
+            .context("Failed to parse model list")?;
+
+        Ok(list
+            .models
+            .into_iter()
+            .filter(|m| {
+                vibe_embed::catalog::looks_like_embedding_model(&m.name, &m.details.family)
+            })
+            .map(|m| m.name)
+            .collect())
     }
 }
 

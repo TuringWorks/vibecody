@@ -51,6 +51,7 @@ path = "src/main.rs"
 
 [dependencies]
 vibe-core = { path = "../../vibecoder/crates/vibe-core" }
+vibe-embed = { path = "../../crates/vibe-embed" }
 vibe-ai = { path = "../../vibecoder/crates/vibe-ai" }
 syntect.workspace = true
 tokio.workspace = true

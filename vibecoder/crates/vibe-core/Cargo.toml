@@ -37,12 +37,17 @@ rand = "0.10"
 # HTTP (for embedding API calls)
 reqwest.workspace = true
 
+# Provider-agnostic embedding layer (Ollama / OpenAI / Voyage / Cohere / Gemini / local)
+vibe-embed = { path = "../../../crates/vibe-embed" }
+async-trait.workspace = true
+
 # SQLite — for sonar_rules local rule store. Same workspace dep used
 # by the daemon's session/workspace stores.
 rusqlite.workspace = true
 
 [dev-dependencies]
 tempfile = "3"
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 cucumber = { version = "0.23", features = ["macros"] }
 criterion = { version = "0.8", features = ["html_reports"] }
 

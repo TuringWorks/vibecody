@@ -23,7 +23,8 @@ pub use diff::{DiffEngine, DiffHunk};
 pub use executor::CommandExecutor;
 pub use file_system::FileSystem;
 pub use index::{
-    CodebaseIndex, EmbeddingDoc, EmbeddingIndex, EmbeddingProvider, IndexStats, Language,
-    SearchHit, SymbolInfo, SymbolKind,
+    CodebaseIndex, EmbedKind, Embedder, EmbeddingConfig, EmbeddingDoc, EmbeddingIndex,
+    EmbeddingModel, IndexHeader, IndexStats, Language, ModelRef, ProviderKind, SearchHit,
+    SharedEmbedder, SymbolInfo, SymbolKind,
 };
 pub use workspace::Workspace;

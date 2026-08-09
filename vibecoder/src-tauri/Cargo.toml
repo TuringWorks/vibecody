@@ -23,6 +23,7 @@ default = ["devtools"]
 devtools = ["tauri/devtools"]
 
 [dependencies]
+vibe-embed = { path = "../../crates/vibe-embed" }
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"

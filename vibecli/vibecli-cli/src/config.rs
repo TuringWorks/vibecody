@@ -1416,11 +1416,19 @@ impl RoutingConfig {
 
 /// Embedding index configuration.
 ///
+/// Any provider `vibe-embed` supports works here: `ollama`, `openai`,
+/// `voyage`, `cohere`, `gemini`, `local`. API keys are **not** configured
+/// here — they come from the encrypted ProfileStore under the provider name.
+///
 /// ```toml
 /// [index]
 /// enabled = true
-/// embedding_provider = "ollama"
-/// embedding_model = "nomic-embed-text"
+/// embedding_provider = "voyage"
+/// embedding_model = "voyage-code-3"
+/// # Optional: Matryoshka truncation, for models that support it.
+/// embedding_dimensions = 512
+/// # Optional: remote Ollama, Azure OpenAI, a proxy, a TEI server.
+/// embedding_base_url = "http://gpu-box:11434"
 /// rebuild_on_startup = false
 /// max_file_size_kb = 500
 /// ```
@@ -1428,11 +1436,17 @@ impl RoutingConfig {
 pub struct IndexConfig {
     #[serde(default = "default_true")]
     pub enabled: bool,
-    /// "ollama" or "openai"
+    /// One of `ollama`, `openai`, `voyage`, `cohere`, `gemini`, `local`.
     #[serde(default = "IndexConfig::default_provider")]
     pub embedding_provider: String,
     #[serde(default = "IndexConfig::default_model")]
     pub embedding_model: String,
+    /// Explicit output dimension for Matryoshka-capable models.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub embedding_dimensions: Option<usize>,
+    /// Endpoint override for the embedding provider.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub embedding_base_url: Option<String>,
     /// Rebuild the full index every time the agent starts.
     #[serde(default)]
     pub rebuild_on_startup: bool,
@@ -1442,22 +1456,51 @@ pub struct IndexConfig {
 
 impl IndexConfig {
     fn default_provider() -> String {
-        "ollama".to_string()
+        vibe_embed::EmbeddingSettings::default().provider.as_str().to_string()
     }
     fn default_model() -> String {
-        "nomic-embed-text".to_string()
+        vibe_embed::EmbeddingSettings::default().model
     }
     fn default_max_file_size_kb() -> u64 {
         500
+    }
+
+    /// Resolve this config into an embedding-model selection.
+    ///
+    /// An unrecognised provider is an error rather than a silent fall back to
+    /// the default. Embedding a whole workspace with a model the user did not
+    /// ask for is slow to notice and, on a paid provider, not free.
+    pub fn to_embedding_settings(&self) -> Result<vibe_embed::EmbeddingSettings, String> {
+        vibe_embed::EmbeddingSettings::parse(&self.embedding_provider, &self.embedding_model)
+            .map(|s| {
+                s.with_dimensions(self.embedding_dimensions)
+                    .with_base_url(self.embedding_base_url.clone())
+            })
+            .ok_or_else(|| {
+                format!(
+                    "[index] embedding_provider = \"{}\" / embedding_model = \"{}\" is not a \
+                     valid combination — providers are: {}",
+                    self.embedding_provider,
+                    self.embedding_model,
+                    vibe_embed::ProviderKind::ALL
+                        .iter()
+                        .map(|p| p.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            })
     }
 }
 
 impl Default for IndexConfig {
     fn default() -> Self {
+        let embedding = vibe_embed::EmbeddingSettings::default();
         Self {
             enabled: true,
-            embedding_provider: "ollama".to_string(),
-            embedding_model: "nomic-embed-text".to_string(),
+            embedding_provider: embedding.provider.as_str().to_string(),
+            embedding_model: embedding.model,
+            embedding_dimensions: None,
+            embedding_base_url: None,
             rebuild_on_startup: false,
             max_file_size_kb: 500,
         }

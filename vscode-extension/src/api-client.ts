@@ -161,6 +161,79 @@ function resolveDaemonToken(explicit?: string): string | undefined {
   }
 }
 
+// ── Embeddings ───────────────────────────────────────────────────────────────
+
+export type EmbeddingAvailability =
+  | { state: 'ready' }
+  | { state: 'needs_api_key' }
+  | { state: 'not_compiled_in' };
+
+export interface EmbeddingModelInfo {
+  provider: string;
+  id: string;
+  display_name: string;
+  /** Null when the dimension is only known after the model is called. */
+  dimension: number | null;
+  supported_dimensions: number[];
+  max_input_tokens: number | null;
+  recommended_for_code: boolean;
+  notes: string;
+}
+
+export interface EmbeddingProviderInfo {
+  provider: string;
+  id: string;
+  display_name: string;
+  requires_api_key: boolean;
+  /** True when embedding never leaves the daemon's machine. */
+  is_local: boolean;
+  availability: EmbeddingAvailability;
+  models: EmbeddingModelInfo[];
+  default_model: string | null;
+}
+
+export interface EmbeddingSettings {
+  provider: string;
+  model: string;
+  dimensions?: number;
+  base_url?: string;
+}
+
+export interface EmbeddingModelsResponse {
+  providers: EmbeddingProviderInfo[];
+  selected: EmbeddingSettings | null;
+  error?: string;
+  ollama_installed:
+    | { status: 'ok'; models: string[] }
+    | { status: 'unreachable'; error: string };
+}
+
+export interface IndexHeaderInfo {
+  format_version: number;
+  model: { provider: string; model: string; dimensions?: number };
+  dimension: number | null;
+  chunk_count: number;
+  file_count: number;
+  built_at: number | null;
+}
+
+export interface IndexStatusResponse {
+  selected: EmbeddingSettings;
+  description: string;
+  built: boolean;
+  current: IndexHeaderInfo | null;
+  /** Every index on disk — switchable to without re-embedding. */
+  available: IndexHeaderInfo[];
+}
+
+export interface IndexBuildResponse {
+  model: { provider: string; model: string; dimensions?: number };
+  chunks: number;
+  files: number;
+  dimension: number | null;
+  path: string;
+}
+
 export class VibeCLIClient {
   private baseUrl: string;
   private explicitToken?: string;
@@ -246,6 +319,57 @@ export class VibeCLIClient {
     }
     const data = await res.json() as { session_id: string };
     return { sessionId: data.session_id };
+  }
+
+  // ── Embeddings / semantic index ──────────────────────────────
+
+  /**
+   * Which embedding models are available, and which is selected.
+   *
+   * Returns `null` on any failure rather than throwing: the embedding picker
+   * is a secondary surface, and a dead daemon should render an empty state,
+   * not a notification storm. `null` and "no models" are different — callers
+   * that care can tell them apart.
+   */
+  async listEmbeddingModels(): Promise<EmbeddingModelsResponse | null> {
+    try {
+      const res = await this.authedFetch(`${this.baseUrl}/embeddings/models`);
+      if (!res.ok) return null;
+      return (await res.json()) as EmbeddingModelsResponse;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Which models this workspace has a semantic code index for. `null` on
+   * failure; `built: false` means the selected model simply has no index yet.
+   */
+  async indexStatus(): Promise<IndexStatusResponse | null> {
+    try {
+      const res = await this.authedFetch(`${this.baseUrl}/index/status`);
+      if (!res.ok) return null;
+      return (await res.json()) as IndexStatusResponse;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Build the semantic index. Unlike the read paths this reports failure —
+   * the user asked for it explicitly and a silent no-op would look like a
+   * successful index that then returns nothing.
+   */
+  async buildIndex(opts: { provider?: string; model?: string } = {}): Promise<IndexBuildResponse> {
+    const res = await this.authedFetch(`${this.baseUrl}/index/build`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(opts),
+    });
+    if (!res.ok) {
+      throw new Error(`buildIndex failed: ${res.status} ${await res.text()}`);
+    }
+    return (await res.json()) as IndexBuildResponse;
   }
 
   /** List recent background jobs. */

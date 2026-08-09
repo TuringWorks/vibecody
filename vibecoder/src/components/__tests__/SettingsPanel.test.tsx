@@ -26,7 +26,7 @@ vi.mock('lucide-react', () => {
     'RotateCcw', 'Sun', 'Moon', 'Eye', 'EyeOff', 'ChevronRight', 'CheckCircle',
     'MinusCircle', 'AlertCircle', 'Loader2', 'Zap', 'Plug', 'Mail', 'CalendarDays',
     'ClipboardList', 'MessageSquare', 'Search', 'Mic', 'Home', 'Server',
-    'AlertTriangle', 'Inbox', 'Briefcase',
+    'AlertTriangle', 'Inbox', 'Briefcase', 'Boxes',
   ];
   return Object.fromEntries(names.map(n => [n, icon(n)]));
 });

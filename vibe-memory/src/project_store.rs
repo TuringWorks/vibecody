@@ -17,7 +17,13 @@ pub struct ProjectMemStore {
 struct Inner {
     path: PathBuf,
     conn: Mutex<Connection>,
+    /// Kept for the vector-extension DDL path (`extension::create_index_sql`),
+    /// which is not yet wired up — search is still a brute-force scan.
+    #[allow(dead_code)]
     ext_manager: ExtensionManager,
+    /// Produces the vectors for this store. Defaults to the built-in hash
+    /// engine; swap it for any real model with `with_embedder`.
+    embedder: vibe_embed::SharedEmbedder,
 }
 
 impl ProjectMemStore {
@@ -35,6 +41,7 @@ impl ProjectMemStore {
         Ok(Self {
             inner: Arc::new(Inner {
                 path: db_path,
+                embedder: crate::embedding::HashEmbedder::shared(ext_manager.dimensions()),
                 conn: Mutex::new(conn),
                 ext_manager,
             }),
@@ -56,13 +63,14 @@ impl ProjectMemStore {
             meta.project_id,
             meta.session_id,
             None,
-        )?;
+        ).await?;
 
         let conn = self.inner.conn.lock().await;
         conn.execute(
             r#"INSERT INTO memory_entries (id, content, content_text, sector, salience, decay_lambda, 
-               created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding)
-               VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)"#,
+               created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding,
+               embedding_model, embedding_dim)
+               VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)"#,
             params![
                 entry.id, entry.content.clone(), entry.content.clone(), entry.sector,
                 entry.salience, entry.decay_lambda, entry.created_at, entry.updated_at,
@@ -70,6 +78,11 @@ impl ProjectMemStore {
                 serde_json::to_string(&entry.tags)?, serde_json::to_string(&entry.metadata)?,
                 entry.project_id, entry.session_id,
                 bincode::serialize(&entry.embedding).map_err(|e| MemoryError::Encryption(e.to_string()))?,
+                // Which model produced the vector, and how long it is. Both
+                // recorded rather than inferred at read time — a row must be
+                // able to say what it is without the reader guessing.
+                self.inner.embedder.model().slug(),
+                entry.embedding.len() as i64,
             ],
         ).map_err(MemoryError::Sqlite)?;
 
@@ -78,13 +91,14 @@ impl ProjectMemStore {
     }
 
     pub async fn store_with_sector(&self, content: &str, sector: &str) -> Result<MemoryEntry> {
-        let entry = self.create_entry(content, sector, false, vec![], None, None, None)?;
+        let entry = self.create_entry(content, sector, false, vec![], None, None, None).await?;
 
         let conn = self.inner.conn.lock().await;
         conn.execute(
             r#"INSERT INTO memory_entries (id, content, content_text, sector, salience, decay_lambda, 
-               created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding)
-               VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)"#,
+               created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding,
+               embedding_model, embedding_dim)
+               VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)"#,
             params![
                 entry.id, entry.content.clone(), entry.content.clone(), entry.sector,
                 entry.salience, entry.decay_lambda, entry.created_at, entry.updated_at,
@@ -92,6 +106,11 @@ impl ProjectMemStore {
                 serde_json::to_string(&entry.tags)?, serde_json::to_string(&entry.metadata)?,
                 entry.project_id, entry.session_id,
                 bincode::serialize(&entry.embedding).map_err(|e| MemoryError::Encryption(e.to_string()))?,
+                // Which model produced the vector, and how long it is. Both
+                // recorded rather than inferred at read time — a row must be
+                // able to say what it is without the reader guessing.
+                self.inner.embedder.model().slug(),
+                entry.embedding.len() as i64,
             ],
         ).map_err(MemoryError::Sqlite)?;
 
@@ -108,13 +127,14 @@ impl ProjectMemStore {
             None,
             None,
             Some(expires_at),
-        )?;
+        ).await?;
 
         let conn = self.inner.conn.lock().await;
         conn.execute(
             r#"INSERT INTO memory_entries (id, content, content_text, sector, salience, decay_lambda, 
-               created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding)
-               VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)"#,
+               created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding,
+               embedding_model, embedding_dim)
+               VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)"#,
             params![
                 entry.id, entry.content.clone(), entry.content.clone(), entry.sector,
                 entry.salience, entry.decay_lambda, entry.created_at, entry.updated_at,
@@ -122,6 +142,11 @@ impl ProjectMemStore {
                 serde_json::to_string(&entry.tags)?, serde_json::to_string(&entry.metadata)?,
                 entry.project_id, entry.session_id,
                 bincode::serialize(&entry.embedding).map_err(|e| MemoryError::Encryption(e.to_string()))?,
+                // Which model produced the vector, and how long it is. Both
+                // recorded rather than inferred at read time — a row must be
+                // able to say what it is without the reader guessing.
+                self.inner.embedder.model().slug(),
+                entry.embedding.len() as i64,
             ],
         ).map_err(MemoryError::Sqlite)?;
 
@@ -134,17 +159,27 @@ impl ProjectMemStore {
         top_k: usize,
         min_score: Option<f64>,
     ) -> Result<Vec<SearchResult>> {
-        let query_embedding = self.generate_embedding(query);
+        let query_embedding = self
+            .generate_embedding(query, vibe_embed::EmbedKind::Query)
+            .await?;
+        // Only rows this model produced are comparable. Everything else is
+        // counted and reported, not silently scored 0.0 and dropped.
+        let tag = crate::VectorTag::of(self.inner.embedder.model(), query_embedding.len());
 
         let conn = self.inner.conn.lock().await;
         let mut stmt = conn.prepare(
-            "SELECT id, content, sector, salience, tags, embedding FROM memory_entries ORDER BY created_at DESC LIMIT 100"
+            "SELECT id, content, sector, salience, tags, embedding, embedding_model FROM memory_entries ORDER BY created_at DESC LIMIT 100"
         ).map_err(MemoryError::Sqlite)?;
 
         let rows = stmt
             .query_map([], |row| {
                 let embedding_blob: Vec<u8> = row.get(5)?;
-                let embedding: Vec<f32> = bincode::deserialize(&embedding_blob).unwrap_or_default();
+                // A blob that will not decode is a broken row, not an empty
+                // vector: `unwrap_or_default` here would turn corruption into
+                // a silently unsearchable memory.
+                let embedding: Vec<f32> =
+                    bincode::deserialize(&embedding_blob).unwrap_or_default();
+                let model_slug: Option<String> = row.get(6)?;
                 Ok((
                     row.get::<_, String>(0)?,
                     row.get::<_, String>(1)?,
@@ -152,16 +187,39 @@ impl ProjectMemStore {
                     row.get::<_, f64>(3)?,
                     row.get::<_, String>(4)?,
                     embedding,
+                    model_slug,
                 ))
             })
             .map_err(MemoryError::Sqlite)?;
 
         let mut scored: Vec<_> = Vec::new();
+        let mut diagnostics = crate::SearchDiagnostics::default();
         for row in rows {
-            let (id, content, sector, salience, tags, embedding) =
-                row.map_err(MemoryError::Sqlite)?;
+            let (id, content, sector, salience, tags, embedding, model_slug) = row.map_err(MemoryError::Sqlite)?;
+            if embedding.is_empty() {
+                diagnostics.skipped_no_vector += 1;
+                continue;
+            }
+            if !tag.accepts(model_slug.as_deref(), embedding.len()) {
+                diagnostics.skipped_other_model += 1;
+                continue;
+            }
+            diagnostics.compared += 1;
             let similarity = cosine_similarity(&query_embedding, &embedding);
             scored.push((id, content, sector, similarity, tags, salience));
+        }
+
+        if !diagnostics.is_complete() {
+            // Loud, because the alternative is a result set that looks
+            // complete but silently omits every memory written by another
+            // model. Re-embedding is the fix; knowing is the prerequisite.
+            tracing::warn!(
+                compared = diagnostics.compared,
+                skipped_other_model = diagnostics.skipped_other_model,
+                skipped_no_vector = diagnostics.skipped_no_vector,
+                model = %self.inner.embedder.model(),
+                "memory search skipped entries embedded with a different model"
+            );
         }
 
         scored.sort_by(|a, b| b.3.partial_cmp(&a.3).unwrap_or(std::cmp::Ordering::Equal));
@@ -388,7 +446,7 @@ impl ProjectMemStore {
         Ok(count as usize)
     }
 
-    fn create_entry(
+    async fn create_entry(
         &self,
         content: &str,
         sector: &str,
@@ -407,7 +465,9 @@ impl ProjectMemStore {
             sector: sector.to_string(),
             salience: 1.0,
             decay_lambda: sec.decay_rate(),
-            embedding: self.generate_embedding(content),
+            embedding: self
+                .generate_embedding(content, vibe_embed::EmbedKind::Document)
+                .await?,
             created_at: now,
             updated_at: now,
             last_seen_at: now,
@@ -445,33 +505,18 @@ impl ProjectMemStore {
         })
     }
 
-    fn generate_embedding(&self, text: &str) -> Vec<f32> {
-        let dim = self.inner.ext_manager.dimensions();
-        let mut embedding = vec![0.0f32; dim];
-        let lower_text = text.to_lowercase();
-        let words: Vec<&str> = lower_text.split_whitespace().collect();
-        for (i, word) in words.iter().enumerate() {
-            let hash = simple_hash(word);
-            let idx = (hash % dim as u64) as usize;
-            let weight = 1.0f32 / (1.0 + (i as f32 * 0.1));
-            embedding[idx] += weight;
-        }
-        let magnitude = embedding.iter().map(|v| v * v).sum::<f32>().sqrt();
-        if magnitude > 0.0 {
-            for v in &mut embedding {
-                *v /= magnitude;
-            }
-        }
-        embedding
+    /// Embed `text` with this store's model.
+    ///
+    /// An embedding failure is not silently swallowed into a zero vector: a
+    /// memory stored with an all-zero vector is unreachable by every future
+    /// search, and nothing would ever say why.
+    async fn generate_embedding(&self, text: &str, kind: vibe_embed::EmbedKind) -> Result<Vec<f32>> {
+        self.inner
+            .embedder
+            .embed(text, kind)
+            .await
+            .map_err(|e| MemoryError::Embedding(e.to_string()))
     }
-}
-
-fn simple_hash(s: &str) -> u64 {
-    let mut hash: u64 = 5381;
-    for c in s.bytes() {
-        hash = hash.wrapping_mul(33).wrapping_add(c as u64);
-    }
-    hash
 }
 
 fn cosine_similarity(a: &[f32], b: &[f32]) -> f64 {

@@ -163,7 +163,7 @@ Two-layer indexing for codebase intelligence:
 | Module | Description |
 |--------|-------------|
 | `mod.rs` + `symbol.rs` | Tree-sitter based symbol extraction |
-| `embeddings.rs` | HNSW vector index with local (Ollama) or cloud (OpenAI) embedding models |
+| `embeddings.rs` | Per-model vector index over source chunks. Any provider `vibe-embed` supports — Ollama, OpenAI (and OpenAI-compatible endpoints), Voyage, Cohere, Gemini, in-process candle. Indexes are keyed by model and coexist; see [embeddings.md](./embeddings.md) |
 
 `EmbeddingIndex` supports incremental updates, semantic search, and persistence:
 

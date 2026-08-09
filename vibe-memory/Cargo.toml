@@ -13,6 +13,10 @@ system = ["dep:rusqlite"]
 encryption = ["chacha20poly1305", "getrandom"]
 
 [dependencies]
+# Shared embedding trait + provider catalog. The built-in hash engine is
+# just one implementor; any real model can be swapped in per store.
+vibe-embed = { path = "../crates/vibe-embed" }
+async-trait = "0.1"
 # Use same version as vibecoder for compatibility (bundled SQLite)
 rusqlite = { version = "0.40", features = ["bundled"], optional = true }
 

@@ -4344,15 +4344,20 @@ async fn resolve_at_references(
     for cap in re_at_codebase().captures_iter(content) {
         let query = &cap[1];
         if let Some(ref r) = root {
-            let index_path = r.join(".vibecoder").join("embeddings").join("index.json");
             let mut cb_ctx = format!("\n### @codebase:{}\n", query);
 
-            // Try EmbeddingIndex first (semantic); fall back to CodebaseIndex (keyword)
+            // Try EmbeddingIndex first (semantic); fall back to CodebaseIndex (keyword).
+            //
+            // The index is per-model: `open_workspace_index` looks up the
+            // index built with the *currently selected* embedding model and
+            // attaches an embedder for that same model. An index built with a
+            // different model is not silently searched — its vectors are not
+            // comparable, and the keyword fallback is a better answer than a
+            // confident wrong one.
             let mut used_semantic = false;
-            if index_path.exists() {
-                use vibe_core::index::embeddings::EmbeddingIndex;
-                match EmbeddingIndex::load(&index_path) {
-                    Ok(emb_idx) => match emb_idx.search(query, 5).await {
+            {
+                match open_workspace_index(r) {
+                    Ok(Some(emb_idx)) => match emb_idx.search(query, 5).await {
                         Ok(hits) => {
                             if hits.is_empty() {
                                 cb_ctx.push_str("(no semantically relevant code found)\n");
@@ -4375,8 +4380,9 @@ async fn resolve_at_references(
                             eprintln!("[vibecoder] @codebase: semantic search error: {e}");
                         }
                     },
+                    Ok(None) => {}
                     Err(e) => {
-                        eprintln!("[vibecoder] @codebase: could not load embedding index: {e}");
+                        eprintln!("[vibecoder] @codebase: could not load embedding index: {e:#}");
                     }
                 }
             }
@@ -4388,7 +4394,8 @@ async fn resolve_at_references(
                 let hits = idx.search_symbols(query);
                 if hits.is_empty() {
                     cb_ctx.push_str(
-                        "(no relevant code found — run /index to build the embedding index)\n",
+                        "(no relevant code found — build the semantic index for the selected \
+                         embedding model in Settings → Embeddings, or run `vibecli` /index)\n",
                     );
                 } else {
                     for sym in hits.iter().take(5) {
@@ -11165,6 +11172,169 @@ fn parse_generic_text(output: &str) -> (Vec<LintErrorOut>, Vec<LintErrorOut>) {
 // ── BYOK Settings ─────────────────────────────────────────────────────────────
 
 use vibecli_cli::profile_store::ProfileStore as _ProfileStore;
+
+// ════════════════════════════════════════════════════════════════════════════
+// Embedding models (RAG)
+// ════════════════════════════════════════════════════════════════════════════
+//
+// One picker, every provider. The catalog, the availability rules and the
+// per-model index layout all live in `vibe-embed` / `vibecli`, so this file
+// holds no model list of its own — adding a model to the catalog makes it
+// appear here, in the CLI, and on the daemon route at the same time.
+
+/// The embedding model the user has selected, or the zero-config default.
+///
+/// Stored in the encrypted ProfileStore rather than a TOML file, next to the
+/// provider API keys it needs.
+fn stored_embedding_settings() -> vibe_embed::EmbeddingSettings {
+    let stored = _ProfileStore::new()
+        .ok()
+        .and_then(|s| s.get_provider_config("default", "embeddings", "settings").ok())
+        .flatten()
+        .and_then(|raw| serde_json::from_str::<vibe_embed::EmbeddingSettings>(&raw).ok());
+
+    // Falling back to the default is right here — an absent setting genuinely
+    // means "never chosen", and the default is a local model needing no key.
+    stored.unwrap_or_default()
+}
+
+/// Open the semantic index for `workspace` built with the selected model.
+///
+/// `Ok(None)` = no index for this model yet. An index built with a *different*
+/// model is deliberately not returned: its vectors are not comparable, and
+/// searching it would produce confident nonsense.
+fn open_workspace_index(
+    workspace: &std::path::Path,
+) -> Result<Option<vibe_core::index::EmbeddingIndex>, String> {
+    let settings = stored_embedding_settings();
+    let embedder = vibecli_cli::embedding_index::build_embedder(&settings)
+        .map_err(|e| format!("{e:#}"))?;
+    vibecli_cli::embedding_index::open(workspace, &settings, embedder)
+        .map_err(|e| format!("{e:#}"))
+}
+
+/// Every embedding provider, its models, and whether it can be used now.
+#[tauri::command]
+pub async fn embedding_list_models() -> Result<serde_json::Value, String> {
+    // Availability is read from the credential store, not assumed.
+    let catalog = vibe_embed::provider_catalog(|p| {
+        vibecli_cli::embedding_index::api_key_for(p).is_some()
+    });
+
+    // Models the user has actually pulled into Ollama. Not in the static
+    // catalog by design — a locally-pulled `bge-large` must be selectable.
+    // "Ollama unreachable" is reported as its own state; an empty list would
+    // read as "you have no embedding models installed".
+    let installed = match vibe_ai::providers::ollama::OllamaProvider::list_embedding_models(None)
+        .await
+    {
+        Ok(models) => serde_json::json!({ "status": "ok", "models": models }),
+        Err(e) => serde_json::json!({ "status": "unreachable", "error": e.to_string() }),
+    };
+
+    Ok(serde_json::json!({
+        "providers": catalog,
+        "selected": stored_embedding_settings(),
+        "ollamaInstalled": installed,
+    }))
+}
+
+/// The currently selected embedding model.
+#[tauri::command]
+pub async fn embedding_get_settings() -> Result<vibe_embed::EmbeddingSettings, String> {
+    Ok(stored_embedding_settings())
+}
+
+/// Select an embedding model.
+///
+/// Does **not** rebuild or delete anything. Indexes are per-model and kept
+/// side by side, so switching is instant and reversible: if the target model
+/// already has an index, search works immediately; if not, the UI offers to
+/// build one, and the previous index stays on disk either way.
+#[tauri::command]
+pub async fn embedding_set_settings(
+    provider: String,
+    model: String,
+    dimensions: Option<usize>,
+    base_url: Option<String>,
+) -> Result<vibe_embed::EmbeddingSettings, String> {
+    let settings = vibe_embed::EmbeddingSettings::parse(&provider, &model)
+        .ok_or_else(|| format!("unknown embedding provider/model: {provider}/{model}"))?
+        .with_dimensions(dimensions)
+        .with_base_url(base_url);
+
+    // Reject a dimension the model cannot produce, rather than discovering it
+    // one failed request at a time during a full workspace index.
+    if let (Some(d), Some(entry)) = (settings.dimensions, settings.catalog_entry()) {
+        if !entry.supports_dimension(d) {
+            return Err(format!(
+                "{} does not support {d}-dimension output (supported: {:?})",
+                entry.display_name, entry.supported_dimensions
+            ));
+        }
+    }
+
+    let store = _ProfileStore::new()?;
+    let encoded = serde_json::to_string(&settings).map_err(|e| e.to_string())?;
+    store.set_provider_config("default", "embeddings", "settings", &encoded)?;
+    Ok(settings)
+}
+
+/// Which models this workspace has a semantic index for.
+#[tauri::command]
+pub async fn embedding_index_status(workspace: String) -> Result<serde_json::Value, String> {
+    let settings = stored_embedding_settings();
+    let status = vibecli_cli::embedding_index::status(std::path::Path::new(&workspace), &settings);
+    serde_json::to_value(status).map_err(|e| e.to_string())
+}
+
+/// Build (or rebuild) the semantic index for the selected model.
+///
+/// Returns when the index is written. Embedding a workspace is slow and, on a
+/// paid provider, not free — reporting "started" and letting the user assume
+/// it finished would be the wrong kind of optimistic.
+#[tauri::command]
+pub async fn embedding_index_build(workspace: String) -> Result<serde_json::Value, String> {
+    let settings = stored_embedding_settings();
+    let embedder = vibecli_cli::embedding_index::build_embedder(&settings)
+        .map_err(|e| format!("{e:#}"))?;
+    let (index, path) =
+        vibecli_cli::embedding_index::rebuild(std::path::Path::new(&workspace), &settings, embedder)
+            .await
+            .map_err(|e| format!("{e:#}"))?;
+    Ok(serde_json::json!({
+        "model": settings.model_ref(),
+        "chunks": index.len(),
+        "files": index.file_count(),
+        "dimension": index.dimension(),
+        "path": path,
+    }))
+}
+
+/// Embed text with the selected model — for panels that need vectors directly.
+#[tauri::command]
+pub async fn embedding_embed_texts(
+    texts: Vec<String>,
+    kind: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let settings = stored_embedding_settings();
+    let kind = match kind.as_deref() {
+        None | Some("document") => vibe_embed::EmbedKind::Document,
+        Some("query") => vibe_embed::EmbedKind::Query,
+        Some(other) => return Err(format!("kind must be \"document\" or \"query\", got {other:?}")),
+    };
+    let embedder = vibecli_cli::embedding_index::build_embedder(&settings)
+        .map_err(|e| format!("{e:#}"))?;
+    let vectors = vibe_embed::Embedder::embed_all(embedder.as_ref(), &texts, kind)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(serde_json::json!({
+        "model": settings.model_ref(),
+        "dimension": vectors.first().map(|v: &Vec<f32>| v.len()),
+        "embeddings": vectors,
+    }))
+}
+
 
 const _PROFILE_ID: &str = "default";
 

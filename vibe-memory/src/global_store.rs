@@ -19,6 +19,9 @@ struct Inner {
     path: PathBuf,
     conn: Mutex<Connection>,
     ext_manager: ExtensionManager,
+    /// Produces the vectors for this store. Defaults to the built-in hash
+    /// engine; swap it for any real model with `with_embedder`.
+    embedder: vibe_embed::SharedEmbedder,
 }
 
 impl GlobalMemStore {
@@ -40,6 +43,7 @@ impl GlobalMemStore {
         Ok(Self {
             inner: Arc::new(Inner {
                 path: db_path,
+                embedder: crate::embedding::HashEmbedder::shared(ext_manager.dimensions()),
                 conn: Mutex::new(conn),
                 ext_manager,
             }),
@@ -58,10 +62,63 @@ impl GlobalMemStore {
         Ok(Self {
             inner: Arc::new(Inner {
                 path: db_path,
+                embedder: crate::embedding::HashEmbedder::shared(ext_manager.dimensions()),
                 conn: Mutex::new(conn),
                 ext_manager,
             }),
         })
+    }
+
+    /// Replace the embedding model this store uses.
+    ///
+    /// The default is the built-in [`HashEmbedder`](crate::HashEmbedder) —
+    /// free, offline, and lexical rather than semantic. Pass any real model
+    /// (Ollama, OpenAI, Voyage, Cohere, Gemini, in-process candle) for actual
+    /// semantic recall:
+    ///
+    /// ```no_run
+    /// # use vibe_memory::GlobalMemStore;
+    /// use vibe_embed::{EmbeddingConfig, ModelRef, ProviderKind};
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let embedder = EmbeddingConfig::new(
+    ///     ModelRef::new(ProviderKind::Ollama, "nomic-embed-text"),
+    /// ).build()?;
+    /// let store = GlobalMemStore::open()?.with_embedder(embedder)?;
+    /// # let _ = store;
+    /// # Ok(()) }
+    /// ```
+    ///
+    /// Memories already stored under a different model are **not** re-embedded
+    /// and **not** deleted. They stop matching searches under the new model —
+    /// which `search` reports rather than hides — and start matching again if
+    /// the old model is restored.
+    pub fn with_embedder(self, embedder: vibe_embed::SharedEmbedder) -> Result<Self> {
+        // A second handle to the same database file. WAL mode (set by
+        // `initialize_store`) is what makes concurrent handles safe here.
+        let conn = Connection::open(&self.inner.path).map_err(MemoryError::Sqlite)?;
+        let dimensions = embedder
+            .dim()
+            .unwrap_or_else(|| self.inner.ext_manager.dimensions());
+        Ok(Self {
+            inner: Arc::new(Inner {
+                path: self.inner.path.clone(),
+                conn: Mutex::new(conn),
+                ext_manager: crate::extension::ExtensionManager::new(dimensions),
+                embedder,
+            }),
+        })
+    }
+
+    /// A second handle to the same store, sharing its connection and model.
+    pub fn clone_handle(&self) -> Self {
+        Self {
+            inner: Arc::clone(&self.inner),
+        }
+    }
+
+    /// The model this store embeds with.
+    pub fn embedding_model(&self) -> &vibe_embed::ModelRef {
+        self.inner.embedder.model()
     }
 
     pub fn path(&self) -> PathBuf {
@@ -79,7 +136,8 @@ impl GlobalMemStore {
             meta.project_id,
             meta.session_id,
             meta.ttl_seconds.map(|s| epoch_secs() + s as i64),
-        )?;
+        )
+        .await?;
         self.insert_entry(entry).await
     }
 
@@ -100,12 +158,13 @@ impl GlobalMemStore {
             Some(project_id.to_string()),
             meta.session_id,
             meta.ttl_seconds.map(|s| epoch_secs() + s as i64),
-        )?;
+        )
+        .await?;
         self.insert_entry(entry).await
     }
 
     pub async fn store_with_sector(&self, content: &str, sector: &str) -> Result<MemoryEntry> {
-        let entry = self.create_entry(content, sector, false, vec![], None, None, None)?;
+        let entry = self.create_entry(content, sector, false, vec![], None, None, None).await?;
         self.insert_entry(entry).await
     }
 
@@ -119,7 +178,7 @@ impl GlobalMemStore {
             None,
             None,
             Some(expires_at),
-        )?;
+        ).await?;
         self.insert_entry(entry).await
     }
 
@@ -129,14 +188,24 @@ impl GlobalMemStore {
         top_k: usize,
         min_score: Option<f64>,
     ) -> Result<Vec<SearchResult>> {
-        let query_embedding = self.generate_embedding(query);
+        let query_embedding = self
+            .generate_embedding(query, vibe_embed::EmbedKind::Query)
+            .await?;
+        // Only rows this model produced are comparable. Everything else is
+        // counted and reported, not silently scored 0.0 and dropped.
+        let tag = crate::VectorTag::of(self.inner.embedder.model(), query_embedding.len());
         let conn = self.inner.conn.lock().await;
-        let mut stmt = conn.prepare("SELECT id, content, sector, salience, tags, project_id, embedding FROM memory_entries ORDER BY created_at DESC LIMIT 200").map_err(MemoryError::Sqlite)?;
+        let mut stmt = conn.prepare("SELECT id, content, sector, salience, tags, project_id, embedding, embedding_model FROM memory_entries ORDER BY created_at DESC LIMIT 200").map_err(MemoryError::Sqlite)?;
 
         let rows = stmt
             .query_map([], |row| {
                 let embedding_blob: Vec<u8> = row.get(6)?;
-                let embedding: Vec<f32> = bincode::deserialize(&embedding_blob).unwrap_or_default();
+                // A blob that will not decode is a broken row, not an empty
+                // vector: `unwrap_or_default` here would turn corruption into
+                // a silently unsearchable memory.
+                let embedding: Vec<f32> =
+                    bincode::deserialize(&embedding_blob).unwrap_or_default();
+                let model_slug: Option<String> = row.get(7)?;
                 Ok((
                     row.get::<_, String>(0)?,
                     row.get::<_, String>(1)?,
@@ -145,16 +214,39 @@ impl GlobalMemStore {
                     row.get::<_, String>(4)?,
                     row.get::<_, Option<String>>(5)?,
                     embedding,
+                    model_slug,
                 ))
             })
             .map_err(MemoryError::Sqlite)?;
 
         let mut scored: Vec<_> = Vec::new();
+        let mut diagnostics = crate::SearchDiagnostics::default();
         for row in rows {
-            let (id, content, sector, salience, tags, project_id, embedding) =
-                row.map_err(MemoryError::Sqlite)?;
+            let (id, content, sector, salience, tags, project_id, embedding, model_slug) = row.map_err(MemoryError::Sqlite)?;
+            if embedding.is_empty() {
+                diagnostics.skipped_no_vector += 1;
+                continue;
+            }
+            if !tag.accepts(model_slug.as_deref(), embedding.len()) {
+                diagnostics.skipped_other_model += 1;
+                continue;
+            }
+            diagnostics.compared += 1;
             let similarity = cosine_similarity(&query_embedding, &embedding);
             scored.push((id, content, sector, similarity, tags, project_id, salience));
+        }
+
+        if !diagnostics.is_complete() {
+            // Loud, because the alternative is a result set that looks
+            // complete but silently omits every memory written by another
+            // model. Re-embedding is the fix; knowing is the prerequisite.
+            tracing::warn!(
+                compared = diagnostics.compared,
+                skipped_other_model = diagnostics.skipped_other_model,
+                skipped_no_vector = diagnostics.skipped_no_vector,
+                model = %self.inner.embedder.model(),
+                "memory search skipped entries embedded with a different model"
+            );
         }
 
         scored.sort_by(|a, b| b.3.partial_cmp(&a.3).unwrap_or(std::cmp::Ordering::Equal));
@@ -367,7 +459,7 @@ impl GlobalMemStore {
         Ok(count as usize)
     }
 
-    fn create_entry(
+    async fn create_entry(
         &self,
         content: &str,
         sector: &str,
@@ -385,7 +477,9 @@ impl GlobalMemStore {
             sector: sector.to_string(),
             salience: 1.0,
             decay_lambda: sec.decay_rate(),
-            embedding: self.generate_embedding(content),
+            embedding: self
+                .generate_embedding(content, vibe_embed::EmbedKind::Document)
+                .await?,
             created_at: now,
             updated_at: now,
             last_seen_at: now,
@@ -405,7 +499,7 @@ impl GlobalMemStore {
             // `ttl_expires_at` must be written here: `store_with_ttl` computes
             // it, but it used to be omitted from this statement, so every TTL
             // was silently discarded on insert.
-            "INSERT INTO memory_entries (id, content, content_text, sector, salience, decay_lambda, created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding, ttl_expires_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
+            "INSERT INTO memory_entries (id, content, content_text, sector, salience, decay_lambda, created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding, ttl_expires_at, embedding_model, embedding_dim) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)",
             params![
                 entry.id, entry.content.clone(), entry.content.clone(), entry.sector,
                 entry.salience, entry.decay_lambda, entry.created_at, entry.updated_at,
@@ -414,6 +508,9 @@ impl GlobalMemStore {
                 entry.project_id, entry.session_id,
                 bincode::serialize(&entry.embedding).map_err(|e| MemoryError::Encryption(e.to_string()))?,
                 entry.ttl_expires_at,
+                // Which model produced the vector, and how long it is.
+                self.inner.embedder.model().slug(),
+                entry.embedding.len() as i64,
             ],
         ).map_err(MemoryError::Sqlite)?;
         debug!("Stored global memory entry: {}", entry.id);
@@ -446,33 +543,18 @@ impl GlobalMemStore {
         })
     }
 
-    fn generate_embedding(&self, text: &str) -> Vec<f32> {
-        let dim = self.inner.ext_manager.dimensions();
-        let mut embedding = vec![0.0f32; dim];
-        let lower_text = text.to_lowercase();
-        let words: Vec<&str> = lower_text.split_whitespace().collect();
-        for (i, word) in words.iter().enumerate() {
-            let hash = simple_hash(word);
-            let idx = (hash % dim as u64) as usize;
-            let weight = 1.0f32 / (1.0 + (i as f32 * 0.1));
-            embedding[idx] += weight;
-        }
-        let magnitude = embedding.iter().map(|v| v * v).sum::<f32>().sqrt();
-        if magnitude > 0.0 {
-            for v in &mut embedding {
-                *v /= magnitude;
-            }
-        }
-        embedding
+    /// Embed `text` with this store's model.
+    ///
+    /// An embedding failure is not silently swallowed into a zero vector: a
+    /// memory stored with an all-zero vector is unreachable by every future
+    /// search, and nothing would ever say why.
+    async fn generate_embedding(&self, text: &str, kind: vibe_embed::EmbedKind) -> Result<Vec<f32>> {
+        self.inner
+            .embedder
+            .embed(text, kind)
+            .await
+            .map_err(|e| MemoryError::Embedding(e.to_string()))
     }
-}
-
-fn simple_hash(s: &str) -> u64 {
-    let mut hash: u64 = 5381;
-    for c in s.bytes() {
-        hash = hash.wrapping_mul(33).wrapping_add(c as u64);
-    }
-    hash
 }
 
 fn cosine_similarity(a: &[f32], b: &[f32]) -> f64 {
@@ -492,6 +574,63 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f64 {
 mod tests {
     use super::*;
     use tempfile::TempDir;
+
+    /// A different embedding model must not silently return another model's
+    /// memories, and must not silently hide them either. Before per-row model
+    /// tagging, a dimension change made every existing memory score 0.0 and
+    /// disappear from every search with no signal at all.
+    #[tokio::test]
+    async fn memories_from_another_model_are_excluded_not_mis_scored() {
+        let tmp = TempDir::new().expect("tempdir");
+        let store = GlobalMemStore::open_at(tmp.path()).expect("open at temp");
+        store
+            .store("the deployment runbook lives in docs/deploy.md", None)
+            .await
+            .expect("store");
+
+        // Same store, a different model of the same family.
+        let other = store
+            .clone_handle()
+            .with_embedder(crate::embedding::HashEmbedder::shared(256))
+            .expect("swap embedder");
+        assert_ne!(
+            other.embedding_model().slug(),
+            store.embedding_model().slug(),
+            "a different bucket count is a different model"
+        );
+
+        let hits = other.search("deployment runbook", 5, None).await.expect("search");
+        assert!(
+            hits.is_empty(),
+            "a memory embedded by another model must not be scored as if comparable"
+        );
+
+        // And the original model still finds it — the row was never lost.
+        let original = store
+            .search("deployment runbook", 5, None)
+            .await
+            .expect("search");
+        assert_eq!(original.len(), 1);
+    }
+
+    /// Rows written by this store must carry the model that wrote them.
+    #[tokio::test]
+    async fn stored_rows_record_their_model_and_dimension() {
+        let tmp = TempDir::new().expect("tempdir");
+        let store = GlobalMemStore::open_at(tmp.path()).expect("open at temp");
+        store.store("a fact worth keeping", None).await.expect("store");
+
+        let conn = store.inner.conn.lock().await;
+        let (slug, dim): (Option<String>, Option<i64>) = conn
+            .query_row(
+                "SELECT embedding_model, embedding_dim FROM memory_entries LIMIT 1",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .expect("row");
+        assert_eq!(slug.as_deref(), Some(store.embedding_model().slug().as_str()));
+        assert_eq!(dim, Some(768));
+    }
 
     // Tests using open_at with a temp directory (works in sandbox)
     #[tokio::test]

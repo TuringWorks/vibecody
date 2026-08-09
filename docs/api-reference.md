@@ -475,6 +475,7 @@ offer a mic button, and to explain a disabled one.
   "whisper_cpp_installed": true,
   "whisper_python_installed": false,
   "sox_installed": true,
+  "ffmpeg_installed": false,
   "can_transcribe": true,
   "upload_limit_bytes": 16777216
 }
@@ -482,8 +483,13 @@ offer a mic button, and to explain a disabled one.
 
 `can_transcribe` is the field to branch on: a downloaded model with no runtime
 to execute it is not a usable engine, and this accounts for that. Results are
-cached for 60 s because the probe shells out to `whisper-cpp`, `whisper` and
-`sox`.
+cached for 60 s because the probe shells out to `whisper-cli`, `whisper`, `sox`
+and `ffmpeg`.
+
+`ffmpeg_installed` matters only for *local* transcription of non-WAV audio.
+Browser clients record WebM, so on a machine with a local model but no ffmpeg
+their recordings can only be transcribed in the cloud — the `503` says so
+explicitly rather than blaming the Whisper runtime.
 
 ### GET /sessions
 
@@ -857,6 +863,79 @@ curl http://localhost:7878/pair
   "instructions": "Open this URL in your device's browser to pair with this VibeCLI instance."
 }
 ```
+
+---
+
+## Embeddings — `/embeddings/*`, `/index/*`
+
+Semantic search / RAG. Full guide: [embeddings.md](./embeddings.md).
+
+### `GET /embeddings/models`
+
+Every embedding provider, its models, availability, the selected model, and the
+embedding models pulled into the local Ollama.
+
+`providers[].availability.state` is `ready` | `needs_api_key` |
+`not_compiled_in`. `providers[].is_local` says whether embedding leaves the
+machine — relevant before indexing a private repo with a cloud model.
+
+`ollama_installed.status` is `ok` or `unreachable`; the latter is distinct from
+an empty model list, which would read as "nothing installed".
+
+### `POST /embeddings/embed`
+
+```json
+{ "texts": ["fn main() {}"], "kind": "document", "provider": "voyage", "model": "voyage-code-3" }
+```
+
+`kind` is `"document"` (default) or `"query"`. Asymmetric models place stored
+passages and search queries in different regions of the space; embedding a
+query as a document does not error, it just costs recall. `provider`/`model`
+override the configured selection.
+
+Response `dimension` is the length actually returned, not a catalog value.
+
+### `GET /index/status`
+
+```json
+{
+  "selected": { "provider": "ollama", "model": "nomic-embed-text" },
+  "description": "ollama/nomic-embed-text (768d, local)",
+  "built": true,
+  "current": { "format_version": 2, "chunk_count": 4180, "file_count": 611, "dimension": 768 },
+  "available": [ /* every index on disk, including other models */ ]
+}
+```
+
+`built` refers to the **selected** model. `available` lists every per-model
+index present — each one switchable to without re-embedding.
+
+### `POST /index/build`
+
+```json
+{ "provider": "voyage", "model": "voyage-code-3" }
+```
+
+Both fields optional; omit to use the configured model. Responds when the index
+is **written**, not when the job starts — embedding a workspace takes real time
+and, on a paid provider, real money.
+
+### `GET /health` → `embedding`
+
+```json
+"embedding": {
+  "status": "indexed",
+  "provider": "ollama",
+  "model": "nomic-embed-text",
+  "dimensions": 768,
+  "local": true,
+  "chunks": 4180,
+  "files": 611,
+  "other_indexes": ["voyage/voyage-code-3"]
+}
+```
+
+`status` is `indexed` | `not_indexed` | `misconfigured`. Never includes the key.
 
 ---
 

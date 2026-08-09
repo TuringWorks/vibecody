@@ -521,6 +521,11 @@ pub struct LocalEmbeddingEngine {
     df: HashMap<String, u64>,
     /// Total documents processed.
     doc_count: u64,
+    /// Self-description as an [`Embedder`](vibe_embed::Embedder). The
+    /// dimension is part of the identity because two engines with different
+    /// bucket counts produce incomparable vectors — the same reason two
+    /// different trained models do.
+    model_ref: vibe_embed::ModelRef,
 }
 
 impl LocalEmbeddingEngine {
@@ -532,6 +537,10 @@ impl LocalEmbeddingEngine {
         Self::with_dim(Self::DEFAULT_DIM)
     }
 
+    /// Model id this engine reports. Deliberately not the name of any real
+    /// model — it hashes features, it does not embed meaning.
+    pub const MODEL_ID: &'static str = "openmemory-tfidf";
+
     /// Construct an engine that always emits vectors of length `dim`.
     pub fn with_dim(dim: usize) -> Self {
         assert!(dim > 0, "embedding dimension must be > 0");
@@ -539,6 +548,11 @@ impl LocalEmbeddingEngine {
             embedding_dim: dim,
             df: HashMap::new(),
             doc_count: 0,
+            model_ref: vibe_embed::ModelRef::new(
+                vibe_embed::ProviderKind::Local,
+                Self::MODEL_ID,
+            )
+            .with_dimensions(Some(dim)),
         }
     }
 
@@ -648,21 +662,40 @@ impl Default for LocalEmbeddingEngine {
     }
 }
 
-/// Bridge to the [`vibe_infer::Embedder`] trait so OpenMemory's built-in
-/// feature-hashed engine satisfies the same interface as the candle-backed
-/// MiniLM embedder. Existing sync callers keep using the inherent `embed`;
-/// new async sites (REPL slash commands, future remote embedders) can take
-/// `&dyn vibe_infer::Embedder` and swap backends without touching this file.
+/// Bridge to the shared [`vibe_embed::Embedder`] trait, so OpenMemory's
+/// built-in feature-hashed engine is interchangeable with every real model —
+/// Ollama, OpenAI, Voyage, Cohere, Gemini, or the in-process candle backend.
+/// Existing sync callers keep using the inherent `embed`.
+///
+/// It reports itself as `local/openmemory-tfidf`, **not** as a real model.
+/// That identity is what stops an index built from feature hashes being
+/// mistaken for one built from a trained embedder: the two produce entirely
+/// different spaces, and the header check refuses to mix them.
+///
+/// The engine is symmetric, so [`EmbedKind`](vibe_embed::EmbedKind) is
+/// ignored — there is no query/document asymmetry in a bag-of-hashes model to
+/// exploit.
 #[async_trait::async_trait]
-impl vibe_infer::Embedder for LocalEmbeddingEngine {
-    fn dim(&self) -> usize {
-        self.embedding_dim
+impl vibe_embed::Embedder for LocalEmbeddingEngine {
+    fn model(&self) -> &vibe_embed::ModelRef {
+        &self.model_ref
     }
 
-    async fn embed(&self, text: &str) -> vibe_infer::Result<Vec<f32>> {
-        // UFCS to the inherent (sync) method — `self.embed(text)` would be
+    fn dim(&self) -> Option<usize> {
+        Some(self.embedding_dim)
+    }
+
+    async fn embed_batch(
+        &self,
+        texts: &[String],
+        _kind: vibe_embed::EmbedKind,
+    ) -> vibe_embed::Result<Vec<Vec<f32>>> {
+        // UFCS to the inherent (sync) method — `self.embed(..)` would be
         // ambiguous with the trait method we're currently defining.
-        Ok(LocalEmbeddingEngine::embed(self, text))
+        Ok(texts
+            .iter()
+            .map(|t| LocalEmbeddingEngine::embed(self, t))
+            .collect())
     }
 }
 
@@ -3917,20 +3950,56 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn local_engine_satisfies_vibe_infer_embedder_trait() {
-        // Lock the bridge: callers must be able to take `&dyn vibe_infer::Embedder`
-        // and get the same vector that the inherent sync embed produces.
+    async fn local_engine_satisfies_the_shared_embedder_trait() {
+        // Lock the bridge: callers must be able to take `&dyn Embedder` and
+        // get the same vector that the inherent sync embed produces.
         let mut engine = LocalEmbeddingEngine::with_dim(256);
         engine.add_document("hello world");
-        let trait_obj: &dyn vibe_infer::Embedder = &engine;
-        assert_eq!(trait_obj.dim(), 256);
+        let trait_obj: &dyn vibe_embed::Embedder = &engine;
+        assert_eq!(trait_obj.dim(), Some(256));
 
         let async_vec = trait_obj
-            .embed("hello world")
+            .embed("hello world", vibe_embed::EmbedKind::Document)
             .await
             .expect("embed via trait");
         let sync_vec = engine.embed("hello world");
         assert_eq!(async_vec, sync_vec);
+    }
+
+    /// The feature-hashing engine must not claim to be a trained model. If it
+    /// did, an index built from hash buckets would pass the header check
+    /// against a real `nomic-embed-text` index and return nonsense.
+    #[test]
+    fn local_engine_identifies_itself_as_a_hash_engine_not_a_model() {
+        let engine = LocalEmbeddingEngine::with_dim(128);
+        let model = vibe_embed::Embedder::model(&engine);
+        assert_eq!(model.provider, vibe_embed::ProviderKind::Local);
+        assert_eq!(model.model, "openmemory-tfidf");
+        assert_ne!(model.model, "all-MiniLM-L6-v2");
+        // Dimension is part of the identity: two engines sized differently
+        // must not share an index.
+        assert_ne!(
+            model.slug(),
+            vibe_embed::Embedder::model(&LocalEmbeddingEngine::with_dim(256)).slug()
+        );
+    }
+
+    #[tokio::test]
+    async fn local_engine_batches_in_order() {
+        let mut engine = LocalEmbeddingEngine::with_dim(64);
+        engine.add_document("alpha");
+        engine.add_document("beta");
+        let texts = vec!["alpha".to_string(), "beta".to_string()];
+        let batch = vibe_embed::Embedder::embed_batch(
+            &engine,
+            &texts,
+            vibe_embed::EmbedKind::Document,
+        )
+        .await
+        .expect("batch");
+        assert_eq!(batch.len(), 2);
+        assert_eq!(batch[0], engine.embed("alpha"));
+        assert_eq!(batch[1], engine.embed("beta"));
     }
 
     #[test]

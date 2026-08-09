@@ -74,10 +74,21 @@ min_session_steps = 3         # Minimum tool-use steps before recording triggers
 
 [index]
 enabled = true
-embedding_provider = "ollama"       # "ollama" or "openai"
+# ollama | openai | voyage | cohere | gemini | local
+# API keys come from the encrypted ProfileStore, never from this file.
+# An unrecognised provider is an error, not a silent fallback.
+embedding_provider = "ollama"
 embedding_model = "nomic-embed-text"
+# Optional — Matryoshka truncation, for models that support it.
+# embedding_dimensions = 512
+# Optional — remote Ollama, Azure OpenAI, a LiteLLM proxy, a TEI server.
+# embedding_base_url = "http://gpu-box:11434"
 rebuild_on_startup = false
 max_file_size_kb = 500
+
+# Each model keeps its own index under <workspace>/.vibecli/index/, so
+# switching models is instant and switching back never re-embeds.
+# Full guide: docs/embeddings.md
 
 # ── OpenTelemetry (optional) ─────────────────────────────────────────
 

@@ -122,7 +122,7 @@ use vibe_ai::provider::{
 use vibe_ai::providers::ollama::OllamaProvider;
 use vibe_ai::trace::{list_traces, load_session, load_trace, TraceWriter};
 use vibe_ai::{ExecutorFactory, MultiAgentOrchestrator, OrchestratorEvent};
-use vibe_core::index::embeddings::{EmbeddingIndex, EmbeddingProvider};
+use vibe_core::index::embeddings::EmbeddingIndex;
 
 use std::io::{self, Write};
 use std::sync::Arc;
@@ -247,6 +247,44 @@ mod document_ingest;
 #[allow(dead_code)]
 #[allow(dead_code)]
 mod email_client;
+mod embedding_index;
+
+/// Resolve the model `/index` should use.
+///
+/// Empty `args` means "whatever `[index]` in config.toml says". Otherwise the
+/// argument selects a model for this run only, accepting `model`,
+/// `provider/model`, or `provider model`. A bare model name keeps the
+/// configured provider, so `/index bge-m3` does the obvious thing for an
+/// Ollama user without them having to type `ollama/bge-m3`.
+fn resolve_index_settings(
+    config: &Config,
+    args: &str,
+) -> Result<vibe_embed::EmbeddingSettings, String> {
+    let configured = config.index.to_embedding_settings()?;
+    let args = args.trim();
+    if args.is_empty() {
+        return Ok(configured);
+    }
+    // `provider model` (space-separated) — try the two-token form first.
+    if let Some((provider, model)) = args.split_once(char::is_whitespace) {
+        if let Some(parsed) = vibe_embed::EmbeddingSettings::parse(provider.trim(), model.trim()) {
+            return Ok(parsed.with_base_url(configured.base_url.clone()));
+        }
+    }
+    // `provider/model`, but only when the prefix really is a provider —
+    // Ollama model names legitimately contain slashes (`library/bge-m3`).
+    if let Some((provider, model)) = args.split_once('/') {
+        if vibe_embed::ProviderKind::parse(provider).is_some() {
+            if let Some(parsed) = vibe_embed::EmbeddingSettings::parse(provider, model) {
+                return Ok(parsed.with_base_url(configured.base_url.clone()));
+            }
+        }
+    }
+    // Bare model name: keep the configured provider and endpoint.
+    Ok(vibe_embed::EmbeddingSettings::new(configured.provider, args)
+        .with_base_url(configured.base_url.clone()))
+}
+
 #[allow(dead_code)]
 mod feature_demo;
 #[allow(dead_code)]
@@ -6812,35 +6850,108 @@ async fn main() -> Result<()> {
                         // ── Codebase semantic index ────────────────────────────────────────
                         "/index" => {
                             // Build or refresh the semantic codebase index.
-                            let model = if args.is_empty() {
-                                "nomic-embed-text"
-                            } else {
-                                args
+                            //
+                            // With no argument, use the configured model
+                            // ([index] embedding_provider / embedding_model).
+                            // With one, accept `model`, `provider/model`, or
+                            // `provider model` so a user can index with a
+                            // second model without editing config — the two
+                            // indexes then coexist on disk.
+                            let app_config = Config::load().unwrap_or_default();
+                            let settings = match resolve_index_settings(&app_config, args) {
+                                Ok(s) => s,
+                                Err(e) => {
+                                    eprintln!("❌ {e}\n");
+                                    continue;
+                                }
                             };
-                            println!("Building semantic index with model '{}' …", model);
+                            let embedder = match crate::embedding_index::build_embedder(&settings) {
+                                Ok(e) => e,
+                                Err(e) => {
+                                    eprintln!("❌ {e:#}\n");
+                                    if settings.provider.requires_api_key() {
+                                        eprintln!(
+                                            "   Add a {} key with `/keys` or in Settings → Providers.\n",
+                                            settings.provider.display_name()
+                                        );
+                                    }
+                                    continue;
+                                }
+                            };
+                            println!("Building semantic index with {} …", settings.describe());
                             println!(
                                 "   (embeds all source files — may take a minute on large repos)"
                             );
-                            let provider = EmbeddingProvider::ollama(model);
-                            match EmbeddingIndex::build(&cwd, &provider).await {
-                                Ok(index) => {
-                                    let index_path = cwd.join(".vibecli").join("index.json");
-                                    if let Some(parent) = index_path.parent() {
-                                        let _ = std::fs::create_dir_all(parent);
-                                    }
-                                    match serde_json::to_string(&index) {
-                                        Ok(json) => match std::fs::write(&index_path, json) {
-                                            Ok(_) => println!(
-                                                "✅ Indexed {} chunks → .vibecli/index.json\n",
-                                                index.len()
-                                            ),
-                                            Err(e) => eprintln!("⚠️  Could not save index: {}\n", e),
-                                        },
-                                        Err(e) => eprintln!("⚠️  Could not serialise index: {}\n", e),
+                            match crate::embedding_index::rebuild(&cwd, &settings, embedder).await {
+                                Ok((index, path)) => {
+                                    let rel = path
+                                        .strip_prefix(&cwd)
+                                        .unwrap_or(&path)
+                                        .display()
+                                        .to_string();
+                                    println!(
+                                        "✅ Indexed {} chunks from {} files ({} dimensions) → {rel}\n",
+                                        index.len(),
+                                        index.file_count(),
+                                        index
+                                            .dimension()
+                                            .map_or_else(|| "?".to_string(), |d| d.to_string()),
+                                    );
+                                }
+                                Err(e) => {
+                                    eprintln!("❌ Index build failed: {e:#}\n");
+                                    if settings.provider == vibe_embed::ProviderKind::Ollama {
+                                        eprintln!(
+                                            "   Hint: is Ollama running? `ollama pull {}`\n",
+                                            settings.model
+                                        );
                                     }
                                 }
-                                Err(e) => eprintln!("❌ Index build failed: {}\n   Hint: make sure Ollama is running with `ollama pull {}`\n", e, model),
                             }
+                        }
+
+                        "/index-status" => {
+                            // Which models this workspace has an index for.
+                            let settings = match Config::load()
+                                .unwrap_or_default()
+                                .index
+                                .to_embedding_settings()
+                            {
+                                Ok(s) => s,
+                                Err(e) => {
+                                    eprintln!("❌ {e}\n");
+                                    continue;
+                                }
+                            };
+                            let status = crate::embedding_index::status(&cwd, &settings);
+                            println!("Configured: {}", status.description);
+                            if status.available.is_empty() {
+                                println!("No index built yet. Run /index.\n");
+                                continue;
+                            }
+                            println!("Indexes on disk:");
+                            for header in &status.available {
+                                let marker = if header.model == settings.model_ref() {
+                                    "→"
+                                } else {
+                                    " "
+                                };
+                                println!(
+                                    "  {marker} {} — {} chunks, {} files, {} dimensions",
+                                    header.model,
+                                    header.chunk_count,
+                                    header.file_count,
+                                    header
+                                        .dimension
+                                        .map_or_else(|| "?".to_string(), |d| d.to_string()),
+                                );
+                            }
+                            if !status.built {
+                                println!(
+                                    "\nThe configured model has no index yet — run /index to build one."
+                                );
+                            }
+                            println!();
                         }
 
                         "/qa" => {
@@ -6850,21 +6961,42 @@ async fn main() -> Result<()> {
                                 println!("       Run /index first to build the semantic index.\n");
                                 continue;
                             }
-                            let index_path = cwd.join(".vibecli").join("index.json");
-                            if !index_path.exists() {
-                                println!("⚠️  No index found. Run /index first.\n");
-                                continue;
-                            }
-                            let index: EmbeddingIndex = match std::fs::read_to_string(&index_path)
-                                .map_err(anyhow::Error::from)
-                                .and_then(|s| serde_json::from_str(&s).map_err(anyhow::Error::from))
+                            let settings = match Config::load()
+                                .unwrap_or_default()
+                                .index
+                                .to_embedding_settings()
                             {
-                                Ok(i) => i,
+                                Ok(s) => s,
                                 Err(e) => {
-                                    eprintln!("❌ Failed to load index: {}\n", e);
+                                    eprintln!("❌ {e}\n");
                                     continue;
                                 }
                             };
+                            let embedder = match crate::embedding_index::build_embedder(&settings) {
+                                Ok(e) => e,
+                                Err(e) => {
+                                    eprintln!("❌ {e:#}\n");
+                                    continue;
+                                }
+                            };
+                            // The index must have been built with the model we
+                            // are about to embed the question with; open() is
+                            // what enforces that.
+                            let index: EmbeddingIndex =
+                                match crate::embedding_index::open(&cwd, &settings, embedder) {
+                                    Ok(Some(i)) => i,
+                                    Ok(None) => {
+                                        println!(
+                                            "⚠️  No index for {}. Run /index first (/index-status lists what is built).\n",
+                                            settings.describe()
+                                        );
+                                        continue;
+                                    }
+                                    Err(e) => {
+                                        eprintln!("❌ Failed to load index: {e:#}\n");
+                                        continue;
+                                    }
+                                };
                             println!("Searching codebase for: {}", args);
                             let hits = match index.search(args, 5).await {
                                 Ok(h) => h,

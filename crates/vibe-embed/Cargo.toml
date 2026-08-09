@@ -1,0 +1,19 @@
+[package]
+name = "vibe-embed"
+version.workspace = true
+description = "Provider-agnostic text embedding layer for VibeCody — one Embedder trait, many models"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+async-trait.workspace = true
+tracing.workspace = true
+reqwest.workspace = true
+tokio = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }

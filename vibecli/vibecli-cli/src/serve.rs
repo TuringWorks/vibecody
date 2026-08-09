@@ -871,6 +871,34 @@ async fn health(State(state): State<ServeState>) -> impl IntoResponse {
             }),
             None => serde_json::json!({ "status": "disabled" }),
         },
+        // Embedding model powering semantic search / RAG. Reported because a
+        // silently-wrong embedding model is invisible: retrieval keeps
+        // "working", it just stops returning the right code. Names the model,
+        // whether it runs locally, and whether this workspace has an index
+        // built with it. Never includes the API key. AGENTS.md → Zero-Config.
+        "embedding": match crate::config::Config::load().unwrap_or_default().index.to_embedding_settings() {
+            Ok(settings) => {
+                let status = crate::embedding_index::status(&state.workspace_root, &settings);
+                serde_json::json!({
+                    "status": if status.built { "indexed" } else { "not_indexed" },
+                    "provider": settings.provider.as_str(),
+                    "model": settings.model,
+                    "dimensions": settings.model_ref().known_dimension(),
+                    "local": settings.provider.is_local(),
+                    "description": status.description,
+                    "chunks": status.current.as_ref().map(|h| h.chunk_count),
+                    "files": status.current.as_ref().map(|h| h.file_count),
+                    // Other models already indexed here — all free to switch to.
+                    "other_indexes": status
+                        .available
+                        .iter()
+                        .filter(|h| h.model != settings.model_ref())
+                        .map(|h| h.model.to_string())
+                        .collect::<Vec<_>>(),
+                })
+            }
+            Err(e) => serde_json::json!({ "status": "misconfigured", "error": e }),
+        },
         // SkillForge — SkillLens (analyse) + SkillOpt (train) bridge.
         // `disabled` when the daemon hasn't initialized the catalog;
         // `loading` while the background parse runs; `ready` with counts
@@ -7674,6 +7702,11 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/memory/query", post(memory_query))
         .route("/memory/list", get(memory_list))
         .route("/memory/stats", get(memory_stats))
+        // ── Embedding models ──────────────────────────────────────────────
+        .route("/embeddings/models", get(embedding_models))
+        .route("/embeddings/embed", post(embeddings_embed))
+        .route("/index/status", get(index_status))
+        .route("/index/build", post(index_build))
         .route("/memory/fact", post(memory_add_fact))
         .route("/memory/facts", get(memory_facts))
         .route("/memory/decay", post(memory_decay))
@@ -8277,6 +8310,40 @@ pub async fn serve(
                 "[vibecli serve] skillforge: catalog parsing in background… ({})",
                 crate::skillforge_index::toolchain_version(),
             ),
+        }
+    }
+
+    // Report the embedding model powering semantic search. Zero-Config: the
+    // default is local Ollama + nomic-embed-text, no key and no config file.
+    // Printed because a wrong embedding model does not fail — retrieval keeps
+    // returning results, just the wrong ones, which is far harder to notice
+    // than an error. AGENTS.md → Zero-Config First.
+    {
+        match crate::config::Config::load()
+            .unwrap_or_default()
+            .index
+            .to_embedding_settings()
+        {
+            Ok(settings) => {
+                let status = crate::embedding_index::status(&workspace_root, &settings);
+                match status.current.as_ref() {
+                    Some(header) => eprintln!(
+                        "[vibecli serve] embeddings: {} — {} chunks from {} files indexed",
+                        status.description, header.chunk_count, header.file_count,
+                    ),
+                    None => eprintln!(
+                        "[vibecli serve] embeddings: {} — no index yet (POST /index/build or run /index)",
+                        status.description,
+                    ),
+                }
+                if !settings.provider.is_local() {
+                    eprintln!(
+                        "[vibecli serve] embeddings: {} is a cloud provider — indexing uploads source files",
+                        settings.provider.display_name(),
+                    );
+                }
+            }
+            Err(e) => eprintln!("[vibecli serve] embeddings: misconfigured — {e}"),
         }
     }
 
@@ -9285,6 +9352,205 @@ async fn memory_list(_state: State<ServeState>) -> Json<serde_json::Value> {
         })
         .collect();
     Json(serde_json::json!({ "memories": items, "total": store.total_memories() }))
+}
+
+// ── Embedding models ─────────────────────────────────────────────────────────
+//
+// The authoritative answer to "which embedding models can I use, which are
+// ready, and what is indexed with them". Every client — VibeCoder, VibeAIChat,
+// mobile, watch, the plugins — reads this rather than shipping its own list,
+// so a model added to the catalog appears everywhere at once.
+
+/// Which embedding model this daemon is configured to use.
+fn configured_embedding_settings() -> Result<vibe_embed::EmbeddingSettings, String> {
+    crate::config::Config::load()
+        .unwrap_or_default()
+        .index
+        .to_embedding_settings()
+}
+
+/// GET /embeddings/models — the catalog, availability, and what is installed.
+async fn embedding_models(State(_state): State<ServeState>) -> Json<serde_json::Value> {
+    // Availability is a fact about the credential store, not a guess.
+    let catalog = vibe_embed::provider_catalog(|p| {
+        crate::embedding_index::api_key_for(p).is_some()
+    });
+
+    let selected = configured_embedding_settings();
+
+    // Ollama models the user has actually pulled. These are not in the static
+    // catalog — that is the point: someone who ran `ollama pull bge-large`
+    // should see `bge-large` in the picker. Unreachable Ollama is reported as
+    // such rather than as an empty list, which would read as "none installed".
+    let installed = match vibe_ai::providers::ollama::OllamaProvider::list_embedding_models(None)
+        .await
+    {
+        Ok(models) => serde_json::json!({ "status": "ok", "models": models }),
+        Err(e) => serde_json::json!({ "status": "unreachable", "error": e.to_string() }),
+    };
+
+    Json(serde_json::json!({
+        "providers": catalog,
+        "selected": selected.as_ref().ok(),
+        "error": selected.as_ref().err(),
+        "ollama_installed": installed,
+    }))
+}
+
+#[derive(serde::Deserialize)]
+struct EmbedRequest {
+    /// Texts to embed. One request, one batch — the provider's own batching
+    /// is what makes indexing practical.
+    texts: Vec<String>,
+    /// "document" (default) or "query". Getting this wrong costs recall on
+    /// every asymmetric model, so it is explicit on the wire.
+    #[serde(default)]
+    kind: Option<String>,
+    /// Override the configured model for this call.
+    #[serde(default)]
+    provider: Option<String>,
+    #[serde(default)]
+    model: Option<String>,
+}
+
+/// POST /embeddings/embed — vectorise text with the configured (or requested)
+/// model. Lets any client embed without reimplementing five provider APIs.
+async fn embeddings_embed(
+    State(_state): State<ServeState>,
+    Json(req): Json<EmbedRequest>,
+) -> impl axum::response::IntoResponse {
+    let settings = match (req.provider.as_deref(), req.model.as_deref()) {
+        (Some(p), Some(m)) => vibe_embed::EmbeddingSettings::parse(p, m).ok_or_else(|| {
+            format!("unknown embedding provider/model: {p}/{m}")
+        }),
+        _ => configured_embedding_settings(),
+    };
+    let settings = match settings {
+        Ok(s) => s,
+        Err(e) => {
+            return (
+                axum::http::StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": e })),
+            )
+        }
+    };
+
+    let kind = match req.kind.as_deref() {
+        None | Some("document") => vibe_embed::EmbedKind::Document,
+        Some("query") => vibe_embed::EmbedKind::Query,
+        Some(other) => {
+            return (
+                axum::http::StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({
+                    "error": format!("kind must be \"document\" or \"query\", got {other:?}")
+                })),
+            )
+        }
+    };
+
+    let embedder = match crate::embedding_index::build_embedder(&settings) {
+        Ok(e) => e,
+        Err(e) => {
+            return (
+                axum::http::StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": format!("{e:#}") })),
+            )
+        }
+    };
+
+    match embedder.embed_all(&req.texts, kind).await {
+        Ok(vectors) => (
+            axum::http::StatusCode::OK,
+            Json(serde_json::json!({
+                "model": settings.model_ref(),
+                // The dimension we actually produced, not one from a table.
+                "dimension": vectors.first().map(|v: &Vec<f32>| v.len()),
+                "embeddings": vectors,
+            })),
+        ),
+        Err(e) => (
+            axum::http::StatusCode::BAD_GATEWAY,
+            Json(serde_json::json!({ "error": e.to_string() })),
+        ),
+    }
+}
+
+/// GET /index/status — which models this workspace has a code index for.
+async fn index_status(State(state): State<ServeState>) -> impl axum::response::IntoResponse {
+    match configured_embedding_settings() {
+        Ok(settings) => (
+            axum::http::StatusCode::OK,
+            Json(
+                serde_json::to_value(crate::embedding_index::status(
+                    &state.workspace_root,
+                    &settings,
+                ))
+                .unwrap_or_else(|e| serde_json::json!({ "error": e.to_string() })),
+            ),
+        ),
+        Err(e) => (
+            axum::http::StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": e })),
+        ),
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct IndexBuildRequest {
+    #[serde(default)]
+    provider: Option<String>,
+    #[serde(default)]
+    model: Option<String>,
+}
+
+/// POST /index/build — (re)build the semantic code index for a model.
+///
+/// Synchronous and honest about it: embedding a workspace takes real time and
+/// real money on a paid provider, so the response is the finished result, not
+/// an optimistic "started".
+async fn index_build(
+    State(state): State<ServeState>,
+    Json(req): Json<IndexBuildRequest>,
+) -> impl axum::response::IntoResponse {
+    let settings = match (req.provider.as_deref(), req.model.as_deref()) {
+        (Some(p), Some(m)) => vibe_embed::EmbeddingSettings::parse(p, m)
+            .ok_or_else(|| format!("unknown embedding provider/model: {p}/{m}")),
+        _ => configured_embedding_settings(),
+    };
+    let settings = match settings {
+        Ok(s) => s,
+        Err(e) => {
+            return (
+                axum::http::StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": e })),
+            )
+        }
+    };
+    let embedder = match crate::embedding_index::build_embedder(&settings) {
+        Ok(e) => e,
+        Err(e) => {
+            return (
+                axum::http::StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "error": format!("{e:#}") })),
+            )
+        }
+    };
+    match crate::embedding_index::rebuild(&state.workspace_root, &settings, embedder).await {
+        Ok((index, path)) => (
+            axum::http::StatusCode::OK,
+            Json(serde_json::json!({
+                "model": settings.model_ref(),
+                "chunks": index.len(),
+                "files": index.file_count(),
+                "dimension": index.dimension(),
+                "path": path,
+            })),
+        ),
+        Err(e) => (
+            axum::http::StatusCode::BAD_GATEWAY,
+            Json(serde_json::json!({ "error": format!("{e:#}") })),
+        ),
+    }
 }
 
 async fn memory_stats(_state: State<ServeState>) -> Json<serde_json::Value> {

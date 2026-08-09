@@ -35,7 +35,14 @@ pub fn create_entries_table(conn: &Connection) -> SqliteResult<()> {
             ttl_expires_at  INTEGER,              -- epoch seconds; NULL = never expires
             
             -- Vector storage (extension-specific)
-            embedding       BLOB                  -- vec/f32 array, plaintext (bincode)
+            embedding       BLOB,                 -- vec/f32 array, plaintext (bincode)
+            -- Identity of the model that produced `embedding`, as
+            -- `vibe_embed::ModelRef::slug`. Vectors from two models are not
+            -- comparable and cosine similarity will not tell you so, which is
+            -- why this is stored per row rather than assumed per database.
+            -- NULL = written before model tagging existed.
+            embedding_model TEXT,
+            embedding_dim   INTEGER
         );
         "#,
         [],
@@ -163,15 +170,36 @@ pub fn create_meta_table(conn: &Connection) -> SqliteResult<()> {
 /// silently dropped the expiry and cleanup failed outright with
 /// "no such column: ttl_expires_at", so the TTL feature did nothing at all.
 fn migrate_entries_table(conn: &Connection) -> SqliteResult<()> {
-    let has_column = conn
-        .prepare("SELECT 1 FROM pragma_table_info('memory_entries') WHERE name = ?1")?
-        .exists(["ttl_expires_at"])?;
-    if !has_column {
-        conn.execute(
-            "ALTER TABLE memory_entries ADD COLUMN ttl_expires_at INTEGER",
-            [],
-        )?;
+    // Columns added after the table shipped. Each is nullable, so an existing
+    // row is left alone rather than being back-filled with an invented value:
+    // we do not know which model embedded a pre-tagging row, and guessing
+    // would be worse than admitting it — see `VectorTag::accepts`.
+    const ADDED: &[(&str, &str)] = &[
+        ("ttl_expires_at", "INTEGER"),
+        // Which embedding model produced `embedding`, as `ModelRef::slug`.
+        // NULL means "written before model tagging existed".
+        ("embedding_model", "TEXT"),
+        // Length of `embedding` as stored. Denormalised so a search can skip
+        // incomparable rows without deserialising every blob.
+        ("embedding_dim", "INTEGER"),
+    ];
+
+    let mut existing = conn.prepare("SELECT 1 FROM pragma_table_info('memory_entries') WHERE name = ?1")?;
+    for (name, ty) in ADDED {
+        if !existing.exists([name])? {
+            conn.execute(
+                &format!("ALTER TABLE memory_entries ADD COLUMN {name} {ty}"),
+                [],
+            )?;
+        }
     }
+    drop(existing);
+
+    // Cheap filter for the common case — one model, many memories.
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_entries_embedding_model ON memory_entries(embedding_model)",
+        [],
+    )?;
     Ok(())
 }
 

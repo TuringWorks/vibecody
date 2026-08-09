@@ -7,6 +7,8 @@ authors.workspace = true
 license.workspace = true
 
 [dependencies]
+# Canonical embedding trait + model catalog.
+vibe-embed = { path = "../../../crates/vibe-embed" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

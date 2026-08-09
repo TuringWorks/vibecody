@@ -8,6 +8,12 @@ pub enum MemoryError {
     #[error("SQLite error: {0}")]
     Sqlite(#[from] rusqlite::Error),
 
+    /// The embedding model could not produce a vector. Surfaced rather than
+    /// substituted with zeros — a zero vector stores a memory that no future
+    /// search can ever reach.
+    #[error("embedding failed: {0}")]
+    Embedding(String),
+
     #[error("Encryption error: {0}")]
     Encryption(String),
 

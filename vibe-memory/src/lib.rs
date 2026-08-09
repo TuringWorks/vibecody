@@ -1,5 +1,6 @@
 //! # VibeMemory — Local SQLite Vector Memory
 
+pub mod embedding;
 pub mod error;
 pub mod extension;
 pub mod global_store;
@@ -9,6 +10,7 @@ pub mod schema;
 
 use serde::{Deserialize, Serialize};
 
+pub use embedding::{HashEmbedder, SearchDiagnostics, VectorTag, HASH_MODEL_ID};
 pub use error::{MemoryError, Result};
 pub use extension::{ExtensionManager, VectorExtension};
 pub use global_store::GlobalMemStore;

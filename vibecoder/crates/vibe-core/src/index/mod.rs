@@ -10,7 +10,14 @@ pub mod symbol;
 pub mod turboquant;
 
 pub use embeddings::{
-    cosine_similarity, EmbeddingDoc, EmbeddingIndex, EmbeddingProvider, SearchHit,
+    cosine_similarity, index_path, list_indexes, EmbeddingDoc, EmbeddingIndex, IndexHeader,
+    SearchHit, INDEX_FORMAT_VERSION,
+};
+// The embedding layer itself lives in `vibe-embed` so the daemon, the memory
+// stores and the indexer can share one catalog and one trait. Re-exported here
+// because every consumer of an index also needs to name the model it wants.
+pub use vibe_embed::{
+    EmbedKind, Embedder, EmbeddingConfig, EmbeddingModel, ModelRef, ProviderKind, SharedEmbedder,
 };
 pub use symbol::{Language, SymbolInfo, SymbolKind};
 pub use turboquant::{

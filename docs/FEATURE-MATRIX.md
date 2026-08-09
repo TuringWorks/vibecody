@@ -485,10 +485,13 @@ uploads it. The daemon reports which engine produced each transcript
 
 **Dependencies.** SoX is required for the terminal and IDE clients
 (`brew install sox` · `apt install sox` · `choco install sox`); its absence is
-reported with that hint, never as a generic failure. Local transcription
-additionally needs `whisper-cpp` or the `whisper` Python CLI plus a downloaded
-model (`/voice download base`). `GET /voice/status` reports exactly what is
-present.
+reported with that hint, never as a generic failure. Local transcription needs a
+Whisper runtime — `brew install whisper-cpp` (which provides `whisper-cli`), a
+source build of whisper.cpp, or `pip install openai-whisper` — plus a downloaded
+model (`/voice download base`). ffmpeg is additionally required to transcribe
+non-WAV audio locally, which includes everything the browser clients record;
+without it those recordings fall back to the cloud. `GET /voice/status` reports
+exactly which of these is present.
 
 ---
 

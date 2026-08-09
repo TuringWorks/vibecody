@@ -7,6 +7,9 @@ authors.workspace = true
 license.workspace = true
 
 [dependencies]
+# Shared embedding-model catalog — keeps the chat-model filter and the
+# embedding-model picker reading one classifier.
+vibe-embed = { path = "../../../crates/vibe-embed" }
 serde.workspace = true
 serde_json.workspace = true
 anyhow.workspace = true

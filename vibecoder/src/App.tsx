@@ -2449,7 +2449,7 @@ function App() {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }} onClick={() => setShowSettingsModal(false)}>
           <div style={{ width: 760, height: '80vh', maxHeight: 700 }} onClick={e => e.stopPropagation()}>
-            <SettingsPanel onClose={() => setShowSettingsModal(false)} />
+            <SettingsPanel onClose={() => setShowSettingsModal(false)} workspacePath={workspaceFolders[0] || null} />
           </div>
         </div>
       )}

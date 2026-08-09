@@ -56,23 +56,23 @@ pub type Result<T> = std::result::Result<T, InferenceError>;
 // Embedder
 // ---------------------------------------------------------------------------
 
-/// Produces a fixed-dim L2-normalised embedding for a text input.
+/// The embedding trait lives in [`vibe_embed`], not here.
 ///
-/// Implementations MUST return `vector.len() == self.dim()` for every call,
-/// so callers can pre-allocate index storage.
-#[async_trait]
-pub trait Embedder: Send + Sync {
-    fn dim(&self) -> usize;
-    async fn embed(&self, text: &str) -> Result<Vec<f32>>;
+/// There used to be two: this crate's `Embedder` (implemented only by the
+/// candle backend) and a two-variant `EmbeddingProvider` enum inside the code
+/// index. Nothing bridged them, so a local model and a cloud model were not
+/// interchangeable anywhere. One trait now serves both, and
+/// [`MiniLmEmbedder`](minilm::MiniLmEmbedder) is simply another implementor
+/// alongside the HTTP backends.
+pub use vibe_embed::{EmbedKind, Embedder, ModelRef, ProviderKind, SharedEmbedder};
 
-    /// Default batch implementation calls `embed` sequentially. Backends with
-    /// real batching (candle GPU) should override.
-    async fn embed_batch(&self, texts: &[String]) -> Result<Vec<Vec<f32>>> {
-        let mut out = Vec::with_capacity(texts.len());
-        for t in texts {
-            out.push(self.embed(t).await?);
+/// Bridge this crate's error type into the shared one.
+impl From<InferenceError> for vibe_embed::EmbeddingError {
+    fn from(e: InferenceError) -> Self {
+        match e {
+            InferenceError::BackendNotEnabled(b) => Self::BackendNotEnabled(b),
+            other => Self::Backend(other.to_string()),
         }
-        Ok(out)
     }
 }
 
@@ -176,12 +176,31 @@ pub struct StubBackend;
 
 #[async_trait]
 impl Embedder for StubBackend {
-    fn dim(&self) -> usize {
-        0
+    fn model(&self) -> &ModelRef {
+        // A stub still has to answer "which model are you?" — it names the
+        // model it *would* run, so an index header built against it is not
+        // mislabelled if the backend is later compiled in.
+        static MODEL: std::sync::OnceLock<ModelRef> = std::sync::OnceLock::new();
+        MODEL.get_or_init(|| ModelRef::new(ProviderKind::Local, minilm_model_id()))
     }
-    async fn embed(&self, _text: &str) -> Result<Vec<f32>> {
-        Err(InferenceError::BackendNotEnabled("candle"))
+
+    fn dim(&self) -> Option<usize> {
+        None
     }
+
+    async fn embed_batch(
+        &self,
+        _texts: &[String],
+        _kind: EmbedKind,
+    ) -> vibe_embed::Result<Vec<Vec<f32>>> {
+        Err(vibe_embed::EmbeddingError::BackendNotEnabled("candle"))
+    }
+}
+
+/// Catalog id of the in-process model. Shared by the stub and the real
+/// backend so both report the same identity.
+pub const fn minilm_model_id() -> &'static str {
+    "all-MiniLM-L6-v2"
 }
 
 #[async_trait]
@@ -211,12 +230,21 @@ pub mod kv_cache_codec;
 mod tests {
     use super::*;
 
+    /// The stub must still name the model it stands in for, so an index
+    /// header built in a non-candle build is not mislabelled.
+    #[test]
+    fn stub_reports_the_local_model_identity() {
+        assert_eq!(StubBackend.model().provider, ProviderKind::Local);
+        assert_eq!(StubBackend.model().model, minilm_model_id());
+        assert_eq!(StubBackend.dim(), None);
+    }
+
     #[tokio::test]
     async fn stub_embedder_errors() {
-        let r = StubBackend.embed("hello").await;
+        let r = StubBackend.embed("hello", EmbedKind::Document).await;
         assert!(matches!(
             r,
-            Err(InferenceError::BackendNotEnabled("candle"))
+            Err(vibe_embed::EmbeddingError::BackendNotEnabled("candle"))
         ));
     }
 

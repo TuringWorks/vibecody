@@ -19,6 +19,7 @@ members = [
     "crates/vibe-desktop-settings",
     "crates/vibe-desktop-voice",
     "crates/vibe-profile-store",
+    "crates/vibe-embed",
     "vibe-indexer",
     "vibe-memory",
     "kodegraph",

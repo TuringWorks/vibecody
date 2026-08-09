@@ -228,6 +228,7 @@ header_pages:
   - connectivity.md
   - providers/index.md
   - configuration.md
+  - embeddings.md
   - memory-guide.md
   - api-reference.md
   - architecture.md

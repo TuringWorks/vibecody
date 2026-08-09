@@ -32,7 +32,8 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
 use tracing::{info, warn};
-use vibe_core::index::embeddings::{EmbeddingIndex, EmbeddingProvider, SearchHit};
+use vibe_core::index::embeddings::{EmbeddingIndex, SearchHit};
+use vibe_embed::{EmbeddingSettings, ProviderKind, SharedEmbedder};
 use vibe_core::path_guard::reject_sensitive_path;
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -59,9 +60,14 @@ pub enum JobStatus {
 
 /// Shared server state.
 pub struct AppState {
-    /// Active embedding provider config.
-    provider: EmbeddingProvider,
-    /// Completed indexes, keyed by workspace path string.
+    /// The embedding model this process indexes and searches with.
+    settings: EmbeddingSettings,
+    /// Live embedder for `settings`. Holds the API key, so it is never
+    /// serialised into a response or an index file.
+    embedder: SharedEmbedder,
+    /// Completed indexes, keyed by workspace path string. Every index in this
+    /// map was built with `settings` — indexes for other models stay on disk
+    /// under their own filename and are simply not loaded by this process.
     indexes: RwLock<HashMap<String, EmbeddingIndex>>,
     /// All jobs (including running/failed).
     jobs: RwLock<HashMap<String, IndexJob>>,
@@ -102,13 +108,41 @@ fn default_limit() -> usize {
 pub struct SearchResponse {
     pub hits: Vec<SearchHit>,
     pub total: usize,
+    /// Which model produced these scores. Without it a client cannot tell a
+    /// genuinely empty result from a result served by a different model than
+    /// it expected.
+    pub model: String,
+    pub dimension: Option<usize>,
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
-/// GET /health — liveness probe.
-async fn health() -> impl IntoResponse {
-    Json(serde_json::json!({ "status": "ok", "service": "vibe-indexer" }))
+/// GET /health — liveness probe, and the authoritative answer to "which
+/// embedding model is this indexer using?".
+async fn health(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    Json(serde_json::json!({
+        "status": "ok",
+        "service": "vibe-indexer",
+        "embedding": {
+            "provider": state.settings.provider.as_str(),
+            "model": state.settings.model,
+            "dimensions": state.settings.model_ref().known_dimension(),
+            "local": state.settings.provider.is_local(),
+        }
+    }))
+}
+
+/// GET /embeddings/models — the model catalog this build knows about, with
+/// availability. Lets a client offer the same picker the desktop app does.
+async fn embedding_models(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    // This process holds exactly one key, for its own provider; it cannot
+    // report on providers it was not configured with.
+    let configured = state.settings.provider;
+    let catalog = vibe_embed::provider_catalog(|p| p == configured);
+    Json(serde_json::json!({
+        "selected": state.settings,
+        "providers": catalog,
+    }))
 }
 
 /// POST /index — kick off an async indexing job.
@@ -155,7 +189,8 @@ async fn start_index(
     let job_id_clone = job_id.clone();
     tokio::spawn(async move {
         let workspace_path = PathBuf::from(&workspace);
-        let result = EmbeddingIndex::build(&workspace_path, &state_clone.provider).await;
+        let result =
+            EmbeddingIndex::build(&workspace_path, state_clone.embedder.clone()).await;
 
         let mut jobs = state_clone.jobs.write().await;
         if let Some(job) = jobs.get_mut(&job_id_clone) {
@@ -168,9 +203,17 @@ async fn start_index(
                     info!("Job {} complete: {} documents indexed", job_id_clone, count);
                     drop(jobs);
 
-                    // Persist to disk so the index survives restarts
+                    // Persist to disk so the index survives restarts. The
+                    // model slug is part of the filename so re-running with a
+                    // different --model builds a second index alongside the
+                    // first rather than overwriting vectors it cannot compare.
                     let encoded = urlencoding_encode(&workspace);
-                    let save_path = state_clone.persist_dir.join(format!("{}.json", encoded));
+                    let save_path = state_clone.persist_dir.join(format!(
+                        "{}__{}.json",
+                        encoded,
+                        state_clone.settings.model_ref().slug()
+                    ));
+                    let mut index = index;
                     if let Err(e) = index.save(&save_path) {
                         warn!("Could not persist index for {}: {}", workspace, e);
                     } else {
@@ -263,7 +306,13 @@ async fn search(
     match index.search(&req.query, req.limit).await {
         Ok(hits) => {
             let total = hits.len();
-            match serde_json::to_value(SearchResponse { hits, total }) {
+            let response = SearchResponse {
+                hits,
+                total,
+                model: state.settings.model_ref().to_string(),
+                dimension: index.dimension(),
+            };
+            match serde_json::to_value(response) {
                 Ok(v) => (StatusCode::OK, Json(v)),
                 Err(e) => (
                     StatusCode::INTERNAL_SERVER_ERROR,
@@ -311,17 +360,34 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or("9999".into())
         .parse()
         .unwrap_or(9999);
-    let provider_name = arg_value(&args, "--provider").unwrap_or("ollama".into());
-    let model = arg_value(&args, "--model").unwrap_or("nomic-embed-text".into());
-    let api_key = arg_value(&args, "--api-key").unwrap_or_default();
+    // Zero-config default: local Ollama + nomic-embed-text, no key needed.
+    let defaults = EmbeddingSettings::default();
+    let provider_name = arg_value(&args, "--provider").unwrap_or_else(|| defaults.provider.as_str().to_string());
+    let model = arg_value(&args, "--model").unwrap_or_else(|| defaults.model.clone());
+    let api_key = arg_value(&args, "--api-key").filter(|k| !k.trim().is_empty());
 
-    let provider = match provider_name.as_str() {
-        "openai" => EmbeddingProvider::OpenAI { api_key, model },
-        _ => EmbeddingProvider::Ollama {
-            model,
-            api_url: arg_value(&args, "--ollama-url").unwrap_or("http://localhost:11434".into()),
-        },
-    };
+    // An unrecognised --provider is an error, not a silent fallback to Ollama.
+    // Indexing an entire workspace with the wrong model is expensive to
+    // discover later and expensive to redo.
+    let settings = EmbeddingSettings::parse(&provider_name, &model).ok_or_else(|| {
+        anyhow::anyhow!(
+            "unknown embedding provider '{provider_name}' — expected one of: {}",
+            ProviderKind::ALL
+                .iter()
+                .map(|p| p.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    })?
+    .with_dimensions(
+        arg_value(&args, "--dimensions").and_then(|d| d.parse().ok()),
+    )
+    .with_base_url(arg_value(&args, "--base-url").or_else(|| arg_value(&args, "--ollama-url")));
+
+    let embedder = settings
+        .build(|_| api_key.clone())
+        .map_err(|e| anyhow::anyhow!("cannot use {}: {e}", settings.describe()))?;
+    info!("Embedding with {}", settings.describe());
 
     // Persistence directory: ~/.vibe-indexer/indexes/
     let persist_dir = std::env::var("HOME")
@@ -331,31 +397,45 @@ async fn main() -> anyhow::Result<()> {
         .join("indexes");
     std::fs::create_dir_all(&persist_dir).ok();
 
-    // Warm up: load any previously-saved indexes from disk
+    // Warm up: load previously-saved indexes built with *this* model. Indexes
+    // for other models stay on disk untouched; switching --model back picks
+    // them up again with no re-embedding.
+    let suffix = format!("__{}", settings.model_ref().slug());
     let mut warmed: HashMap<String, EmbeddingIndex> = HashMap::new();
     if let Ok(rd) = std::fs::read_dir(&persist_dir) {
         for entry in rd.flatten() {
             let path = entry.path();
-            if path.extension().and_then(|e| e.to_str()) == Some("json") {
-                // The file stem is a percent-encoded workspace path
-                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                    let workspace = urlencoding_decode(stem);
-                    match EmbeddingIndex::load(&path) {
-                        Ok(idx) => {
-                            info!("Loaded persisted index for workspace: {}", workspace);
-                            warmed.insert(workspace, idx);
-                        }
-                        Err(e) => {
-                            warn!("Could not load persisted index {}: {}", path.display(), e);
-                        }
-                    }
+            if path.extension().and_then(|e| e.to_str()) != Some("json") {
+                continue;
+            }
+            // Stem is `<percent-encoded workspace>__<model slug>`. A stem
+            // without our suffix belongs to another model.
+            let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
+                continue;
+            };
+            let Some(encoded) = stem.strip_suffix(&suffix) else {
+                continue;
+            };
+            let workspace = urlencoding_decode(encoded);
+            match EmbeddingIndex::load(&path).and_then(|i| i.with_embedder(embedder.clone())) {
+                Ok(idx) => {
+                    info!(
+                        "Loaded persisted index for workspace {} ({} chunks)",
+                        workspace,
+                        idx.chunk_count()
+                    );
+                    warmed.insert(workspace, idx);
+                }
+                Err(e) => {
+                    warn!("Could not load persisted index {}: {}", path.display(), e);
                 }
             }
         }
     }
 
     let state = Arc::new(AppState {
-        provider,
+        settings,
+        embedder,
         indexes: RwLock::new(warmed),
         jobs: RwLock::new(HashMap::new()),
         persist_dir,
@@ -363,6 +443,7 @@ async fn main() -> anyhow::Result<()> {
 
     let app = Router::new()
         .route("/health", get(health))
+        .route("/embeddings/models", get(embedding_models))
         .route("/index", post(start_index))
         .route("/index/jobs", get(list_jobs))
         .route("/index/status/{id}", get(index_status))

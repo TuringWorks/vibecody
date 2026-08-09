@@ -312,6 +312,92 @@ function resolveDaemonToken(explicit?: string): string | undefined {
   }
 }
 
+// ── Embeddings ───────────────────────────────────────────────────────────────
+
+/** Why an embedding provider can or cannot be used right now. */
+export type EmbeddingAvailability =
+  | { state: 'ready' }
+  | { state: 'needs_api_key' }
+  | { state: 'not_compiled_in' };
+
+export interface EmbeddingModelInfo {
+  provider: string;
+  id: string;
+  display_name: string;
+  /** Native output dimension, or null when it is only known after a call. */
+  dimension: number | null;
+  /** Dimensions the model can be truncated to (Matryoshka). */
+  supported_dimensions: number[];
+  max_input_tokens: number | null;
+  document_prefix: string;
+  query_prefix: string;
+  recommended_for_code: boolean;
+  notes: string;
+}
+
+export interface EmbeddingProviderInfo {
+  provider: string;
+  id: string;
+  display_name: string;
+  requires_api_key: boolean;
+  /** True when embedding never leaves the machine running the daemon. */
+  is_local: boolean;
+  availability: EmbeddingAvailability;
+  models: EmbeddingModelInfo[];
+  default_model: string | null;
+}
+
+export interface EmbeddingSettings {
+  provider: string;
+  model: string;
+  dimensions?: number;
+  base_url?: string;
+}
+
+export interface EmbeddingModelsResponse {
+  providers: EmbeddingProviderInfo[];
+  selected: EmbeddingSettings | null;
+  /** Present when the daemon's embedding config is invalid. */
+  error?: string;
+  ollama_installed:
+    | { status: 'ok'; models: string[] }
+    | { status: 'unreachable'; error: string };
+}
+
+export interface EmbedResponse {
+  model: { provider: string; model: string; dimensions?: number };
+  /** Measured length of the returned vectors, not a catalog value. */
+  dimension: number | null;
+  embeddings: number[][];
+}
+
+export interface IndexHeaderInfo {
+  format_version: number;
+  model: { provider: string; model: string; dimensions?: number };
+  dimension: number | null;
+  chunk_count: number;
+  file_count: number;
+  built_at: number | null;
+}
+
+export interface IndexStatusResponse {
+  selected: EmbeddingSettings;
+  description: string;
+  /** Whether the *selected* model has an index. */
+  built: boolean;
+  current: IndexHeaderInfo | null;
+  /** Every index on disk — each switchable to without re-embedding. */
+  available: IndexHeaderInfo[];
+}
+
+export interface IndexBuildResponse {
+  model: { provider: string; model: string; dimensions?: number };
+  chunks: number;
+  files: number;
+  dimension: number | null;
+  path: string;
+}
+
 export class VibeCLIAgent {
   private baseUrl: string;
   private approval: string;
@@ -416,6 +502,78 @@ export class VibeCLIAgent {
     for await (const data of readSseLines(res.body)) {
       yield data;
     }
+  }
+
+  /**
+   * List every embedding provider, its models, and whether it is usable now.
+   *
+   * The catalog is served by the daemon rather than shipped in this package,
+   * so a model added to VibeCody's catalog is available here without an SDK
+   * release. `providers[].availability` distinguishes "ready" from "needs an
+   * API key" from "not compiled into this build".
+   */
+  async listEmbeddingModels(): Promise<EmbeddingModelsResponse> {
+    const res = await this.authedFetch(`${this.baseUrl}/embeddings/models`);
+    if (!res.ok) {
+      throw new AgentError(`listEmbeddingModels failed: ${res.status} ${await res.text()}`);
+    }
+    return res.json() as Promise<EmbeddingModelsResponse>;
+  }
+
+  /**
+   * Embed texts with the daemon's configured (or an explicitly named) model.
+   *
+   * `kind` is not optional in spirit even though it defaults to `document`:
+   * asymmetric models (nomic, mxbai, Voyage, Cohere, Gemini) place stored
+   * passages and search queries in different regions of the space, and
+   * embedding a query as a document silently costs recall rather than
+   * erroring. Pass `"query"` when embedding something you are searching with.
+   */
+  async embed(
+    texts: string[],
+    opts: { kind?: 'document' | 'query'; provider?: string; model?: string } = {},
+  ): Promise<EmbedResponse> {
+    const res = await this.authedFetch(`${this.baseUrl}/embeddings/embed`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texts, ...opts }),
+    });
+    if (!res.ok) {
+      throw new AgentError(`embed failed: ${res.status} ${await res.text()}`);
+    }
+    return res.json() as Promise<EmbedResponse>;
+  }
+
+  /**
+   * Which embedding models this workspace has a semantic code index for.
+   *
+   * Indexes are per-model and kept side by side, so `available` lists every
+   * model that can be switched to without re-embedding.
+   */
+  async indexStatus(): Promise<IndexStatusResponse> {
+    const res = await this.authedFetch(`${this.baseUrl}/index/status`);
+    if (!res.ok) {
+      throw new AgentError(`indexStatus failed: ${res.status} ${await res.text()}`);
+    }
+    return res.json() as Promise<IndexStatusResponse>;
+  }
+
+  /**
+   * Build (or rebuild) the semantic code index.
+   *
+   * Resolves when the index is written, not when the job starts — embedding a
+   * workspace takes real time and, on a paid provider, real money.
+   */
+  async buildIndex(opts: { provider?: string; model?: string } = {}): Promise<IndexBuildResponse> {
+    const res = await this.authedFetch(`${this.baseUrl}/index/build`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(opts),
+    });
+    if (!res.ok) {
+      throw new AgentError(`buildIndex failed: ${res.status} ${await res.text()}`);
+    }
+    return res.json() as Promise<IndexBuildResponse>;
   }
 
   /**

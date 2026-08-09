@@ -12,6 +12,7 @@ path = "src/main.rs"
 
 [dependencies]
 vibe-core = { path = "../vibecoder/crates/vibe-core" }
+vibe-embed = { path = "../crates/vibe-embed" }
 
 # HTTP server
 axum = { workspace = true }

@@ -30,6 +30,7 @@ All surfaces are backed by a shared set of Rust crates for AI providers, text ed
 | [VibeCoder Reference](./vibecoder/) | Desktop editor features and setup |
 | [Design System](./design-system/) | Token-based UI system — colors, spacing, typography, components |
 | [Configuration Guide](./configuration/) | All configuration options for providers and UI |
+| [Embedding Models](./embeddings/) | Semantic search / RAG — which embedding model, per-model indexes, provider setup |
 | [Memory Guide](./memory-guide/) | All memory layers — auto-recording, cognitive store, verbatim drawers, benchmarking |
 | [Memory Architecture](./memory-architecture/) | Detailed architecture: five stores, Context Assembler, Recap/Resume, storage security |
 | [Architecture](./architecture/) | Crate structure, data flow, and design decisions |

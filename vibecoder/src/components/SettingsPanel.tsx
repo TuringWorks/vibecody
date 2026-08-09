@@ -16,14 +16,15 @@ import {
   Sun, Moon, Eye, EyeOff, ChevronRight, CheckCircle, MinusCircle, AlertCircle,
   Loader2, Zap, Plug,
   Mail, CalendarDays, ClipboardList, MessageSquare, Search, Mic, Home, Server,
-  Briefcase,
+  Briefcase, Boxes,
 } from "lucide-react";
 import { THEMES, applyThemeById, type ThemeDef } from "../theme/themes";
+import { EmbeddingModelPicker } from "./EmbeddingModelPicker";
 import { ExperimentalBadge } from "./ExperimentalBadge";
 
 /* ── Types ──────────────────────────────────────────────────────────── */
 
-type SettingsSection = "profile" | "appearance" | "oauth" | "customizations" | "apikeys" | "integrations" | "sessions" | "jobs";
+type SettingsSection = "profile" | "appearance" | "oauth" | "customizations" | "apikeys" | "embeddings" | "integrations" | "sessions" | "jobs";
 
 interface SessionsSettings {
   recapOnTabClose: boolean;
@@ -1867,12 +1868,13 @@ const SECTIONS: { key: SettingsSection; label: string; icon: React.ReactNode }[]
   { key: "oauth", label: "OAuth Login", icon: <LogIn size={16} /> },
   { key: "customizations", label: "Customizations", icon: <Save size={16} /> },
   { key: "apikeys", label: "API Keys", icon: <Key size={16} /> },
+  { key: "embeddings", label: "Embeddings", icon: <Boxes size={16} /> },
   { key: "integrations", label: "Integrations", icon: <Plug size={16} /> },
   { key: "sessions", label: "Sessions", icon: <MessageSquare size={16} /> },
   { key: "jobs", label: "Background Jobs", icon: <Briefcase size={16} /> },
 ];
 
-export function SettingsPanel({ onClose }: { onClose?: () => void }) {
+export function SettingsPanel({ onClose, workspacePath }: { onClose?: () => void; workspacePath?: string | null }) {
   const [section, setSection] = useState<SettingsSection>("profile");
 
   return (
@@ -1907,6 +1909,7 @@ export function SettingsPanel({ onClose }: { onClose?: () => void }) {
         {section === "oauth" && <OAuthSection />}
         {section === "customizations" && <CustomizationsSection />}
         {section === "apikeys" && <ApiKeysSection />}
+        {section === "embeddings" && <EmbeddingModelPicker workspacePath={workspacePath ?? null} />}
         {section === "integrations" && <IntegrationsSection />}
         {section === "sessions" && <SessionsSection />}
         {section === "jobs" && <JobsSection />}

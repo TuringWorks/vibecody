@@ -397,6 +397,12 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::ai_chat_with_effort,
+            commands::embedding_list_models,
+            commands::embedding_get_settings,
+            commands::embedding_set_settings,
+            commands::embedding_index_status,
+            commands::embedding_index_build,
+            commands::embedding_embed_texts,
             commands::design_emit_diff,
             commands::security_review_file,
             commands::webmcp_parse_tools,
