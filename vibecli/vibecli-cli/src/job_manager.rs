@@ -2119,6 +2119,31 @@ impl JobManager {
                         got_terminal = true;
                         break;
                     }
+                    DispatchFrame::Partial {
+                        summary,
+                        steps_completed,
+                        steps_planned,
+                        remaining_plan,
+                    } => {
+                        // Publish the rich event first so SSE consumers get
+                        // the remaining plan, then record the honest status.
+                        let _ = jm
+                            .publish_event(
+                                &sid_owned,
+                                AgentEventPayload::partial(
+                                    summary.clone(),
+                                    steps_completed,
+                                    steps_planned,
+                                    remaining_plan,
+                                ),
+                            )
+                            .await;
+                        let _ = jm
+                            .mark_terminal(&sid_owned, JobStatus::Partial, Some(summary), None)
+                            .await;
+                        got_terminal = true;
+                        break;
+                    }
                     DispatchFrame::Error { message } => {
                         let _ = jm
                             .mark_terminal(&sid_owned, JobStatus::Failed, None, Some(message))

@@ -68,6 +68,23 @@ pub enum DispatchFrame {
     Event(AgentEventPayload),
     /// Child → Parent: terminal success.
     Complete { summary: String },
+    /// Child → Parent: terminal, but the agent stopped with planned work
+    /// outstanding.
+    ///
+    /// Neither `Complete` (which this protocol defines as *success*) nor
+    /// `Error` (the work done is real and the run is resumable) fits. Without
+    /// it, a dispatched run that stopped mid-plan fell through the child's
+    /// `_ => continue` and the parent recorded "Agent finished." as a
+    /// completion. Maps to `JobStatus::Partial`.
+    ///
+    /// Safe to add: the child is this same binary, self-spawned via
+    /// `current_exe()`, so parent and child can never be different versions.
+    Partial {
+        summary: String,
+        steps_completed: usize,
+        steps_planned: usize,
+        remaining_plan: Vec<String>,
+    },
     /// Child → Parent: terminal failure.
     Error { message: String },
 }
@@ -634,6 +651,35 @@ mod tests {
         match back {
             DispatchFrame::Event(ev) => assert_eq!(ev.kind, "chunk"),
             other => panic!("expected Event, got {other:?}"),
+        }
+    }
+
+    /// A dispatched run that stopped mid-plan must have a frame of its own.
+    /// It previously fell through the child's `_ => continue`, so the parent
+    /// saw no terminal frame and recorded `Complete { "Agent finished." }`.
+    #[test]
+    fn partial_frame_round_trips_and_is_distinct_from_complete() {
+        let f = DispatchFrame::Partial {
+            summary: "Refactored the parser.".into(),
+            steps_completed: 1,
+            steps_planned: 3,
+            remaining_plan: vec!["update call sites".into(), "run tests".into()],
+        };
+        let s = serde_json::to_string(&f).expect("partial frame must serialize");
+        assert!(s.contains("\"frame\":\"partial\""), "{s}");
+        assert!(!s.contains("\"frame\":\"complete\""), "{s}");
+        match serde_json::from_str::<DispatchFrame>(&s).expect("must deserialize") {
+            DispatchFrame::Partial {
+                summary,
+                steps_completed,
+                steps_planned,
+                remaining_plan,
+            } => {
+                assert_eq!(summary, "Refactored the parser.");
+                assert_eq!((steps_completed, steps_planned), (1, 3));
+                assert_eq!(remaining_plan.len(), 2);
+            }
+            other => panic!("expected Partial, got {other:?}"),
         }
     }
 }

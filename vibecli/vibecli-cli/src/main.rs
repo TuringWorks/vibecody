@@ -2433,6 +2433,46 @@ async fn run_real_worker_agent_loop(mut session: subprocess_dispatch::WorkerSess
                         completed = true;
                         break;
                     }
+                    // Terminal with work outstanding. This used to fall into
+                    // `_ => continue`, so the loop drained, `completed` stayed
+                    // false, and the fallback below reported
+                    // `Complete { "Agent finished." }` — a dispatched run that
+                    // stopped mid-plan recorded on the parent as a success.
+                    AgentEvent::Partial {
+                        summary,
+                        steps_completed,
+                        steps_planned,
+                        remaining_plan,
+                    } => {
+                        persist_to_scratchpad_best_effort(
+                            &scratchpad_db_path,
+                            &job_id,
+                            "terminal_partial",
+                            &summary,
+                        );
+                        session
+                            .send(DispatchFrame::Partial {
+                                summary,
+                                steps_completed,
+                                steps_planned,
+                                remaining_plan,
+                            })
+                            .await;
+                        completed = true;
+                        break;
+                    }
+                    // Nothing on this side can prompt a human, and dropping
+                    // `result_tx` makes the agent abandon its run with no
+                    // terminal event at all.
+                    AgentEvent::ToolCallPending { call, result_tx } => {
+                        let _ = result_tx.send(None);
+                        session
+                            .send(DispatchFrame::Event(AgentEventPayload::system(format!(
+                                "`{}` needs approval, which a dispatched run cannot request.",
+                                call.name(),
+                            ))))
+                            .await;
+                    }
                     _ => continue,
                 }
             }
@@ -20079,6 +20119,27 @@ async fn run_watch_mode(
                     AgentEvent::Error(e) => {
                         eprintln!("\n❌ Agent error: {}\n", e);
                         break;
+                    }
+                    // Without this the loop just drained and printed nothing:
+                    // the run was over and the console never said so.
+                    AgentEvent::Partial {
+                        summary,
+                        steps_completed,
+                        steps_planned,
+                        remaining_plan,
+                    } => {
+                        eprintln!(
+                            "\n⚠ Agent incomplete — {steps_completed}/{steps_planned} planned steps: {summary}"
+                        );
+                        for (i, item) in remaining_plan.iter().enumerate() {
+                            eprintln!("   {}. {item}", steps_completed + i + 1);
+                        }
+                        eprintln!();
+                        break;
+                    }
+                    AgentEvent::ToolCallPending { call, result_tx } => {
+                        let _ = result_tx.send(None);
+                        eprintln!("  {} → skipped (needs approval)", call.name());
                     }
                     _ => {}
                 }
