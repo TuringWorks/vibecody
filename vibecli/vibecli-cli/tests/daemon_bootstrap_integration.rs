@@ -16,6 +16,17 @@
 //! was reported as broken on every launch. Any regression that reintroduces a
 //! short fixed wait fails here.
 //!
+//! Every daemon spawned here gets `HOME` pointed at a `TempDir`. The token file
+//! is a single shared path (`$HOME/.vibecli/daemon.token`, not per-port), so a
+//! test running with the real `HOME` clobbers the developer's own daemon token
+//! and breaks every client on the machine until they restart it.
+//!
+//! The two `ensure_running` calls below do **not** need that treatment: one
+//! returns `AlreadyRunning` and the other `PortTakenByOther`, both of which
+//! short-circuit before `spawn_detached`. If either ever started spawning, it
+//! would inherit this process's `HOME` — the assertions would fail first, but
+//! it is worth knowing why they are safe.
+//!
 //! Skipped (not failed) when the binary hasn't been built, so `cargo test`
 //! still works on a fresh checkout. Run `cargo build -p vibecli --bin vibecli`
 //! first to exercise it.
@@ -76,8 +87,18 @@ async fn real_daemon_identifies_itself_and_is_reused() {
         "nothing should identify as the daemon before we start it"
     );
 
+    // Isolate HOME. The daemon writes its bearer token to
+    // `$HOME/.vibecli/daemon.token` (plus jobs/, sessions.db, codegraph.db),
+    // and that path is shared by every daemon regardless of port — so a test
+    // that inherits the real HOME silently overwrites the token of whatever
+    // daemon the developer has running, and every one of their clients then
+    // 401s against a healthy daemon. `current_dir` moves the workspace-derived
+    // state there too.
+    let home = tempfile::tempdir().expect("temp home");
     let child = Command::new(&binary)
         .args(["--serve", "--port", &port.to_string()])
+        .env("HOME", home.path())
+        .current_dir(home.path())
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())

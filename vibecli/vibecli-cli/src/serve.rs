@@ -7672,8 +7672,30 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
     // More restrictive rate limiter for public routes: 10 requests per 60 seconds
     let public_limiter = Arc::new(RateLimiter::new(10, Duration::from_secs(60)));
 
-    let public_routes = Router::new()
+    // `/health` is deliberately NOT on that limiter.
+    //
+    // It is the liveness *and identity* probe every client polls — three
+    // desktop apps poll it for their status dot, and `daemon_bootstrap::probe`
+    // polls it every 250ms while waiting for startup. They all arrive from
+    // 127.0.0.1, so they share one per-IP bucket: 10/min is exhausted in
+    // seconds and never recovers.
+    //
+    // Throttling it is self-defeating, because the failure is not a slow
+    // health check — it is a cascade. A throttled `/health` returns
+    // `{"error":"Rate limit exceeded"}`, which carries no `service` field, so
+    // `probe()` reports "something answered but it is not VibeCLI", every
+    // client concludes a stranger owns the port, and they start spawning
+    // replacement daemons against a daemon that was healthy all along.
+    //
+    // It stays cheap to serve (cached stats) and exposes nothing secret, so it
+    // gets its own generous bucket purely as a floodgate against a runaway
+    // client, at a limit no honest poller can reach.
+    let health_limiter = Arc::new(RateLimiter::new(600, Duration::from_secs(60)));
+    let health_route = Router::new()
         .route("/health", get(health))
+        .route_layer(middleware::from_fn_with_state(health_limiter, rate_limit));
+
+    let public_routes = Router::new()
         .route("/models", get(list_models))
         .route("/web", get(web_client_page))
         .route("/favicon.svg", get(web_favicon))
@@ -7764,6 +7786,7 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
 
     // Public routes (health check, GitHub webhook with HMAC, pairing, collab WS, ACP discovery)
     let app = public_routes
+        .merge(health_route)
         .merge(authed_routes)
         .merge(inference_routes)
         .nest("/watch", watch_router);
@@ -8384,6 +8407,21 @@ pub async fn serve(
     }
 
     let addr = format!("{host}:{port}");
+
+    // Bind BEFORE writing the token. Binding is what reserves the port, so a
+    // second daemon that cannot have it fails here — before it has touched the
+    // shared `~/.vibecli/daemon.token`. The previous order (write, then bind)
+    // meant a daemon that lost the race still clobbered the *live* daemon's
+    // token on its way out, and every client then 401'd against a healthy
+    // daemon with no way to recover but restarting it. Observed exactly that.
+    //
+    // The race this ordering used to guard against does not occur: `bind`
+    // opens the listening socket but nothing is answered until `axum::serve`
+    // accepts, and that happens well after the write below. A client that
+    // connects in between waits in the backlog rather than reading a stale
+    // token.
+    let listener = tokio::net::TcpListener::bind(&addr).await?;
+
     // Write the full token to a file (mode 0600) instead of logging it.
     //
     // This is a hard failure, not a warning. The token is freshly random for
@@ -8424,11 +8462,9 @@ pub async fn serve(
     // 32 hex chars, but a startup panic is a poor way to discover that changed.
     let masked = mask_secret(&api_token);
 
-    // Bind only after the token is on disk. Two reasons: a client that connects
-    // the instant the port opens would otherwise read the *previous* run's
-    // token from the file and 401; and announcing "Listening on …" before a
-    // step that can abort startup makes the log claim something untrue.
-    let listener = tokio::net::TcpListener::bind(&addr).await?;
+    // The listener was bound above; announce it only now, after every step that
+    // can still abort startup has succeeded, so the log never claims to be
+    // listening when it is about to exit.
     eprintln!("[vibecli serve] Listening on http://{addr}");
     eprintln!("[vibecli serve] API token: {masked} (full token in ~/.vibecli/daemon.token)");
     eprintln!("[vibecli serve] Jobs persisted at ~/.vibecli/jobs/");

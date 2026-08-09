@@ -177,15 +177,32 @@ pub fn default_port() -> u16 {
 /// *other* service. Only an exact `service == "vibecli"` counts.
 pub async fn probe(port: u16) -> Option<DaemonIdentity> {
     let url = format!("http://127.0.0.1:{port}/health");
-    let body = reqwest::Client::new()
+    let res = reqwest::Client::new()
         .get(&url)
         .timeout(PROBE_TIMEOUT)
         .send()
         .await
-        .ok()?
-        .json::<serde_json::Value>()
-        .await
         .ok()?;
+
+    // A rate-limited health check is our own daemon saying "too fast", not a
+    // stranger on the port. Reading it as a foreign service is how a healthy
+    // daemon got reported as "Port 7878 is in use by another program", after
+    // which every client tried to spawn a replacement — and each replacement
+    // clobbered the live daemon's token on its way out. Retry once; the caller
+    // polls anyway, and `/health` now has a limit no honest poller reaches.
+    let res = if res.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
+        tokio::time::sleep(POLL_INTERVAL).await;
+        reqwest::Client::new()
+            .get(&url)
+            .timeout(PROBE_TIMEOUT)
+            .send()
+            .await
+            .ok()?
+    } else {
+        res
+    };
+
+    let body = res.json::<serde_json::Value>().await.ok()?;
 
     // Accept a daemon that predates the `service` field via its exact legacy
     // shape (`status: "ok"` **and** a `version` string).
@@ -502,6 +519,51 @@ pub async fn ensure_running(config: &BootstrapConfig) -> DaemonState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The cascade this guards against: a throttled `/health` has no `service`
+    /// field, so a strict reader calls a healthy daemon a stranger.
+    #[tokio::test]
+    async fn a_rate_limited_health_check_is_not_a_foreign_service() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
+
+        let hits = Arc::new(AtomicUsize::new(0));
+        let seen = hits.clone();
+        // First call 429s, second answers properly — exactly what a bucket
+        // that has just refilled looks like.
+        let app = axum::Router::new().route(
+            "/health",
+            axum::routing::get(move || {
+                let seen = seen.clone();
+                async move {
+                    if seen.fetch_add(1, Ordering::SeqCst) == 0 {
+                        (
+                            axum::http::StatusCode::TOO_MANY_REQUESTS,
+                            axum::Json(serde_json::json!({"error": "Rate limit exceeded."})),
+                        )
+                    } else {
+                        (
+                            axum::http::StatusCode::OK,
+                            axum::Json(serde_json::json!({
+                                "status": "ok", "service": SERVICE_NAME, "version": "9.9.9"
+                            })),
+                        )
+                    }
+                }
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+
+        let id = probe(port).await;
+        assert!(
+            id.is_some(),
+            "a 429 must be retried, not read as a foreign service"
+        );
+        assert_eq!(id.unwrap().version, "9.9.9");
+        assert_eq!(hits.load(Ordering::SeqCst), 2, "expected exactly one retry");
+    }
 
     #[test]
     fn spawn_dir_skips_unwritable_candidates() {
