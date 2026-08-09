@@ -1,4 +1,6 @@
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { toWire } from "../lib/sandbox";
+import { effortParam } from "../lib/effort";
 import { ArrowUp, Square, Trash2 } from "lucide-react";
 import { Markdown } from "./Markdown";
 import { ToolUseBlock } from "./ToolUseBlock";
@@ -60,7 +62,9 @@ export function SideChatPanel({
       provider: prefs.provider,
       model: prefs.model,
       approval: prefs.approval,
-      reasoning: prefs.reasoning,
+      reasoning: effortParam(prefs.reasoning),
+      mode: prefs.mode,
+      sandbox: prefs.mode === "sandbox" ? toWire(prefs.sandbox) : undefined,
       resumeSessionId: sessionRef.current ?? undefined,
       workspaceRoot,
     });

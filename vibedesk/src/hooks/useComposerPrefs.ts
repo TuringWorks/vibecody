@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { ApprovalTier } from "../components/ApprovalPill";
 import type { ReasoningEffort } from "../components/ReasoningPill";
+import type { RunMode } from "../components/ModePill";
+import { LOCKED_SANDBOX, type SandboxPolicy } from "../lib/sandbox";
 
 /** Settings key holding the composer's run controls as a JSON blob. */
 const PREFS_KEY = "vibedesk.composer";
@@ -11,6 +13,10 @@ export interface ComposerPrefs {
   model?: string;
   approval: ApprovalTier;
   reasoning: ReasoningEffort;
+  /** Agent (tool loop) or Chat (single reply, no tools). */
+  mode: RunMode;
+  /** Sandbox-mode grants. Ignored in Agent and Chat modes. */
+  sandbox: SandboxPolicy;
   /** Whether the next run forks its own git worktree branch. */
   isolate: boolean;
 }
@@ -19,7 +25,15 @@ const DEFAULTS: ComposerPrefs = {
   provider: "ollama",
   model: undefined,
   approval: "default",
-  reasoning: "medium",
+  // Off by default: extended thinking is opt-in. It costs latency and
+  // tokens on every turn, and for most prompts the user wants an answer.
+  reasoning: "off",
+  // Agent stays the default: VibeDesk is a task runner first, and
+  // silently answering instead of acting would be the worse surprise.
+  mode: "agent",
+  // Denies everything outside the workspace: selecting Sandbox mode grants
+  // nothing until the user opens the settings and says what to allow.
+  sandbox: LOCKED_SANDBOX,
   isolate: false,
 };
 

@@ -19,6 +19,7 @@ import type { QuickAction } from "../components/QuickActionDrawer";
 import type { SlashAction } from "../components/slashCommands";
 import { useProjects } from "../hooks/useProjects";
 import { useComposerPrefs } from "../hooks/useComposerPrefs";
+import { useLayoutPrefs, clampEnvWidth } from "../hooks/useLayoutPrefs";
 import type { Task, useTasks } from "../hooks/useTasks";
 import type { Attachment } from "../lib/attachments";
 
@@ -79,6 +80,9 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
   // Run controls live here, not in the remounted composer, so a chosen model
   // survives clicking between chats.
   const { prefs, update: setPref, setProviderModel } = useComposerPrefs();
+  // Right-rail width + which Environment sections are open, both persisted.
+  const { envWidth, setEnvWidth, isOpen, toggleSection } = useLayoutPrefs();
+  const [dragging, setDragging] = useState(false);
   const [drafts, setDrafts] = useState<Drafts>({});
   const [attachments, setAttachments] = useState<Attachments>({});
 
@@ -273,11 +277,35 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
     }
   }
 
+  // Drag-to-resize the right rail. Width is measured from the window's right
+  // edge, so it tracks the pointer regardless of the left rail's state.
+  const startResize = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      const el = e.currentTarget;
+      el.setPointerCapture(e.pointerId);
+      setDragging(true);
+      const onMove = (ev: PointerEvent) =>
+        setEnvWidth(clampEnvWidth(window.innerWidth - ev.clientX));
+      const onUp = (ev: PointerEvent) => {
+        el.releasePointerCapture?.(ev.pointerId);
+        el.removeEventListener("pointermove", onMove);
+        el.removeEventListener("pointerup", onUp);
+        setDragging(false);
+      };
+      el.addEventListener("pointermove", onMove);
+      el.addEventListener("pointerup", onUp);
+    },
+    [setEnvWidth],
+  );
+
   return (
     <div
       className="vibedesk-shell"
       data-nav={navCollapsed ? "collapsed" : "expanded"}
       data-env={envCollapsed ? "collapsed" : "expanded"}
+      data-resizing={dragging ? "true" : undefined}
+      style={envCollapsed ? undefined : ({ "--env-w": `${envWidth}px` } as React.CSSProperties)}
     >
       {searchOpen && (
         <ChatSearch tasks={tasks.tasks} onPick={selectChat} onClose={() => setSearchOpen(false)} />
@@ -394,6 +422,18 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
         )}
       </div>
 
+      {!envCollapsed && (
+        <div
+          className="vx-resizer"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize environment panel"
+          onPointerDown={startResize}
+          onDoubleClick={() => setEnvWidth(260)}
+          title="Drag to resize · double-click to reset"
+        />
+      )}
+
       <div className="vibedesk-col vibedesk-col--env">
         {envCollapsed ? (
           <div className="vx-rail vx-rail--right">
@@ -440,6 +480,8 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
                 onOpenReview={() => setOverlay("review")}
                 onOpenFiles={() => setOverlay("files")}
                 onToggle={() => setEnvCollapsed(true)}
+                isOpen={isOpen}
+                onToggleSection={toggleSection}
               />
             </div>
             {sideChatOpened && (

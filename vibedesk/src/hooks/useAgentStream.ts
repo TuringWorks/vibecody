@@ -11,7 +11,12 @@ export type StreamItem =
   | { kind: "tool"; tool: string; summary: string }
   | { kind: "error"; text: string };
 
-export type RunState = "idle" | "running" | "done" | "error" | "cancelled";
+/**
+ * `partial` is terminal like `done`, but the agent stopped with planned work
+ * outstanding. It is deliberately distinct: folding it into `done` is what let
+ * an unfinished run present as a finished one.
+ */
+export type RunState = "idle" | "running" | "done" | "partial" | "error" | "cancelled";
 
 interface RunArgs {
   daemonUrl: string;
@@ -19,7 +24,13 @@ interface RunArgs {
   provider: string;
   model?: string;
   approval: string;
-  reasoning: string;
+  /** Effort tier, or undefined to leave the provider on its own default.
+   *  "off" must reach the daemon as an absent field, not a value. */
+  reasoning?: string;
+  /** "agent" (tool loop) or "chat" (single reply, no tools). */
+  mode?: string;
+  /** Sandbox grants; only meaningful when mode is "sandbox". */
+  sandbox?: Record<string, unknown>;
   /** When set, resume this session (continue the conversation) instead of
    *  starting a fresh one. */
   resumeSessionId?: string;
@@ -32,10 +43,44 @@ interface RunArgs {
 type StreamEvent =
   | { kind: "user" | "chunk" | "system" | "error"; text: string }
   | { kind: "step"; tool: string; summary: string }
+  | {
+      kind: "partial";
+      text: string;
+      steps_completed?: number | null;
+      steps_planned?: number | null;
+      remaining_plan?: string[] | null;
+    }
+  | { kind: "retry"; text: string; attempt?: number | null; max_attempts?: number | null; backoff_ms?: number | null }
   | { kind: "complete" | "closed" };
+
+/** Render a `partial` terminal event as the notice shown in the transcript. */
+function partialNotice(ev: Extract<StreamEvent, { kind: "partial" }>): string {
+  const done = ev.steps_completed ?? 0;
+  const planned = ev.steps_planned ?? 0;
+  const head = `Stopped with work outstanding — ${done}/${planned} planned steps done.`;
+  const remaining = (ev.remaining_plan ?? []).map((s, i) => `  ${done + i + 1}. ${s}`);
+  return [head, ev.text, remaining.length ? `Remaining:\n${remaining.join("\n")}` : ""]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+/** Render a `retry` notice so a backing-off agent isn't mistaken for a hung one. */
+function retryNotice(ev: Extract<StreamEvent, { kind: "retry" }>): string {
+  const attempt = (ev.attempt ?? 0) + 1;
+  const max = ev.max_attempts ?? "?";
+  const secs = ((ev.backoff_ms ?? 0) / 1000).toFixed(1);
+  return `Transient error — retrying (${attempt}/${max}) in ${secs}s: ${ev.text}`;
+}
 
 /** Tauri channel carrying one session's events. Mirrors `session_event_name`. */
 const channelFor = (sessionId: string) => `agent://${sessionId}`;
+
+/**
+ * How many times a dropped stream is reattached before the run is reported as
+ * lost. Bounded so a daemon that has genuinely gone away surfaces an error
+ * instead of reconnecting forever.
+ */
+const MAX_RECONNECT_ATTEMPTS = 5;
 
 /**
  * Append one event to the item list, folding consecutive agent chunks into a
@@ -61,6 +106,10 @@ function applyEvent(prev: StreamItem[], ev: StreamEvent): StreamItem[] {
       return [...prev, { kind: "error", text: ev.text }];
     case "step":
       return [...prev, { kind: "tool", tool: ev.tool, summary: ev.summary }];
+    case "partial":
+      return [...prev, { kind: "system", text: partialNotice(ev) }];
+    case "retry":
+      return [...prev, { kind: "system", text: retryNotice(ev) }];
     default:
       return prev;
   }
@@ -83,6 +132,17 @@ export function eventsToStreamItems(events: AgentEventPayload[]): StreamItem[] {
         return applyEvent(acc, { kind: ev.type, text });
       case "step":
         return applyEvent(acc, { kind: "step", tool: ev.tool_name ?? "tool", summary: text });
+      // Unlike "complete", a partial is not a duplicate of anything already in
+      // the transcript — it is the only record that the run left work undone.
+      // Dropping it made a reopened chat look like it had finished cleanly.
+      case "partial":
+        return applyEvent(acc, {
+          kind: "partial",
+          text,
+          steps_completed: ev.steps_completed,
+          steps_planned: ev.steps_planned,
+          remaining_plan: ev.remaining_plan,
+        });
       // "complete" carries only a duplicate summary — skip it.
       default:
         return acc;
@@ -123,6 +183,15 @@ export function useAgentStream() {
   // Set while a user-requested cancel is landing, so the daemon's terminal
   // event resolves to "cancelled" rather than a plain "done"/"error".
   const cancelling = useRef(false);
+  // Daemon URL of the run in flight, so a dropped stream can be reconciled and
+  // reattached without the caller passing it again.
+  const daemonUrlRef = useRef<string | null>(null);
+  // Consecutive reattach attempts for the current run; reset whenever a run
+  // starts or reaches a terminal state.
+  const reconnectsRef = useRef(0);
+  // Breaks the subscribe → reconcile → attach → subscribe cycle. `subscribe`
+  // reads the latest reconcile through this ref instead of depending on it.
+  const reconcileRef = useRef<((sid: string) => Promise<void>) | null>(null);
 
   const cleanup = useCallback(() => {
     for (const u of unlisteners.current) u();
@@ -142,17 +211,44 @@ export function useAgentStream() {
         const ev = e.payload;
         if (ev.kind === "closed") {
           cleanup();
-          // A stream that closes while we still think we're running means the
-          // run ended without a terminal event — settle rather than hang.
-          setState((s) => (s === "running" ? (cancelling.current ? "cancelled" : "done") : s));
-          cancelling.current = false;
+          if (cancelling.current) {
+            cancelling.current = false;
+            setState((s) => (s === "running" ? "cancelled" : s));
+            return;
+          }
+          // The daemon now always emits a terminal event before it closes the
+          // stream, so reaching here while still "running" means the *transport*
+          // dropped — a network blip, a daemon restart, the laptop sleeping —
+          // not that the run ended. Settling to "done" (what this used to do)
+          // told the user their task had finished while the agent was still
+          // working on it. Ask the daemon what actually happened instead.
+          const reconcile = reconcileRef.current;
+          if (reconcile) {
+            void reconcile(sid);
+          } else {
+            setState((s) => (s === "running" ? "error" : s));
+          }
           return;
         }
         if (ev.kind === "complete") {
+          // A real terminal event: the run is over, so the reconnect allowance
+          // resets rather than carrying into the next turn of this chat.
+          reconnectsRef.current = 0;
           setState(cancelling.current ? "cancelled" : "done");
           return;
         }
+        // Terminal and unfinished. Must be handled before the generic append
+        // below, and must not settle as "done": the `closed` fallback further
+        // up resolves a still-"running" stream to "done", so letting `partial`
+        // fall through would report the unfinished run as a success.
+        if (ev.kind === "partial") {
+          reconnectsRef.current = 0;
+          setItems((prev) => applyEvent(prev, ev));
+          setState(cancelling.current ? "cancelled" : "partial");
+          return;
+        }
         if (ev.kind === "error") {
+          reconnectsRef.current = 0;
           setItems((prev) => applyEvent(prev, ev));
           setState(cancelling.current ? "cancelled" : "error");
           return;
@@ -206,6 +302,7 @@ export function useAgentStream() {
       setItems([]);
       setState("running");
       setStartedAt(Date.now());
+      daemonUrlRef.current = daemonUrl;
       await subscribe(sid);
       try {
         await invoke("stream_agent", { url: daemonUrl, sessionId: sid, sinceSeq: 0 });
@@ -220,6 +317,86 @@ export function useAgentStream() {
     [cleanup, subscribe]
   );
 
+  /**
+   * Decide what a dropped stream actually meant, and recover if the run is
+   * still alive.
+   *
+   * The daemon is authoritative: `/jobs/:id` knows whether the run finished,
+   * and its durable event log can be replayed from the start, so a transport
+   * failure is recoverable rather than terminal. Only when the job really is
+   * terminal — or when reattaching keeps failing — do we settle, and then we
+   * settle to what the daemon says rather than assuming success.
+   */
+  const reconcile = useCallback(
+    async (sid: string) => {
+      const url = daemonUrlRef.current;
+      if (!url) {
+        setState((s) => (s === "running" ? "error" : s));
+        return;
+      }
+
+      let status: string | null = null;
+      try {
+        const job = await invoke<{ status?: string }>("get_job", { url, sessionId: sid });
+        status = job?.status ?? null;
+      } catch {
+        // Daemon unreachable — fall through to the reattach path, which
+        // retries and eventually reports the lost connection honestly.
+      }
+
+      // Terminal per the daemon: report *its* outcome, not a guess.
+      if (status && status !== "running" && status !== "queued") {
+        reconnectsRef.current = 0;
+        setState(
+          status === "failed"
+            ? "error"
+            : status === "cancelled"
+              ? "cancelled"
+              : status === "partial"
+                ? "partial"
+                : "done"
+        );
+        return;
+      }
+
+      if (reconnectsRef.current >= MAX_RECONNECT_ATTEMPTS) {
+        setItems((prev) => [
+          ...prev,
+          {
+            kind: "error",
+            text:
+              "Lost the connection to the daemon and could not reattach. The run may " +
+              "still be going — reopen this chat to catch up once the daemon is back.",
+          },
+        ]);
+        setState("error");
+        return;
+      }
+
+      reconnectsRef.current += 1;
+      // `attach` replays the durable log from seq 0, so the transcript is
+      // rebuilt rather than resumed — nothing streamed before the drop is lost.
+      const ok = await attach(url, sid);
+      if (!ok) {
+        setItems((prev) => [
+          ...prev,
+          {
+            kind: "error",
+            text: "Connection to the daemon dropped and the run could not be reattached.",
+          },
+        ]);
+        setState("error");
+      }
+    },
+    [attach]
+  );
+
+  // `subscribe` reaches reconcile through a ref, so the two can call each other
+  // without a circular `useCallback` dependency.
+  useEffect(() => {
+    reconcileRef.current = reconcile;
+  }, [reconcile]);
+
   const runTask = useCallback(
     async (args: RunArgs): Promise<string | null> => {
       // Re-entrancy guard: bail if a run is already streaming. Claiming the run
@@ -230,6 +407,10 @@ export function useAgentStream() {
       cleanup();
       inFlight.current = true;
       cancelling.current = false;
+      // A fresh run gets a fresh reconnect allowance, and its own daemon URL
+      // for the reconcile path.
+      reconnectsRef.current = 0;
+      daemonUrlRef.current = args.daemonUrl;
       setItems((prev) => [...prev, { kind: "user", text: args.task }]);
       setState("running");
       setStartedAt(Date.now());
@@ -242,6 +423,8 @@ export function useAgentStream() {
           model: args.model,
           approval: args.approval,
           reasoning: args.reasoning,
+          mode: args.mode,
+          sandbox: args.sandbox,
           resumeSessionId: args.resumeSessionId,
           workspaceRoot: args.workspaceRoot,
         });

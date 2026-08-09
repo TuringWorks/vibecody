@@ -22,11 +22,25 @@ export interface Task {
 
 /** Raw agent event as persisted in the daemon's durable log (job_events). */
 export interface AgentEventPayload {
-  type: string; // "user" | "chunk" | "step" | "system" | "complete" | "error"
+  // "user" | "chunk" | "step" | "system" | "complete" | "partial" | "error" | "retry".
+  // "partial" is terminal but means the run stopped with planned work left.
+  type: string;
   content?: string | null;
   step_num?: number | null;
   tool_name?: string | null;
   success?: boolean | null;
+  /** "partial" only */
+  steps_completed?: number | null;
+  /** "partial" only */
+  steps_planned?: number | null;
+  /** "partial" only */
+  remaining_plan?: string[] | null;
+  /** "retry" only */
+  attempt?: number | null;
+  /** "retry" only */
+  max_attempts?: number | null;
+  /** "retry" only */
+  backoff_ms?: number | null;
 }
 
 /** A finished chat's reconstructed conversation, from `/api/tasks/:id/history`. */

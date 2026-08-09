@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { toWire } from "../lib/sandbox";
 import { ArrowDown, RotateCcw } from "lucide-react";
 import { TaskPrompt, type ComposerSubmit } from "./TaskPrompt";
 import { ToolUseBlock } from "./ToolUseBlock";
 import { CopyButton, Markdown } from "./Markdown";
+import { ReasoningBlock } from "./ReasoningBlock";
+import { splitThinking } from "../lib/thinking";
+import { effortParam } from "../lib/effort";
 import { ApprovalPrompt } from "./ApprovalPrompt";
 import { useAgentStream, eventsToStreamItems } from "../hooks/useAgentStream";
 import { useApprovals } from "../hooks/useApprovals";
@@ -144,6 +148,11 @@ export function SessionStream({
   // run moves the task to "reviewing" (user reviews the diff); an error moves
   // it to "failed"; a user-stopped run returns to "reviewing" with whatever
   // work landed. Mirrors the VibeDesk state machine in pdm/08 §7.
+  //
+  // A `partial` run is not "reviewing" either: the agent stopped with planned
+  // work outstanding, so the card must not present it as a finished change
+  // awaiting review. It carries its own status so the board shows the task
+  // still needs work.
   useEffect(() => {
     const id = activeTaskId.current;
     if (!id || state === "idle" || state === "running") return;
@@ -152,7 +161,7 @@ export function SessionStream({
     // mints a new callback identity and re-runs this effect. Without releasing
     // the id here that cycle never terminates, PATCHing the task every pass.
     activeTaskId.current = null;
-    const status = state === "error" ? "failed" : "reviewing";
+    const status = state === "error" ? "failed" : state === "partial" ? "partial" : "reviewing";
     linkSession(id, "", status).catch((e) => console.error("status update failed", e));
     onRunFinished();
   }, [state, linkSession, onRunFinished]);
@@ -206,7 +215,9 @@ export function SessionStream({
           provider: p.provider,
           model: p.model,
           approval: p.approval,
-          reasoning: p.reasoning,
+          reasoning: effortParam(p.reasoning),
+          mode: p.mode,
+          sandbox: p.mode === "sandbox" ? toWire(p.sandbox) : undefined,
           resumeSessionId: resumeSessionId.current,
           workspaceRoot: runRoot,
         });
@@ -236,7 +247,9 @@ export function SessionStream({
         provider: p.provider,
         model: p.model,
         approval: p.approval,
-        reasoning: p.reasoning,
+        reasoning: effortParam(p.reasoning),
+        mode: p.mode,
+          sandbox: p.mode === "sandbox" ? toWire(p.sandbox) : undefined,
         workspaceRoot: task?.worktree_path || runRoot,
       });
 
@@ -261,11 +274,17 @@ export function SessionStream({
         ? "failed"
         : state === "cancelled"
           ? "stopped"
-          : state === "done"
-            ? "reviewing"
-            : "";
+          : state === "partial"
+            ? "incomplete"
+            : state === "done"
+              ? "reviewing"
+              : "";
 
-  const canRetry = (state === "error" || state === "cancelled") && !!lastSubmit.current;
+  // A partial run left planned work undone, so it is exactly the case the
+  // retry affordance exists for — offering it only on error/cancel left the
+  // user with no in-app way to finish the task.
+  const canRetry =
+    (state === "error" || state === "cancelled" || state === "partial") && !!lastSubmit.current;
 
   return (
     <div className="vx-stream">
@@ -311,17 +330,28 @@ export function SessionStream({
                   <div className="vx-msg__chip">{item.text}</div>
                 </div>
               );
-            case "agent":
+            case "agent": {
+              // `<thinking>` is transport markup, not prose. Rendering the raw
+              // turn put the tags on screen as literal text.
+              const { reasoning, visible } = splitThinking(item.text);
               return (
                 <div key={i} className="vx-msg vx-msg--agent">
-                  <div className="vx-msg__prose">
-                    <Markdown text={item.text} />
-                  </div>
+                  <ReasoningBlock
+                    reasoning={reasoning}
+                    only={reasoning.length > 0 && !visible}
+                  />
+                  {visible && (
+                    <div className="vx-msg__prose">
+                      <Markdown text={visible} />
+                    </div>
+                  )}
                   <div className="vx-msg__tools">
-                    <CopyButton text={item.text} />
+                    {/* Copy the answer, not the internal markup. */}
+                    <CopyButton text={visible || item.text} />
                   </div>
                 </div>
               );
+            }
             case "system":
               // Rendered as markdown so `/help` reads as a list; daemon system
               // notes are plain text, which passes through unchanged.
