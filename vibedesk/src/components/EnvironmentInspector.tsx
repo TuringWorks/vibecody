@@ -1,5 +1,6 @@
 import { GitBranch, FileDiff, Monitor, GitCommit, FolderGit2, PanelRightClose } from "lucide-react";
 import { useEnvironment } from "../hooks/useEnvironment";
+import { EnvSection } from "./EnvSection";
 
 interface EnvironmentInspectorProps {
   daemonUrl: string;
@@ -14,6 +15,9 @@ interface EnvironmentInspectorProps {
   /** Open the Files list — what the "Sources" row means. */
   onOpenFiles?: () => void;
   onToggle: () => void;
+  /** Persisted expand/collapse state, owned by the shell. */
+  isOpen: (id: string, fallback?: boolean) => boolean;
+  onToggleSection: (id: string) => void;
 }
 
 /**
@@ -30,6 +34,8 @@ export function EnvironmentInspector({
   onOpenReview,
   onOpenFiles,
   onToggle,
+  isOpen,
+  onToggleSection,
 }: EnvironmentInspectorProps) {
   const { status } = useEnvironment(daemonUrl, daemonOnline, path, refreshKey);
 
@@ -57,68 +63,85 @@ export function EnvironmentInspector({
         {repoName ?? "Daemon workspace"}
       </div>
 
-      <ul className="vx-env__list">
-        <li className="vx-env__item">
-          <button
-            className="vx-env__changes"
-            onClick={onOpenReview}
-            disabled={changedCount === 0 || !onOpenReview}
-            aria-label="Review changes"
-          >
-            <FileDiff size={14} /> <span>Changes</span>
-            <span className="vx-env__badge">{changedCount > 0 ? `+${changedCount}` : "0"}</span>
-          </button>
-        </li>
-        <li className="vx-env__item" title={path ?? "The daemon's own workspace root"}>
-          <Monitor size={14} /> <span>Local</span>
-          <span className="vx-env__badge">{isWorktree ? "worktree" : "in place"}</span>
-        </li>
-        <li className="vx-env__item" title={branch}>
-          <GitBranch size={14} /> <span className="vx-env__branch">{branch}</span>
-        </li>
-        {/* HEAD, not a dead "Commit" label — the row now says what's checked out. */}
-        <li
-          className={`vx-env__item${head ? "" : " vx-env__item--muted"}`}
-          title={head ? `${head.hash} — ${head.message}` : "No commits yet"}
-        >
-          <GitCommit size={14} />
-          {head ? (
-            <>
-              <span className="vx-env__sha">{head.hash}</span>
-              <span className="vx-env__commit-msg">{head.message}</span>
-            </>
-          ) : (
-            <span>No commits yet</span>
-          )}
-        </li>
-      </ul>
-
-      {(status?.changed?.length ?? 0) > 0 && (
-        <ul className="vx-env__changed-list">
-          {status!.changed.slice(0, 12).map((f) => (
-            <li key={f.path} className="vx-env__changed" title={`${f.status}: ${f.path}`}>
-              <span className={`vx-env__changed-dot vx-env__changed-dot--${f.status}`} />
-              <span className="vx-env__changed-path">{f.path}</span>
-            </li>
-          ))}
-          {status!.changed.length > 12 && (
-            <li className="vx-env__changed vx-env__changed--more">
-              +{status!.changed.length - 12} more
-            </li>
-          )}
-        </ul>
-      )}
-
-      {/* Was a chevron button that did nothing; it now opens the file list,
-          which is what "Sources" was always implying. */}
-      <button
-        className="vx-env__sources"
-        aria-label="Browse project sources"
-        onClick={onOpenFiles}
-        disabled={!onOpenFiles}
+      <EnvSection
+        id="workspace"
+        title="Workspace"
+        count={changedCount || undefined}
+        open={isOpen("workspace", true)}
+        onToggle={onToggleSection}
       >
-        <FolderGit2 size={14} /> <span>Sources</span> <span className="vx-env__chevron">›</span>
-      </button>
+        <ul className="vx-env__list">
+          <li className="vx-env__item">
+            <button
+              className="vx-env__changes"
+              onClick={onOpenReview}
+              disabled={changedCount === 0 || !onOpenReview}
+              aria-label="Review changes"
+            >
+              <FileDiff size={14} /> <span>Changes</span>
+              <span className="vx-env__badge">{changedCount > 0 ? `+${changedCount}` : "0"}</span>
+            </button>
+          </li>
+          <li className="vx-env__item" title={path ?? "The daemon's own workspace root"}>
+            <Monitor size={14} /> <span>Local</span>
+            <span className="vx-env__badge">{isWorktree ? "worktree" : "in place"}</span>
+          </li>
+          <li className="vx-env__item" title={branch}>
+            <GitBranch size={14} /> <span className="vx-env__branch">{branch}</span>
+          </li>
+          {/* HEAD, not a dead "Commit" label — the row now says what's checked out. */}
+          <li
+            className={`vx-env__item${head ? "" : " vx-env__item--muted"}`}
+            title={head ? `${head.hash} — ${head.message}` : "No commits yet"}
+          >
+            <GitCommit size={14} />
+            {head ? (
+              <>
+                <span className="vx-env__sha">{head.hash}</span>
+                <span className="vx-env__commit-msg">{head.message}</span>
+              </>
+            ) : (
+              <span>No commits yet</span>
+            )}
+          </li>
+        </ul>
+
+        {(status?.changed?.length ?? 0) > 0 && (
+          <ul className="vx-env__changed-list">
+            {status!.changed.slice(0, 12).map((f) => (
+              <li key={f.path} className="vx-env__changed" title={`${f.status}: ${f.path}`}>
+                <span className={`vx-env__changed-dot vx-env__changed-dot--${f.status}`} />
+                <span className="vx-env__changed-path">{f.path}</span>
+              </li>
+            ))}
+            {status!.changed.length > 12 && (
+              <li className="vx-env__changed vx-env__changed--more">
+                +{status!.changed.length - 12} more
+              </li>
+            )}
+          </ul>
+        )}
+      </EnvSection>
+
+      <EnvSection
+        id="sources"
+        title="Sources"
+        open={isOpen("sources", false)}
+        onToggle={onToggleSection}
+      >
+        {/* Was a chevron button that did nothing; it opens the file list, which
+            is what "Sources" was always implying. */}
+        <button
+          className="vx-env__sources"
+          aria-label="Browse project sources"
+          onClick={onOpenFiles}
+          disabled={!onOpenFiles}
+        >
+          <FolderGit2 size={14} /> <span>Browse files</span>
+          <span className="vx-env__chevron">›</span>
+        </button>
+      </EnvSection>
+
     </aside>
   );
 }

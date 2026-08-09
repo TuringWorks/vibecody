@@ -12,6 +12,7 @@
     "tauri:dev": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri dev",
     "tauri:build": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri build",
     "lint:no-inline-edit": "node scripts/check-no-inline-edit.mjs",
+    "test:thinking": "tsc scripts/thinking.test.ts src/lib/thinking.ts --outDir node_modules/.cache/thinking-test --module commonjs --target es2022 --moduleResolution node --skipLibCheck && node node_modules/.cache/thinking-test/scripts/thinking.test.js",
     "test:composer": "tsc scripts/composer-parsing.test.ts src/components/slashCommands.ts src/lib/composerParsing.ts src/lib/attachments.ts --outDir node_modules/.cache/composer-test --module commonjs --target es2022 --moduleResolution node --skipLibCheck && node node_modules/.cache/composer-test/scripts/composer-parsing.test.js"
   },
   "dependencies": {

@@ -43,6 +43,12 @@ pub enum JobStatus {
     Queued,
     Running,
     Complete,
+    /// Terminal, but the agent stopped with planned work outstanding.
+    /// Distinct from `Complete` on purpose: folding a partial run into
+    /// `Complete` is what let unfinished tasks be reported as successes.
+    /// Distinct from `Failed` too — the work done so far is real and the
+    /// run is resumable from its checkpoint.
+    Partial,
     Failed,
     Cancelled,
 }
@@ -53,6 +59,7 @@ impl JobStatus {
             Self::Queued => "queued",
             Self::Running => "running",
             Self::Complete => "complete",
+            Self::Partial => "partial",
             Self::Failed => "failed",
             Self::Cancelled => "cancelled",
         }
@@ -62,13 +69,22 @@ impl JobStatus {
             "queued" => Some(Self::Queued),
             "running" => Some(Self::Running),
             "complete" => Some(Self::Complete),
+            "partial" => Some(Self::Partial),
             "failed" => Some(Self::Failed),
             "cancelled" => Some(Self::Cancelled),
             _ => None,
         }
     }
     pub fn is_terminal(&self) -> bool {
-        matches!(self, Self::Complete | Self::Failed | Self::Cancelled)
+        matches!(
+            self,
+            Self::Complete | Self::Partial | Self::Failed | Self::Cancelled
+        )
+    }
+    /// True when the run ended without finishing everything it planned —
+    /// the caller should surface remaining work rather than declare success.
+    pub fn is_incomplete(&self) -> bool {
+        matches!(self, Self::Partial | Self::Failed | Self::Cancelled)
     }
 }
 
@@ -79,7 +95,9 @@ impl JobStatus {
 pub struct JobRecord {
     pub session_id: String,
     pub task: String,
-    /// "queued" | "running" | "complete" | "failed" | "cancelled"
+    /// "queued" | "running" | "complete" | "partial" | "failed" | "cancelled".
+    /// `partial` is terminal but means the run stopped with planned work left —
+    /// clients reconciling a dropped stream must not read it as success.
     pub status: String,
     pub provider: String,
     pub started_at: u64,
@@ -119,6 +137,47 @@ pub struct AgentEventPayload {
     pub step_num: Option<usize>,
     pub tool_name: Option<String>,
     pub success: Option<bool>,
+
+    // ── Partial / retry detail ────────────────────────────────────────────
+    // Optional and `skip_serializing_if` so the wire shape of the existing
+    // kinds is byte-for-byte unchanged and old rows in the durable event log
+    // still deserialize. Populated only by the kinds that need them.
+    /// `partial`: plan steps finished before the agent stopped.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub steps_completed: Option<usize>,
+    /// `partial`: plan steps the agent had planned in total.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub steps_planned: Option<usize>,
+    /// `partial`: plan items that were never executed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remaining_plan: Option<Vec<String>>,
+    /// `retry`: zero-based index of the attempt that just failed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attempt: Option<u32>,
+    /// `retry`: total attempts the retry policy allows.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_attempts: Option<u32>,
+    /// `retry`: backoff before the next attempt.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub backoff_ms: Option<u64>,
+}
+
+impl Default for AgentEventPayload {
+    fn default() -> Self {
+        Self {
+            kind: String::new(),
+            content: None,
+            step_num: None,
+            tool_name: None,
+            success: None,
+            steps_completed: None,
+            steps_planned: None,
+            remaining_plan: None,
+            attempt: None,
+            max_attempts: None,
+            backoff_ms: None,
+        }
+    }
 }
 
 impl AgentEventPayload {
@@ -126,36 +185,69 @@ impl AgentEventPayload {
         Self {
             kind: "chunk".into(),
             content: Some(text),
-            step_num: None,
-            tool_name: None,
-            success: None,
+            ..Self::default()
         }
     }
     pub fn step(step_num: usize, tool: &str, success: bool) -> Self {
         Self {
             kind: "step".into(),
-            content: None,
             step_num: Some(step_num),
             tool_name: Some(tool.into()),
             success: Some(success),
+            ..Self::default()
         }
     }
     pub fn complete(summary: String) -> Self {
         Self {
             kind: "complete".into(),
             content: Some(summary),
-            step_num: None,
-            tool_name: None,
-            success: None,
+            ..Self::default()
         }
     }
     pub fn error(msg: String) -> Self {
         Self {
             kind: "error".into(),
             content: Some(msg),
-            step_num: None,
-            tool_name: None,
-            success: None,
+            ..Self::default()
+        }
+    }
+
+    /// Terminal event for a run that stopped with planned work outstanding.
+    ///
+    /// This is the honest counterpart to `complete`: the daemon used to drop
+    /// `AgentEvent::Partial` on the floor and let the "no terminal event"
+    /// fallback publish `complete("Agent finished.")`, so every remote client
+    /// was told an abandoned run had succeeded and the real summary and the
+    /// unexecuted plan items were discarded. `content` carries the partial
+    /// summary so even a client that does not know this kind can render it.
+    pub fn partial(
+        summary: String,
+        steps_completed: usize,
+        steps_planned: usize,
+        remaining_plan: Vec<String>,
+    ) -> Self {
+        Self {
+            kind: "partial".into(),
+            content: Some(summary),
+            steps_completed: Some(steps_completed),
+            steps_planned: Some(steps_planned),
+            remaining_plan: Some(remaining_plan),
+            ..Self::default()
+        }
+    }
+
+    /// Non-terminal notice that a transient provider error is being retried.
+    ///
+    /// Without it a client sees a silent stall for the whole backoff (up to
+    /// 60 s per attempt) and cannot tell a retrying agent from a hung one.
+    pub fn retry(error: String, attempt: u32, max_attempts: u32, backoff_ms: u64) -> Self {
+        Self {
+            kind: "retry".into(),
+            content: Some(error),
+            attempt: Some(attempt),
+            max_attempts: Some(max_attempts),
+            backoff_ms: Some(backoff_ms),
+            ..Self::default()
         }
     }
 
@@ -167,9 +259,7 @@ impl AgentEventPayload {
         Self {
             kind: "system".into(),
             content: Some(msg),
-            step_num: None,
-            tool_name: None,
-            success: None,
+            ..Self::default()
         }
     }
 
@@ -180,9 +270,7 @@ impl AgentEventPayload {
         Self {
             kind: "user".into(),
             content: Some(text),
-            step_num: None,
-            tool_name: None,
-            success: None,
+            ..Self::default()
         }
     }
 }
@@ -2170,6 +2258,101 @@ mod tests {
             tags: vec![],
             quota_bucket: None,
         }
+    }
+
+    // ── Partial: the "unfinished run reported as success" regression ──────
+
+    #[test]
+    fn partial_is_terminal_but_not_a_success() {
+        assert!(JobStatus::Partial.is_terminal());
+        assert!(JobStatus::Partial.is_incomplete());
+        assert!(!JobStatus::Complete.is_incomplete());
+        assert_eq!(JobStatus::parse("partial"), Some(JobStatus::Partial));
+        assert_eq!(JobStatus::Partial.as_str(), "partial");
+    }
+
+    #[test]
+    fn every_status_round_trips_through_its_string() {
+        for s in [
+            JobStatus::Queued,
+            JobStatus::Running,
+            JobStatus::Complete,
+            JobStatus::Partial,
+            JobStatus::Failed,
+            JobStatus::Cancelled,
+        ] {
+            assert_eq!(JobStatus::parse(s.as_str()), Some(s), "{s:?}");
+        }
+    }
+
+    #[test]
+    fn partial_payload_carries_the_remaining_plan() {
+        let p = AgentEventPayload::partial(
+            "got halfway".into(),
+            2,
+            5,
+            vec!["write tests".into(), "update docs".into()],
+        );
+        assert_eq!(p.kind, "partial");
+        assert_eq!(p.content.as_deref(), Some("got halfway"));
+        assert_eq!(p.steps_completed, Some(2));
+        assert_eq!(p.steps_planned, Some(5));
+        assert_eq!(p.remaining_plan.as_ref().map(Vec::len), Some(2));
+    }
+
+    // The new fields must not change the wire shape of the existing kinds —
+    // clients and the durable event log both parse this JSON.
+    #[test]
+    fn existing_kinds_serialize_without_the_new_fields() {
+        let json = serde_json::to_string(&AgentEventPayload::chunk("hi".into())).unwrap();
+        for absent in [
+            "steps_completed",
+            "steps_planned",
+            "remaining_plan",
+            "attempt",
+            "max_attempts",
+            "backoff_ms",
+        ] {
+            assert!(!json.contains(absent), "{absent} leaked into: {json}");
+        }
+        assert!(json.contains("\"type\":\"chunk\""), "{json}");
+    }
+
+    // Rows written before the new fields existed must still load.
+    #[test]
+    fn legacy_payload_json_still_deserializes() {
+        let legacy = r#"{"type":"complete","content":"done","step_num":null,
+                         "tool_name":null,"success":null}"#;
+        let p: AgentEventPayload = serde_json::from_str(legacy).unwrap();
+        assert_eq!(p.kind, "complete");
+        assert_eq!(p.content.as_deref(), Some("done"));
+        assert_eq!(p.remaining_plan, None);
+    }
+
+    #[test]
+    fn retry_payload_carries_the_backoff() {
+        let p = AgentEventPayload::retry("503 overloaded".into(), 1, 5, 4_000);
+        assert_eq!(p.kind, "retry");
+        assert_eq!(p.attempt, Some(1));
+        assert_eq!(p.max_attempts, Some(5));
+        assert_eq!(p.backoff_ms, Some(4_000));
+    }
+
+    #[tokio::test]
+    async fn mark_terminal_persists_partial_status() {
+        let (m, _t) = mgr();
+        let id = m.create(req("half a job")).await.unwrap();
+        m.mark_terminal(
+            &id,
+            JobStatus::Partial,
+            Some("2 of 5 steps done".into()),
+            None,
+        )
+        .await
+        .unwrap();
+        let rec = m.get(&id).await.expect("record exists");
+        assert_eq!(rec.status, "partial");
+        assert_eq!(rec.summary.as_deref(), Some("2 of 5 steps done"));
     }
 
     #[tokio::test]

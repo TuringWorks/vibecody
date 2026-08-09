@@ -529,7 +529,14 @@ impl TauriToolExecutor {
         };
 
         let child_executor: Arc<dyn ToolExecutorTrait> = Arc::new(child_exec);
-        let mut agent = AgentLoop::new(provider, ApprovalPolicy::FullAuto, child_executor);
+        // One extension, not the root default of three. A sub-agent that
+        // overruns a deliberately small budget should still get to finish its
+        // subtask, but the multiplier compounds down the tree: at the root
+        // default a depth-2 nest would let every sub-agent run 4x its budget,
+        // and a parent that spawns many of them multiplies that again. 2x is
+        // enough to absorb an overrun without the fan-out.
+        let mut agent = AgentLoop::new(provider, ApprovalPolicy::FullAuto, child_executor)
+            .with_step_extensions(1);
         agent.max_steps = max_steps.unwrap_or(10);
 
         let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<AgentEvent>(64);
@@ -539,6 +546,10 @@ impl TauriToolExecutor {
 
         let mut summary = String::new();
         let mut steps: Vec<String> = Vec::new();
+        // Set when the sub-agent stopped with work outstanding, so the parent
+        // is told the subtask is unfinished instead of inferring success from
+        // an empty summary.
+        let mut incomplete: Option<String> = None;
 
         while let Some(event) = event_rx.recv().await {
             match event {
@@ -551,6 +562,38 @@ impl TauriToolExecutor {
                     counter.fetch_sub(1, Ordering::Relaxed);
                     return ToolResult::err("spawn_agent", format!("Sub-agent error: {}", e));
                 }
+                // A sub-agent that ran out of steps mid-plan used to land in
+                // `_ => {}`, leaving `summary` empty — which the tail of this
+                // function rendered as "Sub-agent completed.". The parent then
+                // built on a subtask that had never finished. Report what was
+                // actually done and what was left.
+                AgentEvent::Partial {
+                    summary: s,
+                    steps_completed,
+                    steps_planned,
+                    remaining_plan,
+                } => {
+                    summary = s;
+                    let remaining = if remaining_plan.is_empty() {
+                        String::new()
+                    } else {
+                        format!(
+                            "\nNot done:\n{}",
+                            remaining_plan
+                                .iter()
+                                .enumerate()
+                                .map(|(i, s)| format!("  {}. {s}", steps_completed + i + 1))
+                                .collect::<Vec<_>>()
+                                .join("\n"),
+                        )
+                    };
+                    incomplete = Some(format!(
+                        "INCOMPLETE — the sub-agent stopped after {steps_completed} of \
+                         {steps_planned} planned steps. Do not assume this subtask is \
+                         finished; verify it or re-dispatch the remaining work.{remaining}"
+                    ));
+                    break;
+                }
                 AgentEvent::ToolCallExecuted(step) => {
                     steps.push(format!(
                         "  [step {}] {} → {}",
@@ -561,6 +604,16 @@ impl TauriToolExecutor {
                         } else {
                             "err"
                         }
+                    ));
+                }
+                // The sub-agent runs FullAuto, but an admin policy can still
+                // gate a tool. Answer the request — dropping `result_tx` makes
+                // the sub-agent abandon the run with no terminal event at all.
+                AgentEvent::ToolCallPending { call, result_tx } => {
+                    let _ = result_tx.send(None);
+                    steps.push(format!(
+                        "  [approval] {} → rejected (sub-agents cannot prompt for approval)",
+                        call.name(),
                     ));
                 }
                 _ => {}
@@ -578,13 +631,25 @@ impl TauriToolExecutor {
             output.push_str("\n\n");
         }
         output.push_str("Summary: ");
-        output.push_str(if summary.is_empty() {
-            "Sub-agent completed."
-        } else {
-            &summary
+        output.push_str(match (summary.is_empty(), incomplete.is_some()) {
+            // Nothing reported and no Partial either: the channel closed with
+            // no terminal event. Say that rather than claim completion.
+            (true, false) => "Sub-agent stopped without reporting a result.",
+            (true, true) => "(no summary reported)",
+            _ => &summary,
         });
+        if let Some(note) = &incomplete {
+            output.push_str("\n\n");
+            output.push_str(note);
+        }
 
-        ToolResult::ok("spawn_agent", output)
+        // A run that stopped mid-plan is not a successful tool call. Returning
+        // `ok` here is what let the parent agent treat unfinished subtasks as
+        // done and move on.
+        match incomplete {
+            Some(_) => ToolResult::err("spawn_agent", output),
+            None => ToolResult::ok("spawn_agent", output),
+        }
     }
 
     async fn record_memory_tool(&self, key: &str, value: &str) -> ToolResult {

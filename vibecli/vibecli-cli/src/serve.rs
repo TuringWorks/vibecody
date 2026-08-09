@@ -78,7 +78,9 @@ use crate::tainted_http_bridge::{PromptResponse, PromptResponseResult};
 use axum::extract::ws::{Message as WsMessage, WebSocket, WebSocketUpgrade};
 use axum::extract::{ConnectInfo, Query};
 use vibe_ai::provider::AIProvider;
-use vibe_ai::{AgentContext, AgentEvent, AgentLoop, ApprovalPolicy, Message, MessageRole};
+use vibe_ai::{
+    AgentContext, AgentEvent, AgentLoop, ApprovalPolicy, Message, MessageRole, VerifierDecision,
+};
 use vibe_collab::{CollabMessage, CollabServer, PeerInfo, SyncBroadcast};
 // Re-export so external callers that imported these via `crate::serve::*`
 // keep compiling. `JobManager` owns the canonical definitions now.
@@ -183,9 +185,15 @@ pub struct MobileActiveSession {
 #[derive(Debug, Deserialize)]
 pub struct ChatRequest {
     pub messages: Vec<ChatMessage>,
+    /// Model to answer with. Paired with `provider`; both must be present for
+    /// the override to apply, matching `POST /agent`.
     #[serde(default)]
-    #[allow(dead_code)]
     pub model: Option<String>,
+    /// Provider to answer with. Absent (or an override that cannot be built —
+    /// unknown provider, missing API key) falls back to the daemon's
+    /// configured provider, so existing callers are unaffected.
+    #[serde(default)]
+    pub provider: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -240,6 +248,67 @@ pub struct AgentRequest {
     /// which is what every pre-existing client relies on.
     #[serde(default, alias = "project_path", alias = "cwd")]
     pub workspace_root: Option<String>,
+    /// How the turn runs. `agent` (default) is the tool loop; `chat` is a single
+    /// conversational reply with no tools, no approvals and no file access.
+    ///
+    /// The agent's system prompt orders it to answer *only* with a tool call, so
+    /// asking a plain question in agent mode gets an answer shaped like work.
+    /// Chat mode is the way to ask something without starting a task. Unknown
+    /// values fall back to `agent`, so older clients are unaffected.
+    #[serde(default)]
+    pub mode: Option<String>,
+    /// Sandbox mode only: what the run may touch outside its workspace.
+    /// Absent, or any other mode, means the historical jail — nothing outside.
+    #[serde(default)]
+    pub sandbox: Option<crate::sandbox_policy::SandboxPolicy>,
+    /// How many times a run that is *still making progress* may extend its step
+    /// budget past `max_steps`. Total ceiling is `max_steps * (1 + this)`.
+    ///
+    /// Exists so an operator can trade completion against cost without a
+    /// rebuild: `0` restores a hard `max_steps` wall (cheapest, most likely to
+    /// stop mid-plan), higher values give long tasks more runway. Absent → the
+    /// harness default (3). An extension is never automatic — the circuit
+    /// breaker must read healthy and a tool call must have succeeded recently.
+    #[serde(default)]
+    pub max_step_extensions: Option<usize>,
+}
+
+/// The two ways a turn can run. Anything unrecognised is `Agent`, so a client
+/// that predates this field — or sends a typo — keeps today's behaviour rather
+/// than failing the run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RunMode {
+    Agent,
+    Chat,
+    /// The agent loop, but allowed outside the workspace per the request's
+    /// `sandbox` policy. Without a policy it is indistinguishable from `Agent`.
+    Sandbox,
+}
+
+impl RunMode {
+    pub fn parse(raw: Option<&str>) -> Self {
+        match raw.map(str::trim).map(str::to_ascii_lowercase).as_deref() {
+            Some("chat") => RunMode::Chat,
+            Some("sandbox") => RunMode::Sandbox,
+            _ => RunMode::Agent,
+        }
+    }
+}
+
+/// The policy a run actually gets.
+///
+/// A policy only applies in sandbox mode. A client that sends grants while
+/// asking for `agent` — by bug, by a stale field, or deliberately — gets the
+/// jail, because the mode is the thing the user chose and the policy is only
+/// its configuration.
+pub fn effective_sandbox_policy(
+    mode: Option<&str>,
+    requested: Option<&crate::sandbox_policy::SandboxPolicy>,
+) -> crate::sandbox_policy::SandboxPolicy {
+    match RunMode::parse(mode) {
+        RunMode::Sandbox => requested.cloned().unwrap_or_default(),
+        _ => crate::sandbox_policy::SandboxPolicy::locked(),
+    }
 }
 
 /// Resolve the directory a run should execute in. A client-supplied root is
@@ -1132,7 +1201,12 @@ async fn chat(
         })
         .collect();
 
-    let mut stream = state.provider.stream_chat(&messages).await.map_err(|e| {
+    let provider = chat_provider_for(
+        &state.provider,
+        req.provider.as_deref(),
+        req.model.as_deref(),
+    );
+    let mut stream = provider.stream_chat(&messages).await.map_err(|e| {
         tracing::error!("chat provider error: {e}");
         json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -1181,22 +1255,38 @@ async fn chat_stream(
 
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<Event, Infallible>>(128);
 
+    let provider = chat_provider_for(
+        &state.provider,
+        req.provider.as_deref(),
+        req.model.as_deref(),
+    );
     tokio::spawn(async move {
-        match state.provider.stream_chat(&messages).await {
+        match provider.stream_chat(&messages).await {
             Ok(mut stream) => {
+                // A mid-stream error used to be reported and then *ignored*:
+                // the loop carried on and the `done` below still fired, so the
+                // client saw `error` followed by `done` and read it as "it
+                // recovered and finished". A truncated reply then looked like
+                // a complete one. `error` is terminal — stop there.
+                let mut failed = false;
                 while let Some(chunk) = stream.next().await {
                     match chunk {
                         Ok(text) => {
                             let _ = tx.send(Ok(Event::default().data(text))).await;
                         }
                         Err(e) => {
+                            tracing::warn!(error = %e, "chat stream failed mid-response");
                             let _ = tx
                                 .send(Ok(Event::default().event("error").data(e.to_string())))
                                 .await;
+                            failed = true;
+                            break;
                         }
                     }
                 }
-                let _ = tx.send(Ok(Event::default().event("done").data(""))).await;
+                if !failed {
+                    let _ = tx.send(Ok(Event::default().event("done").data(""))).await;
+                }
             }
             Err(e) => {
                 let _ = tx
@@ -1387,6 +1477,34 @@ fn reconstruct_prior_messages(
     out
 }
 
+/// Render the human-readable body of a `partial` terminal event.
+///
+/// Kept pure and separate from the handler so the one rule that matters here
+/// can be tested directly: an unfinished run must state what it did *and* what
+/// it left undone. The daemon previously discarded both and published
+/// `complete("Agent finished.")` in their place.
+fn partial_detail(
+    summary: &str,
+    steps_completed: usize,
+    steps_planned: usize,
+    remaining_plan: &[String],
+) -> String {
+    if remaining_plan.is_empty() {
+        return summary.to_string();
+    }
+    let items = remaining_plan
+        .iter()
+        .enumerate()
+        .map(|(i, s)| format!("  {}. {s}", steps_completed + i + 1))
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!(
+        "{summary}\n\nRemaining ({} of {} steps not done):\n{items}",
+        steps_planned.saturating_sub(steps_completed),
+        steps_planned,
+    )
+}
+
 async fn start_agent(
     State(state): State<ServeState>,
     Json(req): Json<AgentRequest>,
@@ -1525,6 +1643,72 @@ async fn start_agent(
         _ => state.provider.clone(),
     };
     let job_manager = state.job_manager.clone();
+    // Copied out before `req` is consumed by the spawned run below.
+    let step_extensions = req.max_step_extensions;
+
+    // ── Chat mode ────────────────────────────────────────────────────────
+    // A single conversational reply: no tool loop, no executor, no approvals,
+    // no workspace access. Everything below this point builds the agent, so
+    // chat returns before any of it.
+    //
+    // It still runs through the session + event plumbing, so a chat turn is an
+    // ordinary entry in the durable log: it replays, resumes, and appears in
+    // history exactly like an agent turn.
+    if RunMode::parse(req.mode.as_deref()) == RunMode::Chat {
+        // A chat turn is a single `chat()` call with no retry loop around it,
+        // unlike the agent path below (`AgentLoop` retries internally). An
+        // unwrapped override meant one transient 503 killed the turn.
+        let chat_provider = resilient(provider.clone());
+        let chat_sid = sid.clone();
+        let chat_task = task.clone();
+        let mut messages = prior_messages.clone();
+        messages.push(Message {
+            role: MessageRole::User,
+            content: chat_task,
+        });
+        tokio::spawn(async move {
+            match chat_provider.chat(&messages, None).await {
+                Ok(text) => {
+                    // Reasoning arrives wrapped in `<thinking>` tags by the
+                    // provider layer; strip it so the stored summary is the
+                    // answer rather than transport markup.
+                    //
+                    // When stripping leaves nothing, the model put its whole
+                    // reply inside the reasoning block (minimax-m3 does this).
+                    // Unwrap the tags instead of storing the tagged text: the
+                    // client renders reasoning as a collapsed aside, so passing
+                    // it through would hide the answer the user asked for.
+                    let visible = vibe_ai::tools::strip_thinking(&text).trim().to_string();
+                    let answer = if visible.is_empty() {
+                        vibe_ai::tools::unwrap_thinking(&text)
+                    } else {
+                        visible
+                    };
+                    let _ = job_manager
+                        .publish_event(&chat_sid, AgentEventPayload::chunk(answer.clone()))
+                        .await;
+                    let _ = job_manager
+                        .publish_event(&chat_sid, AgentEventPayload::complete(answer.clone()))
+                        .await;
+                    let _ = job_manager
+                        .mark_terminal(&chat_sid, JobStatus::Complete, Some(answer), None)
+                        .await;
+                }
+                Err(e) => {
+                    let msg = format!("Chat failed: {e}");
+                    let _ = job_manager
+                        .publish_event(&chat_sid, AgentEventPayload::error(msg.clone()))
+                        .await;
+                    let _ = job_manager
+                        .mark_terminal(&chat_sid, JobStatus::Failed, Some(msg), None)
+                        .await;
+                }
+            }
+            job_manager.close_stream(&chat_sid).await;
+        });
+        return Ok(Json(AgentStartResponse { session_id }));
+    }
+
     // Move context_request into the spawned task. Empty default keeps
     // the existing-clients path zero-overhead.
     let ctx_request = req.context_request;
@@ -1535,11 +1719,23 @@ async fn start_agent(
     // value (Copy) so the spawn closure doesn't capture `state`.
     let tainted_flags = state.tainted;
     let tainted_http_queue = state.tainted_http_queue.clone();
+    // Sandbox mode is the only path that grants reach beyond `workspace_root`,
+    // and only for the axes the request asked for. Every other mode — including
+    // a request that sends a policy without selecting sandbox — stays jailed.
+    let sandbox_policy = effective_sandbox_policy(req.mode.as_deref(), req.sandbox.as_ref());
 
     tokio::spawn(async move {
         use crate::tool_executor::ToolExecutor;
 
-        let mut exec = ToolExecutor::new(workspace_root.clone(), false)
+        // `bash` is not path-jailed — the shell reaches whatever the OS allows,
+        // in Agent mode too. The only real enforcement for the exec axis is
+        // OS-level confinement (bwrap+Landlock / sandbox-exec / AppContainer),
+        // which is what ToolExecutor's `sandbox` flag turns on. So a sandbox run
+        // that was NOT granted exec reach gets its commands confined; every
+        // other run keeps today's behaviour.
+        let confine_shell = !sandbox_policy.is_locked() && !sandbox_policy.exec_outside;
+        let mut exec = ToolExecutor::new(workspace_root.clone(), confine_shell)
+            .with_sandbox_policy(sandbox_policy)
             .with_tainted_strict(tainted_flags.strict)
             .with_cli_prompter(tainted_flags.prompt);
         if tainted_flags.http_prompt {
@@ -1558,6 +1754,12 @@ async fn start_agent(
         } else {
             AgentLoop::new(provider, approval, executor)
                 .with_hooks(vibe_ai::hooks::HookRunner::new(plugin_hooks))
+        };
+        // Optional per-request override of the completion/cost trade-off; the
+        // harness default applies when the caller says nothing.
+        let agent = match step_extensions {
+            Some(n) => agent.with_step_extensions(n),
+            None => agent,
         };
 
         let git_branch = vibe_core::git::get_current_branch(&workspace_root).ok();
@@ -1673,25 +1875,104 @@ async fn start_agent(
                     completed = true;
                     break;
                 }
-                _ => continue,
+                // Terminal: the agent stopped with planned work outstanding.
+                // This used to fall into `_ => continue`, so the run ended with
+                // no terminal event and the fallback below published
+                // `complete("Agent finished.")` — an unfinished task reported
+                // to every remote client as a success, with the real summary
+                // and the remaining plan items thrown away.
+                AgentEvent::Partial {
+                    summary,
+                    steps_completed,
+                    steps_planned,
+                    remaining_plan,
+                } => {
+                    tracing::warn!(
+                        session = %sid,
+                        steps_completed,
+                        steps_planned,
+                        remaining = remaining_plan.len(),
+                        "Agent stopped with work outstanding",
+                    );
+                    let detail =
+                        partial_detail(&summary, steps_completed, steps_planned, &remaining_plan);
+                    let _ = job_manager
+                        .publish_event(
+                            &sid,
+                            AgentEventPayload::partial(
+                                detail.clone(),
+                                steps_completed,
+                                steps_planned,
+                                remaining_plan,
+                            ),
+                        )
+                        .await;
+                    let _ = job_manager
+                        .mark_terminal(&sid, JobStatus::Partial, Some(detail), None)
+                        .await;
+                    job_manager.close_stream(&sid).await;
+                    completed = true;
+                    break;
+                }
+                // Non-terminal notices. Dropping these left clients staring at
+                // a dead stream for the whole backoff (up to 60 s per attempt)
+                // with no way to tell a retrying agent from a hung one.
+                AgentEvent::RetryableError {
+                    error,
+                    attempt,
+                    max_attempts,
+                    backoff_ms,
+                } => AgentEventPayload::retry(error, attempt, max_attempts, backoff_ms),
+                AgentEvent::CircuitBreak { state, reason } => {
+                    AgentEventPayload::system(format!("Agent health: {state} — {reason}"))
+                }
+                AgentEvent::Verifier { decision } => match decision {
+                    VerifierDecision::Pass => continue,
+                    VerifierDecision::Nits(notes) => {
+                        AgentEventPayload::system(format!("Verifier notes: {notes}"))
+                    }
+                    VerifierDecision::Fail(reason) => AgentEventPayload::system(format!(
+                        "Verifier rejected completion — continuing: {reason}"
+                    )),
+                },
+                // The daemon stream is non-interactive: there is no user on the
+                // other end of an HTTP request to approve a tool. Answering
+                // `None` rejects this one call and hands the agent a real tool
+                // result it can adapt to. Dropping `result_tx` instead — which
+                // is what `_ => continue` did — made the agent abandon the run
+                // with no terminal event at all.
+                AgentEvent::ToolCallPending { call, result_tx } => {
+                    let tool = call.name().to_string();
+                    tracing::warn!(
+                        session = %sid,
+                        tool = %tool,
+                        "Approval-gated tool on a non-interactive daemon stream — rejecting",
+                    );
+                    let _ = result_tx.send(None);
+                    AgentEventPayload::system(format!(
+                        "`{tool}` needs approval, which this session cannot request. \
+                         Start the agent with an auto-approving policy \
+                         (`approval: \"full-auto\"` or `\"autoedit\"`) to let it run."
+                    ))
+                }
             };
             let _ = job_manager.publish_event(&sid, payload).await;
         }
 
-        // Fallback: if the agent task exited without sending Complete or Error
-        // (e.g., panic, unexpected return, dropped channel), ensure the SSE
-        // stream gets a completion event so clients don't hang forever.
+        // The agent task ended without a terminal event — a panic, or a
+        // dropped channel. That is a failure, not a completion: reporting it
+        // as `complete` is how a crashed run came to look like a successful
+        // one. Clients still get a terminal event, so nothing hangs.
         if !completed {
+            const MSG: &str = "Agent stopped without reporting a result \
+                               (the run ended unexpectedly). Any work it \
+                               completed before stopping is still on disk.";
+            tracing::error!(session = %sid, "Agent event channel closed with no terminal event");
             let _ = job_manager
-                .publish_event(&sid, AgentEventPayload::complete("Agent finished.".into()))
+                .publish_event(&sid, AgentEventPayload::error(MSG.into()))
                 .await;
             let _ = job_manager
-                .mark_terminal(
-                    &sid,
-                    JobStatus::Complete,
-                    Some("Agent finished.".into()),
-                    None,
-                )
+                .mark_terminal(&sid, JobStatus::Failed, Some(MSG.into()), None)
                 .await;
             job_manager.close_stream(&sid).await;
         }
@@ -1965,7 +2246,8 @@ async fn get_task(
 
 #[derive(Debug, serde::Deserialize)]
 struct UpdateTaskRequest {
-    /// New lifecycle status (draft|queued|running|reviewing|completed|failed).
+    /// New lifecycle status
+    /// (draft|queued|running|reviewing|partial|completed|failed).
     #[serde(default)]
     status: Option<String>,
     /// Link the agent run's session id once the agent starts.
@@ -5412,7 +5694,8 @@ async fn v1_exec_goal_plan(
     let (chosen_provider, override_applied) = match (&req.provider, &req.model) {
         (Some(name), Some(model)) if !name.is_empty() && !model.is_empty() => {
             match build_provider_override(name, model) {
-                Some(p) => (p, true),
+                // One-shot `plan()` — wrap, since nothing else retries here.
+                Some(p) => (resilient(p), true),
                 None => (state.provider.clone(), false),
             }
         }
@@ -5567,7 +5850,65 @@ fn build_provider_override_with_effort(
         "poolside" => Arc::new(providers::poolside::PoolsideProvider::new(cfg)),
         _ => return None,
     };
+    // Deliberately raw. `AgentLoop` runs its own retry around `stream_chat`,
+    // so handing it a `ResilientProvider` would nest two backoff loops
+    // (4 × 5 = 20 attempts) and stall a run for minutes on a hard outage.
+    // Callers with no retry of their own must wrap it themselves — use
+    // [`resilient`].
     Some(p)
+}
+
+/// Add transient-error retry to a provider for a **one-shot** call.
+///
+/// The daemon's default provider arrives already wrapped (`main.rs::
+/// create_provider`), but [`build_provider_override_with_effort`] returns a raw
+/// one — so picking a model in the toolbar (VibeDesk's model picker, mobile,
+/// watch and the IDE clients all send provider+model) silently dropped retry
+/// wherever nothing else supplied it, and a single transient 503 failed the
+/// request outright *only* for users who had chosen a model.
+///
+/// Apply this at call sites without a retry loop (`/chat`, chat-mode turns, the
+/// planner, recap synthesis). Do **not** apply it around `AgentLoop`, which
+/// retries internally.
+fn resilient(p: Arc<dyn vibe_ai::provider::AIProvider>) -> Arc<dyn vibe_ai::provider::AIProvider> {
+    vibe_ai::ResilientProvider::wrap(p)
+}
+
+/// Resolve the provider for a chat turn, honouring a per-request
+/// `provider` + `model`.
+///
+/// `AGENTS.md`'s provider-agnostic rule says daemon routes must read
+/// provider/model from the request body rather than the daemon's startup
+/// config, and `POST /agent` already did. `/chat` and `/chat/stream` did not:
+/// `ChatRequest.model` was carried on the wire but marked `#[allow(dead_code)]`
+/// and never read, so a user who picked a model in the toolbar got an answer
+/// from whatever the daemon happened to boot with — silently, and differently
+/// from the agent route on the same screen.
+///
+/// Always wrapped in [`resilient`]: a chat turn is a single call with no retry
+/// loop of its own. Falls back to the daemon provider when the override is
+/// absent or unbuildable, so existing callers are unaffected.
+fn chat_provider_for(
+    fallback: &Arc<dyn vibe_ai::provider::AIProvider>,
+    provider: Option<&str>,
+    model: Option<&str>,
+) -> Arc<dyn vibe_ai::provider::AIProvider> {
+    match (provider, model) {
+        (Some(p), Some(m)) if !p.is_empty() && !m.is_empty() => {
+            match build_provider_override(p, m) {
+                Some(built) => resilient(built),
+                None => {
+                    tracing::warn!(
+                        provider = %p,
+                        model = %m,
+                        "chat provider override could not be built — falling back to the daemon provider",
+                    );
+                    fallback.clone()
+                }
+            }
+        }
+        _ => fallback.clone(),
+    }
 }
 
 async fn v1_exec_goal_link(
@@ -5786,7 +6127,8 @@ pub(crate) async fn do_v1_exec_goal_recap_phase2(
     ) = match (&req.provider, &req.model) {
         (Some(name), Some(model)) if !name.is_empty() && !model.is_empty() => {
             match build_provider_override(name, model) {
-                Some(p) => (Some(p), true),
+                // One-shot synthesis call — wrap, since nothing else retries.
+                Some(p) => (Some(resilient(p)), true),
                 None => (daemon_provider.clone(), false),
             }
         }
@@ -10194,7 +10536,146 @@ fn build_mobile_context_response(
 
 #[cfg(test)]
 mod tests {
+    /// An older client sends no `mode` at all, and a typo must not silently
+    /// turn a coding task into a chat that cannot touch files.
+    /// Grants must never apply outside sandbox mode. A stale `sandbox` field
+    /// left on an Agent request is the obvious way this feature could silently
+    /// widen every run.
+    #[test]
+    fn a_policy_only_applies_in_sandbox_mode() {
+        use crate::sandbox_policy::SandboxPolicy;
+        let granted = SandboxPolicy {
+            read_outside: true,
+            write_outside: true,
+            ..Default::default()
+        };
+        for mode in [None, Some("agent"), Some("chat"), Some("nonsense")] {
+            let got = super::effective_sandbox_policy(mode, Some(&granted));
+            assert!(
+                got.is_locked(),
+                "mode {mode:?} must ignore the policy, got {got:?}"
+            );
+        }
+        let got = super::effective_sandbox_policy(Some("sandbox"), Some(&granted));
+        assert_eq!(got, granted);
+    }
+
+    /// Sandbox mode with no policy is sandbox mode with nothing granted — it
+    /// must not fall open.
+    #[test]
+    fn sandbox_mode_without_a_policy_grants_nothing() {
+        let got = super::effective_sandbox_policy(Some("sandbox"), None);
+        assert!(got.is_locked());
+    }
+
+    /// The wire shape the client sends, parsed as the daemon will parse it.
+    #[test]
+    fn agent_request_parses_a_sandbox_policy() {
+        let req: super::AgentRequest = serde_json::from_str(
+            r#"{"task":"t","mode":"sandbox","sandbox":{"read_outside":true,"allow_roots":["/work"]}}"#,
+        )
+        .expect("request should parse");
+        let policy = super::effective_sandbox_policy(req.mode.as_deref(), req.sandbox.as_ref());
+        assert!(policy.read_outside);
+        assert!(!policy.write_outside, "ungranted axes stay denied");
+        assert_eq!(policy.allow_roots, vec![std::path::PathBuf::from("/work")]);
+    }
+
+    /// Every older client omits the field entirely.
+    #[test]
+    fn agent_request_without_mode_or_sandbox_is_a_jailed_agent_run() {
+        let req: super::AgentRequest =
+            serde_json::from_str(r#"{"task":"t"}"#).expect("request should parse");
+        assert!(req.mode.is_none());
+        assert!(req.sandbox.is_none());
+        assert!(
+            super::effective_sandbox_policy(req.mode.as_deref(), req.sandbox.as_ref()).is_locked()
+        );
+    }
+
+    #[test]
+    fn run_mode_defaults_to_agent() {
+        use super::RunMode;
+        assert_eq!(RunMode::parse(None), RunMode::Agent);
+        assert_eq!(RunMode::parse(Some("")), RunMode::Agent);
+        assert_eq!(RunMode::parse(Some("agent")), RunMode::Agent);
+        assert_eq!(RunMode::parse(Some("chatt")), RunMode::Agent);
+        assert_eq!(RunMode::parse(Some("sandboxx")), RunMode::Agent);
+    }
+
+    #[test]
+    fn run_mode_parses_chat_case_and_space_insensitively() {
+        use super::RunMode;
+        for raw in ["chat", "Chat", "CHAT", "  chat  "] {
+            assert_eq!(RunMode::parse(Some(raw)), RunMode::Chat, "{raw:?}");
+        }
+        for raw in ["sandbox", "Sandbox", "  SANDBOX "] {
+            assert_eq!(RunMode::parse(Some(raw)), RunMode::Sandbox, "{raw:?}");
+        }
+    }
+
     use super::*;
+
+    // ── partial_detail ─────────────────────────────────────────────────────
+    //
+    // Regression cover for the daemon reporting unfinished runs as successes:
+    // `AgentEvent::Partial` used to hit a `_ => continue` arm, so the loop
+    // drained with no terminal event and the fallback published
+    // `complete("Agent finished.")` — discarding both the partial summary and
+    // the plan items that were never executed.
+
+    #[test]
+    fn partial_detail_lists_what_was_left_undone() {
+        let detail = partial_detail(
+            "Refactored the parser.",
+            2,
+            5,
+            &[
+                "update the call sites".to_string(),
+                "run the test suite".to_string(),
+                "update docs".to_string(),
+            ],
+        );
+        assert!(detail.contains("Refactored the parser."), "{detail}");
+        assert!(detail.contains("3 of 5 steps not done"), "{detail}");
+        // Remaining items are numbered from where the agent actually stopped.
+        assert!(detail.contains("3. update the call sites"), "{detail}");
+        assert!(detail.contains("4. run the test suite"), "{detail}");
+        assert!(detail.contains("5. update docs"), "{detail}");
+    }
+
+    #[test]
+    fn partial_detail_without_a_plan_is_just_the_summary() {
+        assert_eq!(partial_detail("Got this far.", 3, 3, &[]), "Got this far.");
+    }
+
+    // steps_completed > steps_planned would panic on a plain subtraction.
+    #[test]
+    fn partial_detail_survives_completed_exceeding_planned() {
+        let detail = partial_detail("over budget", 9, 4, &["tidy up".to_string()]);
+        assert!(detail.contains("0 of 4 steps not done"), "{detail}");
+        assert!(detail.contains("10. tidy up"), "{detail}");
+    }
+
+    // The partial payload must never be mistaken for a completion by a client
+    // switching on `type`.
+    #[test]
+    fn partial_payload_is_its_own_kind_and_carries_the_plan() {
+        let detail = partial_detail("half done", 1, 2, &["finish".to_string()]);
+        let p = AgentEventPayload::partial(detail, 1, 2, vec!["finish".to_string()]);
+        assert_eq!(p.kind, "partial");
+        assert_ne!(p.kind, "complete");
+        let json = serde_json::to_string(&p).unwrap();
+        assert!(json.contains("\"type\":\"partial\""), "{json}");
+        assert!(json.contains("remaining_plan"), "{json}");
+    }
+
+    #[test]
+    fn partial_job_status_is_terminal_but_not_complete() {
+        assert!(JobStatus::Partial.is_terminal());
+        assert_ne!(JobStatus::Partial, JobStatus::Complete);
+        assert_eq!(JobStatus::Partial.as_str(), "partial");
+    }
 
     // ── now_ms ─────────────────────────────────────────────────────────────
 
@@ -13278,6 +13759,150 @@ mod tests {
                 std::env::set_var("ANTHROPIC_API_KEY", p);
             }
         }
+    }
+
+    // The override builder must stay *raw*: `AgentLoop` retries `stream_chat`
+    // itself, so wrapping here would nest two backoff loops (4 x 5 = 20
+    // attempts) and stall a run for minutes on a hard outage. One-shot callers
+    // opt in via `resilient()` instead.
+    #[test]
+    fn override_is_raw_and_resilient_wraps_it_for_one_shot_callers() {
+        let raw = build_provider_override("ollama", "qwen3").expect("ollama builds");
+        assert_ne!(
+            raw.name(),
+            "resilient",
+            "the builder must not pre-wrap — the agent loop would double-retry",
+        );
+        // `resilient()` is transparent: it delegates `name()` to the inner
+        // provider, so wrapping never changes which model a caller thinks it
+        // is talking to.
+        let wrapped = resilient(raw.clone());
+        assert_eq!(
+            wrapped.name(),
+            raw.name(),
+            "wrapping must not change the provider identity clients see",
+        );
+    }
+
+    // `/chat` and `/chat/stream` used to ignore the caller's model entirely:
+    // `ChatRequest.model` rode the wire but was `#[allow(dead_code)]`, so a
+    // user who picked a model in the toolbar was answered by whatever the
+    // daemon booted with — and differently from the agent route on the same
+    // screen, which honoured the pick.
+    #[test]
+    fn chat_request_carries_provider_and_model() {
+        let req: ChatRequest = serde_json::from_str(
+            r#"{"messages":[{"role":"user","content":"hi"}],
+                "provider":"ollama","model":"qwen3"}"#,
+        )
+        .unwrap();
+        assert_eq!(req.provider.as_deref(), Some("ollama"));
+        assert_eq!(req.model.as_deref(), Some("qwen3"));
+    }
+
+    // Older clients send neither; they must keep working unchanged.
+    #[test]
+    fn chat_request_without_provider_still_parses() {
+        let req: ChatRequest =
+            serde_json::from_str(r#"{"messages":[{"role":"user","content":"hi"}]}"#).unwrap();
+        assert_eq!(req.provider, None);
+        assert_eq!(req.model, None);
+    }
+
+    #[test]
+    fn chat_provider_override_is_applied_and_falls_back_safely() {
+        // Stand-in for the daemon's configured provider.
+        struct Daemon;
+        #[async_trait::async_trait]
+        impl vibe_ai::provider::AIProvider for Daemon {
+            fn name(&self) -> &str {
+                "daemon-default"
+            }
+            async fn is_available(&self) -> bool {
+                true
+            }
+            async fn complete(
+                &self,
+                _c: &vibe_ai::provider::CodeContext,
+            ) -> anyhow::Result<vibe_ai::provider::CompletionResponse> {
+                unreachable!("not called by chat_provider_for")
+            }
+            async fn stream_complete(
+                &self,
+                _c: &vibe_ai::provider::CodeContext,
+            ) -> anyhow::Result<vibe_ai::provider::CompletionStream> {
+                unreachable!("not called by chat_provider_for")
+            }
+            async fn chat(&self, _m: &[Message], _c: Option<String>) -> anyhow::Result<String> {
+                unreachable!("not called by chat_provider_for")
+            }
+            async fn stream_chat(
+                &self,
+                _m: &[Message],
+            ) -> anyhow::Result<vibe_ai::provider::CompletionStream> {
+                unreachable!("not called by chat_provider_for")
+            }
+        }
+        let fallback: Arc<dyn vibe_ai::provider::AIProvider> = Arc::new(Daemon);
+
+        // No override → the daemon's provider, untouched.
+        assert_eq!(
+            chat_provider_for(&fallback, None, None).name(),
+            "daemon-default"
+        );
+        // Half an override is not an override.
+        assert_eq!(
+            chat_provider_for(&fallback, Some("ollama"), None).name(),
+            "daemon-default",
+        );
+        assert_eq!(
+            chat_provider_for(&fallback, Some(""), Some("")).name(),
+            "daemon-default",
+        );
+        // An unbuildable override falls back rather than failing the turn.
+        assert_eq!(
+            chat_provider_for(&fallback, Some("not-a-real-provider"), Some("x")).name(),
+            "daemon-default",
+        );
+        // A buildable one is honoured. `resilient` delegates `name()`, so the
+        // identity that surfaces is the overridden provider's own — Ollama
+        // reports `Ollama (<model>)` — never the daemon default.
+        let chosen = chat_provider_for(&fallback, Some("ollama"), Some("qwen3"));
+        assert_ne!(
+            chosen.name(),
+            "daemon-default",
+            "the caller's model choice must not be silently ignored",
+        );
+        assert!(
+            chosen.name().to_lowercase().contains("ollama") && chosen.name().contains("qwen3"),
+            "the wrapper must not mask which provider/model answered, got {:?}",
+            chosen.name(),
+        );
+    }
+
+    // A run that says nothing about extensions must behave exactly as before.
+    #[test]
+    fn agent_request_defaults_step_extensions_to_absent() {
+        let req: AgentRequest =
+            serde_json::from_str(r#"{"task":"do the thing"}"#).expect("minimal body parses");
+        assert_eq!(
+            req.max_step_extensions, None,
+            "absent must mean 'use the harness default', not 0",
+        );
+    }
+
+    #[test]
+    fn agent_request_accepts_an_explicit_step_extension_ceiling() {
+        let req: AgentRequest =
+            serde_json::from_str(r#"{"task":"t","max_step_extensions":0}"#).unwrap();
+        assert_eq!(
+            req.max_step_extensions,
+            Some(0),
+            "0 must survive as an explicit hard-wall request, distinct from absent",
+        );
+        let req: AgentRequest =
+            serde_json::from_str(r#"{"task":"t","max_step_extensions":10}"#).unwrap();
+        assert_eq!(req.max_step_extensions, Some(10));
     }
 
     #[test]

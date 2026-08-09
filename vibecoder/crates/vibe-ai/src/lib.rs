@@ -22,8 +22,12 @@ pub mod skills;
 pub mod tools;
 pub mod trace;
 
+// `AgentHealthState` and `VerifierDecision` are reachable through
+// `AgentEvent::CircuitBreak` / `::Verifier`, so consumers matching the event
+// exhaustively need them named here too.
 pub use agent::{
-    AgentContext, AgentEvent, AgentLoop, AgentStep, ApprovalPolicy, ToolExecutorTrait,
+    AgentContext, AgentEvent, AgentHealthState, AgentLoop, AgentStep, ApprovalPolicy,
+    ToolExecutorTrait, VerifierDecision,
 };
 pub use artifacts::{AgentArtifact, Annotation, Artifact, ArtifactStore, ReviewIssueRef, TaskItem};
 pub use chat::ChatEngine;

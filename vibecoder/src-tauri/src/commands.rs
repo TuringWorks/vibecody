@@ -10576,6 +10576,34 @@ pub async fn start_parallel_agents(
                         let _ = h3.emit("manager:agent_update", update);
                         break;
                     }
+                    // Terminal, but the agent stopped mid-plan. This used to
+                    // fall into `_ => {}`, so no `manager:agent_update` was
+                    // ever emitted and the card sat on "running" forever —
+                    // the run had ended and nothing would ever move it.
+                    AgentEvent::Partial {
+                        summary,
+                        steps_completed,
+                        steps_planned,
+                        remaining_plan,
+                    } => {
+                        let detail = if remaining_plan.is_empty() {
+                            summary
+                        } else {
+                            format!("{summary} — not done: {}", remaining_plan.join("; "))
+                        };
+                        let update = AgentInstanceInfo {
+                            id: tid.clone(),
+                            task: format!(
+                                "Stopped after {steps_completed}/{steps_planned} planned steps. {detail}"
+                            ),
+                            status: "partial".to_string(),
+                            step_count,
+                            branch: format!("agent/{}", &tid),
+                            worktree_path: String::new(),
+                        };
+                        let _ = h3.emit("manager:agent_update", update);
+                        break;
+                    }
                     AgentEvent::Error(msg) => {
                         let update = AgentInstanceInfo {
                             id: tid.clone(),
@@ -10587,6 +10615,18 @@ pub async fn start_parallel_agents(
                         };
                         let _ = h3.emit("manager:agent_update", update);
                         break;
+                    }
+                    // Manager agents run unattended — there is no per-agent
+                    // approval UI. Answer the request; dropping `result_tx`
+                    // makes the agent abandon the run with no terminal event,
+                    // which strands the card on "running".
+                    AgentEvent::ToolCallPending { call, result_tx } => {
+                        tracing::warn!(
+                            agent = %tid,
+                            tool = %call.name(),
+                            "Approval-gated tool in an unattended manager agent — rejecting",
+                        );
+                        let _ = result_tx.send(None);
                     }
                     _ => {}
                 }
@@ -57711,19 +57751,27 @@ pub async fn start_daemon(
     let binary =
         boot::find_binary().ok_or_else(|| boot::DaemonState::BinaryNotFound.user_message())?;
 
-    let child = tokio::process::Command::new(&binary)
-        .args(["--serve", "--port", &port.to_string()])
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .kill_on_drop(true)
-        .spawn()
-        .map_err(|e| {
-            boot::DaemonState::SpawnFailed {
-                binary: binary.clone(),
-                error: e.to_string(),
-            }
-            .user_message()
-        })?;
+    // Working directory and output capture come from the shared bootstrap
+    // module, not from here. Spawning with the cwd this process inherited is
+    // what made a Finder-launched bundle start the daemon in `/`, where it
+    // exits 1 trying to create `.vibecli/` on the read-only system volume —
+    // and nulling stderr is what left that failure undiagnosable.
+    let (daemon_out, daemon_err) = boot::spawn_output();
+    let mut cmd = tokio::process::Command::new(&binary);
+    cmd.args(["--serve", "--port", &port.to_string()])
+        .stdout(daemon_out)
+        .stderr(daemon_err)
+        .kill_on_drop(true);
+    if let Some(dir) = boot::spawn_working_dir() {
+        cmd.current_dir(dir);
+    }
+    let child = cmd.spawn().map_err(|e| {
+        boot::DaemonState::SpawnFailed {
+            binary: binary.clone(),
+            error: e.to_string(),
+        }
+        .user_message()
+    })?;
 
     {
         let mut guard = state.daemon_process.lock().await;
@@ -57746,10 +57794,23 @@ pub async fn start_daemon(
             if let Some(ref mut child) = *guard {
                 if let Ok(Some(status)) = child.try_wait() {
                     *guard = None;
-                    return Err(format!(
-                        "The vibecli daemon exited immediately ({status}). \
-                         Run `vibecli --serve --port {port}` in a terminal to see why."
-                    ));
+                    let why = boot::spawn_log_path()
+                        .and_then(|p| std::fs::read_to_string(p).ok())
+                        .and_then(|log| {
+                            log.lines()
+                                .rev()
+                                .find(|l| !l.trim().is_empty())
+                                .map(str::to_string)
+                        });
+                    return Err(match why {
+                        Some(last) => {
+                            format!("The vibecli daemon exited immediately ({status}): {last}")
+                        }
+                        None => format!(
+                            "The vibecli daemon exited immediately ({status}). \
+                             Run `vibecli --serve --port {port}` in a terminal to see why."
+                        ),
+                    });
                 }
             }
         }

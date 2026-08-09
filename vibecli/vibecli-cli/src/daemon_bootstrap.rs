@@ -130,8 +130,13 @@ impl DaemonState {
             }
             DaemonState::TimedOut { port, waited } => format!(
                 "Launched the VibeCLI daemon but it did not answer http://127.0.0.1:{port}/health \
-                 within {}s. Run `vibecli --serve --port {port}` in a terminal to see why.",
-                waited.as_secs()
+                 within {}s. Its output was captured to {}.",
+                waited.as_secs(),
+                spawn_log_path()
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_else(|| format!(
+                        "(no log — run `vibecli --serve --port {port}` in a terminal)"
+                    ))
             ),
         }
     }
@@ -359,19 +364,86 @@ fn spawn_arg_forms(port: u16) -> [Vec<String>; 2] {
     ]
 }
 
+/// A directory the daemon can actually run in.
+///
+/// The daemon derives its workspace root — and therefore `<workspace>/.vibecli/`
+/// — from its working directory. A `.app` launched from Finder inherits `/`,
+/// where creating `.vibecli/` fails on the read-only system volume and the
+/// daemon exits 1 before it ever binds the port. The client then reports only
+/// "exited immediately (exit status: 1)".
+///
+/// Keep the caller's directory when it works, so a client started from a repo
+/// still gets that repo's workspace; fall back to home only when it does not.
+/// The probe creates the same directory the daemon would create seconds later,
+/// so it adds no side effect the daemon would not.
+pub fn spawn_working_dir() -> Option<PathBuf> {
+    spawn_working_dir_in(&spawn_dir_candidates())
+}
+
+/// Candidate working directories, most-preferred first. Split out so the
+/// choice can be tested without mutating this process's cwd.
+pub fn spawn_dir_candidates() -> Vec<PathBuf> {
+    [
+        std::env::current_dir().ok(),
+        home_dir(),
+        Some(std::env::temp_dir()),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
+/// First candidate the daemon could actually write its `.vibecli/` into.
+pub fn spawn_working_dir_in(candidates: &[PathBuf]) -> Option<PathBuf> {
+    candidates
+        .iter()
+        .find(|dir| std::fs::create_dir_all(dir.join(".vibecli")).is_ok())
+        .cloned()
+}
+
+/// Where a spawned daemon's stdout/stderr go, so a startup failure is
+/// diagnosable without asking the user to re-run it in a terminal.
+///
+/// Truncated per spawn: the interesting content is always the most recent
+/// attempt, and an append-forever log in `~` is its own bug.
+pub fn spawn_log_path() -> Option<PathBuf> {
+    let dir = home_dir()?.join(".vibecli");
+    std::fs::create_dir_all(&dir).ok()?;
+    Some(dir.join("daemon-spawn.log"))
+}
+
+fn home_dir() -> Option<PathBuf> {
+    std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .map(PathBuf::from)
+}
+
+/// Capture the spawned daemon's output, falling back to discarding it when the
+/// log file cannot be opened. Never fail a spawn over logging.
+pub fn spawn_output() -> (std::process::Stdio, std::process::Stdio) {
+    use std::process::Stdio;
+    match spawn_log_path().and_then(|p| std::fs::File::create(p).ok()) {
+        Some(f) => match f.try_clone() {
+            Ok(dup) => (Stdio::from(f), Stdio::from(dup)),
+            Err(_) => (Stdio::from(f), Stdio::null()),
+        },
+        None => (Stdio::null(), Stdio::null()),
+    }
+}
+
 /// Spawn the daemon detached from the caller's stdio so it outlives the window
 /// that started it — it is a persistent local service, not a child of the UI.
 fn spawn_detached(binary: &std::path::Path, port: u16) -> Result<u32, String> {
     use std::process::{Command, Stdio};
     let mut last_error = String::from("no spawn attempted");
     for args in spawn_arg_forms(port) {
-        match Command::new(binary)
-            .args(&args)
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-        {
+        let (out, err) = spawn_output();
+        let mut cmd = Command::new(binary);
+        cmd.args(&args).stdin(Stdio::null()).stdout(out).stderr(err);
+        if let Some(dir) = spawn_working_dir() {
+            cmd.current_dir(dir);
+        }
+        match cmd.spawn() {
             Ok(child) => return Ok(child.id()),
             Err(e) => last_error = e.to_string(),
         }
@@ -430,6 +502,54 @@ pub async fn ensure_running(config: &BootstrapConfig) -> DaemonState {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn spawn_dir_skips_unwritable_candidates() {
+        // The bug this guards: a Finder-launched `.app` inherits cwd `/`, the
+        // daemon tries to create `/.vibecli/` on the read-only system volume,
+        // and exits 1 before binding. Root must be skipped, not chosen.
+        let tmp = std::env::temp_dir().join(format!("vibecli-spawndir-{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+
+        let chosen = spawn_working_dir_in(&[PathBuf::from("/no-such-root-dir/nope"), tmp.clone()]);
+        assert_eq!(chosen.as_deref(), Some(tmp.as_path()));
+        assert!(
+            tmp.join(".vibecli").is_dir(),
+            "probe should create the dir it tested"
+        );
+
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    #[test]
+    fn spawn_dir_prefers_the_callers_cwd() {
+        // A client started from a repo must keep that repo as the workspace;
+        // the home fallback is only for when the cwd genuinely will not do.
+        let tmp = std::env::temp_dir().join(format!("vibecli-spawnpref-{}", std::process::id()));
+        let fallback = tmp.join("fallback");
+        let preferred = tmp.join("preferred");
+        std::fs::create_dir_all(&fallback).unwrap();
+        std::fs::create_dir_all(&preferred).unwrap();
+
+        let chosen = spawn_working_dir_in(&[preferred.clone(), fallback.clone()]);
+        assert_eq!(chosen.as_deref(), Some(preferred.as_path()));
+        assert!(
+            !fallback.join(".vibecli").exists(),
+            "must not probe past the first hit"
+        );
+
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    #[test]
+    fn spawn_dir_candidates_are_ordered_and_nonempty() {
+        let c = spawn_dir_candidates();
+        assert!(
+            !c.is_empty(),
+            "there is always at least a temp dir to fall back to"
+        );
+        assert!(c.len() <= 3);
+    }
 
     #[test]
     fn service_name_is_stable() {

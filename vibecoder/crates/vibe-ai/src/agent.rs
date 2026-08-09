@@ -63,7 +63,10 @@ fn sanitize_tool_output(output: &str) -> String {
 // ── Circuit Breaker ─────────────────────────────────────────────────────────
 
 /// Health state of the agent loop, inspired by fire-flow's error classification.
-#[derive(Debug, Clone, PartialEq, Eq)]
+// `Copy`: a fieldless enum read out of the circuit breaker on the hot path
+// (the step-budget extension check) — cloning a discriminant to inspect it is
+// noise.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AgentHealthState {
     /// Agent is making forward progress (default).
     Progress,
@@ -665,6 +668,39 @@ pub struct AgentLoop {
     pub decision_writer: Option<DecisionWriter>,
     /// Retry configuration for transient API errors.
     pub retry_config: RetryConfig,
+    /// How many times the step budget may be extended when the agent runs out
+    /// of steps while *still visibly working*.
+    ///
+    /// `max_steps` is a runaway guard, but it fired on healthy runs too: an
+    /// agent executing its plan tool-call by tool-call hit the wall mid-plan
+    /// and reported `Partial`, leaving the user to press Resume to finish work
+    /// that was going fine. Each extension grants another `max_steps`, and is
+    /// granted only while [`should_extend_budget`] agrees the run is making
+    /// progress — so a stalled or spinning agent still stops on schedule.
+    /// Total ceiling is `max_steps * (1 + max_step_extensions)`.
+    pub max_step_extensions: usize,
+}
+
+/// Steps without a successful tool call after which a run is no longer
+/// considered to be "visibly working", so its budget stops being extended.
+const PROGRESS_STALENESS_LIMIT: usize = 10;
+
+/// Decide whether an agent that just exhausted its step budget has earned more.
+///
+/// Pure so the policy is testable on its own: extending is only safe when the
+/// run is *demonstrably* still productive. Requires all of — extensions left,
+/// a healthy circuit breaker, and a successful tool call in the recent past.
+/// Anything else (stalled, spinning, degraded, blocked, or grinding without
+/// landing a tool) stops at the budget, exactly as before.
+fn should_extend_budget(
+    extensions_used: usize,
+    max_extensions: usize,
+    health: AgentHealthState,
+    steps_since_progress: usize,
+) -> bool {
+    extensions_used < max_extensions
+        && health == AgentHealthState::Progress
+        && steps_since_progress < PROGRESS_STALENESS_LIMIT
 }
 
 impl AgentLoop {
@@ -687,7 +723,15 @@ impl AgentLoop {
             decision_tracing_enabled: false,
             decision_writer: None,
             retry_config: RetryConfig::default(),
+            max_step_extensions: 3,
         }
+    }
+
+    /// Cap how many times a still-productive run may extend its step budget.
+    /// `0` restores the old hard `max_steps` wall.
+    pub fn with_step_extensions(mut self, max_extensions: usize) -> Self {
+        self.max_step_extensions = max_extensions;
+        self
     }
 
     /// Enable or disable the circuit breaker (default: enabled).
@@ -869,7 +913,64 @@ impl AgentLoop {
         // it cannot be read after the loop. Reused buffer, not a per-step clone.
         let mut last_assistant_turn = String::new();
 
-        for step in 0..self.max_steps {
+        // ── Step budget ───────────────────────────────────────────────────
+        // `max_steps` is a runaway guard, but as a hard wall it also cut off
+        // healthy runs mid-plan, which surfaced as `Partial` and left the user
+        // to press Resume to finish work that was going fine. The budget now
+        // extends while the run is demonstrably productive (see
+        // `should_extend_budget`), up to `max_steps * (1 + max_step_extensions)`.
+        //
+        // `step` is advanced at the *top* of the body, not the bottom: the body
+        // has many `continue`s, and a bottom increment would skip past every
+        // one of them and spin forever.
+        let mut step_budget = self.max_steps;
+        let mut extensions_used = 0usize;
+        let mut next_step = 0usize;
+        // Step index of the last successful tool call — the progress signal
+        // that gates an extension.
+        let mut last_progress_step = 0usize;
+
+        while next_step < step_budget || {
+            // Only evaluated once the budget is spent (short-circuit), so this
+            // is the "should this run get more runway?" decision point.
+            let health = circuit_breaker
+                .as_ref()
+                .map(|cb| cb.state)
+                .unwrap_or(AgentHealthState::Progress);
+            let steps_since_progress = next_step.saturating_sub(last_progress_step);
+            // `max_steps == 0` means "no steps allowed" (a policy can clamp it
+            // there). Extending by 0 grants nothing, so the check would just
+            // re-fire until the extension count ran out — bounded, but
+            // pointless. Honour the zero.
+            let extend = self.max_steps > 0
+                && should_extend_budget(
+                    extensions_used,
+                    self.max_step_extensions,
+                    health,
+                    steps_since_progress,
+                );
+            if extend {
+                extensions_used += 1;
+                step_budget += self.max_steps;
+                tracing::info!(
+                    extension = extensions_used,
+                    max_extensions = self.max_step_extensions,
+                    new_budget = step_budget,
+                    steps_since_progress,
+                    "Step budget exhausted but the agent is still making progress — extending",
+                );
+            } else {
+                tracing::warn!(
+                    extensions_used,
+                    health = %health,
+                    steps_since_progress,
+                    "Step budget exhausted and not extending",
+                );
+            }
+            extend
+        } {
+            let step = next_step;
+            next_step += 1;
             // ── 0. Context window safety ──────────────────────────────────────
             // Prune middle messages to keep within the provider's context limit.
             // Default budget: 200 000 tokens (~800 KB of text), overridable via
@@ -1785,7 +1886,34 @@ impl AgentLoop {
                                 truncated: false,
                             }
                         }
-                        Err(_) => return Ok(()), // Sender dropped
+                        Err(_) => {
+                            // The client took `ToolCallPending` off the channel
+                            // and dropped `result_tx` without answering — the
+                            // shape of a consumer whose match arm ignores the
+                            // variant. Returning silently here made the whole
+                            // run vanish with no terminal event, and callers
+                            // that fall back to "no Error seen ⇒ success"
+                            // (the daemon SSE route, the spawn_agent executor)
+                            // then reported an abandoned run as a completed
+                            // one. Never end a run without saying why.
+                            tracing::error!(
+                                tool = %call.name(),
+                                step = step,
+                                "Approval channel dropped without a decision — \
+                                 client did not answer ToolCallPending",
+                            );
+                            let _ = event_tx
+                                .send(AgentEvent::Error(format!(
+                                    "Approval for `{}` was never answered (the client dropped \
+                                     the approval channel). The task stopped at step {} with \
+                                     work outstanding. Re-run in an auto-approving mode, or use \
+                                     a client that responds to approval requests.",
+                                    call.name(),
+                                    step,
+                                )))
+                                .await;
+                            return Ok(());
+                        }
                     }
                 } else {
                     // Auto-execute
@@ -1966,6 +2094,14 @@ impl AgentLoop {
                 }
             }
 
+            // A tool that actually ran is the run's proof of life, and the
+            // signal that gates a step-budget extension. Failures deliberately
+            // do not count: an agent retrying the same broken command is the
+            // case the budget exists to stop.
+            if tool_result.success {
+                last_progress_step = step;
+            }
+
             // ── 4. Feed result back into conversation ─────────────────────────
             let raw_content = format_tool_result(&call, &tool_result);
             let safe_content = sanitize_tool_output(&raw_content);
@@ -2066,20 +2202,20 @@ impl AgentLoop {
         if self.decision_tracing_enabled {
             if let Some(decision_writer) = &decision_writer {
                 let description = if !plan_steps.is_empty() && plan_steps_done < plan_steps.len() {
-                    format!("Agent reached step limit ({}) with {}/{} plan items done - emitting Partial", self.max_steps, plan_steps_done, plan_steps.len())
+                    format!("Agent reached step limit ({}) with {}/{} plan items done - emitting Partial", step_budget, plan_steps_done, plan_steps.len())
                 } else {
                     format!(
                         "Agent reached maximum step limit ({}) - emitting Error",
-                        self.max_steps
+                        step_budget
                     )
                 };
                 let context = format!(
                     "Agent executed {} steps out of maximum {}",
-                    plan_steps_done, self.max_steps
+                    plan_steps_done, step_budget
                 );
                 let metadata = serde_json::json!({
-                    "step": self.max_steps - 1,
-                    "max_steps": self.max_steps,
+                    "step": step_budget - 1,
+                    "max_steps": step_budget,
                     "steps_completed": plan_steps_done,
                     "steps_planned": plan_steps.len(),
                     "plan_steps_remaining": plan_steps.len().saturating_sub(plan_steps_done),
@@ -2087,7 +2223,7 @@ impl AgentLoop {
                 }).to_string();
 
                 decision_writer.record(
-                    self.max_steps - 1,
+                    step_budget - 1,
                     "max_steps_reached",
                     &description,
                     &context,
@@ -2097,10 +2233,7 @@ impl AgentLoop {
             }
         }
 
-        tracing::warn!(
-            max_steps = self.max_steps,
-            "Agent reached maximum step limit"
-        );
+        tracing::warn!(max_steps = step_budget, "Agent reached maximum step limit");
         // If there's an active plan with unfinished items, emit Partial so the
         // frontend can offer a Resume button instead of showing a hard error.
         if !plan_steps.is_empty() && plan_steps_done < plan_steps.len() {
@@ -2109,7 +2242,7 @@ impl AgentLoop {
                 .send(AgentEvent::Partial {
                     summary: format!(
                         "Agent reached step limit ({}) with {}/{} plan items done",
-                        self.max_steps,
+                        step_budget,
                         plan_steps_done,
                         plan_steps.len()
                     ),
@@ -2128,20 +2261,20 @@ impl AgentLoop {
             let summary = if last_turn.is_empty() {
                 format!(
                     "Agent reached the step limit ({}) before finishing the task.",
-                    self.max_steps
+                    step_budget
                 )
             } else {
                 format!(
                     "Agent reached the step limit ({}) before finishing the task. \
                      Where it got to:\n\n{}",
-                    self.max_steps, last_turn
+                    step_budget, last_turn
                 )
             };
             let _ = event_tx
                 .send(AgentEvent::Partial {
                     summary,
-                    steps_completed: self.max_steps,
-                    steps_planned: self.max_steps,
+                    steps_completed: step_budget,
+                    steps_planned: step_budget,
                     remaining_plan: Vec::new(),
                 })
                 .await;
@@ -2179,8 +2312,25 @@ pub fn estimate_tokens(messages: &[Message]) -> usize {
 /// - Index 1: initial user task
 /// - Last `keep_tail` messages: recent tool results and LLM responses
 ///
-/// Middle messages are removed and replaced with a single placeholder.
+/// Middle messages are removed and replaced with a single placeholder. If that
+/// is not enough — because the oversize lives in a message that must be kept —
+/// individual messages are clipped so the request actually fits.
 pub fn prune_messages(messages: &mut Vec<Message>, budget: usize) {
+    if estimate_tokens(messages) <= budget {
+        return;
+    }
+    prune_middle(messages, budget);
+    // Dropping the middle cannot help when one preserved message is itself
+    // over budget — a `read_file` on a large file, a `bash` command with huge
+    // output. That left the history over budget with nothing left to drop, so
+    // every following step re-sent the same too-large payload and the provider
+    // rejected it identically each time: a run that could never recover.
+    clamp_oversized_messages(messages, budget);
+}
+
+/// Drop the middle of the conversation, replacing it with a summary.
+/// No-op when there is no middle to drop.
+fn prune_middle(messages: &mut Vec<Message>, budget: usize) {
     if estimate_tokens(messages) <= budget {
         return;
     }
@@ -2258,6 +2408,88 @@ pub fn prune_messages(messages: &mut Vec<Message>, budget: usize) {
     );
 }
 
+/// Marker left in place of elided content, so the model can tell the gap is an
+/// artefact of the context window rather than the file/output ending there.
+const TRUNCATION_MARKER: &str = "\n…[truncated to fit the context window]…\n";
+
+/// Smallest content any single message is clipped to. Below this a message
+/// carries no information, and losing which tool produced it costs more than
+/// the bytes save.
+const MIN_MESSAGE_CHARS: usize = 200;
+
+/// Clip the middle out of `s` so it is at most `target_chars` long.
+///
+/// Keeps both ends: the head of a tool result says what ran, the tail usually
+/// carries the error or conclusion. Always lands on UTF-8 char boundaries.
+fn truncate_middle(s: &str, target_chars: usize) -> String {
+    if s.len() <= target_chars {
+        return s.to_string();
+    }
+    let floor_boundary = |i: usize| {
+        let mut i = i.min(s.len());
+        while i > 0 && !s.is_char_boundary(i) {
+            i -= 1;
+        }
+        i
+    };
+    if target_chars <= TRUNCATION_MARKER.len() {
+        return s[..floor_boundary(target_chars)].to_string();
+    }
+    let keep = target_chars - TRUNCATION_MARKER.len();
+    let head_len = keep * 3 / 5;
+    let tail_len = keep - head_len;
+    let head_end = floor_boundary(head_len);
+    let mut tail_start = s.len().saturating_sub(tail_len);
+    while tail_start < s.len() && !s.is_char_boundary(tail_start) {
+        tail_start += 1;
+    }
+    format!(
+        "{}{}{}",
+        &s[..head_end],
+        TRUNCATION_MARKER,
+        &s[tail_start..]
+    )
+}
+
+/// Shrink the largest messages until the history fits `budget`.
+///
+/// Message count and order are preserved — only content shrinks. Dropping the
+/// system prompt (the agent forgets its tools) or the newest tool result (it
+/// forgets what just happened) breaks the loop in worse ways than eliding the
+/// middle of one large payload.
+///
+/// Best-effort by construction: `estimate_tokens` charges 8 tokens of framing
+/// per message, so a budget below `8 * messages.len()` cannot be met by
+/// clipping alone. It gets as close as it can rather than looping forever.
+fn clamp_oversized_messages(messages: &mut [Message], budget: usize) {
+    // Each pass strictly shrinks the largest message, so this terminates well
+    // inside the bound; the bound is a backstop, not the expected exit.
+    for _ in 0..messages.len() * 2 + 8 {
+        let total = estimate_tokens(messages);
+        if total <= budget {
+            return;
+        }
+        let Some((idx, len)) = messages
+            .iter()
+            .enumerate()
+            .map(|(i, m)| (i, m.content.len()))
+            .max_by_key(|(_, len)| *len)
+        else {
+            return;
+        };
+        if len <= MIN_MESSAGE_CHARS {
+            return; // Nothing left to give.
+        }
+        let overflow_chars = total.saturating_sub(budget).saturating_mul(4);
+        let target = len
+            .saturating_sub(overflow_chars)
+            .max(MIN_MESSAGE_CHARS)
+            // Guarantee forward progress even when the arithmetic rounds badly.
+            .min(len - 1);
+        messages[idx].content = truncate_middle(&messages[idx].content, target);
+    }
+}
+
 #[cfg(test)]
 mod context_tests {
     use super::*;
@@ -2279,6 +2511,107 @@ mod context_tests {
     fn estimate_tokens_basic() {
         let msgs = vec![make_msg(MessageRole::User, "abcdefgh")]; // 8 chars / 4 = 2 + 8 = 10
         assert_eq!(estimate_tokens(&msgs), 10);
+    }
+
+    // Pruning only ever removed the *middle*. One oversized message in the
+    // preserved head or tail — a `read_file` on a big file, a `bash` command
+    // with huge output — left the history over budget with nothing left to
+    // drop, so every following step re-sent the same too-large payload and the
+    // provider rejected it identically each time. The run could not recover.
+    #[test]
+    fn prune_fits_the_budget_even_when_one_tail_message_is_enormous() {
+        let huge = "x".repeat(400_000); // ~100k tokens on its own
+        let mut msgs = vec![
+            make_msg(MessageRole::System, "system prompt"),
+            make_msg(MessageRole::User, "the task"),
+        ];
+        for i in 0..8 {
+            msgs.push(make_msg(MessageRole::User, &format!("filler {i}")));
+        }
+        msgs.push(make_msg(MessageRole::User, &huge));
+        msgs.push(make_msg(MessageRole::Assistant, "ok"));
+
+        let budget = 10_000;
+        prune_messages(&mut msgs, budget);
+        assert!(
+            estimate_tokens(&msgs) <= budget,
+            "pruning left {} tokens against a {budget} budget — the next request \
+             would be rejected for the same reason, forever",
+            estimate_tokens(&msgs),
+        );
+        // The head must survive: without the system prompt the agent forgets
+        // its tools, and without the task it forgets what it is doing.
+        assert_eq!(msgs[0].content, "system prompt");
+        assert_eq!(msgs[1].content, "the task");
+    }
+
+    #[test]
+    fn prune_fits_the_budget_when_the_head_alone_is_enormous() {
+        let huge = "y".repeat(400_000);
+        let mut msgs = vec![
+            make_msg(MessageRole::System, &huge),
+            make_msg(MessageRole::User, "the task"),
+        ];
+        for i in 0..8 {
+            msgs.push(make_msg(MessageRole::User, &format!("filler {i}")));
+        }
+        let budget = 10_000;
+        prune_messages(&mut msgs, budget);
+        assert!(
+            estimate_tokens(&msgs) <= budget,
+            "an oversized system prompt must still be brought under budget, got {}",
+            estimate_tokens(&msgs),
+        );
+    }
+
+    #[test]
+    fn truncate_middle_keeps_both_ends_and_marks_the_gap() {
+        let s = format!("HEAD{}TAIL", "z".repeat(5_000));
+        let out = truncate_middle(&s, 500);
+        assert!(out.len() <= 500, "got {} chars", out.len());
+        assert!(
+            out.starts_with("HEAD"),
+            "head lost: {}",
+            &out[..20.min(out.len())]
+        );
+        assert!(out.ends_with("TAIL"), "tail lost");
+        assert!(out.contains("truncated"), "gap must be marked");
+    }
+
+    #[test]
+    fn truncate_middle_never_splits_a_utf8_char() {
+        // 4-byte emoji: every naive byte index lands mid-character.
+        let s = "🙂".repeat(4_000);
+        for target in [7, 41, 100, 1_001, 4_097] {
+            let out = truncate_middle(&s, target);
+            assert!(out.len() <= target.max(TRUNCATION_MARKER.len()) + 4);
+            // Constructing the String at all proves the slices were valid, but
+            // assert the content is still well-formed emoji + marker.
+            assert!(out.chars().count() > 0);
+        }
+    }
+
+    #[test]
+    fn truncate_middle_is_identity_below_target() {
+        assert_eq!(truncate_middle("short", 500), "short");
+    }
+
+    // A budget too small for the per-message framing overhead cannot be met by
+    // clipping. It must degrade, not spin.
+    #[test]
+    fn clamp_terminates_on_an_impossible_budget() {
+        let mut msgs: Vec<Message> = (0..50)
+            .map(|i| {
+                make_msg(
+                    MessageRole::User,
+                    &format!("message {i} {}", "q".repeat(1_000)),
+                )
+            })
+            .collect();
+        clamp_oversized_messages(&mut msgs, 1);
+        assert_eq!(msgs.len(), 50, "clamping must not drop messages");
+        // 50 messages * 8 tokens of framing = 400 floor; can't reach 1.
+        assert!(estimate_tokens(&msgs) < 50 * (1_000 / 4));
     }
 
     #[test]
@@ -3381,6 +3714,279 @@ mod reasoning_turn_tests {
         );
     }
 
+    /// The harness contract every caller depends on: a run always ends with
+    /// exactly one of Complete / Partial / Error. Callers that infer success
+    /// from "no Error was seen" (the daemon SSE route, the spawn_agent tool
+    /// executor) turn any silent exit into a reported success, so silence is
+    /// never an acceptable ending.
+    fn assert_terminal_event(events: &[AgentEvent], case: &str) {
+        let terminal = events
+            .iter()
+            .filter(|e| {
+                matches!(
+                    e,
+                    AgentEvent::Complete(_) | AgentEvent::Partial { .. } | AgentEvent::Error(_)
+                )
+            })
+            .count();
+        assert_eq!(
+            terminal, 1,
+            "{case}: expected exactly one terminal event, got {terminal}",
+        );
+    }
+
+    // An approval-gated run whose client never answers used to `return Ok(())`
+    // with no event at all — and the daemon then published
+    // `complete("Agent finished.")` for it.
+    #[tokio::test]
+    async fn dropped_approval_channel_reports_an_error() {
+        let provider: Arc<dyn crate::provider::AIProvider> = Arc::new(
+            MockAIProvider::with_responses("mock", vec![
+                "<tool_call name=\"write_file\"><path>a.txt</path><content>hi</content></tool_call>",
+            ]),
+        );
+        let exec: Arc<dyn ToolExecutorTrait> = Arc::new(OkExecutor);
+        // Suggest gates a write behind approval.
+        let agent = AgentLoop::new(provider, ApprovalPolicy::Suggest, exec);
+        let (tx, mut rx) = mpsc::channel::<AgentEvent>(64);
+        let run = agent.run("write a file", AgentContext::default(), tx);
+
+        // Model a client whose match arm ignores ToolCallPending: take the
+        // event off the channel and drop `result_tx` without answering.
+        // The pending event must NOT be retained — holding it keeps the
+        // sender alive, which is a different (hanging) failure mode.
+        let drain = async {
+            let mut events = Vec::new();
+            while let Some(e) = rx.recv().await {
+                match e {
+                    AgentEvent::ToolCallPending { call, result_tx } => {
+                        drop(result_tx);
+                        events.push(AgentEvent::StreamChunk(format!("pending:{}", call.name())));
+                    }
+                    other => events.push(other),
+                }
+            }
+            events
+        };
+        let (_, events) = tokio::join!(run, drain);
+
+        assert_terminal_event(&events, "dropped approval channel");
+        let err = events
+            .iter()
+            .find_map(|e| match e {
+                AgentEvent::Error(m) => Some(m.clone()),
+                _ => None,
+            })
+            .expect("dropping the approval channel must surface an error");
+        assert!(
+            err.contains("write_file") && err.to_lowercase().contains("approval"),
+            "error should name the tool and the cause, got: {err}",
+        );
+    }
+
+    #[tokio::test]
+    async fn every_run_ends_with_exactly_one_terminal_event() {
+        let cases: Vec<(&str, Vec<&str>, usize)> = vec![
+            (
+                "task_complete",
+                vec!["<tool_call name=\"task_complete\"><summary>done</summary></tool_call>"],
+                10,
+            ),
+            ("prose answer", vec!["The code is fine."], 10),
+            (
+                "step limit",
+                vec![
+                    "<tool_call name=\"list_directory\"><path>.</path></tool_call>",
+                    "<tool_call name=\"list_directory\"><path>src</path></tool_call>",
+                ],
+                2,
+            ),
+            (
+                "unknown tool then done",
+                vec![
+                    "<tool_call name=\"container.exec\"><cmd>ls</cmd></tool_call>",
+                    "<tool_call name=\"task_complete\"><summary>done</summary></tool_call>",
+                ],
+                10,
+            ),
+        ];
+        for (case, responses, max_steps) in cases {
+            let events = run_agent(responses, max_steps).await;
+            assert_terminal_event(&events, case);
+        }
+    }
+
+    // ── Step-budget extension ─────────────────────────────────────────────
+    //
+    // `max_steps` is a runaway guard, but as a hard wall it also cut off runs
+    // that were working fine, reporting `Partial` for work the agent would
+    // have finished a few steps later.
+
+    #[test]
+    fn extension_is_granted_only_to_a_healthy_productive_run() {
+        // The good case: budget left, healthy, just landed a tool.
+        assert!(should_extend_budget(0, 3, AgentHealthState::Progress, 1));
+
+        // Every guard, individually, must veto.
+        assert!(
+            !should_extend_budget(3, 3, AgentHealthState::Progress, 1),
+            "must stop once extensions are exhausted",
+        );
+        for unhealthy in [
+            AgentHealthState::Stalled,
+            AgentHealthState::Spinning,
+            AgentHealthState::Degraded,
+            AgentHealthState::Blocked,
+        ] {
+            assert!(
+                !should_extend_budget(0, 3, unhealthy, 1),
+                "must not extend a {unhealthy} run",
+            );
+        }
+        assert!(
+            !should_extend_budget(0, 3, AgentHealthState::Progress, PROGRESS_STALENESS_LIMIT),
+            "must not extend a run that has landed no tool call in a long while",
+        );
+    }
+
+    #[test]
+    fn extensions_are_bounded() {
+        // Whatever happens, the run cannot exceed max_steps * (1 + N).
+        let mut used = 0;
+        while should_extend_budget(used, 3, AgentHealthState::Progress, 0) {
+            used += 1;
+            assert!(used <= 3, "extension count ran away");
+        }
+        assert_eq!(used, 3);
+    }
+
+    /// Drive a run whose work needs more than `max_steps` steps.
+    async fn run_with_extensions(
+        responses: Vec<&str>,
+        max_steps: usize,
+        extensions: usize,
+    ) -> Vec<AgentEvent> {
+        let provider: Arc<dyn crate::provider::AIProvider> =
+            Arc::new(MockAIProvider::with_responses("mock", responses));
+        let exec: Arc<dyn ToolExecutorTrait> = Arc::new(OkExecutor);
+        let mut agent = AgentLoop::new(provider, ApprovalPolicy::FullAuto, exec)
+            .with_step_extensions(extensions);
+        agent.max_steps = max_steps;
+        let (tx, mut rx) = mpsc::channel::<AgentEvent>(256);
+        let _ = agent.run("do the thing", AgentContext::default(), tx).await;
+        let mut events = Vec::new();
+        while let Ok(e) = rx.try_recv() {
+            events.push(e);
+        }
+        events
+    }
+
+    // The regression this exists for: three tool calls of real work with a
+    // budget of two. With the old hard wall that was a Partial; the agent was
+    // making progress the whole time and only needed one more step.
+    #[tokio::test]
+    async fn a_productive_run_that_overruns_its_budget_now_finishes() {
+        let events = run_with_extensions(
+            vec![
+                "<tool_call name=\"list_directory\"><path>.</path></tool_call>",
+                "<tool_call name=\"list_directory\"><path>src</path></tool_call>",
+                "<tool_call name=\"list_directory\"><path>tests</path></tool_call>",
+                "<tool_call name=\"task_complete\"><summary>Reviewed every directory.</summary></tool_call>",
+            ],
+            2,
+            3,
+        )
+        .await;
+
+        assert_terminal_event(&events, "productive overrun");
+        let completed = events.iter().any(|e| matches!(e, AgentEvent::Complete(_)));
+        assert!(
+            completed,
+            "a run that was still landing tool calls should have been given the \
+             runway to finish, got: {:?}",
+            events
+                .iter()
+                .filter_map(|e| match e {
+                    AgentEvent::Partial { summary, .. } => Some(summary.clone()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>(),
+        );
+    }
+
+    // The guard still has to bite: with extensions disabled the old hard wall
+    // is exactly what happens.
+    #[tokio::test]
+    async fn zero_extensions_restores_the_hard_step_wall() {
+        let events = run_with_extensions(
+            vec![
+                "<tool_call name=\"list_directory\"><path>.</path></tool_call>",
+                "<tool_call name=\"list_directory\"><path>src</path></tool_call>",
+                "<tool_call name=\"task_complete\"><summary>done</summary></tool_call>",
+            ],
+            2,
+            0,
+        )
+        .await;
+
+        assert_terminal_event(&events, "hard wall");
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e, AgentEvent::Partial { .. })),
+            "with no extensions the budget must still stop the run",
+        );
+    }
+
+    // An agent that never lands a successful tool call must not be handed more
+    // runway — that is the runaway the budget exists to stop.
+    #[tokio::test]
+    async fn an_unproductive_run_is_not_extended() {
+        struct FailingExecutor;
+        #[async_trait::async_trait]
+        impl ToolExecutorTrait for FailingExecutor {
+            async fn execute(&self, _call: &ToolCall) -> ToolResult {
+                ToolResult {
+                    tool_name: "list_directory".into(),
+                    output: "boom".into(),
+                    success: false,
+                    truncated: false,
+                }
+            }
+        }
+        let responses: Vec<&str> =
+            std::iter::repeat("<tool_call name=\"list_directory\"><path>.</path></tool_call>")
+                .take(60)
+                .collect();
+        let provider: Arc<dyn crate::provider::AIProvider> =
+            Arc::new(MockAIProvider::with_responses("mock", responses));
+        let exec: Arc<dyn ToolExecutorTrait> = Arc::new(FailingExecutor);
+        let mut agent = AgentLoop::new(provider, ApprovalPolicy::FullAuto, exec)
+            .with_step_extensions(3)
+            // The circuit breaker is the other guard; disable it so this test
+            // isolates the "no successful tool call" path.
+            .with_circuit_breaker(false);
+        agent.max_steps = 12;
+        let (tx, mut rx) = mpsc::channel::<AgentEvent>(512);
+        let _ = agent.run("spin", AgentContext::default(), tx).await;
+        let mut events = Vec::new();
+        while let Ok(e) = rx.try_recv() {
+            events.push(e);
+        }
+
+        assert_terminal_event(&events, "unproductive run");
+        let steps = events
+            .iter()
+            .filter(|e| matches!(e, AgentEvent::ToolCallExecuted(_)))
+            .count();
+        // 12 budget + at most PROGRESS_STALENESS_LIMIT of slack before the
+        // staleness guard trips — nowhere near the 4× ceiling.
+        assert!(
+            steps <= 12 + PROGRESS_STALENESS_LIMIT,
+            "a run landing no successful tool call kept being extended: {steps} steps",
+        );
+    }
+
     #[tokio::test]
     async fn genuine_prose_answer_still_completes() {
         let events = run_agent(
@@ -3396,14 +4002,21 @@ mod reasoning_turn_tests {
     }
 
     // 50 steps of work reported as a bare error threw everything away.
+    //
+    // Extensions are disabled here on purpose: this test is about how budget
+    // *exhaustion* is reported, and a productive run no longer exhausts a
+    // 2-step budget — it gets extended (see
+    // `a_productive_run_that_overruns_its_budget_now_finishes`). Pinning
+    // extensions to 0 keeps this test aimed at the reporting path.
     #[tokio::test]
     async fn step_limit_reports_where_the_run_got_to() {
-        let events = run_agent(
+        let events = run_with_extensions(
             vec![
                 "<tool_call name=\"list_directory\"><path>.</path></tool_call>",
                 "<tool_call name=\"list_directory\"><path>src</path></tool_call>",
             ],
             2,
+            0,
         )
         .await;
 

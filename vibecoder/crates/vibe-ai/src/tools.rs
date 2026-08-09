@@ -667,6 +667,196 @@ pub const AVAILABLE_TOOL_NAMES: &[&str] = &[
     "record_memory",
 ];
 
+/// The same tools as [`TOOL_SYSTEM_PROMPT`], in the machine-readable shape that
+/// Ollama and every OpenAI-compatible endpoint expect on a request's `tools`
+/// field.
+///
+/// Describing tools *only* in the system prompt works for models that follow
+/// prose instructions, but a model trained for native tool calling has nothing
+/// to call: it narrates its intent ("Let me check the workspace…") and emits an
+/// empty turn, which reads as the agent hanging. Declaring them here is the
+/// missing half of a round trip whose other end already exists — providers
+/// transcribe native calls back to `<tool_call>` markup via
+/// [`render_tool_call`].
+///
+/// Parameter names are load-bearing: `render_tool_call` turns each JSON key
+/// into an XML tag, so they must match what `parse_single_tool` extracts.
+/// `tool_definitions_match_parser` pins that.
+/// Substring unique to [`TOOL_SYSTEM_PROMPT`], used to recognise a conversation
+/// the agent loop built.
+pub const TOOL_PROMPT_MARKER: &str = "## Available Tools";
+
+/// True when this conversation carries the agent's tool system prompt, and so
+/// expects tool calls.
+///
+/// Providers advertise [`tool_definitions`] only for these. A plain chat panel
+/// never asked for tools, and handing them to the model there would produce
+/// `<tool_call>` markup that the panel renders as literal text — the same class
+/// of leak as raw `<thinking>` tags.
+pub fn expects_tools<'a>(message_contents: impl IntoIterator<Item = &'a str>) -> bool {
+    message_contents
+        .into_iter()
+        .any(|c| c.contains(TOOL_PROMPT_MARKER))
+}
+
+pub fn tool_definitions() -> Vec<serde_json::Value> {
+    /// One tool, as an OpenAI-shaped function schema.
+    fn tool(
+        name: &str,
+        description: &str,
+        params: &[(&str, &str, &str)], // (name, json type, description)
+        required: &[&str],
+    ) -> serde_json::Value {
+        let properties: serde_json::Map<String, serde_json::Value> = params
+            .iter()
+            .map(|(p, ty, desc)| {
+                (
+                    (*p).to_string(),
+                    serde_json::json!({ "type": ty, "description": desc }),
+                )
+            })
+            .collect();
+        serde_json::json!({
+            "type": "function",
+            "function": {
+                "name": name,
+                "description": description,
+                "parameters": {
+                    "type": "object",
+                    "properties": properties,
+                    "required": required,
+                },
+            }
+        })
+    }
+
+    vec![
+        tool(
+            "read_file",
+            "Read the contents of a file at the given path.",
+            &[("path", "string", "Path to the file to read.")],
+            &["path"],
+        ),
+        tool(
+            "write_file",
+            "Write (create or overwrite) a file. Content must be the complete file.",
+            &[
+                ("path", "string", "Path to the file to write."),
+                ("content", "string", "Full contents of the file."),
+            ],
+            &["path", "content"],
+        ),
+        tool(
+            "apply_patch",
+            "Apply a unified diff to an existing file.",
+            &[
+                ("path", "string", "Path to the file to patch."),
+                ("patch", "string", "Unified diff to apply."),
+            ],
+            &["path", "patch"],
+        ),
+        tool(
+            "bash",
+            "Execute a shell command and return stdout + stderr.",
+            &[("command", "string", "Shell command to run.")],
+            &["command"],
+        ),
+        tool(
+            "search_files",
+            "Search for files matching a pattern or containing specific text.",
+            &[
+                ("query", "string", "Search term or regular expression."),
+                (
+                    "glob",
+                    "string",
+                    "Optional glob to restrict the search, e.g. *.rs",
+                ),
+            ],
+            &["query"],
+        ),
+        tool(
+            "list_directory",
+            "List files and directories at the given path.",
+            &[(
+                "path",
+                "string",
+                "Directory to list. Defaults to the workspace root.",
+            )],
+            &[],
+        ),
+        tool(
+            "web_search",
+            "Search the web for current information.",
+            &[
+                ("query", "string", "What to search for."),
+                (
+                    "num_results",
+                    "integer",
+                    "How many results to return. Defaults to 5.",
+                ),
+            ],
+            &["query"],
+        ),
+        tool(
+            "fetch_url",
+            "Fetch a web page and extract its text content.",
+            &[("url", "string", "Absolute URL to fetch.")],
+            &["url"],
+        ),
+        tool(
+            "task_complete",
+            "Call when the task is fully done, with the final summary for the user.",
+            &[(
+                "summary",
+                "string",
+                "Final summary of what was accomplished.",
+            )],
+            &["summary"],
+        ),
+        tool(
+            "spawn_agent",
+            "Delegate a self-contained sub-task to a nested agent.",
+            &[
+                ("task", "string", "The sub-task to delegate."),
+                (
+                    "max_steps",
+                    "integer",
+                    "Optional step budget for the sub-agent.",
+                ),
+                ("max_depth", "integer", "Optional nesting depth limit."),
+            ],
+            &["task"],
+        ),
+        tool(
+            "think",
+            "Record a private reasoning step without acting.",
+            &[("thought", "string", "The reasoning to record.")],
+            &["thought"],
+        ),
+        tool(
+            "plan_task",
+            "Record a step-by-step plan before executing it.",
+            &[("steps", "string", "The planned steps.")],
+            &["steps"],
+        ),
+        tool(
+            "diffstat",
+            "Summarise pending changes for a path.",
+            &[("path", "string", "Path to summarise.")],
+            &["path"],
+        ),
+        tool(
+            "record_memory",
+            "Persist a durable fact for later turns.",
+            &[
+                ("key", "string", "Short identifier for the memory."),
+                ("value", "string", "The fact to remember."),
+            ],
+            &["key", "value"],
+        ),
+    ]
+}
+
 /// Name of a `<tool_call>` block that [`parse_tool_calls`] could not turn into
 /// a call — an unknown tool, or one missing required parameters.
 ///
@@ -722,11 +912,47 @@ pub fn render_tool_call(name: &str, args: Option<&serde_json::Value>) -> String 
 /// calls it then rejects — so tool parsing must run on the visible turn only.
 /// An unclosed block (the stream ended, or was gated, mid-reasoning) discards
 /// everything after the opening tag.
-pub fn strip_thinking(text: &str) -> String {
-    let block_re = Regex::new(r"(?s)<(think|thinking)>.*?</(?:think|thinking)>")
+/// Reasoning tag spellings we recognise.
+///
+/// Models do not agree on this tag. `<think>` (GLM/Qwen/R1), `<thinking>`
+/// (Claude-style, and what our own provider layer emits), and **namespaced**
+/// forms like minimax-m3's `<mm:think>` all occur. A stripper that misses one
+/// spelling leaks raw reasoning into the answer, which is what `</mm:think>`
+/// did — it appeared verbatim in the chat window, mid-sentence.
+const THINK_OPEN: &str = r"<(?:[A-Za-z][\w.-]*:)?think(?:ing)?>";
+const THINK_CLOSE: &str = r"</(?:[A-Za-z][\w.-]*:)?think(?:ing)?>";
+
+/// Remove reasoning *tags* while keeping the text inside them.
+///
+/// For when a turn is nothing but reasoning and that reasoning is the reply.
+/// Some models (minimax-m3, observed putting a 54k-character answer inside a
+/// single `<thinking>` block) never emit content outside it, so
+/// [`strip_thinking`] correctly returns nothing — and the choice is between
+/// showing the user an empty turn or unwrapping what the model actually said.
+///
+/// Only for display paths. Tool parsing must keep using `strip_thinking`,
+/// because reasoning quotes calls the model then rejected.
+pub fn unwrap_thinking(text: &str) -> String {
+    let tags = Regex::new(&format!(r"</?(?:[A-Za-z][\w.-]*:)?think(?:ing)?>"))
         .expect("hardcoded regex is valid");
+    tags.replace_all(text, "").trim().to_string()
+}
+
+pub fn strip_thinking(text: &str) -> String {
+    let block_re =
+        Regex::new(&format!("(?s){THINK_OPEN}.*?{THINK_CLOSE}")).expect("hardcoded regex is valid");
     let stripped = block_re.replace_all(text, "");
-    let unclosed_re = Regex::new(r"(?s)<(?:think|thinking)>.*$").expect("hardcoded regex is valid");
+
+    // An *orphan closing* tag: the provider consumed the opening tag into its
+    // own reasoning field, so everything before the close is still reasoning.
+    // Without this the tail of a model's thinking survives as prose — exactly
+    // how `</mm:think>` reached the screen.
+    let orphan_re =
+        Regex::new(&format!("(?s)^.*?{THINK_CLOSE}")).expect("hardcoded regex is valid");
+    let stripped = orphan_re.replace(&stripped, "").into_owned();
+
+    let unclosed_re =
+        Regex::new(&format!("(?s){THINK_OPEN}.*$")).expect("hardcoded regex is valid");
     unclosed_re.replace(&stripped, "").into_owned()
 }
 
@@ -736,6 +962,156 @@ pub fn strip_thinking(text: &str) -> String {
 ///
 /// Returns an empty vec if the response contains no tool calls (i.e. it is the
 /// final answer).
+/// The parameter a tool's element *body* maps to, in the element-style dialect.
+///
+/// `<write_file path="a.py">…</write_file>` puts the path in an attribute and
+/// the content in the body, so each tool needs to know which of its parameters
+/// the body is. Tools absent from this list take attributes only.
+fn body_param(tool: &str) -> Option<&'static str> {
+    Some(match tool {
+        "write_file" => "content",
+        "apply_patch" => "patch",
+        "bash" => "command",
+        "think" => "thought",
+        "plan_task" => "steps",
+        "task_complete" => "summary",
+        "record_memory" => "value",
+        "search_files" | "web_search" => "query",
+        _ => return None,
+    })
+}
+
+/// Parse `name="value"` pairs off an element's attribute list.
+fn parse_attrs(raw: &str) -> Vec<(String, String)> {
+    let re = Regex::new(r#"([A-Za-z_][\w.-]*)\s*=\s*"([^"]*)""#).expect("hardcoded regex is valid");
+    re.captures_iter(raw)
+        .map(|c| (c[1].to_string(), c[2].trim().to_string()))
+        .collect()
+}
+
+/// Re-render an element-style call as the `<tool_call>` markup the canonical
+/// parser understands, so both dialects converge on one implementation.
+fn element_to_canonical(tool: &str, attrs: &str, body: Option<&str>) -> Option<ToolCall> {
+    let mut params: Vec<(String, String)> = parse_attrs(attrs);
+    // Common aliases models reach for.
+    for (from, to) in [("file_path", "path"), ("file", "path"), ("cmd", "command")] {
+        if let Some(i) = params.iter().position(|(k, _)| k == from) {
+            if !params.iter().any(|(k, _)| k == to) {
+                params[i].0 = to.to_string();
+            }
+        }
+    }
+    if let (Some(param), Some(text)) = (body_param(tool), body) {
+        let text = text.trim();
+        if !text.is_empty() && !params.iter().any(|(k, _)| k == param) {
+            params.push((param.to_string(), text.to_string()));
+        }
+    }
+    let rendered = params
+        .iter()
+        .map(|(k, v)| format!("<{k}>{v}</{k}>"))
+        .collect::<String>();
+    parse_single_tool(tool, &rendered)
+}
+
+/// Element-style calls: `<write_file path="a.py">body</write_file>` and the
+/// self-closing `<read_file path="a.py"/>`.
+///
+/// This is the shape VibeCoder's own chat prompt teaches (`commands.rs`), and
+/// models carry it into agent runs. Only names in [`AVAILABLE_TOOL_NAMES`] are
+/// considered, so ordinary markup in prose — `<div>`, `<p>` — is never mistaken
+/// for a call.
+fn parse_element_calls(text: &str) -> Vec<ToolCall> {
+    // One regex per tool name rather than one alternation with a backreference:
+    // Rust's `regex` has no backreferences, so `</\1>` cannot express "the same
+    // tag we opened". Matching each name explicitly is exact and cheap at 14
+    // tools. Positions are kept so calls come back in document order — a model
+    // that writes a file then runs it must have them executed that way round.
+    let mut found: Vec<(usize, ToolCall)> = Vec::new();
+    let mut consumed: Vec<(usize, usize)> = Vec::new();
+
+    for name in AVAILABLE_TOOL_NAMES {
+        let paired = Regex::new(&format!(r"(?s)<{name}(\s[^>]*?)?>(.*?)</{name}\s*>"))
+            .expect("generated regex is valid");
+        for c in paired.captures_iter(text) {
+            let whole = c.get(0).expect("group 0 always exists");
+            if let Some(call) = element_to_canonical(
+                name,
+                c.get(1).map_or("", |m| m.as_str()),
+                Some(c.get(2).map_or("", |m| m.as_str())),
+            ) {
+                found.push((whole.start(), call));
+                consumed.push((whole.start(), whole.end()));
+            }
+        }
+    }
+
+    // Self-closing form, ignoring anything already inside a paired match.
+    for name in AVAILABLE_TOOL_NAMES {
+        let solo = Regex::new(&format!(r"<{name}(\s[^>]*?)?/>")).expect("generated regex is valid");
+        for c in solo.captures_iter(text) {
+            let whole = c.get(0).expect("group 0 always exists");
+            if consumed
+                .iter()
+                .any(|(s, e)| whole.start() >= *s && whole.end() <= *e)
+            {
+                continue;
+            }
+            if let Some(call) =
+                element_to_canonical(name, c.get(1).map_or("", |m| m.as_str()), None)
+            {
+                found.push((whole.start(), call));
+            }
+        }
+    }
+
+    found.sort_by_key(|(at, _)| *at);
+    found.into_iter().map(|(_, call)| call).collect()
+}
+
+/// JSON-object calls: `{"name": "read_file", "arguments": {"path": "x"}}`,
+/// with or without a surrounding code fence.
+///
+/// Observed live from minimax-m3 when it is given no native tool definitions —
+/// it reaches for the OpenAI function-call shape it was trained on.
+fn parse_json_calls(text: &str) -> Vec<ToolCall> {
+    let re =
+        Regex::new(r#"(?s)\{[^{}]*"name"\s*:\s*"([^"]+)"[^{}]*"arguments"\s*:\s*(\{.*?\})\s*\}"#)
+            .expect("hardcoded regex is valid");
+    re.captures_iter(text)
+        .filter_map(|c| {
+            let tool = c[1].trim();
+            if !AVAILABLE_TOOL_NAMES.contains(&tool) {
+                return None;
+            }
+            let args: serde_json::Value = serde_json::from_str(&c[2]).ok()?;
+            let obj = args.as_object()?;
+            let mut params: Vec<(String, String)> = obj
+                .iter()
+                .map(|(k, v)| {
+                    let s = match v {
+                        serde_json::Value::String(s) => s.clone(),
+                        other => other.to_string(),
+                    };
+                    (k.clone(), s)
+                })
+                .collect();
+            for (from, to) in [("file_path", "path"), ("file", "path"), ("cmd", "command")] {
+                if let Some(i) = params.iter().position(|(k, _)| k == from) {
+                    if !params.iter().any(|(k, _)| k == to) {
+                        params[i].0 = to.to_string();
+                    }
+                }
+            }
+            let rendered = params
+                .iter()
+                .map(|(k, v)| format!("<{k}>{v}</{k}>"))
+                .collect::<String>();
+            parse_single_tool(tool, &rendered)
+        })
+        .collect()
+}
+
 pub fn parse_tool_calls(text: &str) -> Vec<ToolCall> {
     let text = &strip_thinking(text);
     // Match <tool_call name="...">...</tool_call> — possibly multi-line
@@ -751,6 +1127,16 @@ pub fn parse_tool_calls(text: &str) -> Vec<ToolCall> {
         if let Some(call) = parse_single_tool(tool_name, body) {
             calls.push(call);
         }
+    }
+
+    // Fall back to the other dialects only when the canonical one produced
+    // nothing. A turn that already spoke `<tool_call>` is not re-scanned, so a
+    // documented example quoted inside a real call cannot double-fire.
+    if calls.is_empty() {
+        calls = parse_element_calls(text);
+    }
+    if calls.is_empty() {
+        calls = parse_json_calls(text);
     }
 
     calls
@@ -1338,6 +1724,222 @@ mod thinking_tests {
     // Models quote the call they are considering inside their reasoning —
     // gpt-oss does it verbatim. Executing those would run tools the model
     // never actually invoked (and, worse, ones it decided against).
+
+    /// Every advertised tool must exist, and its schema's parameter names must
+    /// be the ones the parser extracts. A native call is transcribed to XML by
+    /// `render_tool_call` and re-parsed, so a single renamed key silently turns
+    /// every native tool call into an unparsed block.
+    /// A reasoning-only turn whose reasoning *is* the reply: strip yields
+    /// nothing, so the display path unwraps rather than showing an empty turn.
+    /// Taken verbatim from a minimax-m3 turn that put `</mm:think>` on screen
+    /// mid-sentence: the provider had eaten the opening tag into its own
+    /// reasoning field, leaving a namespaced orphan close we did not recognise.
+    /// The element dialect VibeCoder's own chat prompt teaches, verbatim from
+    /// the turn that rendered raw on screen.
+    #[test]
+    fn element_dialect_write_file_is_parsed() {
+        let text = "<write_file path=\"fibonacci.py\">def fib(n):\n    return n</write_file>";
+        let calls = parse_tool_calls(text);
+        assert_eq!(calls.len(), 1, "got {calls:?}");
+        match &calls[0] {
+            ToolCall::WriteFile { path, content } => {
+                assert_eq!(path, "fibonacci.py");
+                assert!(
+                    content.contains("def fib"),
+                    "body became the content: {content:?}"
+                );
+            }
+            other => panic!("expected WriteFile, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn element_dialect_self_closing_and_aliases() {
+        let calls = parse_tool_calls("<read_file file_path=\"README.md\" />");
+        assert_eq!(calls.len(), 1, "got {calls:?}");
+        assert!(matches!(&calls[0], ToolCall::ReadFile { path } if path == "README.md"));
+    }
+
+    /// Captured live from minimax-m3 given no native tools: it falls back to
+    /// the OpenAI function-call shape.
+    #[test]
+    fn json_dialect_is_parsed() {
+        let text = "I'll read it.\n```\n{\"name\": \"read_file\", \"arguments\": {\"file_path\": \"README.md\"}}\n```";
+        let calls = parse_tool_calls(text);
+        assert_eq!(calls.len(), 1, "got {calls:?}");
+        assert!(matches!(&calls[0], ToolCall::ReadFile { path } if path == "README.md"));
+    }
+
+    /// The canonical dialect must still win, and must not be re-scanned — a
+    /// `<tool_call>` body mentioning `<write_file>` would otherwise double-fire.
+    #[test]
+    fn canonical_dialect_takes_precedence_and_is_not_rescanned() {
+        let text =
+            "<tool_call name=\"write_file\"><path>a.py</path><content>x</content></tool_call>";
+        assert_eq!(parse_tool_calls(text).len(), 1);
+    }
+
+    /// Ordinary markup and prose must never be mistaken for a call.
+    #[test]
+    fn html_and_prose_are_not_tool_calls() {
+        for text in [
+            "<div>hello</div><p>world</p>",
+            "Use `write_file` to save it.",
+            "<span class=\"bash\">not a command</span>",
+            "{\"name\": \"not_a_tool\", \"arguments\": {\"x\": 1}}",
+        ] {
+            assert!(
+                parse_tool_calls(text).is_empty(),
+                "false positive on {text:?}: {:?}",
+                parse_tool_calls(text)
+            );
+        }
+    }
+
+    /// Reasoning quotes calls the model then rejects — every dialect must be
+    /// read from the visible turn only.
+    #[test]
+    fn dialects_inside_reasoning_are_ignored() {
+        let text = "<thinking>I could <write_file path=\"x\">bad</write_file></thinking>Done.";
+        assert!(
+            parse_tool_calls(text).is_empty(),
+            "{:?}",
+            parse_tool_calls(text)
+        );
+    }
+
+    #[test]
+    fn namespaced_orphan_close_is_stripped() {
+        let turn = "Let me write a single Python file.</mm:think>def fib(n): pass";
+        let visible = strip_thinking(turn);
+        assert!(
+            !visible.contains("mm:think"),
+            "namespaced tag leaked: {visible:?}"
+        );
+        assert!(
+            !visible.contains("Let me write"),
+            "reasoning before an orphan close is still reasoning: {visible:?}"
+        );
+        assert!(
+            visible.contains("def fib"),
+            "the answer was dropped: {visible:?}"
+        );
+    }
+
+    #[test]
+    fn namespaced_blocks_and_unclosed_openers_are_stripped() {
+        assert_eq!(
+            strip_thinking("<mm:think>plan</mm:think>answer").trim(),
+            "answer"
+        );
+        assert_eq!(
+            strip_thinking("<ns:thinking>plan</ns:thinking>answer").trim(),
+            "answer"
+        );
+        assert_eq!(strip_thinking("answer<mm:think>cut off").trim(), "answer");
+    }
+
+    #[test]
+    fn unwrap_thinking_handles_namespaced_tags() {
+        assert_eq!(
+            unwrap_thinking("<mm:think>the answer</mm:think>"),
+            "the answer"
+        );
+    }
+
+    /// A plain closing angle bracket in prose must not be mistaken for a tag.
+    #[test]
+    fn ordinary_prose_survives_the_orphan_rule() {
+        let text = "Use a < b and check </div> in the template.";
+        assert_eq!(strip_thinking(text), text);
+    }
+
+    #[test]
+    fn unwrap_thinking_keeps_the_text_and_drops_the_tags() {
+        let whole = "<thinking>Here is the program:\n```py\nprint(1)\n```</thinking>";
+        assert_eq!(strip_thinking(whole).trim(), "");
+        let unwrapped = unwrap_thinking(whole);
+        assert!(unwrapped.starts_with("Here is the program:"));
+        assert!(!unwrapped.contains("<thinking>"));
+        assert!(!unwrapped.contains("</thinking>"));
+        assert!(unwrapped.contains("print(1)"));
+    }
+
+    #[test]
+    fn unwrap_thinking_leaves_untagged_text_alone() {
+        assert_eq!(unwrap_thinking("just an answer"), "just an answer");
+        assert_eq!(unwrap_thinking("<think>a</think>b"), "ab");
+    }
+
+    #[test]
+    fn tool_definitions_match_parser() {
+        let defs = tool_definitions();
+        assert_eq!(
+            defs.len(),
+            AVAILABLE_TOOL_NAMES.len(),
+            "every advertised tool needs a schema"
+        );
+
+        for def in &defs {
+            let f = &def["function"];
+            let name = f["name"].as_str().expect("tool name");
+            assert!(
+                AVAILABLE_TOOL_NAMES.contains(&name),
+                "{name} is advertised but not in AVAILABLE_TOOL_NAMES"
+            );
+
+            // Build a native call using every required param, then round-trip
+            // it exactly as a provider would.
+            let required: Vec<&str> = f["parameters"]["required"]
+                .as_array()
+                .expect("required array")
+                .iter()
+                .map(|v| v.as_str().expect("required entry"))
+                .collect();
+            let props = f["parameters"]["properties"]
+                .as_object()
+                .expect("properties object");
+            for r in &required {
+                assert!(
+                    props.contains_key(*r),
+                    "{name}: required `{r}` has no schema"
+                );
+            }
+
+            let args: serde_json::Map<String, serde_json::Value> = required
+                .iter()
+                .map(|r| {
+                    let ty = props[*r]["type"].as_str().unwrap_or("string");
+                    let v = if ty == "integer" {
+                        serde_json::json!(3)
+                    } else {
+                        serde_json::json!("x")
+                    };
+                    ((*r).to_string(), v)
+                })
+                .collect();
+
+            let xml = render_tool_call(name, Some(&serde_json::Value::Object(args)));
+            let parsed = parse_tool_calls(&xml);
+            assert_eq!(
+                parsed.len(),
+                1,
+                "{name}: native call did not round-trip through the parser: {xml}"
+            );
+        }
+    }
+
+    #[test]
+    fn every_tool_name_has_a_definition() {
+        let defs = tool_definitions();
+        for name in AVAILABLE_TOOL_NAMES {
+            assert!(
+                defs.iter().any(|d| d["function"]["name"] == *name),
+                "{name} is in AVAILABLE_TOOL_NAMES but has no schema — a native \
+                 tool-calling model would never be told it exists"
+            );
+        }
+    }
 
     #[test]
     fn tool_call_inside_thinking_is_ignored() {

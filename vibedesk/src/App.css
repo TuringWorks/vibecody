@@ -22,9 +22,41 @@ html, body, #root {
 .vibedesk-shell {
   flex: 1;
   display: grid;
-  grid-template-columns: var(--nav-w, 240px) 1fr var(--env-w, 300px);
+  grid-template-columns: var(--nav-w, 240px) 1fr var(--env-w, 260px);
   min-height: 0;
+  /* Anchors the absolutely-positioned resize handle below. The handle sits on
+     the column boundary rather than occupying a grid track, so the three-column
+     template stays intact whether or not it is rendered. */
+  position: relative;
 }
+
+/* Drag handle on the stream/environment boundary. Wider than it looks: a 2px
+   visual line is a 7px target, because a hairline is miserable to grab. */
+.vx-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: var(--env-w, 260px);
+  width: 7px;
+  margin-right: -3px;
+  z-index: 5;
+  cursor: col-resize;
+  touch-action: none;
+}
+.vx-resizer::after {
+  content: "";
+  position: absolute;
+  inset: 0 3px;
+  background: transparent;
+  transition: background 0.12s ease;
+}
+.vx-resizer:hover::after,
+.vibedesk-shell[data-resizing] .vx-resizer::after { background: var(--accent-blue); }
+/* While dragging, the pointer is captured by the handle — kill selection and
+   hover feedback everywhere else so the drag reads as one gesture. */
+.vibedesk-shell[data-resizing] { cursor: col-resize; user-select: none; }
+.vibedesk-shell[data-resizing] * { pointer-events: none; }
+.vibedesk-shell[data-resizing] .vx-resizer { pointer-events: auto; }
 .vibedesk-shell[data-nav="collapsed"]  { --nav-w: 40px; }
 .vibedesk-shell[data-env="collapsed"]  { --env-w: 40px; }
 
@@ -139,6 +171,9 @@ html, body, #root {
 .vx-stream__status--error { color: var(--error-color); }
 .vx-stream__status--cancelled { color: var(--accent-orange); }
 .vx-stream__status--done { color: var(--accent-blue); }
+/* Terminal but unfinished — warn, don't read as success. Distinct from
+   --cancelled (orange): the user stopped that one; this one stopped itself. */
+.vx-stream__status--partial { color: var(--warning-color); }
 .vx-stream__usage { font-size: 11px; color: var(--text-tertiary); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .vx-stream__empty { color: var(--text-tertiary); font-size: 13px; padding: 24px 8px; text-align: center; }
 .vx-stream__typing { color: var(--text-tertiary); letter-spacing: 2px; padding: 4px 0; animation: vx-pulse 1.2s ease-in-out infinite; }
@@ -230,6 +265,19 @@ html, body, #root {
 .vx-tool__duration { margin-left: auto; color: var(--text-tertiary); font-size: 11px; }
 .vx-tool__detail { padding: 0 10px 10px 32px; color: var(--text-secondary); font-size: 12px; }
 .vx-tool__actions { display: flex; gap: 8px; padding: 0 10px 10px 32px; }
+
+/* ── Model reasoning ────────────────────────────────────────────────────── */
+/* Collapsed by default: reasoning is context, not an answer. Quieter than a
+   tool block (dashed, no fill) so it reads as an aside rather than an action. */
+.vx-reasoning { border: 1px dashed var(--border-color); border-radius: 8px; overflow: hidden; }
+.vx-reasoning__header { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 10px; border: none; background: transparent; color: var(--text-secondary); cursor: pointer; font-size: 12px; text-align: left; }
+.vx-reasoning__header:hover { color: var(--text-primary); }
+.vx-reasoning__icon { color: var(--accent-purple); flex: none; }
+.vx-reasoning__label { font-style: italic; }
+.vx-reasoning__count { margin-left: auto; color: var(--text-tertiary); font-size: 11px; font-variant-numeric: tabular-nums; }
+.vx-reasoning__body { padding: 0 10px 8px 32px; }
+.vx-reasoning__para { margin: 0 0 6px; color: var(--text-secondary); font-size: 12px; line-height: 1.55; white-space: pre-wrap; }
+.vx-reasoning__para:last-child { margin-bottom: 0; }
 
 /* ── Approval prompt (tainted-content gate) ─────────────────────────────── */
 /* Sits above the composer because the run is blocked until it's answered. */
@@ -436,6 +484,25 @@ html, body, #root {
 .vx-env__sha { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; color: var(--text-secondary); flex: none; }
 .vx-env__commit-msg { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--text-secondary); }
 .vx-env__sources:disabled { opacity: 0.5; cursor: default; }
+
+/* ── Environment sections (collapsible) ─────────────────────────────────── */
+/* Separated by a hairline rather than boxed: the rail is narrow, and nested
+   cards inside a 260px column spend most of their width on borders. */
+.vx-envsec { border-top: 1px solid var(--border-color); }
+.vx-envsec:first-of-type { border-top: none; }
+.vx-envsec__bar { display: flex; align-items: center; gap: 4px; }
+.vx-envsec__header {
+  display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0;
+  padding: 8px 4px; border: none; background: transparent;
+  color: var(--text-secondary); cursor: pointer; font-size: 12px; text-align: left;
+}
+.vx-envsec__header:hover { color: var(--text-primary); }
+.vx-envsec__title { font-weight: 600; letter-spacing: 0.2px; }
+.vx-envsec__count {
+  margin-left: auto; padding: 0 6px;
+  color: var(--text-tertiary); font-size: 11px; font-variant-numeric: tabular-nums;
+}
+.vx-envsec__body { padding: 0 0 8px; }
 .vx-env__changed-list { list-style: none; margin: 6px 0; padding: 6px 0; border-top: 1px solid var(--border-subtle); display: flex; flex-direction: column; gap: 2px; }
 .vx-env__changed { display: flex; align-items: center; gap: 8px; padding: 2px 8px; font-size: 12px; color: var(--text-secondary); }
 .vx-env__changed--more { color: var(--text-tertiary); font-style: italic; }
@@ -574,4 +641,55 @@ html, body, #root {
   top: 6px;
   right: 6px;
   color: var(--accent-blue);
+}
+
+/* ── Sandbox access settings ────────────────────────────────────────────── */
+/* Sits above the composer, like the approval prompt: it gates what the next
+   run may reach, so it belongs next to the send button, not in a settings
+   screen three clicks away. */
+.vx-sandbox {
+  display: flex; flex-direction: column; gap: 10px;
+  margin: 0 0 8px; padding: 12px 14px;
+  border: 1px solid var(--border-color); border-radius: 10px;
+  background: var(--bg-secondary);
+}
+.vx-sandbox__head { display: flex; align-items: center; justify-content: space-between; }
+.vx-sandbox__title { font-weight: 600; }
+.vx-sandbox__lede { margin: 0; font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+.vx-sandbox__axes { list-style: none; display: grid; gap: 8px; margin: 0; padding: 0; }
+.vx-sandbox__axis { display: flex; flex-direction: column; gap: 1px; }
+.vx-sandbox__toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.vx-sandbox__axis-label { font-size: 13px; color: var(--text-primary); }
+.vx-sandbox__axis-hint { font-size: 11px; color: var(--text-tertiary); padding-left: 22px; }
+.vx-sandbox__roots { display: flex; flex-direction: column; gap: 4px; }
+.vx-sandbox__roots-head { display: flex; align-items: center; justify-content: space-between; }
+.vx-sandbox__roots-title { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.vx-sandbox__roots-hint { margin: 0; font-size: 11px; color: var(--text-tertiary); line-height: 1.45; }
+.vx-sandbox__add {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; font-size: 11px;
+  border: 1px solid var(--border-color); border-radius: 10px;
+  background: var(--bg-elevated); color: var(--text-secondary); cursor: pointer;
+}
+.vx-sandbox__add:hover { color: var(--text-primary); }
+.vx-sandbox__root-list { list-style: none; display: flex; flex-direction: column; gap: 2px; margin: 2px 0 0; padding: 0; }
+.vx-sandbox__root { display: flex; align-items: center; gap: 6px; padding: 3px 6px; border-radius: 6px; background: var(--bg-elevated); }
+.vx-sandbox__root-path {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  direction: rtl; text-align: left;   /* clip the *front* of a long path, not the folder name */
+  font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; color: var(--text-secondary);
+}
+/* The one guarantee no toggle can undo — styled as a standing fact, not a warning. */
+.vx-sandbox__guard {
+  display: flex; align-items: flex-start; gap: 8px; margin: 0;
+  padding: 8px 10px; border-radius: 8px;
+  background: var(--accent-bg, var(--bg-elevated));
+  font-size: 11px; color: var(--text-secondary); line-height: 1.5;
+}
+.vx-sandbox__guard code { font-size: 10.5px; color: var(--text-primary); }
+.vx-sandbox__foot { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
+.vx-sandbox__summary { font-size: 11px; color: var(--text-tertiary); }
+.vx-sandbox__apply {
+  padding: 4px 14px; font-size: 12px; border: none; border-radius: 8px;
+  background: var(--accent-blue); color: #fff; cursor: pointer;
 }

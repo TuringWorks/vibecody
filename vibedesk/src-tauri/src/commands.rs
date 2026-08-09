@@ -152,6 +152,13 @@ pub async fn start_agent_session(
     reasoning: Option<String>,
     resume_session_id: Option<String>,
     workspace_root: Option<String>,
+    // "agent" (tool loop) or "chat" (single reply, no tools). Omitted → agent.
+    // (A `///` doc comment is not legal on a function parameter.)
+    mode: Option<String>,
+    // Sandbox grants, forwarded verbatim. The daemon is the enforcer; this is
+    // only the wire shape, and it is ignored unless mode is "sandbox".
+    // (A `///` doc comment is not legal on a function parameter.)
+    sandbox: Option<serde_json::Value>,
     token: Option<String>,
 ) -> Result<String, String> {
     let agent_url = format!("{}/agent", url.trim_end_matches('/'));
@@ -171,6 +178,18 @@ pub async fn start_agent_session(
     if let Some(m) = &model {
         if !m.is_empty() {
             body["model"] = serde_json::Value::String(m.clone());
+        }
+    }
+    // Only sent when it is not the default, so the request stays byte-identical
+    // to what older builds produced for an ordinary agent run.
+    if let Some(md) = &mode {
+        if !md.is_empty() && md != "agent" {
+            body["mode"] = serde_json::Value::String(md.clone());
+        }
+    }
+    if let Some(sb) = &sandbox {
+        if !sb.is_null() {
+            body["sandbox"] = sb.clone();
         }
     }
     if let Some(r) = &reasoning {
@@ -1028,6 +1047,38 @@ pub async fn stream_agent(
                     }
                     Some("complete") => {
                         let _ = app.emit(&channel, serde_json::json!({ "kind": "complete" }));
+                    }
+                    // Terminal, but the agent stopped with planned work left.
+                    // Forwarding this as `complete` (or letting it fall through
+                    // to `_ => {}` and settle via the `closed` fallback, which
+                    // resolves to "done") is how an unfinished run came to read
+                    // as a success in the chat.
+                    Some("partial") => {
+                        let _ = app.emit(
+                            &channel,
+                            serde_json::json!({
+                                "kind": "partial",
+                                "text": content,
+                                "steps_completed": ev["steps_completed"].as_u64(),
+                                "steps_planned": ev["steps_planned"].as_u64(),
+                                "remaining_plan": ev["remaining_plan"].clone(),
+                            }),
+                        );
+                    }
+                    // Non-terminal: the agent is backing off before another
+                    // attempt. Without it the chat looks frozen for the whole
+                    // backoff with no indication anything is still happening.
+                    Some("retry") => {
+                        let _ = app.emit(
+                            &channel,
+                            serde_json::json!({
+                                "kind": "retry",
+                                "text": content,
+                                "attempt": ev["attempt"].as_u64(),
+                                "max_attempts": ev["max_attempts"].as_u64(),
+                                "backoff_ms": ev["backoff_ms"].as_u64(),
+                            }),
+                        );
                     }
                     Some("error") => {
                         let text = if content.is_empty() {

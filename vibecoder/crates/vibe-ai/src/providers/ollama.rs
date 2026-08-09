@@ -74,6 +74,16 @@ struct OllamaChatRequest {
     stream: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     options: Option<OllamaOptions>,
+    /// Native tool definitions. Omitted for plain chat; sent whenever the
+    /// conversation came from the agent loop.
+    ///
+    /// Without this a model trained for native tool calling has nothing to
+    /// call: it narrates intent and returns an empty turn, which the agent
+    /// reads as a reasoning-only response. The response side has always
+    /// transcribed native `tool_calls` back to `<tool_call>` markup — this is
+    /// the missing outbound half.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tools: Option<Vec<serde_json::Value>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -140,6 +150,12 @@ fn tool_call_to_xml(call: &OllamaToolCall) -> Option<String> {
     };
 
     Some(crate::tools::render_tool_call(&name, args.as_ref()))
+}
+
+/// Tool definitions for this conversation, or `None` for a plain chat.
+fn tools_for(messages: &[Message]) -> Option<Vec<serde_json::Value>> {
+    crate::tools::expects_tools(messages.iter().map(|m| m.content.as_str()))
+        .then(crate::tools::tool_definitions)
 }
 
 /// Flatten a response message into the text the rest of the stack consumes:
@@ -435,6 +451,7 @@ impl AIProvider for OllamaProvider {
             messages: ollama_messages,
             stream: false,
             options: self.build_options(),
+            tools: tools_for(messages),
         };
 
         let response = self
@@ -476,6 +493,7 @@ impl AIProvider for OllamaProvider {
             messages: ollama_messages,
             stream: true,
             options: self.build_options(),
+            tools: tools_for(messages),
         };
 
         let response = self
@@ -620,6 +638,7 @@ impl AIProvider for OllamaProvider {
             messages: ollama_messages,
             stream: false,
             options: self.build_options(),
+            tools: tools_for(messages),
         };
 
         let response = self
@@ -831,6 +850,49 @@ mod tests {
         assert_eq!(json, "{}");
     }
 
+    /// The agent path must advertise tools — this is the bug that made
+    /// native-tool-calling models (minimax-m3, and friends) narrate "let me
+    /// check the workspace" and then return an empty turn.
+    #[test]
+    fn agent_conversation_advertises_tools() {
+        let msgs = vec![Message {
+            role: crate::MessageRole::System,
+            content: crate::tools::TOOL_SYSTEM_PROMPT.to_string(),
+        }];
+        let tools = tools_for(&msgs).expect("agent conversations must carry tools");
+        assert_eq!(tools.len(), crate::tools::AVAILABLE_TOOL_NAMES.len());
+        assert!(tools
+            .iter()
+            .any(|t| t["function"]["name"] == "list_directory"));
+    }
+
+    /// A plain chat panel never asked for tools; handing them over would get
+    /// `<tool_call>` markup rendered as literal text.
+    #[test]
+    fn plain_chat_sends_no_tools() {
+        let msgs = vec![Message {
+            role: crate::MessageRole::User,
+            content: "what is the capital of France?".to_string(),
+        }];
+        assert!(tools_for(&msgs).is_none());
+    }
+
+    #[test]
+    fn tools_are_omitted_from_the_wire_when_absent() {
+        let req = OllamaChatRequest {
+            model: "llama3".to_string(),
+            messages: vec![OllamaChatMessage::outgoing(
+                "user".to_string(),
+                "hi".to_string(),
+            )],
+            stream: false,
+            options: None,
+            tools: None,
+        };
+        let json = serde_json::to_string(&req).unwrap();
+        assert!(!json.contains("tools"), "None tools must not hit the wire");
+    }
+
     #[test]
     fn ollama_chat_request_omits_none_options() {
         let req = OllamaChatRequest {
@@ -841,6 +903,7 @@ mod tests {
             )],
             stream: false,
             options: None,
+            tools: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         assert!(!json.contains("options"));

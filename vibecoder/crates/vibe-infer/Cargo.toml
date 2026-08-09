@@ -40,7 +40,7 @@ tokio = { workspace = true, optional = true }
 # pin a SHA rather than tracking a branch so local, CI, and release builds stay
 # reproducible. Upstream base at time of pin: post-`v0.9.0` (upstream SHA
 # 8010b6a0). The previous pin was f8f3a105 on upstream base 2d4ba4f1 (~v0.8.1).
-mistralrs = { git = "https://github.com/TuringWorks/mistral.rs", rev = "5860f8153e2cd4bac0dd1e3f5e155a6ac29fe909", optional = true }
+mistralrs = { git = "https://github.com/TuringWorks/mistral.rs", rev = "2a95851962d3959807771fed5ddeb4fed96162d8", optional = true }
 futures = { version = "0.3", optional = true }
 
 [features]

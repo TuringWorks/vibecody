@@ -26,6 +26,10 @@ pub enum TaskStatus {
     Queued,
     Running,
     Reviewing,
+    /// The run ended with planned work outstanding. Not `Reviewing` — there is
+    /// no finished change to review — and not `Failed` — the work done so far
+    /// is real and the run is resumable.
+    Partial,
     Completed,
     Failed,
 }
@@ -37,16 +41,21 @@ impl TaskStatus {
             TaskStatus::Queued => "queued",
             TaskStatus::Running => "running",
             TaskStatus::Reviewing => "reviewing",
+            TaskStatus::Partial => "partial",
             TaskStatus::Completed => "completed",
             TaskStatus::Failed => "failed",
         }
     }
 
+    /// Unknown values fall back to `Draft`, so **every status a client can send
+    /// must be listed here** — a missing arm silently demotes a finished task
+    /// to a draft rather than failing loudly.
     pub fn from_str(s: &str) -> TaskStatus {
         match s {
             "queued" => TaskStatus::Queued,
             "running" => TaskStatus::Running,
             "reviewing" => TaskStatus::Reviewing,
+            "partial" => TaskStatus::Partial,
             "completed" => TaskStatus::Completed,
             "failed" => TaskStatus::Failed,
             _ => TaskStatus::Draft,
@@ -588,10 +597,22 @@ mod tests {
             TaskStatus::Queued,
             TaskStatus::Running,
             TaskStatus::Reviewing,
+            TaskStatus::Partial,
             TaskStatus::Completed,
             TaskStatus::Failed,
         ] {
             assert_eq!(TaskStatus::from_str(s.as_str()), s);
         }
+    }
+
+    // `from_str` falls back to `Draft`, so a status the daemon doesn't know is
+    // not rejected — it silently demotes the task. A run that stopped with work
+    // outstanding must not come back as an untouched draft.
+    #[test]
+    fn partial_status_is_not_silently_demoted_to_draft() {
+        assert_eq!(TaskStatus::from_str("partial"), TaskStatus::Partial);
+        assert_ne!(TaskStatus::from_str("partial"), TaskStatus::Draft);
+        assert_ne!(TaskStatus::Partial, TaskStatus::Reviewing);
+        assert_ne!(TaskStatus::Partial, TaskStatus::Failed);
     }
 }
