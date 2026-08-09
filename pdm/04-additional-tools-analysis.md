@@ -16,13 +16,13 @@ Windsurf's Cascade is the most aggressive attempt to make the AI feel like a pai
 
 ```
 ┌──────────┬────────────────────────┬──────────────────┐
-│ Files    │  Editor                │  Cascade Panel    │
+│ Files    │  Editor                │  Cascade Panel   │
 │          │                        │                  │
-│          │  ┌─ Inline diff ───┐  │  > add auth      │
-│          │  │ accept │ reject  │  │                  │
-│          │  └─────────────────┘  │  ● Reading auth  │
+│          │  ┌─ Inline diff ───┐   │  > add auth      │
+│          │  │ accept │ reject │   │                  │
+│          │  └─────────────────┘   │  ● Reading auth  │
 │          │                        │  ● Editing mod   │
-│          │  (changes stream in)  │  ● Running test  │
+│          │  (changes stream in)   │  ● Running test  │
 │          │                        │  ✓ Done          │
 │          │                        │                  │
 │          │                        │  > _             │
@@ -63,25 +63,25 @@ Augment's claim to fame is **intent-driven development**: you describe the outco
 
 ```
 ┌────────────────────────────────────────────────────┐
-│  Editor (VS Code / JetBrains)                     │
+│  Editor (VS Code / JetBrains)                      │
 │                                                    │
-│  ┌──────────────────────────────────────────────┐ │
-│  │  Augment Panel (sidebar)                      │ │
-│  │                                               │ │
-│  │  Intent: "Make the auth module more robust"  │ │
-│  │                                               │ │
-│  │  ● Understanding codebase...                  │ │
-│  │  ● Found 8 relevant files                    │ │
-│  │  ● Planning changes across 3 files           │ │
-│  │  ● Implementing...                           │ │
-│  │    - src/auth/mod.rs (+24/-7)                │ │
-│  │    - src/auth/middleware.rs (+12/-3)          │ │
-│  │    - tests/auth_test.rs (+31 new)             │ │
-│  │  ● Running tests...                          │ │
-│  │  ✓ 4/4 tests passing                         │ │
-│  │                                               │ │
-│  │  [Apply All] [Review Changes] [Iterate]     │ │
-│  └──────────────────────────────────────────────┘ │
+│  ┌──────────────────────────────────────────────┐  │
+│  │  Augment Panel (sidebar)                     │  │
+│  │                                              │  │
+│  │  Intent: "Make the auth module more robust"  │  │
+│  │                                              │  │
+│  │  ● Understanding codebase...                 │  │
+│  │  ● Found 8 relevant files                    │  │
+│  │  ● Planning changes across 3 files           │  │
+│  │  ● Implementing...                           │  │
+│  │    - src/auth/mod.rs (+24/-7)                │  │
+│  │    - src/auth/middleware.rs (+12/-3)         │  │
+│  │    - tests/auth_test.rs (+31 new)            │  │
+│  │  ● Running tests...                          │  │
+│  │  ✓ 4/4 tests passing                         │  │
+│  │                                              │  │
+│  │  [Apply All] [Review Changes] [Iterate]      │  │
+│  └──────────────────────────────────────────────┘  │
 └────────────────────────────────────────────────────┘
 ```
 
@@ -120,27 +120,27 @@ Aider is the simplest AI coding tool that works. It's a terminal chat that direc
 ### Core layout
 
 ```
-┌─────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────┐
 │  $ aider                                         │
 │                                                  │
 │  Aider v0.75.2                                   │
 │  Model: gpt-4o                                   │
 │  Git repo: main                                  │
-│  Files: src/auth/mod.rs, src/auth/middleware.rs   │
+│  Files: src/auth/mod.rs, src/auth/middleware.rs  │
 │                                                  │
-│  > add error handling to auth module              │
+│  > add error handling to auth module             │
 │                                                  │
 │  To add error handling, I'll:                    │
 │  1. Create a custom AuthError type               │
 │  2. Update mod.rs to return Result<>             │
-│  3. Update middleware.rs to handle errors         │
+│  3. Update middleware.rs to handle errors        │
 │                                                  │
 │  Applied edit to src/auth/mod.rs                 │
-│  Applied edit to src/auth/middleware.rs           │
-│  Commit: feat: add error handling to auth         │
+│  Applied edit to src/auth/middleware.rs          │
+│  Commit: feat: add error handling to auth        │
 │                                                  │
 │  >                                               │
-└─────────────────────────────────────────────────┘
+└──────────────────────────────────────────────────┘
 ```
 
 ### Key patterns
@@ -209,25 +209,25 @@ Devin is the canonical "AI software engineer" — you give it a task, it spins u
 ### Core layout
 
 ```
-┌──────────────────────────────────────────────────┐
-│  Task: "Build a REST API for user auth"           │
-│  Status: ● Running   Duration: 14m   Cost: $0.87 │
+┌────────────────────────────────────────────────────┐
+│  Task: "Build a REST API for user auth"            │
+│  Status: ● Running   Duration: 14m   Cost: $0.87   │
 │                                                    │
-│  ┌─ Browser ──────┐  ┌─ Editor ────────────────┐  │
+│  ┌─ Browser ──────┐  ┌─ Editor ─────────────────┐  │
 │  │                │  │  auth_controller.py      │  │
 │  │  (live screen  │  │  +45/-3 lines            │  │
-│  │   of Devin's  │  │                           │  │
-│  │   browser)    │  │  (live diff view)        │  │
-│  │                │  │                           │  │
-│  └────────────────┘  └───────────────────────────┘  │
+│  │   of Devin's   │  │                          │  │
+│  │   browser)     │  │  (live diff view)        │  │
+│  │                │  │                          │  │
+│  └────────────────┘  └──────────────────────────┘  │
 │                                                    │
-│  ┌─ Terminal ────────────────────────────────────┐  │
-│  │  $ python -m pytest tests/                    │  │
+│  ┌─ Terminal ───────────────────────────────────┐  │
+│  │  $ python -m pytest tests/                   │  │
 │  │  ✓ 12 tests passing                          │  │
 │  └──────────────────────────────────────────────┘  │
 │                                                    │
 │  [Pause] [Approve] [Request Changes] [Cancel]      │
-└──────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────┘
 ```
 
 ### Key patterns

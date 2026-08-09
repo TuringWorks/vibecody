@@ -349,8 +349,16 @@ class WearNetworkManager(
                 }
             }
             override fun onFailure(eventSource: EventSource, t: Throwable?, response: Response?) {
-                if (t != null) onError(t)
-                else onComplete()
+                // OkHttp passes a *null* throwable when the failure is itself
+                // an unsuccessful HTTP response. Treating that as onComplete()
+                // made a 401 or a 500 look like a clean end of stream: the
+                // wrist dropped the partial reply and showed nothing wrong.
+                when {
+                    t != null -> onError(t)
+                    response != null && !response.isSuccessful ->
+                        onError(IOException("Stream failed: HTTP ${response.code}"))
+                    else -> onComplete()
+                }
             }
             override fun onClosed(eventSource: EventSource) = onComplete()
         })
@@ -424,7 +432,16 @@ class WearNetworkManager(
                 t: Throwable?,
                 response: Response?,
             ) {
-                if (t != null) onError(t) else onComplete()
+                // Same trap as `openStream`, and it matters more here: this is
+                // the approval queue. A 401 reported as a clean completion
+                // leaves the wrist showing no pending prompts while a run sits
+                // blocked waiting for one to be answered.
+                when {
+                    t != null -> onError(t)
+                    response != null && !response.isSuccessful ->
+                        onError(IOException("Tainted stream failed: HTTP ${response.code}"))
+                    else -> onComplete()
+                }
             }
 
             override fun onClosed(eventSource: EventSource) = onComplete()

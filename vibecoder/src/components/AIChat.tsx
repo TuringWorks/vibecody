@@ -441,20 +441,23 @@ function toBackendMessages(messages: Message[]): Array<{ role: "user" | "assista
  */
 function extractThinking(content: string): [string, string] {
   const parts: string[] = [];
-  const blockRegex = /<(think|thinking)>([\s\S]*?)<\/\1>/g;
+  // Namespaced spellings (minimax-m3's `<mm:think>`) count too — missing one
+  // put `</mm:think>` on screen mid-sentence.
+  const NS = String.raw`(?:[A-Za-z][\w.-]*:)?`;
+  const blockRegex = new RegExp(`<${NS}think(?:ing)?>([\\s\\S]*?)</${NS}think(?:ing)?>`, "g");
   let match: RegExpExecArray | null;
   while ((match = blockRegex.exec(content)) !== null) {
-    parts.push(match[2].trim());
+    parts.push(match[1].trim());
   }
   let cleaned = content.replace(blockRegex, "");
 
-  const orphanClose = cleaned.match(/^([\s\S]*?)<\/(?:think|thinking)>/);
+  const orphanClose = cleaned.match(new RegExp(`^([\\s\\S]*?)</${NS}think(?:ing)?>`));
   if (orphanClose) {
     parts.push(orphanClose[1].trim());
     cleaned = cleaned.slice(orphanClose[0].length);
   }
 
-  const orphanOpen = cleaned.match(/<(?:think|thinking)>([\s\S]*)$/);
+  const orphanOpen = cleaned.match(new RegExp(`<${NS}think(?:ing)?>([\\s\\S]*)$`));
   if (orphanOpen) {
     parts.push(orphanOpen[1].trim());
     cleaned = cleaned.slice(0, cleaned.length - orphanOpen[0].length);

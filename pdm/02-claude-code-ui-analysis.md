@@ -13,7 +13,7 @@ Claude Code's UI philosophy is the inverse of Codex's: the **conversation IS the
 ### Core layout (CLI)
 
 ```
-┌─────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────┐
 │  $ claude                                        │
 │                                                  │
 │  > add error handling to the auth module         │
@@ -21,9 +21,9 @@ Claude Code's UI philosophy is the inverse of Codex's: the **conversation IS the
 │  I'll read the auth module first.                │
 │                                                  │
 │  ● Reading src/auth/mod.rs                       │
-│  ● Reading src/auth/middleware.rs                 │
+│  ● Reading src/auth/middleware.rs                │
 │  ● Editing src/auth/mod.rs (+12/-3)              │
-│  ● Editing src/auth/middleware.rs (+8/-1)         │
+│  ● Editing src/auth/middleware.rs (+8/-1)        │
 │                                                  │
 │  Done. Here's what changed:                      │
 │  - Added Result<> return types                   │
@@ -37,14 +37,14 @@ Claude Code's UI philosophy is the inverse of Codex's: the **conversation IS the
 │  ✓ 3 tests passing                               │
 │                                                  │
 │  >                                               │
-└─────────────────────────────────────────────────┘
+└──────────────────────────────────────────────────┘
 ```
 
 ### Core layout (VS Code extension)
 
 ```
 ┌──────────┬────────────────────────┬──────────────┐
-│ Explorer │  Editor (code)         │ Claude Chat   │
+│ Explorer │  Editor (code)         │ Claude Chat  │
 │          │                        │              │
 │          │  ● diff inline         │ > add error  │
 │          │  ● accept/reject       │   handling   │
@@ -153,18 +153,18 @@ This file is read automatically at session start. It's a low-friction way to inj
 Claude Code's most transferable UI pattern is the **tool-use block**: a named, collapsible section within the chat that shows exactly what the agent did.
 
 ```
-┌─ 🔍 Read file ─────────────────────┐
-│ src/auth/mod.rs (2.3 KB)            │
+┌─    Read file ───────────────────────┐
+│ src/auth/mod.rs (2.3 KB)             │
 │ ▸ 12 lines of context                │
 └──────────────────────────────────────┘
 
-┌─ ✏️ Edit file ───────────────────────┐
+┌─    Edit file ───────────────────────┐
 │ src/auth/mod.rs (+12/-3)             │
 │ ▸ diff preview                       │
 │   [Accept] [Reject] [Accept All]     │
 └──────────────────────────────────────┘
 
-┌─ ▶ Run command ─────────────────────┐
+┌─ ▶ Run command ──────────────────────┐
 │ cargo test -- auth                   │
 │ ✓ 3 tests passing                    │
 └──────────────────────────────────────┘

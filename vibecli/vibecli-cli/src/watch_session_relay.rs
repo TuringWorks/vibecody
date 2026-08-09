@@ -218,18 +218,13 @@ pub fn to_watch_event_json(payload: &serde_json::Value) -> WatchAgentEvent {
                 .get("name")
                 .and_then(|v| v.as_str())
                 .map(String::from),
-            status: Some(
-                if payload
-                    .get("success")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(true)
-                {
-                    "ok"
-                } else {
-                    "err"
-                }
-                .into(),
-            ),
+            // A `tool_end` carrying no `success` field used to render as "ok"
+            // on the wrist — a green tick for an outcome nobody reported.
+            // `status` is optional precisely so absence can stay absent.
+            status: payload
+                .get("success")
+                .and_then(|v| v.as_bool())
+                .map(|ok| if ok { "ok" } else { "err" }.to_string()),
             error: None,
             step: payload
                 .get("step")

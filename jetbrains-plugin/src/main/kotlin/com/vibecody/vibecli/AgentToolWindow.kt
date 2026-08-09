@@ -307,8 +307,16 @@ private class AgentPanel(private val project: Project) : JPanel(BorderLayout()) 
     private fun renderEvent(event: AgentEvent) {
         when (event) {
             is AgentEvent.Text   -> output.append(event.text)
-            is AgentEvent.Step   ->
-                output.append("\n🔧 [${event.stepNum + 1}] ${event.tool} → ${if (event.success) "ok" else "failed"}\n")
+            is AgentEvent.Step   -> {
+                // `null` means the daemon reported no outcome. Say so rather
+                // than picking the flattering one.
+                val outcome = when (event.success) {
+                    true -> "ok"
+                    false -> "failed"
+                    null -> "outcome not reported"
+                }
+                output.append("\n🔧 [${event.stepNum + 1}] ${event.tool} → $outcome\n")
+            }
             is AgentEvent.System -> output.append("\nℹ ${event.text}\n")
             is AgentEvent.Retry  -> {
                 val secs = String.format("%.1f", event.backoffMs / 1000.0)

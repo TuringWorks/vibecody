@@ -442,22 +442,32 @@ impl ObserveActSession {
         let step_num = step.step_num;
         let action_count = step.actions_taken.len();
 
-        // Track consecutive failures based on verification
-        let step_succeeded = step
-            .verification_result
-            .as_ref()
-            .map(|v| v.success)
-            .unwrap_or(true); // No verification = assume success
-
-        if step_succeeded {
-            self.consecutive_failures = 0;
-        } else {
-            self.consecutive_failures += 1;
-            warn!(
-                step = step_num,
-                consecutive_failures = self.consecutive_failures,
-                "Step verification failed"
-            );
+        // Track consecutive failures based on verification.
+        //
+        // An unverified step is neither a success nor a failure, and treating
+        // it as a success (what `unwrap_or(true)` did) actively *erased* the
+        // failure history: `consecutive_failures` reset to 0, so a loop that
+        // was failing could never reach `max_consecutive_failures` as long as
+        // unverified steps were interleaved. It ran the whole `max_steps`
+        // budget instead of bailing out early. Absent evidence leaves the
+        // count where it was.
+        match step.verification_result.as_ref().map(|v| v.success) {
+            Some(true) => self.consecutive_failures = 0,
+            Some(false) => {
+                self.consecutive_failures += 1;
+                warn!(
+                    step = step_num,
+                    consecutive_failures = self.consecutive_failures,
+                    "Step verification failed"
+                );
+            }
+            None => {
+                debug!(
+                    step = step_num,
+                    consecutive_failures = self.consecutive_failures,
+                    "Step had no verification — failure streak left unchanged"
+                );
+            }
         }
 
         self.total_actions += action_count;
@@ -808,6 +818,83 @@ pub fn now_ms() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── Failure tracking ───────────────────────────────────────────────
+    //
+    // An unverified step used to count as a success and reset the streak, so a
+    // loop that was failing could never reach `max_consecutive_failures` while
+    // unverified steps were interleaved — it burned the whole `max_steps`
+    // budget instead of bailing out.
+
+    fn step_with(step_num: usize, verified: Option<bool>) -> ObservationStep {
+        ObservationStep {
+            step_num,
+            timestamp_ms: 0,
+            screenshot_path: None,
+            llm_reasoning: String::new(),
+            actions_taken: vec![],
+            verification_result: verified.map(|success| VerificationResult {
+                expected_change: "something".into(),
+                actual_observation: "something else".into(),
+                success,
+                confidence: 1.0,
+            }),
+            duration_ms: 0,
+        }
+    }
+
+    #[test]
+    fn an_unverified_step_does_not_erase_the_failure_streak() {
+        let mut session =
+            ObserveActSession::new(ObserveActConfig::default(), "test task".to_string());
+        session.record_step(step_with(0, Some(false)));
+        session.record_step(step_with(1, Some(false)));
+        assert_eq!(session.consecutive_failures, 2);
+
+        // No verification: neither success nor failure — the streak stands.
+        session.record_step(step_with(2, None));
+        assert_eq!(
+            session.consecutive_failures, 2,
+            "an unverified step must not count as a success",
+        );
+
+        // The next real failure trips the limit, as it should.
+        session.record_step(step_with(3, Some(false)));
+        assert_eq!(session.consecutive_failures, 3);
+        assert!(
+            !session.can_continue(),
+            "three verified failures must stop the loop",
+        );
+    }
+
+    #[test]
+    fn a_verified_success_still_clears_the_streak() {
+        let mut session =
+            ObserveActSession::new(ObserveActConfig::default(), "test task".to_string());
+        session.record_step(step_with(0, Some(false)));
+        session.record_step(step_with(1, Some(false)));
+        assert_eq!(session.consecutive_failures, 2);
+        session.record_step(step_with(2, Some(true)));
+        assert_eq!(session.consecutive_failures, 0);
+        assert!(session.can_continue());
+    }
+
+    // Without the fix this loop never stopped: every unverified step wiped the
+    // two failures before it.
+    #[test]
+    fn interleaved_unverified_steps_cannot_keep_a_failing_loop_alive() {
+        let mut session =
+            ObserveActSession::new(ObserveActConfig::default(), "test task".to_string());
+        for i in 0..10 {
+            session.record_step(step_with(i * 2, Some(false)));
+            session.record_step(step_with(i * 2 + 1, None));
+            if !session.can_continue() {
+                assert!(session.consecutive_failures >= 3);
+                return;
+            }
+        }
+        panic!("a persistently failing loop must stop, not run to the step cap");
+    }
 
     // ── Config Tests ───────────────────────────────────────────────────
 

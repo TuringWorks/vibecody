@@ -671,6 +671,39 @@ async fn watch_job_recap(
     }
 }
 
+/// Record the outcome of a watch chat turn.
+///
+/// Split out of the streaming task so the rule that matters is testable on its
+/// own: a turn whose stream failed part-way is stored as `failed`, never
+/// `complete`. The previous code discarded stream errors entirely and always
+/// wrote `complete`, so a truncated answer was durably recorded — and replayed
+/// to the wrist and phone — as a finished one.
+///
+/// Tokens that did arrive are kept either way: the user watched them stream in,
+/// so dropping them would lose real transcript.
+fn persist_watch_turn(
+    db_path: &std::path::Path,
+    session_id: &str,
+    full: &str,
+    error: Option<&str>,
+) {
+    let Ok(store) = crate::session_store::SessionStore::open(db_path) else {
+        return;
+    };
+    match error {
+        None => {
+            let _ = store.insert_message(session_id, "assistant", full);
+            let _ = store.finish_session(session_id, "complete", None);
+        }
+        Some(err) => {
+            if !full.is_empty() {
+                let _ = store.insert_message(session_id, "assistant", full);
+            }
+            let _ = store.finish_session(session_id, "failed", Some(err));
+        }
+    }
+}
+
 /// GET /watch/stream/{id} — SSE stream with Watch-optimised payloads.
 async fn watch_stream(
     State(state): State<WatchBridgeState>,
@@ -829,17 +862,38 @@ async fn watch_dispatch(
         let mut full = String::new();
         match provider.stream_chat(&messages).await {
             Ok(mut stream) => {
+                // `if let Ok(text) = chunk` used to swallow a mid-stream error
+                // and carry on, so the `done`/`complete` below still fired —
+                // and, uniquely on this path, the truncated reply was *written
+                // to the session store* as a completed turn. The wrist showed a
+                // half-answer as finished and the transcript recorded it that
+                // way. A failed stream is terminal.
+                let mut stream_error: Option<String> = None;
                 while let Some(chunk) = futures::StreamExt::next(&mut stream).await {
-                    if let Ok(text) = chunk {
-                        full.push_str(&text);
-                        let _ = tx.send(serde_json::json!({"type": "token_delta", "text": text}));
+                    match chunk {
+                        Ok(text) => {
+                            full.push_str(&text);
+                            let _ =
+                                tx.send(serde_json::json!({"type": "token_delta", "text": text}));
+                        }
+                        Err(e) => {
+                            stream_error = Some(e.to_string());
+                            break;
+                        }
                     }
                 }
-                let _ = tx.send(serde_json::json!({"type": "done", "status": "complete"}));
-                if let Ok(s) = crate::session_store::SessionStore::open(&db2) {
-                    let _ = s.insert_message(&sid2, "assistant", &full);
-                    let _ = s.finish_session(&sid2, "complete", None);
+                if let Some(err) = &stream_error {
+                    tracing::warn!(
+                        session_id = %sid2,
+                        error = %err,
+                        partial_len = full.len(),
+                        "watch chat stream failed mid-response",
+                    );
+                    let _ = tx.send(serde_json::json!({"type": "error", "message": err}));
+                } else {
+                    let _ = tx.send(serde_json::json!({"type": "done", "status": "complete"}));
                 }
+                persist_watch_turn(&db2, &sid2, &full, stream_error.as_deref());
             }
             Err(e) => {
                 let _ = tx.send(serde_json::json!({"type": "error", "message": e.to_string()}));
@@ -1573,6 +1627,78 @@ mod tests {
         };
         assert!(resp.streaming_url.contains(session_id));
         assert!(resp.streaming_url.starts_with("/watch/stream/"));
+    }
+
+    // A watch turn whose stream died half-way used to be written to the
+    // session store as `complete`, with the truncated reply as the assistant
+    // message — so the wrist showed a half-answer as finished and the
+    // transcript agreed with it forever after.
+    #[test]
+    fn a_failed_watch_turn_is_stored_as_failed_not_complete() {
+        let tmp = tempfile::tempdir().unwrap();
+        let db = tmp.path().join("sessions.db");
+        {
+            let s = crate::session_store::SessionStore::open(&db).unwrap();
+            s.insert_session("w1", "what is the weather", "ollama", "llama3")
+                .unwrap();
+        }
+
+        persist_watch_turn(&db, "w1", "It is partly clou", Some("connection reset"));
+
+        let s = crate::session_store::SessionStore::open(&db).unwrap();
+        let sess = s.get_session("w1").unwrap().unwrap();
+        assert_eq!(
+            sess.status, "failed",
+            "a truncated turn is not a completion"
+        );
+        assert_eq!(sess.summary.as_deref(), Some("connection reset"));
+        // The tokens the user actually saw are still there.
+        let msgs = s.get_messages("w1").unwrap();
+        assert!(
+            msgs.iter().any(|m| m.content.contains("partly clou")),
+            "partial text the user watched stream in must be kept",
+        );
+    }
+
+    #[test]
+    fn a_clean_watch_turn_is_stored_as_complete() {
+        let tmp = tempfile::tempdir().unwrap();
+        let db = tmp.path().join("sessions.db");
+        {
+            let s = crate::session_store::SessionStore::open(&db).unwrap();
+            s.insert_session("w2", "hello", "ollama", "llama3").unwrap();
+        }
+
+        persist_watch_turn(&db, "w2", "Hi there!", None);
+
+        let s = crate::session_store::SessionStore::open(&db).unwrap();
+        let sess = s.get_session("w2").unwrap().unwrap();
+        assert_eq!(sess.status, "complete");
+        assert_eq!(sess.summary, None);
+        let msgs = s.get_messages("w2").unwrap();
+        assert!(msgs.iter().any(|m| m.content == "Hi there!"));
+    }
+
+    // A stream that fails before emitting anything must not leave an empty
+    // assistant bubble in the transcript.
+    #[test]
+    fn a_watch_turn_that_failed_immediately_stores_no_empty_reply() {
+        let tmp = tempfile::tempdir().unwrap();
+        let db = tmp.path().join("sessions.db");
+        {
+            let s = crate::session_store::SessionStore::open(&db).unwrap();
+            s.insert_session("w3", "hello", "ollama", "llama3").unwrap();
+        }
+
+        persist_watch_turn(&db, "w3", "", Some("503 overloaded"));
+
+        let s = crate::session_store::SessionStore::open(&db).unwrap();
+        assert_eq!(s.get_session("w3").unwrap().unwrap().status, "failed");
+        let msgs = s.get_messages("w3").unwrap();
+        assert!(
+            !msgs.iter().any(|m| m.role == "assistant"),
+            "no assistant message should be recorded when nothing arrived",
+        );
     }
 
     #[test]

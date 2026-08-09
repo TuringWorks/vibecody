@@ -139,6 +139,7 @@ mod mcp_taint;
 mod mcpb_bundle;
 mod memory;
 mod redact;
+mod sandbox_policy;
 mod schema;
 mod syntax;
 mod tainted;

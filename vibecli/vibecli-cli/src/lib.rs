@@ -24,6 +24,7 @@ pub mod mcp_tasks;
 // ACP + MCP Registry self-listing (gap C6).
 pub mod registry_listing;
 // Opt-in file-watcher security review.
+pub mod sandbox_policy;
 pub mod security_review_watch;
 pub mod security_watch_daemon;
 // WebMCP browser-tool exposure (origin-trial gated).

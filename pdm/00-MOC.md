@@ -82,20 +82,20 @@ The v2 spec reframes Sandbox Chat from "a tab in a sidebar" to "the center of th
 The v2 specification is organized in 4 phases. Here's the impact/effort prioritization:
 
 ```
-                    High Impact
-                        │
+                 High Impact
+                       │
      Cmd+K inline ─────┼───── Structured tool-use blocks
      @ mentions        │       Task cards with metadata
      Layout reorder    │       Context badge
      Progressive       │       Interactive Canvases
      disclosure        │       Auto-follow in editor
-                        │
+                       │
    Low Effort ─────────┼──────── High Effort
-                        │
+                       │
      Cost in header    │       Live sandbox VNC
      Quick-approve     │       Self-verifying loop
      Auto-scan project │       Intent bar mode
-                        │
+                       │
                     Low Impact
 ```
 

@@ -92,6 +92,43 @@ pub async fn list_daemon_models(url: String) -> Result<Vec<serde_json::Value>, S
     Ok(body["models"].as_array().cloned().unwrap_or_default())
 }
 
+/// The bearer token to send: the caller's, if it supplied a non-empty one,
+/// otherwise the daemon's own `~/.vibecli/daemon.token`.
+///
+/// The token **rotates on every daemon start**, so a value pasted into the UI
+/// is stale the moment the daemon restarts — which is every time a desktop
+/// client autostarts it. Reading the file is what makes the app zero-config;
+/// the explicit override remains for a remote daemon whose token is not on
+/// this machine.
+///
+/// Returns `None` when neither source has one, so the request goes out
+/// unauthenticated and the daemon's 401 explains itself.
+fn effective_token(supplied: Option<&str>) -> Option<String> {
+    match supplied.map(str::trim).filter(|t| !t.is_empty()) {
+        Some(t) => Some(t.to_string()),
+        None => daemon_bearer_token().ok(),
+    }
+}
+
+/// Re-read the daemon token and retry once when a request comes back 401.
+///
+/// The bearer token is regenerated **every time `vibecli serve` starts**, and
+/// every desktop client autostarts the daemon — so a token the UI stored
+/// earlier is stale the moment the daemon is restarted, and stays stale
+/// forever because nothing invalidates it. That is the 401 loop: the app holds
+/// a token from a dead daemon and keeps presenting it.
+///
+/// Mirrors `daemonFetch`'s documented contract in VibeCoder: cache, then
+/// re-read on a 401. Returns `None` when there is nothing new to try, so the
+/// caller reports the original response rather than retrying blindly.
+fn retry_token(sent: Option<&str>) -> Option<String> {
+    let fresh = daemon_bearer_token().ok()?;
+    match sent {
+        Some(prev) if prev == fresh => None, // already the newest — a real auth failure
+        _ => Some(fresh),
+    }
+}
+
 /// POST to daemon /agent endpoint — returns session_id.
 /// Proxied through Tauri to bypass CORS.
 #[tauri::command]
@@ -123,16 +160,27 @@ pub async fn start_agent_session(
             body["reasoning"] = serde_json::Value::String(e.clone());
         }
     }
-    let mut req = client.post(&agent_url).json(&body);
-    if let Some(t) = &token {
-        if !t.is_empty() {
+    let sent = effective_token(token.as_deref());
+    let send = |bearer: Option<String>| {
+        let mut req = client.post(&agent_url).json(&body);
+        if let Some(t) = bearer {
             req = req.header("Authorization", format!("Bearer {}", t));
         }
-    }
-    let res = req
-        .send()
+        req.send()
+    };
+
+    let mut res = send(sent.clone())
         .await
         .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+
+    // The daemon restarted and rotated its token while we held the old one.
+    if res.status() == reqwest::StatusCode::UNAUTHORIZED {
+        if let Some(fresh) = retry_token(sent.as_deref()) {
+            res = send(Some(fresh))
+                .await
+                .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+        }
+    }
 
     if !res.status().is_success() {
         let status = res.status();
@@ -164,18 +212,27 @@ pub async fn stream_agent(
 
     let stream_url = format!("{}/stream/{}", url.trim_end_matches('/'), session_id);
     let client = reqwest::Client::new();
-    let mut req = client
-        .get(&stream_url)
-        .header("Accept", "text/event-stream");
-    if let Some(t) = &token {
-        if !t.is_empty() {
+    let sent = effective_token(token.as_deref());
+    let open = |bearer: Option<String>| {
+        let mut req = client
+            .get(&stream_url)
+            .header("Accept", "text/event-stream");
+        if let Some(t) = bearer {
             req = req.header("Authorization", format!("Bearer {}", t));
         }
-    }
-    let res = req
-        .send()
+        req.send()
+    };
+
+    let mut res = open(sent.clone())
         .await
         .map_err(|e| format!("Cannot connect to stream: {}", e))?;
+    if res.status() == reqwest::StatusCode::UNAUTHORIZED {
+        if let Some(fresh) = retry_token(sent.as_deref()) {
+            res = open(Some(fresh))
+                .await
+                .map_err(|e| format!("Cannot connect to stream: {}", e))?;
+        }
+    }
 
     if !res.status().is_success() {
         return Err(format!("Stream returned {}", res.status()));
@@ -420,4 +477,64 @@ pub async fn skillopt_promote(skill: String, content: String) -> Result<serde_js
         &serde_json::json!({ "skill": skill, "content": content }),
     )
     .await
+}
+
+#[cfg(test)]
+mod token_tests {
+    use super::effective_token;
+
+    /// An explicit token wins — the escape hatch for a remote daemon whose
+    /// token file is not on this machine.
+    #[test]
+    fn a_supplied_token_is_used_verbatim() {
+        assert_eq!(effective_token(Some("abc123")).as_deref(), Some("abc123"));
+    }
+
+    /// The 401 in the screenshot: the UI held an empty (or stale-cleared)
+    /// token, and an empty string was treated as "the user chose no auth"
+    /// rather than "fall back to the daemon's own token".
+    #[test]
+    fn blank_supplied_tokens_fall_through_to_the_file() {
+        // With HOME unset there is no file either, so this asserts the
+        // fall-through happens rather than the blank being sent as-is.
+        for blank in [Some(""), Some("   "), None] {
+            let got = effective_token(blank);
+            assert_ne!(
+                got.as_deref(),
+                Some(""),
+                "a blank token must never be sent as the Bearer value"
+            );
+            assert_ne!(got.as_deref(), Some("   "));
+        }
+    }
+
+    /// After a daemon restart the stored token is stale; the retry must offer
+    /// the freshly-read one instead of replaying the dead value.
+    #[test]
+    fn a_stale_token_is_retried_with_whatever_the_file_now_holds() {
+        use super::{daemon_bearer_token, retry_token};
+        let fresh = daemon_bearer_token();
+        match fresh {
+            Ok(f) => {
+                assert_eq!(
+                    retry_token(Some("stale-token-from-a-dead-daemon")).as_deref(),
+                    Some(f.as_str()),
+                    "a stale token must be retried with the current one"
+                );
+                assert_eq!(
+                    retry_token(Some(&f)),
+                    None,
+                    "no retry when we already sent the newest token — that is a real auth failure"
+                );
+            }
+            // No daemon on this machine: there is nothing newer to try, and the
+            // original 401 must be reported rather than retried in a loop.
+            Err(_) => assert_eq!(retry_token(Some("anything")), None),
+        }
+    }
+
+    #[test]
+    fn supplied_tokens_are_trimmed() {
+        assert_eq!(effective_token(Some("  tok  ")).as_deref(), Some("tok"));
+    }
 }

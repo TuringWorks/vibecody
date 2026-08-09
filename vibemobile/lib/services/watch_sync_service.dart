@@ -191,6 +191,10 @@ class WatchSyncService extends ChangeNotifier {
     int timeoutSeconds = 60,
   }) async {
     var elapsed = 0;
+    // Best result seen so far, so a timeout hands back the reply that did
+    // arrive instead of `[]`. Returning nothing threw away messages we had
+    // already fetched and left the phone blank.
+    var latest = <WatchMessage>[];
     while (elapsed < timeoutSeconds) {
       await Future.delayed(const Duration(seconds: 1));
       elapsed++;
@@ -205,11 +209,19 @@ class WatchSyncService extends ChangeNotifier {
         final msgs = arr.map((m) => WatchMessage.fromJson(m as Map<String, dynamic>)).toList();
         final status = data['status'] as String? ?? 'running';
         final hasAssistant = msgs.any((m) => m.role == 'assistant');
-        final isDone = status == 'complete' || status == 'failed';
+        if (hasAssistant) latest = msgs;
+        // Terminal is "no longer in flight", not an allow-list of two. The old
+        // `complete || failed` missed `cancelled`, and missed `partial` once the
+        // daemon gained it — so those sessions never satisfied `isDone`, the
+        // poll span the full timeout, and the `[]` below threw away the reply
+        // that had already arrived. Anything the daemon does not call
+        // running/queued is over.
+        final isDone = status != 'running' && status != 'queued';
         if (hasAssistant && isDone) return msgs;
       } catch (_) {}
     }
-    return [];
+    // Timed out. Hand back whatever did arrive rather than nothing.
+    return latest;
   }
 
   @override

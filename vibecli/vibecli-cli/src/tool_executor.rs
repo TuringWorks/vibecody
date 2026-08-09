@@ -144,6 +144,9 @@ fn var_matches_pattern(var: &str, pattern: &str) -> bool {
 pub struct ToolExecutor {
     pub workspace_root: PathBuf,
     pub sandbox: bool,
+    /// What may be touched outside `workspace_root`. Defaults to "nothing",
+    /// which is the historical jail — see `sandbox_policy`.
+    pub sandbox_policy: crate::sandbox_policy::SandboxPolicy,
     pub env_policy: Option<ShellEnvPolicy>,
     /// Web search engine: "duckduckgo" | "tavily" | "brave"
     pub search_engine: String,
@@ -190,6 +193,7 @@ impl ToolExecutor {
         Self {
             workspace_root,
             sandbox,
+            sandbox_policy: crate::sandbox_policy::SandboxPolicy::locked(),
             env_policy: None,
             search_engine: "duckduckgo".to_string(),
             tavily_api_key: None,
@@ -201,6 +205,14 @@ impl ToolExecutor {
             use_cli_prompter: false,
             http_prompter_queue: None,
         }
+    }
+
+    /// Grant access outside the workspace. Without this the executor stays
+    /// jailed to `workspace_root`, which is the default and what every
+    /// non-sandbox run uses.
+    pub fn with_sandbox_policy(mut self, policy: crate::sandbox_policy::SandboxPolicy) -> Self {
+        self.sandbox_policy = policy;
+        self
     }
 
     /// Opt into DREAD #1 Slice B hard-gating — `shell.exec` invocations
@@ -316,7 +328,7 @@ impl ToolExecutorTrait for ToolExecutor {
                 ToolResult::ok("plan_task", format!("Plan recorded:\n{}", steps))
             }
             ToolCall::Diffstat { path } => {
-                let resolved = match self.resolve_safe(path) {
+                let resolved = match self.resolve_safe(path, crate::sandbox_policy::Access::Read) {
                     Ok(p) => p,
                     Err(e) => return ToolResult::err("diffstat", e),
                 };
@@ -376,7 +388,7 @@ impl ToolExecutorTrait for ToolExecutor {
 
 impl ToolExecutor {
     async fn read_file(&self, path: &str) -> ToolResult {
-        let resolved = match self.resolve_safe(path) {
+        let resolved = match self.resolve_safe(path, crate::sandbox_policy::Access::Read) {
             Ok(p) => p,
             Err(e) => return ToolResult::err("read_file", e),
         };
@@ -392,7 +404,7 @@ impl ToolExecutor {
     }
 
     async fn write_file(&self, path: &str, content: &str) -> ToolResult {
-        let resolved = match self.resolve_safe(path) {
+        let resolved = match self.resolve_safe(path, crate::sandbox_policy::Access::Write) {
             Ok(p) => p,
             Err(e) => return ToolResult::err("write_file", e),
         };
@@ -414,7 +426,7 @@ impl ToolExecutor {
     }
 
     async fn apply_patch(&self, path: &str, patch: &str) -> ToolResult {
-        let resolved = match self.resolve_safe(path) {
+        let resolved = match self.resolve_safe(path, crate::sandbox_policy::Access::Write) {
             Ok(p) => p,
             Err(e) => return ToolResult::err("apply_patch", e),
         };
@@ -1071,7 +1083,7 @@ impl ToolExecutor {
     }
 
     async fn list_dir(&self, path: &str) -> ToolResult {
-        let resolved = match self.resolve_safe(path) {
+        let resolved = match self.resolve_safe(path, crate::sandbox_policy::Access::Read) {
             Ok(p) => p,
             Err(e) => return ToolResult::err("list_directory", e),
         };
@@ -1102,7 +1114,11 @@ impl ToolExecutor {
     /// jail-checked against the canonical workspace root.
     ///
     /// Returns `Err` with a descriptive message on path traversal attempts.
-    fn resolve_safe(&self, path: &str) -> Result<PathBuf, String> {
+    fn resolve_safe(
+        &self,
+        path: &str,
+        access: crate::sandbox_policy::Access,
+    ) -> Result<PathBuf, String> {
         let candidate = {
             let p = Path::new(path);
             if p.is_absolute() {
@@ -1150,10 +1166,16 @@ impl ToolExecutor {
         };
 
         if !canonical.starts_with(&canonical_root) {
-            return Err(format!(
-                "Path traversal blocked: '{}' resolves outside workspace",
-                path
-            ));
+            // Outside the jail. In the default (locked) policy this is the
+            // historical hard rejection; sandbox mode consults the per-axis
+            // policy, which still refuses credential paths unconditionally.
+            if self.sandbox_policy.is_locked() {
+                return Err(format!(
+                    "Path traversal blocked: '{}' resolves outside workspace",
+                    path
+                ));
+            }
+            self.sandbox_policy.allows(&canonical, access)?;
         }
 
         Ok(canonical)
@@ -1224,6 +1246,11 @@ impl ToolExecutor {
         let child_executor: Arc<dyn ToolExecutorTrait> = Arc::new(ToolExecutor {
             workspace_root: self.workspace_root.clone(),
             sandbox: self.sandbox,
+            // A spawned sub-agent inherits its parent's reach — never more, and
+            // never silently less. Omitting this would hand the child a locked
+            // default, so a sandbox run's sub-agent would fail on the very paths
+            // its parent was granted.
+            sandbox_policy: self.sandbox_policy.clone(),
             env_policy: self.env_policy.clone(),
             search_engine: self.search_engine.clone(),
             tavily_api_key: self.tavily_api_key.clone(),
@@ -1255,12 +1282,58 @@ impl ToolExecutor {
 
         let mut summary = String::new();
         let mut steps: Vec<String> = Vec::new();
+        // Set when the sub-agent stopped with work outstanding, so the parent
+        // is told the subtask is unfinished instead of inferring success from
+        // an empty summary. (Twin of the same guard in
+        // `vibecoder/src-tauri/src/agent_executor.rs` — this copy was missed
+        // when that one was fixed.)
+        let mut incomplete: Option<String> = None;
 
         while let Some(event) = event_rx.recv().await {
             match event {
                 AgentEvent::Complete(s) => {
                     summary = s;
                     break;
+                }
+                // A sub-agent that ran out of steps mid-plan used to land in
+                // `_ => {}`, leaving `summary` empty — which the tail rendered
+                // as "Sub-agent completed." to the *parent agent*, which then
+                // built on a subtask that had never finished.
+                AgentEvent::Partial {
+                    summary: s,
+                    steps_completed,
+                    steps_planned,
+                    remaining_plan,
+                } => {
+                    summary = s;
+                    let remaining = if remaining_plan.is_empty() {
+                        String::new()
+                    } else {
+                        format!(
+                            "\nNot done:\n{}",
+                            remaining_plan
+                                .iter()
+                                .enumerate()
+                                .map(|(i, s)| format!("  {}. {s}", steps_completed + i + 1))
+                                .collect::<Vec<_>>()
+                                .join("\n"),
+                        )
+                    };
+                    incomplete = Some(format!(
+                        "INCOMPLETE — the sub-agent stopped after {steps_completed} of \
+                         {steps_planned} planned steps. Do not assume this subtask is \
+                         finished; verify it or re-dispatch the remaining work.{remaining}"
+                    ));
+                    break;
+                }
+                // Answer the request — dropping `result_tx` makes the sub-agent
+                // abandon its run with no terminal event at all.
+                AgentEvent::ToolCallPending { call, result_tx } => {
+                    let _ = result_tx.send(None);
+                    steps.push(format!(
+                        "  [approval] {} → rejected (sub-agents cannot prompt for approval)",
+                        call.name(),
+                    ));
                 }
                 AgentEvent::Error(e) => {
                     handle.abort();
@@ -1294,13 +1367,23 @@ impl ToolExecutor {
             output.push_str("\n\n");
         }
         output.push_str("Summary: ");
-        output.push_str(if summary.is_empty() {
-            "Sub-agent completed."
-        } else {
-            &summary
+        output.push_str(match (summary.is_empty(), incomplete.is_some()) {
+            // Nothing reported and no Partial either: the channel closed with
+            // no terminal event. Say that rather than claim completion.
+            (true, false) => "Sub-agent stopped without reporting a result.",
+            (true, true) => "(no summary reported)",
+            _ => &summary,
         });
+        if let Some(note) = &incomplete {
+            output.push_str("\n\n");
+            output.push_str(note);
+        }
 
-        ToolResult::ok("spawn_agent", output)
+        // A run that stopped mid-plan is not a successful tool call.
+        match incomplete {
+            Some(_) => ToolResult::err("spawn_agent", output),
+            None => ToolResult::ok("spawn_agent", output),
+        }
     }
 }
 
@@ -1588,6 +1671,77 @@ mod tests {
         std::env::remove_var("__TEST_API_KEY");
     }
 
+    /// Sandbox mode is the only way an agent reads outside its workspace, so
+    /// prove it actually widens — a policy that silently changed nothing would
+    /// pass every unit test in `sandbox_policy` and still be useless.
+    #[test]
+    fn sandbox_policy_opens_the_jail_for_the_granted_axis_only() {
+        use crate::sandbox_policy::{Access, SandboxPolicy};
+        let ws = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let target = outside.path().join("notes.md");
+        std::fs::write(&target, "hi").unwrap();
+        let target_str = target.to_string_lossy().to_string();
+
+        // Locked (the default) — unchanged behaviour.
+        let jailed = ToolExecutor::new(ws.path().to_path_buf(), false);
+        assert!(jailed.resolve_safe(&target_str, Access::Read).is_err());
+
+        // Read granted, write not.
+        let readable =
+            ToolExecutor::new(ws.path().to_path_buf(), false).with_sandbox_policy(SandboxPolicy {
+                read_outside: true,
+                ..Default::default()
+            });
+        assert!(
+            readable.resolve_safe(&target_str, Access::Read).is_ok(),
+            "read_outside should reach an outside file"
+        );
+        let err = readable
+            .resolve_safe(&target_str, Access::Write)
+            .unwrap_err();
+        assert!(err.contains("write"), "{err}");
+    }
+
+    /// Inside the workspace must behave identically no matter the policy —
+    /// enabling sandbox mode may only ever add reach, never remove it.
+    #[test]
+    fn sandbox_policy_never_restricts_inside_the_workspace() {
+        use crate::sandbox_policy::{Access, SandboxPolicy};
+        let ws = tempfile::tempdir().unwrap();
+        // `config.json` is on the credential deny-list, and is also a perfectly
+        // ordinary project file. Inside the workspace it stays reachable.
+        std::fs::write(ws.path().join("config.json"), "{}").unwrap();
+        let exec =
+            ToolExecutor::new(ws.path().to_path_buf(), false).with_sandbox_policy(SandboxPolicy {
+                read_outside: true,
+                deny_roots: vec![ws.path().to_path_buf()],
+                ..Default::default()
+            });
+        assert!(exec.resolve_safe("config.json", Access::Read).is_ok());
+        assert!(exec.resolve_safe("config.json", Access::Write).is_ok());
+    }
+
+    /// The invariant, at the layer that actually serves files.
+    #[test]
+    fn sandbox_cannot_be_configured_to_reach_credentials() {
+        use crate::sandbox_policy::{Access, SandboxPolicy};
+        let ws = tempfile::tempdir().unwrap();
+        let home = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("/Users/example"));
+        let secret = home.join(".ssh").join("id_rsa");
+        let exec =
+            ToolExecutor::new(ws.path().to_path_buf(), false).with_sandbox_policy(SandboxPolicy {
+                read_outside: true,
+                write_outside: true,
+                allow_roots: vec![home.join(".ssh")],
+                ..Default::default()
+            });
+        let err = exec
+            .resolve_safe(&secret.to_string_lossy(), Access::Read)
+            .unwrap_err();
+        assert!(err.contains("credential"), "{err}");
+    }
+
     #[test]
     fn resolve_safe_blocks_path_traversal() {
         let tmp = std::env::temp_dir().join(format!("vibe_resolve_test_{}", std::process::id()));
@@ -1595,12 +1749,12 @@ mod tests {
         let executor = ToolExecutor::new(tmp.clone(), false);
 
         // Relative traversal must be blocked
-        let result = executor.resolve_safe("../../etc/passwd");
+        let result = executor.resolve_safe("../../etc/passwd", crate::sandbox_policy::Access::Read);
         assert!(result.is_err(), "relative traversal should be blocked");
         assert!(result.unwrap_err().contains("traversal blocked"));
 
         // Absolute path outside workspace must be blocked
-        let result = executor.resolve_safe("/etc/passwd");
+        let result = executor.resolve_safe("/etc/passwd", crate::sandbox_policy::Access::Read);
         assert!(
             result.is_err(),
             "absolute path outside workspace should be blocked"
@@ -1608,7 +1762,7 @@ mod tests {
 
         // Normal relative path within workspace must succeed
         std::fs::write(tmp.join("test.txt"), "ok").unwrap();
-        let result = executor.resolve_safe("test.txt");
+        let result = executor.resolve_safe("test.txt", crate::sandbox_policy::Access::Read);
         assert!(result.is_ok(), "normal relative path should succeed");
 
         // Clean up
@@ -1622,7 +1776,8 @@ mod tests {
         let executor = ToolExecutor::new(tmp.clone(), false);
 
         // Non-existent file in workspace should succeed
-        let result = executor.resolve_safe("subdir/new_file.rs");
+        let result =
+            executor.resolve_safe("subdir/new_file.rs", crate::sandbox_policy::Access::Read);
         assert!(
             result.is_ok(),
             "new file path inside workspace should succeed"

@@ -5,6 +5,9 @@ import { invoke } from "@tauri-apps/api/core";
 import { ApprovalPill, type ApprovalTier } from "./ApprovalPill";
 import { ProviderPill } from "./ProviderPill";
 import { ReasoningPill, type ReasoningEffort } from "./ReasoningPill";
+import { ModePill, type RunMode } from "./ModePill";
+import { SandboxSettings } from "./SandboxSettings";
+import { describe as describeSandbox, type SandboxPolicy } from "../lib/sandbox";
 import { QuickActionDrawer, type QuickAction } from "./QuickActionDrawer";
 import type { ComposerPrefs } from "../hooks/useComposerPrefs";
 import { findMention, rankFiles, useProjectFiles } from "../hooks/useProjectFiles";
@@ -23,6 +26,8 @@ export interface ComposerSubmit {
   model?: string;
   approval: ApprovalTier;
   reasoning: ReasoningEffort;
+  mode: RunMode;
+  sandbox: SandboxPolicy;
   /** When true, this run gets its own git worktree branch for isolation. Off by
    *  default — a plain chat/question should not fork a branch. Opt in per-run
    *  via the composer's Branch toggle for isolated coding tasks. */
@@ -87,6 +92,7 @@ export function TaskPrompt({
   onSlash,
 }: TaskPromptProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [sandboxOpen, setSandboxOpen] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   // Sent messages, newest last — recalled with ↑/↓ on an empty composer, the
   // way every shell and chat client behaves.
@@ -374,6 +380,13 @@ export function TaskPrompt({
         onSelect={(e) => setCaret(e.currentTarget.selectionStart ?? 0)}
         onKeyDown={onKeyDown}
       />
+      {sandboxOpen && (
+        <SandboxSettings
+          value={prefs.sandbox}
+          onChange={(next) => onPref("sandbox", next)}
+          onClose={() => setSandboxOpen(false)}
+        />
+      )}
       <div className="vx-composer__bar">
         <button
           className="vx-icon-btn"
@@ -414,6 +427,16 @@ export function TaskPrompt({
           model={prefs.model}
           onSelect={onProviderModel}
         />
+        <ModePill value={prefs.mode} onChange={(v) => onPref("mode", v)} />
+        {prefs.mode === "sandbox" && (
+          <button
+            className="vx-pill"
+            onClick={() => setSandboxOpen(true)}
+            title={`Sandbox access: ${describeSandbox(prefs.sandbox)}`}
+          >
+            Access: {describeSandbox(prefs.sandbox)}
+          </button>
+        )}
         <ReasoningPill
           provider={prefs.provider}
           value={prefs.reasoning}

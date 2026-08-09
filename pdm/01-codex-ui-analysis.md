@@ -12,23 +12,23 @@ OpenAI Codex represents the most aggressive bet on **task-centric UI** in the AI
 
 ### Core layout
 
-```
+```txt
 ┌─────────────────────────────────────────────────┐
 │  Codex                                          │
-│  ┌─────────────────────────────────────────────┐│
-│  │  [Task Input — full-width prompt bar]       ││
-│  └─────────────────────────────────────────────┘│
-│  ┌─────────────────────────────────────────────┐│
-│  │  Task History (sidebar or stacked cards)    ││
-│  │  ┌─ Task #3 ────────────────────────────┐  ││
-│  │  │  "Add error handling to auth module" │  ││
-│  │  │  ● Running  [sandbox] [branch]       │  ││
-│  │  └──────────────────────────────────────┘  ││
-│  │  ┌─ Task #2 ────────────────────────────┐  ││
-│  │  │  "Write unit tests for payment flow"  │  ││
-│  │  │  ✓ Completed  [diff] [apply]         │  ││
-│  │  └──────────────────────────────────────┘  ││
-│  └─────────────────────────────────────────────┘│
+│  ┌───────────────────────────────────────────┐  │
+│  │  [Task Input — full-width prompt bar]     │  │
+│  └───────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────┐  │
+│  │  Task History (sidebar or stacked cards)  │  │
+│  │  ┌─ Task #3 ────────────────────────────┐ │  │
+│  │  │  "Add error handling to auth module" │ │  │
+│  │  │  ● Running  [sandbox] [branch]       │ │  │
+│  │  └──────────────────────────────────────┘ │  │
+│  │  ┌─ Task #2 ────────────────────────────┐ │  │
+│  │  │  "Write unit tests for payment flow" │ │  │
+│  │  │  ✓ Completed  [diff] [apply]         │ │  │
+│  │  └──────────────────────────────────────┘ │  │
+│  └───────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -105,22 +105,22 @@ OpenAI Codex represents the most aggressive bet on **task-centric UI** in the AI
 
 Codex's sandbox is its defining architectural choice:
 
-```
+```txt
 User prompt
     │
     ▼
-┌──────────────────┐
+┌───────────────────┐
 │  Codex Scheduler  │
 │  (task queue,     │
 │   quota, routing) │
-└──────┬───────────┘
+└──────┬────────────┘
        │
        ▼
-┌──────────────────┐     ┌──────────────────┐
+┌───────────────────┐     ┌───────────────────┐
 │  Firecracker VM   │────▶│  Git remote       │
 │  (isolated FS,    │     │  (branch + PR)    │
-│   network policy) │     └──────────────────┘
-└──────────────────┘
+│   network policy) │     └───────────────────┘
+└───────────────────┘
 ```
 
 **Key properties:**

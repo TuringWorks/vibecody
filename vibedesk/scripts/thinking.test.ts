@@ -80,6 +80,31 @@ eq(
   true,
 );
 
+// Verbatim from a minimax-m3 turn that rendered `</mm:think>` on screen: the
+// provider ate the opening tag, leaving a namespaced orphan close.
+eq(
+  "a namespaced orphan close is reasoning, not prose",
+  splitThinking("Let me write a single Python file.</mm:think>def fib(n): pass"),
+  { reasoning: ["Let me write a single Python file."], visible: "def fib(n): pass" },
+);
+
+eq("namespaced blocks are stripped", splitThinking("<mm:think>plan</mm:think>answer"), {
+  reasoning: ["plan"],
+  visible: "answer",
+});
+
+eq("a namespaced unclosed opener swallows its tail", splitThinking("answer<mm:think>cut"), {
+  reasoning: ["cut"],
+  visible: "answer",
+});
+
+// A closing tag in ordinary prose must not eat the sentence before it.
+eq(
+  "prose containing an unrelated closing tag is untouched",
+  splitThinking("Use </div> in the template."),
+  { reasoning: [], visible: "Use </div> in the template." },
+);
+
 eq(
   "multiple blocks are kept in order",
   splitThinking("<thinking>one</thinking>mid<thinking>two</thinking>end"),

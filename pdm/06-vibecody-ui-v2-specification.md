@@ -111,13 +111,13 @@ Replace the current 8-item Activity Bar (Explorer, Search, Git, Testing, Project
 ### 3.2 Sections
 
 ```
-┌─ Project Hub ────────────────┐
-│ 📁 my-project                │
+┌─ Project Hub ─────────────────┐
+│ 📁 my-project                 │
 │                               │
-│ ── Goals ─────────────────── │
+│ ── Goals ───────────────────  │
 │ ○ Fix auth timeout (active)   │
 │ ✓ Add payment tests (done)    │
-│ ○ Refactor API (planned)     │
+│ ○ Refactor API (planned)      │
 │ [+ New Goal]                  │
 │                               │
 │ ── Agents ─────────────────── │
@@ -132,21 +132,21 @@ Replace the current 8-item Activity Bar (Explorer, Search, Git, Testing, Project
 │ [Manage Context]              │
 │                               │
 │ ── Health ─────────────────── │
-│ ✅ 847 tests passing           │
-│ ⚠️ 3 lint warnings             │
+│ ✅ 847 tests passing          │
+│ ⚠️ 3 lint warnings            │
 │ 🔄 main → 2 ahead             │
 │                               │
 │ ── Cost ───────────────────── │
-│ Today: $0.47 │ This week: $3.12│
+│ Today: $0.47│ This week: $3.12│
 │                               │
 │ ── Sessions ───────────────── │
 │ ○ Fix auth timeout (2m ago)   │
 │ ○ Add tests (completed)       │
-│ ○ API discussion (1h ago)      │
+│ ○ API discussion (1h ago)     │
 │                               │
 │ ── Quick Actions ──────────── │
-│ [📋 New Task] [🎯 New Goal]   │
-│ [🔍 Search Code] [📊 Dashboard]│
+│ [ New Task] [ New Goal]       │
+│ [ Search Code] [ Dashboard]   │
 │                               │
 │ ── Power User ─────────────── │
 │ [All Panels ▾]                │
@@ -186,10 +186,10 @@ Each sandbox session is a **task card** displayed in a horizontal strip at the t
 ```
 ┌─────────────────────┐  ┌─────────────────────┐  ┌─────────────────────┐
 │ ● Fix auth timeout  │  │ ✓ Add payment tests │  │ ⏸ Refactor API      │
-│   running           │  │   done               │  │   paused             │
-│   +12/-3 lines      │  │   +47 lines          │  │   needs input        │
-│   $0.04  │  docker  │  │   $0.02  │  local    │  │   $0.01  │  cloud  │
-│   [View] [Kill]     │  │   [Diff] [PR]        │  │   [Resume] [Cancel] │
+│   running           │  │   done              │  │   paused            │
+│   +12/-3 lines      │  │   +47 lines         │  │   needs input       │
+│   $0.04  │  docker  │  │   $0.02  │  local   │  │   $0.01  │  cloud   │
+│   [View] [Kill]     │  │   [Diff] [PR]       │  │   [Resume] [Cancel] │
 └─────────────────────┘  └─────────────────────┘  └─────────────────────┘
 ```
 
@@ -225,29 +225,29 @@ The distinction between **Task** (▶ Go) and **Chat** (Enter) is the key innova
 Every agent action appears as a **structured block** inside the chat:
 
 ```
-┌─ 🔍 Read file ──────────────────────────── [12:34:56] ─────────┐
-│ src/auth/mod.rs (2.3 KB)                                       │
-│ ▸ Shows first 12 lines of context                               │
+┌─ 🔍 Read file ──────────────────────────── [12:34:56] ───────────┐
+│ src/auth/mod.rs (2.3 KB)                                         │
+│ ▸ Shows first 12 lines of context                                │
 │                                                                  │
 │ [Expand] [Open in Editor]                                        │
 └──────────────────────────────────────────────────────────────────┘
 
-┌─ ✏️ Edit file ──────────────────────────── [12:35:02] ─────────┐
-│ src/auth/mod.rs (+12/-3)                                       │
-│ ▸ Diff preview (collapsible)                                    │
+┌─ ✏️ Edit file ──────────────────────────── [12:35:02] ───────────┐
+│ src/auth/mod.rs (+12/-3)                                         │
+│ ▸ Diff preview (collapsible)                                     │
 │                                                                  │
 │ [Accept] [Reject] [Accept All]  [View Full Diff]                 │
 └──────────────────────────────────────────────────────────────────┘
 
-┌─ ▶ Run command ─────────────────────────── [12:35:18] ─────────┐
+┌─ ▶ Run command ─────────────────────────── [12:35:18] ───────────┐
 │ cargo test -- auth                                               │
-│ ✓ 3 tests passing                                               │
+│ ✓ 3 tests passing                                                │
 │                                                                  │
 │ [Copy Output] [Open in Terminal]                                 │
 └──────────────────────────────────────────────────────────────────┘
 
-┌─ 🔍 Web search ─────────────────────────── [12:35:30] ─────────┐
-│ "Rust tokio timeout pattern"                                    │
+┌─ 🔍 Web search ─────────────────────────── [12:35:30] ───────────┐
+│ "Rust tokio timeout pattern"                                     │
 │ ▸ 3 results                                                      │
 │                                                                  │
 │ [View Results]                                                   │
@@ -278,8 +278,8 @@ In addition to tool-use blocks, the chat can render structured content:
 At the top of every chat, a context badge shows what's included:
 
 ```
-┌─ Context: 14 files │ AGENTS.md │ git diff (3 files) │ Project profile ──┐
-│ [Manage] [Refresh]                                                                │
+┌─ Context: 14 files │ AGENTS.md │ git diff (3 files) │ Project profile ─────────────┐
+│ [Manage] [Refresh]                                                                 │
 └────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -290,14 +290,14 @@ Click "Manage" to open the full `ContextPicker`. Click any item to see details.
 In the editor zone, selecting code and pressing Cmd+K opens an inline prompt:
 
 ```
-┌─ auth/mod.rs ──────────────────────────────────────────────┐
+┌─ auth/mod.rs ────────────────────────────────────────────────┐
 │                                                              │
-│  pub async fn authenticate(                                 │
-│      credentials: Credentials,                              │
+│  pub async fn authenticate(                                  │
+│      credentials: Credentials,                               │
 │  ) -> Result<Token, AuthError> {                             │
-│      ┌─ Make this function timeout-safe ────────────────┐   │
-│      │ [Accept] [Reject]                                 │   │
-│      └──────────────────────────────────────────────────┘   │
+│      ┌─ Make this function timeout-safe ────────────────┐    │
+│      │ [Accept] [Reject]                                │    │
+│      └──────────────────────────────────────────────────┘    │
 │  }                                                           │
 │                                                              │
 └──────────────────────────────────────────────────────────────┘

@@ -18,20 +18,20 @@ The defining pattern: **the editor is the center of gravity, and AI is a persist
 ┌──────────┬────────────────────────┬──────────────────┐
 │ Activity │  Editor (primary)      │  Agent Panel     │
 │ Bar      │                        │                  │
-│          │  ┌─ Tab ──────────┐   │  ┌─ Chat ──────┐│
-│ ☐ Files  │  │ src/auth/mod.rs│   │  │ > fix the    ││
-│ 🔍 Search│  └────────────────┘   │  │   auth bug   ││
-│ 󰊢 Git   │                        │  │              ││
-│ 🐛 Debug │  Inline diff overlay   │  │ 🔍 Reading.. ││
-│          │  (accept/reject per     │  │ ✏️ Editing.. ││
-│          │   hunk, in-place)       │  │ ✓ Done       ││
+│          │  ┌─ Tab ──────────┐    │  ┌─ Chat ───────┐│
+│   Files  │  │ src/auth/mod.rs│    │  │ > fix the    ││
+│   Search │  └────────────────┘    │  │   auth bug   ││
+│   Git    │                        │  │              ││
+│   Debug  │  Inline diff overlay   │  │  Reading..   ││
+│          │  (accept/reject per    │  │  Editing..   ││
+│          │   hunk, in-place)      │  │ ✓ Done       ││
 │          │                        │  │              ││
-│          │                        │  │ [Context: 5   ││
-│          │                        │  │  files]       ││
+│          │                        │  │ [Context: 5  ││
+│          │                        │  │  files]      ││
 │          │                        │  └──────────────┘│
 │          │                        │                  │
 │          │                        │  ┌─ Agent Tabs ─┐│
-│          │                        │  │ Chat│Agents│  ││
+│          │                        │  │ Chat│Agents│ ││
 │          │                        │  └──────────────┘│
 └──────────┴────────────────────────┴──────────────────┘
 ```
@@ -100,12 +100,12 @@ Cursor 4.0 introduced a grid view for agents:
 │  Agent 1    │  Agent 2    │
 │  "Fix auth" │  "Add test" │
 │  ● Running  │  ● Running  │
-│  +12/-3     │  +47 lines   │
-│  $0.04      │  $0.02       │
+│  +12/-3     │  +47 lines  │
+│  $0.04      │  $0.02      │
 ├─────────────┼─────────────┤
 │  Agent 3    │  Agent 4    │
 │  "Refactor" │  ⏸ Paused   │
-│  ✓ Done     │  Needs input │
+│  ✓ Done     │  Needs input│
 │  +8/-2      │             │
 │  $0.01      │             │
 └─────────────┴─────────────┘
@@ -123,17 +123,17 @@ Antigravity is Google's agent framework. Its UI layer (when used with an IDE) lo
 
 ```
 ┌──────────────────────────────────────────────────┐
-│  Agent Status Bar (top)                           │
+│  Agent Status Bar (top)                          │
 │  ● Agent running  │  Step 3/7  │  +23/-8  │ $0.12│
 ├──────────┬───────────────────────┬───────────────┤
-│          │  Editor               │  Agent Log     │
-│ Files    │                       │                │
-│          │  (edits appear as     │  ▸ Read: auth  │
-│          │   inline diffs)       │  ▸ Edit: auth  │
-│          │                       │  ▸ Run: tests  │
-│          │                       │  ▸ Read: test   │
-│          │                       │  ✓ Complete    │
-│          │                       │                │
+│          │  Editor               │  Agent Log    │
+│ Files    │                       │               │
+│          │  (edits appear as     │  ▸ Read: auth │
+│          │   inline diffs)       │  ▸ Edit: auth │
+│          │                       │  ▸ Run: tests │
+│          │                       │  ▸ Read: test │
+│          │                       │  ✓ Complete   │
+│          │                       │               │
 ├──────────┴───────────────────────┴───────────────┤
 │  Terminal (agent commands stream here)           │
 └──────────────────────────────────────────────────┘

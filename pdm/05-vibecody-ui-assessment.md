@@ -14,20 +14,20 @@ VibeCoder is structured as a **classic IDE layout** with an AI panel bolted on t
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │  Menu Bar (File, Edit, View, AI, Project, Help)                  │
-├──────┬──────────────────────────────┬──────────────┬────────────┤
-│      │                              │              │            │
-│ Act. │  Editor (Monaco)             │  Resizer     │  AI Panel  │
-│ Bar  │  ┌─ Tabs ──────────────────┐  │              │            │
-│      │  │ file1.rs │ file2.ts │   │  │              │  ┌─ Group ┐│
-│ ☐    │  └─────────────────────────┘  │              │  │ Chat   ││
-│ 🔍   │                               │              │  │ Agent  ││
-│ 󰊢    │  (code editing area)          │              │  │ Sandbox││
-│ 🐛   │                               │              │  │ ...    ││
-│      │                               │              │  └────────┘│
-│      │                               │              │            │
-│      ├───────────────────────────────┤              │            │
-│      │  Terminal / Browser            │              │            │
-└──────┴───────────────────────────────┴──────────────┴────────────┘
+├──────┬──────────────────────────────┬──────────────┬─────────────┤
+│      │                              │              │             │
+│ Act. │  Editor (Monaco)             │  Resizer     │  AI Panel   │
+│ Bar  │  ┌─ Tabs ──────────────────┐ │              │             │
+│      │  │ file1.rs │ file2.ts │   │ │              │  ┌─ Group ┐ │
+│ ☐    │  └─────────────────────────┘ │              │  │ Chat   │ │
+│ 🔍   │                              │              │  │ Agent  │ │
+│ 󰊢    │  (code editing area)         │              │  │ Sandbox│ │
+│ 🐛   │                              │              │  │ ...    │ │
+│      │                              │              │  └────────┘ │
+│      │                              │              │             │
+│      ├──────────────────────────────┤              │             │
+│      │  Terminal / Browser          │              │             │
+└──────┴──────────────────────────────┴──────────────┴─────────────┘
 ```
 
 The AI panel uses `GroupedTabBar` with 11 tab groups:

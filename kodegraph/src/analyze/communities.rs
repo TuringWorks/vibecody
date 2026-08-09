@@ -73,7 +73,19 @@ impl CommunityDetector {
                 }
                 // Include self to break ties toward current label.
                 *tally.entry(label[&n]).or_insert(0) += 1;
-                let best = tally.into_iter().max_by_key(|(_, c)| *c).map(|(l, _)| l);
+                // Tie-break on the label id, not on hash order. `max_by_key`
+                // returns the *last* maximum it sees, and `HashMap` iteration
+                // order is seeded randomly per process — so with two labels
+                // tied, which one won varied run to run and propagation could
+                // settle differently on the same graph. That made
+                // `detects_a_community_from_a_cluster` fail roughly one run in
+                // ten, and any caller's community ids unstable between
+                // processes. Ordering by `(count, label)` makes the outcome a
+                // function of the graph alone.
+                let best = tally
+                    .into_iter()
+                    .max_by_key(|(l, c)| (*c, *l))
+                    .map(|(l, _)| l);
                 if let Some(best) = best {
                     if label[&n] != best {
                         label.insert(n, best);
@@ -107,8 +119,21 @@ impl CommunityDetector {
                 members,
             });
         }
-        // Largest communities first.
-        out.sort_by(|a, b| b.members.len().cmp(&a.members.len()));
+        // Largest communities first, then by id so the order is total. The
+        // groups come out of a `HashMap`, and `sort_by` is stable — so without
+        // the id tiebreak, equal-sized communities kept their hash order and
+        // the returned sequence differed between processes on identical input.
+        out.sort_by(|a, b| {
+            b.members
+                .len()
+                .cmp(&a.members.len())
+                .then_with(|| a.id.cmp(&b.id))
+        });
+        // Members likewise, so a community's contents render identically run
+        // to run.
+        for c in &mut out {
+            c.members.sort();
+        }
         out
     }
 }
@@ -155,5 +180,55 @@ mod tests {
         let comms = detect_communities(&g);
         // At least one community of size >= 2 should emerge from the a/b/c cluster.
         assert!(comms.iter().any(|c| c.members.len() >= 2));
+    }
+
+    /// The a/b/c triangle must land in one community, and the result must be a
+    /// function of the graph alone.
+    ///
+    /// The weaker assertion above ("some community of size >= 2") passed most
+    /// of the time even while label propagation was seed-dependent: ties were
+    /// resolved by `HashMap` iteration order, which Rust seeds randomly per
+    /// process, so this graph settled differently roughly one run in ten and
+    /// the workspace suite failed intermittently. With ties broken on the label
+    /// id, the exact grouping is pinnable — so pin it.
+    #[test]
+    fn community_detection_is_a_function_of_the_graph() {
+        let build = || {
+            let mut g = CodeGraph::new();
+            let a = g.add_symbol(sym("a", "a.rs"));
+            let b = g.add_symbol(sym("b", "a.rs"));
+            let c = g.add_symbol(sym("c", "a.rs"));
+            let x = g.add_symbol(sym("x", "b.rs"));
+            let p = Provenance::from_source(EdgeSource::TreeSitter);
+            g.add_edge(a, b, EdgeKind::Calls, p);
+            g.add_edge(b, c, EdgeKind::Calls, p);
+            g.add_edge(c, a, EdgeKind::Calls, p);
+            g.add_edge(a, x, EdgeKind::Calls, p);
+            g
+        };
+
+        let first = detect_communities(&build());
+        let biggest = first
+            .iter()
+            .max_by_key(|c| c.members.len())
+            .expect("the triangle must form a community");
+        assert!(
+            biggest.members.len() >= 3,
+            "a/b/c are mutually connected and must group together, got {:?}",
+            first.iter().map(|c| c.members.len()).collect::<Vec<_>>(),
+        );
+
+        // Identical input, freshly built: identical output, including order.
+        for _ in 0..25 {
+            let again = detect_communities(&build());
+            assert_eq!(
+                again.len(),
+                first.len(),
+                "community count must not vary for the same graph",
+            );
+            let a: Vec<_> = again.iter().map(|c| (c.id, c.members.clone())).collect();
+            let b: Vec<_> = first.iter().map(|c| (c.id, c.members.clone())).collect();
+            assert_eq!(a, b, "ids, members and ordering must all be reproducible");
+        }
     }
 }
