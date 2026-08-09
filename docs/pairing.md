@@ -154,7 +154,7 @@ The PIN is a usability layer — it doesn't add security beyond the bearer token
 
 | Client | Pairing flow | Crypto |
 |---|---|---|
-| **VibeCLI / VibeCoder / VibeApp** | n/a — runs on the daemon machine | n/a |
+| **VibeCLI / VibeCoder / VibeAIChat** | n/a — runs on the daemon machine | n/a |
 | **VibeMobile** | `/mobile/pairing/*` with 6-digit PIN | bearer token |
 | **VibeCodyWatch / VibeCodyWear** | `/watch/devices` + Secure Enclave / HW KeyStore | P-256 ECDSA |
 | **VS Code / JetBrains / Neovim** | `/pair` with bearer token | bearer token |

@@ -4,7 +4,7 @@ title: Workspace
 permalink: /workspace/
 ---
 
-The Workspace is the folder VibeCody operates inside — every file read, every git operation, every agent task is rooted at the active workspace path. Picking a workspace is the first thing you do after launching VibeCoder/VibeApp; it's the one input that dominates everything downstream.
+The Workspace is the folder VibeCody operates inside — every file read, every git operation, every agent task is rooted at the active workspace path. Picking a workspace is the first thing you do after launching VibeCoder/VibeAIChat; it's the one input that dominates everything downstream.
 
 This page documents the desktop workspace switcher. The daemon side (`add_workspace_folder`, `get_workspace_folders`) is shared across clients — but mobile / watch clients don't pick a workspace today; they consume sessions from whichever workspace the daemon was launched in.
 
@@ -117,7 +117,7 @@ Workspace **paths are logged** because they're already operator-facing (visible 
 
 | Client | Workspace UI |
 |---|---|
-| **VibeCoder / VibeApp** | Full picker + recents |
+| **VibeCoder / VibeAIChat** | Full picker + recents |
 | **VibeMobile** | Inherits the daemon's active workspace; can't change it |
 | **VibeWatch** | Same — read-only inheritance |
 | **IDE plugins** | Use the IDE's own workspace; tell the daemon via `add_workspace_folder` on workspace open |

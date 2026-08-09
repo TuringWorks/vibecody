@@ -12054,6 +12054,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "vibe-desktop-settings"
+version = "0.5.7"
+dependencies = [
+ "serde_json",
+ "tauri",
+ "vibecli",
+]
+
+[[package]]
 name = "vibe-extensions"
 version = "0.5.7"
 dependencies = [
@@ -12200,7 +12209,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "vibeapp"
+name = "vibeaichat"
 version = "0.5.7"
 dependencies = [
  "anyhow",
@@ -12210,6 +12219,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tokio",
+ "vibe-desktop-settings",
 ]
 
 [[package]]
@@ -12303,6 +12313,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-dialog",
  "tokio",
+ "vibe-desktop-settings",
  "vibecli",
 ]
 

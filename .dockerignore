@@ -6,8 +6,8 @@ docs/
 .github/
 vibecoder/dist/
 vibecoder/node_modules/
-vibeapp/dist/
-vibeapp/node_modules/
+vibeaichat/dist/
+vibeaichat/node_modules/
 vscode-extension/
 jetbrains-plugin/
 neovim-plugin/

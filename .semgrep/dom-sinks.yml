@@ -27,7 +27,7 @@ rules:
     paths:
       include:
         - "vibecoder/src/"
-        - "vibeapp/src/"
+        - "vibeaichat/src/"
         - "packages/agent-sdk/src/"
       exclude:
         - "**/__tests__/**"
@@ -55,7 +55,7 @@ rules:
     paths:
       include:
         - "vibecoder/src/"
-        - "vibeapp/src/"
+        - "vibeaichat/src/"
         - "packages/agent-sdk/src/"
       exclude:
         - "**/__tests__/**"

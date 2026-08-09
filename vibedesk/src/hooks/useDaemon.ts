@@ -14,7 +14,7 @@ export type DaemonStatus = "checking" | "online" | "offline";
 /**
  * Tracks reachability of the VibeCLI daemon. VibeDesk never re-implements daemon
  * logic — it talks to it over HTTP via the Tauri command layer (commands.rs),
- * the same pattern as vibeapp.
+ * the same pattern as vibeaichat.
  */
 /**
  * While the daemon is being autostarted on launch (lib.rs), keep showing

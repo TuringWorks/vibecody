@@ -1039,7 +1039,7 @@ async fn health(State(state): State<ServeState>) -> impl IntoResponse {
 }
 
 /// The daemon's `/models` endpoint — the single source of truth for the model
-/// catalog across every thin client (VibeDesk, VibeApp, mobile, watch, plugins).
+/// catalog across every thin client (VibeDesk, VibeAIChat, mobile, watch, plugins).
 ///
 /// Returns, de-duplicated by `id`:
 ///   1. the active provider (carries `active: true`, no `name` — clients that

@@ -1,7 +1,7 @@
 //! Daemon bootstrap — the single contract every client uses to reach a running
 //! VibeCLI daemon.
 //!
-//! Every desktop client (VibeCoder, VibeDesk, VibeApp) autostarts the daemon so
+//! Every desktop client (VibeCoder, VibeDesk, VibeAIChat) autostarts the daemon so
 //! the app works zero-config. Each of them had grown its own version of that
 //! logic, and each was wrong in a different way:
 //!
@@ -22,7 +22,7 @@
 //! shells can call it directly.
 //!
 //! ```text
-//!   VibeCoder / VibeDesk / VibeApp
+//!   VibeCoder / VibeDesk / VibeAIChat
 //!            │  ensure_running(BootstrapConfig)
 //!            ▼
 //!   ┌────────────────────────────────────────────┐

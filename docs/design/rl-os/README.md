@@ -145,7 +145,7 @@ Per AGENTS.md → Product Matrix, RL-OS is currently a **VibeCoder-only** featur
 | Change type (as we ship slices) | Surfaces touched |
 |---|---|
 | New daemon HTTP route (`/v1/rl/*`) | `serve.rs` → Tauri thin wrapper in `commands.rs` → optional doc in `docs/api/` |
-| New Tauri command | `commands.rs` → `generate_handler!` in `vibecoder/src-tauri/src/lib.rs` (and `vibeapp/src-tauri/src/lib.rs` if RL is ever surfaced there — currently not) |
+| New Tauri command | `commands.rs` → `generate_handler!` in `vibecoder/src-tauri/src/lib.rs` (and `vibeaichat/src-tauri/src/lib.rs` if RL is ever surfaced there — currently not) |
 | New SQL migration | `WorkspaceStore` schema bump + migration test |
 | New Python dependency | `vibe-rl-py/pyproject.toml` + lockfile + `Makefile` install target + CI matrix |
 | Sidecar version bump | `vibe-rl-py/VERSION` + Rust `vibe-rl-sidecar` crate constant + CI integration test |

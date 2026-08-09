@@ -1,0 +1,26 @@
+[package]
+name = "vibeaichat"
+version.workspace = true
+description = "Standalone VibeCody desktop application shell"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lib]
+name = "vibeaichat_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+# Settings screens (Providers / Appearance / Account) are shared with
+# VibeDesk; their Tauri commands live in this crate so both shells drive
+# the same ProfileStore code.
+vibe-desktop-settings = { path = "../../crates/vibe-desktop-settings" }
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }

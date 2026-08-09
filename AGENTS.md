@@ -12,7 +12,7 @@ VibeCody is **not a single app**. It's a toolchain of ~13 clients that share one
 |---|---------|------|-------|---------|----------|
 | 1 | **VibeCLI** (daemon + TUI + REPL) | `vibecli/vibecli-cli/` | Rust, Axum, Ratatui | Terminal AI assistant; `--serve` daemon is the **source of truth** for every other client. ~354 modules. | Providers direct · serves `/mobile/*` · `/watch/*` · `/api/*` |
 | 2 | **VibeCoder** (desktop editor) | `vibecoder/` | Tauri 2 + React/TS, Monaco | Full desktop code editor. **1,045+ Tauri commands**, ~293 panels + 42 composites. | Embeds VibeCLI crates · Tauri IPC to frontend |
-| 3 | **VibeCLI App** (secondary Tauri shell) | `vibeapp/` | Tauri 2 + React/TS | Lightweight desktop chat shell. | Same Tauri commands as VibeCoder (subset) |
+| 3 | **VibeCLI App** (secondary Tauri shell) | `vibeaichat/` | Tauri 2 + React/TS | Lightweight desktop chat shell. | Same Tauri commands as VibeCoder (subset) |
 | 4 | **VibeMobile** | `vibemobile/` | Flutter (Dart) | Phone / tablet / web companion. 11 screens, 6 services. | HTTPS/SSE to VibeCLI daemon `/mobile/*` + `/watch/*` relay |
 | 5 | **VibeCodyWatch** (Apple Watch) | `vibewatch/VibeCodyWatch Watch App/` | SwiftUI, watchOS 10+ | Wrist client. Secure Enclave P-256 keys. | HTTPS/SSE `/watch/*` or WatchConnectivity relay |
 | 6 | **VibeCodyWatchCompanion** (iOS) | `vibewatch/VibeCodyWatchCompanion/` | Swift, WatchConnectivity | Phone-side relay when watch is off-LAN. | Bridges watch ↔ VibeMobile ↔ daemon |
@@ -47,7 +47,7 @@ Use this table as a pre-flight checklist. Cross-cutting changes that miss a surf
 |------------|-----|
 | `vibecli/vibecli-cli/src/serve.rs` (or `watch_bridge.rs` for `/watch/*`) | Route registration |
 | `vibecli/vibecli-cli/tests/` | BDD harness for the endpoint |
-| `vibecoder/src-tauri/src/commands.rs` | Tauri wrapper if VibeCoder/VibeApp need it |
+| `vibecoder/src-tauri/src/commands.rs` | Tauri wrapper if VibeCoder/VibeAIChat need it |
 | `vibecoder/src-tauri/src/lib.rs` | Register the new command via `generate_handler!` |
 | `vibemobile/lib/services/api_client.dart` | Flutter client method |
 | `vibewatch/VibeCodyWatch Watch App/WatchNetworkManager.swift` | Swift client if wrist-relevant |
@@ -142,7 +142,7 @@ grep -rn 'fetch(`${this.baseUrl}' packages/agent-sdk/src vscode-extension/src
 
 ### Adding a new Tauri command
 
-`vibecoder/src-tauri/src/commands.rs` (implementation) → `vibecoder/src-tauri/src/lib.rs` (register in `tauri::generate_handler!`). VibeApp (`vibeapp/src-tauri/`) has its own `lib.rs` — register there too if the command is needed there. **Frontend consumers**: `vibecoder/src/` panels call `invoke("your_command", …)` from TypeScript. No mobile/watch impact (mobile/watch don't speak Tauri IPC, only HTTP).
+`vibecoder/src-tauri/src/commands.rs` (implementation) → `vibecoder/src-tauri/src/lib.rs` (register in `tauri::generate_handler!`). VibeAIChat (`vibeaichat/src-tauri/`) has its own `lib.rs` — register there too if the command is needed there. **Frontend consumers**: `vibecoder/src/` panels call `invoke("your_command", …)` from TypeScript. No mobile/watch impact (mobile/watch don't speak Tauri IPC, only HTTP).
 
 ### Adding or updating an AI provider
 
@@ -168,7 +168,7 @@ Follow the 6-file dance in **"Adding / Updating Providers and Models"** below. *
 2. Non-sensitive → `vibecli/vibecli-cli/src/config.rs` (`Config` struct).
 3. Surface it:
    - CLI: `vibecli config` subcommands.
-   - VibeCoder / VibeApp: `invoke("profile_global_set", …)` from a Settings panel.
+   - VibeCoder / VibeAIChat: `invoke("profile_global_set", …)` from a Settings panel.
    - Mobile: add a field to `vibemobile/lib/services/` settings; expose in `settings_screen.dart`.
    - Watch: most settings are *inherited* from the desktop; only add on-watch toggles when the watch needs to override (battery mode, relay prefer, …).
 4. Document it in `docs/configuration.md`.
@@ -180,7 +180,7 @@ Follow the 6-file dance in **"Adding / Updating Providers and Models"** below. *
 | iOS deployment target | `vibemobile/ios/Runner.xcodeproj/project.pbxproj` (3× `IPHONEOS_DEPLOYMENT_TARGET`), `vibemobile/ios/Flutter/AppFrameworkInfo.plist` (`MinimumOSVersion`), `vibemobile/ios/Podfile` (commented `platform :ios, 'X.Y'`), `docs/vibemobile.md` Platform-requirements table |
 | watchOS deployment target | `vibewatch/project.yml` (`deploymentTarget.watchOS`), regenerate with `xcodegen`, `docs/watchos.md` |
 | Wear OS / Android `compileSdk` / `targetSdk` / `minSdk` | `vibewatch/VibeCodyWear/app/build.gradle.kts`, `vibewatch/VibeCodyWear/gradle/libs.versions.toml` (`compileSdk` / `minSdk`), `docs/wearos.md` |
-| macOS `minimumSystemVersion` | `vibecoder/src-tauri/tauri.conf.json` and `vibeapp/src-tauri/tauri.conf.json` (`bundle.macOS.minimumSystemVersion`) |
+| macOS `minimumSystemVersion` | `vibecoder/src-tauri/tauri.conf.json` and `vibeaichat/src-tauri/tauri.conf.json` (`bundle.macOS.minimumSystemVersion`) |
 | Linux runner pin | `.github/workflows/release.yml` (`ubuntu-22.04`, `ubuntu-22.04-arm`, `smoke-linux-next` uses `ubuntu-24.04`) |
 | Xcode version | `.github/workflows/release.yml` — `maxim-lobanov/setup-xcode` `xcode-version` (currently `^26.0`, required for App Store submissions after **2026-04-28**) |
 
@@ -197,7 +197,7 @@ Follow the 6-file dance in **"Adding / Updating Providers and Models"** below. *
 
 ### Version bump
 
-`Cargo.toml` (`[workspace.package].version`) → `vibecoder/package.json` → `vibeapp/package.json` → `vibecoder/src-tauri/tauri.conf.json` → `vibeapp/src-tauri/tauri.conf.json` → `vibemobile/pubspec.yaml` (`version:`) → `docs/release.md` + `docs/CHANGELOG.md` + `RELEASE.md`. Watch apps inherit version from their project files (`vibewatch/project.yml`, `vibewatch/VibeCodyWear/app/build.gradle.kts` `versionName`). Keep them in lockstep.
+`Cargo.toml` (`[workspace.package].version`) → `vibecoder/package.json` → `vibeaichat/package.json` → `vibecoder/src-tauri/tauri.conf.json` → `vibeaichat/src-tauri/tauri.conf.json` → `vibemobile/pubspec.yaml` (`version:`) → `docs/release.md` + `docs/CHANGELOG.md` + `RELEASE.md`. Watch apps inherit version from their project files (`vibewatch/project.yml`, `vibewatch/VibeCodyWear/app/build.gradle.kts` `versionName`). Keep them in lockstep.
 
 ---
 

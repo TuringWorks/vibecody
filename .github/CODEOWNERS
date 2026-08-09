@@ -19,8 +19,8 @@
 /vibecoder/src-tauri/                   @TuringWorks/vibecody-ui
 /vibecoder/design-system/               @TuringWorks/vibecody-ui
 
-# ─── VibeApp (secondary desktop shell) ───────────────────────────────────
-/vibeapp/                            @TuringWorks/vibecody-ui
+# ─── VibeAIChat (secondary desktop shell) ───────────────────────────────────
+/vibeaichat/                            @TuringWorks/vibecody-ui
 
 # ─── Mobile ──────────────────────────────────────────────────────────────
 /vibemobile/                         @TuringWorks/vibecody-mobile

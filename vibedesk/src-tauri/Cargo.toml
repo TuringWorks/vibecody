@@ -22,6 +22,7 @@ futures = "0.3"
 # Embed the CLI crate to reach the encrypted ProfileStore directly (provider
 # keys / config / UI prefs) — the same store VibeCoder uses, so settings carry over.
 vibecli_cli = { package = "vibecli", path = "../../vibecli/vibecli-cli" }
+vibe-desktop-settings = { path = "../../crates/vibe-desktop-settings" }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

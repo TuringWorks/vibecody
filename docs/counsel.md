@@ -128,7 +128,7 @@ INFO vibecody::counsel: counsel.session.delete
 
 | Client | Counsel |
 |---|---|
-| **VibeCoder / VibeApp** | Full panel |
+| **VibeCoder / VibeAIChat** | Full panel |
 | **VibeMobile** | None — debates are inherently a side-by-side comparison UX |
 | **VibeWatch** | None |
 | **IDE plugins** | None |

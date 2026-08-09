@@ -1,7 +1,7 @@
 # Worktree Lifecycle — Design Index
 
 **Status:** Draft · 2026-06-06
-**Scope:** vibecli daemon (Rust) — the task/worktree subsystem behind VibeDesk's `/api/tasks`; surfaced in VibeCoder, VibeApp, VibeMobile, VibeWatch
+**Scope:** vibecli daemon (Rust) — the task/worktree subsystem behind VibeDesk's `/api/tasks`; surfaced in VibeCoder, VibeAIChat, VibeMobile, VibeWatch
 **Owner:** TBD
 
 ---

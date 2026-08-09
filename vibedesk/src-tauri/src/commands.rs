@@ -1,5 +1,5 @@
 //! VibeDesk Tauri commands — a thin HTTP/SSE bridge to the VibeCLI daemon.
-//! Adapted from vibeapp; adds `approval` + `reasoning` params (VX-107/108/111).
+//! Adapted from vibeaichat; adds `approval` + `reasoning` params (VX-107/108/111).
 //! VibeDesk never re-implements daemon logic — the daemon is the source of truth.
 
 use tauri::AppHandle;

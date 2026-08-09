@@ -37,9 +37,9 @@ updates:
       vibecoder-minor:
         update-types: [minor, patch]
 
-  # ─── VibeApp (Tauri shell) ────────────────────────────────────────────────
+  # ─── VibeAIChat (Tauri shell) ────────────────────────────────────────────────
   - package-ecosystem: npm
-    directory: /vibeapp
+    directory: /vibeaichat
     schedule:
       interval: weekly
       day: monday
@@ -49,7 +49,7 @@ updates:
       - dependencies
       - typescript
     groups:
-      vibeapp-minor:
+      vibeaichat-minor:
         update-types: [minor, patch]
 
   # ─── Agent SDK ────────────────────────────────────────────────────────────

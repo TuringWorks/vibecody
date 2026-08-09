@@ -45,7 +45,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Pairing signature algorithm** — migrated from Ed25519 to P-256 ECDSA project-wide. Any previously-paired device must re-pair; new key material is generated in-place on first use of the v0.5.5 clients.
 - **Watch / phone auth** — JWT (HS256) issued on successful attestation, 32-byte secret stored in `ProfileStore`, 30-day default TTL.
 - **CI pipeline** — new matrix rows for `watchOS` (macOS runners) and `wearOS` (Linux runners with Android SDK). SHA-256 checksums now include the 3 new watch artifacts.
-- Version bumped to 0.5.5 across all manifests (Cargo, `vibecoder`, `vibeapp`, `vibemobile`, `vibewatch/VibeCodyWatch`, `vibewatch/VibeCodyWear`).
+- Version bumped to 0.5.5 across all manifests (Cargo, `vibecoder`, `vibeaichat`, `vibemobile`, `vibewatch/VibeCodyWatch`, `vibewatch/VibeCodyWear`).
 
 ---
 
@@ -89,18 +89,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - **Document & Media Viewers** — new DocumentViewer, ImageViewer, HtmlPreview, and DrawioPreview components for VibeCoder with full CSS styling and test coverage.
-- **Per-Provider Model Lists** — Vibe App settings now show provider-appropriate models (Claude, OpenAI, Gemini, Grok) with auto-selection on provider change; Ollama uses live-discovered models from the daemon.
+- **Per-Provider Model Lists** — VibeAIChat settings now show provider-appropriate models (Claude, OpenAI, Gemini, Grok) with auto-selection on provider change; Ollama uses live-discovered models from the daemon.
 - **RL-OS Core Modules** — 8 core modules (EnvOS, TrainOS, EvalOS, OptiOS, ModelHub, ServeOS, RLHF, MultiAgent) with 660 tests, 10 VibeCoder panels, and 20 wired Tauri commands.
 - **Sketch Canvas** — working drawing support with Move tool, inline text editing, SVG/PNG export, shape recognition, and code generation.
 - **Training Run Wizard** — step-by-step setup wizard for RL training runs in the Training Dashboard.
 
 ### Fixed
 
-- **Vibe App: Empty AI Responses** — SSE event parser read `ev["text"]` but daemon sends `ev["content"]`; responses now display correctly.
-- **Vibe App: Duplicate Streaming Text** — async Tauri event listeners now guarded against React StrictMode double-mount race condition.
-- **Vibe App: Response Never Completing** — added fallback completion event when agent exits without explicit Complete/Error signal.
-- **Vibe App: Stale Model/Token** — `useCallback` dependencies now include `selectedModel` and `daemonToken`.
-- **Vibe App: Window Icon** — replaced default Tauri icon with VibeCoder icon; set programmatically via `window.set_icon()` for dev + production.
+- **VibeAIChat: Empty AI Responses** — SSE event parser read `ev["text"]` but daemon sends `ev["content"]`; responses now display correctly.
+- **VibeAIChat: Duplicate Streaming Text** — async Tauri event listeners now guarded against React StrictMode double-mount race condition.
+- **VibeAIChat: Response Never Completing** — added fallback completion event when agent exits without explicit Complete/Error signal.
+- **VibeAIChat: Stale Model/Token** — `useCallback` dependencies now include `selectedModel` and `daemonToken`.
+- **VibeAIChat: Window Icon** — replaced default Tauri icon with VibeCoder icon; set programmatically via `window.set_icon()` for dev + production.
 - **Ollama Model List Slow/Missing** — removed per-model chat probe (up to 65s for 13 models); replaced with instant name-based filter.
 - **Monaco Crash on Apply All** — editor kept always mounted to prevent disposal crash.
 - **Terminal Input & Editor Apply Crash** — fixed terminal input handling and model selector UX.

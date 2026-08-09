@@ -35,7 +35,7 @@ COPY vibecoder/crates/vibe-lsp/Cargo.toml vibecoder/crates/vibe-lsp/Cargo.toml
 COPY vibecoder/crates/vibe-extensions/Cargo.toml vibecoder/crates/vibe-extensions/Cargo.toml
 COPY vibecoder/crates/vibe-collab/Cargo.toml vibecoder/crates/vibe-collab/Cargo.toml
 COPY vibecoder/src-tauri/Cargo.toml vibecoder/src-tauri/Cargo.toml
-COPY vibeapp/src-tauri/Cargo.toml vibeapp/src-tauri/Cargo.toml
+COPY vibeaichat/src-tauri/Cargo.toml vibeaichat/src-tauri/Cargo.toml
 COPY vibe-indexer/Cargo.toml vibe-indexer/Cargo.toml
 COPY vibe-memory/Cargo.toml vibe-memory/Cargo.toml
 
@@ -53,7 +53,7 @@ RUN mkdir -p vibecli/vibecli-cli/src && echo 'fn main() {}' > vibecli/vibecli-cl
     mkdir -p vibecoder/crates/vibe-extensions/src && echo '' > vibecoder/crates/vibe-extensions/src/lib.rs && \
     mkdir -p vibecoder/crates/vibe-collab/src && echo '' > vibecoder/crates/vibe-collab/src/lib.rs && \
     mkdir -p vibecoder/src-tauri/src && echo '' > vibecoder/src-tauri/src/lib.rs && \
-    mkdir -p vibeapp/src-tauri/src && echo '' > vibeapp/src-tauri/src/lib.rs && \
+    mkdir -p vibeaichat/src-tauri/src && echo '' > vibeaichat/src-tauri/src/lib.rs && \
     mkdir -p vibe-indexer/src && echo 'fn main() {}' > vibe-indexer/src/main.rs && \
     mkdir -p vibe-memory/src && echo '' > vibe-memory/src/lib.rs
 
@@ -66,7 +66,7 @@ RUN cargo build --release --package vibecli --target x86_64-unknown-linux-musl 2
 COPY vibecli/ vibecli/
 COPY vibecoder/crates/ vibecoder/crates/
 COPY vibecoder/src-tauri/src/ vibecoder/src-tauri/src/
-COPY vibeapp/src-tauri/src/ vibeapp/src-tauri/src/
+COPY vibeaichat/src-tauri/src/ vibeaichat/src-tauri/src/
 COPY vibe-indexer/src/ vibe-indexer/src/
 COPY vibe-memory/src/ vibe-memory/src/
 

@@ -7,7 +7,7 @@ class AppDelegate: FlutterAppDelegate {
     return true
   }
 
-  override func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
+  override func applicationSupportsSecureRestorableState(_ aichat: NSApplication) -> Bool {
     return true
   }
 }

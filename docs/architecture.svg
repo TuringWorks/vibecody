@@ -33,9 +33,9 @@
   <text x="500" y="144" text-anchor="middle" fill="#556688" font-size="8">commands.rs · 874 Tauri IPC commands</text>
   <text x="500" y="157" text-anchor="middle" fill="#445566" font-size="7">lib.rs AppState · CSP security · devtools</text>
 
-  <!-- VibeApp -->
+  <!-- VibeAIChat -->
   <rect x="685" y="80" width="140" height="85" rx="8" fill="#12243d" stroke="#4a9eff" stroke-width="0.8" stroke-dasharray="4,3"/>
-  <text x="755" y="100" text-anchor="middle" fill="#b0c0d0" font-size="11" font-weight="600">vibeapp</text>
+  <text x="755" y="100" text-anchor="middle" fill="#b0c0d0" font-size="11" font-weight="600">vibeaichat</text>
   <text x="755" y="116" text-anchor="middle" fill="#556688" font-size="8">Alternate Tauri shell</text>
 
   <!-- Vibe Indexer -->

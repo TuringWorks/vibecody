@@ -117,7 +117,7 @@ Session contents are **never** logged.
 
 | Client | Sessions UI | Trace dir |
 |---|---|---|
-| **VibeCoder / VibeApp** | Full browser | reads `<workspace>/.vibecli/traces/` |
+| **VibeCoder / VibeAIChat** | Full browser | reads `<workspace>/.vibecli/traces/` |
 | **VibeMobile** | List + read-only replay (different shape — uses recap) | uses `/v1/recap` for summaries |
 | **VibeWatch** | Active-session indicator only | n/a |
 | **IDE plugins** | None | n/a |

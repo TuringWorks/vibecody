@@ -10,7 +10,7 @@
 |---------|-------------|--------|
 | [VibeCLI](./vibecli/) | AI coding assistant for the terminal (TUI + REPL + `--serve` daemon) | Active |
 | [VibeCoder](./vibecoder/) | AI-powered desktop code editor (Tauri + Monaco) | Active |
-| [VibeApp](./vibeapp/) | Secondary Tauri shell | Active |
+| [VibeAIChat](./vibeaichat/) | Secondary Tauri shell | Active |
 | [VibeMobile](./vibemobile/) | Mobile companion app (Flutter — iOS, Android, macOS, Linux, Windows, Web) | Active |
 | [VibeWatch](./vibewatch/) | Apple Watch (SwiftUI, watchOS 10+) + Wear OS (Kotlin/Compose) clients with companion relays | Active |
 
@@ -64,7 +64,7 @@ Every surface has a consistent `build-<surface>` / `test-<surface>` pair:
 # ─────────────────  ─────────────  ───────────────────  ──────────────────
 # VibeCLI (Rust)     make cli-run   make build-cli       make test-cli
 # VibeCoder  (Tauri)    make ui        make build-ui        make test-ui
-# VibeApp (Tauri)    make app       make build-app       make test-app
+# VibeAIChat (Tauri)    make aichat       make build-aichat       make test-aichat
 # VibeDesk   (Tauri)    make vibedesk     make build-vibedesk     make test-vibedesk
 # Agent SDK (TS)     —              make build-sdk       make test-sdk
 # vibe-indexer       —              make build-indexer   make test-indexer
@@ -150,7 +150,7 @@ vibecody/
 │       ├── vibe-lsp/           # Language Server Protocol client
 │       ├── vibe-extensions/    # WASM-based extension system
 │       └── vibe-collab/        # CRDT multiplayer collaboration
-├── vibeapp/                    # Secondary Tauri shell
+├── vibeaichat/                    # Secondary Tauri shell
 ├── vibemobile/                 # Flutter mobile companion app
 │   ├── lib/screens/            # 11 screens (home, chat, pair, machines, sessions, sandbox, watch…)
 │   ├── lib/services/           # api_client, auth, discovery, handoff, notifications, watch_sync
@@ -385,7 +385,7 @@ make ci            # Mirror the GitHub CI gate locally
 
 # Per-surface tests
 make test-cli      # VibeCLI (Rust)      make test-ui     # VibeCoder  (vitest)
-make test-app      # VibeApp (typecheck) make test-vibedesk  # VibeDesk   (typecheck + guard)
+make test-aichat      # VibeAIChat (typecheck) make test-vibedesk  # VibeDesk   (typecheck + guard)
 make test-sdk      # Agent SDK (vitest)  make test-mobile # Flutter
 make test-indexer  # vibe-indexer        make test-memory # vibe-memory
 make test-rl       # vibe-rl-py (pytest) make test-jetbrains  # JetBrains plugin

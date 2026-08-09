@@ -41,7 +41,7 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      # Tauri system deps — required by vibe-coder / vibeapp crates on Linux.
+      # Tauri system deps — required by vibe-coder / vibeaichat crates on Linux.
       # Both clippy and test compile the full workspace (including Tauri crates)
       # which transitively depends on webkit2gtk-sys → glib-sys.
       - name: Install Linux system dependencies
@@ -142,13 +142,13 @@ jobs:
         if: matrix.check == 'build'
         run: npx vite build
 
-  # ─── VibeApp: TypeScript ───────────────────────────────────────────────
-  vibeapp-checks:
-    name: VibeApp (${{ matrix.check }})
+  # ─── VibeAIChat: TypeScript ───────────────────────────────────────────────
+  vibeaichat-checks:
+    name: VibeAIChat (${{ matrix.check }})
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: vibeapp
+        working-directory: vibeaichat
     strategy:
       fail-fast: false
       matrix:
@@ -450,7 +450,7 @@ jobs:
       - rust-checks
       - metal-gpu-tests
       - vibecoder-checks
-      - vibeapp-checks
+      - vibeaichat-checks
       - vibedesk-checks
       - agent-sdk-checks
       - mobile-checks
@@ -464,7 +464,7 @@ jobs:
           if [[ "${{ needs.rust-checks.result }}"      != "success" ]] || \
              [[ "${{ needs.metal-gpu-tests.result }}"  != "success" ]] || \
              [[ "${{ needs.vibecoder-checks.result }}"    != "success" ]] || \
-             [[ "${{ needs.vibeapp-checks.result }}"   != "success" ]] || \
+             [[ "${{ needs.vibeaichat-checks.result }}"   != "success" ]] || \
              [[ "${{ needs.vibedesk-checks.result }}"  != "success" ]] || \
              [[ "${{ needs.agent-sdk-checks.result }}" != "success" ]] || \
              [[ "${{ needs.mobile-checks.result }}"    != "success" ]] || \

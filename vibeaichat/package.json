@@ -1,0 +1,30 @@
+{
+  "name": "vibeaichat",
+  "private": true,
+  "version": "0.5.7",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 1421",
+    "build": "tsc && vite build",
+    "test:thinking": "tsc scripts/thinking.test.ts ../packages/vibe-ui-shared/src/lib/thinking.ts --rootDir .. --outDir node_modules/.cache/thinking-test --module commonjs --target es2022 --moduleResolution node --skipLibCheck && node node_modules/.cache/thinking-test/vibeaichat/scripts/thinking.test.js",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:dev": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri dev",
+    "tauri:build": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri build"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-opener": "^2",
+    "lucide-react": "^1.30.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.0.5",
+    "typescript": "^5.6.2",
+    "vite": "^8.2.0"
+  }
+}

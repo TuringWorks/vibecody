@@ -57,18 +57,18 @@ Release-engineering patch — restores the iOS `.ipa`, watchOS `.app.zip`, Wear 
 
 ### VibeCLI App — Desktop AI Assistant
 
-Tauri bundles ship as `Vibe.App_*` (productName "Vibe App").
+Tauri bundles ship as `VibeAIChat_*` (productName "VibeAIChat").
 
 | Platform | Download |
 |----------|----------|
-| macOS (Apple Silicon) | [Vibe.App_0.5.7_aarch64.dmg](https://github.com/TuringWorks/vibecody/releases/download/v0.5.7/Vibe.App_0.5.7_aarch64.dmg) |
-| macOS (Intel) | [Vibe.App_0.5.7_x64.dmg](https://github.com/TuringWorks/vibecody/releases/download/v0.5.7/Vibe.App_0.5.7_x64.dmg) |
-| Linux x64 (.deb) | [Vibe.App_0.5.7_amd64.deb](https://github.com/TuringWorks/vibecody/releases/download/v0.5.7/Vibe.App_0.5.7_amd64.deb) |
-| Linux arm64 (.deb) | [Vibe.App_0.5.7_arm64.deb](https://github.com/TuringWorks/vibecody/releases/download/v0.5.7/Vibe.App_0.5.7_arm64.deb) |
-| Linux x64 (.AppImage) | [Vibe.App_0.5.7_amd64.AppImage](https://github.com/TuringWorks/vibecody/releases/download/v0.5.7/Vibe.App_0.5.7_amd64.AppImage) |
-| Linux arm64 (.AppImage) | [Vibe.App_0.5.7_aarch64.AppImage](https://github.com/TuringWorks/vibecody/releases/download/v0.5.7/Vibe.App_0.5.7_aarch64.AppImage) |
-| Windows x64 (.msi) | [Vibe.App_0.5.7_x64_en-US.msi](https://github.com/TuringWorks/vibecody/releases/download/v0.5.7/Vibe.App_0.5.7_x64_en-US.msi) |
-| Windows x64 (.exe) | [Vibe.App_0.5.7_x64-setup.exe](https://github.com/TuringWorks/vibecody/releases/download/v0.5.7/Vibe.App_0.5.7_x64-setup.exe) |
+| macOS (Apple Silicon) | [VibeAIChat_0.5.7_aarch64.dmg](https://github.com/TuringWorks/vibecody/releases/download/v0.5.7/VibeAIChat_0.5.7_aarch64.dmg) |
+| macOS (Intel) | [VibeAIChat_0.5.7_x64.dmg](https://github.com/TuringWorks/vibecody/releases/download/v0.5.7/VibeAIChat_0.5.7_x64.dmg) |
+| Linux x64 (.deb) | [VibeAIChat_0.5.7_amd64.deb](https://github.com/TuringWorks/vibecody/releases/download/v0.5.7/VibeAIChat_0.5.7_amd64.deb) |
+| Linux arm64 (.deb) | [VibeAIChat_0.5.7_arm64.deb](https://github.com/TuringWorks/vibecody/releases/download/v0.5.7/VibeAIChat_0.5.7_arm64.deb) |
+| Linux x64 (.AppImage) | [VibeAIChat_0.5.7_amd64.AppImage](https://github.com/TuringWorks/vibecody/releases/download/v0.5.7/VibeAIChat_0.5.7_amd64.AppImage) |
+| Linux arm64 (.AppImage) | [VibeAIChat_0.5.7_aarch64.AppImage](https://github.com/TuringWorks/vibecody/releases/download/v0.5.7/VibeAIChat_0.5.7_aarch64.AppImage) |
+| Windows x64 (.msi) | [VibeAIChat_0.5.7_x64_en-US.msi](https://github.com/TuringWorks/vibecody/releases/download/v0.5.7/VibeAIChat_0.5.7_x64_en-US.msi) |
+| Windows x64 (.exe) | [VibeAIChat_0.5.7_x64-setup.exe](https://github.com/TuringWorks/vibecody/releases/download/v0.5.7/VibeAIChat_0.5.7_x64-setup.exe) |
 
 ### VibeMobile — Flutter Companion
 
@@ -92,7 +92,7 @@ Install the companion desktop/phone app first — pair the watch from the **Watc
 
 ### macOS install: first-launch warning
 
-VibeCoder, Vibe App and VibeDesk for macOS ship **ad-hoc signed by default** (until Apple Developer credentials are added to CI — see [macOS code signing setup](#macos-code-signing-setup-for-maintainers) below). Ad-hoc signing is enough to avoid the "is damaged and can't be opened" Gatekeeper error, but the first launch still shows an **"unidentified developer"** dialog.
+VibeCoder, VibeAIChat and VibeDesk for macOS ship **ad-hoc signed by default** (until Apple Developer credentials are added to CI — see [macOS code signing setup](#macos-code-signing-setup-for-maintainers) below). Ad-hoc signing is enough to avoid the "is damaged and can't be opened" Gatekeeper error, but the first launch still shows an **"unidentified developer"** dialog.
 
 Two options:
 
@@ -100,7 +100,7 @@ Two options:
 2. **Strip the quarantine xattr** from the terminal (one-time):
    ```bash
    xattr -dr com.apple.quarantine /Applications/VibeCoder.app
-   xattr -dr com.apple.quarantine "/Applications/Vibe App.app"
+   xattr -dr com.apple.quarantine "/Applications/VibeAIChat.app"
    xattr -dr com.apple.quarantine /Applications/VibeDesk.app
    ```
 
@@ -120,12 +120,12 @@ To ship fully Apple-notarized builds (no first-launch warning at all), add the f
 | `APPLE_ID` | Your Apple ID email (for notarization) |
 | `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password generated at appleid.apple.com (NOT your regular Apple ID password) |
 
-The `build-vibecoder` and `build-vibeapp` jobs auto-detect these secrets — when `APPLE_CERT_P12_BASE64` is unset, the build emits a workflow `::notice::` and falls back to ad-hoc signing. The watchOS-signed track uses a parallel set of secrets (`APPLE_PROVISIONING_PROFILE_BASE64` + App Store Connect API key) — see `.github/workflows/release.yml` `build-watchos-signed` for that path.
+The `build-vibecoder` and `build-vibeaichat` jobs auto-detect these secrets — when `APPLE_CERT_P12_BASE64` is unset, the build emits a workflow `::notice::` and falls back to ad-hoc signing. The watchOS-signed track uses a parallel set of secrets (`APPLE_PROVISIONING_PROFILE_BASE64` + App Store Connect API key) — see `.github/workflows/release.yml` `build-watchos-signed` for that path.
 
 > **VibeDesk ships from the next tag.** It gained a `build-vibedesk` release job (same five-platform matrix and dual-mode signing as the other two shells) and a `vibedesk-checks` CI job, so it was absent from v0.5.7 and earlier. Two things to know about it:
 >
 > - It is **not** in the `release` job's critical `if:` gate yet. The job has never run on Linux or Windows, so a failure there must not block the whole release. Promote it by adding `needs.build-vibedesk.result == 'success'` once it has shipped green.
-> - Its `src-tauri` embeds the whole `vibecli` crate for direct ProfileStore access — exactly as VibeCoder does — so its build cost tracks VibeCoder's, not Vibe App's (which embeds no Rust of its own). On macOS that includes the Metal mistral.rs backend, which `vibecli` pulls unconditionally through a `[target.'cfg(target_os = "macos")']` block regardless of feature flags.
+> - Its `src-tauri` embeds the whole `vibecli` crate for direct ProfileStore access — exactly as VibeCoder does — so its build cost tracks VibeCoder's, not VibeAIChat's (which embeds no Rust of its own). On macOS that includes the Metal mistral.rs backend, which `vibecli` pulls unconditionally through a `[target.'cfg(target_os = "macos")']` block regardless of feature flags.
 
 #### Signing and notarizing locally
 
@@ -233,18 +233,18 @@ Other things worth checking:
 
 ### VibeCLI App — Desktop AI Assistant
 
-Tauri bundles ship as `Vibe.App_*` (productName "Vibe App").
+Tauri bundles ship as `VibeAIChat_*` (productName "VibeAIChat").
 
 | Platform | Download |
 |----------|----------|
-| macOS (Apple Silicon) | [Vibe.App_0.5.6_aarch64.dmg](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/Vibe.App_0.5.6_aarch64.dmg) |
-| macOS (Intel) | [Vibe.App_0.5.6_x64.dmg](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/Vibe.App_0.5.6_x64.dmg) |
-| Linux x64 (.deb) | [Vibe.App_0.5.6_amd64.deb](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/Vibe.App_0.5.6_amd64.deb) |
-| Linux arm64 (.deb) | [Vibe.App_0.5.6_arm64.deb](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/Vibe.App_0.5.6_arm64.deb) |
-| Linux x64 (.AppImage) | [Vibe.App_0.5.6_amd64.AppImage](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/Vibe.App_0.5.6_amd64.AppImage) |
-| Linux arm64 (.AppImage) | [Vibe.App_0.5.6_aarch64.AppImage](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/Vibe.App_0.5.6_aarch64.AppImage) |
-| Windows x64 (.msi) | [Vibe.App_0.5.6_x64_en-US.msi](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/Vibe.App_0.5.6_x64_en-US.msi) |
-| Windows x64 (.exe) | [Vibe.App_0.5.6_x64-setup.exe](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/Vibe.App_0.5.6_x64-setup.exe) |
+| macOS (Apple Silicon) | [VibeAIChat_0.5.6_aarch64.dmg](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeAIChat_0.5.6_aarch64.dmg) |
+| macOS (Intel) | [VibeAIChat_0.5.6_x64.dmg](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeAIChat_0.5.6_x64.dmg) |
+| Linux x64 (.deb) | [VibeAIChat_0.5.6_amd64.deb](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeAIChat_0.5.6_amd64.deb) |
+| Linux arm64 (.deb) | [VibeAIChat_0.5.6_arm64.deb](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeAIChat_0.5.6_arm64.deb) |
+| Linux x64 (.AppImage) | [VibeAIChat_0.5.6_amd64.AppImage](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeAIChat_0.5.6_amd64.AppImage) |
+| Linux arm64 (.AppImage) | [VibeAIChat_0.5.6_aarch64.AppImage](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeAIChat_0.5.6_aarch64.AppImage) |
+| Windows x64 (.msi) | [VibeAIChat_0.5.6_x64_en-US.msi](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeAIChat_0.5.6_x64_en-US.msi) |
+| Windows x64 (.exe) | [VibeAIChat_0.5.6_x64-setup.exe](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeAIChat_0.5.6_x64-setup.exe) |
 
 ### VibeMobile — Flutter Companion
 
@@ -312,16 +312,16 @@ Apple Watch + Wear OS native clients, Apple-Handoff-style session continuity, ze
 
 ### VibeCLI App — Desktop AI Assistant
 
-Tauri bundles ship as `Vibe.App_*` (productName "Vibe App").
+Tauri bundles ship as `VibeAIChat_*` (productName "VibeAIChat").
 
 | Platform | Download |
 |----------|----------|
-| macOS (Apple Silicon) | [Vibe.App_0.5.5_aarch64.dmg](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/Vibe.App_0.5.5_aarch64.dmg) |
-| macOS (Intel) | [Vibe.App_0.5.5_x64.dmg](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/Vibe.App_0.5.5_x64.dmg) |
-| Linux x64 (.deb) | [Vibe.App_0.5.5_amd64.deb](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/Vibe.App_0.5.5_amd64.deb) |
-| Linux x64 (.AppImage) | [Vibe.App_0.5.5_amd64.AppImage](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/Vibe.App_0.5.5_amd64.AppImage) |
-| Windows x64 (.msi) | [Vibe.App_0.5.5_x64_en-US.msi](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/Vibe.App_0.5.5_x64_en-US.msi) |
-| Windows x64 (.exe) | [Vibe.App_0.5.5_x64-setup.exe](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/Vibe.App_0.5.5_x64-setup.exe) |
+| macOS (Apple Silicon) | [VibeAIChat_0.5.5_aarch64.dmg](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeAIChat_0.5.5_aarch64.dmg) |
+| macOS (Intel) | [VibeAIChat_0.5.5_x64.dmg](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeAIChat_0.5.5_x64.dmg) |
+| Linux x64 (.deb) | [VibeAIChat_0.5.5_amd64.deb](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeAIChat_0.5.5_amd64.deb) |
+| Linux x64 (.AppImage) | [VibeAIChat_0.5.5_amd64.AppImage](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeAIChat_0.5.5_amd64.AppImage) |
+| Windows x64 (.msi) | [VibeAIChat_0.5.5_x64_en-US.msi](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeAIChat_0.5.5_x64_en-US.msi) |
+| Windows x64 (.exe) | [VibeAIChat_0.5.5_x64-setup.exe](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeAIChat_0.5.5_x64-setup.exe) |
 
 ### VibeMobile — Flutter Companion
 

@@ -2,10 +2,13 @@
 //!
 //! VibeDesk does not re-implement any agent logic. It is a thin GUI over the
 //! VibeCLI daemon, talking to it over HTTP/SSE via the commands in this crate
-//! (the same pattern as vibeapp). The daemon is the source of truth.
+//! (the same pattern as vibeaichat). The daemon is the source of truth.
 
 mod commands;
-mod settings;
+// Settings commands are shared with VibeAIChat — see
+// crates/vibe-desktop-settings. Aliased so the `settings::…` paths below
+// (and `generate_handler!`) read unchanged.
+use vibe_desktop_settings::settings;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {

@@ -6,7 +6,7 @@ import { SessionStream } from "../components/SessionStream";
 import { EnvironmentInspector } from "../components/EnvironmentInspector";
 import { ReviewView } from "../components/ReviewView";
 import { FilesView } from "../components/FilesView";
-import { SettingsView } from "../components/SettingsView";
+import { SettingsView } from "@vibe/shared/settings/SettingsView";
 import { RecoveryView } from "../components/RecoveryView";
 import { ChatSearch } from "../components/ChatSearch";
 import { SkillsView } from "../components/SkillsView";

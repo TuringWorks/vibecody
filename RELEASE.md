@@ -20,7 +20,7 @@ v0.5.7 carries no application-level changes — same surface as v0.5.6 — and f
 
 ### Docs fixes
 
-- **docs/release.md, docs/vibemobile.md, docs/watchos.md, docs/wearos.md** (`41f189eb`) — reconcile asset names with the actual workflow output (`Vibe.App_*` not `VibeCLI_*`; `VibeCody-Mobile-vX.Y.Z-{ios,android}.*` not `VibeMobile-*`; `VibeCody-WatchOS-vX.Y.Z.app.zip` and `VibeCody-Wear-vX.Y.Z.*` not the old `-watchOS` / `-wearos` names). Surface the new `aarch64.AppImage` + `arm64.deb` artifacts that landed in v0.5.6.
+- **docs/release.md, docs/vibemobile.md, docs/watchos.md, docs/wearos.md** (`41f189eb`) — reconcile asset names with the actual workflow output (`VibeAIChat_*` not `VibeCLI_*`; `VibeCody-Mobile-vX.Y.Z-{ios,android}.*` not `VibeMobile-*`; `VibeCody-WatchOS-vX.Y.Z.app.zip` and `VibeCody-Wear-vX.Y.Z.*` not the old `-watchOS` / `-wearos` names). Surface the new `aarch64.AppImage` + `arm64.deb` artifacts that landed in v0.5.6.
 
 ---
 
@@ -49,7 +49,7 @@ v0.5.7 carries no application-level changes — same surface as v0.5.6 — and f
 
 ### VibeCLI App — Desktop AI Assistant
 
-Tauri bundles ship as `Vibe.App_0.5.7_*` (productName "Vibe App") on every platform above.
+Tauri bundles ship as `VibeAIChat_0.5.7_*` (productName "VibeAIChat") on every platform above.
 
 ### VibeCody Mobile
 

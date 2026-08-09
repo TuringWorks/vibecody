@@ -200,7 +200,7 @@ Each provider section accepts: enabled, api_key, api_url, model
 
   Per-surface (consistent build-<surface> / test-<surface> pairs):
   make build-ui    / make test-ui        -- VibeCoder (Tauri + React)
-  make build-app   / make test-app       -- VibeApp (Tauri shell)
+  make build-aichat   / make test-aichat       -- VibeAIChat (Tauri shell)
   make build-vibedesk / make test-vibedesk     -- VibeDesk (Tauri shell)
   make build-cli   / make test-cli       -- VibeCLI (Rust)
   make build-sdk   / make test-sdk       -- Agent SDK (TypeScript)

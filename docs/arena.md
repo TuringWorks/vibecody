@@ -6,7 +6,7 @@ permalink: /arena/
 
 Arena is the panel for blind A/B model comparisons. You configure two providers and one prompt; the panel sends the prompt to both in parallel, hides which side is which, and asks you to vote. The leaderboard tracks per-provider win rates over time.
 
-This page documents the user-facing surface. Arena is a desktop-only feature (VibeCoder / VibeApp) — mobile and watch clients don't ship it.
+This page documents the user-facing surface. Arena is a desktop-only feature (VibeCoder / VibeAIChat) — mobile and watch clients don't ship it.
 
 ---
 
@@ -120,7 +120,7 @@ Prompts are **never** logged — only the length. Response content is never logg
 
 | Client | Arena |
 |---|---|
-| **VibeCoder / VibeApp** | ✅ |
+| **VibeCoder / VibeAIChat** | ✅ |
 | **VibeMobile** | ❌ — no plans (battles are inherently a side-by-side desktop UX) |
 | **VibeWatch** | ❌ |
 | **IDE plugins** | ❌ |

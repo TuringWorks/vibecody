@@ -130,7 +130,7 @@ jobs:
         # EVERY directory with a package.json belongs here. vibedesk and
         # vscode-extension were missing, and vscode-extension alone was
         # carrying 8 high-severity advisories that nothing ever reported.
-        path: [vibecoder, vibeapp, vibedesk, packages/agent-sdk, vscode-extension]
+        path: [vibecoder, vibeaichat, vibedesk, packages/agent-sdk, vscode-extension]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 

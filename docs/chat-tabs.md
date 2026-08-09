@@ -101,12 +101,12 @@ This is a **declaration**, not a probe — there is no daemon-side state to chec
 
 | Client | Tab strip | History | Recap-on-close |
 |---|---|---|---|
-| **VibeCoder / VibeApp (desktop)** | ✅ | ✅ localStorage | ✅ |
+| **VibeCoder / VibeAIChat (desktop)** | ✅ | ✅ localStorage | ✅ |
 | **VibeMobile** | ❌ single-session UI | n/a | n/a — uses `/v1/recap` directly |
 | **VibeWatch (watchOS / Wear OS)** | ❌ single-session UI | n/a | n/a |
 | **IDE plugins** | ❌ — chat is per-editor pane | n/a | n/a |
 
-VibeCoder and VibeApp share the exact same `ChatTabManager.tsx`. The implementation is intentionally desktop-only — small-screen clients use a single-session model.
+VibeCoder and VibeAIChat share the exact same `ChatTabManager.tsx`. The implementation is intentionally desktop-only — small-screen clients use a single-session model.
 
 ---
 

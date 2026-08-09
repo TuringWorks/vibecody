@@ -17,7 +17,7 @@ param(
         'cli', 'cli-run', 'ui', 'app',
         'check', 'lint', 'fmt', 'fmt-check',
         'test', 'test-fast', 'test-cli', 'test-ai', 'test-core',
-        'build', 'build-ui', 'build-app',
+        'build', 'build-ui', 'build-aichat',
         'clean', 'help'
     )]
     [string]$Target = 'help'
@@ -67,7 +67,7 @@ Testing:
 Building:
   build         CLI + VibeCoder + VibeCLI App (release)
   build-ui      VibeCoder production bundle
-  build-app     VibeCLI App production bundle
+  build-aichat     VibeCLI App production bundle
 
 Cleanup:
   clean         cargo clean + remove dist + .vite caches
@@ -96,7 +96,7 @@ switch ($Target) {
     'cli-run'   { Invoke-Step 'cargo run vibecli --tui' { cargo run --release -p vibecli -- --tui } }
 
     'ui'        { In-Subdir 'vibecoder'  { Invoke-Step 'vibecoder tauri:dev'  { npm run tauri:dev } } }
-    'app'       { In-Subdir 'vibeapp' { Invoke-Step 'vibeapp tauri:dev' { npm run tauri:dev } } }
+    'app'       { In-Subdir 'vibeaichat' { Invoke-Step 'vibeaichat tauri:dev' { npm run tauri:dev } } }
 
     'check' {
         Invoke-Step 'cargo check' { cargo check --workspace --exclude vibe-collab }
@@ -120,18 +120,18 @@ switch ($Target) {
     'build' {
         Invoke-Step 'cargo build vibecli' { cargo build --release -p vibecli }
         In-Subdir 'vibecoder'  { Invoke-Step 'vibecoder tauri:build'  { npm run tauri:build } }
-        In-Subdir 'vibeapp' { Invoke-Step 'vibeapp tauri:build' { npm run tauri:build } }
+        In-Subdir 'vibeaichat' { Invoke-Step 'vibeaichat tauri:build' { npm run tauri:build } }
     }
     'build-ui'   { In-Subdir 'vibecoder'  { Invoke-Step 'vibecoder tauri:build'  { npm run tauri:build } } }
-    'build-app'  { In-Subdir 'vibeapp' { Invoke-Step 'vibeapp tauri:build' { npm run tauri:build } } }
+    'build-aichat'  { In-Subdir 'vibeaichat' { Invoke-Step 'vibeaichat tauri:build' { npm run tauri:build } } }
 
     'clean' {
         Invoke-Step 'cargo clean' { cargo clean }
         $paths = @(
             'vibecoder\dist',
             'vibecoder\node_modules\.vite',
-            'vibeapp\dist',
-            'vibeapp\node_modules\.vite'
+            'vibeaichat\dist',
+            'vibeaichat\node_modules\.vite'
         )
         foreach ($p in $paths) {
             $full = Join-Path $script:RepoRoot $p

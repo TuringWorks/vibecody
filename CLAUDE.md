@@ -132,7 +132,7 @@ VibeCody is **13 clients talking to one Rust daemon**. Before a cross-cutting ch
 |--------|------|-------|
 | VibeCLI (daemon + TUI + REPL) | `vibecli/vibecli-cli/` | Rust · Axum · Ratatui |
 | VibeCoder (desktop editor) | `vibecoder/` | Tauri 2 + React |
-| VibeCLI App (secondary shell) | `vibeapp/` | Tauri 2 + React |
+| VibeCLI App (secondary shell) | `vibeaichat/` | Tauri 2 + React |
 | VibeMobile | `vibemobile/` | Flutter |
 | VibeCodyWatch + Companion | `vibewatch/VibeCodyWatch*/` | SwiftUI · watchOS 10+ |
 | VibeCodyWear + Companion | `vibewatch/VibeCodyWear*/` | Kotlin Compose · Wear OS 3+ |
@@ -146,13 +146,13 @@ The VibeCLI daemon is the **single source of truth** for protocol semantics. If 
 
 | Type of change | Surfaces to touch |
 |---|---|
-| New HTTP/RPC route | `serve.rs` / `watch_bridge.rs` → Tauri wrapper (VibeCoder + VibeApp) → Flutter `api_client.dart` → Swift `WatchNetworkManager.swift` → Wear Kotlin → VS Code `api-client.ts` → SDK `index.ts` → docs |
-| New Tauri command | `commands.rs` → `generate_handler!` in both `vibecoder/src-tauri/src/lib.rs` and (if needed) `vibeapp/src-tauri/src/lib.rs` — no mobile/watch impact |
+| New HTTP/RPC route | `serve.rs` / `watch_bridge.rs` → Tauri wrapper (VibeCoder + VibeAIChat) → Flutter `api_client.dart` → Swift `WatchNetworkManager.swift` → Wear Kotlin → VS Code `api-client.ts` → SDK `index.ts` → docs |
+| New Tauri command | `commands.rs` → `generate_handler!` in both `vibecoder/src-tauri/src/lib.rs` and (if needed) `vibeaichat/src-tauri/src/lib.rs` — no mobile/watch impact |
 | New AI provider | 6-file dance in the `add-provider` skill — no mobile/watch/plugin impact |
 | New pairing / device flow | `pairing.rs` + `watch_auth.rs` + `/pair/*` routes + mobile `pair_screen.dart` + Swift/Kotlin pairing views + Governance panel + 4 docs files. **Keys MUST be P-256 ECDSA**, not Ed25519 (Secure Enclave constraint) |
 | New release artifact | `release.yml` (job + `release.needs[]`) + `Makefile` (`build-*`) + `docs/release.md` + `docs/CHANGELOG.md` + release-notes YAML matrix + root README make-targets list |
 | OS/SDK floor change | iOS → `project.pbxproj` (3×) + `AppFrameworkInfo.plist` + `Podfile`. watchOS → `vibewatch/project.yml`. Wear OS → `app/build.gradle.kts` + `libs.versions.toml`. macOS → both `tauri.conf.json` files (`bundle.macOS.minimumSystemVersion`). Xcode → `release.yml` `xcode-version` pin. Always update the corresponding `docs/*.md` platform-requirements table |
-| Version bump | `Cargo.toml` (workspace) → `vibecoder/package.json` → `vibeapp/package.json` → both `tauri.conf.json` → `vibemobile/pubspec.yaml` → `docs/release.md` + `docs/CHANGELOG.md` + `RELEASE.md` |
+| Version bump | `Cargo.toml` (workspace) → `vibecoder/package.json` → `vibeaichat/package.json` → both `tauri.conf.json` → `vibemobile/pubspec.yaml` → `docs/release.md` + `docs/CHANGELOG.md` + `RELEASE.md` |
 
 ### Cross-cutting invariants
 

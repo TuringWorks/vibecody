@@ -129,7 +129,7 @@ WINDOWS_TILES = {
 }
 
 #: Tauri desktop clients and the brand tint each one wears.
-TAURI_APPS = {"vibecoder": "coder", "vibeapp": "app", "vibedesk": "desk"}
+TAURI_APPS = {"vibecoder": "coder", "vibeaichat": "app", "vibedesk": "desk"}
 
 
 def tauri(r: Renderer, app_dir: str, brand: bk.Brand) -> None:
@@ -242,7 +242,7 @@ def extras(r: Renderer) -> None:
     if jb.parent.is_dir():
         r.text(jb, bk.render(coder, bk.Variant.TILE, 16, simplified=True))
 
-    # Tauri web shells: replace the leftover Vite default favicon. VibeApp and
+    # Tauri web shells: replace the leftover Vite default favicon. VibeAIChat and
     # VibeDesk had no public/ at all, so their /vite.svg reference was a 404.
     for app_dir, key in TAURI_APPS.items():
         if (ROOT / app_dir / "index.html").exists():

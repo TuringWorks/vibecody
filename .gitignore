@@ -12,7 +12,7 @@ yarn-error.log*
 .pnpm-debug.log*
 # package-lock.json is intentionally COMMITTED: GitHub's dependency graph and
 # Dependabot only scan tracked lockfiles. While these were ignored, vibecoder,
-# vibeapp and packages/agent-sdk received zero security alerts despite carrying
+# vibeaichat and packages/agent-sdk received zero security alerts despite carrying
 # known-vulnerable transitive deps. Committing them also makes builds
 # reproducible. Do not re-add package-lock.json here.
 yarn.lock

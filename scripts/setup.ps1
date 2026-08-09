@@ -158,9 +158,9 @@ if ($msvcVer) {
     Info 'Or download: https://aka.ms/vs/17/release/vs_BuildTools.exe'
 }
 
-# ── npm install (vibecoder + vibeapp) ────────────────────────────────────────────
+# ── npm install (vibecoder + vibeaichat) ────────────────────────────────────────────
 
-foreach ($sub in @('vibecoder', 'vibeapp')) {
+foreach ($sub in @('vibecoder', 'vibeaichat')) {
     $pkg = Join-Path $script:RepoRoot "$sub\package.json"
     if (Test-Path $pkg) {
         Info "Installing $sub frontend dependencies..."

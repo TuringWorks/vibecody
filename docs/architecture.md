@@ -28,7 +28,7 @@ vibecody/                          ← Cargo workspace root
 │       ├── vibe-lsp/              ← Library: LSP client
 │       ├── vibe-extensions/       ← Library: WASM extensions
 │       └── vibe-collab/           ← Library: CRDT collaboration
-├── vibeapp/                       ← Secondary Tauri shell
+├── vibeaichat/                       ← Secondary Tauri shell
 ├── vibemobile/                    ← Flutter mobile companion (iOS, Android, desktop, web)
 ├── vibewatch/                     ← Native watch clients
 │   ├── VibeCodyWatch Watch App/   ← Apple Watch (SwiftUI, watchOS 10+)

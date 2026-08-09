@@ -4,7 +4,7 @@
    Single source of truth for all CSS custom properties.
    Imported by:
      • vibecoder/src/App.css          (main Tauri desktop app)
-     • vibeapp/src/App.css         (companion Tauri app)
+     • vibeaichat/src/App.css         (companion Tauri app)
    Translated for:
      • vibemobile/lib/theme/       (Flutter — vibe_tokens.dart)
      • vibecli (Ratatui TUI)       (Rust — tui_theme.rs palette constants)

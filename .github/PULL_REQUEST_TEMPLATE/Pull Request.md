@@ -8,7 +8,7 @@
 
 - [ ] VibeCLI (daemon / TUI / REPL)
 - [ ] VibeCoder (desktop editor)
-- [ ] VibeApp (secondary Tauri shell)
+- [ ] VibeAIChat (secondary Tauri shell)
 - [ ] VibeMobile (Flutter)
 - [ ] VibeCodyWatch (watchOS)
 - [ ] VibeCodyWear (Wear OS)

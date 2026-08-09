@@ -12,7 +12,7 @@
  *
  * Run with `npm run test:thinking`.
  */
-import { splitThinking, isReasoningOnly } from "../src/lib/thinking";
+import { splitThinking, isReasoningOnly } from "../../packages/vibe-ui-shared/src/lib/thinking";
 
 let failures = 0;
 

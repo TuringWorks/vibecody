@@ -1,0 +1,13 @@
+{
+  "name": "@vibecody/ui-shared",
+  "version": "0.5.7",
+  "private": true,
+  "description": "UI shared by the VibeCody Tauri shells (VibeDesk, VibeAIChat): settings screens, theme, and model-output parsing.",
+  "type": "module",
+  "main": "src/index.ts",
+  "peerDependencies": {
+    "@tauri-apps/api": "*",
+    "lucide-react": "*",
+    "react": ">=18"
+  }
+}

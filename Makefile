@@ -7,7 +7,7 @@
 #   ─────────────────  ─────────────  ──────────────────  ──────────────────
 #   VibeCLI (Rust)     make cli-run   make build-cli      make test-cli
 #   VibeCoder  (Tauri)    make ui        make build-ui       make test-ui
-#   VibeApp (Tauri)    make app       make build-app      make test-app
+#   VibeAIChat (Tauri)    make aichat       make build-aichat      make test-aichat
 #   VibeDesk   (Tauri)    make vibedesk     make build-vibedesk    make test-vibedesk
 #   Agent SDK (TS)     —              make build-sdk      make test-sdk
 #   vibe-indexer       —              make build-indexer  make test-indexer
@@ -28,13 +28,13 @@
 #   make check / lint  Fast type-checks / linters
 
 .PHONY: help help-surfaces setup doctor \
-        ui app vibedesk cli cli-run \
-        build build-apps build-cli build-ui build-app build-vibedesk \
+        ui aichat vibedesk cli cli-run \
+        build build-apps build-cli build-ui build-aichat build-vibedesk \
         build-sdk build-indexer build-memory build-rl build-vscode build-jetbrains \
         test test-fast test-all test-rust \
         test-cli test-ai test-core test-indexer test-memory \
-        test-ui test-app test-vibedesk test-sdk test-mobile test-rl test-jetbrains test-watch \
-        check check-cli check-ui check-app check-vibedesk \
+        test-ui test-aichat test-vibedesk test-sdk test-mobile test-rl test-jetbrains test-watch \
+        check check-cli check-ui check-aichat check-vibedesk \
         lint lint-ui lint-sdk lint-vscode lint-vibedesk check-neovim \
         fmt fmt-check ci analyze-mobile icons icons-check \
         mobile-setup mobile-ios mobile-ios-ipa mobile-android mobile-android-bundle \
@@ -124,8 +124,8 @@ endif
 vibecoder/node_modules:
 	cd vibecoder && $(NPM) install --no-audit --no-fund
 
-vibeapp/node_modules:
-	cd vibeapp && $(NPM) install --no-audit --no-fund
+vibeaichat/node_modules:
+	cd vibeaichat && $(NPM) install --no-audit --no-fund
 
 vibedesk/node_modules:
 	cd vibedesk && $(NPM) install --no-audit --no-fund
@@ -178,19 +178,19 @@ lint-ui: vibecoder/node_modules ## Lint VibeCoder (eslint)
 	cd vibecoder && $(NPM) run lint
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SURFACE: VibeApp — secondary Tauri shell (vibeapp)
+# SURFACE: VibeAIChat — secondary Tauri shell (vibeaichat)
 # ══════════════════════════════════════════════════════════════════════════════
 
-app: vibeapp/node_modules ## Run VibeApp in dev mode
-	cd vibeapp && $(NPM) run tauri:dev
+aichat: vibeaichat/node_modules ## Run VibeAIChat in dev mode
+	cd vibeaichat && $(NPM) run tauri:dev
 
-build-app: vibeapp/node_modules ## Build VibeApp for production (Tauri bundle)
-	cd vibeapp && $(NPM) run tauri:build
+build-aichat: vibeaichat/node_modules ## Build VibeAIChat for production (Tauri bundle)
+	cd vibeaichat && $(NPM) run tauri:build
 
-test-app: check-app ## Test VibeApp (typecheck only — no unit suite yet)
+test-aichat: check-aichat ## Test VibeAIChat (typecheck only — no unit suite yet)
 
-check-app: vibeapp/node_modules ## Type-check VibeApp (tsc --noEmit)
-	cd vibeapp && npx tsc --noEmit
+check-aichat: vibeaichat/node_modules ## Type-check VibeAIChat (tsc --noEmit)
+	cd vibeaichat && npx tsc --noEmit
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SURFACE: VibeDesk — Tauri shell (vibedesk)
@@ -212,9 +212,9 @@ lint-vibedesk: vibedesk/node_modules ## Run VibeDesk no-inline-edit lint guard
 
 # ── Desktop apps aggregate (the three Tauri shells) ───────────────────────────
 
-build-apps: build-ui build-app build-vibedesk ## Build all three Tauri shells (ui + app + vibedesk)
+build-apps: build-ui build-aichat build-vibedesk ## Build all three Tauri shells (ui + app + vibedesk)
 
-test-apps: test-ui test-app test-vibedesk ## Test all three Tauri shells
+test-apps: test-ui test-aichat test-vibedesk ## Test all three Tauri shells
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SURFACE: Agent SDK — TypeScript (packages/agent-sdk)
@@ -302,7 +302,7 @@ endif
 mobile-ios: mobile-setup ## Build vibemobile iOS .app (release, unsigned) → vibemobile/build/ios
 	@[ "$$(uname -s)" = "Darwin" ] || (echo "✗ iOS builds require macOS" && exit 1)
 	cd $(MOBILE_DIR) && $(FLUTTER) build ios --release --no-codesign
-	@echo "✓ iOS .app: $(MOBILE_DIR)/build/ios/iphoneos/Runner.app"
+	@echo "✓ iOS .aichat: $(MOBILE_DIR)/build/ios/iphoneos/Runner.app"
 
 mobile-ios-ipa: ## Build signed .ipa for iPhone (delegates to vibemobile/Makefile)
 	$(MAKE) -C $(MOBILE_DIR) ios-ipa
@@ -389,7 +389,7 @@ endif
 # AGGREGATE: Building
 # ══════════════════════════════════════════════════════════════════════════════
 
-build: build-cli build-ui build-app build-vibedesk ## Build all desktop shells (CLI + UI + App + VibeDesk)
+build: build-cli build-ui build-aichat build-vibedesk ## Build all desktop shells (CLI + UI + App + VibeDesk)
 
 build-all: build build-mobile build-watch ## Build everything: desktop + mobile + watch
 
@@ -405,7 +405,7 @@ test-rust: test ## (alias) Run all Rust workspace tests
 test-fast: ## Run Rust tests excluding the collab crate (faster)
 	$(CARGO) test --workspace --exclude vibe-collab
 
-test-all: test test-ui test-app test-vibedesk test-sdk ## Test every Node + Rust surface (mobile/rl run separately)
+test-all: test test-ui test-aichat test-vibedesk test-sdk ## Test every Node + Rust surface (mobile/rl run separately)
 	@echo ""
 	@echo "✓ Rust + Node surfaces tested. For platform-gated suites run: make test-mobile test-rl test-jetbrains"
 
@@ -415,7 +415,7 @@ test-all: test test-ui test-app test-vibedesk test-sdk ## Test every Node + Rust
 
 check: ## Fast type-check (Rust workspace + UI/App/VibeDesk TypeScript)
 	$(CARGO) check --workspace --exclude vibe-collab
-	$(MAKE) check-ui check-app check-vibedesk
+	$(MAKE) check-ui check-aichat check-vibedesk
 
 lint: ## Run clippy + UI TypeScript check
 	$(CARGO) clippy --workspace --exclude vibe-collab -- -D warnings
@@ -436,14 +436,14 @@ icons-check: ## Fail if any committed icon is out of date with the brand mark
 	python3 scripts/brand/gen_icons.py --check
 
 # Mirror the GitHub CI gate (.github/workflows/ci.yml) locally.
-ci: fmt-check ## Run the same checks CI does (Rust + VibeCoder + VibeApp + SDK + Mobile + Wear + JetBrains)
+ci: fmt-check ## Run the same checks CI does (Rust + VibeCoder + VibeAIChat + SDK + Mobile + Wear + JetBrains)
 	@echo "── Rust: clippy + test ──────────────────────────────"
 	$(CARGO) clippy --workspace
 	$(CARGO) test --workspace --exclude vibe-memory --exclude vibe-broker
 	@echo "── VibeCoder: lint + typecheck + test ──────────────────"
 	$(MAKE) lint-ui check-ui test-ui
-	@echo "── VibeApp: typecheck ───────────────────────────────"
-	$(MAKE) check-app
+	@echo "── VibeAIChat: typecheck ───────────────────────────────"
+	$(MAKE) check-aichat
 	@echo "── Agent SDK: lint + test ───────────────────────────"
 	$(MAKE) lint-sdk test-sdk
 	@echo "── Mobile: analyze + test ───────────────────────────"
@@ -474,7 +474,7 @@ ci: fmt-check ## Run the same checks CI does (Rust + VibeCoder + VibeApp + SDK +
 clean: mobile-clean watch-clean ## Remove build artifacts (Rust + UI + App + VibeDesk + mobile + watch)
 	$(CARGO) clean
 	rm -rf vibecoder/dist vibecoder/node_modules/.vite
-	rm -rf vibeapp/dist vibeapp/node_modules/.vite
+	rm -rf vibeaichat/dist vibeaichat/node_modules/.vite
 	rm -rf vibedesk/dist vibedesk/node_modules/.vite
 	rm -rf $(SDK_DIR)/dist
 

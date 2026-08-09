@@ -5,7 +5,7 @@ import { TaskPrompt, type ComposerSubmit } from "./TaskPrompt";
 import { ToolUseBlock } from "./ToolUseBlock";
 import { CopyButton, Markdown } from "./Markdown";
 import { ReasoningBlock } from "./ReasoningBlock";
-import { splitThinking } from "../lib/thinking";
+import { splitThinking } from "@vibe/shared/lib/thinking";
 import { effortParam } from "../lib/effort";
 import { ApprovalPrompt } from "./ApprovalPrompt";
 import { useAgentStream, eventsToStreamItems } from "../hooks/useAgentStream";

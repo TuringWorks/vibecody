@@ -1,0 +1,50 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": [
+      "ES2020",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@vibe/shared": [
+        "../packages/vibe-ui-shared/src"
+      ],
+      "@vibe/shared/*": [
+        "../packages/vibe-ui-shared/src/*"
+      ],
+      "react": [
+        "./node_modules/@types/react",
+        "./node_modules/react"
+      ],
+      "react/*": [
+        "./node_modules/@types/react/*",
+        "./node_modules/react/*"
+      ],
+      "lucide-react": [
+        "./node_modules/lucide-react"
+      ],
+      "@tauri-apps/api/*": [
+        "./node_modules/@tauri-apps/api/*"
+      ]
+    }
+  },
+  "include": [
+    "src",
+    "../packages/vibe-ui-shared/src"
+  ]
+}

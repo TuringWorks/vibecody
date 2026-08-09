@@ -161,9 +161,9 @@ if [ -f "$REPO_ROOT/vibecoder/package.json" ]; then
   ok "VibeCoder npm dependencies installed"
 fi
 
-if [ -f "$REPO_ROOT/vibeapp/package.json" ]; then
+if [ -f "$REPO_ROOT/vibeaichat/package.json" ]; then
   info "Installing VibeCLI App frontend dependencies..."
-  (cd "$REPO_ROOT/vibeapp" && npm install --no-audit --no-fund)
+  (cd "$REPO_ROOT/vibeaichat" && npm install --no-audit --no-fund)
   ok "VibeCLI App npm dependencies installed"
 fi
 

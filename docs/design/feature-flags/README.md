@@ -1,7 +1,7 @@
 # Feature Flags — Design Index
 
 **Status:** Draft · 2026-04-30
-**Scope:** vibecli daemon (Rust) + vibecoder (Tauri/React) + vibeapp + vibemobile (Flutter) + vibewatch (SwiftUI / Kotlin Compose) + vscode-extension + jetbrains-plugin + neovim-plugin + agent-sdk
+**Scope:** vibecli daemon (Rust) + vibecoder (Tauri/React) + vibeaichat + vibemobile (Flutter) + vibewatch (SwiftUI / Kotlin Compose) + vscode-extension + jetbrains-plugin + neovim-plugin + agent-sdk
 **Owner:** TBD
 **Related docs:** [AGENTS.md → Zero-Config First](../../../AGENTS.md), [vibecoder/design-system/README.md](../../../vibecoder/design-system/README.md), [docs/design/sandbox-tiers/README.md](../sandbox-tiers/README.md), [docs/design/recap-resume/README.md](../recap-resume/README.md), [docs/design/rl-os/README.md](../rl-os/README.md)
 
@@ -451,7 +451,7 @@ pub async fn feature_flag_set(
 }
 ```
 
-Both commands are registered in `vibecoder/src-tauri/src/lib.rs`'s `tauri::generate_handler!` block, and (mirroring) in `vibeapp/src-tauri/src/lib.rs`.
+Both commands are registered in `vibecoder/src-tauri/src/lib.rs`'s `tauri::generate_handler!` block, and (mirroring) in `vibeaichat/src-tauri/src/lib.rs`.
 
 ### 5.3 HTTP route
 
@@ -946,7 +946,7 @@ Four ships, each independently releasable. No phase requires breaking changes fr
 1. `vibecli/vibecli-cli/src/feature_flags/` module (`registry.rs`, `resolver.rs`, `mod.rs`).
 2. Initial `Registry::compiled()` containing **only** the GA flags from §8.1 plus `feature.developer_mode`. (No Beta/Experimental/Internal entries yet — those land in later phases.)
 3. ProfileStore extension: `feature_flags` namespace + `get/set/clear/all_flag_overrides`.
-4. Tauri commands: `feature_flags`, `feature_flag_set`. Registered in both `vibecoder/src-tauri/src/lib.rs` and `vibeapp/src-tauri/src/lib.rs`.
+4. Tauri commands: `feature_flags`, `feature_flag_set`. Registered in both `vibecoder/src-tauri/src/lib.rs` and `vibeaichat/src-tauri/src/lib.rs`.
 5. HTTP routes: `GET /v1/flags`, `GET /v1/flags/:name`, `POST /v1/flags/:name`. Wired in `serve.rs`.
 6. `build.rs` step that regenerates `vibecoder/src/featureFlags/defaults.json` from the Rust registry.
 7. `vibecoder/src/featureFlags/`: `FeatureFlagsProvider.tsx`, `useFeatureFlag.ts`, `withFeatureFlag.ts`, `types.ts`.
@@ -1066,7 +1066,7 @@ VibeCody is 13 clients × 1 daemon. Flags are defined in the daemon. Each client
        ▼            └────────┬─────────┬────────┬────────┬───────┐
    ┌────────┐                ▼         ▼        ▼        ▼       ▼
    │ vibecoder │           ┌────────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐
-   │ vibeapp│           │mobile  │ │watch │ │vscode│ │jetbr.│ │SDK   │
+   │ vibeaichat│           │mobile  │ │watch │ │vscode│ │jetbr.│ │SDK   │
    └────────┘           │Flutter │ │Swift │ │ext   │ │plugin│ │      │
                         │+ Kotlin│ │+ Wear│ │      │ │      │ │      │
                         └────────┘ └──────┘ └──────┘ └──────┘ └──────┘
@@ -1078,7 +1078,7 @@ VibeCody is 13 clients × 1 daemon. Flags are defined in the daemon. Each client
 |---|---|---|---|---|
 | **vibecli daemon (self)** | `vibecli/vibecli-cli/src/feature_flags/` | `ResolvedFlags` in-memory | n/a (source of truth) | n/a |
 | **vibecoder (Tauri)** | `vibecoder/src/featureFlags/FeatureFlagsProvider.tsx` | `feature_flags` Tauri command | React provider, refetch on `feature-flags-changed` event | bundled `defaults.json` (compiled-in) for first paint |
-| **vibeapp (Tauri)** | mirror of vibecoder | same as vibecoder | same | same |
+| **vibeaichat (Tauri)** | mirror of vibecoder | same as vibecoder | same | same |
 | **vibemobile (Flutter)** | `vibemobile/lib/services/feature_flags_service.dart` (new) | `GET /v1/flags` via existing `api_client.dart` | sqflite cache `feature_flags_cache` | last-known-good cached set + banner "synced N min ago" |
 | **vibewatch (SwiftUI)** | `vibewatch/VibeCodyWatch/FeatureFlagsManager.swift` (new) | `GET /v1/flags` via existing `WatchNetworkManager.swift` | UserDefaults `featureFlagsCache` | last-known-good or, on cold start with no cache, "GA-only" mode (only GA-tier surfaces shown) |
 | **vibewatch (Wear OS)** | `vibewatch/VibeCodyWear/FeatureFlagsRepository.kt` (new) | `GET /v1/flags` via existing Retrofit client | DataStore `feature_flags_cache` | same as Swift |
@@ -1309,8 +1309,8 @@ For an engineer implementing Phase A, these are every file that needs to be touc
 * `vibecli/vibecli-cli/src/health.rs` — add `feature_flags` block to `/health` response
 * `vibecoder/src-tauri/src/commands.rs` — `feature_flags` and `feature_flag_set` commands
 * `vibecoder/src-tauri/src/lib.rs` — register both in `tauri::generate_handler!`
-* `vibeapp/src-tauri/src/commands.rs` — mirror
-* `vibeapp/src-tauri/src/lib.rs` — mirror in `tauri::generate_handler!`
+* `vibeaichat/src-tauri/src/commands.rs` — mirror
+* `vibeaichat/src-tauri/src/lib.rs` — mirror in `tauri::generate_handler!`
 * `vibecoder/src/components/SettingsPanel.tsx` — extend `SettingsSection` with `"features"`, render `FeaturesSection`
 * `vibecoder/src/App.tsx` (or wherever the root provider chain lives) — wrap with `FeatureFlagsProvider`
 * `AGENTS.md` — one-paragraph mention under Zero-Config First pointing to this doc

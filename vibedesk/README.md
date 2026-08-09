@@ -24,7 +24,7 @@ npm run lint:no-inline-edit # VX-013 gate
 npm run build              # tsc + vite production build
 ```
 
-Dev server runs on **:1422** (vibecoder=1420, vibeapp=1421). The Rust crate is `vibedesk` in the workspace; `cargo check -p vibedesk`.
+Dev server runs on **:1422** (vibecoder=1420, vibeaichat=1421). The Rust crate is `vibedesk` in the workspace; `cargo check -p vibedesk`.
 
 ## Status
 

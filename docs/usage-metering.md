@@ -144,7 +144,7 @@ INFO vibecody::usage: usage.alert.dismiss id=al17149...
 
 | Client | Usage UI |
 |---|---|
-| **VibeCoder / VibeApp** | Full panel |
+| **VibeCoder / VibeAIChat** | Full panel |
 | **VibeMobile** | None |
 | **VibeWatch** | None |
 | **IDE plugins** | None |

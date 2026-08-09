@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { ShellLayout } from "./layouts/ShellLayout";
 import { useDaemon } from "./hooks/useDaemon";
 import { useTasks } from "./hooks/useTasks";
-import { useTheme } from "./hooks/useTheme";
+import { useTheme } from "@vibe/shared/hooks/useTheme";
 
 /**
  * VibeDesk root. Renders the daemon status banner (zero-config-first: connection

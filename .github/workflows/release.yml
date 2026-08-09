@@ -80,10 +80,10 @@ jobs:
       - name: Install cdxgen
         run: npm install -g @cyclonedx/cdxgen
 
-      - name: JS SBOMs (vibecoder, vibeapp, agent-sdk)
+      - name: JS SBOMs (vibecoder, vibeaichat, agent-sdk)
         run: |
           set -euo pipefail
-          for dir in vibecoder vibeapp packages/agent-sdk; do
+          for dir in vibecoder vibeaichat packages/agent-sdk; do
             if [ -f "$dir/package.json" ]; then
               ( cd "$dir" && npm install --package-lock-only --ignore-scripts )
               out="$(basename "$dir")-js.cdx.json"
@@ -122,7 +122,7 @@ jobs:
           path: |
             vibecody-rust.cdx.json
             vibecoder-js.cdx.json
-            vibeapp-js.cdx.json
+            vibeaichat-js.cdx.json
             agent-sdk-js.cdx.json
             vibe-rl-py.cdx.json
           if-no-files-found: error
@@ -348,7 +348,7 @@ jobs:
           path: dist/*
 
   # ─── VibeCLI desktop app (Tauri) ───────────────────────────────────────
-  build-vibeapp:
+  build-vibeaichat:
     name: VibeCLI App · ${{ matrix.label }}
     needs: audit
     runs-on: ${{ matrix.os }}
@@ -403,18 +403,18 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Install frontend dependencies
-        working-directory: vibeapp
+        working-directory: vibeaichat
         run: npm install --no-audit --no-fund
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2
         with:
-          key: vibeapp-${{ matrix.label }}
-          workspaces: vibeapp/src-tauri
+          key: vibeaichat-${{ matrix.label }}
+          workspaces: vibeaichat/src-tauri
 
       # ── macOS codesigning (dual-mode) — see build-vibecoder for full rationale.
       - name: Import Apple Developer ID certificate (macOS)
-        id: vibeapp-apple-cert
+        id: vibeaichat-apple-cert
         if: runner.os == 'macOS'
         env:
           CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
@@ -439,12 +439,12 @@ jobs:
           echo "signed=true" >> "$GITHUB_OUTPUT"
 
       - name: Build Tauri app
-        working-directory: vibeapp
+        working-directory: vibeaichat
         env:
-          APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && steps.vibeapp-apple-cert.outputs.signed == 'true' && secrets.APPLE_SIGNING_IDENTITY || '' }}
-          APPLE_ID: ${{ runner.os == 'macOS' && steps.vibeapp-apple-cert.outputs.signed == 'true' && secrets.APPLE_ID || '' }}
-          APPLE_TEAM_ID: ${{ runner.os == 'macOS' && steps.vibeapp-apple-cert.outputs.signed == 'true' && secrets.APPLE_TEAM_ID || '' }}
-          APPLE_PASSWORD: ${{ runner.os == 'macOS' && steps.vibeapp-apple-cert.outputs.signed == 'true' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
+          APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && steps.vibeaichat-apple-cert.outputs.signed == 'true' && secrets.APPLE_SIGNING_IDENTITY || '' }}
+          APPLE_ID: ${{ runner.os == 'macOS' && steps.vibeaichat-apple-cert.outputs.signed == 'true' && secrets.APPLE_ID || '' }}
+          APPLE_TEAM_ID: ${{ runner.os == 'macOS' && steps.vibeaichat-apple-cert.outputs.signed == 'true' && secrets.APPLE_TEAM_ID || '' }}
+          APPLE_PASSWORD: ${{ runner.os == 'macOS' && steps.vibeaichat-apple-cert.outputs.signed == 'true' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
         run: npx tauri build ${{ matrix.args }}
 
       - name: Collect artifacts
@@ -461,13 +461,13 @@ jobs:
       - name: Upload VibeCLI App artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: vibeapp-${{ matrix.label }}
+          name: vibeaichat-${{ matrix.label }}
           path: dist/*
 
   # ─── VibeDesk — task-first desktop shell ──────────────────────────────
-  # Mirrors build-vibeapp. VibeDesk's src-tauri embeds the whole `vibecli` crate
+  # Mirrors build-vibeaichat. VibeDesk's src-tauri embeds the whole `vibecli` crate
   # for direct ProfileStore access, exactly as build-vibecoder does, so expect
-  # this job's cost to track VibeCoder's rather than Vibe App's — notably on
+  # this job's cost to track VibeCoder's rather than VibeAIChat's — notably on
   # macOS, where vibecli pulls the Metal mistral.rs backend unconditionally via
   # a [target.'cfg(target_os = "macos")'] block.
   build-vibedesk:
@@ -971,14 +971,14 @@ jobs:
           key: smoke-linux-next
           workspaces: |
             vibecoder/src-tauri
-            vibeapp/src-tauri
+            vibeaichat/src-tauri
 
       - name: Check VibeCoder Tauri crate
         working-directory: vibecoder/src-tauri
         run: cargo check --release
 
       - name: Check VibeCLI App Tauri crate
-        working-directory: vibeapp/src-tauri
+        working-directory: vibeaichat/src-tauri
         run: cargo check --release
 
   # ─── Docker image ──────────────────────────────────────────────────────
@@ -1072,9 +1072,9 @@ jobs:
   # ─── Publish GitHub Release ────────────────────────────────────────────
   release:
     name: Publish GitHub Release
-    needs: [sbom, build-cli, build-vibecoder, build-vibeapp, build-vibedesk, build-android, build-ios, build-wear, build-watchos, build-docker, build-firecracker-rootfs]
+    needs: [sbom, build-cli, build-vibecoder, build-vibeaichat, build-vibedesk, build-android, build-ios, build-wear, build-watchos, build-docker, build-firecracker-rootfs]
     # Publish even if optional jobs (mobile, watch, docker, SBOM, VibeDesk) fail.
-    # Critical: CLI, VibeCoder, VibeApp, Firecracker rootfs must succeed.
+    # Critical: CLI, VibeCoder, VibeAIChat, Firecracker rootfs must succeed.
     #
     # VibeDesk is deliberately NOT in the gate below yet: this is its first
     # release job and it has never been built on Linux or Windows, so a failure
@@ -1085,7 +1085,7 @@ jobs:
         !cancelled() &&
         needs.build-cli.result == 'success' &&
         needs.build-vibecoder.result == 'success' &&
-        needs.build-vibeapp.result == 'success' &&
+        needs.build-vibeaichat.result == 'success' &&
         needs.build-firecracker-rootfs.result == 'success'
       }}
     runs-on: ubuntu-latest
