@@ -3,6 +3,9 @@ import { SettingsView, type SettingsTab } from "@vibe/shared/settings/SettingsVi
 import { Plug } from "lucide-react";
 import { visibleAnswer } from "@vibe/shared/lib/thinking";
 import { Markdown } from "@vibe/shared/markdown/Markdown";
+import { useVoiceInput } from "@vibe/shared/voice/useVoiceInput";
+import { VoiceButton } from "@vibe/shared/voice/VoiceButton";
+import { tauriTranscriber } from "@vibe/shared/voice/transcribers";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import "./App.css";
@@ -10,6 +13,7 @@ import "./App.css";
 // App.css, which imports the design-system tokens its var()s consume.
 import "@vibe/shared/settings/settings.css";
 import "@vibe/shared/markdown/markdown.css";
+import "@vibe/shared/voice/voice.css";
 
 // ── Thin SVG Icons ───────────────────────────────────────────────────────────
 
@@ -295,6 +299,20 @@ export default function App() {
     }
   }, [input, loading, daemonUrl, provider, selectedModel, daemonToken]);
 
+  // ── Voice input ───────────────────────────────────────────────────────────
+  // Dictation extends the draft instead of replacing it — Web Speech delivers
+  // an utterance as several final chunks, and each one must append.
+  const appendTranscript = useCallback((chunk: string) => {
+    const trimmed = chunk.trim();
+    if (!trimmed) return;
+    setInput(prev => (prev ? `${prev.replace(/\s+$/, "")} ${trimmed}` : trimmed));
+  }, []);
+  const transcribe = useMemo(
+    () => tauriTranscriber(daemonUrl, { token: daemonToken || undefined }),
+    [daemonUrl, daemonToken],
+  );
+  const voice = useVoiceInput({ onTranscript: appendTranscript, transcribe });
+
   // ── Keyboard handler ─────────────────────────────────────────────────────
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -513,6 +531,16 @@ export default function App() {
       </div>
 
       {/* Input area */}
+      {voice.interimText && (
+        <div className="vx-voice-interim" aria-live="polite">
+          {voice.interimText}
+        </div>
+      )}
+      {voice.error && (
+        <div className="vx-voice-error" role="status">
+          {voice.error}
+        </div>
+      )}
       <div className="input-area">
         <textarea
           ref={inputRef}
@@ -523,6 +551,7 @@ export default function App() {
           rows={2}
           disabled={loading}
         />
+        <VoiceButton voice={voice} disabled={loading} />
         <button
           className="send-btn"
           onClick={send}

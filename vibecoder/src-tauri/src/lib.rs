@@ -826,9 +826,12 @@ pub fn run() {
             commands::load_canvas_workflow,
             commands::list_canvas_workflows,
             commands::run_canvas_workflow,
-            // Voice & Media
-            commands::transcribe_audio,
-            commands::transcribe_audio_bytes,
+            // Voice & Media. Mic input goes through the shared daemon bridge
+            // (crates/vibe-desktop-voice) so all three shells use one code
+            // path; `transcribe_audio_file` handles files already on disk.
+            vibe_desktop_voice::transcribe_audio,
+            vibe_desktop_voice::voice_status,
+            commands::transcribe_audio_file,
             commands::text_to_speech,
             // Gap Closure: Webhook Automations
             commands::get_webhooks,

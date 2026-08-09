@@ -76,6 +76,11 @@ pub fn run() {
             vibe_desktop_settings::settings::setting_get_all,
             vibe_desktop_settings::settings::oauth_client_set,
             vibe_desktop_settings::settings::oauth_client_has,
+            // Voice input. The composer's mic button calls `transcribe_audio`
+            // via `tauriTranscriber()` in packages/vibe-ui-shared; without
+            // these registrations the button records and then silently fails.
+            vibe_desktop_voice::transcribe_audio,
+            vibe_desktop_voice::voice_status,
             // SkillForge — 10 daemon-proxy commands (G7). vibeaichat's
             // bespoke UI doesn't render the panel (that lives in VibeCoder),
             // but the surface is registered so SkillForge is reachable

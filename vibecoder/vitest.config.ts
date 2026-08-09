@@ -1,8 +1,19 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { sharedPackageAliases } from './vite.config';
+
+const rootDir = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [react()],
+  // Reuses vite.config.ts's table rather than restating it: without these, any
+  // test touching `@vibe/shared/*` fails to resolve, and a *partial* copy
+  // resolves React twice and fails with "invalid hook call" instead.
+  resolve: {
+    alias: sharedPackageAliases(rootDir),
+  },
   test: {
     environment: 'jsdom',
     globals: true,

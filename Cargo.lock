@@ -12005,6 +12005,7 @@ dependencies = [
  "vibe-ai",
  "vibe-collab",
  "vibe-core",
+ "vibe-desktop-voice",
  "vibe-extensions",
  "vibe-lsp",
  "vibe-memory",
@@ -12060,6 +12061,17 @@ dependencies = [
  "serde_json",
  "tauri",
  "vibe-profile-store",
+]
+
+[[package]]
+name = "vibe-desktop-voice"
+version = "0.5.7"
+dependencies = [
+ "base64 0.22.1",
+ "reqwest 0.12.28",
+ "serde_json",
+ "tauri",
+ "tokio",
 ]
 
 [[package]]
@@ -12233,6 +12245,7 @@ dependencies = [
  "tauri-build",
  "tokio",
  "vibe-desktop-settings",
+ "vibe-desktop-voice",
 ]
 
 [[package]]
@@ -12328,6 +12341,7 @@ dependencies = [
  "tauri-plugin-dialog",
  "tokio",
  "vibe-desktop-settings",
+ "vibe-desktop-voice",
  "vibecli",
 ]
 

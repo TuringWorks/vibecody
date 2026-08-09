@@ -229,83 +229,131 @@ pub async fn transcribe_local(
     let wav_arg = wav_path.to_str().unwrap_or("");
     let model_arg = model_path.to_str().unwrap_or("");
 
-    // Try whisper-cpp first (brew install whisper-cpp)
-    let output = tokio::process::Command::new("whisper-cpp")
-        .args([
-            "--model",
-            model_arg,
-            "--language",
-            language,
-            "--no-timestamps",
-            "--file",
-            wav_arg,
-        ])
-        .output()
-        .await;
+    for candidate in local_whisper_candidates(model.name(), model_arg, language, wav_arg) {
+        let output = tokio::process::Command::new(candidate.binary)
+            .args(&candidate.args)
+            .output()
+            .await;
 
-    if let Ok(out) = output {
-        if out.status.success() {
-            let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            if !text.is_empty() {
-                cleanup_temp_wav(&wav_path, audio_path);
-                return Ok(text);
+        if let Ok(out) = output {
+            if out.status.success() {
+                let text = clean_whisper_stdout(&String::from_utf8_lossy(&out.stdout));
+                if !text.is_empty() {
+                    cleanup_temp_wav(&wav_path, audio_path);
+                    return Ok(text);
+                }
             }
-        }
-    }
-
-    // Try whisper.cpp `main` binary (manual build)
-    let output = tokio::process::Command::new("main")
-        .args([
-            "-m",
-            model_arg,
-            "-l",
-            language,
-            "--no-timestamps",
-            "-f",
-            wav_arg,
-        ])
-        .output()
-        .await;
-
-    if let Ok(out) = output {
-        if out.status.success() {
-            let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            if !text.is_empty() {
-                cleanup_temp_wav(&wav_path, audio_path);
-                return Ok(text);
-            }
-        }
-    }
-
-    // Try Python openai-whisper as last resort
-    let output = tokio::process::Command::new("whisper")
-        .args([
-            wav_arg,
-            "--model",
-            model.name(),
-            "--language",
-            language,
-            "--output_format",
-            "txt",
-        ])
-        .output()
-        .await;
-
-    if let Ok(out) = output {
-        if out.status.success() {
-            let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            cleanup_temp_wav(&wav_path, audio_path);
-            return Ok(text);
         }
     }
 
     cleanup_temp_wav(&wav_path, audio_path);
     anyhow::bail!(
         "No local Whisper runtime found. Install one of:\n  \
-         - brew install whisper-cpp   (macOS)\n  \
+         - brew install whisper-cpp   (macOS — provides `whisper-cli`)\n  \
          - pip install openai-whisper (Python)\n  \
          - Build whisper.cpp from source: https://github.com/ggerganov/whisper.cpp"
     )
+}
+
+/// One way of invoking a local Whisper runtime.
+pub(crate) struct WhisperInvocation {
+    pub binary: &'static str,
+    pub args: Vec<String>,
+}
+
+/// Local Whisper runtimes to try, in order.
+///
+/// `whisper-cli` leads because that is what current Homebrew's `whisper-cpp`
+/// formula actually installs — it has not shipped a `whisper-cpp` binary for
+/// several releases. Only looking for the old names meant the error message
+/// told users to `brew install whisper-cpp` and then failed to find anything
+/// after they did, which is worse than no advice.
+pub(crate) fn local_whisper_candidates(
+    model_name: &str,
+    model_path: &str,
+    language: &str,
+    wav_path: &str,
+) -> Vec<WhisperInvocation> {
+    let cpp_args = |flag_model: &str, flag_lang: &str, flag_file: &str| {
+        vec![
+            flag_model.to_string(),
+            model_path.to_string(),
+            flag_lang.to_string(),
+            language.to_string(),
+            "--no-timestamps".to_string(),
+            flag_file.to_string(),
+            wav_path.to_string(),
+        ]
+    };
+    vec![
+        // Homebrew whisper-cpp ≥ 1.7.
+        WhisperInvocation {
+            binary: "whisper-cli",
+            args: cpp_args("--model", "--language", "--file"),
+        },
+        // Older Homebrew builds.
+        WhisperInvocation {
+            binary: "whisper-cpp",
+            args: cpp_args("--model", "--language", "--file"),
+        },
+        // Manually built whisper.cpp, which names its binary `main`.
+        WhisperInvocation {
+            binary: "main",
+            args: cpp_args("-m", "-l", "-f"),
+        },
+        // Python openai-whisper as a last resort. Takes the model by name, not
+        // path, and writes to stdout only with an explicit output format.
+        WhisperInvocation {
+            binary: "whisper",
+            args: vec![
+                wav_path.to_string(),
+                "--model".to_string(),
+                model_name.to_string(),
+                "--language".to_string(),
+                language.to_string(),
+                "--output_format".to_string(),
+                "txt".to_string(),
+            ],
+        },
+    ]
+}
+
+/// Strip whisper.cpp's per-segment decoration from stdout.
+///
+/// Even with `--no-timestamps`, whisper-cli prefixes each segment with an
+/// ANSI colour reset and pads with leading spaces; passing that through puts
+/// escape codes into the user's composer.
+pub(crate) fn clean_whisper_stdout(raw: &str) -> String {
+    let stripped: String = {
+        // Minimal CSI stripper — enough for whisper's colour resets, and
+        // cheaper than pulling in a dependency for one call site.
+        let mut out = String::with_capacity(raw.len());
+        let mut chars = raw.chars().peekable();
+        while let Some(c) = chars.next() {
+            if c == '\u{1b}' {
+                if chars.peek() == Some(&'[') {
+                    chars.next();
+                    for e in chars.by_ref() {
+                        if e.is_ascii_alphabetic() {
+                            break;
+                        }
+                    }
+                }
+                continue;
+            }
+            out.push(c);
+        }
+        out
+    };
+
+    stripped
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ")
+        .trim()
+        .to_string()
 }
 
 /// Ensure an audio file is WAV 16kHz mono (required by whisper.cpp).
@@ -427,6 +475,31 @@ pub async fn local_tts(text: &str) -> Result<()> {
 
 // ── Voice Dispatcher — unified online/offline access ──────────────────────────
 
+/// Which engine actually produced a transcript.
+///
+/// [`VoiceDispatcher::transcribe_file`] falls back between two very different
+/// engines, and callers that surface a transcript to a user need to say which
+/// one ran — "transcribed locally" and "sent to Groq" are not interchangeable
+/// claims to make on someone's behalf.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VoiceEngine {
+    /// Local whisper.cpp / openai-whisper CLI — audio never left the machine.
+    LocalWhisper,
+    /// Groq's hosted `whisper-large-v3` — audio was uploaded.
+    CloudWhisper,
+}
+
+impl VoiceEngine {
+    /// Stable wire name, used in daemon JSON responses.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            VoiceEngine::LocalWhisper => "local_whisper",
+            VoiceEngine::CloudWhisper => "cloud_whisper",
+        }
+    }
+}
+
 /// Unified voice engine with automatic online/offline fallback.
 pub struct VoiceDispatcher {
     /// Groq Whisper API key (None = cloud unavailable).
@@ -458,12 +531,22 @@ impl VoiceDispatcher {
     }
 
     /// Transcribe an audio file (auto-fallback between local and cloud).
+    ///
+    /// Use [`Self::transcribe_file_with_engine`] when the caller needs to tell
+    /// the user which engine ran.
     pub async fn transcribe_file(&self, path: &Path) -> Result<String> {
+        self.transcribe_file_with_engine(path)
+            .await
+            .map(|(text, _)| text)
+    }
+
+    /// Transcribe an audio file, reporting which engine produced the text.
+    pub async fn transcribe_file_with_engine(&self, path: &Path) -> Result<(String, VoiceEngine)> {
         if self.prefer_local || self.cloud_stt_key.is_none() {
             // Try local first
             if is_model_downloaded(&self.local_model) {
                 match transcribe_local(path, &self.local_model, &self.language).await {
-                    Ok(text) => return Ok(text),
+                    Ok(text) => return Ok((text, VoiceEngine::LocalWhisper)),
                     Err(e) => {
                         if self.cloud_stt_key.is_some() {
                             eprintln!("Local transcription failed, falling back to cloud: {e}");
@@ -485,7 +568,7 @@ impl VoiceDispatcher {
         // Cloud
         if let Some(key) = &self.cloud_stt_key {
             let text = transcribe_audio(path, key).await?;
-            return Ok(text);
+            return Ok((text, VoiceEngine::CloudWhisper));
         }
 
         anyhow::bail!("No voice engine available. Set GROQ_API_KEY or run /voice download.")
@@ -563,77 +646,95 @@ impl VoiceDispatcher {
         }
     }
 
+    /// Machine-readable engine status — the single source behind both
+    /// [`Self::status`] (the REPL string) and the daemon's `GET /voice/status`.
+    pub fn status_report(&self) -> VoiceStatus {
+        VoiceStatus {
+            cloud_stt_configured: self.cloud_stt_key.is_some(),
+            cloud_tts_configured: self.cloud_tts_key.is_some(),
+            local_model: self.local_model.name().to_string(),
+            local_model_size_mb: self.local_model.size_mb(),
+            local_model_downloaded: is_model_downloaded(&self.local_model),
+            prefer_local: self.prefer_local,
+            language: self.language.clone(),
+            whisper_cpp_installed: binary_present("whisper-cpp", "--help"),
+            whisper_python_installed: binary_present("whisper", "--help"),
+            sox_installed: binary_present("sox", "--version"),
+        }
+    }
+
     /// Show current engine status.
     pub fn status(&self) -> String {
-        let mut lines = Vec::new();
-        lines.push("Voice Engine Status:".to_string());
-        lines.push(format!(
-            "  Cloud STT (Groq Whisper): {}",
-            if self.cloud_stt_key.is_some() {
-                "configured"
-            } else {
-                "not configured"
-            }
-        ));
-        lines.push(format!(
-            "  Cloud TTS (ElevenLabs):   {}",
-            if self.cloud_tts_key.is_some() {
-                "configured"
-            } else {
-                "not configured"
-            }
-        ));
-        lines.push(format!(
-            "  Local model:              {} ({}MB)",
-            self.local_model.name(),
-            self.local_model.size_mb()
-        ));
-        lines.push(format!(
-            "  Local model downloaded:   {}",
-            if is_model_downloaded(&self.local_model) {
-                "yes"
-            } else {
-                "no"
-            }
-        ));
-        lines.push(format!("  Prefer local:             {}", self.prefer_local));
-        lines.push(format!("  Language:                 {}", self.language));
-
-        // Check for local whisper runtime
-        let has_whisper_cpp = std::process::Command::new("whisper-cpp")
-            .arg("--help")
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .status()
-            .is_ok();
-        let has_whisper_py = std::process::Command::new("whisper")
-            .arg("--help")
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .status()
-            .is_ok();
-        let has_sox = std::process::Command::new("sox")
-            .arg("--version")
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .status()
-            .is_ok();
-
-        lines.push(format!(
-            "  whisper-cpp installed:    {}",
-            if has_whisper_cpp { "yes" } else { "no" }
-        ));
-        lines.push(format!(
-            "  whisper (Python):         {}",
-            if has_whisper_py { "yes" } else { "no" }
-        ));
-        lines.push(format!(
-            "  sox (mic capture):        {}",
-            if has_sox { "yes" } else { "no" }
-        ));
-
-        lines.join("\n")
+        let s = self.status_report();
+        let yes_no = |b: bool| if b { "yes" } else { "no" };
+        let configured = |b: bool| if b { "configured" } else { "not configured" };
+        [
+            "Voice Engine Status:".to_string(),
+            format!(
+                "  Cloud STT (Groq Whisper): {}",
+                configured(s.cloud_stt_configured)
+            ),
+            format!(
+                "  Cloud TTS (ElevenLabs):   {}",
+                configured(s.cloud_tts_configured)
+            ),
+            format!(
+                "  Local model:              {} ({}MB)",
+                s.local_model, s.local_model_size_mb
+            ),
+            format!(
+                "  Local model downloaded:   {}",
+                yes_no(s.local_model_downloaded)
+            ),
+            format!("  Prefer local:             {}", s.prefer_local),
+            format!("  Language:                 {}", s.language),
+            format!(
+                "  whisper-cpp installed:    {}",
+                yes_no(s.whisper_cpp_installed)
+            ),
+            format!(
+                "  whisper (Python):         {}",
+                yes_no(s.whisper_python_installed)
+            ),
+            format!("  sox (mic capture):        {}", yes_no(s.sox_installed)),
+        ]
+        .join("\n")
     }
+}
+
+/// Snapshot of what the voice stack can actually do on this machine.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct VoiceStatus {
+    pub cloud_stt_configured: bool,
+    pub cloud_tts_configured: bool,
+    pub local_model: String,
+    pub local_model_size_mb: u64,
+    pub local_model_downloaded: bool,
+    pub prefer_local: bool,
+    pub language: String,
+    pub whisper_cpp_installed: bool,
+    pub whisper_python_installed: bool,
+    pub sox_installed: bool,
+}
+
+impl VoiceStatus {
+    /// True when at least one transcription engine can run right now.
+    /// A downloaded model with no runtime to execute it is not a usable engine.
+    pub fn can_transcribe(&self) -> bool {
+        self.cloud_stt_configured
+            || (self.local_model_downloaded
+                && (self.whisper_cpp_installed || self.whisper_python_installed))
+    }
+}
+
+/// Probe whether `bin` is on PATH by running it with a harmless flag.
+fn binary_present(bin: &str, probe_arg: &str) -> bool {
+    std::process::Command::new(bin)
+        .arg(probe_arg)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .is_ok()
 }
 
 /// Try to play an audio file using system commands.

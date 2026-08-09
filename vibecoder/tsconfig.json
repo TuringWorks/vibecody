@@ -14,6 +14,23 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* Shared UI package, resolved as source. Must mirror the `resolve.alias`
+       in vite.config.ts — a path here that vite doesn't also know about
+       type-checks fine and then fails at runtime.
+       No `baseUrl`: it is deprecated in TS 6, and paths without it resolve
+       relative to this file, which is what we want anyway. */
+    "paths": {
+      "@vibe/shared": ["../packages/vibe-ui-shared/src"],
+      "@vibe/shared/*": ["../packages/vibe-ui-shared/src/*"],
+      /* The shared sources live outside this project root with no hoisted
+         node_modules, so their bare imports must be mapped to this app's
+         copies — same list as VibeDesk's tsconfig and vite.config.ts. */
+      "react": ["./node_modules/@types/react", "./node_modules/react"],
+      "react/*": ["./node_modules/@types/react/*", "./node_modules/react/*"],
+      "lucide-react": ["./node_modules/lucide-react"],
+      "@tauri-apps/api/*": ["./node_modules/@tauri-apps/api/*"]
+    },
+
     /* Incremental type-checking — caches results so the PostToolUse hook
        re-checks only what the edit touched. Cache lives under node_modules,
        which is already gitignored. Delete it to force a full check. */
@@ -26,7 +43,10 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"],
+  /* Only the voice module of the shared package. VibeCoder has its own
+     Markdown renderer and does not install react-markdown/remark-gfm, so
+     type-checking the whole shared tree would fail on deps it doesn't use. */
+  "include": ["src", "../packages/vibe-ui-shared/src/voice"],
   "exclude": ["src/**/__tests__/**", "src/**/*.test.ts", "src/**/*.test.tsx", "src/**/*.spec.ts", "src/**/*.spec.tsx", "src/test"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/watch_sync_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/voice_mic_button.dart';
 
 class WatchChatScreen extends StatefulWidget {
   final String? initialSessionId;
@@ -157,6 +158,9 @@ class _WatchChatScreenState extends State<WatchChatScreen> {
                   ),
           ),
 
+          // Partial transcript while dictating, above the input bar.
+          const VoicePartialStrip(),
+
           // Input bar
           Container(
             padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
@@ -186,7 +190,12 @@ class _WatchChatScreenState extends State<WatchChatScreen> {
                     onSubmitted: (_) => _send(),
                   ),
                 ),
-                const SizedBox(width: 8),
+                VoiceMicButton(
+                  baseUrl: _credential(context.read<AuthService>())?.baseUrl,
+                  token: _credential(context.read<AuthService>())?.token,
+                  enabled: !_sending,
+                  onTranscript: _appendTranscript,
+                ),
                 IconButton(
                   onPressed: _sending ? null : _send,
                   icon: _sending
@@ -199,6 +208,23 @@ class _WatchChatScreenState extends State<WatchChatScreen> {
         ],
       ),
     );
+  }
+
+  /// Credential for the selected machine, or null when none is selected —
+  /// which is also what disables the mic button.
+  MachineCredential? _credential(AuthService auth) {
+    final id = _selectedMachineId;
+    return id == null ? null : auth.getCredential(id);
+  }
+
+  /// Dictated text extends the draft rather than replacing it.
+  void _appendTranscript(String chunk) {
+    final text = chunk.trim();
+    if (text.isEmpty) return;
+    final existing = _controller.text;
+    _controller.text = existing.isEmpty ? text : '${existing.trimRight()} $text';
+    _controller.selection =
+        TextSelection.collapsed(offset: _controller.text.length);
   }
 
   Future<void> _send() async {

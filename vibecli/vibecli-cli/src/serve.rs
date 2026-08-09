@@ -1111,6 +1111,249 @@ async fn web_favicon() -> impl IntoResponse {
     (StatusCode::OK, [("content-type", "image/svg+xml")], svg)
 }
 
+// ── Voice / speech-to-text ───────────────────────────────────────────────────
+//
+// The whole voice stack (Groq Whisper cloud + local whisper.cpp fallback) lives
+// in `crate::voice`. Before these routes it was reachable only from the REPL,
+// so every non-Tauri client — mobile, watch, the editor plugins, the SDK — had
+// no way to transcribe anything. These two routes are that missing surface.
+
+/// Largest request body accepted on `/voice/transcribe`, overriding the
+/// daemon-wide 1 MB limit. 16 MB is roughly 5 minutes of 16 kHz mono WAV or
+/// well over an hour of Opus — far more than a dictated prompt needs, and
+/// still small enough that a few concurrent uploads can't exhaust memory.
+const VOICE_UPLOAD_LIMIT_BYTES: usize = 16 * 1024 * 1024;
+
+/// How long a `/voice/status` probe stays fresh. The probe shells out to
+/// `whisper-cpp`, `whisper` and `sox` to see what's installed; a panel that
+/// re-checks on every render would spawn three processes per paint.
+const VOICE_STATUS_TTL: Duration = Duration::from_secs(60);
+
+type VoiceStatusCache = std::sync::Mutex<Option<(std::time::Instant, crate::voice::VoiceStatus)>>;
+
+fn voice_status_cache() -> &'static VoiceStatusCache {
+    static CACHE: std::sync::OnceLock<VoiceStatusCache> = std::sync::OnceLock::new();
+    CACHE.get_or_init(|| std::sync::Mutex::new(None))
+}
+
+/// Build a dispatcher from on-disk config, with optional per-request overrides.
+///
+/// The Groq key resolution order matches the rest of the daemon: encrypted
+/// ProfileStore first, then `voice.whisper_api_key` in config, then
+/// `GROQ_API_KEY` (both handled inside `resolve_whisper_api_key`).
+fn voice_dispatcher(
+    language: Option<String>,
+    prefer_local: Option<bool>,
+) -> crate::voice::VoiceDispatcher {
+    let mut vcfg = crate::config::Config::load().unwrap_or_default().voice;
+    if let Some(lang) = language.filter(|l| !l.trim().is_empty()) {
+        vcfg.language = lang;
+    }
+    if let Some(local) = prefer_local {
+        vcfg.prefer_local = local;
+    }
+    let groq_key = crate::profile_store::ProfileStore::new()
+        .ok()
+        .and_then(|s| s.get_api_key("default", "groq").ok().flatten())
+        .filter(|k| !k.is_empty());
+    crate::voice::VoiceDispatcher::from_config(&vcfg, groq_key.as_deref())
+}
+
+/// Map an audio MIME type to the file extension the whisper backends expect.
+///
+/// Both backends sniff the extension: `ensure_wav_16k` hands the path to
+/// ffmpeg, and Groq rejects an upload whose filename has no known audio
+/// extension. An unrecognised MIME therefore has to fail loudly rather than
+/// default to something plausible — a `.webm` suffix on an mp3 is a confusing
+/// ffmpeg error several layers away from the cause.
+fn audio_extension_for(mime: &str) -> Option<&'static str> {
+    let base = mime.split(';').next().unwrap_or("").trim().to_ascii_lowercase();
+    match base.as_str() {
+        "audio/webm" | "video/webm" => Some("webm"),
+        "audio/wav" | "audio/wave" | "audio/x-wav" | "audio/vnd.wave" => Some("wav"),
+        "audio/mp4" | "audio/m4a" | "audio/x-m4a" | "video/mp4" => Some("m4a"),
+        "audio/mpeg" | "audio/mp3" => Some("mp3"),
+        "audio/ogg" | "application/ogg" => Some("ogg"),
+        "audio/flac" | "audio/x-flac" => Some("flac"),
+        "audio/aac" => Some("aac"),
+        _ => None,
+    }
+}
+
+/// JSON body for `POST /voice/transcribe`.
+#[derive(Debug, Deserialize)]
+struct VoiceTranscribeRequest {
+    /// Base64-encoded audio bytes.
+    audio_base64: String,
+    /// MIME type of the decoded bytes. Defaults to `audio/webm`, which is what
+    /// every browser `MediaRecorder` produces.
+    #[serde(default)]
+    mime_type: Option<String>,
+    /// BCP-47-ish language hint for the local model (e.g. `en`, `de`).
+    #[serde(default)]
+    language: Option<String>,
+    /// Force the local engine even when a cloud key is configured. Clients use
+    /// this to keep audio on the machine.
+    #[serde(default)]
+    prefer_local: Option<bool>,
+}
+
+/// `GET /voice/status` — what the voice stack can do on this machine.
+///
+/// Clients call this once to decide whether to render a mic button at all, and
+/// to explain *why* it is disabled when it is.
+async fn voice_status(_state: State<ServeState>) -> (StatusCode, Json<serde_json::Value>) {
+    let cached = voice_status_cache()
+        .lock()
+        .ok()
+        .and_then(|guard| guard.clone())
+        .filter(|(at, _)| at.elapsed() < VOICE_STATUS_TTL)
+        .map(|(_, status)| status);
+
+    let status = match cached {
+        Some(status) => status,
+        None => {
+            // The probe spawns subprocesses; keep it off the async runtime.
+            let fresh = tokio::task::spawn_blocking(|| voice_dispatcher(None, None).status_report())
+                .await;
+            match fresh {
+                Ok(status) => {
+                    if let Ok(mut guard) = voice_status_cache().lock() {
+                        *guard = Some((std::time::Instant::now(), status.clone()));
+                    }
+                    status
+                }
+                Err(e) => {
+                    return json_error(
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        format!("Voice status probe failed: {e}"),
+                    )
+                }
+            }
+        }
+    };
+
+    let can_transcribe = status.can_transcribe();
+    let mut body = serde_json::to_value(&status).unwrap_or_else(|_| serde_json::json!({}));
+    if let Some(obj) = body.as_object_mut() {
+        obj.insert("can_transcribe".into(), serde_json::json!(can_transcribe));
+        obj.insert(
+            "upload_limit_bytes".into(),
+            serde_json::json!(VOICE_UPLOAD_LIMIT_BYTES),
+        );
+    }
+    (StatusCode::OK, Json(body))
+}
+
+/// `POST /voice/transcribe` — speech-to-text for every client.
+///
+/// Accepts either a JSON body (`{"audio_base64": "...", "mime_type": "..."}`)
+/// or the raw audio bytes with the audio MIME type in `Content-Type`. The raw
+/// form exists for the Kotlin/Lua clients, where base64-ing a file is more
+/// ceremony than the upload itself.
+async fn voice_transcribe(
+    _state: State<ServeState>,
+    headers: axum::http::HeaderMap,
+    body: axum::body::Bytes,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let content_type = headers
+        .get(header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_string();
+
+    let (audio, mime, language, prefer_local) = if content_type.starts_with("application/json") {
+        let req: VoiceTranscribeRequest = match serde_json::from_slice(&body) {
+            Ok(r) => r,
+            Err(e) => {
+                return json_error(StatusCode::BAD_REQUEST, format!("Invalid JSON body: {e}"))
+            }
+        };
+        use base64::Engine;
+        let decoded = match base64::engine::general_purpose::STANDARD.decode(&req.audio_base64) {
+            Ok(b) => b,
+            Err(e) => {
+                return json_error(
+                    StatusCode::BAD_REQUEST,
+                    format!("audio_base64 is not valid base64: {e}"),
+                )
+            }
+        };
+        let mime = req.mime_type.unwrap_or_else(|| "audio/webm".to_string());
+        (decoded, mime, req.language, req.prefer_local)
+    } else {
+        let language = headers
+            .get("x-voice-language")
+            .and_then(|v| v.to_str().ok())
+            .map(str::to_string);
+        let prefer_local = headers
+            .get("x-voice-prefer-local")
+            .and_then(|v| v.to_str().ok())
+            .map(|v| matches!(v.trim(), "1" | "true" | "yes"));
+        (body.to_vec(), content_type.clone(), language, prefer_local)
+    };
+
+    if audio.is_empty() {
+        return json_error(StatusCode::BAD_REQUEST, "No audio bytes in request");
+    }
+
+    let Some(ext) = audio_extension_for(&mime) else {
+        return json_error(
+            StatusCode::UNSUPPORTED_MEDIA_TYPE,
+            format!(
+                "Unsupported audio type '{mime}'. Supported: audio/webm, audio/wav, \
+                 audio/mp4, audio/mpeg, audio/ogg, audio/flac, audio/aac"
+            ),
+        );
+    };
+
+    // whisper backends take a path, not bytes — stage the upload in a temp file
+    // that is deleted when `tmp` drops, including on the error paths below.
+    let tmp = match tempfile::Builder::new()
+        .prefix("vibecli-voice-")
+        .suffix(&format!(".{ext}"))
+        .tempfile()
+    {
+        Ok(f) => f,
+        Err(e) => {
+            return internal_error("voice.transcribe: temp file", &e);
+        }
+    };
+    if let Err(e) = tokio::fs::write(tmp.path(), &audio).await {
+        return internal_error("voice.transcribe: temp write", &e);
+    }
+
+    let audio_len = audio.len();
+    let dispatcher = voice_dispatcher(language, prefer_local);
+    match dispatcher.transcribe_file_with_engine(tmp.path()).await {
+        Ok((text, engine)) => {
+            tracing::info!(
+                target: "vibecody::voice",
+                engine = engine.as_str(), audio_bytes = audio_len, chars = text.len(),
+                "voice.transcribe: ok"
+            );
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "text": text,
+                    "engine": engine.as_str(),
+                })),
+            )
+        }
+        Err(e) => {
+            // The dispatcher's errors are setup guidance ("run /voice download",
+            // "set GROQ_API_KEY"), not internals — passing them through is the
+            // whole point, otherwise the client can't tell the user what to fix.
+            tracing::warn!(
+                target: "vibecody::voice",
+                audio_bytes = audio_len, error = %e,
+                "voice.transcribe: failed"
+            );
+            json_error(StatusCode::SERVICE_UNAVAILABLE, format!("{e:#}"))
+        }
+    }
+}
+
 /// Skill webhook endpoint — triggers a skill by name via POST.
 /// Matches skills with a `webhook_trigger` field set to the given name.
 async fn skill_webhook_handler(Path(skill_name): Path<String>, body: String) -> impl IntoResponse {
@@ -7440,6 +7683,14 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/memory/pin", post(memory_pin))
         .route("/memory/unpin", post(memory_unpin))
         .route("/memory/delete", post(memory_delete))
+        // Voice — speech-to-text for every client. The per-route body limit
+        // overrides the daemon-wide 1 MB cap applied at the bottom of this
+        // function; audio uploads sail past 1 MB and would 413 otherwise.
+        .route(
+            "/voice/transcribe",
+            post(voice_transcribe).layer(DefaultBodyLimit::max(VOICE_UPLOAD_LIMIT_BYTES)),
+        )
+        .route("/voice/status", get(voice_status))
         // MemPalace verbatim drawer + benchmark endpoints
         .route("/memory/chunk", post(memory_chunk))
         .route("/memory/drawers/stats", get(memory_drawers_stats))
@@ -11612,6 +11863,123 @@ mod tests {
         }
 
         // ── Auth: unauthenticated requests to protected routes → 401 ──
+
+        // ── /voice/transcribe + /voice/status ──────────────────────────
+        //
+        // These stop short of running a real engine: transcription needs either
+        // a Groq key or a downloaded whisper model, neither of which a test
+        // machine is entitled to assume. What is tested is everything the
+        // handler decides *before* dispatching — auth, body parsing, media-type
+        // validation — plus the pure MIME mapping.
+
+        #[tokio::test]
+        async fn voice_transcribe_without_auth_returns_401() {
+            let (app, _tmp) = test_app("secret-token");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/voice/transcribe")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"audio_base64":"AAAA"}"#))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        }
+
+        #[tokio::test]
+        async fn voice_status_without_auth_returns_401() {
+            let (app, _tmp) = test_app("secret-token");
+            let req = Request::builder()
+                .uri("/voice/status")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        }
+
+        #[tokio::test]
+        async fn voice_transcribe_rejects_bad_base64() {
+            let (app, _tmp) = test_app("secret-token");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/voice/transcribe")
+                .header("authorization", "Bearer secret-token")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"audio_base64":"not base64!!!"}"#))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        }
+
+        #[tokio::test]
+        async fn voice_transcribe_rejects_empty_audio() {
+            let (app, _tmp) = test_app("secret-token");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/voice/transcribe")
+                .header("authorization", "Bearer secret-token")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"audio_base64":""}"#))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        }
+
+        #[tokio::test]
+        async fn voice_transcribe_rejects_unsupported_media_type() {
+            // A raw upload whose Content-Type isn't audio must 415 rather than
+            // be guessed at — a wrong extension surfaces as an opaque ffmpeg
+            // failure several layers away from the actual mistake.
+            let (app, _tmp) = test_app("secret-token");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/voice/transcribe")
+                .header("authorization", "Bearer secret-token")
+                .header("content-type", "text/plain")
+                .body(Body::from("this is not audio"))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::UNSUPPORTED_MEDIA_TYPE);
+        }
+
+        #[tokio::test]
+        async fn voice_transcribe_accepts_body_over_the_global_1mb_limit() {
+            // The daemon-wide DefaultBodyLimit is 1 MB. Without the per-route
+            // override, every real recording would 413. Send 2 MB of raw WAV-
+            // labelled bytes and assert we get *past* the body layer — the
+            // handler may still fail for lack of an engine, but not with 413.
+            let (app, _tmp) = test_app("secret-token");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/voice/transcribe")
+                .header("authorization", "Bearer secret-token")
+                .header("content-type", "audio/wav")
+                .body(Body::from(vec![0u8; 2 * 1024 * 1024]))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_ne!(
+                resp.status(),
+                StatusCode::PAYLOAD_TOO_LARGE,
+                "per-route body limit must override the 1 MB daemon default"
+            );
+        }
+
+        #[test]
+        fn audio_extension_maps_recorder_output_and_rejects_the_rest() {
+            use super::super::audio_extension_for;
+            // What browsers actually emit, including the codec parameter.
+            assert_eq!(
+                audio_extension_for("audio/webm;codecs=opus"),
+                Some("webm"),
+                "MediaRecorder's default mime carries a codecs= parameter"
+            );
+            assert_eq!(audio_extension_for("AUDIO/WAV"), Some("wav"));
+            assert_eq!(audio_extension_for("audio/mp4"), Some("m4a"));
+            assert_eq!(audio_extension_for("audio/mpeg"), Some("mp3"));
+            assert_eq!(audio_extension_for("audio/ogg"), Some("ogg"));
+            // Non-audio must be rejected, not defaulted.
+            assert_eq!(audio_extension_for("text/plain"), None);
+            assert_eq!(audio_extension_for(""), None);
+        }
 
         #[tokio::test]
         async fn chat_without_auth_returns_401() {

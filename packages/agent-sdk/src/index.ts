@@ -813,6 +813,64 @@ export class VibeCLIAgent {
   };
 
   /**
+   * `POST /voice/transcribe` — turn recorded audio into text.
+   *
+   * The daemon owns the engine choice: a downloaded whisper model runs
+   * locally when there is one, Groq otherwise. `preferLocal` forces the local
+   * engine so audio never leaves the machine.
+   *
+   * Bytes go up raw with the audio MIME type. The daemon also accepts
+   * `{audio_base64}` JSON, but raw avoids inflating a recording by a third
+   * for no benefit.
+   *
+   * @example
+   * ```ts
+   * const wav = await readFile('clip.wav');
+   * const text = await agent.transcribe(wav, { mimeType: 'audio/wav' });
+   * ```
+   */
+  async transcribe(
+    audio: Uint8Array | ArrayBuffer | Blob,
+    opts: { mimeType?: string; language?: string; preferLocal?: boolean } = {},
+  ): Promise<string> {
+    const inferred =
+      typeof Blob !== 'undefined' && audio instanceof Blob ? audio.type : undefined;
+    const headers: Record<string, string> = {
+      'Content-Type': opts.mimeType ?? inferred ?? 'audio/wav',
+    };
+    if (opts.language) headers['X-Voice-Language'] = opts.language;
+    if (opts.preferLocal) headers['X-Voice-Prefer-Local'] = 'true';
+
+    const res = await this.authedFetch(`${this.baseUrl}/voice/transcribe`, {
+      method: 'POST',
+      headers,
+      body: audio as BodyInit,
+    });
+    const body = (await res.json().catch(() => null)) as
+      | { text?: string; engine?: string; error?: string }
+      | null;
+    if (!res.ok) {
+      // The daemon's voice errors are setup guidance ("run /voice download
+      // base", "set GROQ_API_KEY"), so pass them straight through.
+      throw new AgentError(body?.error ?? `Transcription failed: ${res.status}`);
+    }
+    return body?.text ?? '';
+  }
+
+  /**
+   * `GET /voice/status` — what the daemon's voice stack can do right now.
+   *
+   * Includes `can_transcribe`, which is false when neither a cloud key nor a
+   * downloaded-model-plus-runtime is present. Check it before offering voice
+   * input rather than discovering it on the first failed upload.
+   */
+  async voiceStatus(): Promise<Record<string, unknown>> {
+    const res = await this.authedFetch(`${this.baseUrl}/voice/status`);
+    if (!res.ok) throw new AgentError(`voice.status failed: ${res.status} ${await res.text()}`);
+    return res.json() as Promise<Record<string, unknown>>;
+  }
+
+  /**
    * Check if the daemon is reachable.
    */
   async isConnected(): Promise<boolean> {

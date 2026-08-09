@@ -790,3 +790,128 @@ describe('VibeCLIAgent.skillopt.streamTrain', () => {
     });
   });
 });
+
+// ── Voice: /voice/transcribe + /voice/status ──────────────────────────────────
+
+/**
+ * Read a header from a captured `fetch` init regardless of its shape.
+ *
+ * `authedFetch` rebuilds the headers into a `Headers` instance when it finds a
+ * daemon token, and leaves the plain object alone when it doesn't. Asserting
+ * on one shape makes the test pass or fail depending on whether the machine
+ * running it happens to have ~/.vibecli/daemon.token.
+ */
+function headerOf(init: RequestInit, name: string): string | undefined {
+  const h = init.headers;
+  if (h instanceof Headers) return h.get(name) ?? undefined;
+  return (h as Record<string, string> | undefined)?.[name];
+}
+
+describe('VibeCLIAgent.transcribe', () => {
+  it('POSTs raw audio bytes to /voice/transcribe and returns the text', async () => {
+    const agent = new VibeCLIAgent();
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ text: 'hello world', engine: 'local_whisper' }),
+    });
+
+    const audio = new Uint8Array([1, 2, 3, 4]);
+    const text = await agent.transcribe(audio, { mimeType: 'audio/wav' });
+
+    expect(text).toBe('hello world');
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('http://localhost:7878/voice/transcribe');
+    expect(init.method).toBe('POST');
+    // Raw bytes, not base64-in-JSON: base64 would inflate the upload by ~33%.
+    expect(init.body).toBe(audio);
+    expect(headerOf(init, 'Content-Type')).toBe('audio/wav');
+  });
+
+  it('defaults the content type to audio/wav', async () => {
+    const agent = new VibeCLIAgent();
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ text: 'x' }) });
+
+    await agent.transcribe(new Uint8Array([1]));
+
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(headerOf(init, 'Content-Type')).toBe('audio/wav');
+  });
+
+  it('sends the language and prefer-local hints as headers when given', async () => {
+    const agent = new VibeCLIAgent();
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ text: 'x' }) });
+
+    await agent.transcribe(new Uint8Array([1]), { language: 'de', preferLocal: true });
+
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(headerOf(init, 'X-Voice-Language')).toBe('de');
+    expect(headerOf(init, 'X-Voice-Prefer-Local')).toBe('true');
+  });
+
+  it('omits the hint headers when not requested', async () => {
+    const agent = new VibeCLIAgent();
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ text: 'x' }) });
+
+    await agent.transcribe(new Uint8Array([1]));
+
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(headerOf(init, 'X-Voice-Language')).toBeUndefined();
+    expect(headerOf(init, 'X-Voice-Prefer-Local')).toBeUndefined();
+  });
+
+  it("surfaces the daemon's setup guidance instead of a bare status code", async () => {
+    // The daemon answers a missing engine with actionable text; swallowing it
+    // in favour of "503" would leave the caller nothing to act on.
+    const agent = new VibeCLIAgent();
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+      json: async () => ({ error: 'No voice engine available. Set GROQ_API_KEY or run /voice download.' }),
+    });
+
+    await expect(agent.transcribe(new Uint8Array([1]))).rejects.toThrow(/GROQ_API_KEY/);
+  });
+
+  it('falls back to the status code when the error body is unreadable', async () => {
+    const agent = new VibeCLIAgent();
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: async () => {
+        throw new Error('not json');
+      },
+    });
+
+    await expect(agent.transcribe(new Uint8Array([1]))).rejects.toThrow(/500/);
+  });
+
+  it('returns an empty string when the daemon reports no text', async () => {
+    const agent = new VibeCLIAgent();
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+
+    await expect(agent.transcribe(new Uint8Array([1]))).resolves.toBe('');
+  });
+});
+
+describe('VibeCLIAgent.voiceStatus', () => {
+  it('GETs /voice/status and returns the document', async () => {
+    const agent = new VibeCLIAgent();
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ can_transcribe: true, local_model: 'base' }),
+    });
+
+    await expect(agent.voiceStatus()).resolves.toEqual({
+      can_transcribe: true,
+      local_model: 'base',
+    });
+    expect(fetchMock.mock.calls[0][0]).toBe('http://localhost:7878/voice/status');
+  });
+
+  it('throws on a non-2xx response', async () => {
+    const agent = new VibeCLIAgent();
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 401, text: async () => 'unauthorized' });
+
+    await expect(agent.voiceStatus()).rejects.toThrow(AgentError);
+  });
+});

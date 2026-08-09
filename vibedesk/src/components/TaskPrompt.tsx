@@ -1,7 +1,10 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Plus, ArrowUp, GitBranch, Square, FileCode, Paperclip, X } from "lucide-react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
+import { useVoiceInput } from "@vibe/shared/voice/useVoiceInput";
+import { VoiceButton } from "@vibe/shared/voice/VoiceButton";
+import { tauriTranscriber } from "@vibe/shared/voice/transcribers";
 import { ApprovalPill, type ApprovalTier } from "./ApprovalPill";
 import { ProviderPill } from "./ProviderPill";
 import { ReasoningPill, type ReasoningEffort } from "./ReasoningPill";
@@ -170,6 +173,30 @@ export function TaskPrompt({
       setAttachError(String(e));
     }
   }
+
+  // Dictation appends to the draft rather than replacing it, so speaking a
+  // second sentence — or speaking after typing — extends the prompt instead of
+  // discarding what's already there. `draft` is owned by the parent, so read
+  // the live value through a ref: Web Speech fires several final chunks per
+  // utterance and a stale closure would make each one overwrite the last.
+  const draftRef = useRef(draft);
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
+
+  const appendTranscript = useCallback(
+    (text: string) => {
+      const chunk = text.trim();
+      if (!chunk) return;
+      const prev = draftRef.current;
+      const next = prev ? `${prev.replace(/\s+$/, "")} ${chunk}` : chunk;
+      draftRef.current = next;
+      onDraft(next);
+    },
+    [onDraft],
+  );
+  const transcribe = useMemo(() => tauriTranscriber(daemonUrl), [daemonUrl]);
+  const voice = useVoiceInput({ onTranscript: appendTranscript, transcribe });
 
   const canSubmit = (!!draft.trim() || attachments.length > 0) && !busy && daemonOnline;
 
@@ -362,6 +389,16 @@ export function TaskPrompt({
           {attachError && <span className="vx-attach__error">{attachError}</span>}
         </div>
       )}
+      {voice.interimText && (
+        <div className="vx-voice-interim" aria-live="polite">
+          {voice.interimText}
+        </div>
+      )}
+      {voice.error && (
+        <div className="vx-voice-error" role="status">
+          {voice.error}
+        </div>
+      )}
       <textarea
         ref={inputRef}
         className="vx-composer__input"
@@ -404,6 +441,7 @@ export function TaskPrompt({
         >
           <Paperclip size={15} />
         </button>
+        <VoiceButton voice={voice} disabled={busy} />
         <ApprovalPill value={prefs.approval} onChange={(v) => onPref("approval", v)} />
         <button
           type="button"

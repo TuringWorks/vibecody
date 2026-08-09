@@ -116,6 +116,11 @@ pub fn run() {
             settings::setting_get_all,
             settings::oauth_client_set,
             settings::oauth_client_has,
+            // Voice input. The composer's mic button calls `transcribe_audio`
+            // via `tauriTranscriber()` in packages/vibe-ui-shared; without
+            // these registrations the button records and then silently fails.
+            vibe_desktop_voice::transcribe_audio,
+            vibe_desktop_voice::voice_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running vibedesk");

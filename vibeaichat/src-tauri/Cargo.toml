@@ -21,6 +21,8 @@ anyhow = { workspace = true }
 # VibeDesk; their Tauri commands live in this crate so both shells drive
 # the same ProfileStore code.
 vibe-desktop-settings = { path = "../../crates/vibe-desktop-settings" }
+# Voice input — the same daemon bridge every shell uses (crates/vibe-desktop-voice).
+vibe-desktop-voice = { path = "../../crates/vibe-desktop-voice" }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

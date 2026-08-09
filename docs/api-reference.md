@@ -408,6 +408,83 @@ curl -X POST http://localhost:7878/jobs/a1b2c3d4.../cancel \
 **Errors:** `404` if not found. If the job is already finished, it returns the record unchanged.
 
 
+### POST /voice/transcribe
+
+Speech to text. The single transcription surface for every client — panels,
+mobile, watch, the editor plugins and the SDK all go through this rather than
+each calling a speech provider directly.
+
+The daemon picks the engine: a downloaded local whisper model when
+`voice.prefer_local` is set or no cloud key is configured, Groq's
+`whisper-large-v3` otherwise, with fallback between them. The response says
+which one ran.
+
+Two body forms are accepted:
+
+| `Content-Type` | Body |
+|---|---|
+| `application/json` | `{"audio_base64": "…", "mime_type": "audio/webm", "language": "en", "prefer_local": false}` |
+| an audio type | the raw audio bytes; hints go in `X-Voice-Language` / `X-Voice-Prefer-Local` |
+
+Supported audio types: `audio/webm`, `audio/wav`, `audio/mp4` (m4a),
+`audio/mpeg`, `audio/ogg`, `audio/flac`, `audio/aac`. Anything else is a `415`
+rather than a guess — a wrong extension surfaces later as an opaque ffmpeg
+error.
+
+**Body limit:** 16 MB, overriding the daemon-wide 1 MB cap (~5 minutes of
+16 kHz mono WAV).
+
+**Response** `200 OK`:
+
+```json
+{ "text": "add a test for the parser", "engine": "local_whisper" }
+```
+
+`engine` is `local_whisper` (audio never left the machine) or `cloud_whisper`
+(audio was uploaded to Groq).
+
+```bash
+# Raw bytes — the easiest form from a shell or a non-JS client.
+curl -X POST http://localhost:7878/voice/transcribe \
+  -H "Authorization: Bearer $VIBECLI_TOKEN" \
+  -H "Content-Type: audio/wav" \
+  --data-binary @clip.wav
+```
+
+**Errors:** `400` empty or malformed body · `415` unsupported audio type ·
+`503` no engine available. The `503` body carries setup guidance ("run
+`/voice download base`", "set `GROQ_API_KEY`") — surface it to the user
+verbatim rather than reporting the status code.
+
+### GET /voice/status
+
+What the voice stack can do on this machine. Call it once to decide whether to
+offer a mic button, and to explain a disabled one.
+
+**Response** `200 OK`:
+
+```json
+{
+  "cloud_stt_configured": false,
+  "cloud_tts_configured": false,
+  "local_model": "base",
+  "local_model_size_mb": 142,
+  "local_model_downloaded": true,
+  "prefer_local": true,
+  "language": "en",
+  "whisper_cpp_installed": true,
+  "whisper_python_installed": false,
+  "sox_installed": true,
+  "can_transcribe": true,
+  "upload_limit_bytes": 16777216
+}
+```
+
+`can_transcribe` is the field to branch on: a downloaded model with no runtime
+to execute it is not a usable engine, and this accounts for that. Results are
+cached for 60 s because the probe shells out to `whisper-cpp`, `whisper` and
+`sox`.
+
 ### GET /sessions
 
 HTML page listing all agent sessions. Useful for browsing in a web browser.

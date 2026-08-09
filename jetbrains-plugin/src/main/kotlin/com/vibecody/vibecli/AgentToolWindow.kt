@@ -96,8 +96,15 @@ private class ChatPanel(private val project: Project) : JPanel(BorderLayout()) {
     private val output = styledTextArea()
     private val input  = styledInput("Ask anything… (Shift+Enter to send)")
     private val sendBtn = styledButton("Send ↵")
+    private val micBtn  = styledButton("🎤").apply {
+        toolTipText = "Dictate (requires SoX)"
+        preferredSize = Dimension(40, 24)
+    }
     private val statusLbl = statusLabel("Not connected")
     private val service = VibeCLIService.getInstance()
+
+    /** In-flight dictation, or null when the mic is idle. */
+    private var recording: VoiceRecorder.Session? = null
 
     init {
         background = PANEL_BG
@@ -134,10 +141,15 @@ private class ChatPanel(private val project: Project) : JPanel(BorderLayout()) {
             }
         })
         sendBtn.addActionListener { send() }
+        micBtn.addActionListener { toggleDictation() }
+
+        val actions = JPanel(BorderLayout(4, 0)).apply { background = PANEL_BG }
+        actions.add(micBtn, BorderLayout.WEST)
+        actions.add(sendBtn, BorderLayout.CENTER)
 
         val bottomBar = JPanel(BorderLayout(6, 0)).apply { background = PANEL_BG }
         bottomBar.add(inputScroll, BorderLayout.CENTER)
-        bottomBar.add(sendBtn, BorderLayout.EAST)
+        bottomBar.add(actions, BorderLayout.EAST)
 
         val south = JPanel(BorderLayout(0, 4)).apply { background = PANEL_BG }
         south.add(bottomBar, BorderLayout.CENTER)
@@ -158,6 +170,72 @@ private class ChatPanel(private val project: Project) : JPanel(BorderLayout()) {
                 } else {
                     statusLbl.text = "○ Daemon not reachable — run: vibecli serve"
                     statusLbl.foreground = ERROR_FG
+                }
+            }
+        }.start()
+    }
+
+    /**
+     * Start dictating, or stop and transcribe if already recording.
+     *
+     * Recording runs through SoX (see [VoiceRecorder]); transcription goes to
+     * the daemon's `/voice/transcribe`, which prefers a local whisper model
+     * over Groq. Every failure is written to the transcript rather than
+     * swallowed — a mic button that does nothing on click is unfixable from
+     * the user's side.
+     */
+    private fun toggleDictation() {
+        val active = recording
+        if (active == null) {
+            recording = try {
+                VoiceRecorder.start()
+            } catch (e: java.io.IOException) {
+                appendOutput("\n${e.message}\n", ERROR_FG)
+                null
+            }
+            if (recording != null) {
+                micBtn.text = "■"
+                micBtn.toolTipText = "Stop recording"
+            }
+            return
+        }
+
+        recording = null
+        micBtn.text = "🎤"
+        micBtn.toolTipText = "Transcribing…"
+        micBtn.isEnabled = false
+
+        // stop() blocks on the SoX process; keep it off the EDT.
+        Thread {
+            val wav = try {
+                active.stop()
+            } catch (e: java.io.IOException) {
+                SwingUtilities.invokeLater {
+                    micBtn.isEnabled = true
+                    micBtn.toolTipText = "Dictate (requires SoX)"
+                    appendOutput("\n${e.message}\n", ERROR_FG)
+                }
+                return@Thread
+            }
+            service.transcribe(wav).whenComplete { text, err ->
+                SwingUtilities.invokeLater {
+                    micBtn.isEnabled = true
+                    micBtn.toolTipText = "Dictate (requires SoX)"
+                    if (err != null) {
+                        appendOutput("\nTranscription failed: ${err.cause?.message ?: err.message}\n", ERROR_FG)
+                        return@invokeLater
+                    }
+                    val spoken = text.orEmpty().trim()
+                    if (spoken.isEmpty()) {
+                        appendOutput("\nNo speech was recognised.\n", DIM_FG)
+                        return@invokeLater
+                    }
+                    // Extend the draft rather than replacing it: dictating
+                    // twice, or after typing, should build one prompt.
+                    val existing = input.text.trimEnd()
+                    input.text = if (existing.isEmpty()) spoken else "$existing $spoken"
+                    input.caretPosition = input.text.length
+                    input.requestFocusInWindow()
                 }
             }
         }.start()

@@ -20,6 +20,9 @@
 ---   :VibeCLIJob              — Show recent background jobs
 ---   :VibeCLIAsk              — Prompt and submit via input dialog
 ---   :VibeCLIInline           — Send selected lines as context + ask question
+---   :VibeCLIVoice            — Dictate: run once to start, again to stop
+---                              (:VibeCLIVoice! submits the transcript as a task)
+---                              Requires SoX (`brew install sox`).
 
 local M = {}
 
@@ -27,6 +30,9 @@ local M = {}
 
 M.config = {
   daemon_url = "http://localhost:7878",
+  -- Bearer token for the daemon. Leave nil for the zero-config path: the
+  -- plugin reads ~/.vibecli/daemon.token, where `vibecli --serve` writes it.
+  token      = nil,
   provider   = "claude",
   approval   = "suggest",
   auto_open  = true,
@@ -50,21 +56,55 @@ local function urlencode(s)
   end)
 end
 
+--- Resolve the daemon bearer token.
+---
+--- Nearly every daemon route is behind `require_auth`; only `/health` and a
+--- handful of others are public. Without this the plugin's `/agent`, `/jobs`
+--- and `/voice/*` calls all return 401 — which they silently did, since curl
+--- was never given a credential.
+---
+--- Order matches every other client: config, then `VIBECLI_TOKEN`, then
+--- `VIBECLI_DAEMON_TOKEN`, then `~/.vibecli/daemon.token` where
+--- `vibecli --serve` writes it. nil is legitimate (a daemon may run open).
+local function daemon_token()
+  if M.config.token and M.config.token ~= "" then return M.config.token end
+  for _, name in ipairs({ "VIBECLI_TOKEN", "VIBECLI_DAEMON_TOKEN" }) do
+    local env = vim.env[name]
+    if env and env ~= "" then return env end
+  end
+  local path = vim.fn.expand("~/.vibecli/daemon.token")
+  if vim.fn.filereadable(path) == 1 then
+    local first = (vim.fn.readfile(path) or {})[1]
+    if first then
+      local trimmed = vim.trim(first)
+      if trimmed ~= "" then return trimmed end
+    end
+  end
+  return nil
+end
+
+--- `-H 'Authorization: Bearer …'` for curl, or "" when there is no token.
+local function auth_header()
+  local token = daemon_token()
+  if not token then return "" end
+  return string.format("-H 'Authorization: Bearer %s' ", token:gsub("'", "'\\''"))
+end
+
 --- POST JSON to the daemon using curl. Returns response body string or nil.
 local function post_json(path, body_table)
   local json_str = vim.fn.json_encode(body_table)
   -- Escape single quotes for shell
   json_str = json_str:gsub("'", "'\\''")
   local cmd = string.format(
-    "curl -s -X POST '%s%s' -H 'Content-Type: application/json' -d '%s'",
-    M.config.daemon_url, path, json_str
+    "curl -s -X POST '%s%s' %s-H 'Content-Type: application/json' -d '%s'",
+    M.config.daemon_url, path, auth_header(), json_str
   )
   return sh(cmd)
 end
 
 --- GET from the daemon. Returns response body string or nil.
 local function get_json(path)
-  local cmd = string.format("curl -s '%s%s'", M.config.daemon_url, path)
+  local cmd = string.format("curl -s %s'%s%s'", auth_header(), M.config.daemon_url, path)
   return sh(cmd)
 end
 
@@ -164,7 +204,11 @@ end
 --- Stream a running session into the *VibeCLI* buffer using curl + SSE.
 --- @param session_id string
 function M._stream_session(session_id)
+  -- `?token=` rather than a header: the daemon accepts either, and this keeps
+  -- the streaming curl invocation a plain argv list with no header plumbing.
   local url = M.config.daemon_url .. "/stream/" .. session_id
+  local stream_token = daemon_token()
+  if stream_token then url = url .. "?token=" .. urlencode(stream_token) end
   local lines = { "# VibeCLI — session " .. session_id, "" }
   local bufnr = open_result_buf(lines)
 
@@ -342,6 +386,118 @@ local function cmd_jobs(_opts)
   open_result_buf(lines)
 end
 
+-- ── Voice input ───────────────────────────────────────────────────────────────
+--
+-- Capture goes through SoX's `rec`, the same strategy VoiceDispatcher::listen
+-- uses in the CLI and the VS Code / JetBrains clients use — one recording path
+-- for every non-browser client, and one documented dependency.
+
+--- Install guidance, mirroring `voice.rs`.
+local SOX_INSTALL_HINT = table.concat({
+  "[VibeCLI] Voice input needs SoX. Install it:",
+  "  macOS:   brew install sox",
+  "  Linux:   sudo apt install sox",
+  "  Windows: choco install sox",
+}, "\n")
+
+--- Active recording: `{ job = <job id>, path = <wav path> }`, or nil when idle.
+local recording = nil
+
+--- Send a WAV to the daemon and hand the transcript to `on_text`.
+local function transcribe_wav(path, on_text)
+  local cmd = string.format(
+    "curl -s -w '\\n%%{http_code}' -X POST '%s/voice/transcribe' %s-H 'Content-Type: audio/wav' --data-binary @'%s'",
+    M.config.daemon_url, auth_header(), path
+  )
+  local out = sh(cmd)
+  os.remove(path)
+  if not out then
+    vim.notify("[VibeCLI] Transcription request failed", vim.log.levels.ERROR)
+    return
+  end
+
+  -- curl's -w appends the status on its own last line.
+  local body, status = out:match("^(.*)\n(%d+)%s*$")
+  if not status then
+    vim.notify("[VibeCLI] Unreadable transcription response: " .. out, vim.log.levels.ERROR)
+    return
+  end
+
+  local ok, decoded = pcall(vim.fn.json_decode, body)
+  if status ~= "200" then
+    -- The daemon's voice errors are setup guidance ("run /voice download
+    -- base", "set GROQ_API_KEY"); show them rather than the status code.
+    local msg = (ok and type(decoded) == "table" and decoded.error)
+      or ("HTTP " .. status)
+    vim.notify("[VibeCLI] " .. msg, vim.log.levels.ERROR)
+    return
+  end
+  if not ok or type(decoded) ~= "table" or type(decoded.text) ~= "string" then
+    vim.notify("[VibeCLI] Daemon returned no transcript", vim.log.levels.ERROR)
+    return
+  end
+
+  local text = vim.trim(decoded.text)
+  if text == "" then
+    vim.notify("[VibeCLI] No speech was recognised", vim.log.levels.WARN)
+    return
+  end
+  on_text(text)
+end
+
+--- :VibeCLIVoice  — start dictating, or stop and transcribe if already recording.
+---
+--- With `!`, the transcript is submitted as a task instead of inserted at the
+--- cursor.
+local function cmd_voice(opts)
+  local as_task = opts and opts.bang
+
+  if recording then
+    local active = recording
+    recording = nil
+    -- SIGINT, not kill: SoX finalises the WAV header on SIGINT. Killed
+    -- outright it leaves a header claiming zero frames, which decodes as an
+    -- empty file.
+    vim.fn.jobstop(active.job)
+    vim.notify("[VibeCLI] Transcribing…", vim.log.levels.INFO)
+    -- Give SoX a moment to flush and close the file before reading it.
+    vim.defer_fn(function()
+      transcribe_wav(active.path, function(text)
+        if as_task then
+          M.submit_task(text)
+        else
+          vim.api.nvim_put({ text }, "c", true, true)
+        end
+      end)
+    end, 300)
+    return
+  end
+
+  if vim.fn.executable("rec") == 0 then
+    vim.notify(SOX_INSTALL_HINT, vim.log.levels.ERROR)
+    return
+  end
+  if not daemon_ok() then
+    vim.notify("[VibeCLI] Daemon not reachable — run: vibecli serve", vim.log.levels.ERROR)
+    return
+  end
+
+  -- PID-suffixed: a fixed /tmp path collides between concurrent nvim instances.
+  local path = string.format("%s/vibecli-voice-%d-%d.wav", vim.fn.stdpath("cache"), vim.fn.getpid(), os.time())
+  -- 16 kHz mono is what every whisper backend resamples to anyway; `trim` caps
+  -- a forgotten recording at five minutes.
+  local job = vim.fn.jobstart(
+    { "rec", path, "rate", "16000", "channels", "1", "trim", "0", "300" },
+    { on_exit = function() end }
+  )
+  if job <= 0 then
+    vim.notify(SOX_INSTALL_HINT, vim.log.levels.ERROR)
+    return
+  end
+  recording = { job = job, path = path }
+  vim.notify("[VibeCLI] Listening… run :VibeCLIVoice again to stop.", vim.log.levels.INFO)
+end
+
 -- ── Setup ─────────────────────────────────────────────────────────────────────
 
 --- Initialize the plugin. Call require("vibecli").setup(opts) in your config.
@@ -357,6 +513,7 @@ function M.setup(opts)
   vim.api.nvim_create_user_command("VibeCLIAsk",    cmd_ask,     { nargs = 0,  desc = "Prompt and submit task" })
   vim.api.nvim_create_user_command("VibeCLIInline", cmd_inline,  { nargs = 0, range = true, desc = "Send selection + question to VibeCLI" })
   vim.api.nvim_create_user_command("VibeCLIJob",    cmd_jobs,    { nargs = 0,  desc = "List background VibeCLI jobs" })
+  vim.api.nvim_create_user_command("VibeCLIVoice",  cmd_voice,   { nargs = 0, bang = true, desc = "Dictate: run once to start, again to stop (! submits as a task)" })
 
   -- Optional default keymaps (only if not already mapped)
   local function map(mode, lhs, rhs, desc)

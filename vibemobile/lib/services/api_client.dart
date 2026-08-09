@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import '../models/machine.dart';
 import '../models/recap.dart';
@@ -905,6 +906,52 @@ class ApiClient {
   ) async {
     final resp = await _client.get(
       Uri.parse(_url(baseUrl, '/v1/skillopt/status/${Uri.encodeComponent(jobId)}')),
+      headers: _headers(token),
+    );
+    if (resp.statusCode != 200) throw ApiException(resp.statusCode, resp.body);
+    return Map<String, dynamic>.from(jsonDecode(resp.body));
+  }
+
+  // ── Voice ───────────────────────────────────────────────────
+
+  /// Transcribe recorded audio via the daemon's `POST /voice/transcribe`.
+  ///
+  /// The daemon picks the engine — a downloaded whisper model when there is
+  /// one, Groq otherwise — so this is the fallback for devices whose on-device
+  /// recogniser is unavailable or has no offline language pack.
+  ///
+  /// Sends the bytes raw with the audio MIME type rather than base64-in-JSON:
+  /// a minute of recording is ~1 MB, and base64 would inflate it by a third
+  /// for no benefit on a mobile link.
+  Future<String> transcribeAudio(
+    String baseUrl,
+    String token,
+    Uint8List audio, {
+    String mimeType = 'audio/m4a',
+    String? language,
+    bool preferLocal = false,
+  }) async {
+    final resp = await _client.post(
+      Uri.parse(_url(baseUrl, '/voice/transcribe')),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': mimeType,
+        'Accept': 'application/json',
+        'X-Voice-Language': ?language,
+        if (preferLocal) 'X-Voice-Prefer-Local': 'true',
+      },
+      body: audio,
+    );
+    if (resp.statusCode != 200) throw ApiException(resp.statusCode, resp.body);
+    final text = jsonDecode(resp.body)['text'];
+    return text is String ? text : '';
+  }
+
+  /// What the daemon's voice stack can do — used to explain a disabled mic
+  /// button instead of failing on tap.
+  Future<Map<String, dynamic>> voiceStatus(String baseUrl, String token) async {
+    final resp = await _client.get(
+      Uri.parse(_url(baseUrl, '/voice/status')),
       headers: _headers(token),
     );
     if (resp.statusCode != 200) throw ApiException(resp.statusCode, resp.body);

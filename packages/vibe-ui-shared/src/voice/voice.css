@@ -1,0 +1,85 @@
+/* Composer mic button — shared by VibeDesk, VibeAIChat and VibeCoder.
+   Design-system tokens only (vibecoder/design-system/tokens.css); each host app
+   imports that before this file. */
+
+.vx-voice-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.vx-voice-btn:hover:not(:disabled) {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.vx-voice-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.vx-voice-btn.is-listening {
+  color: var(--accent-red, #e5534b);
+  background: color-mix(in srgb, var(--accent-red, #e5534b) 14%, transparent);
+  animation: vx-voice-pulse 1.4s ease-in-out infinite;
+}
+
+.vx-voice-btn.is-transcribing {
+  color: var(--accent-blue);
+}
+
+.vx-voice-btn.is-error {
+  color: var(--accent-red, #e5534b);
+}
+
+.vx-voice-btn__spin {
+  animation: vx-voice-spin 0.9s linear infinite;
+}
+
+@keyframes vx-voice-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes vx-voice-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Respect the OS "reduce motion" setting — a mic button that throbs
+   indefinitely is exactly the kind of thing that setting exists for. */
+@media (prefers-reduced-motion: reduce) {
+  .vx-voice-btn.is-listening,
+  .vx-voice-btn__spin {
+    animation: none;
+  }
+}
+
+/* Interim (not-yet-final) speech, shown above the composer while listening. */
+.vx-voice-interim {
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.vx-voice-error {
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--accent-red, #e5534b);
+}

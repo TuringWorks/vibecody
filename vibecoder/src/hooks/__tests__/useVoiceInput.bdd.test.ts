@@ -1,33 +1,34 @@
 /**
- * BDD tests for useVoiceInput — voice capture with SpeechRecognition / MediaRecorder fallback.
+ * BDD tests for the shared `useVoiceInput` hook
+ * (packages/vibe-ui-shared/src/voice/useVoiceInput.ts).
+ *
+ * The hook lives in the shared package but is exercised here because VibeCoder
+ * is the app that carries a vitest + jsdom setup. It is the same hook VibeDesk
+ * and VibeAIChat mount, so a regression caught here is caught for all three.
  *
  * Scenarios:
- *  1. Initial state: not listening, not transcribing, empty interimText
- *  2. When SpeechRecognition is available: toggle() starts recognition and sets isListening=true
- *  3. SpeechRecognition onend resets isListening=false and clears interimText
- *  4. SpeechRecognition onresult fires onTranscript for final results
- *  5. SpeechRecognition onresult sets interimText for non-final results
- *  6. SpeechRecognition onerror resets isListening=false
- *  7. toggle() while listening stops recognition (no new recognition started)
- *  8. When SpeechRecognition is unavailable: toggle() uses MediaRecorder
- *  9. MediaRecorder onstop invokes transcribe_audio_bytes with base64 audio
- * 10. When blob size < 100, transcription is skipped
- * 11. isTranscribing is true while transcription is in flight, false after
- * 12. When transcription invoke throws, isTranscribing resets to false gracefully
- * 13. Unmounting aborts any in-progress SpeechRecognition
+ *  1. Initial state: idle, not listening, not transcribing, no interim, no error
+ *  2. Web Speech available: toggle() starts recognition and sets isListening
+ *  3. onend returns to idle and clears interim text
+ *  4. onresult forwards final results to onTranscript
+ *  5. onresult exposes non-final results as interimText
+ *  6. onerror surfaces an actionable message (the old hook swallowed these)
+ *  7. `no-speech` / `aborted` return to idle without an error
+ *  8. toggle() while listening stops recognition
+ *  9. No Web Speech: toggle() falls back to MediaRecorder
+ * 10. On stop, the recorded blob is handed to the supplied transcriber
+ * 11. A blob below the silence floor is not transcribed
+ * 12. isTranscribing is true in flight and false afterwards
+ * 13. A failing transcriber surfaces its message rather than failing silently
+ * 14. A denied microphone surfaces a permission message
+ * 15. Unmounting aborts in-progress recognition
+ * 16. `supported` is false with neither engine available
  */
 
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// ── Mock Tauri invoke ──────────────────────────────────────────────────────────
-
-const mockInvoke = vi.fn();
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: (...args: unknown[]) => mockInvoke(...args),
-}));
-
-import { useVoiceInput } from '../useVoiceInput';
+import { useVoiceInput } from '@vibe/shared/voice/useVoiceInput';
 
 // ── Mock SpeechRecognition ─────────────────────────────────────────────────────
 
@@ -53,20 +54,14 @@ class MockSpeechRecognition {
   simulateFinalResult(transcript: string) {
     this.onresult?.({
       resultIndex: 0,
-      results: {
-        length: 1,
-        0: { isFinal: true, 0: { transcript } },
-      },
+      results: { length: 1, 0: { isFinal: true, 0: { transcript } } },
     });
   }
 
   simulateInterimResult(transcript: string) {
     this.onresult?.({
       resultIndex: 0,
-      results: {
-        length: 1,
-        0: { isFinal: false, 0: { transcript } },
-      },
+      results: { length: 1, 0: { isFinal: false, 0: { transcript } } },
     });
   }
 
@@ -87,6 +82,8 @@ class MockMediaRecorder {
   onerror: MediaRecorderHandler | null = null;
   started = false;
   stopped = false;
+  /** Bytes the fake recording produces — drives the silence-floor scenario. */
+  static payloadBytes = 4096;
 
   constructor(_stream: MediaStream, opts: { mimeType?: string } = {}) {
     this.mimeType = opts.mimeType ?? 'audio/webm';
@@ -96,54 +93,74 @@ class MockMediaRecorder {
   start() { this.started = true; }
   stop()  {
     this.stopped = true;
-    // Simulate data available then stop
-    const blob = new Blob(['x'.repeat(200)], { type: this.mimeType });
+    const blob = new Blob(['x'.repeat(MockMediaRecorder.payloadBytes)], { type: this.mimeType });
     this.ondataavailable?.({ data: blob });
     this.onstop?.();
   }
 
   static isTypeSupported = vi.fn().mockReturnValue(true);
   static lastInstance: MockMediaRecorder | null = null;
-  static reset() { MockMediaRecorder.lastInstance = null; }
+  static reset() {
+    MockMediaRecorder.lastInstance = null;
+    MockMediaRecorder.payloadBytes = 4096;
+  }
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function setupSpeechRecognition() {
-  MockSpeechRecognition.reset();
-  vi.stubGlobal('window', {
-    ...window,
-    SpeechRecognition: MockSpeechRecognition,
-    webkitSpeechRecognition: undefined,
-  });
+/**
+ * Set the Web Speech constructor on the real `window`.
+ *
+ * Deliberately *not* `vi.stubGlobal('window', {...window})`: spreading a Window
+ * copies only own enumerable properties, so `document` — a prototype getter —
+ * is lost, and every `waitFor` in this file then dies with "Expected container
+ * to be an Element". Mutate the two properties under test instead.
+ */
+type VoiceWindow = Window & {
+  SpeechRecognition?: unknown;
+  webkitSpeechRecognition?: unknown;
+};
+
+function setSpeechRecognition(ctor: unknown) {
+  (window as VoiceWindow).SpeechRecognition = ctor;
+  (window as VoiceWindow).webkitSpeechRecognition = undefined;
 }
 
-function setupNoSpeechRecognition() {
+function setupSpeechRecognition() {
+  MockSpeechRecognition.reset();
+  setSpeechRecognition(MockSpeechRecognition);
+}
+
+function setupNoSpeechRecognition(getUserMedia?: () => Promise<unknown>) {
   MockMediaRecorder.reset();
-  vi.stubGlobal('window', {
-    ...window,
-    SpeechRecognition: undefined,
-    webkitSpeechRecognition: undefined,
-  });
+  setSpeechRecognition(undefined);
   vi.stubGlobal('MediaRecorder', MockMediaRecorder);
   vi.stubGlobal('navigator', {
     mediaDevices: {
-      getUserMedia: vi.fn().mockResolvedValue({
-        getTracks: () => [{ stop: vi.fn() }],
-      }),
+      getUserMedia:
+        getUserMedia ??
+        vi.fn().mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] }),
     },
   });
 }
 
+/** Default transcriber: resolves with a fixed transcript. */
+function stubTranscriber(text = 'transcribed text') {
+  return vi.fn().mockResolvedValue(text);
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
-  mockInvoke.mockResolvedValue('transcribed text');
   setupSpeechRecognition();
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  // `setSpeechRecognition` writes to the real window, so unstubAllGlobals
+  // won't undo it — clear it here or the next file inherits a mock engine.
+  delete (window as VoiceWindow).SpeechRecognition;
+  delete (window as VoiceWindow).webkitSpeechRecognition;
   MockSpeechRecognition.reset();
   MockMediaRecorder.reset();
 });
@@ -151,181 +168,196 @@ afterEach(() => {
 // ── Scenario 1: Initial state ─────────────────────────────────────────────────
 
 describe('Given a fresh useVoiceInput hook', () => {
-  it('When it mounts, Then isListening is false', () => {
-    const onTranscript = vi.fn();
-    const { result } = renderHook(() => useVoiceInput(onTranscript));
+  it('When it mounts, Then it is idle', () => {
+    const { result } = renderHook(() =>
+      useVoiceInput({ onTranscript: vi.fn(), transcribe: stubTranscriber() }),
+    );
+    expect(result.current.state.status).toBe('idle');
     expect(result.current.isListening).toBe(false);
-  });
-
-  it('When it mounts, Then isTranscribing is false', () => {
-    const { result } = renderHook(() => useVoiceInput(vi.fn()));
     expect(result.current.isTranscribing).toBe(false);
+    expect(result.current.interimText).toBe('');
+    expect(result.current.error).toBeNull();
   });
 
-  it('When it mounts, Then interimText is empty string', () => {
-    const { result } = renderHook(() => useVoiceInput(vi.fn()));
-    expect(result.current.interimText).toBe('');
+  it('When Web Speech exists, Then it reports itself supported', () => {
+    const { result } = renderHook(() => useVoiceInput({ onTranscript: vi.fn() }));
+    expect(result.current.supported).toBe(true);
   });
 });
 
-// ── Scenario 2: SpeechRecognition starts ──────────────────────────────────────
+// ── Scenarios 2-8: Web Speech path ────────────────────────────────────────────
 
-describe('Given SpeechRecognition is available', () => {
-  it('When toggle() is called, Then SpeechRecognition.start() is called', async () => {
-    const { result } = renderHook(() => useVoiceInput(vi.fn()));
-    await act(async () => { await result.current.toggle(); });
+describe('Given the Web Speech API is available', () => {
+  it('When toggle() is called, Then recognition starts and isListening is true', () => {
+    const { result } = renderHook(() => useVoiceInput({ onTranscript: vi.fn() }));
+    act(() => result.current.toggle());
     expect(MockSpeechRecognition.lastInstance?.started).toBe(true);
-  });
-
-  it('When toggle() is called, Then isListening becomes true', async () => {
-    const { result } = renderHook(() => useVoiceInput(vi.fn()));
-    await act(async () => { await result.current.toggle(); });
     expect(result.current.isListening).toBe(true);
   });
 
-  it('When toggle() is called, Then continuous and interimResults are enabled', async () => {
-    const { result } = renderHook(() => useVoiceInput(vi.fn()));
-    await act(async () => { await result.current.toggle(); });
-    expect(MockSpeechRecognition.lastInstance?.continuous).toBe(true);
-    expect(MockSpeechRecognition.lastInstance?.interimResults).toBe(true);
-  });
-});
-
-// ── Scenario 3: onend resets isListening ─────────────────────────────────────
-
-describe('Given SpeechRecognition is running', () => {
-  it('When onend fires, Then isListening becomes false', async () => {
-    const { result } = renderHook(() => useVoiceInput(vi.fn()));
-    await act(async () => { await result.current.toggle(); });
-    act(() => { MockSpeechRecognition.lastInstance?.simulateEnd(); });
+  it('When recognition ends, Then the hook returns to idle', () => {
+    const { result } = renderHook(() => useVoiceInput({ onTranscript: vi.fn() }));
+    act(() => result.current.toggle());
+    act(() => MockSpeechRecognition.lastInstance!.simulateEnd());
     expect(result.current.isListening).toBe(false);
-  });
-
-  it('When onend fires, Then interimText is cleared', async () => {
-    const { result } = renderHook(() => useVoiceInput(vi.fn()));
-    await act(async () => { await result.current.toggle(); });
-    act(() => { MockSpeechRecognition.lastInstance?.simulateInterimResult('partial'); });
-    expect(result.current.interimText).toBe('partial');
-    act(() => { MockSpeechRecognition.lastInstance?.simulateEnd(); });
     expect(result.current.interimText).toBe('');
   });
-});
 
-// ── Scenario 4: onresult fires onTranscript for final results ─────────────────
-
-describe('Given SpeechRecognition returns a final result', () => {
-  it('When a final transcript arrives, Then onTranscript is called with the text', async () => {
+  it('When a final result arrives, Then onTranscript receives it', () => {
     const onTranscript = vi.fn();
-    const { result } = renderHook(() => useVoiceInput(onTranscript));
-    await act(async () => { await result.current.toggle(); });
-    act(() => { MockSpeechRecognition.lastInstance?.simulateFinalResult('hello world'); });
-    expect(onTranscript).toHaveBeenCalledOnce();
+    const { result } = renderHook(() => useVoiceInput({ onTranscript }));
+    act(() => result.current.toggle());
+    act(() => MockSpeechRecognition.lastInstance!.simulateFinalResult('hello world'));
     expect(onTranscript).toHaveBeenCalledWith('hello world');
   });
-});
 
-// ── Scenario 5: interimText for non-final results ─────────────────────────────
-
-describe('Given SpeechRecognition returns an interim result', () => {
-  it('When a non-final transcript arrives, Then interimText is updated', async () => {
-    const { result } = renderHook(() => useVoiceInput(vi.fn()));
-    await act(async () => { await result.current.toggle(); });
-    act(() => { MockSpeechRecognition.lastInstance?.simulateInterimResult('typing…'); });
-    expect(result.current.interimText).toBe('typing…');
-  });
-
-  it('When a non-final transcript arrives, Then onTranscript is NOT called', async () => {
+  it('When an interim result arrives, Then it appears as interimText and not as a transcript', () => {
     const onTranscript = vi.fn();
-    const { result } = renderHook(() => useVoiceInput(onTranscript));
-    await act(async () => { await result.current.toggle(); });
-    act(() => { MockSpeechRecognition.lastInstance?.simulateInterimResult('partial'); });
+    const { result } = renderHook(() => useVoiceInput({ onTranscript }));
+    act(() => result.current.toggle());
+    act(() => MockSpeechRecognition.lastInstance!.simulateInterimResult('partial'));
+    expect(result.current.interimText).toBe('partial');
     expect(onTranscript).not.toHaveBeenCalled();
   });
-});
 
-// ── Scenario 6: onerror resets isListening ───────────────────────────────────
+  it('When permission is denied, Then an actionable error is exposed', () => {
+    // The pre-shared VibeCoder hook swallowed this, leaving a mic button that
+    // silently did nothing — the single most confusing failure mode here.
+    const { result } = renderHook(() => useVoiceInput({ onTranscript: vi.fn() }));
+    act(() => result.current.toggle());
+    act(() => MockSpeechRecognition.lastInstance!.simulateError('not-allowed'));
+    expect(result.current.isListening).toBe(false);
+    expect(result.current.error).toMatch(/microphone access was denied/i);
+  });
 
-describe('Given SpeechRecognition encounters an error', () => {
-  it('When onerror fires, Then isListening becomes false', async () => {
-    const { result } = renderHook(() => useVoiceInput(vi.fn()));
-    await act(async () => { await result.current.toggle(); });
-    act(() => { MockSpeechRecognition.lastInstance?.simulateError('not-allowed'); });
+  it.each(['no-speech', 'aborted'])(
+    'When recognition reports %s, Then it returns to idle without an error',
+    (code) => {
+      const { result } = renderHook(() => useVoiceInput({ onTranscript: vi.fn() }));
+      act(() => result.current.toggle());
+      act(() => MockSpeechRecognition.lastInstance!.simulateError(code));
+      expect(result.current.error).toBeNull();
+      expect(result.current.state.status).toBe('idle');
+    },
+  );
+
+  it('When toggle() is called while listening, Then recognition stops', () => {
+    const { result } = renderHook(() => useVoiceInput({ onTranscript: vi.fn() }));
+    act(() => result.current.toggle());
+    const first = MockSpeechRecognition.lastInstance!;
+    act(() => result.current.toggle());
+    expect(first.stopped).toBe(true);
     expect(result.current.isListening).toBe(false);
   });
-});
 
-// ── Scenario 7: toggle() while listening stops recognition ───────────────────
-
-describe('Given SpeechRecognition is actively listening', () => {
-  it('When toggle() is called again, Then recognition.stop() is called', async () => {
-    const { result } = renderHook(() => useVoiceInput(vi.fn()));
-    await act(async () => { await result.current.toggle(); }); // start
-    const recognition = MockSpeechRecognition.lastInstance!;
-    await act(async () => { await result.current.toggle(); }); // stop
-    expect(recognition.stopped).toBe(true);
+  it('When the component unmounts mid-recording, Then recognition is aborted', () => {
+    const { result, unmount } = renderHook(() => useVoiceInput({ onTranscript: vi.fn() }));
+    act(() => result.current.toggle());
+    const instance = MockSpeechRecognition.lastInstance!;
+    unmount();
+    expect(instance.aborted).toBe(true);
   });
 });
 
-// ── Scenario 8: MediaRecorder fallback ───────────────────────────────────────
+// ── Scenarios 9-14: MediaRecorder fallback ────────────────────────────────────
 
-describe('Given SpeechRecognition is not available', () => {
-  beforeEach(() => { setupNoSpeechRecognition(); });
+describe('Given the Web Speech API is unavailable', () => {
+  beforeEach(() => setupNoSpeechRecognition());
 
-  it('When toggle() is called, Then MediaRecorder.start() is called', async () => {
-    const { result } = renderHook(() => useVoiceInput(vi.fn()));
-    await act(async () => { await result.current.toggle(); });
+  it('When toggle() is called, Then MediaRecorder starts', async () => {
+    const { result } = renderHook(() =>
+      useVoiceInput({ onTranscript: vi.fn(), transcribe: stubTranscriber() }),
+    );
+    await act(async () => result.current.toggle());
     expect(MockMediaRecorder.lastInstance?.started).toBe(true);
-  });
-
-  it('When toggle() is called, Then isListening becomes true', async () => {
-    const { result } = renderHook(() => useVoiceInput(vi.fn()));
-    await act(async () => { await result.current.toggle(); });
     expect(result.current.isListening).toBe(true);
   });
-});
 
-// ── Scenario 9: MediaRecorder onstop invokes transcription ───────────────────
-
-describe('Given the MediaRecorder records audio and stops', () => {
-  beforeEach(() => { setupNoSpeechRecognition(); });
-
-  it('When recording stops with >100 bytes, Then invoke("transcribe_audio_bytes") is called', async () => {
-    const { result } = renderHook(() => useVoiceInput(vi.fn()));
-    await act(async () => { await result.current.toggle(); }); // start
-    // Simulate toggling off (stop MediaRecorder)
-    await act(async () => { await result.current.toggle(); }); // stop
-    // MediaRecorder.stop() triggers onstop asynchronously
-    // Allow microtask queue to flush
-    await act(async () => {});
-    expect(mockInvoke).toHaveBeenCalledWith('transcribe_audio_bytes', expect.objectContaining({
-      audioBase64: expect.any(String),
-    }));
-  });
-
-  it('When transcription succeeds, Then onTranscript is called with the result', async () => {
-    mockInvoke.mockResolvedValue('  hello world  ');
+  it('When recording stops, Then the blob is handed to the transcriber and the text forwarded', async () => {
+    const transcribe = stubTranscriber('spoken words');
     const onTranscript = vi.fn();
-    const { result } = renderHook(() => useVoiceInput(onTranscript));
-    await act(async () => { await result.current.toggle(); });
-    await act(async () => { await result.current.toggle(); });
-    await act(async () => {});
-    expect(onTranscript).toHaveBeenCalledWith('  hello world  ');
-  });
-});
+    const { result } = renderHook(() => useVoiceInput({ onTranscript, transcribe }));
 
-// ── Scenario 12: Transcription failure is graceful ────────────────────────────
+    await act(async () => result.current.toggle());
+    await act(async () => {
+      MockMediaRecorder.lastInstance!.stop();
+    });
 
-describe('Given transcription invoke throws', () => {
-  beforeEach(() => {
-    setupNoSpeechRecognition();
-    mockInvoke.mockRejectedValue(new Error('GROQ_API_KEY not set'));
+    await waitFor(() => expect(onTranscript).toHaveBeenCalledWith('spoken words'));
+    expect(transcribe).toHaveBeenCalledTimes(1);
+    expect(transcribe.mock.calls[0][0]).toBeInstanceOf(Blob);
   });
 
-  it('When invoke throws, Then isTranscribing resets to false without crashing', async () => {
-    const { result } = renderHook(() => useVoiceInput(vi.fn()));
-    await act(async () => { await result.current.toggle(); });
-    await act(async () => { await result.current.toggle(); });
-    await act(async () => {});
+  it('When the clip is below the silence floor, Then nothing is transcribed', async () => {
+    MockMediaRecorder.payloadBytes = 32;
+    const transcribe = stubTranscriber();
+    const { result } = renderHook(() =>
+      useVoiceInput({ onTranscript: vi.fn(), transcribe }),
+    );
+
+    await act(async () => result.current.toggle());
+    await act(async () => {
+      MockMediaRecorder.lastInstance!.stop();
+    });
+
+    expect(transcribe).not.toHaveBeenCalled();
+    expect(result.current.state.status).toBe('idle');
+  });
+
+  it('When transcription is in flight, Then isTranscribing is true and then false', async () => {
+    let release!: (text: string) => void;
+    const transcribe = vi.fn(
+      () => new Promise<string>((resolve) => { release = resolve; }),
+    );
+    const { result } = renderHook(() =>
+      useVoiceInput({ onTranscript: vi.fn(), transcribe }),
+    );
+
+    await act(async () => result.current.toggle());
+    await act(async () => {
+      MockMediaRecorder.lastInstance!.stop();
+    });
+    await waitFor(() => expect(result.current.isTranscribing).toBe(true));
+
+    await act(async () => {
+      release('done');
+    });
+    await waitFor(() => expect(result.current.isTranscribing).toBe(false));
+  });
+
+  it('When the transcriber rejects, Then its message is surfaced', async () => {
+    const transcribe = vi
+      .fn()
+      .mockRejectedValue(new Error('Groq API key not set — add it in Settings'));
+    const { result } = renderHook(() =>
+      useVoiceInput({ onTranscript: vi.fn(), transcribe }),
+    );
+
+    await act(async () => result.current.toggle());
+    await act(async () => {
+      MockMediaRecorder.lastInstance!.stop();
+    });
+
+    await waitFor(() => expect(result.current.error).toMatch(/Groq API key not set/));
     expect(result.current.isTranscribing).toBe(false);
+  });
+
+  it('When microphone permission is denied, Then a permission message is surfaced', async () => {
+    setupNoSpeechRecognition(vi.fn().mockRejectedValue(new Error('NotAllowedError')));
+    const { result } = renderHook(() =>
+      useVoiceInput({ onTranscript: vi.fn(), transcribe: stubTranscriber() }),
+    );
+
+    await act(async () => result.current.toggle());
+
+    await waitFor(() => expect(result.current.error).toMatch(/microphone access was denied/i));
+    expect(result.current.isListening).toBe(false);
+  });
+
+  it('When no transcriber is supplied, Then the hook reports itself unsupported', () => {
+    // No Web Speech and no backend means there is nothing to render a button
+    // for — better than a button that always errors.
+    const { result } = renderHook(() => useVoiceInput({ onTranscript: vi.fn() }));
+    expect(result.current.supported).toBe(false);
   });
 });

@@ -702,7 +702,16 @@ impl Default for RedTeamCfg {
 }
 
 /// Voice and media configuration.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+///
+/// `Default` is hand-written rather than derived: the derive would produce
+/// `language: ""`, `local_model: ""` and `silence_timeout_ms: 0`, contradicting
+/// the `#[serde(default = …)]` values used when a config file exists but omits
+/// those keys. `Config::load().unwrap_or_default()` takes the derived path
+/// whenever there is no config file at all — the common case — so the two
+/// disagreed exactly when nobody had configured anything: `whisper --language ""`
+/// on the local engine, and a 0-second silence timeout that ends mic capture
+/// the instant it starts.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VoiceConfig {
     /// Groq API key for Whisper transcription (falls back to groq.api_key or GROQ_API_KEY).
     pub whisper_api_key: Option<String>,
@@ -725,6 +734,21 @@ pub struct VoiceConfig {
     /// Silence timeout in ms for live mic capture — stop recording after this much silence.
     #[serde(default = "VoiceConfig::default_silence_timeout")]
     pub silence_timeout_ms: u64,
+}
+
+impl Default for VoiceConfig {
+    fn default() -> Self {
+        Self {
+            whisper_api_key: None,
+            elevenlabs_api_key: None,
+            elevenlabs_voice_id: None,
+            tts_enabled: false,
+            prefer_local: false,
+            local_model: Self::default_local_model(),
+            language: Self::default_language(),
+            silence_timeout_ms: Self::default_silence_timeout(),
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -3325,5 +3349,30 @@ chain = ["claude", "openai", "ollama"]
             ..Default::default()
         };
         assert_eq!(v.resolve_elevenlabs_api_key(), Some("el-key-123".into()));
+    }
+
+    /// `Default` and the serde defaults must produce the same values.
+    ///
+    /// They diverged: `Config::load()` falls back to `Config::default()` when
+    /// there is no config file, which used the derived impl and yielded
+    /// `language: ""` and `silence_timeout_ms: 0`. Both are wrong in ways no
+    /// build catches — `whisper --language ""` and a mic that stops the moment
+    /// it starts — and only on machines that had never written a config.
+    #[test]
+    fn voice_default_matches_the_serde_defaults() {
+        let derived = VoiceConfig::default();
+        // An empty TOML table exercises every `#[serde(default = …)]`.
+        let from_empty_toml: VoiceConfig = toml::from_str("").expect("empty table is valid");
+
+        assert_eq!(derived.local_model, from_empty_toml.local_model);
+        assert_eq!(derived.language, from_empty_toml.language);
+        assert_eq!(derived.silence_timeout_ms, from_empty_toml.silence_timeout_ms);
+        assert_eq!(derived.prefer_local, from_empty_toml.prefer_local);
+        assert_eq!(derived.tts_enabled, from_empty_toml.tts_enabled);
+
+        // And they must be usable values, not merely equal to each other.
+        assert_eq!(derived.language, "en");
+        assert_eq!(derived.local_model, "base");
+        assert!(derived.silence_timeout_ms > 0, "a 0 ms silence timeout ends capture instantly");
     }
 }

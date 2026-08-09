@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, useCallback, useMemo } from "react";
-import type { SpeechRecognitionLike } from "../types/globals";
 import { invoke } from "@tauri-apps/api/core";
+import { useVoiceInput } from "@vibe/shared/voice/useVoiceInput";
+import { tauriTranscriber } from "@vibe/shared/voice/transcribers";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useToast } from "../hooks/useToast";
@@ -12,157 +13,10 @@ import { getSelectedEffort } from "../utils/effort";
 import { Mic, User, Paperclip, X, FileText, Loader2, Download, ZoomIn } from "lucide-react";
 import "./AIChat.css";
 
-// ── Voice input hook ─────────────────────────────────────────────────────────
-// Strategy 1: Web Speech API (webkitSpeechRecognition) — works natively in
-//   Chromium-based webviews, no API key needed, real-time interim results.
-// Strategy 2: MediaRecorder + Groq Whisper — fallback when SpeechRecognition
-//   is unavailable (requires GROQ_API_KEY env var on the Tauri backend).
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-function useVoiceInput(onTranscript: (text: string) => void) {
- const [isListening, setIsListening] = useState(false);
- const [isTranscribing, setIsTranscribing] = useState(false);
- const [interimText, setInterimText] = useState("");
- // eslint-disable-next-line @typescript-eslint/no-explicit-any
- const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
- const recorderRef = useRef<MediaRecorder | null>(null);
- const chunksRef = useRef<Blob[]>([]);
- const { toast } = useToast();
-
- useEffect(() => {
-   return () => {
-     if (recognitionRef.current) {
-       try { recognitionRef.current.abort(); } catch { /* ignore */ }
-     }
-   };
- }, []);
-
- const toggle = useCallback(async () => {
-   if (isListening) {
-     if (recognitionRef.current) {
-       recognitionRef.current.stop();
-     } else if (recorderRef.current) {
-       recorderRef.current.stop();
-     }
-     return;
-   }
-
-   if (SpeechRecognition) {
-     try {
-       const recognition = new SpeechRecognition();
-       recognition.continuous = true;
-       recognition.interimResults = true;
-       recognition.lang = "en-US";
-       recognition.maxAlternatives = 1;
-
-       let finalTranscript = "";
-
-       recognition.onresult = (event: { resultIndex: number; results: { length: number; [i: number]: { isFinal: boolean; [j: number]: { transcript: string } } } }) => {
-         let interim = "";
-         for (let i = event.resultIndex; i < event.results.length; i++) {
-           const result = event.results[i];
-           if (result.isFinal) {
-             finalTranscript += result[0].transcript;
-             setInterimText("");
-           } else {
-             interim += result[0].transcript;
-           }
-         }
-         if (interim) setInterimText(interim);
-         if (finalTranscript) {
-           onTranscript(finalTranscript);
-           finalTranscript = "";
-         }
-       };
-
-       recognition.onerror = (event: { error: string }) => {
-         setIsListening(false);
-         setInterimText("");
-         recognitionRef.current = null;
-         if (event.error === "not-allowed") {
-           toast.warn("Microphone access denied. Check browser/system permissions.");
-         } else if (event.error !== "aborted") {
-           toast.error(`Speech recognition error: ${event.error}`);
-         }
-       };
-
-       recognition.onend = () => {
-         setIsListening(false);
-         setInterimText("");
-         recognitionRef.current = null;
-       };
-
-       recognition.start();
-       recognitionRef.current = recognition;
-       setIsListening(true);
-     } catch (e) {
-       toast.error(`Speech recognition failed to start: ${e}`);
-     }
-     return;
-   }
-
-   // Fallback: MediaRecorder + Groq Whisper
-   try {
-     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-     const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-       ? "audio/webm;codecs=opus"
-       : "audio/webm";
-     const recorder = new MediaRecorder(stream, { mimeType });
-     chunksRef.current = [];
-
-     recorder.ondataavailable = (e) => {
-       if (e.data.size > 0) chunksRef.current.push(e.data);
-     };
-
-     recorder.onstop = async () => {
-       stream.getTracks().forEach((t) => t.stop());
-       setIsListening(false);
-
-       const blob = new Blob(chunksRef.current, { type: mimeType });
-       if (blob.size < 100) return;
-
-       setIsTranscribing(true);
-       try {
-         const arrayBuf = await blob.arrayBuffer();
-         const bytes = new Uint8Array(arrayBuf);
-         let binary = "";
-         for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-         const base64 = btoa(binary);
-
-         const text = await invoke<string>("transcribe_audio_bytes", {
-           audioBase64: base64,
-           mimeType: mimeType.split(";")[0],
-         });
-         if (text.trim()) onTranscript(text);
-       } catch (e) {
-         const msg = String(e);
-         if (msg.includes("GROQ_API_KEY")) {
-           toast.warn("Set GROQ_API_KEY env var for voice input (Groq Whisper).");
-         } else {
-           toast.error(`Transcription failed: ${msg}`);
-         }
-       }
-       setIsTranscribing(false);
-     };
-
-     recorder.onerror = () => {
-       stream.getTracks().forEach((t) => t.stop());
-       setIsListening(false);
-       toast.error("Microphone recording failed.");
-     };
-
-     recorder.start();
-     recorderRef.current = recorder;
-     setIsListening(true);
-   } catch (e) {
-     toast.warn(`Microphone access denied: ${e}`);
-   }
- }, [isListening, onTranscript, toast]);
-
- return { isListening, isTranscribing, interimText, toggle };
-}
+// Voice input lives in packages/vibe-ui-shared/src/voice — the same hook
+// VibeDesk and VibeAIChat use. It previously existed here as an inline copy
+// *and* as an unused src/hooks/useVoiceInput.ts, and the two had already
+// drifted (only one reported errors at all).
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -1341,11 +1195,33 @@ export function AIChat({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, isLoading]);
 
-  const { isListening, isTranscribing, interimText, toggle: toggleVoice } = useVoiceInput((transcript) =>
-    setInput((prev) => (prev ? prev + " " : "") + transcript)
-  );
-
   const { toast } = useToast();
+
+  // Voice input. `tauriTranscriber` with no URL targets the local daemon's
+  // /voice/transcribe, which prefers a downloaded whisper model over Groq —
+  // the old inline hook called Groq directly and could never run offline.
+  const appendTranscript = useCallback(
+    (transcript: string) =>
+      setInput((prev) => (prev ? `${prev.replace(/\s+$/, "")} ` : "") + transcript.trim()),
+    [],
+  );
+  const voiceTranscribe = useMemo(() => tauriTranscriber(), []);
+  const {
+    isListening,
+    isTranscribing,
+    interimText,
+    toggle: toggleVoice,
+    error: voiceError,
+    clearError: clearVoiceError,
+  } = useVoiceInput({ onTranscript: appendTranscript, transcribe: voiceTranscribe });
+
+  // The hook reports failures as state; VibeCoder already has a toast surface,
+  // so mirror them there and clear so the same error can be raised again.
+  useEffect(() => {
+    if (!voiceError) return;
+    toast.warn(voiceError);
+    clearVoiceError();
+  }, [voiceError, toast, clearVoiceError]);
 
   // ── Attachment handlers ─────────────────────────────────────────────────────
 

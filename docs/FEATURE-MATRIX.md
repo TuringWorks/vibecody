@@ -62,7 +62,7 @@
 | Manual compaction (`/compact`) | ✅ | ✅ | Summarize + truncate old messages |
 | Chat memory panel | ❌ | ✅ | Extracted facts + pin to prompt |
 | Pinned facts injected into prompt | ❌ | ✅ | Persist across sessions |
-| Voice input | ✅ | ✅ | Web Speech API + Groq Whisper |
+| Voice input | ✅ | ✅ | Shared hook → daemon `/voice/transcribe`; see [Voice Input](#voice-input) for every client |
 | Image/file attachments | ✅ | ✅ | Up to 10 files, 20 MB each |
 | Slash commands | ✅ | ✅ | `/fix`, `/explain`, `/test`, etc. |
 | @ file mentions | ✅ | ✅ | Add file content to context |
@@ -454,6 +454,41 @@
 | `GET /api/sessions` | ✅ | |
 | Tailscale Funnel (public HTTPS) | ✅ | `--tailscale` |
 | Diagnostics bundle (`--diagnostics`) | ✅ | |
+
+---
+
+## Voice Input
+
+Every client can dictate. All of them transcribe through the daemon's
+`POST /voice/transcribe`, which runs a local whisper model when one is
+downloaded and falls back to Groq Whisper — so no client re-implements a
+speech provider and offline transcription works everywhere at once.
+
+| Client | Capture | Notes |
+|---|---|---|
+| VibeCLI (REPL) | SoX `rec` | `/voice` slash command; `--voice` flag |
+| VibeCoder | Web Speech → `MediaRecorder` | Shared hook (`@vibe/shared/voice`) |
+| VibeDesk | Web Speech → `MediaRecorder` | Mic in the composer and the side chat |
+| VibeAIChat | Web Speech → `MediaRecorder` | Mic in the chat box |
+| VibeMobile | `speech_to_text` → `record` | On-device recogniser first, upload as fallback |
+| VibeCodyWatch | `SFSpeechRecognizer` | Native watchOS dictation |
+| VibeCodyWear | Android `SpeechRecognizer` | Native Wear OS dictation |
+| VS Code | SoX `rec` | Mic in the chat view + `VibeCLI: Dictate` command |
+| JetBrains | SoX `rec` | Mic button in the Chat tool window |
+| Neovim | SoX `rec` | `:VibeCLIVoice` (`!` submits as a task) |
+| Agent SDK | caller-supplied bytes | `agent.transcribe(audio)` · `agent.voiceStatus()` |
+
+**Engines.** Browser and mobile clients prefer the platform recogniser (free,
+streams partial text, stays on-device). Everything else records a clip and
+uploads it. The daemon reports which engine produced each transcript
+(`local_whisper` or `cloud_whisper`).
+
+**Dependencies.** SoX is required for the terminal and IDE clients
+(`brew install sox` · `apt install sox` · `choco install sox`); its absence is
+reported with that hint, never as a generic failure. Local transcription
+additionally needs `whisper-cpp` or the `whisper` Python CLI plus a downloaded
+model (`/voice download base`). `GET /voice/status` reports exactly what is
+present.
 
 ---
 

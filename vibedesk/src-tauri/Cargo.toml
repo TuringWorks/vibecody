@@ -23,6 +23,8 @@ futures = "0.3"
 # keys / config / UI prefs) — the same store VibeCoder uses, so settings carry over.
 vibecli_cli = { package = "vibecli", path = "../../vibecli/vibecli-cli" }
 vibe-desktop-settings = { path = "../../crates/vibe-desktop-settings" }
+# Voice input — the same daemon bridge every shell uses (crates/vibe-desktop-voice).
+vibe-desktop-voice = { path = "../../crates/vibe-desktop-voice" }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

@@ -76,7 +76,7 @@ vibecli --provider gemini
 | `--redteam <url>` | — | Run autonomous red team scan against target URL |
 | `--redteam-config <file>` | — | YAML config file for auth flows, scope, depth |
 | `--redteam-report <id>` | — | Generate pentest report from a previous session |
-| `--voice` | false | Enable voice input via Groq Whisper |
+| `--voice` | false | Enable voice input (local whisper model, falling back to Groq Whisper) |
 | `--tailscale` | false | Enable Tailscale Funnel for public HTTPS remote access |
 | `--ngrok` | false | Auto-start an ngrok tunnel (requires `NGROK_AUTHTOKEN`) |
 | `--mdns` | true | Advertise `_vibecli._tcp.local.` for zero-config LAN discovery (set `--mdns=false` to disable) |
@@ -162,7 +162,7 @@ In REPL mode, the following slash commands are available:
 | `/sessions` | List all stored agent sessions |
 | `/sessions show <id>` | View a session's messages and steps |
 | `/sessions search <query>` | Search across all sessions |
-| `/voice` | Toggle voice input (Groq Whisper) |
+| `/voice` | Voice engine: `status`, `download <model>`, `models`, `transcribe <file>`, `speak <text>` |
 | `/discover` | Discover nearby VibeCLI instances via mDNS |
 | `/pair` | Generate QR code for device pairing |
 | `/pair --url-only` | Print a pairing URL (no QR) — useful over SSH or for emulators |
@@ -1164,7 +1164,7 @@ vibecli/
         ├── background_agents.rs  # Background agent definitions
         ├── session_store.rs     # SQLite session persistence
         ├── sandbox.rs      # Container sandbox (Docker/Podman)
-        ├── voice.rs        # Voice input (Groq Whisper)
+        ├── voice.rs        # Voice engine (local whisper → Groq); serves /voice/* for every client
         ├── pairing.rs      # QR code device pairing
         ├── tailscale.rs    # Tailscale funnel
         ├── discovery.rs    # mDNS service discovery

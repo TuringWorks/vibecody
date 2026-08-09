@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Composer mic button. macOS kills the process outright — no dialog, no
+	     error — if getUserMedia is called without a usage string, so this is
+	     load-bearing, not documentation. -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>VibeAIChat needs microphone access for voice input in the chat box.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>VibeAIChat uses speech recognition to turn your voice into text in the chat box.</string>
+</dict>
+</plist>

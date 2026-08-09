@@ -397,6 +397,49 @@ export class VibeCLIClient {
     return res.json() as Promise<Record<string, unknown>>;
   }
 
+  // ── /voice — speech to text ──────────────────────────────────────────────
+
+  /**
+   * `POST /voice/transcribe` — turn recorded audio into text.
+   *
+   * Sends raw bytes with the audio MIME type rather than base64-in-JSON; the
+   * daemon accepts either and raw avoids inflating a recording by a third.
+   * The daemon chooses the engine (local whisper model when present, Groq
+   * otherwise) unless `preferLocal` forces the local one.
+   */
+  async transcribe(
+    audio: Uint8Array,
+    opts: { mimeType?: string; language?: string; preferLocal?: boolean } = {},
+  ): Promise<string> {
+    const headers: Record<string, string> = {
+      'Content-Type': opts.mimeType ?? 'audio/wav',
+    };
+    if (opts.language) headers['X-Voice-Language'] = opts.language;
+    if (opts.preferLocal) headers['X-Voice-Prefer-Local'] = 'true';
+
+    const res = await this.authedFetch(`${this.baseUrl}/voice/transcribe`, {
+      method: 'POST',
+      headers,
+      body: audio as unknown as BodyInit,
+    });
+    const body = (await res.json().catch(() => null)) as
+      | { text?: string; error?: string }
+      | null;
+    if (!res.ok) {
+      // The daemon's voice errors are setup guidance ("run /voice download
+      // base", "set GROQ_API_KEY"). Passing them through is the point.
+      throw new Error(body?.error ?? `Transcription failed: ${res.status}`);
+    }
+    return body?.text ?? '';
+  }
+
+  /** `GET /voice/status` — what the daemon's voice stack can do right now. */
+  async voiceStatus(): Promise<Record<string, unknown>> {
+    const res = await this.authedFetch(`${this.baseUrl}/voice/status`);
+    if (!res.ok) throw new Error(`voice.status failed: ${res.status} ${await res.text()}`);
+    return res.json() as Promise<Record<string, unknown>>;
+  }
+
   // ── /skilllens + /skillopt — SkillForge (analyse + train skill docs) ─────
   //
   // SkillForge measures and trains agent-skill markdown docs in the daemon.

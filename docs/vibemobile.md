@@ -130,7 +130,7 @@ See the full [Connectivity guide](/vibecody/connectivity/) for firewall / NAT / 
 - **Streaming.** Every message streams token-by-token over Server-Sent Events. Reconnects automatically on flaky networks.
 - **No truncation.** The 0.5.5 sync model reconciles by message ID and keeps the full transcript — even long code blocks survive the round trip.
 - **Markdown.** Fenced code blocks render with syntax highlighting; copy button per block.
-- **Voice.** Tap the microphone on the chat input to dictate (uses on-device speech → Groq Whisper if the host has it configured).
+- **Voice.** Tap the microphone on the chat input to dictate. The on-device recogniser runs first (partial text as you speak, nothing leaves the phone); if it is unavailable the clip is recorded and uploaded to the daemon's `POST /voice/transcribe`, which prefers a locally downloaded whisper model and falls back to Groq. Needs microphone permission on both platforms.
 - **Provider picker.** Switch providers or models mid-conversation from the session header.
 
 ---

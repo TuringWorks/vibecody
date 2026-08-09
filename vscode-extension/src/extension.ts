@@ -17,6 +17,7 @@ import {
 } from './api-client';
 import { GoalsTreeProvider, GoalTreeItem } from './goals-tree';
 import { gatePromptSubmission } from './hook-executor';
+import { startRecording, type RecordingHandle } from './voice-capture';
 
 let client: VibeCLIClient;
 let statusBarItem: vscode.StatusBarItem;
@@ -50,6 +51,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand('vibecli.inlineEdit', handleInlineEdit),
     vscode.commands.registerCommand('vibecli.viewJobs', handleViewJobs),
     vscode.commands.registerCommand('vibecli.sendSelection', handleSendSelection),
+    vscode.commands.registerCommand('vibecli.dictate', handleDictate),
     // /goal — durable execution intent (G2.4)
     vscode.commands.registerCommand('vibecli.newGoal', wrapWithGoalsRefresh(handleNewGoal)),
     vscode.commands.registerCommand('vibecli.listGoals', handleListGoals),
@@ -485,6 +487,75 @@ function wrapWithGoalsRefresh<T extends (...args: never[]) => Promise<unknown>>(
 
 // ── Send Selection to Agent ───────────────────────────────────────────────────
 
+/**
+ * `VibeCLI: Dictate` — record from the microphone and insert the transcript
+ * at the cursor (or copy it, with no editor open).
+ *
+ * Recording runs in the extension host via SoX; see voice-capture.ts for why
+ * it cannot live in a webview. A modal progress notification with a Cancel
+ * button is the stop control — the alternative, a silence timeout, guesses at
+ * how long someone pauses mid-sentence.
+ */
+async function handleDictate(): Promise<void> {
+  if (!daemonConnected) {
+    vscode.window.showWarningMessage('VibeCLI daemon not connected.');
+    return;
+  }
+
+  const started = await startRecording({ maxSeconds: 300 });
+  if (!started.ok) {
+    vscode.window.showWarningMessage(started.failure.message);
+    return;
+  }
+
+  const captured = await vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: 'Listening… press Cancel when you have finished speaking.',
+      cancellable: true,
+    },
+    (_progress, cancelToken) =>
+      new Promise<Awaited<ReturnType<RecordingHandle['stop']>> | null>((resolve) => {
+        // Cancel is "I'm done", not "throw it away" — it is the only stop
+        // affordance a progress notification offers.
+        cancelToken.onCancellationRequested(() => {
+          void started.handle.stop().then(resolve);
+        });
+      }),
+  );
+
+  if (!captured) return;
+  if (!captured.ok) {
+    vscode.window.showWarningMessage(captured.failure.message);
+    return;
+  }
+
+  let text: string;
+  try {
+    text = await vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title: 'Transcribing…' },
+      () => client.transcribe(captured.wav, { mimeType: 'audio/wav' }),
+    );
+  } catch (e) {
+    vscode.window.showErrorMessage(String(e instanceof Error ? e.message : e));
+    return;
+  }
+
+  const trimmed = text.trim();
+  if (!trimmed) {
+    vscode.window.showInformationMessage('No speech was recognised.');
+    return;
+  }
+
+  const editor = vscode.window.activeTextEditor;
+  if (editor) {
+    await editor.edit((edit) => edit.replace(editor.selection, trimmed));
+  } else {
+    await vscode.env.clipboard.writeText(trimmed);
+    vscode.window.showInformationMessage(`Transcript copied to clipboard: "${trimmed}"`);
+  }
+}
+
 async function handleSendSelection(): Promise<void> {
   if (!daemonConnected) {
     vscode.window.showWarningMessage('VibeCLI daemon not connected.');
@@ -633,12 +704,63 @@ function extractFirstCompletion(raw: string, _linePrefix: string): string | unde
 class ChatViewProvider implements vscode.WebviewViewProvider {
   constructor(private readonly context: vscode.ExtensionContext) {}
 
+  /** In-flight SoX recording, if the mic button is currently armed. */
+  private recording: RecordingHandle | null = null;
+
+  /** Record → transcribe → hand the text back to the webview's composer. */
+  private async handleVoice(webview: vscode.Webview, type: string): Promise<void> {
+    const setState = (state: string, content?: string) =>
+      webview.postMessage({ type: 'voice-state', state, content });
+
+    if (type === 'voice-start') {
+      if (this.recording) return;
+      const started = await startRecording({ maxSeconds: 300 });
+      if (!started.ok) {
+        setState('idle', started.failure.message);
+        // A missing dependency deserves more than a status line — it is the
+        // one failure the user has to leave the editor to fix.
+        if (started.failure.kind === 'sox-missing') {
+          void vscode.window.showWarningMessage(started.failure.message);
+        }
+        return;
+      }
+      this.recording = started.handle;
+      setState('recording');
+      return;
+    }
+
+    // voice-stop
+    const handle = this.recording;
+    this.recording = null;
+    if (!handle) {
+      setState('idle');
+      return;
+    }
+    setState('transcribing');
+    const result = await handle.stop();
+    if (!result.ok) {
+      setState('idle', result.failure.message);
+      return;
+    }
+    try {
+      const text = await client.transcribe(result.wav, { mimeType: 'audio/wav' });
+      setState('idle');
+      if (text.trim()) webview.postMessage({ type: 'voice-transcript', content: text.trim() });
+    } catch (e) {
+      setState('idle', String(e instanceof Error ? e.message : e));
+    }
+  }
+
   resolveWebviewView(webviewView: vscode.WebviewView): void {
     webviewView.webview.options = { enableScripts: true };
     webviewView.webview.html = getChatHtml(webviewView.webview);
 
     // Forward messages from webview → daemon (streaming)
     webviewView.webview.onDidReceiveMessage(async (msg: { type: string; content: string }) => {
+      if (msg.type === 'voice-start' || msg.type === 'voice-stop') {
+        await this.handleVoice(webviewView.webview, msg.type);
+        return;
+      }
       if (msg.type !== 'send') return;
       if (!daemonConnected) {
         webviewView.webview.postMessage({ type: 'error', content: 'Daemon not connected.' });
@@ -697,12 +819,18 @@ function getChatHtml(_webview: vscode.Webview): string {
     #input-area { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--vscode-panel-border); }
     #input { flex: 1; padding: 6px 8px; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); border-radius: 4px; outline: none; font-size: 12px; resize: none; }
     #send { padding: 6px 12px; background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
+    #mic { padding: 6px 10px; background: transparent; color: var(--vscode-foreground); border: 1px solid var(--vscode-input-border); border-radius: 4px; cursor: pointer; font-size: 12px; }
+    #mic.recording { color: var(--vscode-errorForeground); border-color: var(--vscode-errorForeground); }
+    #mic:disabled { opacity: 0.5; cursor: default; }
+    #voice-status { padding: 0 8px 4px; font-size: 11px; color: var(--vscode-descriptionForeground); }
   </style>
 </head>
 <body>
   <div id="messages"></div>
+  <div id="voice-status"></div>
   <div id="input-area">
     <textarea id="input" rows="2" placeholder="Ask VibeCLI…"></textarea>
+    <button id="mic" title="Dictate (requires SoX)">Mic</button>
     <button id="send">Send</button>
   </div>
   <script>
@@ -732,6 +860,29 @@ function getChatHtml(_webview: vscode.Webview): string {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
     });
 
+    // Dictation. The recording itself happens in the extension host (SoX):
+    // a VS Code webview cannot reliably obtain microphone permission, so the
+    // webview only owns the button and the resulting text.
+    const micBtn = document.getElementById('mic');
+    const voiceStatus = document.getElementById('voice-status');
+    let recording = false;
+
+    micBtn.addEventListener('click', () => {
+      vscode.postMessage({ type: recording ? 'voice-stop' : 'voice-start' });
+      micBtn.disabled = true;
+    });
+
+    function setVoiceState(state, detail) {
+      recording = state === 'recording';
+      micBtn.disabled = state === 'transcribing';
+      micBtn.classList.toggle('recording', recording);
+      micBtn.textContent = recording ? 'Stop' : 'Mic';
+      voiceStatus.textContent =
+        state === 'recording' ? 'Listening… click Stop when done.'
+        : state === 'transcribing' ? 'Transcribing…'
+        : detail || '';
+    }
+
     let streamingDiv = null;
     window.addEventListener('message', (e) => {
       const msg = e.data;
@@ -751,6 +902,13 @@ function getChatHtml(_webview: vscode.Webview): string {
       } else if (msg.type === 'error') {
         appendMsg('error', 'Error: ' + msg.content);
         streamingDiv = null;
+      } else if (msg.type === 'voice-state') {
+        setVoiceState(msg.state, msg.content);
+      } else if (msg.type === 'voice-transcript') {
+        // Append rather than replace: dictating twice, or dictating after
+        // typing, should extend the prompt.
+        input.value = input.value ? input.value.replace(/\s+$/, '') + ' ' + msg.content : msg.content;
+        input.focus();
       }
     });
   </script>

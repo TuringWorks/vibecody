@@ -5,6 +5,7 @@ import 'services/auth_service.dart';
 import 'services/handoff_service.dart';
 import 'services/notification_service.dart';
 import 'services/tainted_service.dart';
+import 'services/voice_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'theme/app_theme.dart';
@@ -26,6 +27,13 @@ void main() async {
           update: (_, auth, previous) => previous ?? HandoffService(auth),
         ),
         ChangeNotifierProvider(create: (_) => NotificationService()),
+        // Voice input for the composers. One instance app-wide: the mic is a
+        // singleton device, and two screens each holding their own recorder
+        // would fight over it.
+        ChangeNotifierProxyProvider<ApiClient, VoiceService>(
+          create: (ctx) => VoiceService(api: ctx.read<ApiClient>()),
+          update: (_, api, previous) => previous ?? VoiceService(api: api),
+        ),
         // DREAD #1 Slice G part 3 — keep a TaintedService subscribed
         // to the first paired machine. The proxy re-configures
         // whenever AuthService machines change, so pair / unpair

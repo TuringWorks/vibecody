@@ -1,0 +1,16 @@
+[package]
+name = "vibe-desktop-voice"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Voice-input Tauri commands shared by the VibeCody desktop shells (VibeDesk, VibeAIChat, VibeCoder)."
+
+[dependencies]
+tauri = { version = "2" }
+serde_json = { workspace = true }
+reqwest = { workspace = true }
+base64 = "0.22"
+
+[dev-dependencies]
+tokio = { workspace = true }

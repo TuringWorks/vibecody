@@ -2,6 +2,9 @@
     <!-- Needed by the Wear OS phone-relay (WearDataLayerService forwards
          watch requests to the VibeCody daemon over the phone's network). -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Voice input in the chat composers: `record` captures audio and
+         `speech_to_text` drives the platform recogniser. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <application
         android:label="vibecody_mobile"
         android:name="${applicationName}"
@@ -58,6 +61,13 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Android 11+ package visibility: without this the app cannot see any
+             installed RecognitionService, so `speech_to_text` initialises to
+             "unavailable" on every device and the mic silently falls through to
+             the upload path. -->
+        <intent>
+            <action android:name="android.speech.RecognitionService"/>
         </intent>
     </queries>
 </manifest>

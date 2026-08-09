@@ -160,9 +160,61 @@ class VibeCLIService {
 
     // ── Internal helpers ───────────────────────────────────────────────────────
 
+    /**
+     * Resolve the daemon bearer token.
+     *
+     * Nearly every daemon route sits behind `require_auth`; only `/health` and
+     * a handful of others are public. Without this header `/chat`, `/agent`,
+     * `/jobs` and the voice routes all return 401 — the plugin sent no
+     * credential at
+     * all before this, so the tool window's "Error" line was a 401 every time.
+     *
+     * Order matches every other client: `VIBECLI_TOKEN`, then
+     * `VIBECLI_DAEMON_TOKEN`, then `~/.vibecli/daemon.token`, which is where
+     * `vibecli --serve` writes it. Null is legitimate — a daemon may run
+     * without auth — so this is not an error path.
+     */
+    private fun resolveToken(): String? {
+        System.getenv("VIBECLI_TOKEN")?.takeIf { it.isNotBlank() }?.let { return it }
+        System.getenv("VIBECLI_DAEMON_TOKEN")?.takeIf { it.isNotBlank() }?.let { return it }
+        return try {
+            java.io.File(System.getProperty("user.home"), ".vibecli/daemon.token")
+                .takeIf { it.isFile }
+                ?.readText()
+                ?.trim()
+                ?.takeIf { it.isNotBlank() }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun HttpURLConnection.withAuth(): HttpURLConnection = apply {
+        resolveToken()?.let { setRequestProperty("Authorization", "Bearer $it") }
+    }
+
+    /**
+     * Read a failed response's `{"error": "..."}` message.
+     *
+     * The daemon's voice errors are setup guidance ("run /voice download base",
+     * "set GROQ_API_KEY"); a bare status code throws that away.
+     */
+    private fun HttpURLConnection.errorMessage(): String {
+        val body = try {
+            errorStream?.bufferedReader()?.readText().orEmpty()
+        } catch (_: Exception) {
+            ""
+        }
+        val parsed = try {
+            gson.fromJson(body, JsonObject::class.java)?.get("error")?.asString
+        } catch (_: Exception) {
+            null
+        }
+        return parsed ?: "HTTP $responseCode${if (body.isBlank()) "" else ": $body"}"
+    }
+
     private fun postJson(path: String, body: String): JsonObject {
         val url = URL("${settings.daemonUrl}$path")
-        val conn = url.openConnection() as HttpURLConnection
+        val conn = (url.openConnection() as HttpURLConnection).withAuth()
         conn.requestMethod = "POST"
         conn.setRequestProperty("Content-Type", "application/json")
         conn.setRequestProperty("Accept", "application/json")
@@ -176,7 +228,7 @@ class VibeCLIService {
 
     private fun getJson(path: String): com.google.gson.JsonElement {
         val url = URL("${settings.daemonUrl}$path")
-        val conn = url.openConnection() as HttpURLConnection
+        val conn = (url.openConnection() as HttpURLConnection).withAuth()
         conn.requestMethod = "GET"
         conn.setRequestProperty("Accept", "application/json")
         conn.connectTimeout = 5_000
@@ -184,6 +236,38 @@ class VibeCLIService {
         val text = conn.inputStream.bufferedReader().readText()
         return gson.fromJson(text, com.google.gson.JsonElement::class.java)
     }
+
+    // ── Voice ──────────────────────────────────────────────────────────────────
+
+    /**
+     * POST /voice/transcribe — turn a recorded WAV into text.
+     *
+     * Bytes go up raw with an `audio/wav` content type; the daemon accepts that
+     * or base64-in-JSON, and raw avoids inflating the upload by a third. The
+     * daemon picks the engine (a downloaded whisper model first, Groq
+     * otherwise).
+     */
+    fun transcribe(wav: ByteArray): CompletableFuture<String> =
+        CompletableFuture.supplyAsync {
+            val url = URL("${settings.daemonUrl}/voice/transcribe")
+            val conn = (url.openConnection() as HttpURLConnection).withAuth()
+            conn.requestMethod = "POST"
+            conn.setRequestProperty("Content-Type", "audio/wav")
+            conn.setRequestProperty("Accept", "application/json")
+            conn.doOutput = true
+            conn.connectTimeout = 5_000
+            // Local whisper on a cold CPU model can take a while; the daemon's
+            // own cloud call times out at 60 s, so this has to exceed that.
+            conn.readTimeout = 180_000
+            conn.outputStream.use { it.write(wav) }
+            if (conn.responseCode !in 200..299) {
+                throw java.io.IOException(conn.errorMessage())
+            }
+            val text = conn.inputStream.bufferedReader().readText()
+            gson.fromJson(text, JsonObject::class.java)
+                ?.get("text")?.asString
+                ?: ""
+        }
 
     /**
      * Parse one `/stream/{id}` SSE payload.

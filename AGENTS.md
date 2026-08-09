@@ -56,6 +56,42 @@ Use this table as a pre-flight checklist. Cross-cutting changes that miss a surf
 | `packages/agent-sdk/src/index.ts` | SDK method if public-facing |
 | `docs/WATCH-INTEGRATION.md` / `docs/connectivity.md` / `docs/vibecli.md` | Docs for the new route |
 
+### Touching voice input
+
+All speech-to-text goes through **one** daemon route. No client may call a speech
+provider directly — that is exactly how VibeCoder ended up with a Groq-only
+implementation that could never use the local whisper model the CLI had been
+downloading for it.
+
+| Surface | What lives there |
+|---|---|
+| `vibecli/vibecli-cli/src/voice.rs` | `VoiceDispatcher` — the only place that talks to Groq or whisper.cpp |
+| `vibecli/vibecli-cli/src/serve.rs` | `POST /voice/transcribe`, `GET /voice/status` |
+| `packages/vibe-ui-shared/src/voice/` | `useVoiceInput`, `VoiceButton`, transcribers — every webview shell |
+| `crates/vibe-desktop-voice/` | `transcribe_audio` / `voice_status` Tauri commands, registered by all three shells |
+| `vibemobile/lib/services/voice_service.dart` | On-device recogniser → record-and-upload fallback |
+| `vscode-extension/src/voice-capture.ts` · `jetbrains-plugin/.../VoiceRecorder.kt` · `neovim-plugin/.../init.lua` | SoX `rec` capture |
+| `packages/agent-sdk/src/index.ts` | `transcribe()` / `voiceStatus()` |
+| `docs/FEATURE-MATRIX.md` → Voice Input · `docs/api-reference.md` | The per-client table and the route contract |
+
+Rules that are easy to get wrong and produce silent failures:
+
+- **A mic permission needs two things on Apple platforms** — an `Info.plist`
+  usage string *and* (under the hardened runtime) the
+  `com.apple.security.device.audio-input` entitlement. Missing either one fails,
+  and they fail differently: no entitlement denies the capture, no usage string
+  kills the process outright with no dialog.
+- **Android 11+ needs a `<queries>` entry for `android.speech.RecognitionService`**,
+  or the on-device recogniser is invisible on every device and silently
+  "unavailable".
+- **Stop SoX with SIGINT/SIGTERM, never SIGKILL.** SoX finalises the WAV header
+  on a graceful signal; killed outright it leaves a header claiming zero frames,
+  which every decoder reads as an empty file.
+- **Never swallow a voice failure.** Denied permission, missing API key, absent
+  SoX and an unsupported webview all look identical to "the button does nothing"
+  unless each is reported. The daemon's `503` body carries setup guidance —
+  surface it verbatim.
+
 ### Touching daemon startup, health, or discovery
 
 **There is exactly one implementation of "reach the daemon":

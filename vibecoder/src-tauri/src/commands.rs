@@ -29749,9 +29749,20 @@ pub async fn run_canvas_workflow(workflow: CanvasWorkflow) -> Result<String, Str
 }
 
 // ── Voice / Transcription commands ───────────────────────────────────────────
+//
+// Microphone input does *not* live here — it goes through
+// `vibe_desktop_voice::transcribe_audio`, the daemon bridge shared with
+// VibeDesk and VibeAIChat, which tries the local whisper model before Groq.
+// What remains below transcribes a file already on disk, which is a different
+// job and keeps its own command.
 
+/// Transcribe an audio file on disk via Groq Whisper.
+///
+/// Renamed from `transcribe_audio` when the shared mic path landed: that name
+/// now belongs to `vibe_desktop_voice::transcribe_audio` (bytes from the
+/// webview → daemon), and `generate_handler!` keys commands by function name.
 #[tauri::command]
-pub async fn transcribe_audio(audio_path: String) -> Result<String, String> {
+pub async fn transcribe_audio_file(audio_path: String) -> Result<String, String> {
     // Resolve Groq/Whisper API key: ProfileStore → env var
     let api_key = PanelStore::new()
         .ok()
@@ -29858,60 +29869,6 @@ pub async fn text_to_speech(text: String) -> Result<Vec<u8>, String> {
     }
 
     Ok(resp.bytes().await.map_err(|e| e.to_string())?.to_vec())
-}
-
-/// Transcribe audio from base64-encoded bytes (WebM/WAV) using Groq Whisper.
-#[tauri::command]
-pub async fn transcribe_audio_bytes(
-    audio_base64: String,
-    mime_type: Option<String>,
-) -> Result<String, String> {
-    // Resolve Groq/Whisper API key: ProfileStore → env var
-    let api_key = PanelStore::new()
-        .ok()
-        .and_then(|s| s.get_api_key("default", "groq").ok().flatten())
-        .filter(|v| !v.is_empty())
-        .or_else(|| std::env::var("GROQ_API_KEY").ok().filter(|v| !v.is_empty()))
-        .ok_or_else(|| "Groq API key not set — add it in Settings → API Keys → Groq".to_string())?;
-
-    use base64::Engine;
-    let audio_bytes = base64::engine::general_purpose::STANDARD
-        .decode(&audio_base64)
-        .map_err(|e| format!("Invalid base64 audio data: {}", e))?;
-
-    let mime = mime_type.unwrap_or_else(|| "audio/webm".to_string());
-    let ext = if mime.contains("wav") { "wav" } else { "webm" };
-    let file_name = format!("recording.{}", ext);
-
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(60))
-        .build()
-        .map_err(|e| e.to_string())?;
-
-    let part = reqwest::multipart::Part::bytes(audio_bytes)
-        .file_name(file_name)
-        .mime_str(&mime)
-        .map_err(|e| e.to_string())?;
-
-    let form = reqwest::multipart::Form::new()
-        .text("model", "whisper-large-v3")
-        .part("file", part);
-
-    let resp = client
-        .post("https://api.groq.com/openai/v1/audio/transcriptions")
-        .header("Authorization", format!("Bearer {}", api_key))
-        .multipart(form)
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-
-    if !resp.status().is_success() {
-        let err = resp.text().await.map_err(|e| e.to_string())?;
-        return Err(format!("Whisper API error: {}", err));
-    }
-
-    let body: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
-    Ok(body["text"].as_str().unwrap_or("").to_string())
 }
 
 // ── Container Sandbox Management ─────────────────────────────────────────────

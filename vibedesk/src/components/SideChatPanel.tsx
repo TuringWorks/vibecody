@@ -1,8 +1,11 @@
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toWire } from "../lib/sandbox";
 import { effortParam } from "../lib/effort";
 import { ArrowUp, Square, Trash2 } from "lucide-react";
 import { Markdown } from "@vibe/shared/markdown/Markdown";
+import { useVoiceInput } from "@vibe/shared/voice/useVoiceInput";
+import { VoiceButton } from "@vibe/shared/voice/VoiceButton";
+import { tauriTranscriber } from "@vibe/shared/voice/transcribers";
 import { ToolUseBlock } from "./ToolUseBlock";
 import { useAgentStream } from "../hooks/useAgentStream";
 import type { ComposerPrefs } from "../hooks/useComposerPrefs";
@@ -76,6 +79,16 @@ export function SideChatPanel({
     loadItems([]);
   }
 
+  // Dictated text extends the draft; the functional update keeps successive
+  // Web Speech chunks from overwriting each other.
+  const appendTranscript = useCallback((chunk: string) => {
+    const trimmed = chunk.trim();
+    if (!trimmed) return;
+    setText((prev) => (prev ? `${prev.replace(/\s+$/, "")} ${trimmed}` : trimmed));
+  }, []);
+  const transcribe = useMemo(() => tauriTranscriber(daemonUrl), [daemonUrl]);
+  const voice = useVoiceInput({ onTranscript: appendTranscript, transcribe });
+
   return (
     <div className="vx-side">
       <div className="vx-side__body" ref={bodyRef}>
@@ -119,6 +132,16 @@ export function SideChatPanel({
       </div>
 
       <div className="vx-side__composer">
+        {voice.interimText && (
+          <div className="vx-voice-interim" aria-live="polite">
+            {voice.interimText}
+          </div>
+        )}
+        {voice.error && (
+          <div className="vx-voice-error" role="status">
+            {voice.error}
+          </div>
+        )}
         <textarea
           className="vx-side__input"
           placeholder={daemonOnline ? "Ask something…" : "Waiting for the daemon…"}
@@ -142,6 +165,7 @@ export function SideChatPanel({
           >
             <Trash2 size={13} />
           </button>
+          <VoiceButton voice={voice} disabled={busy} size={13} />
           <span className="vx-side__model" title={`${prefs.provider} · ${prefs.model ?? "default"}`}>
             {prefs.model ?? prefs.provider}
           </span>

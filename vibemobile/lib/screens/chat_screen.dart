@@ -5,6 +5,7 @@ import '../services/auth_service.dart';
 import '../services/api_client.dart';
 import '../theme/app_theme.dart';
 import '../widgets/recap_card.dart';
+import '../widgets/voice_mic_button.dart';
 
 /// Chat/dispatch screen — send messages or tasks to a selected machine.
 /// Pass [resumeMachineId], [resumeSessionId], and [resumeTask] to continue
@@ -220,6 +221,9 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
           ),
 
+          // Partial transcript while dictating, above the input bar.
+          const VoicePartialStrip(),
+
           // Input bar.
           Container(
             padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
@@ -249,7 +253,12 @@ class _ChatScreenState extends State<ChatScreen> {
                       onSubmitted: (_) => _send(),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  VoiceMicButton(
+                    baseUrl: _currentCredential(context.read<AuthService>())?.baseUrl,
+                    token: _currentCredential(context.read<AuthService>())?.token,
+                    enabled: !_sending,
+                    onTranscript: _appendTranscript,
+                  ),
                   IconButton(
                     onPressed: _sending ? null : _send,
                     icon: _sending
@@ -263,6 +272,22 @@ class _ChatScreenState extends State<ChatScreen> {
         ],
       ),
     );
+  }
+
+  /// Dictated text extends the draft instead of replacing it, and lands at the
+  /// caret when the user has one — speaking mid-sentence should insert there,
+  /// not append to the end.
+  void _appendTranscript(String chunk) {
+    final text = chunk.trim();
+    if (text.isEmpty) return;
+    final existing = _controller.text;
+    if (existing.isEmpty) {
+      _controller.text = text;
+    } else {
+      _controller.text = '${existing.trimRight()} $text';
+    }
+    _controller.selection =
+        TextSelection.collapsed(offset: _controller.text.length);
   }
 
   MachineCredential? _currentCredential(AuthService auth) {

@@ -26,3 +26,22 @@ export {
 } from "./hooks/useProviderSettings";
 export { applyThemeById, getPairedTheme, THEMES, type ThemeDef } from "./theme/themes";
 export { splitThinking, isReasoningOnly, visibleAnswer, type SplitTurn } from "./lib/thinking";
+export {
+  useVoiceInput,
+  type VoiceState,
+  type UseVoiceInput,
+  type UseVoiceInputOptions,
+} from "./voice/useVoiceInput";
+export { VoiceButton } from "./voice/VoiceButton";
+export {
+  tauriTranscriber,
+  daemonTranscriber,
+  blobToBase64,
+  TranscriptionError,
+  type Transcriber,
+} from "./voice/transcribers";
+export {
+  getSpeechRecognition,
+  describeSpeechError,
+  type SpeechRecognitionLike,
+} from "./voice/speech";

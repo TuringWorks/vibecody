@@ -76,5 +76,14 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- Voice input in the chat composers. Both keys are required and they
+	     gate different things: the microphone key admits `record`'s capture,
+	     the speech-recognition key admits `speech_to_text`'s on-device
+	     recogniser. iOS terminates the process — no dialog, no error — if a
+	     capability is used without its usage string. -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>VibeCody uses the microphone so you can dictate messages instead of typing them.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>VibeCody uses speech recognition to turn your dictated messages into text.</string>
 </dict>
 </plist>
