@@ -86,6 +86,18 @@ TARGETS=(
   "target/release/bundle/macos/VibeDesk.app"
 )
 
+# The .dmg is what people actually download, and it carries its own signature
+# separate from the .app inside it — a signed app in an unsigned disk image
+# still trips Gatekeeper on the image. `tauri build` signs it when
+# APPLE_SIGNING_IDENTITY is set, but a hand-assembled or re-built dmg would
+# not be, so they are verified alongside everything else rather than assumed.
+# Globbed rather than listed: the filename carries the version.
+while IFS= read -r dmg; do
+  TARGETS+=("$dmg")
+done < <(find target vibecoder/src-tauri/target vibeaichat/src-tauri/target \
+              vibedesk/src-tauri/target \
+              -path '*/bundle/dmg/*.dmg' -type f 2>/dev/null | sort)
+
 signed=0
 skipped=0
 failed=0
@@ -155,7 +167,11 @@ verify_one() {
   fi
   # A missing hardened runtime is accepted by codesign but rejected by
   # notarization, which is a slow and confusing place to discover it.
-  if ! grep -q 'flags=.*runtime' <<<"$info"; then
+  #
+  # Only executables carry the flag. A .dmg is a signed container, not code, so
+  # checking it there produces a warning on every disk image — and a warning
+  # that always fires is one people learn to scroll past.
+  if [[ "$target" != *.dmg ]] && ! grep -q 'flags=.*runtime' <<<"$info"; then
     echo "  WARN  hardened runtime not enabled — notarization would reject this"
   fi
   echo "  ok    $authority"
