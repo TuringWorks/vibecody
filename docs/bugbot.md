@@ -67,9 +67,26 @@ Reviewed 12/12 file(s) in 3 model call(s).
 When coverage is not complete, it says so on stderr and names the files:
 
 ```
-⚠ Incomplete coverage — 4 file(s) not reviewed (call budget). Review a smaller change (try --staged).
+⚠ Incomplete coverage — 4 file(s) not reviewed (call budget).
+  Review a smaller change (try --staged) to fit the call budget.
    · crates/big/src/generated.rs
 ```
+
+**A failed model call is not coverage.** If the provider is down, rate limited,
+or unconfigured, the static scan still runs — but the files whose model pass
+errored are reported as unreviewed rather than counted as clean:
+
+```
+Reviewed 0/1 file(s) in 1 model call(s), 1 of which failed.
+⚠ Incomplete coverage — 1 file(s) not reviewed (provider error).
+  The provider did not answer, so only the static scan looked at these files. Check `vibecli --doctor`.
+   · src/math.py
+```
+
+Collapsing "the model looked and found nothing" into "the model never answered"
+is what turns an outage into a clean bill of health, so the two are distinct all
+the way through — `Some(vec![])` versus `None` in the review pass, and
+`llm_calls` versus `llm_calls_failed` in the report.
 
 The default plan is **8 calls × 8 000 characters**, so a diff up to roughly
 64 KB is covered in full. A small diff still costs exactly one call.
@@ -188,8 +205,10 @@ The webhook response reports what actually happened:
     "files_total": 12,
     "files_reviewed": 12,
     "llm_calls": 3,
+    "llm_calls_failed": 0,
     "files_truncated": [],
-    "files_skipped": []
+    "files_skipped": [],
+    "files_provider_failed": []
   },
   "summary": "VibeCody found 5 issue(s): 0 critical, 2 high, 3 medium, 0 low · 3 committable fix(es) proposed"
 }
