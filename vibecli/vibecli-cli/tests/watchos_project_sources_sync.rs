@@ -14,10 +14,12 @@
 //!   errors, watchOS release job exit 65.
 //! - **v0.5.8** — `SkillforgeView`, same error, same job.
 //!
-//! Both reached a release tag because the watchOS build runs only in the
-//! release workflow: `ci.yml` builds neither vibewatch nor the JetBrains
-//! plugin, so nothing exercises the project file until a tag is pushed. A
-//! string check costs nothing and runs in the ordinary test suite.
+//! Both reached a release tag because **watchOS specifically** is built only by
+//! the release workflow. `ci.yml` does cover the rest of the watch tree — it
+//! has `wear-checks` (Wear OS) and `jetbrains-checks` — but no watchOS job, so
+//! nothing touches `VibeCodyWatch.xcodeproj` until a tag is pushed. Adding a
+//! macOS runner to CI just for this would cost minutes on every push; a string
+//! check costs nothing and runs in the ordinary test suite.
 //!
 //! Scoped to the Watch App target deliberately. `VibeCodyWatchComplication`'s
 //! sources are not members of this project and would produce false failures.
