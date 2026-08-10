@@ -33,12 +33,64 @@ fn dirs_home() -> Option<std::path::PathBuf> {
     std::env::var_os("HOME").map(std::path::PathBuf::from)
 }
 
-/// Apply bearer auth to a request using the resolved token (if any).
-fn with_auth(req: reqwest::RequestBuilder, token: Option<String>) -> reqwest::RequestBuilder {
-    match resolve_token(token) {
-        Some(t) => req.header("Authorization", format!("Bearer {}", t)),
+/// The daemon's *current* token, read straight from `~/.vibecli/daemon.token`.
+///
+/// Deliberately bypasses `resolve_token`'s precedence. That function prefers an
+/// explicit token, then `VIBECLI_TOKEN`, then the file — correct for the first
+/// attempt, but exactly wrong for a retry, because the stale value is usually
+/// *why* the request came back 401. Retrying with the same stale token just
+/// produces a second 401.
+fn file_token() -> Option<String> {
+    let path = dirs_home()?.join(".vibecli").join("daemon.token");
+    std::fs::read_to_string(path)
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
+/// Send an authenticated daemon request, retrying once on 401 with a freshly
+/// read token.
+///
+/// `vibecli serve` mints a new bearer token on **every** start, and all three
+/// desktop shells autostart the daemon — so any token held from before a
+/// restart is dead, and nothing invalidates it. That is the 401 loop users
+/// hit: an app presenting a token from a daemon that no longer exists. A
+/// pasted token in the UI, or a stale `VIBECLI_TOKEN` in the environment, made
+/// it permanent, because both outrank the live file.
+///
+/// Mirrors `daemonFetch`'s documented contract in VibeCoder: try, then re-read
+/// once on a 401. The retry is skipped when the fresh token equals the one
+/// already sent — that is a genuine auth failure, and retrying would only
+/// double the latency of every real rejection.
+async fn send_authed(
+    req: reqwest::RequestBuilder,
+    token: Option<String>,
+) -> Result<reqwest::Response, String> {
+    // Clone before the body is consumed. `try_clone` returns None for
+    // streaming bodies; those simply do not get a retry.
+    let retry_base = req.try_clone();
+    let sent = resolve_token(token);
+    let res = match sent.clone() {
+        Some(ref t) => req.header("Authorization", format!("Bearer {}", t)),
         None => req,
     }
+    .send()
+    .await
+    .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+
+    if res.status() != reqwest::StatusCode::UNAUTHORIZED {
+        return Ok(res);
+    }
+    let (Some(base), Some(fresh)) = (retry_base, file_token()) else {
+        return Ok(res);
+    };
+    if Some(&fresh) == sent.as_ref() {
+        return Ok(res); // already the newest token — a real auth failure
+    }
+    base.header("Authorization", format!("Bearer {}", fresh))
+        .send()
+        .await
+        .map_err(|e| format!("Cannot reach daemon: {}", e))
 }
 
 /// Ping the vibecli daemon `/health` endpoint; return "online" or an error.
@@ -204,11 +256,7 @@ pub async fn start_agent_session(
             body["resume_session_id"] = serde_json::Value::String(rid.clone());
         }
     }
-    let req = with_auth(client.post(&agent_url).json(&body), token);
-    let res = req
-        .send()
-        .await
-        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    let res = send_authed(client.post(&agent_url).json(&body), token).await?;
 
     if !res.status().is_success() {
         let status = res.status();
@@ -235,11 +283,7 @@ pub async fn list_tasks(
 ) -> Result<Vec<serde_json::Value>, String> {
     let tasks_url = format!("{}/api/tasks", url.trim_end_matches('/'));
     let client = reqwest::Client::new();
-    let req = with_auth(client.get(&tasks_url), token);
-    let resp = req
-        .send()
-        .await
-        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    let resp = send_authed(client.get(&tasks_url), token).await?;
     if !resp.status().is_success() {
         return Err(format!("Daemon returned {}", resp.status()));
     }
@@ -282,11 +326,7 @@ pub async fn create_task(
             body["project_path"] = serde_json::Value::String(pp.clone());
         }
     }
-    let req = with_auth(client.post(&tasks_url).json(&body), token);
-    let resp = req
-        .send()
-        .await
-        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    let resp = send_authed(client.post(&tasks_url).json(&body), token).await?;
     if !resp.status().is_success() {
         let status = resp.status();
         let b = resp.text().await.unwrap_or_default();
@@ -317,11 +357,7 @@ pub async fn update_task(
     if let Some(t) = &title {
         body["title"] = serde_json::Value::String(t.clone());
     }
-    let req = with_auth(client.patch(&task_url).json(&body), token);
-    let resp = req
-        .send()
-        .await
-        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    let resp = send_authed(client.patch(&task_url).json(&body), token).await?;
     if !resp.status().is_success() {
         return Err(format!("Daemon returned {}", resp.status()));
     }
@@ -344,11 +380,7 @@ pub async fn delete_task(
         remove_worktree.unwrap_or(false)
     );
     let client = reqwest::Client::new();
-    let req = with_auth(client.delete(&task_url), token);
-    let resp = req
-        .send()
-        .await
-        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    let resp = send_authed(client.delete(&task_url), token).await?;
     if !resp.status().is_success() {
         let status = resp.status();
         let b = resp.text().await.unwrap_or_default();
@@ -369,11 +401,7 @@ pub async fn merge_task(
 ) -> Result<serde_json::Value, String> {
     let merge_url = format!("{}/api/tasks/{}/merge", url.trim_end_matches('/'), id);
     let client = reqwest::Client::new();
-    let req = with_auth(client.post(&merge_url), token);
-    let resp = req
-        .send()
-        .await
-        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    let resp = send_authed(client.post(&merge_url), token).await?;
     if !resp.status().is_success() {
         let status = resp.status();
         let b = resp.text().await.unwrap_or_default();
@@ -394,11 +422,7 @@ pub async fn list_tasks_by_state(
     // daemon ignores unknown values (falls back to active), so no encoding needed.
     let tasks_url = format!("{}/api/tasks?state={}", url.trim_end_matches('/'), state);
     let client = reqwest::Client::new();
-    let req = with_auth(client.get(&tasks_url), token);
-    let resp = req
-        .send()
-        .await
-        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    let resp = send_authed(client.get(&tasks_url), token).await?;
     if !resp.status().is_success() {
         return Err(format!("Daemon returned {}", resp.status()));
     }
@@ -416,11 +440,7 @@ pub async fn archive_task(
 ) -> Result<serde_json::Value, String> {
     let u = format!("{}/api/tasks/{}/archive", url.trim_end_matches('/'), id);
     let client = reqwest::Client::new();
-    let req = with_auth(client.post(&u), token);
-    let resp = req
-        .send()
-        .await
-        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    let resp = send_authed(client.post(&u), token).await?;
     if !resp.status().is_success() {
         let status = resp.status();
         let b = resp.text().await.unwrap_or_default();
@@ -439,11 +459,7 @@ pub async fn restore_task(
 ) -> Result<serde_json::Value, String> {
     let u = format!("{}/api/tasks/{}/restore", url.trim_end_matches('/'), id);
     let client = reqwest::Client::new();
-    let req = with_auth(client.post(&u), token);
-    let resp = req
-        .send()
-        .await
-        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    let resp = send_authed(client.post(&u), token).await?;
     if !resp.status().is_success() {
         let status = resp.status();
         let b = resp.text().await.unwrap_or_default();
@@ -463,11 +479,7 @@ pub async fn purge_task(
 ) -> Result<serde_json::Value, String> {
     let u = format!("{}/api/tasks/{}?purge=true", url.trim_end_matches('/'), id);
     let client = reqwest::Client::new();
-    let req = with_auth(client.delete(&u), token);
-    let resp = req
-        .send()
-        .await
-        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    let resp = send_authed(client.delete(&u), token).await?;
     if !resp.status().is_success() {
         let status = resp.status();
         let b = resp.text().await.unwrap_or_default();
@@ -487,11 +499,7 @@ pub async fn get_task_history(
 ) -> Result<serde_json::Value, String> {
     let hist_url = format!("{}/api/tasks/{}/history", url.trim_end_matches('/'), id);
     let client = reqwest::Client::new();
-    let req = with_auth(client.get(&hist_url), token);
-    let resp = req
-        .send()
-        .await
-        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    let resp = send_authed(client.get(&hist_url), token).await?;
     if !resp.status().is_success() {
         return Err(format!("Daemon returned {}", resp.status()));
     }
@@ -514,10 +522,7 @@ async fn daemon_get(
         Some(p) => client.get(&full).query(&[("path", p)]),
         None => client.get(&full),
     };
-    let resp = with_auth(get, token)
-        .send()
-        .await
-        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    let resp = send_authed(get, token).await?;
     if !resp.status().is_success() {
         return Err(format!("Daemon returned {}", resp.status()));
     }
@@ -649,13 +654,7 @@ pub async fn create_loop(
 ) -> Result<serde_json::Value, String> {
     let u = format!("{}/v1/loops", url.trim_end_matches('/'));
     let client = reqwest::Client::new();
-    let resp = with_auth(
-        client.post(&u).json(&serde_json::json!({ "args": args })),
-        token,
-    )
-    .send()
-    .await
-    .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    let resp = send_authed(client.post(&u).json(&serde_json::json!({ "args": args })), token).await?;
     if !resp.status().is_success() {
         let s = resp.status();
         let b = resp.text().await.unwrap_or_default();
@@ -681,10 +680,7 @@ pub async fn stop_loop(
 ) -> Result<serde_json::Value, String> {
     let u = format!("{}/v1/loops/{}/stop", url.trim_end_matches('/'), id);
     let client = reqwest::Client::new();
-    let resp = with_auth(client.post(&u), token)
-        .send()
-        .await
-        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    let resp = send_authed(client.post(&u), token).await?;
     if !resp.status().is_success() {
         return Err(format!("Daemon returned {}", resp.status()));
     }
@@ -711,10 +707,7 @@ pub async fn run_command(
     if let Some(t) = timeout_ms {
         body["timeout_ms"] = serde_json::Value::from(t);
     }
-    let resp = with_auth(client.post(&u).json(&body), token)
-        .send()
-        .await
-        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    let resp = send_authed(client.post(&u).json(&body), token).await?;
     let status = resp.status();
     if !status.is_success() {
         let b = resp.text().await.unwrap_or_default();
@@ -801,10 +794,7 @@ pub async fn cancel_agent_session(
 ) -> Result<serde_json::Value, String> {
     let u = format!("{}/jobs/{}/cancel", url.trim_end_matches('/'), session_id);
     let client = reqwest::Client::new();
-    let resp = with_auth(client.post(&u), token)
-        .send()
-        .await
-        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    let resp = send_authed(client.post(&u), token).await?;
     if !resp.status().is_success() {
         let status = resp.status();
         let b = resp.text().await.unwrap_or_default();
@@ -854,10 +844,7 @@ pub async fn get_job(
 ) -> Result<serde_json::Value, String> {
     let u = format!("{}/jobs/{}", url.trim_end_matches('/'), session_id);
     let client = reqwest::Client::new();
-    let resp = with_auth(client.get(&u), token)
-        .send()
-        .await
-        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    let resp = send_authed(client.get(&u), token).await?;
     if !resp.status().is_success() {
         return Err(format!("Daemon returned {}", resp.status()));
     }
@@ -888,10 +875,9 @@ pub async fn stream_approvals(
 
     let u = format!("{}/v1/tainted/pending", url.trim_end_matches('/'));
     let client = reqwest::Client::new();
-    let res = with_auth(client.get(&u).header("Accept", "text/event-stream"), token)
-        .send()
+    let res = send_authed(client.get(&u).header("Accept", "text/event-stream"), token)
         .await
-        .map_err(|e| format!("Cannot connect to approval stream: {}", e))?;
+        .map_err(|e| e.replace("Cannot reach daemon", "Cannot connect to approval stream"))?;
 
     if !res.status().is_success() {
         return Err(format!("Approval stream returned {}", res.status()));
@@ -937,10 +923,7 @@ pub async fn respond_approval(
     let u = format!("{}/v1/tainted/respond", url.trim_end_matches('/'));
     let client = reqwest::Client::new();
     let body = serde_json::json!({ "request_id": request_id, "approve": approve });
-    let resp = with_auth(client.post(&u).json(&body), token)
-        .send()
-        .await
-        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    let resp = send_authed(client.post(&u).json(&body), token).await?;
     let status = resp.status();
     let parsed: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
     if !status.is_success() && status != reqwest::StatusCode::NOT_FOUND {
@@ -986,10 +969,9 @@ pub async fn stream_agent(
         Some(n) => get.query(&[("since_seq", n)]),
         None => get,
     };
-    let res = with_auth(get, token)
-        .send()
+    let res = send_authed(get, token)
         .await
-        .map_err(|e| format!("Cannot connect to stream: {}", e))?;
+        .map_err(|e| e.replace("Cannot reach daemon", "Cannot connect to stream"))?;
 
     if !res.status().is_success() {
         return Err(format!("Stream returned {}", res.status()));

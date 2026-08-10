@@ -23,6 +23,12 @@ anyhow = { workspace = true }
 vibe-desktop-settings = { path = "../../crates/vibe-desktop-settings" }
 # Voice input — the same daemon bridge every shell uses (crates/vibe-desktop-voice).
 vibe-desktop-voice = { path = "../../crates/vibe-desktop-voice" }
+# Daemon autostart + `/health` identity probe. AGENTS.md is explicit that this
+# logic has exactly one implementation (`vibecli/vibecli-cli/src/daemon_bootstrap.rs`)
+# and that clients must not write another copy — so this shell takes the
+# dependency rather than reimplementing "is it running, and if not, start it".
+# VibeDesk already depends on the same crate for the same reason.
+vibecli_cli = { package = "vibecli", path = "../../vibecli/vibecli-cli" }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

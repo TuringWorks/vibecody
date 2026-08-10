@@ -12267,6 +12267,7 @@ dependencies = [
  "tokio",
  "vibe-desktop-settings",
  "vibe-desktop-voice",
+ "vibecli",
 ]
 
 [[package]]

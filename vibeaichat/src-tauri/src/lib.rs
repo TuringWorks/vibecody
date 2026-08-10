@@ -50,6 +50,24 @@ pub fn run() {
             // no way to restore it is losing it.
             wire_tray(app.handle())?;
 
+            // Zero-config: autostart the VibeCLI daemon on launch so this shell works
+            // out of the box, exactly as VibeCoder and VibeDesk do. Every daemon
+            // route but a handful needs a bearer token, and that token only exists
+            // once a daemon has started and written it — so a shell that never
+            // starts one 401s on everything with nothing on screen explaining why.
+            //
+            // Reuses an already-running daemon (identity-checked via `/health`), so
+            // launching alongside VibeCoder does not spawn a second one.
+            // Fire-and-forget: the daemon-status banner reflects the outcome.
+            tauri::async_runtime::spawn(async {
+                let port = commands::daemon_port();
+                let state = commands::ensure_daemon_state(port).await;
+                // Log the specific outcome. Each failure is a distinct state with
+                // its own remedy — a port conflict and a missing binary need
+                // opposite advice.
+                eprintln!("vibeaichat: {}", state.user_message());
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -58,6 +76,7 @@ pub fn run() {
             commands::hide_window,
             commands::show_window,
             commands::check_daemon,
+            commands::start_daemon,
             commands::list_daemon_models,
             commands::start_agent_session,
             commands::stream_agent,

@@ -34,11 +34,66 @@ fn resolve_token(explicit: Option<String>) -> Option<String> {
         })
 }
 
-fn with_auth(req: reqwest::RequestBuilder, token: Option<String>) -> reqwest::RequestBuilder {
-    match resolve_token(token) {
-        Some(t) => req.header("Authorization", format!("Bearer {}", t)),
+/// The daemon's *current* token, read straight from `~/.vibecli/daemon.token`.
+///
+/// Deliberately bypasses `resolve_token`'s precedence. That order is right for
+/// a first attempt, but wrong for a retry: an explicit token or a stale
+/// `VIBECLI_TOKEN` outranks the file, and one of those being out of date is
+/// usually *why* the request came back 401. Retrying with it would just earn a
+/// second 401.
+fn file_token() -> Option<String> {
+    let path = std::env::var_os("HOME")
+        .map(std::path::PathBuf::from)?
+        .join(".vibecli")
+        .join("daemon.token");
+    std::fs::read_to_string(path)
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
+/// Send an authenticated daemon request, retrying once on 401 with a freshly
+/// read token.
+///
+/// `vibecli serve` mints a new bearer token on **every** start, and all three
+/// desktop shells autostart the daemon — so a token held from before a restart
+/// is dead and nothing invalidates it. This module is linked into all three,
+/// so a missing retry here breaks voice input in every one of them at once.
+///
+/// Mirrors `daemonFetch`'s contract in VibeCoder: try, then re-read once on a
+/// 401. Skipped when the fresh token matches what was already sent — that is a
+/// real auth failure, and retrying would only double the latency of every
+/// genuine rejection.
+async fn send_authed(
+    req: reqwest::RequestBuilder,
+    token: Option<String>,
+    context: &str,
+) -> Result<reqwest::Response, String> {
+    // Clone before the body is consumed; `try_clone` is None for streaming
+    // bodies, which then simply do not get a retry.
+    let retry_base = req.try_clone();
+    let sent = resolve_token(token);
+    let res = match sent.clone() {
+        Some(ref t) => req.header("Authorization", format!("Bearer {}", t)),
         None => req,
     }
+    .send()
+    .await
+    .map_err(|e| format!("{context}: {e}"))?;
+
+    if res.status() != reqwest::StatusCode::UNAUTHORIZED {
+        return Ok(res);
+    }
+    let (Some(base), Some(fresh)) = (retry_base, file_token()) else {
+        return Ok(res);
+    };
+    if Some(&fresh) == sent.as_ref() {
+        return Ok(res);
+    }
+    base.header("Authorization", format!("Bearer {fresh}"))
+        .send()
+        .await
+        .map_err(|e| format!("{context}: {e}"))
 }
 
 fn base_url(url: Option<String>) -> String {
@@ -108,10 +163,7 @@ pub async fn transcribe_audio(
     }
 
     let endpoint = format!("{}/voice/transcribe", base_url(url));
-    let resp = with_auth(client.post(&endpoint).json(&body), token)
-        .send()
-        .await
-        .map_err(|e| format!("Cannot reach the daemon for transcription: {}", e))?;
+    let resp = send_authed(client.post(&endpoint).json(&body), token, "Cannot reach the daemon for transcription").await?;
 
     if !resp.status().is_success() {
         return Err(error_message(resp).await);
@@ -140,10 +192,7 @@ pub async fn voice_status(
         .build()
         .map_err(|e| e.to_string())?;
     let endpoint = format!("{}/voice/status", base_url(url));
-    let resp = with_auth(client.get(&endpoint), token)
-        .send()
-        .await
-        .map_err(|e| format!("Cannot reach the daemon: {}", e))?;
+    let resp = send_authed(client.get(&endpoint), token, "Cannot reach the daemon").await?;
     if !resp.status().is_success() {
         return Err(error_message(resp).await);
     }

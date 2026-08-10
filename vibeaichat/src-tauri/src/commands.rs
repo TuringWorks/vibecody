@@ -41,13 +41,53 @@ pub async fn show_window(app: AppHandle) -> Result<(), String> {
 
 /// Value the daemon reports as `service` in `GET /health`.
 ///
-/// Duplicated as a literal rather than pulled from
-/// `vibecli_cli::daemon_bootstrap::SERVICE_NAME`: VibeAIChat deliberately does not
-/// depend on the `vibecli` crate (it would drag in the whole inference stack
-/// for one constant). Keep it in step — it is the contract, not an
-/// implementation detail. See AGENTS.md → "Touching daemon startup, health, or
-/// discovery".
-const VIBECLI_SERVICE_NAME: &str = "vibecli";
+/// Now taken from the shared module rather than duplicated as a literal. The
+/// old comment argued that depending on `vibecli` was too heavy for one
+/// constant — but this shell needs `daemon_bootstrap` for autostart anyway, and
+/// AGENTS.md forbids a second copy of that logic. One dependency, one
+/// definition of the contract.
+const VIBECLI_SERVICE_NAME: &str = vibecli_cli::daemon_bootstrap::SERVICE_NAME;
+
+// ── Daemon lifecycle ─────────────────────────────────────────────────────────
+
+/// Default daemon port. `VIBECLI_DAEMON_PORT` (legacy `VIBEDESK_DAEMON_PORT`)
+/// overrides it.
+pub fn daemon_port() -> u16 {
+    vibecli_cli::daemon_bootstrap::default_port()
+}
+
+/// Ensure the daemon is running on `port`, reusing one that already answers.
+///
+/// Delegates to `vibecli_cli::daemon_bootstrap` — the single implementation
+/// shared with VibeCoder and VibeDesk. It verifies the responder is actually
+/// VibeCLI (a bare TCP connect treats any process on 7878 as the daemon), it
+/// resolves the binary beyond bare `PATH` (a Finder-launched bundle has no
+/// `~/.cargo/bin`), and it polls to a deadline rather than sleeping a guess — a
+/// cold daemon has been measured at ~16 s to first answer `/health`.
+pub async fn ensure_daemon_state(port: u16) -> vibecli_cli::daemon_bootstrap::DaemonState {
+    vibecli_cli::daemon_bootstrap::ensure_running(&vibecli_cli::daemon_bootstrap::BootstrapConfig {
+        port,
+        ..Default::default()
+    })
+    .await
+}
+
+/// Start the VibeCLI daemon if it isn't already running.
+///
+/// The UI "retry" affordance for when autostart didn't take (e.g. `vibecli`
+/// wasn't resolvable at launch). Errors name the actual cause — "is vibecli on
+/// your PATH?" is wrong advice for a port conflict or a daemon that crashed on
+/// boot.
+#[tauri::command]
+pub async fn start_daemon(port: Option<u16>) -> Result<String, String> {
+    let port = port.unwrap_or_else(daemon_port);
+    let state = ensure_daemon_state(port).await;
+    if state.is_ready() {
+        Ok("online".to_string())
+    } else {
+        Err(state.user_message())
+    }
+}
 
 /// Ping the vibecli daemon and return "online" or an error message.
 #[tauri::command]
