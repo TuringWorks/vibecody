@@ -16,7 +16,7 @@ curl -fsSL https://raw.githubusercontent.com/TuringWorks/vibecody/main/install.s
 
 ## v0.5.8 — Latest
 
-**Released:** August 9, 2026 &middot; [Release notes](https://github.com/TuringWorks/vibecody/releases/tag/v0.5.8) &middot; [Changelog](https://github.com/TuringWorks/vibecody/compare/v0.5.7...v0.5.8)
+**Released:** August 10, 2026 &middot; [Release notes](https://github.com/TuringWorks/vibecody/releases/tag/v0.5.8) &middot; [Changelog](https://github.com/TuringWorks/vibecody/compare/v0.5.7...v0.5.8)
 
 The largest release so far — 410 commits since v0.5.7. Voice input on every
 client, SkillForge, the kodegraph code-graph substrate, goal-driven loops, a
