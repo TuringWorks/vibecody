@@ -1,128 +1,90 @@
-# cargo-audit suppressions — the single source of truth.
+# cargo-audit suppressions.
 #
-# This file exists because the same list used to live in three places:
-# .github/workflows/release.yml, .github/workflows/security.yml and deny.toml.
-# They drifted, and on 2026-08-10 the v0.5.8 release failed because release.yml
-# was the copy missing RUSTSEC-2026-0215 (smallstr, unmaintained). cargo-audit
-# reads .cargo/audit.toml automatically, so both workflows now inherit this and
-# cannot disagree.
+# cargo-audit reads this file automatically when run from the repo root, so
+# neither workflow passes `--ignore` flags any more. The list used to be
+# copy-pasted into .github/workflows/release.yml and
+# .github/workflows/security.yml; they drifted, and on 2026-08-10 the v0.5.8
+# release failed because release.yml was the copy missing RUSTSEC-2026-0215
+# (smallstr, unmaintained).
 #
-# Policy (see the two workflows):
-#   release.yml  --deny unsound --deny yanked   -> vulnerabilities/unsound/yanked block a release
-#   security.yml --deny warnings                -> also surfaces `unmaintained`, without gating a ship
+# deny.toml is the AUTHORITATIVE list — cargo-deny cannot read this file, and
+# only its schema carries a reason per entry. This file mirrors deny.toml's
+# `[advisories].ignore` ids. The `Suppression lists agree` step in
+# security.yml compares the two id sets and fails on any difference, which is
+# what makes "they cannot disagree" true rather than aspirational. When you
+# add, remove, or expire a suppression, edit deny.toml first and mirror it
+# here in the same commit.
 #
-# An `unmaintained` crate is a supply-chain signal, not an exploit. Blocking a
-# tagged release on one means any upstream maintainer walking away becomes our
-# release-day outage. It still fails the security workflow, where it belongs.
+# Policy — both workflows run `cargo audit --deny warnings`, so an
+# `unmaintained` crate blocks a release as well as a PR. That is stricter
+# than it needs to be (an unmaintained crate is a supply-chain signal, not an
+# exploit, and it makes any upstream maintainer walking away a release-day
+# outage) but it is the behaviour that shipped, and loosening it is a policy
+# decision, not a refactor.
+#
+# Reasons and [review-by] dates live in deny.toml. The short notes below are
+# only there to make this file readable on its own.
 
 [advisories]
 ignore = [
-    # gtk-rs GTK3 unmaintained — Tauri 2.x Linux dep (transitive via tauri/tray-icon/wry). Tracked
-    # in https://github.com/tauri-apps/tauri/issues — awaits Tauri's gtk4 migration. [review-by
-    # 2026-08-19]
+    # ── Real vulnerability ────────────────────────────────────────────
+    # rsa 0.9 Marvin Attack timing sidechannel. NOTE: `rsa` is no longer in
+    # Cargo.lock at all, so this suppression is currently inert — kept
+    # because dropping it in the same change that consolidated the lists
+    # would have been a silent policy change. Remove at the next triage if
+    # it is still absent.
+    "RUSTSEC-2023-0071",
+
+    # ── Tauri 2.x Linux stack (gtk-rs GTK3 family) ────────────────────
+    # Ten transitives via tauri → tray-icon / muda / tao / webkit2gtk / wry.
+    # Gated on Tauri's gtk4 migration.
     "RUSTSEC-2024-0411",
-
-    # gtk-rs GTK3 unmaintained — same chain as 2024-0411. [review-by 2026-08-19]
     "RUSTSEC-2024-0412",
-
-    # gtk-rs GTK3 unmaintained — same chain as 2024-0411. [review-by 2026-08-19]
     "RUSTSEC-2024-0413",
-
-    # gtk-rs GTK3 unmaintained — same chain as 2024-0411. [review-by 2026-08-19]
     "RUSTSEC-2024-0414",
-
-    # gtk-rs GTK3 unmaintained — same chain as 2024-0411. [review-by 2026-08-19]
     "RUSTSEC-2024-0415",
-
-    # gtk-rs GTK3 unmaintained — same chain as 2024-0411. [review-by 2026-08-19]
     "RUSTSEC-2024-0416",
-
-    # gtk-rs GTK3 unmaintained — same chain as 2024-0411. [review-by 2026-08-19]
     "RUSTSEC-2024-0417",
-
-    # gtk-rs GTK3 unmaintained — same chain as 2024-0411. [review-by 2026-08-19]
     "RUSTSEC-2024-0418",
-
-    # gtk-rs GTK3 unmaintained — same chain as 2024-0411. [review-by 2026-08-19]
     "RUSTSEC-2024-0419",
-
-    # gtk-rs GTK3 unmaintained — same chain as 2024-0411. [review-by 2026-08-19]
     "RUSTSEC-2024-0420",
-
-    # glib 0.18.5 unsound `VariantStrIter` Iterator/DoubleEndedIterator impls. Transitive via
-    # webkit2gtk → wry / tauri 2.x; same gtk4-migration gate as 2024-0411..0420. [review-by
-    # 2026-08-19]
+    # glib 0.18.5 unsound `VariantStrIter` — same gtk4 gate.
     "RUSTSEC-2024-0429",
 
-    # lru 0.12.5 `IterMut` Stacked-Borrows unsoundness (invalidates an internal pointer; Miri/UB-
-    # level). Transitive via ratatui 0.29 → vibecli TUI layout cache. Not attacker-reachable: the
-    # cache holds widget-layout geometry derived from terminal size, never external input. Fix
-    # (lru 0.16.3) is gated on the ratatui 0.29 → 0.30 upgrade. [review-by 2026-08-19]
+    # ── ratatui 0.29 (TUI layout cache) ───────────────────────────────
+    # lru 0.12.5 `IterMut` Stacked-Borrows unsoundness. Gated on the
+    # ratatui 0.29 → 0.30 upgrade.
     "RUSTSEC-2026-0002",
 
-    # unic-char-range unmaintained — transitive Unicode. Replacement candidate is icu4x. Single
-    # root cause covers 2025-0075/0080/0081/0098/0100. [review-by 2026-08-19]
+    # ── unic-* family ─────────────────────────────────────────────────
+    # One upstream Unicode chain, five advisories. Replacement is icu4x.
     "RUSTSEC-2025-0075",
-
-    # unic-common unmaintained — same root cause as 2025-0075. [review-by 2026-08-19]
     "RUSTSEC-2025-0080",
-
-    # unic-char-property unmaintained — same root cause as 2025-0075. [review-by 2026-08-19]
     "RUSTSEC-2025-0081",
-
-    # unic-ucd-version unmaintained — same root cause as 2025-0075. [review-by 2026-08-19]
     "RUSTSEC-2025-0098",
-
-    # unic-ucd-ident unmaintained — same root cause as 2025-0075. [review-by 2026-08-19]
     "RUSTSEC-2025-0100",
 
-    # `serial` unmaintained — transitive; project does not call into it directly. Investigate at
-    # quarterly review whether the parent dep still needs serial port support. [review-by
-    # 2026-08-19]
+    # ── Common transitive unmaintained crates ─────────────────────────
+    # `serial`.
     "RUSTSEC-2017-0008",
-
-    # proc-macro-error 1.x unmaintained (also drags syn 1.x duplicate). Replacement is proc-macro-
-    # error2. Transitive through several proc-macro deps; no direct project use. [review-by
-    # 2026-08-19]
+    # yaml-rust. NOTE: also no longer in Cargo.lock — see the rsa note above.
+    "RUSTSEC-2024-0320",
+    # proc-macro-error 1.x.
     "RUSTSEC-2024-0370",
-
-    # instant unmaintained — transitive time crate, web_time / std::time::Instant are the modern
-    # replacements. Owning dep needs to migrate. [review-by 2026-08-19]
+    # instant.
     "RUSTSEC-2024-0384",
-
-    # derivative unmaintained — transitive via keyring → secret-service → zbus 3.x. Tied to the
-    # keyring dep upgrade. [review-by 2026-08-19]
+    # derivative (via keyring → secret-service → zbus 3.x).
     "RUSTSEC-2024-0388",
-
-    # paste unmaintained — widely-transitive macro helper. No direct project use; no security
-    # implications beyond maintenance status. [review-by 2026-08-19]
+    # paste.
     "RUSTSEC-2024-0436",
-
-    # fxhash unmaintained — transitive via mistralrs-core → bm25. NOT cleared by the 2026-08-06
-    # fork sync to upstream v0.9.0: bm25 is still 2.3.2 and still depends on fxhash, so this is
-    # upstream bm25's to fix, not ours. Re-check when bm25 releases past 2.3.2 or mistralrs drops
-    # it. [review-by 2026-11-06]
+    # fxhash (via mistralrs-core → bm25 2.3.2).
     "RUSTSEC-2025-0057",
-
-    # number_prefix unmaintained — transitive (likely via a progress-bar lib). [review-by
-    # 2026-08-19]
+    # number_prefix.
     "RUSTSEC-2025-0119",
-
-    # bincode 1.x unmaintained — transitive via syntect 5.3 and vibe-memory. bincode 2.x is a non-
-    # trivial API rewrite; track syntect's migration. [review-by 2026-08-19]
+    # rustls-pemfile, superseded by rustls-pki-types.
+    "RUSTSEC-2025-0134",
+    # bincode 1.x (via syntect 5.3 and vibe-memory).
     "RUSTSEC-2025-0141",
-
-    # smallstr 0.3.1 unmaintained — transitive via yrs 0.27 (CRDT layer behind vibe-collab). No
-    # patched release exists; the fix is yrs dropping the dep. Unmaintained-only: no vulnerability
-    # is claimed against smallstr. [review-by 2026-11-06]
+    # smallstr (via yrs 0.27, the CRDT layer behind vibe-collab).
     "RUSTSEC-2026-0215",
-
-    # lru 0.12.5 `IterMut` violates Stacked Borrows by invalidating an internal pointer.
-    # Transitive via ratatui 0.29. Triggered only when callers use IterMut (the TUI consumes lru
-    # via Get/Put, not IterMut). [review-by 2026-08-19]
-    "RUSTSEC-2026-0002",
-
-    # Present in security.yml's list but absent from deny.toml and release.yml — carried here so
-    # the three cannot disagree again. [review-by 2026-11-10]
-    "RUSTSEC-2026-0222",
 ]
