@@ -14,9 +14,7 @@ curl -fsSL https://raw.githubusercontent.com/TuringWorks/vibecody/main/install.s
 
 ---
 
-## v0.5.8 — tagged, binaries not yet published
-
-> **The v0.5.8 downloads below do not exist yet.** The tag is pushed, but the release build failed on a `cargo audit` gate and published no artifacts, so every v0.5.8 link on this page returns 404. Use [v0.5.7](#v057--latest-downloadable-release) until the release job completes.
+## v0.5.8 — Latest
 
 **Released:** August 10, 2026 &middot; [Release notes](https://github.com/TuringWorks/vibecody/releases/tag/v0.5.8) &middot; [Changelog](https://github.com/TuringWorks/vibecody/compare/v0.5.7...v0.5.8)
 
@@ -161,11 +159,11 @@ for the full credential list and the local build recipe.
 
 ---
 
-## v0.5.7 — Latest downloadable release
+## v0.5.7
 
 **Released:** May 29, 2026 &middot; [Release notes](https://github.com/TuringWorks/vibecody/releases/tag/v0.5.7) &middot; [Changelog](https://github.com/TuringWorks/vibecody/compare/v0.5.6...v0.5.7)
 
-These are the binaries you can install today. VibeDesk is not listed: it did not exist yet in v0.5.7.
+Previous release. VibeDesk is not listed: it did not exist yet in v0.5.7.
 
 ### VibeCLI — Terminal AI Assistant
 
