@@ -373,7 +373,13 @@ jobs:
           # Tauri picks these up automatically. On non-macOS / when the cert
           # isn't configured, they're all empty and the config-level "-"
           # (ad-hoc) identity is used instead.
-          APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && steps.vibecoder-apple-cert.outputs.signed == 'true' && secrets.APPLE_SIGNING_IDENTITY || '' }}
+          # '-' (ad-hoc), never '' — Tauri treats a present-but-empty
+          # APPLE_SIGNING_IDENTITY as an explicit request to sign with the
+          # identity "", which `codesign` rejects with "no identity found" and
+          # the bundle step turns into a hard failure. It does NOT fall back to
+          # the `"signingIdentity": "-"` in tauri.conf.json. That is what broke
+          # the v0.5.8 macOS builds on a repo with no signing secrets.
+          APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && steps.vibecoder-apple-cert.outputs.signed == 'true' && secrets.APPLE_SIGNING_IDENTITY || '-' }}
           APPLE_ID: ${{ runner.os == 'macOS' && steps.vibecoder-apple-cert.outputs.signed == 'true' && secrets.APPLE_ID || '' }}
           APPLE_TEAM_ID: ${{ runner.os == 'macOS' && steps.vibecoder-apple-cert.outputs.signed == 'true' && secrets.APPLE_TEAM_ID || '' }}
           APPLE_PASSWORD: ${{ runner.os == 'macOS' && steps.vibecoder-apple-cert.outputs.signed == 'true' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
@@ -494,7 +500,13 @@ jobs:
       - name: Build Tauri app
         working-directory: vibeaichat
         env:
-          APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && steps.vibeaichat-apple-cert.outputs.signed == 'true' && secrets.APPLE_SIGNING_IDENTITY || '' }}
+          # '-' (ad-hoc), never '' — Tauri treats a present-but-empty
+          # APPLE_SIGNING_IDENTITY as an explicit request to sign with the
+          # identity "", which `codesign` rejects with "no identity found" and
+          # the bundle step turns into a hard failure. It does NOT fall back to
+          # the `"signingIdentity": "-"` in tauri.conf.json. That is what broke
+          # the v0.5.8 macOS builds on a repo with no signing secrets.
+          APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && steps.vibeaichat-apple-cert.outputs.signed == 'true' && secrets.APPLE_SIGNING_IDENTITY || '-' }}
           APPLE_ID: ${{ runner.os == 'macOS' && steps.vibeaichat-apple-cert.outputs.signed == 'true' && secrets.APPLE_ID || '' }}
           APPLE_TEAM_ID: ${{ runner.os == 'macOS' && steps.vibeaichat-apple-cert.outputs.signed == 'true' && secrets.APPLE_TEAM_ID || '' }}
           APPLE_PASSWORD: ${{ runner.os == 'macOS' && steps.vibeaichat-apple-cert.outputs.signed == 'true' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
@@ -619,7 +631,13 @@ jobs:
         # and the DMG step skips the Finder AppleScript that has no runner to
         # talk to. Locally that has to be set by hand — see docs/release.md.
         env:
-          APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && steps.vibedesk-apple-cert.outputs.signed == 'true' && secrets.APPLE_SIGNING_IDENTITY || '' }}
+          # '-' (ad-hoc), never '' — Tauri treats a present-but-empty
+          # APPLE_SIGNING_IDENTITY as an explicit request to sign with the
+          # identity "", which `codesign` rejects with "no identity found" and
+          # the bundle step turns into a hard failure. It does NOT fall back to
+          # the `"signingIdentity": "-"` in tauri.conf.json. That is what broke
+          # the v0.5.8 macOS builds on a repo with no signing secrets.
+          APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && steps.vibedesk-apple-cert.outputs.signed == 'true' && secrets.APPLE_SIGNING_IDENTITY || '-' }}
           APPLE_ID: ${{ runner.os == 'macOS' && steps.vibedesk-apple-cert.outputs.signed == 'true' && secrets.APPLE_ID || '' }}
           APPLE_TEAM_ID: ${{ runner.os == 'macOS' && steps.vibedesk-apple-cert.outputs.signed == 'true' && secrets.APPLE_TEAM_ID || '' }}
           APPLE_PASSWORD: ${{ runner.os == 'macOS' && steps.vibedesk-apple-cert.outputs.signed == 'true' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
