@@ -39,8 +39,19 @@ jobs:
       - name: Install cargo-audit
         run: cargo install cargo-audit --locked
 
-      - name: Generate Cargo.lock (gitignored)
-        run: cargo generate-lockfile
+      # DO NOT regenerate Cargo.lock. It is committed (the old step name
+      # called it gitignored; it is not, and has not been), and
+      # `cargo generate-lockfile` re-resolves every dependency to the newest
+      # semver-compatible release — so this gate passed against versions that
+      # were never built, while the lock the release actually compiles from
+      # kept its unpatched ones. That is exactly how quinn-proto 0.11.14
+      # (RUSTSEC-2026-0222 et al.) sat in the lock behind a green audit.
+      # security.yml stopped doing this; the release gate had not, which made
+      # the stricter of the two audits the one that meant less.
+      - name: Verify Cargo.lock is committed and current
+        run: |
+          test -f Cargo.lock || { echo "::error::Cargo.lock is missing — it must be committed"; exit 1; }
+          cargo metadata --locked --format-version 1 >/dev/null
 
       # No `|| true`. Suppressions come from .cargo/audit.toml, which
       # cargo-audit reads automatically from the repo root — this used to be
@@ -71,8 +82,16 @@ jobs:
       - name: Install cargo-sbom
         run: cargo install cargo-sbom --locked
 
-      - name: Generate Cargo.lock (gitignored)
-        run: cargo generate-lockfile
+      # Same reason as the audit job, and it bites harder here: an SBOM is an
+      # attestation of what this release contains. Built from a regenerated
+      # lockfile it describes a dependency set that was resolved on the runner
+      # and never compiled into any artifact — so an auditor cross-referencing
+      # it against a future advisory would clear (or blame) versions the
+      # release never shipped.
+      - name: Verify Cargo.lock is committed and current
+        run: |
+          test -f Cargo.lock || { echo "::error::Cargo.lock is missing — it must be committed"; exit 1; }
+          cargo metadata --locked --format-version 1 >/dev/null
 
       - name: Rust SBOM
         run: cargo sbom --output-format cyclone_dx_json_1_4 > vibecody-rust.cdx.json
@@ -191,10 +210,19 @@ jobs:
         with:
           key: cli-${{ matrix.target }}
 
+      # `--locked` closes the loop the audit job opens: that job now verifies
+      # the committed Cargo.lock, and this one refuses to build against
+      # anything else. Without it cargo silently *updates* the lock when it
+      # cannot satisfy Cargo.toml, and the shipped binary quietly stops
+      # matching the dependency set that was audited and published as the
+      # SBOM. `cargo metadata --locked` already passes, so this fails only
+      # when the lock is genuinely stale — which is when a release should
+      # stop.
       - name: Build release binary
         run: >
           ${{ matrix.use_cross && 'cross' || 'cargo' }} build
           --release
+          --locked
           --package vibecli
           --target ${{ matrix.target }}
 
