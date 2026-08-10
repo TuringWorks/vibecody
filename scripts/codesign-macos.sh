@@ -125,8 +125,20 @@ entitlements_for() {
 verify_one() {
   local target="$1"
 
-  if ! codesign --verify --strict --verbose=2 "$target" 2>&1 | grep -q 'valid on disk'; then
+  # Capture, then match. Piping into `grep -q` looks equivalent but is not:
+  # grep exits at the first match and closes the pipe, codesign takes SIGPIPE,
+  # and `set -o pipefail` reports the whole pipeline as failed — so a perfectly
+  # valid signature came back as "does not verify". Same trap as piping cargo
+  # into `tail`.
+  local verify
+  verify="$(codesign --verify --strict --verbose=2 "$target" 2>&1)" || {
+    echo "  FAIL  codesign --verify exited non-zero"
+    printf '        %s\n' "$verify"
+    return 1
+  }
+  if [[ "$verify" != *"valid on disk"* ]]; then
     echo "  FAIL  signature does not verify"
+    printf '        %s\n' "$verify"
     return 1
   fi
 
