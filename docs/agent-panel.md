@@ -6,7 +6,7 @@ permalink: /agent-panel/
 
 The Agent Panel is the core "describe a task, the agent plans and executes it" surface in VibeCoder/VibeAIChat. It owns the agent loop UX — prompt, plan, tool calls, approval gates, partial-completion checkpoints, and parallel-chunk execution via git-worktree isolation.
 
-This page covers the desktop panel. The chat-tab side of agent invocation (per-tab agent loop toggle) is documented in [`docs/chat-tabs`](./chat-tabs.md). The cross-cutting agent runtime lives in `crates/vibe-ai/src/agent_loop.rs`.
+This page covers the desktop panel. The chat-tab side of agent invocation (per-tab agent loop toggle) is documented in [`docs/chat-tabs`]({{ site.baseurl }}/chat-tabs/). The cross-cutting agent runtime lives in `crates/vibe-ai/src/agent_loop.rs`.
 
 ---
 
@@ -164,4 +164,4 @@ After a `write_file` step, the panel auto-runs a linter against the changed file
 - **Agent runtime:** `crates/vibe-ai/src/agent_loop.rs` — the core loop (Plan → Act → Verify → Done)
 - **Source:** `vibecoder/src/components/AgentPanel.tsx` (~750 LOC) · backend `vibecoder/src-tauri/src/commands.rs` (`start_agent_task`, `stop_agent_task`, `respond_to_agent_approval`, `resume_agent_task`)
 - **Tests:** `vibecoder/src/components/__tests__/AgentPanel.bdd.test.tsx` (25 BDD scenarios)
-- **Sandbox:** [`docs/sandbox`](./sandbox.md) — every agent shell tool call goes through the Tier-0 sandbox
+- **Sandbox:** [`docs/sandbox`]({{ site.baseurl }}/sandbox/) — every agent shell tool call goes through the Tier-0 sandbox

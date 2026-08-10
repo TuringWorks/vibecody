@@ -229,5 +229,5 @@ data: {"type":"done","tokens":{"input":14,"output":22}}
 ## What's Next
 
 - [Demo 55: Voice, Pairing & Tailscale](../55-voice-pairing-tailscale/) -- Remote access with Tailscale Funnel
-- [Demo 01: First Run & Setup](../01-first-run/) -- Install and configure VibeCLI
-- [Demo 27: HTTP Playground](../27-http-playground/) -- Test APIs with collections and history
+- [Demo 01: First Run & Setup]({{ site.baseurl }}/demos/first-run/) -- Install and configure VibeCLI
+- [Demo 27: HTTP Playground]({{ site.baseurl }}/demos/http-playground/) -- Test APIs with collections and history

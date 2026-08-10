@@ -330,6 +330,6 @@ Open VibeCoder and navigate to the **GraphQL** panel. The interface provides:
 
 ## What's Next
 
-- [Demo 29: Regex & Encoding Tools](../29-regex-encoding/) -- Pattern testing, JWT decoding, and data conversion
-- [Demo 30: Notebook & Scripts](../30-notebook-scripts/) -- Interactive notebooks and AI-assisted scripting
-- [Demo 25: SWE-bench Benchmarking](../25-swe-bench/) -- Benchmark your AI provider with SWE-bench
+- [Demo 29: Regex & Encoding Tools]({{ site.baseurl }}/demos/regex-encoding/) -- Pattern testing, JWT decoding, and data conversion
+- [Demo 30: Notebook & Scripts]({{ site.baseurl }}/demos/notebook-scripts/) -- Interactive notebooks and AI-assisted scripting
+- [Demo 25: SWE-bench Benchmarking]({{ site.baseurl }}/demos/swe-bench/) -- Benchmark your AI provider with SWE-bench

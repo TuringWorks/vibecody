@@ -5,7 +5,7 @@ permalink: /chat-tabs/
 ---
 
 
-The chat tab manager is the heart of VibeCody's conversation UX in VibeCoder and VibeCLI App. It owns multiple concurrent chat sessions, per-tab provider overrides, session history, recap-on-close, and Watch active-session sync. This page documents the user-facing surface; the cross-client `Recap` shape lives in [`docs/recap`](./recap.md).
+The chat tab manager is the heart of VibeCody's conversation UX in VibeCoder and VibeCLI App. It owns multiple concurrent chat sessions, per-tab provider overrides, session history, recap-on-close, and Watch active-session sync. This page documents the user-facing surface; the cross-client `Recap` shape lives in [`docs/recap`]({{ site.baseurl }}/recap/).
 
 ---
 
@@ -112,7 +112,7 @@ VibeCoder and VibeAIChat share the exact same `ChatTabManager.tsx`. The implemen
 
 ## Watch active-session sync
 
-When the Apple Watch or Wear OS companion app switches its active session, the desktop subscribes via `useWatchActiveSession` and calls `setActiveTabId` if the corresponding tab is open. The reverse direction (desktop → watch) is owned by the watch companion's session-list refresh — see [`docs/watch-integration`](./WATCH-INTEGRATION.md).
+When the Apple Watch or Wear OS companion app switches its active session, the desktop subscribes via `useWatchActiveSession` and calls `setActiveTabId` if the corresponding tab is open. The reverse direction (desktop → watch) is owned by the watch companion's session-list refresh — see [`docs/watch-integration`]({{ site.baseurl }}/watch-integration/).
 
 If the active session id from the watch doesn't match an open tab, the call is a no-op — VibeCoder does NOT auto-restore from history on a watch trigger, because the session may not be in the user's history yet.
 
@@ -140,6 +140,6 @@ The watch sends a session id; VibeCoder only switches if a tab with that id is a
 
 ## Related
 
-- **Recap & Resume:** [`docs/recap`](./recap.md) — the cross-client recap shape and `/v1/recap` API
-- **Watch integration:** [`docs/watch-integration`](./WATCH-INTEGRATION.md) — pairing + session sync
+- **Recap & Resume:** [`docs/recap`]({{ site.baseurl }}/recap/) — the cross-client recap shape and `/v1/recap` API
+- **Watch integration:** [`docs/watch-integration`]({{ site.baseurl }}/watch-integration/) — pairing + session sync
 - **Source:** `vibecoder/src/components/ChatTabManager.tsx` (804 LOC) · tests in `vibecoder/src/components/__tests__/ChatTabManager.bdd.test.tsx`

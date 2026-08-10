@@ -428,6 +428,6 @@ In VibeCoder, the **Data Gen** panel has a type selector, count field, format dr
 
 ## What's Next
 
-- [Demo 30: Notebook & Scripts](../30-notebook-scripts/) -- Interactive notebooks and AI-assisted scripting
-- [Demo 25: SWE-bench Benchmarking](../25-swe-bench/) -- Benchmark your AI provider with SWE-bench
-- [Demo 26: QA Validation Pipeline](../26-qa-validation/) -- Validate code with 8 QA agents
+- [Demo 30: Notebook & Scripts]({{ site.baseurl }}/demos/notebook-scripts/) -- Interactive notebooks and AI-assisted scripting
+- [Demo 25: SWE-bench Benchmarking]({{ site.baseurl }}/demos/swe-bench/) -- Benchmark your AI provider with SWE-bench
+- [Demo 26: QA Validation Pipeline]({{ site.baseurl }}/demos/qa-validation/) -- Validate code with 8 QA agents

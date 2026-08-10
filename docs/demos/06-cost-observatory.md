@@ -15,8 +15,8 @@ The Cost Observatory gives you full visibility into your AI spending across all 
 
 ## Prerequisites
 
-- VibeCLI installed and configured with one or more cloud AI providers (see [Demo 1: First Run](../01-first-run/))
-- Some chat or agent history to generate cost data (run a few commands from [Demo 3](../03-multi-provider-chat/) or [Demo 4](../04-agent-loop/) first)
+- VibeCLI installed and configured with one or more cloud AI providers (see [Demo 1: First Run]({{ site.baseurl }}/demos/first-run/))
+- Some chat or agent history to generate cost data (run a few commands from [Demo 3]({{ site.baseurl }}/demos/multi-provider-chat/) or [Demo 4]({{ site.baseurl }}/demos/agent-loop/) first)
 - Local providers like Ollama are free but still tracked for token counts
 
 ## Step-by-Step Walkthrough
@@ -390,6 +390,6 @@ In VibeCoder, the Cost panel provides an interactive dashboard with:
 
 ## What's Next
 
-- [Demo 1: First Run](../01-first-run/) -- Revisit initial setup
-- [Demo 3: Multi-Provider Chat](../03-multi-provider-chat/) -- Configure more providers for cost comparison
-- [Demo 5: Model Arena](../05-model-arena/) -- Build quality ratings to complement cost data
+- [Demo 1: First Run]({{ site.baseurl }}/demos/first-run/) -- Revisit initial setup
+- [Demo 3: Multi-Provider Chat]({{ site.baseurl }}/demos/multi-provider-chat/) -- Configure more providers for cost comparison
+- [Demo 5: Model Arena]({{ site.baseurl }}/demos/model-arena/) -- Build quality ratings to complement cost data

@@ -6,7 +6,7 @@ permalink: /sessions/
 
 The Session Browser is the panel for inspecting, replaying, forking, and deleting your past VibeCody conversations. Every interactive vibecli or vibecoder session writes a JSONL trace to `<workspace>/.vibecli/traces/`; the panel reads from that directory directly.
 
-This page covers the desktop session browser. The chat-tab side of session lifecycle (auto-save, recap-on-close) is documented in [`docs/chat-tabs`](./chat-tabs.md), and the cross-client recap shape lives in [`docs/recap`](./recap.md).
+This page covers the desktop session browser. The chat-tab side of session lifecycle (auto-save, recap-on-close) is documented in [`docs/chat-tabs`]({{ site.baseurl }}/chat-tabs/), and the cross-client recap shape lives in [`docs/recap`]({{ site.baseurl }}/recap/).
 
 ---
 
@@ -156,7 +156,7 @@ Forks land in the same trace directory and should appear after Refresh. If they 
 
 ## Related
 
-- **Chat Tabs:** [`docs/chat-tabs`](./chat-tabs.md) — auto-save / recap-on-close lifecycle
-- **Recap & Resume:** [`docs/recap`](./recap.md) — cross-client summary shape
+- **Chat Tabs:** [`docs/chat-tabs`]({{ site.baseurl }}/chat-tabs/) — auto-save / recap-on-close lifecycle
+- **Recap & Resume:** [`docs/recap`]({{ site.baseurl }}/recap/) — cross-client summary shape
 - **Source:** `vibecoder/src/components/SessionBrowserPanel.tsx` (562 LOC) · backend `vibecoder/src-tauri/src/commands.rs` (`list_sessions`, `get_session_detail`, `delete_session`, `fork_session`)
 - **Tests:** `vibecoder/src/components/__tests__/SessionBrowserPanel.bdd.test.tsx` (9 BDD scenarios)

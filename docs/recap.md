@@ -126,7 +126,7 @@ curl http://127.0.0.1:7878/health | jq '.features.recap'
 }
 ```
 
-Clients **must not** pre-select an experimental generator without a feature flag — see [feature-flags](../feature-flags/) for the canonical pattern.
+Clients **must not** pre-select an experimental generator without a feature flag — see [feature-flags](https://github.com/TuringWorks/vibecody/blob/main/docs/design/feature-flags/README.md) for the canonical pattern.
 
 ---
 

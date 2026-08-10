@@ -287,4 +287,4 @@ In the VibeCoder desktop app, the **Traces** panel provides a visual replay expe
 
 - [Demo 47: Multi-LLM Deliberation](../47-counsel-superbrain/) -- Structured debates and consensus across providers
 - [Demo 42: MCTS Code Repair](../42-mcts-repair/) -- Fix bugs with tree-search exploration
-- [Demo 4: Agent Loop](../04-agent-loop/) -- Learn how the agent loop works from scratch
+- [Demo 4: Agent Loop]({{ site.baseurl }}/demos/agent-loop/) -- Learn how the agent loop works from scratch

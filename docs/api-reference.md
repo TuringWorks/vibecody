@@ -874,7 +874,7 @@ curl http://localhost:7878/pair
 
 ## Embeddings — `/embeddings/*`, `/index/*`
 
-Semantic search / RAG. Full guide: [embeddings.md](./embeddings.md).
+Semantic search / RAG. Full guide: [embeddings.md]({{ site.baseurl }}/embeddings/).
 
 ### `GET /embeddings/models`
 
@@ -947,7 +947,7 @@ and, on a paid provider, real money.
 
 ## Goals — `/v1/goals/*`
 
-Durable execution-intent primitive. See [design/goal/README.md](./design/goal/README.md) for the full data model + cross-client surface table.
+Durable execution-intent primitive. See [design/goal/README.md](https://github.com/TuringWorks/vibecody/blob/main/docs/design/goal/README.md) for the full data model + cross-client surface table.
 
 | Method | Path | Purpose |
 |---|---|---|

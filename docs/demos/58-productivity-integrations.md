@@ -230,4 +230,4 @@ Each integration has a dedicated skill file with setup guides and usage patterns
 - **Agent workflows**: Use VibeCLI's agent loop to build cross-tool automations — e.g. "when a Jira ticket is assigned, add it to Todoist and send a Slack confirmation".
 - **Voice control**: Pair with the voice interface (Demo 55) to control smart home and manage tasks hands-free.
 
-See also: [Easy Setup](/demos/57-easy-setup/) · [Agent Loop](/demos/04-agent-loop/) · [Voice Pairing](/demos/55-voice-pairing-tailscale/)
+See also: [Easy Setup]({{ site.baseurl }}/demos/57-easy-setup/) · [Agent Loop]({{ site.baseurl }}/demos/agent-loop/) · [Voice Pairing]({{ site.baseurl }}/demos/55-voice-pairing-tailscale/)

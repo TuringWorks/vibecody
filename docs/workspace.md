@@ -155,5 +155,5 @@ The keyboard shortcut binding requires focus to be in the main app shell. If you
 - **Source:**
   - `vibecoder/src-tauri/src/commands.rs` — `add_workspace_folder`, `get_workspace_folders`, `list_recent_workspaces`, `remove_recent_workspace`
   - `vibecoder/src/App.tsx` — the picker UI + recents rendering
-- **Sessions:** [`docs/sessions`](./sessions.md) — session list reads from `<workspace>/.vibecli/traces/`
-- **Agent Panel:** [`docs/agent-panel`](./agent-panel.md) — agent runs are rooted at the active workspace
+- **Sessions:** [`docs/sessions`]({{ site.baseurl }}/sessions/) — session list reads from `<workspace>/.vibecli/traces/`
+- **Agent Panel:** [`docs/agent-panel`]({{ site.baseurl }}/agent-panel/) — agent runs are rooted at the active workspace

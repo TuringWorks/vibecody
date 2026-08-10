@@ -184,7 +184,7 @@ This means if you start at home on Wi-Fi (mDNS wins), commute (ngrok or Tailscal
 
 ## iOS sideloading (no App Store)
 
-See the [VibeMobile setup guide](/vibemobile/#ios-sideloading) for building and installing the IPA with AltStore or Sideloadly using a free Apple ID.
+See the [VibeMobile setup guide]({{ site.baseurl }}/vibemobile/#ios-sideloading) for building and installing the IPA with AltStore or Sideloadly using a free Apple ID.
 
 ---
 
@@ -192,7 +192,7 @@ See the [VibeMobile setup guide](/vibemobile/#ios-sideloading) for building and 
 
 The `--host` flag controls *which interface* the daemon listens on. It does **not** control authentication — every state-mutating route still requires a bearer token regardless of bind address. But the choice of bind address determines who can *reach* the daemon and try to brute-force that bearer.
 
-Threat-model reference: [`docs/security/threat-model.md`](./security/threat-model.md) §7 items #7 and #18.
+Threat-model reference: [`docs/security/threat-model.md`](https://github.com/TuringWorks/vibecody/blob/main/docs/security/threat-model.md) §7 items #7 and #18.
 
 | `--host` value | Reachable from | When to use | Risk |
 |---|---|---|---|
@@ -221,7 +221,7 @@ vibecli serve --host 192.168.1.42   # bind your LAN interface explicitly, not 0.
 
 ### Bearer-token rotation
 
-Every `vibecli serve` start mints a fresh 128-bit bearer token. Restarting the daemon is the rotation procedure. See [`docs/security/key-rotation.md`](./security/key-rotation.md) for the full procedure (what survives rotation, what doesn't, and how to verify via `/health.api_token.minted_at_unix`).
+Every `vibecli serve` start mints a fresh 128-bit bearer token. Restarting the daemon is the rotation procedure. See [`docs/security/key-rotation.md`](https://github.com/TuringWorks/vibecody/blob/main/docs/security/key-rotation.md) for the full procedure (what survives rotation, what doesn't, and how to verify via `/health.api_token.minted_at_unix`).
 
 ### Verifying your bind is safe { #verifying-bind }
 

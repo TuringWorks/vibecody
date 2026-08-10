@@ -181,7 +181,7 @@ The watch generated a key in the Secure Enclave but the signature doesn't valida
 
 ### "kernel.unprivileged_userns_clone: 0" on Linux during pairing
 
-Unrelated — that's a sandbox issue, not a pairing one. See [`docs/sandbox`](./sandbox.md).
+Unrelated — that's a sandbox issue, not a pairing one. See [`docs/sandbox`]({{ site.baseurl }}/sandbox/).
 
 ### QR code scans but the URL won't open in the browser
 
@@ -196,5 +196,5 @@ Either the URL contains `localhost` (see above) or your phone is on a different 
   - `vibecli/vibecli-cli/src/serve.rs` — `/pair`, `/mobile/pairing/*`, `/watch/devices/*`
   - `vibecoder/src/components/RemoteControlPanel.tsx` — the host-side server UI
   - `vibecoder/src/components/WatchManagementPanel.tsx` — registered watches + revocation
-- **Connectivity:** [`docs/connectivity`](./connectivity.md) — mDNS / Tailscale / ngrok / phone-relay races
-- **Watch integration:** [`docs/watch-integration`](./WATCH-INTEGRATION.md) — companion-app architecture
+- **Connectivity:** [`docs/connectivity`]({{ site.baseurl }}/connectivity/) — mDNS / Tailscale / ngrok / phone-relay races
+- **Watch integration:** [`docs/watch-integration`]({{ site.baseurl }}/watch-integration/) — companion-app architecture

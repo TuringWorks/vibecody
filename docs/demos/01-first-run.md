@@ -328,6 +328,6 @@ The following JSON recording can be used for automated demo playback with VibeCo
 
 ## What's Next
 
-- [Demo 2: TUI Interface](../02-tui-interface/) -- Learn to navigate the terminal UI
-- [Demo 3: Multi-Provider Chat](../03-multi-provider-chat/) -- Switch between 23 AI providers
-- [Demo 4: Agent Loop](../04-agent-loop/) -- Let the AI edit files and run commands
+- [Demo 2: TUI Interface]({{ site.baseurl }}/demos/tui-interface/) -- Learn to navigate the terminal UI
+- [Demo 3: Multi-Provider Chat]({{ site.baseurl }}/demos/multi-provider-chat/) -- Switch between 23 AI providers
+- [Demo 4: Agent Loop]({{ site.baseurl }}/demos/agent-loop/) -- Let the AI edit files and run commands

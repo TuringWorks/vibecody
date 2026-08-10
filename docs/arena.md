@@ -146,6 +146,6 @@ The button dispatches a `vibecoder:inject-context` window event. The Chat panel 
 
 ## Related
 
-- **Providers:** [`docs/providers/`](./providers/) — what counts as a configured provider
+- **Providers:** [`docs/providers/`]({{ site.baseurl }}/providers/) — what counts as a configured provider
 - **Source:** `vibecoder/src/components/ArenaPanel.tsx` (399 LOC) · backend in `vibecoder/src-tauri/src/commands.rs` (`compare_models`, `save_arena_vote`, `get_arena_history`)
 - **Tests:** `vibecoder/src/components/__tests__/ArenaPanel.bdd.test.tsx`

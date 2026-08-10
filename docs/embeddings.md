@@ -184,7 +184,7 @@ vanish from every search — rows still in the database, no signal at all.
 
 ## HTTP API
 
-All routes require the bearer token (see [security](./security/)).
+All routes require the bearer token (see [security]({{ site.baseurl }}/security/)).
 
 ### `GET /embeddings/models`
 

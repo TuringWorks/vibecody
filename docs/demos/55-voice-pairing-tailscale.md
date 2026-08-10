@@ -268,5 +268,5 @@ The voice, pairing, and network features are also available in VibeCoder:
 ## What's Next
 
 - [Demo 56: Browser-Based Web Client](../56-web-client/) -- Access VibeCLI from any browser
-- [Demo 22: Gateway Messaging](../22-gateway/) -- Use VibeCody on Slack, Discord, and 16 more platforms
-- [Demo 01: First Run & Setup](../01-first-run/) -- Initial installation and provider configuration
+- [Demo 22: Gateway Messaging]({{ site.baseurl }}/demos/gateway/) -- Use VibeCody on Slack, Discord, and 16 more platforms
+- [Demo 01: First Run & Setup]({{ site.baseurl }}/demos/first-run/) -- Initial installation and provider configuration

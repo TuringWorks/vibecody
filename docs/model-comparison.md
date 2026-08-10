@@ -527,6 +527,6 @@ Per [CLAUDE.md](https://github.com/anthropics/claude-code), the model list is th
 
 ## See also
 
-- [Providers overview](/providers/) — per-provider setup and API key configuration.
-- [Configuration](/configuration/) — daemon and UI settings.
-- [Failover](/providers/failover/) — chain providers so one going down doesn't kill your session.
+- [Providers overview]({{ site.baseurl }}/providers/) — per-provider setup and API key configuration.
+- [Configuration]({{ site.baseurl }}/configuration/) — daemon and UI settings.
+- [Failover]({{ site.baseurl }}/providers/failover/) — chain providers so one going down doesn't kill your session.

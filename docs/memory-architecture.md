@@ -809,10 +809,10 @@ on_tab_close = true              # Auto-recap when tab closed
 
 ## See Also
 
-- [`memory-guide.md`](./memory-guide.md) -- User-facing memory commands and usage
-- [`AGENTS.md`](../AGENTS.md) -- Agent guidelines, storage patterns, security rules
-- [`design/recap-resume/README.md`](./design/recap-resume/README.md) -- Recap/resume design docs
-- [`architecture.md`](./architecture.md) -- General system architecture
+- [`memory-guide.md`]({{ site.baseurl }}/memory-guide/) -- User-facing memory commands and usage
+- [`AGENTS.md`](https://github.com/TuringWorks/vibecody/blob/main/AGENTS.md) -- Agent guidelines, storage patterns, security rules
+- [`design/recap-resume/README.md`](https://github.com/TuringWorks/vibecody/blob/main/docs/design/recap-resume/README.md) -- Recap/resume design docs
+- [`architecture.md`]({{ site.baseurl }}/architecture/) -- General system architecture
 
 ---
 

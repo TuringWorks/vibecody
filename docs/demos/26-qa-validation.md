@@ -265,6 +265,6 @@ Open VibeCoder and navigate to the **QA Validation** panel. The workflow is:
 
 ## What's Next
 
-- [Demo 27: HTTP Playground](../27-http-playground/) -- Build and test API requests interactively
-- [Demo 28: GraphQL Explorer](../28-graphql/) -- Introspect schemas and build queries
-- [Demo 29: Regex & Encoding Tools](../29-regex-encoding/) -- Pattern testing, JWT decoding, and data conversion
+- [Demo 27: HTTP Playground]({{ site.baseurl }}/demos/http-playground/) -- Build and test API requests interactively
+- [Demo 28: GraphQL Explorer]({{ site.baseurl }}/demos/graphql/) -- Introspect schemas and build queries
+- [Demo 29: Regex & Encoding Tools]({{ site.baseurl }}/demos/regex-encoding/) -- Pattern testing, JWT decoding, and data conversion

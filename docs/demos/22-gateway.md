@@ -331,6 +331,6 @@ Open the **Gateway** panel from the sidebar.
 
 ## What's Next
 
-- [Demo 23: Test Runner & Coverage](../23-test-coverage/) -- AI-powered test generation with coverage tracking
-- [Demo 24: Red Team Security](../24-red-team/) -- Automated security scanning with OWASP checks
+- [Demo 23: Test Runner & Coverage]({{ site.baseurl }}/demos/test-coverage/) -- AI-powered test generation with coverage tracking
+- [Demo 24: Red Team Security]({{ site.baseurl }}/demos/red-team/) -- Automated security scanning with OWASP checks
 - Use the gateway with agent teams to let team agents report progress to your Slack channel

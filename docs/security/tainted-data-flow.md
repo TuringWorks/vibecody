@@ -5,7 +5,7 @@ permalink: /security/tainted-data-flow/
 ---
 
 > **Status:** design draft, 2026-05-14. Not yet implemented.
-> **Threat:** DREAD #1 in [`threat-model.md`](./threat-model.md) — *prompt injection in repo/file content escalates to file-write or shell tool call*. Damage 10 / Reproducibility 8 / Exploitability 7 / Affected 10 / Discoverability 8 → **8.6**, the highest score on the open list.
+> **Threat:** DREAD #1 in [`threat-model.md`](https://github.com/TuringWorks/vibecody/blob/main/docs/security/threat-model.md) — *prompt injection in repo/file content escalates to file-write or shell tool call*. Damage 10 / Reproducibility 8 / Exploitability 7 / Affected 10 / Discoverability 8 → **8.6**, the highest score on the open list.
 > **Owner:** Security SME (rotating). **Reviewer:** maintainers of `serve.rs`, MCP runtime, and the tool registry.
 
 ---
@@ -28,7 +28,7 @@ This document proposes a **taint-propagation discipline** that makes the prompt-
 | Source — RAG hit | T5 | `semantic_index` / `chroma` lookups against the workspace | Whatever the indexed corpus contains |
 | Propagation | T5 | LLM input message, LLM streaming response, structured tool-call args | The model echoes attacker text into its own output |
 | Sink — tool call | T0 → host | `fs.write`, `shell.exec`, `git.commit`, `mcp.invoke`, `http.request`, `provider.message` | Privileged operation on host or network |
-| Sink — user-facing log | T0 → user | `tracing::info!` of prompt content; chat UI rendering | Information disclosure if rendered raw (covered by [DREAD #10](./threat-model.md) for the WebView side) |
+| Sink — user-facing log | T0 → user | `tracing::info!` of prompt content; chat UI rendering | Information disclosure if rendered raw (covered by [DREAD #10](https://github.com/TuringWorks/vibecody/blob/main/docs/security/threat-model.md) for the WebView side) |
 
 The **tool-call sink is the catastrophic one** — that's where T5 text reaches T0 host privilege. Everything else is recoverable.
 
@@ -80,7 +80,7 @@ pub enum Provenance {
 }
 ```
 
-Mirrors the existing [`Redact<T>`](../../vibecli/vibecli-cli/src/redact.rs) newtype design: no `Deref`, no `Display` impl that exposes the inner value, serde-transparent where it makes sense, and explicit `.expose_for(...)` methods at the sink.
+Mirrors the existing [`Redact<T>`](https://github.com/TuringWorks/vibecody/blob/main/vibecli/vibecli-cli/src/redact.rs) newtype design: no `Deref`, no `Display` impl that exposes the inner value, serde-transparent where it makes sense, and explicit `.expose_for(...)` methods at the sink.
 
 ---
 
@@ -122,7 +122,7 @@ A tainted string in an HTTP request body to an LLM provider is *expected* — th
 
 Tainted strings *can* be displayed to the user — that's the entire point of a chat UI. But:
 
-- Tainted markdown going to the WebView already runs through DOMPurify ([DREAD #10](./threat-model.md)) — defense-in-depth complete.
+- Tainted markdown going to the WebView already runs through DOMPurify ([DREAD #10](https://github.com/TuringWorks/vibecody/blob/main/docs/security/threat-model.md)) — defense-in-depth complete.
 - Tainted strings in `tracing::*!` logs must redact origin/byte-range to a 16-char hash (so admins can correlate but the log file isn't a prompt-injection corpus).
 
 ### 6.4 Cache storage (SessionStore, recap text)
@@ -261,7 +261,7 @@ In all three cases the **payload bytes never leave the daemon** — only `audit_
 - **Prompt-injection detection in the LLM input layer.** Detectors are bypassable; we don't ship one.
 - **Sandboxing the LLM provider.** The LLM provider is T5 by definition.
 - **Preventing the model from generating tool calls.** That's the product. We constrain *which arguments* it can ship.
-- **Cryptographic provenance.** The `Provenance` enum is metadata, not a signature. A compromised daemon could forge it; that's out of scope (covered by host-OS-compromise out-of-scope clause in [`threat-model.md §9`](./threat-model.md)).
+- **Cryptographic provenance.** The `Provenance` enum is metadata, not a signature. A compromised daemon could forge it; that's out of scope (covered by host-OS-compromise out-of-scope clause in [`threat-model.md §9`](https://github.com/TuringWorks/vibecody/blob/main/docs/security/threat-model.md)).
 
 ---
 

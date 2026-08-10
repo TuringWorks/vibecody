@@ -9,7 +9,7 @@ VibeCody is an AI-powered coding assistant that runs **anywhere you need it** --
 
 With **23 AI providers** (from local Ollama to Claude, OpenAI, Gemini, and 20 more), **106+ REPL commands**, **556+ skill files**, and a full autonomous agent loop, VibeCody covers the entire software development lifecycle -- from writing the first line of code to deploying, monitoring, and securing production systems. It also connects to **Gmail/Outlook, Google/Outlook Calendar, Todoist, Notion, Jira, and Home Assistant** for productivity workflows beyond coding.
 
-See the [Configuration Guide](/configuration/) for setup and the [Provider Guide](/providers/) for connecting your preferred AI backend.
+See the [Configuration Guide]({{ site.baseurl }}/configuration/) for setup and the [Provider Guide]({{ site.baseurl }}/providers/) for connecting your preferred AI backend.
 
 ---
 

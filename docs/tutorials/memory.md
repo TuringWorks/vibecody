@@ -383,7 +383,7 @@ The agent now has persistent, structured memory of your preferences, your stack,
 
 ## What's Next
 
-- [Memory Guide](../memory-guide/) — Complete reference for all three memory layers
-- [Demo 61: Verbatim Drawers](../demos/61-memory-drawers/) — Deep dive into MemPalace chunk ingestion
-- [Demo 62: Memory Benchmarking](../demos/62-memory-benchmark/) — Improve recall quality over time
-- [Configuration Guide](../configuration/) — Tune `[openmemory]` decay rates and encryption
+- [Memory Guide]({{ site.baseurl }}/memory-guide/) — Complete reference for all three memory layers
+- [Demo 61: Verbatim Drawers]({{ site.baseurl }}/demos/61-memory-drawers/) — Deep dive into MemPalace chunk ingestion
+- [Demo 62: Memory Benchmarking]({{ site.baseurl }}/demos/62-memory-benchmark/) — Improve recall quality over time
+- [Configuration Guide]({{ site.baseurl }}/configuration/) — Tune `[openmemory]` decay rates and encryption

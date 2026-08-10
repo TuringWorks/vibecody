@@ -6,9 +6,9 @@ permalink: /skillforge/
 
 > **One-liner.** SkillForge makes VibeCody's shipped skill library **measurable** (SkillLens) and **self-improving** (SkillOpt) — turning each skill markdown doc into trainable state that improves against held-out validation, with **zero inference-time overhead** at deploy.
 
-VibeCody ships ~710 skill files in `vibecli/vibecli-cli/skills/*.md`. Today they are hand-authored and static. SkillForge is a Rust port of [TuringWorks/SkillLens](https://github.com/TuringWorks/SkillLens) + [TuringWorks/SkillOpt](https://github.com/TuringWorks/SkillOpt), wired into the daemon the same way the [Code Graph](./demos/41-semantic-index/) (kodegraph) is — one standalone crate, one daemon bridge module, HTTP routes, and a VibeCoder panel.
+VibeCody ships ~710 skill files in `vibecli/vibecli-cli/skills/*.md`. Today they are hand-authored and static. SkillForge is a Rust port of [TuringWorks/SkillLens](https://github.com/TuringWorks/SkillLens) + [TuringWorks/SkillOpt](https://github.com/TuringWorks/SkillOpt), wired into the daemon the same way the [Code Graph]({{ site.baseurl }}/demos/41-semantic-index/) (kodegraph) is — one standalone crate, one daemon bridge module, HTTP routes, and a VibeCoder panel.
 
-This page documents the user-facing surface. For the full design, decisions, and roadmap, see the **`notes/skillforge/`** vault (start at `SkillForge — MOC.md`). For a runnable walkthrough, see [Demo 66: SkillForge](./demos/66-skillforge/).
+This page documents the user-facing surface. For the full design, decisions, and roadmap, see the **`notes/skillforge/`** vault (start at `SkillForge — MOC.md`). For a runnable walkthrough, see [Demo 66: SkillForge]({{ site.baseurl }}/demos/66-skillforge/).
 
 ## What it does
 
@@ -36,7 +36,7 @@ Open the **SkillForge** tab in the AI/ML composite. Three views:
 
 ## Provider-agnostic (STRICT)
 
-Every LLM call — SkillLens scoring/extraction and SkillOpt training — uses the provider and model selected in the VibeCoder toolbar dropdown (`selectedProvider` / `selectedModel`). No panel, daemon route, Tauri command, or client method hard-codes Anthropic or any single provider. If the toolbar selection is empty, the panel shows a "select a model" empty state rather than silently calling a default. See [AGENTS.md → Provider-Agnostic Panels](../AGENTS.md).
+Every LLM call — SkillLens scoring/extraction and SkillOpt training — uses the provider and model selected in the VibeCoder toolbar dropdown (`selectedProvider` / `selectedModel`). No panel, daemon route, Tauri command, or client method hard-codes Anthropic or any single provider. If the toolbar selection is empty, the panel shows a "select a model" empty state rather than silently calling a default. See [AGENTS.md → Provider-Agnostic Panels](https://github.com/TuringWorks/vibecody/blob/main/AGENTS.md).
 
 ## HTTP surface
 

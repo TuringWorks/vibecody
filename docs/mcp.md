@@ -148,7 +148,7 @@ Server commands and arguments are **not** logged — only the server name. Tool 
 | **VibeWatch** | None |
 | **IDE plugins** | Read-only — surface configured server names for tool-completion contexts |
 
-The panel runs in the Tauri host. Servers are subprocess-spawned by the host — they inherit the host's user but run in fresh process trees. Sandbox enforcement (see [`docs/sandbox`](./sandbox.md)) does not apply to MCP server subprocesses today; treat them as trusted helpers and use the OAuth flow rather than long-lived environment-variable tokens where possible.
+The panel runs in the Tauri host. Servers are subprocess-spawned by the host — they inherit the host's user but run in fresh process trees. Sandbox enforcement (see [`docs/sandbox`]({{ site.baseurl }}/sandbox/)) does not apply to MCP server subprocesses today; treat them as trusted helpers and use the OAuth flow rather than long-lived environment-variable tokens where possible.
 
 ---
 
@@ -181,4 +181,4 @@ The Tools tab probes all servers in parallel, but rendering is gated by `serverT
 - **MCP client core:** `crates/vibe-ai/src/mcp.rs` — connect, list_tools, call_tool
 - **Source:** `vibecoder/src/components/McpPanel.tsx` (902 LOC) · backend in `vibecoder/src-tauri/src/commands.rs`
 - **Tests:** `vibecoder/src/components/__tests__/McpPanel.test.tsx`
-- **Sandbox:** [`docs/sandbox`](./sandbox.md) — note that MCP server subprocesses are NOT sandboxed in the current Tier-0
+- **Sandbox:** [`docs/sandbox`]({{ site.baseurl }}/sandbox/) — note that MCP server subprocesses are NOT sandboxed in the current Tier-0

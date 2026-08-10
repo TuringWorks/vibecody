@@ -256,6 +256,6 @@ Open VibeCoder and navigate to the **SWE-bench** panel from the AI sidebar. The 
 
 ## What's Next
 
-- [Demo 26: QA Validation Pipeline](../26-qa-validation/) -- Validate code quality with 8 specialized QA agents
-- [Demo 27: HTTP Playground](../27-http-playground/) -- Build and test API requests interactively
-- [Demo 28: GraphQL Explorer](../28-graphql/) -- Introspect schemas and build queries
+- [Demo 26: QA Validation Pipeline]({{ site.baseurl }}/demos/qa-validation/) -- Validate code quality with 8 specialized QA agents
+- [Demo 27: HTTP Playground]({{ site.baseurl }}/demos/http-playground/) -- Build and test API requests interactively
+- [Demo 28: GraphQL Explorer]({{ site.baseurl }}/demos/graphql/) -- Introspect schemas and build queries

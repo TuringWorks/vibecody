@@ -15,7 +15,7 @@ This demo covers VibeCody's deployment workflows and database management capabil
 
 ## Prerequisites
 
-- VibeCLI installed and configured ([Demo 1](../01-first-run/))
+- VibeCLI installed and configured ([Demo 1]({{ site.baseurl }}/demos/first-run/))
 - At least one database accessible (PostgreSQL, MySQL, SQLite, MongoDB, Redis, or DuckDB)
 - (Optional) A Supabase project for Supabase integration
 - (Optional) VibeCoder for the desktop panel experience

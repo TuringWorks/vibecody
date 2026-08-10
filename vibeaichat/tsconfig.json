@@ -19,7 +19,19 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "baseUrl": ".",
+    // No `baseUrl`: TypeScript 6 deprecated it and 7 removed it outright
+    // (TS5102). Every mapping below is already relative, and TS resolves
+    // `paths` against the tsconfig's own directory when `baseUrl` is absent,
+    // so removing it is behaviour-preserving on the pinned 5.x too.
+    //
+    // Removed pre-emptively: vibedesk hit exactly this the moment its
+    // typescript pin moved to ^7, and it only shows up in CI, because a stale
+    // local node_modules keeps compiling with the old compiler.
+    //
+    // This does NOT make the app TS 7-ready. Checked with typescript@7.0.2:
+    // the baseUrl error is gone, but CSS side-effect imports then fail with
+    // TS2882 ("Cannot find module or type declarations for './App.css'").
+    // That needs its own fix when the pin actually moves.
     "paths": {
       "@vibe/shared": [
         "../packages/vibe-ui-shared/src"

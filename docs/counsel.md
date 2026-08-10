@@ -161,5 +161,5 @@ The participants converged. This is a real outcome; the debate is over. Synthesi
 
 - **Source:** `vibecoder/src/components/CounselPanel.tsx` (~545 LOC) · backend in `vibecoder/src-tauri/src/commands.rs` (`counsel_create_session`, `counsel_run_round`, `counsel_synthesize`, `counsel_delete_session`, `counsel_inject_message`, `counsel_vote`, `counsel_update_participant`)
 - **Counsel runtime:** `vibecli/vibecli-cli/src/counsel.rs` — session model + `add_round`
-- **Arena Mode:** [`docs/arena`](./arena.md) — for blind 1-vs-1 comparisons (different use case)
+- **Arena Mode:** [`docs/arena`]({{ site.baseurl }}/arena/) — for blind 1-vs-1 comparisons (different use case)
 - **SuperBrain:** for parallel multi-provider runs with judge-as-aggregator (different use case)

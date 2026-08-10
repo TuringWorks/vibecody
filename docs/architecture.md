@@ -163,7 +163,7 @@ Two-layer indexing for codebase intelligence:
 | Module | Description |
 |--------|-------------|
 | `mod.rs` + `symbol.rs` | Tree-sitter based symbol extraction |
-| `embeddings.rs` | Per-model vector index over source chunks. Any provider `vibe-embed` supports — Ollama, OpenAI (and OpenAI-compatible endpoints), Voyage, Cohere, Gemini, in-process candle. Indexes are keyed by model and coexist; see [embeddings.md](./embeddings.md) |
+| `embeddings.rs` | Per-model vector index over source chunks. Any provider `vibe-embed` supports — Ollama, OpenAI (and OpenAI-compatible endpoints), Voyage, Cohere, Gemini, in-process candle. Indexes are keyed by model and coexist; see [embeddings.md]({{ site.baseurl }}/embeddings/) |
 
 `EmbeddingIndex` supports incremental updates, semantic search, and persistence:
 
@@ -603,7 +603,7 @@ Recap & Resume provide cross-client session continuity:
 | Job | `jobs.db` | `recaps` |
 | DiffChain | `workspace.db` | `diff_chain_recaps` |
 
-See [`memory-architecture.md`](./memory-architecture.md) for complete documentation.
+See [`memory-architecture.md`]({{ site.baseurl }}/memory-architecture/) for complete documentation.
 
 ---
 
@@ -700,7 +700,7 @@ Key design notes:
 - **Replay prevention**: the `NonceRegistry` rejects any request whose timestamp is outside a 30-second window or whose nonce has been seen.
 - **Nonce registry, broadcast fan-out, and 11 `/watch/*` routes** live in `watch_bridge.rs` as a standalone Axum router that the main daemon mounts.
 
-See [docs/WATCH-INTEGRATION.md](WATCH-INTEGRATION.md) for complete route tables, claims structure, TDD / BDD coverage, and the watch client implementation details.
+See [docs/WATCH-INTEGRATION.md]({{ site.baseurl }}/watch-integration/) for complete route tables, claims structure, TDD / BDD coverage, and the watch client implementation details.
 
 ### Zero-config connectivity (mDNS / Tailscale / ngrok)
 
@@ -715,4 +715,4 @@ Three independent modules in `vibecli/vibecli-cli/src/` build the beacon returne
 
 The mobile / watch clients consume these paths through the URL race described above. No single path is required — the app silently uses whichever responds first.
 
-Full protocol + troubleshooting: [docs/connectivity.md](connectivity.md).
+Full protocol + troubleshooting: [docs/connectivity.md]({{ site.baseurl }}/connectivity/).

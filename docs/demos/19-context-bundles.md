@@ -304,6 +304,6 @@ The following JSON represents a recorded demo session that can be replayed in Vi
 
 ## What's Next
 
-- [Demo 20: Agent Teams](../20-agent-teams/) -- Coordinate multiple AI agents with specialized roles
-- [Demo 21: CRDT Collaboration](../21-crdt-collab/) -- Real-time collaborative editing with conflict resolution
+- [Demo 20: Agent Teams]({{ site.baseurl }}/demos/agent-teams/) -- Coordinate multiple AI agents with specialized roles
+- [Demo 21: CRDT Collaboration]({{ site.baseurl }}/demos/crdt-collab/) -- Real-time collaborative editing with conflict resolution
 - Combine context bundles with agent teams so each agent role inherits the right project context

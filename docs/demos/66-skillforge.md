@@ -8,7 +8,7 @@ permalink: /demos/66-skillforge/
 
 VibeCody ships ~710 agent-skill files in `vibecli/vibecli-cli/skills/*.md`. They're hand-authored and static. **SkillForge** makes that library measurable and self-improving: [SkillLens](https://github.com/TuringWorks/SkillLens) scores how useful a skill is to a target model, and [SkillOpt](https://github.com/TuringWorks/SkillOpt) trains the skill markdown with bounded edits accepted only when a held-out validation score strictly improves. The output is a `best_skill.md` deployed with **zero inference-time overhead** — the agent's skill loader just reads the improved file.
 
-SkillForge is wired into the daemon the same way the [Code Graph](./41-semantic-index/) is: two standalone Rust crates (`skilllensai-rs`, `skilloptai-rs`), one daemon bridge module (`skillforge_index.rs`), `/v1/skilllens/*` + `/v1/skillopt/*` HTTP routes, and a VibeCoder panel. Every LLM call uses the toolbar-selected provider + model (STRICT — no hard-coded Anthropic).
+SkillForge is wired into the daemon the same way the [Code Graph]({{ site.baseurl }}/demos/41-semantic-index/) is: two standalone Rust crates (`skilllensai-rs`, `skilloptai-rs`), one daemon bridge module (`skillforge_index.rs`), `/v1/skilllens/*` + `/v1/skillopt/*` HTTP routes, and a VibeCoder panel. Every LLM call uses the toolbar-selected provider + model (STRICT — no hard-coded Anthropic).
 
 **Time to complete:** ~10 minutes.
 
@@ -133,6 +133,6 @@ A hard token budget caps cost; the panel's spent-tokens meter shows live spend a
 
 ## What's Next
 
-- [SkillForge reference](../skillforge/) — full HTTP surface + standalone crates
-- [Demo 41: Deep Semantic Code Index](./41-semantic-index/) — the kodegraph integration SkillForge mirrors
-- [Plugin Development](../plugin-development/) — authoring skills by hand (the input SkillForge optimises)
+- [SkillForge reference]({{ site.baseurl }}/skillforge/) — full HTTP surface + standalone crates
+- [Demo 41: Deep Semantic Code Index]({{ site.baseurl }}/demos/41-semantic-index/) — the kodegraph integration SkillForge mirrors
+- [Plugin Development]({{ site.baseurl }}/plugin-development/) — authoring skills by hand (the input SkillForge optimises)

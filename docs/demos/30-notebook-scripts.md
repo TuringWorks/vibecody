@@ -381,6 +381,6 @@ Open VibeCoder and navigate to the **Scripts** panel. The interface provides:
 
 ## What's Next
 
-- [Demo 25: SWE-bench Benchmarking](../25-swe-bench/) -- Benchmark your AI provider with SWE-bench
-- [Demo 26: QA Validation Pipeline](../26-qa-validation/) -- Validate code with 8 QA agents
-- [Demo 27: HTTP Playground](../27-http-playground/) -- Build and test API requests interactively
+- [Demo 25: SWE-bench Benchmarking]({{ site.baseurl }}/demos/swe-bench/) -- Benchmark your AI provider with SWE-bench
+- [Demo 26: QA Validation Pipeline]({{ site.baseurl }}/demos/qa-validation/) -- Validate code with 8 QA agents
+- [Demo 27: HTTP Playground]({{ site.baseurl }}/demos/http-playground/) -- Build and test API requests interactively

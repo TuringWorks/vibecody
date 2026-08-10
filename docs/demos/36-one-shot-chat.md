@@ -272,6 +272,6 @@ If you redirect stdout to a file, streaming still occurs but is buffered by the 
 
 ## What's Next
 
-- [Demo 1: First Run & Setup](../01-first-run/) -- Full installation and provider configuration
-- [Demo 3: Multi-Provider Chat](../03-multi-provider-chat/) -- Compare responses across 18 providers
-- [Demo 4: Agent Loop](../04-agent-loop/) -- Let the AI autonomously edit files and run commands
+- [Demo 1: First Run & Setup]({{ site.baseurl }}/demos/first-run/) -- Full installation and provider configuration
+- [Demo 3: Multi-Provider Chat]({{ site.baseurl }}/demos/multi-provider-chat/) -- Compare responses across 18 providers
+- [Demo 4: Agent Loop]({{ site.baseurl }}/demos/agent-loop/) -- Let the AI autonomously edit files and run commands
