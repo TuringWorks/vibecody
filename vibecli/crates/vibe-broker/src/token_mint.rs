@@ -354,10 +354,9 @@ fn pkcs8_pem_to_der(pem: &str) -> Result<Vec<u8>, MintError> {
     const BEGIN: &str = "-----BEGIN PRIVATE KEY-----";
     const END: &str = "-----END PRIVATE KEY-----";
 
-    let start = pem
-        .find(BEGIN)
-        .ok_or_else(|| MintError::Crypto("private key is not PKCS#8 PEM (no BEGIN marker)".into()))?
-        + BEGIN.len();
+    let start = pem.find(BEGIN).ok_or_else(|| {
+        MintError::Crypto("private key is not PKCS#8 PEM (no BEGIN marker)".into())
+    })? + BEGIN.len();
     let end = pem[start..]
         .find(END)
         .ok_or_else(|| MintError::Crypto("private key is not PKCS#8 PEM (no END marker)".into()))?
@@ -365,7 +364,10 @@ fn pkcs8_pem_to_der(pem: &str) -> Result<Vec<u8>, MintError> {
 
     // Service-account JSON stores the key with literal "\n" escapes decoded to
     // real newlines; either way the body is base64 split across lines.
-    let body: String = pem[start..end].chars().filter(|c| !c.is_whitespace()).collect();
+    let body: String = pem[start..end]
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect();
     B64_STD
         .decode(body.as_bytes())
         .map_err(|e| MintError::Crypto(format!("private key base64: {e}")))
@@ -425,7 +427,10 @@ mod tests {
 
         assert_eq!(claims["iss"], "svc@project.iam.gserviceaccount.com");
         assert_eq!(claims["aud"], "https://oauth2.googleapis.com/token");
-        assert_eq!(claims["scope"], "https://www.googleapis.com/auth/cloud-platform");
+        assert_eq!(
+            claims["scope"],
+            "https://www.googleapis.com/auth/cloud-platform"
+        );
         let iat = claims["iat"].as_u64().expect("iat");
         let exp = claims["exp"].as_u64().expect("exp");
         assert_eq!(exp - iat, 3600, "GCP rejects assertions older than an hour");
