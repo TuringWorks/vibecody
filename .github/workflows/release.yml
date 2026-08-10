@@ -400,6 +400,10 @@ jobs:
             fi
           fi
           npx tauri build ${{ matrix.args }}
+        # bash, not the Windows default PowerShell: the conditional export
+        # block above is POSIX shell. Without this, Windows runners parse it
+        # as a .ps1 and fail with ParserError before tauri ever runs.
+        shell: bash
 
       - name: Collect artifacts
         run: |
@@ -546,6 +550,10 @@ jobs:
             fi
           fi
           npx tauri build ${{ matrix.args }}
+        # bash, not the Windows default PowerShell: the conditional export
+        # block above is POSIX shell. Without this, Windows runners parse it
+        # as a .ps1 and fail with ParserError before tauri ever runs.
+        shell: bash
 
       - name: Collect artifacts
         run: |
@@ -696,6 +704,10 @@ jobs:
             fi
           fi
           npx tauri build ${{ matrix.args }}
+        # bash, not the Windows default PowerShell: the conditional export
+        # block above is POSIX shell. Without this, Windows runners parse it
+        # as a .ps1 and fail with ParserError before tauri ever runs.
+        shell: bash
 
       - name: Collect artifacts
         run: |

@@ -173,9 +173,8 @@ impl GcpServiceAccountMinter {
     fn build_signed_jwt(&self) -> Result<String, MintError> {
         use base64::engine::general_purpose::URL_SAFE_NO_PAD as B64;
         use base64::Engine as _;
-        use rsa::pkcs8::DecodePrivateKey;
-        use rsa::{pkcs1v15::SigningKey, signature::SignatureEncoding, RsaPrivateKey};
-        use sha2::Sha256;
+        use ring::rand::SystemRandom;
+        use ring::signature::RsaKeyPair;
 
         #[derive(Serialize)]
         struct Header<'a> {
@@ -213,13 +212,28 @@ impl GcpServiceAccountMinter {
             B64.encode(serde_json::to_vec(&claims).map_err(|e| MintError::Crypto(e.to_string()))?);
         let signing_input = format!("{header_b64}.{claims_b64}");
 
-        let pk = RsaPrivateKey::from_pkcs8_pem(&self.private_key_pem)
+        // Signed with `ring`, not the `rsa` crate: RUSTSEC-2023-0071 (Marvin)
+        // is a timing side-channel in `rsa`'s private-key path, and it has no
+        // patched release — the advisory is open with `patched: []`. Exploiting
+        // it needs a timing oracle over many operations, which a local
+        // once-an-hour JWT signature does not hand out, but "hard to reach" is
+        // a weaker property than "not present". `ring` blinds the operation and
+        // was already compiled in via rustls and rcgen, so this removes the
+        // advisory without adding a dependency.
+        let der = pkcs8_pem_to_der(&self.private_key_pem)?;
+        let key_pair = RsaKeyPair::from_pkcs8(&der)
             .map_err(|e| MintError::Crypto(format!("private key parse: {e}")))?;
-        let signing_key = SigningKey::<Sha256>::new(pk);
-        use rsa::signature::RandomizedSigner;
-        let mut rng = rsa::rand_core::OsRng;
-        let signature = signing_key.sign_with_rng(&mut rng, signing_input.as_bytes());
-        let sig_b64 = B64.encode(signature.to_bytes());
+
+        let mut signature = vec![0u8; key_pair.public().modulus_len()];
+        key_pair
+            .sign(
+                &ring::signature::RSA_PKCS1_SHA256,
+                &SystemRandom::new(),
+                signing_input.as_bytes(),
+                &mut signature,
+            )
+            .map_err(|_| MintError::Crypto("RS256 signing failed".into()))?;
+        let sig_b64 = B64.encode(&signature);
 
         Ok(format!("{signing_input}.{sig_b64}"))
     }
@@ -327,9 +341,145 @@ impl<M: TokenMinter> TokenMinter for CachedMinter<M> {
     }
 }
 
+/// Decode a PKCS#8 **PEM** private key into the DER bytes crypto backends want.
+///
+/// GCP service-account JSON carries `private_key` as PEM; `ring` takes DER.
+/// Hand-rolled rather than pulling a PEM crate: this is base64 between two
+/// fixed markers, and the alternative (`rustls-pemfile`) is itself flagged
+/// unmaintained by RUSTSEC-2025-0134.
+fn pkcs8_pem_to_der(pem: &str) -> Result<Vec<u8>, MintError> {
+    use base64::engine::general_purpose::STANDARD as B64_STD;
+    use base64::Engine as _;
+
+    const BEGIN: &str = "-----BEGIN PRIVATE KEY-----";
+    const END: &str = "-----END PRIVATE KEY-----";
+
+    let start = pem
+        .find(BEGIN)
+        .ok_or_else(|| MintError::Crypto("private key is not PKCS#8 PEM (no BEGIN marker)".into()))?
+        + BEGIN.len();
+    let end = pem[start..]
+        .find(END)
+        .ok_or_else(|| MintError::Crypto("private key is not PKCS#8 PEM (no END marker)".into()))?
+        + start;
+
+    // Service-account JSON stores the key with literal "\n" escapes decoded to
+    // real newlines; either way the body is base64 split across lines.
+    let body: String = pem[start..end].chars().filter(|c| !c.is_whitespace()).collect();
+    B64_STD
+        .decode(body.as_bytes())
+        .map_err(|e| MintError::Crypto(format!("private key base64: {e}")))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── RS256 JWT signing ──────────────────────────────────────────────────
+    //
+    // `build_signed_jwt` had no coverage at all, which is why these exist:
+    // they pin the wire format and the signature's validity so the crypto
+    // backend underneath can be swapped without changing what GCP receives.
+    // Verification goes through `ring` against the key's own public half, so
+    // the assertion is "a real RS256 verifier accepts this", not "the code
+    // did what it did last time".
+
+    /// 2048-bit RSA key generated solely for these tests. Not a credential —
+    /// it signs nothing outside this file. gitleaks:allow
+    const TEST_KEY_PEM: &str = include_str!("../tests/fixtures/gcp_sa_test_key.pem");
+
+    fn test_minter() -> GcpServiceAccountMinter {
+        GcpServiceAccountMinter::new(
+            "svc@project.iam.gserviceaccount.com",
+            TEST_KEY_PEM,
+            "https://www.googleapis.com/auth/cloud-platform",
+        )
+    }
+
+    fn b64url(part: &str) -> Vec<u8> {
+        use base64::engine::general_purpose::URL_SAFE_NO_PAD as B64;
+        use base64::Engine as _;
+        B64.decode(part).expect("JWT part is base64url")
+    }
+
+    #[test]
+    fn signed_jwt_has_three_base64url_parts_and_an_rs256_header() {
+        let jwt = test_minter().build_signed_jwt().expect("sign");
+        let parts: Vec<&str> = jwt.split('.').collect();
+        assert_eq!(parts.len(), 3, "JWT is header.claims.signature");
+
+        let header: serde_json::Value =
+            serde_json::from_slice(&b64url(parts[0])).expect("header is JSON");
+        assert_eq!(header["alg"], "RS256");
+        assert_eq!(header["typ"], "JWT");
+        // Base64url, not standard base64: '+' and '/' would be rejected by GCP.
+        assert!(!jwt.contains('+') && !jwt.contains('/') && !jwt.contains('='));
+    }
+
+    #[test]
+    fn signed_jwt_claims_carry_the_service_account_and_a_one_hour_window() {
+        let jwt = test_minter().build_signed_jwt().expect("sign");
+        let parts: Vec<&str> = jwt.split('.').collect();
+        let claims: serde_json::Value =
+            serde_json::from_slice(&b64url(parts[1])).expect("claims are JSON");
+
+        assert_eq!(claims["iss"], "svc@project.iam.gserviceaccount.com");
+        assert_eq!(claims["aud"], "https://oauth2.googleapis.com/token");
+        assert_eq!(claims["scope"], "https://www.googleapis.com/auth/cloud-platform");
+        let iat = claims["iat"].as_u64().expect("iat");
+        let exp = claims["exp"].as_u64().expect("exp");
+        assert_eq!(exp - iat, 3600, "GCP rejects assertions older than an hour");
+    }
+
+    #[test]
+    fn signed_jwt_signature_verifies_against_the_key() {
+        // The whole point of the token: if this fails, GCP returns
+        // invalid_grant and every cloud credential injection stops working.
+        let jwt = test_minter().build_signed_jwt().expect("sign");
+        let (signing_input, sig_b64) = jwt.rsplit_once('.').expect("signature is last");
+        let sig = b64url(sig_b64);
+
+        use ring::signature::KeyPair as _;
+        let der = pkcs8_pem_to_der(TEST_KEY_PEM).expect("fixture is PKCS#8 PEM");
+        let key_pair = ring::signature::RsaKeyPair::from_pkcs8(&der).expect("fixture parses");
+        let public = ring::signature::UnparsedPublicKey::new(
+            &ring::signature::RSA_PKCS1_2048_8192_SHA256,
+            key_pair.public_key().as_ref(),
+        );
+        public
+            .verify(signing_input.as_bytes(), &sig)
+            .expect("RS256 signature must verify");
+    }
+
+    #[test]
+    fn signed_jwt_signature_does_not_cover_a_tampered_payload() {
+        // Guards against a signature computed over the wrong bytes — which
+        // would still "verify" in a test that signed and checked the same
+        // mistake.
+        let jwt = test_minter().build_signed_jwt().expect("sign");
+        let (signing_input, sig_b64) = jwt.rsplit_once('.').expect("signature is last");
+        let sig = b64url(sig_b64);
+
+        use ring::signature::KeyPair as _;
+        let der = pkcs8_pem_to_der(TEST_KEY_PEM).unwrap();
+        let key_pair = ring::signature::RsaKeyPair::from_pkcs8(&der).unwrap();
+        let public = ring::signature::UnparsedPublicKey::new(
+            &ring::signature::RSA_PKCS1_2048_8192_SHA256,
+            key_pair.public_key().as_ref(),
+        );
+        let tampered = format!("{signing_input}x");
+        assert!(public.verify(tampered.as_bytes(), &sig).is_err());
+    }
+
+    #[test]
+    fn a_non_pkcs8_private_key_is_rejected_with_a_readable_error() {
+        let minter = GcpServiceAccountMinter::new("svc@x.iam", "not a key at all", "scope");
+        let err = minter.build_signed_jwt().expect_err("must not sign");
+        assert!(
+            format!("{err}").contains("PKCS#8") || format!("{err}").contains("private key"),
+            "error should name the problem, got: {err}"
+        );
+    }
 
     #[test]
     fn minted_token_seconds_remaining_is_finite() {
