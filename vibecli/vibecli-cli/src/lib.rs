@@ -357,6 +357,7 @@ pub mod batch_builder;
 pub mod blue_team;
 pub mod branch_agent;
 pub mod bugbot;
+pub mod bugbot_autofix;
 pub mod calendar_client;
 pub mod ci;
 pub mod ci_status_check;

@@ -3494,14 +3494,20 @@ async fn github_webhook(
     {
         Ok(Some(result)) => {
             eprintln!(
-                "[github-app] Reviewed PR #{} on {} → {} ({} findings)",
-                result.pr_number, result.repo, result.status, result.findings_count
+                "[github-app] Reviewed PR #{} on {} → {} ({} findings, {} committable fixes)",
+                result.pr_number,
+                result.repo,
+                result.status,
+                result.findings_count,
+                result.fixes_proposed
             );
             (
                 StatusCode::OK,
                 Json(serde_json::json!({
                     "status": result.status,
                     "findings": result.findings_count,
+                    "fixes_proposed": result.fixes_proposed,
+                    "coverage": result.coverage,
                     "summary": result.summary,
                 })),
             )

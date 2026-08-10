@@ -178,6 +178,7 @@ use tool_executor::{ToolExecutor, VibeCoreWorktreeManager};
 
 mod background_agents;
 mod bugbot;
+mod bugbot_autofix;
 mod gateway;
 #[allow(dead_code)]
 mod job_manager;
@@ -1536,6 +1537,11 @@ const KEY_PROVIDERS: &[&str] = &[
     "linear",
     // GitHub token shared by bugbot.rs / vulnerability_db.rs / github_app.rs.
     "github",
+    // GitHub App webhook HMAC secret. `GithubAppConfig::resolve_webhook_secret`
+    // has always read this ProfileStore key first, but `set-key` rejected the
+    // name — so the only reachable paths were plaintext config.toml or an env
+    // var, both of which AGENTS.md → Zero-Config First rules out for a secret.
+    "github_app_webhook_secret",
     // Copilot OAuth token. CopilotConfig::resolve_token() consults this
     // first. `vibecli --copilot-login` runs the device flow and writes here.
     "copilot",
@@ -3334,6 +3340,35 @@ struct Cli {
     #[arg(long, default_value = "warning")]
     severity_threshold: String,
 
+    // ── BugBot ───────────────────────────────────────────────────────────────
+    /// Run BugBot over a diff — the same engine the GitHub App runs on pull
+    /// requests, but locally. Reviews uncommitted changes by default; add
+    /// --staged for the index, or --pr N for a GitHub pull request.
+    /// Exits 1 when any error-severity finding is reported.
+    #[arg(long)]
+    bugbot: bool,
+
+    /// With --bugbot: review the staged index instead of all uncommitted changes.
+    #[arg(long)]
+    staged: bool,
+
+    /// With --bugbot: ask the model for a committable fix per finding. Anchors are
+    /// verified against the diff; the fixes are not compiled or tested.
+    /// With --pr they are posted as GitHub suggestions a reviewer commits in one click.
+    #[arg(long)]
+    propose_fixes: bool,
+
+    /// With --bugbot --propose-fixes: write the proposed fixes to the working tree.
+    /// Refuses any file that changed since the diff was taken.
+    #[arg(long)]
+    apply_fixes: bool,
+
+    /// With --bugbot: how many times to review each batch of files, each pass
+    /// rotating which file leads the prompt. A model's attention is not uniform
+    /// across a long prompt, so extra passes trade cost for recall. Default 1.
+    #[arg(long, value_name = "N", default_value_t = 1)]
+    passes: usize,
+
     // ── Setup wizard ─────────────────────────────────────────────────────────
     /// Run the interactive setup wizard. Detects your platform, configures an
     /// AI provider, and optionally installs VibeCody as an always-on service.
@@ -4915,6 +4950,21 @@ async fn main() -> Result<()> {
         }
 
         safe_exit(report.exit_code());
+    }
+
+    // BugBot mode: --bugbot [--staged | --pr N] [--propose-fixes [--apply-fixes]]
+    if cli.bugbot {
+        let llm = create_provider(&effective_provider, effective_model.clone())?;
+        let opts = BugbotRunOptions {
+            pr: cli.pr,
+            staged: cli.staged,
+            propose_fixes: cli.propose_fixes,
+            apply_fixes: cli.apply_fixes,
+            post_github: cli.post_github,
+            passes: cli.passes,
+        };
+        let exit_code = run_bugbot(llm, opts).await?;
+        safe_exit(exit_code);
     }
 
     // Code review mode: --review
@@ -19755,6 +19805,9 @@ fn show_help() {
     println!("  --tailscale              - Expose daemon via Tailscale Funnel (use with --serve)");
     println!("  --profile <name>         - Load a named config profile (~/.vibecli/profiles/<name>.toml)");
     println!("  --doctor                 - Run health checks on the VibeCLI installation");
+    println!(
+        "  --bugbot                 - Review a diff (--staged, --pr N, --propose-fixes, --passes N)"
+    );
     println!("\nProviders (--provider <name>):");
     println!("  ollama                   - Local Ollama (default, no key needed)");
     println!("  claude                   - Anthropic Claude  (ANTHROPIC_API_KEY)");
@@ -19780,6 +19833,288 @@ fn show_help() {
     println!("  [main.rs] [test.rs] Review these files  - Attach multiple files");
     println!("  Supported: images (png/jpg/gif/webp), code, text, JSON, CSV, YAML, TOML, etc.");
     println!("\nTip: You can also just type a message to chat (attachments work everywhere)\n");
+}
+
+// ── BugBot (`--bugbot`) ──────────────────────────────────────────────────────
+
+/// What `--bugbot` was asked to review, and how far to go.
+struct BugbotRunOptions {
+    /// Review this GitHub pull request instead of the working tree.
+    pr: Option<u32>,
+    /// Review the staged index rather than all uncommitted changes.
+    staged: bool,
+    /// Ask the model for a committable fix per finding.
+    propose_fixes: bool,
+    /// Write the proposed fixes to the working tree.
+    apply_fixes: bool,
+    /// Post the review (and any fixes) back to the pull request.
+    post_github: bool,
+    /// Orderings of each batch of files to review. More passes, more recall.
+    passes: usize,
+}
+
+/// Where a BugBot run gets its diff from. Each source needs different follow-up,
+/// so the choice is a value rather than a pile of booleans re-read downstream.
+enum BugbotTarget {
+    WorkingTree,
+    StagedIndex,
+    PullRequest { owner: String, repo: String, number: u32 },
+}
+
+impl BugbotTarget {
+    fn label(&self) -> String {
+        match self {
+            BugbotTarget::WorkingTree => "uncommitted changes".to_string(),
+            BugbotTarget::StagedIndex => "staged changes".to_string(),
+            BugbotTarget::PullRequest { owner, repo, number } => {
+                format!("{}/{} PR #{}", owner, repo, number)
+            }
+        }
+    }
+}
+
+/// Run BugBot over a diff and report findings. Returns the process exit code:
+/// 1 when any error-severity finding was reported, so CI can gate on it.
+async fn run_bugbot(llm: Arc<dyn LLMProvider>, opts: BugbotRunOptions) -> Result<i32> {
+    use crate::bugbot::{BugBot, ReviewPlan, Severity};
+    use crate::bugbot_autofix::{propose_fixes, AutofixLimits, PostImage};
+
+    let cwd = std::env::current_dir()?;
+
+    let target = match opts.pr {
+        Some(number) => {
+            let (owner, repo) = github_app::detect_repo_slug(&cwd).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "--pr {number} needs a GitHub `origin` remote; this repo's origin is not \
+                     a github.com URL"
+                )
+            })?;
+            BugbotTarget::PullRequest { owner, repo, number }
+        }
+        None if opts.staged => BugbotTarget::StagedIndex,
+        None => BugbotTarget::WorkingTree,
+    };
+
+    let bot = BugBot::new(Arc::clone(&llm));
+
+    println!("BugBot — reviewing {}\n", target.label());
+
+    let diff = match &target {
+        BugbotTarget::WorkingTree => BugBot::get_working_diff(&cwd)?,
+        BugbotTarget::StagedIndex => BugBot::get_staged_diff(&cwd)?,
+        BugbotTarget::PullRequest { owner, repo, number } => {
+            bot.fetch_pr_diff(owner, repo, u64::from(*number)).await?
+        }
+    };
+
+    if diff.trim().is_empty() {
+        println!("Nothing to review — the diff is empty.");
+        return Ok(0);
+    }
+
+    // Extra passes must not eat the coverage budget: scale the call ceiling with
+    // them so `--passes 3` buys three looks at everything, not one look at a third.
+    let defaults = ReviewPlan::default();
+    let plan = ReviewPlan {
+        passes: opts.passes.max(1),
+        max_calls: defaults.max_calls.saturating_mul(opts.passes.max(1)),
+        ..defaults
+    };
+    let (reports, coverage) = bot.review_diff_planned(&diff, plan).await;
+    print!("{}", BugBot::format_reports(&reports));
+
+    println!(
+        "Reviewed {}/{} file(s) in {} model call(s).",
+        coverage.files_reviewed, coverage.files_total, coverage.llm_calls
+    );
+    if let Some(caveat) = coverage.caveat() {
+        // A finding count over a partial diff is not a finding count for the diff.
+        eprintln!("⚠ Incomplete coverage — {caveat}. Review a smaller change (try --staged).");
+        for path in coverage.files_skipped.iter().chain(&coverage.files_truncated) {
+            eprintln!("   · {path}");
+        }
+    }
+
+    let errors = reports
+        .iter()
+        .filter(|r| r.severity == Severity::Error)
+        .count();
+    let exit_code = i32::from(errors > 0);
+
+    if reports.is_empty() {
+        return Ok(exit_code);
+    }
+
+    // ── Committable fixes ────────────────────────────────────────────────────
+    let proposals = if opts.propose_fixes {
+        let post = PostImage::from_diff(&diff);
+        let attempts = propose_fixes(&llm, &post, &reports, AutofixLimits::default()).await;
+        report_fix_attempts(&reports, attempts)
+    } else {
+        std::collections::HashMap::new()
+    };
+
+    let mut ordered: Vec<_> = proposals.iter().collect();
+    ordered.sort_by_key(|(index, _)| **index);
+    for (index, proposal) in &ordered {
+        let Some(report) = reports.get(**index) else {
+            continue;
+        };
+        println!(
+            "\n{} {}:{}-{} — {}",
+            report.icon(),
+            proposal.path,
+            proposal.start_line,
+            proposal.end_line,
+            report.message
+        );
+        println!("{}", proposal.suggestion_block());
+    }
+
+    // ── Delivery ─────────────────────────────────────────────────────────────
+    if let (BugbotTarget::PullRequest { owner, repo, number }, true) = (&target, opts.post_github) {
+        // Anchor to the PR's own head commit. Local HEAD is a different commit
+        // unless the PR branch happens to be checked out and current.
+        let head_sha = github_app::fetch_pr_head_sha(
+            owner,
+            repo,
+            u64::from(*number),
+            github_app::resolve_github_token().as_deref(),
+        )
+        .await?;
+        bot.post_github_review_with_fixes(
+            owner,
+            repo,
+            u64::from(*number),
+            &reports,
+            &proposals,
+            &head_sha,
+        )
+        .await?;
+        println!(
+            "\nPosted a review to PR #{number} at {} ({} committable suggestion(s)).",
+            &head_sha[..head_sha.len().min(8)],
+            proposals.len()
+        );
+    } else if opts.post_github {
+        eprintln!("\n--post-github needs --pr N; nothing was posted.");
+    }
+
+    if opts.apply_fixes {
+        if proposals.is_empty() {
+            println!("\nNo fixes to apply.");
+        } else {
+            let root = git_repo_root(&cwd).unwrap_or(cwd);
+            let (written, skipped) = apply_bugbot_fixes(&root, &ordered)?;
+            println!("\nApplied {written} fix(es) to the working tree; {skipped} skipped.");
+        }
+    }
+
+    Ok(exit_code)
+}
+
+/// Print each fix attempt's outcome and keep the ones that succeeded.
+///
+/// Refusals are printed with their reason rather than dropped — a finding with
+/// no suggestion should say why, not just quietly lack one.
+fn report_fix_attempts(
+    reports: &[crate::bugbot::BugReport],
+    attempts: Vec<(usize, crate::bugbot_autofix::Attempt)>,
+) -> std::collections::HashMap<usize, crate::bugbot_autofix::FixProposal> {
+    let (fixed, declined): (Vec<_>, Vec<_>) = attempts.into_iter().partition(|(_, a)| a.is_ok());
+
+    println!(
+        "\nProposed {} committable fix(es); {} finding(s) had none.",
+        fixed.len(),
+        declined.len()
+    );
+    for (index, attempt) in &declined {
+        if let Err(reason) = attempt {
+            let file = reports
+                .get(*index)
+                .map(|r| r.file.as_str())
+                .unwrap_or("<unknown>");
+            println!("   · {file}: {reason}");
+        }
+    }
+
+    fixed
+        .into_iter()
+        .filter_map(|(index, attempt)| attempt.ok().map(|p| (index, p)))
+        .collect()
+}
+
+/// Resolve the repository root.
+///
+/// Diff paths are relative to the repo root, not to the invocation directory —
+/// joining them onto `cwd` from a subdirectory writes to files that don't exist.
+fn git_repo_root(cwd: &std::path::Path) -> Option<std::path::PathBuf> {
+    let out = std::process::Command::new("git")
+        .args(["rev-parse", "--show-toplevel"])
+        .current_dir(cwd)
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let root = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    (!root.is_empty()).then(|| std::path::PathBuf::from(root))
+}
+
+/// Write proposals to disk, skipping any file whose anchor no longer matches.
+///
+/// Returns `(written, skipped)`. A skip is reported, never silently counted as
+/// a success — the caller prints both numbers.
+fn apply_bugbot_fixes(
+    cwd: &std::path::Path,
+    proposals: &[(&usize, &crate::bugbot_autofix::FixProposal)],
+) -> Result<(usize, usize)> {
+    use crate::bugbot_autofix::apply_to_content;
+
+    let mut written = 0usize;
+    let mut skipped = 0usize;
+
+    // Group by path so several fixes to one file are applied bottom-up; editing
+    // from the end keeps earlier anchors' line numbers valid.
+    let mut by_path: std::collections::BTreeMap<&str, Vec<_>> = std::collections::BTreeMap::new();
+    for (_, p) in proposals {
+        by_path.entry(p.path.as_str()).or_default().push(*p);
+    }
+
+    for (path, mut file_proposals) in by_path {
+        let full = cwd.join(path);
+        let Ok(original) = std::fs::read_to_string(&full) else {
+            eprintln!("   · {path}: unreadable — skipped");
+            skipped += file_proposals.len();
+            continue;
+        };
+
+        file_proposals.sort_by_key(|p| std::cmp::Reverse(p.start_line));
+        let mut content = original.clone();
+        let mut applied_here = 0usize;
+        for proposal in &file_proposals {
+            match apply_to_content(&content, proposal) {
+                Some(next) => {
+                    content = next;
+                    applied_here += 1;
+                }
+                None => {
+                    eprintln!(
+                        "   · {path}:{}-{}: file no longer matches the reviewed diff — skipped",
+                        proposal.start_line, proposal.end_line
+                    );
+                    skipped += 1;
+                }
+            }
+        }
+
+        if applied_here > 0 {
+            std::fs::write(&full, &content)?;
+            written += applied_here;
+        }
+    }
+
+    Ok((written, skipped))
 }
 
 /// Run a health check of the VibeCLI installation: config, providers, git, plugins, profiles.

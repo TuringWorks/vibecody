@@ -256,6 +256,284 @@ pub fn detect_security_patterns(diff: &str) -> Vec<BugReport> {
     reports
 }
 
+// ── Review planning ───────────────────────────────────────────────────────────
+
+/// How much review to buy for one diff.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ReviewPlan {
+    /// Orderings of each batch to review. 1 is one look at every file.
+    pub passes: usize,
+    /// Characters of diff per request.
+    pub char_budget: usize,
+    /// Hard ceiling on LLM round-trips for the whole review.
+    pub max_calls: usize,
+}
+
+impl Default for ReviewPlan {
+    fn default() -> Self {
+        // 8 calls × 8 000 chars covers a ~64 KB diff in full — well past the
+        // single 8 000-char request this replaces — without a surprising bill.
+        Self {
+            passes: 1,
+            char_budget: 8_000,
+            max_calls: 8,
+        }
+    }
+}
+
+/// What the LLM review actually looked at.
+///
+/// Reported rather than assumed: "no findings" means something very different
+/// when half the diff never reached the model. The static OWASP/CWE scan always
+/// covers the whole diff — this describes the model passes only.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReviewCoverage {
+    pub files_total: usize,
+    pub files_reviewed: usize,
+    pub llm_calls: usize,
+    /// Files whose own section exceeded the per-request budget and was cut.
+    pub files_truncated: Vec<String>,
+    /// Files dropped entirely because `max_calls` ran out.
+    pub files_skipped: Vec<String>,
+}
+
+impl ReviewCoverage {
+    /// True when every file in the diff reached the model whole.
+    pub fn is_complete(&self) -> bool {
+        self.files_skipped.is_empty() && self.files_truncated.is_empty()
+    }
+
+    /// One line for the terminal / PR body, or `None` when coverage was complete.
+    pub fn caveat(&self) -> Option<String> {
+        if self.is_complete() {
+            return None;
+        }
+        let mut parts = Vec::new();
+        if !self.files_skipped.is_empty() {
+            parts.push(format!(
+                "{} file(s) not reviewed (call budget)",
+                self.files_skipped.len()
+            ));
+        }
+        if !self.files_truncated.is_empty() {
+            parts.push(format!(
+                "{} file(s) truncated to fit the request",
+                self.files_truncated.len()
+            ));
+        }
+        Some(parts.join("; "))
+    }
+}
+
+/// One file's section of a unified diff.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DiffSection {
+    pub path: String,
+    pub text: String,
+}
+
+/// Split a unified diff into per-file sections, preserving order.
+///
+/// Anything before the first file header (a cover letter, `commit` lines) is
+/// dropped — it is not code and only consumes budget.
+pub fn split_diff_by_file(diff: &str) -> Vec<DiffSection> {
+    let mut sections: Vec<DiffSection> = Vec::new();
+    let mut current: Option<DiffSection> = None;
+
+    for line in diff.lines() {
+        if let Some(rest) = line.strip_prefix("diff --git ") {
+            if let Some(done) = current.take() {
+                sections.push(done);
+            }
+            current = Some(DiffSection {
+                path: rest
+                    .rsplit_once(" b/")
+                    .map(|(_, b)| b.to_string())
+                    .unwrap_or_else(|| rest.to_string()),
+                text: String::new(),
+            });
+        }
+        if let Some(section) = current.as_mut() {
+            section.text.push_str(line);
+            section.text.push('\n');
+        }
+    }
+    if let Some(done) = current {
+        sections.push(done);
+    }
+
+    // A plain `diff -u` with no `diff --git` header is still one reviewable unit.
+    if sections.is_empty() && !diff.trim().is_empty() {
+        sections.push(DiffSection {
+            path: String::new(),
+            text: diff.to_string(),
+        });
+    }
+    sections
+}
+
+/// Pack sections into batches that each fit `budget` characters.
+///
+/// Returns the batches and the paths of files whose own section exceeded the
+/// budget and had to be cut — named, so the caller can say so.
+fn pack_into_batches(sections: &[DiffSection], budget: usize) -> (Vec<Vec<DiffSection>>, Vec<String>) {
+    let mut batches: Vec<Vec<DiffSection>> = Vec::new();
+    let mut current: Vec<DiffSection> = Vec::new();
+    let mut used = 0usize;
+    let mut truncated = Vec::new();
+
+    for section in sections {
+        let section = if section.text.len() > budget {
+            truncated.push(section.path.clone());
+            DiffSection {
+                path: section.path.clone(),
+                text: truncate_on_char_boundary(&section.text, budget),
+            }
+        } else {
+            section.clone()
+        };
+
+        if !current.is_empty() && used + section.text.len() > budget {
+            batches.push(std::mem::take(&mut current));
+            used = 0;
+        }
+        used += section.text.len();
+        current.push(section);
+    }
+    if !current.is_empty() {
+        batches.push(current);
+    }
+
+    (batches, truncated)
+}
+
+/// Cut a string to at most `max` bytes without splitting a character.
+fn truncate_on_char_boundary(text: &str, max: usize) -> String {
+    if text.len() <= max {
+        return text.to_string();
+    }
+    let end = (0..=max).rev().find(|i| text.is_char_boundary(*i)).unwrap_or(0);
+    text[..end].to_string()
+}
+
+/// Rotate a batch left by `pass` so a different file leads each time.
+fn rotate(batch: &[DiffSection], pass: usize) -> Vec<&DiffSection> {
+    if batch.is_empty() {
+        return Vec::new();
+    }
+    let offset = pass % batch.len();
+    batch[offset..].iter().chain(&batch[..offset]).collect()
+}
+
+/// Build the review prompt for one ordered batch.
+fn review_prompt(batch: &[&DiffSection]) -> String {
+    let body = batch
+        .iter()
+        .map(|s| s.text.as_str())
+        .collect::<Vec<_>>()
+        .join("");
+
+    format!(
+        r#"You are BugBot, an expert code reviewer. Analyze this diff for bugs.
+
+Focus on:
+- Logic errors and off-by-one mistakes
+- Security issues (injection, unvalidated input, secrets committed)
+- Missing error handling (unchecked Results, panics, nulls)
+- Performance regressions
+- Missing test coverage for new code
+
+For each issue return a JSON object. Return ONLY a JSON array, no explanation:
+[
+  {{
+    "file": "src/foo.rs",
+    "line": 42,
+    "severity": "error",
+    "message": "Division by zero when denominator is 0",
+    "suggestion": "Add a guard: if denominator == 0 {{ return Err(...) }}",
+    "category": "logic"
+  }}
+]
+
+`line` must be a line number from the new side of the diff.
+Return an empty array [] if there are no issues.
+
+Diff:
+```diff
+{}
+```
+"#,
+        body
+    )
+}
+
+/// Extract the findings array from a model reply.
+fn parse_reports(response: &str) -> Vec<BugReport> {
+    let Some(start) = response.find('[') else {
+        return vec![];
+    };
+    let Some(end) = response.rfind(']').map(|i| i + 1) else {
+        return vec![];
+    };
+    if start >= end {
+        return vec![];
+    }
+    serde_json::from_str::<Vec<BugReport>>(&response[start..end]).unwrap_or_default()
+}
+
+/// Collapse findings that repeated across passes, keeping the highest severity.
+///
+/// Two passes over the same code phrase the same defect differently, so the key
+/// is the location plus a normalised message rather than the message verbatim.
+fn dedupe_reports(reports: Vec<BugReport>) -> Vec<BugReport> {
+    fn rank(s: &Severity) -> u8 {
+        match s {
+            Severity::Error => 2,
+            Severity::Warning => 1,
+            Severity::Info => 0,
+        }
+    }
+    fn key(r: &BugReport) -> (String, u32, String) {
+        // Punctuation becomes a separator, not nothing: one pass writes
+        // "off-by-one", the next writes "off by one", and they are the same bug.
+        let normalised: String = r
+            .message
+            .to_lowercase()
+            .chars()
+            .map(|c| if c.is_alphanumeric() { c } else { ' ' })
+            .collect::<String>()
+            .split_whitespace()
+            .take(8)
+            .collect::<Vec<_>>()
+            .join(" ");
+        (r.file.clone(), r.line, normalised)
+    }
+
+    let mut best: std::collections::BTreeMap<(String, u32, String), BugReport> =
+        std::collections::BTreeMap::new();
+    for report in reports {
+        match best.entry(key(&report)) {
+            std::collections::btree_map::Entry::Vacant(slot) => {
+                slot.insert(report);
+            }
+            std::collections::btree_map::Entry::Occupied(mut slot) => {
+                if rank(&report.severity) > rank(&slot.get().severity) {
+                    slot.insert(report);
+                }
+            }
+        }
+    }
+
+    let mut out: Vec<BugReport> = best.into_values().collect();
+    out.sort_by(|a, b| {
+        rank(&b.severity)
+            .cmp(&rank(&a.severity))
+            .then_with(|| a.file.cmp(&b.file))
+            .then_with(|| a.line.cmp(&b.line))
+    });
+    out
+}
+
 // ── BugBot ────────────────────────────────────────────────────────────────────
 
 pub struct BugBot {
@@ -279,75 +557,107 @@ impl BugBot {
     }
 
     /// Analyze a unified diff and return bug reports.
+    ///
+    /// Uses [`ReviewPlan::default`], which covers the whole diff rather than its
+    /// first 8 000 characters. A small diff still costs exactly one request; a
+    /// large one costs up to `max_calls`. Use
+    /// [`review_diff_planned`](Self::review_diff_planned) when you need to know
+    /// what coverage the review actually achieved.
     pub async fn review_diff(&self, diff: &str) -> Vec<BugReport> {
         if diff.trim().is_empty() {
             return vec![];
         }
+        self.review_diff_planned(diff, ReviewPlan::default()).await.0
+    }
 
-        // Run static OWASP/CWE pattern scan first — fast, no LLM required.
-        let mut static_reports = detect_security_patterns(diff);
+    /// Review a diff with full file coverage and optional repeated passes.
+    ///
+    /// [`review_diff`](Self::review_diff) sends the first `8000` characters of the
+    /// diff and nothing else — on any PR past a few files, everything after the
+    /// cutoff is silently unreviewed. This splits the diff per file, packs the
+    /// files into batches that each fit the budget, and reviews every batch, so
+    /// coverage is a property of the plan rather than of how the diff happened to
+    /// be ordered.
+    ///
+    /// `passes > 1` reviews each batch again with the files rotated. A model's
+    /// attention is not uniform across a long prompt, so a finding in the last
+    /// file of a batch is likelier to be missed than one in the first; rotating
+    /// gives every file a turn at the front. Rotation is deterministic, so two
+    /// runs over the same diff issue the same requests.
+    ///
+    /// Returns findings deduplicated across passes, plus a [`ReviewCoverage`]
+    /// stating what was actually reviewed.
+    pub async fn review_diff_planned(
+        &self,
+        diff: &str,
+        plan: ReviewPlan,
+    ) -> (Vec<BugReport>, ReviewCoverage) {
+        let static_reports = detect_security_patterns(diff);
 
-        let prompt = format!(
-            r#"You are BugBot, an expert code reviewer. Analyze this diff for bugs.
+        let files = split_diff_by_file(diff);
+        if files.is_empty() {
+            return (
+                static_reports,
+                ReviewCoverage {
+                    files_total: 0,
+                    files_reviewed: 0,
+                    llm_calls: 0,
+                    files_truncated: Vec::new(),
+                    files_skipped: Vec::new(),
+                },
+            );
+        }
 
-Focus on:
-- Logic errors and off-by-one mistakes
-- Security issues (injection, unvalidated input, secrets committed)
-- Missing error handling (unchecked Results, panics, nulls)
-- Performance regressions
-- Missing test coverage for new code
+        let budget = plan.char_budget.max(1);
+        let (batches, truncated) = pack_into_batches(&files, budget);
 
-For each issue return a JSON object. Return ONLY a JSON array, no explanation:
-[
-  {{
-    "file": "src/foo.rs",
-    "line": 42,
-    "severity": "error",
-    "message": "Division by zero when denominator is 0",
-    "suggestion": "Add a guard: if denominator == 0 {{ return Err(...) }}",
-    "category": "logic"
-  }}
-]
+        // Pass-major, so the first `batches.len()` requests are one complete look
+        // at every file. The call ceiling therefore costs extra passes before it
+        // ever costs coverage — and when it does cost coverage, the tail it drops
+        // is exactly `batches[allowed..]`, which is named rather than lost.
+        let passes = plan.passes.max(1);
+        let requests: Vec<(usize, usize)> = (0..passes)
+            .flat_map(|pass| (0..batches.len()).map(move |batch| (batch, pass)))
+            .collect();
+        let allowed = requests.len().min(plan.max_calls.max(1));
+        let skipped_batches: Vec<usize> = (allowed.min(batches.len())..batches.len()).collect();
 
-Return an empty array [] if there are no issues.
+        let futures = requests[..allowed].iter().map(|&(batch, pass)| {
+            let prompt = review_prompt(&rotate(&batches[batch], pass));
+            async move { self.review_once(prompt).await }
+        });
 
-Diff:
-```diff
-{}
-```
-"#,
-            {
-                let end = diff
-                    .char_indices()
-                    .nth(8000)
-                    .map(|(i, _)| i)
-                    .unwrap_or(diff.len());
-                &diff[..end]
-            }
-        );
+        let per_request = futures::future::join_all(futures).await;
 
+        let mut all = static_reports;
+        all.extend(per_request.into_iter().flatten());
+
+        let files_skipped: Vec<String> = skipped_batches
+            .iter()
+            .flat_map(|b| batches[*b].iter().map(|f| f.path.clone()))
+            .collect();
+
+        let coverage = ReviewCoverage {
+            files_total: files.len(),
+            files_reviewed: files.len() - files_skipped.len(),
+            llm_calls: allowed,
+            files_truncated: truncated,
+            files_skipped,
+        };
+
+        (dedupe_reports(all), coverage)
+    }
+
+    /// One review round-trip. A provider error yields no findings, never a fake one.
+    async fn review_once(&self, prompt: String) -> Vec<BugReport> {
         let msgs = vec![Message {
             role: MessageRole::User,
             content: prompt,
         }];
-
-        let mut llm_reports = match self.llm.chat(&msgs, None).await {
-            Ok(response) => {
-                let json_start = response.find('[').unwrap_or(0);
-                let json_end = response.rfind(']').map(|i| i + 1).unwrap_or(response.len());
-                if json_start < json_end {
-                    let json_str = &response[json_start..json_end];
-                    serde_json::from_str::<Vec<BugReport>>(json_str).unwrap_or_default()
-                } else {
-                    vec![]
-                }
-            }
+        match self.llm.chat(&msgs, None).await {
+            Ok(response) => parse_reports(&response),
             Err(_) => vec![],
-        };
-
-        // Static reports first (deterministic), then LLM additions.
-        static_reports.append(&mut llm_reports);
-        static_reports
+        }
     }
 
     /// Get staged diff using `git diff --cached`.
@@ -410,6 +720,31 @@ Diff:
         reports: &[BugReport],
         commit_sha: &str,
     ) -> Result<()> {
+        self.post_github_review_with_fixes(
+            owner,
+            repo,
+            pr_number,
+            reports,
+            &std::collections::HashMap::new(),
+            commit_sha,
+        )
+        .await
+    }
+
+    /// Post inline review comments, attaching a committable ```` ```suggestion ````
+    /// block to every finding that has an anchored fix.
+    ///
+    /// `fixes` is keyed by index into `reports`. A finding without an entry is
+    /// posted as prose, exactly as before — a missing fix is never faked.
+    pub async fn post_github_review_with_fixes(
+        &self,
+        owner: &str,
+        repo: &str,
+        pr_number: u64,
+        reports: &[BugReport],
+        fixes: &std::collections::HashMap<usize, crate::bugbot_autofix::FixProposal>,
+        commit_sha: &str,
+    ) -> Result<()> {
         let token = self
             .gh_token
             .as_ref()
@@ -426,17 +761,21 @@ Diff:
 
         let comments: Vec<serde_json::Value> = reports
             .iter()
-            .filter(|r| r.severity == Severity::Error || r.severity == Severity::Warning)
-            .map(|r| {
-                let mut body = format!("**{}** {}: {}", r.icon(), r.severity, r.message);
-                if let Some(sug) = &r.suggestion {
-                    body.push_str(&format!("\n\n💡 **Suggestion:** {}", sug));
+            .enumerate()
+            .filter(|(_, r)| r.severity == Severity::Error || r.severity == Severity::Warning)
+            .map(|(i, r)| match fixes.get(&i) {
+                Some(fix) => fix.review_comment_json(r),
+                None => {
+                    let mut body = format!("**{}** {}: {}", r.icon(), r.severity, r.message);
+                    if let Some(sug) = &r.suggestion {
+                        body.push_str(&format!("\n\n💡 **Suggestion:** {}", sug));
+                    }
+                    serde_json::json!({
+                        "path": r.file,
+                        "line": r.line,
+                        "body": body,
+                    })
                 }
-                serde_json::json!({
-                    "path": r.file,
-                    "line": r.line,
-                    "body": body,
-                })
             })
             .collect();
 
@@ -444,10 +783,23 @@ Diff:
             return Ok(());
         }
 
-        let body_text = if reports.iter().any(|r| r.severity == Severity::Error) {
-            "🤖 **BugBot** found issues that need attention. Please review the inline comments."
-        } else {
-            "🤖 **BugBot** found some warnings. See inline comments."
+        let fix_count = fixes.len();
+        let body_text = match (
+            reports.iter().any(|r| r.severity == Severity::Error),
+            fix_count,
+        ) {
+            (_, n) if n > 0 => format!(
+                "🤖 **BugBot** found issues and proposed {} committable fix{}. \
+                 Commit a suggestion to apply it — the anchors were verified against this diff, \
+                 but the fixes have not been compiled or tested.",
+                n,
+                if n == 1 { "" } else { "es" }
+            ),
+            (true, _) => {
+                "🤖 **BugBot** found issues that need attention. Please review the inline comments."
+                    .to_string()
+            }
+            (false, _) => "🤖 **BugBot** found some warnings. See inline comments.".to_string(),
         };
 
         let payload = serde_json::json!({
@@ -531,6 +883,256 @@ Diff:
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn section(path: &str, body: &str) -> String {
+        format!("diff --git a/{p} b/{p}\n--- a/{p}\n+++ b/{p}\n@@ -1,1 +1,1 @@\n+{body}\n", p = path)
+    }
+
+    fn finding(file: &str, line: u32, severity: Severity, message: &str) -> BugReport {
+        BugReport {
+            file: file.into(),
+            line,
+            severity,
+            message: message.into(),
+            suggestion: None,
+            fix_command: None,
+            category: None,
+        }
+    }
+
+    // ── split_diff_by_file ───────────────────────────────────────────────────
+
+    #[test]
+    fn splits_a_multi_file_diff_into_sections() {
+        let diff = format!("{}{}", section("a.rs", "one"), section("b/c.rs", "two"));
+        let sections = split_diff_by_file(&diff);
+        assert_eq!(sections.len(), 2);
+        assert_eq!(sections[0].path, "a.rs");
+        assert_eq!(sections[1].path, "b/c.rs");
+        assert!(sections[0].text.contains("+one"));
+        assert!(!sections[0].text.contains("+two"));
+    }
+
+    #[test]
+    fn drops_a_preamble_before_the_first_file_header() {
+        let diff = format!("commit abc123\nAuthor: me\n\n{}", section("a.rs", "one"));
+        let sections = split_diff_by_file(&diff);
+        assert_eq!(sections.len(), 1);
+        assert!(!sections[0].text.contains("Author"));
+    }
+
+    #[test]
+    fn a_headerless_diff_is_still_one_reviewable_section() {
+        let sections = split_diff_by_file("--- a/x\n+++ b/x\n@@ -1 +1 @@\n+y\n");
+        assert_eq!(sections.len(), 1);
+        assert!(sections[0].path.is_empty());
+    }
+
+    #[test]
+    fn an_empty_diff_yields_no_sections() {
+        assert!(split_diff_by_file("").is_empty());
+        assert!(split_diff_by_file("   \n\n").is_empty());
+    }
+
+    // ── pack_into_batches ────────────────────────────────────────────────────
+
+    #[test]
+    fn packs_every_file_into_some_batch() {
+        let sections = split_diff_by_file(&format!(
+            "{}{}{}",
+            section("a.rs", "one"),
+            section("b.rs", "two"),
+            section("c.rs", "three")
+        ));
+        let (batches, truncated) = pack_into_batches(&sections, 100);
+        assert!(truncated.is_empty());
+        let packed: usize = batches.iter().map(Vec::len).sum();
+        assert_eq!(packed, 3, "no file may be dropped by packing");
+        assert!(batches.len() > 1, "a 100-char budget cannot hold all three");
+    }
+
+    #[test]
+    fn a_single_oversized_file_is_truncated_and_named() {
+        let big = section("huge.rs", &"x".repeat(500));
+        let sections = split_diff_by_file(&big);
+        let (batches, truncated) = pack_into_batches(&sections, 120);
+        assert_eq!(truncated, vec!["huge.rs".to_string()]);
+        assert_eq!(batches.len(), 1);
+        assert!(batches[0][0].text.len() <= 120);
+    }
+
+    #[test]
+    fn truncation_never_splits_a_character() {
+        // Each `é` is two bytes; a byte-slice at an odd offset would panic.
+        let text = "é".repeat(50);
+        let cut = truncate_on_char_boundary(&text, 25);
+        assert!(cut.len() <= 25);
+        assert_eq!(cut.chars().count(), 12);
+    }
+
+    #[test]
+    fn one_batch_when_everything_fits() {
+        let sections = split_diff_by_file(&format!("{}{}", section("a.rs", "1"), section("b.rs", "2")));
+        let (batches, _) = pack_into_batches(&sections, 100_000);
+        assert_eq!(batches.len(), 1);
+        assert_eq!(batches[0].len(), 2);
+    }
+
+    // ── rotate ───────────────────────────────────────────────────────────────
+
+    #[test]
+    fn rotation_gives_each_file_a_turn_at_the_front() {
+        let sections = split_diff_by_file(&format!(
+            "{}{}{}",
+            section("a.rs", "1"),
+            section("b.rs", "2"),
+            section("c.rs", "3")
+        ));
+        let leads: Vec<&str> = (0..3)
+            .map(|pass| rotate(&sections, pass)[0].path.as_str())
+            .collect();
+        assert_eq!(leads, vec!["a.rs", "b.rs", "c.rs"]);
+    }
+
+    #[test]
+    fn rotation_preserves_every_file() {
+        let sections = split_diff_by_file(&format!("{}{}", section("a.rs", "1"), section("b.rs", "2")));
+        let rotated = rotate(&sections, 1);
+        assert_eq!(rotated.len(), 2);
+    }
+
+    #[test]
+    fn rotation_is_deterministic_across_calls() {
+        let sections = split_diff_by_file(&format!("{}{}", section("a.rs", "1"), section("b.rs", "2")));
+        let first: Vec<&str> = rotate(&sections, 7).iter().map(|s| s.path.as_str()).collect();
+        let second: Vec<&str> = rotate(&sections, 7).iter().map(|s| s.path.as_str()).collect();
+        assert_eq!(first, second);
+    }
+
+    #[test]
+    fn rotating_an_empty_batch_is_empty() {
+        assert!(rotate(&[], 3).is_empty());
+    }
+
+    // ── dedupe_reports ───────────────────────────────────────────────────────
+
+    #[test]
+    fn collapses_the_same_finding_reported_by_two_passes() {
+        let reports = vec![
+            finding("a.rs", 10, Severity::Warning, "Off-by-one in the loop bound"),
+            finding("a.rs", 10, Severity::Warning, "off by one in the loop bound!"),
+        ];
+        assert_eq!(dedupe_reports(reports).len(), 1);
+    }
+
+    #[test]
+    fn keeps_the_highest_severity_of_a_duplicate() {
+        let reports = vec![
+            finding("a.rs", 10, Severity::Info, "Off by one in the loop bound"),
+            finding("a.rs", 10, Severity::Error, "Off by one in the loop bound"),
+        ];
+        let deduped = dedupe_reports(reports);
+        assert_eq!(deduped.len(), 1);
+        assert_eq!(deduped[0].severity, Severity::Error);
+    }
+
+    #[test]
+    fn distinct_findings_at_the_same_line_both_survive() {
+        let reports = vec![
+            finding("a.rs", 10, Severity::Error, "Division by zero"),
+            finding("a.rs", 10, Severity::Error, "Unvalidated user input reaches the query"),
+        ];
+        assert_eq!(dedupe_reports(reports).len(), 2);
+    }
+
+    #[test]
+    fn the_same_message_in_two_files_is_not_a_duplicate() {
+        let reports = vec![
+            finding("a.rs", 10, Severity::Error, "Division by zero"),
+            finding("b.rs", 10, Severity::Error, "Division by zero"),
+        ];
+        assert_eq!(dedupe_reports(reports).len(), 2);
+    }
+
+    #[test]
+    fn errors_sort_before_warnings() {
+        let reports = vec![
+            finding("z.rs", 1, Severity::Info, "note"),
+            finding("a.rs", 1, Severity::Error, "boom"),
+            finding("m.rs", 1, Severity::Warning, "hmm"),
+        ];
+        let deduped = dedupe_reports(reports);
+        assert_eq!(deduped[0].severity, Severity::Error);
+        assert_eq!(deduped[2].severity, Severity::Info);
+    }
+
+    // ── ReviewCoverage ───────────────────────────────────────────────────────
+
+    #[test]
+    fn complete_coverage_has_no_caveat() {
+        let coverage = ReviewCoverage {
+            files_total: 3,
+            files_reviewed: 3,
+            llm_calls: 1,
+            ..Default::default()
+        };
+        assert!(coverage.is_complete());
+        assert_eq!(coverage.caveat(), None);
+    }
+
+    #[test]
+    fn skipped_and_truncated_files_both_produce_a_caveat() {
+        let coverage = ReviewCoverage {
+            files_total: 5,
+            files_reviewed: 3,
+            llm_calls: 8,
+            files_truncated: vec!["big.rs".into()],
+            files_skipped: vec!["x.rs".into(), "y.rs".into()],
+        };
+        assert!(!coverage.is_complete());
+        let caveat = coverage.caveat().expect("coverage was incomplete");
+        assert!(caveat.contains("2 file(s) not reviewed"));
+        assert!(caveat.contains("1 file(s) truncated"));
+    }
+
+    #[test]
+    fn default_plan_covers_far_more_than_one_request() {
+        let plan = ReviewPlan::default();
+        assert_eq!(plan.passes, 1);
+        assert!(plan.char_budget * plan.max_calls >= 64_000);
+    }
+
+    // ── parse_reports ────────────────────────────────────────────────────────
+
+    #[test]
+    fn parses_a_findings_array_out_of_prose() {
+        let reply = "Here you go:\n[{\"file\":\"a.rs\",\"line\":1,\"severity\":\"error\",\"message\":\"m\"}]\nDone";
+        let reports = parse_reports(reply);
+        assert_eq!(reports.len(), 1);
+        assert_eq!(reports[0].file, "a.rs");
+    }
+
+    #[test]
+    fn a_reply_with_no_array_yields_no_findings() {
+        assert!(parse_reports("I found nothing.").is_empty());
+        assert!(parse_reports("").is_empty());
+    }
+
+    #[test]
+    fn malformed_json_yields_no_findings_rather_than_a_panic() {
+        assert!(parse_reports("[{\"file\": }]").is_empty());
+    }
+
+    // ── review_prompt ────────────────────────────────────────────────────────
+
+    #[test]
+    fn the_prompt_contains_every_file_in_the_batch() {
+        let sections = split_diff_by_file(&format!("{}{}", section("a.rs", "one"), section("b.rs", "two")));
+        let prompt = review_prompt(&rotate(&sections, 0));
+        assert!(prompt.contains("+one"));
+        assert!(prompt.contains("+two"));
+        assert!(prompt.contains("new side of the diff"));
+    }
 
     #[test]
     fn format_empty_reports() {
