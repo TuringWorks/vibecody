@@ -6,11 +6,18 @@
  *   • Responsive sizing to fill the editor area
  *   • Theme-aware background
  *   • Toolbar with device-size presets (Desktop, Tablet, Mobile)
- *   • Open-in-browser button (external)
  *   • Refresh button
+ *
+ * ## Why the preview can look "broken"
+ *
+ * Scripts are off by default, which is right for a file that may have arrived
+ * from anywhere — but a JS-rendered page then paints its loading skeleton and
+ * stops there forever, with nothing on screen saying why. The notices below
+ * exist so a blank or spinning preview always explains itself: an unexplained
+ * empty pane is indistinguishable from a crash.
  */
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import "./HtmlPreview.css";
 
 interface HtmlPreviewProps {
@@ -48,6 +55,25 @@ export function HtmlPreview({ content, filePath }: HtmlPreviewProps) {
   }, [content, key]);
 
   const refresh = useCallback(() => setKey(k => k + 1), []);
+
+  /**
+   * What this document needs that the preview isn't giving it.
+   *
+   * Cheap string checks, not a parse: the point is to explain a stalled
+   * preview, and a false positive costs one dismissible line of text while a
+   * false negative costs the user ten minutes wondering what broke.
+   */
+  const needs = useMemo(() => {
+    const head = content.slice(0, 200_000);
+    return {
+      scripts: /<script[\s>]/i.test(head),
+      // A page pulling its own code off the network can't render from a local
+      // file at all — the iframe inherits this app's CSP, which is 'self'-only.
+      remoteCode:
+        /<script[^>]+src=["']https?:\/\//i.test(head) ||
+        /<link[^>]+rel=["']modulepreload["']/i.test(head),
+    };
+  }, [content]);
 
   const toggleScripts = useCallback(() => {
     setScriptsEnabled(s => !s);
@@ -95,6 +121,27 @@ export function HtmlPreview({ content, filePath }: HtmlPreviewProps) {
         </div>
       </div>
 
+      {/* ── Why nothing is rendering ─────────────────────────────── */}
+      {needs.scripts && !scriptsEnabled && (
+        <div className="html-preview-notice" role="status">
+          <span>
+            This page builds itself with JavaScript, which is off for preview.
+          </span>
+          <button className="html-preview-notice__action" onClick={toggleScripts}>
+            Enable scripts
+          </button>
+        </div>
+      )}
+      {needs.remoteCode && scriptsEnabled && (
+        <div className="html-preview-notice html-preview-notice--warn" role="status">
+          <span>
+            This page loads its code from the network. Previews run offline
+            under the app's content policy, so it will stay on its loading
+            screen — open it in a browser instead.
+          </span>
+        </div>
+      )}
+
       {/* ── Preview area ─────────────────────────────────────────── */}
       <div className="html-preview-canvas">
         <div
@@ -107,11 +154,14 @@ export function HtmlPreview({ content, filePath }: HtmlPreviewProps) {
               src={blobUrl}
               title={`HTML Preview: ${fileName}`}
               className="html-preview-iframe"
-              sandbox={
-                scriptsEnabled
-                  ? "allow-scripts allow-same-origin"
-                  : "allow-same-origin"
-              }
+              // `allow-scripts` WITHOUT `allow-same-origin`. Granting both to
+              // a blob: URL minted by this app hands the framed document our
+              // own origin — it could then reach `parent`, this app's
+              // localStorage, and the Tauri IPC bridge. That is not a sandbox,
+              // and the HTML being previewed is frequently something the user
+              // just downloaded. An opaque origin still runs the page's own
+              // scripts, which is all a preview needs.
+              sandbox={scriptsEnabled ? "allow-scripts" : ""}
             />
           )}
         </div>

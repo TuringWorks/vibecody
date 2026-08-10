@@ -265,6 +265,34 @@ body,
 
 /* ── Main container ───────────────────────────────────────────────────── */
 
+/* `.app` is the positioned ancestor the centre-docked panel measures against
+   and positions itself within. Without this it would resolve to the viewport
+   and sit under the header. */
+.app {
+  position: relative;
+}
+
+/* Centre-docked Terminal/Browser panel.
+
+   Positioned over the editor's box rather than re-parented into it: moving the
+   panel in the React tree would unmount Terminal and BrowserPanel, killing the
+   shell session and reloading the open page. Geometry comes from a
+   ResizeObserver on #main-editor (see App.tsx → "Panel docking"). */
+.terminal-panel--center {
+  position: absolute;
+  z-index: 5;
+  border-top: none;
+  border-left: 1px solid var(--border-color);
+  background: var(--bg-primary);
+}
+
+/* The editor keeps its box so it stays measurable, but stops painting while
+   covered. It is deliberately left mounted — switching docks should not throw
+   away Monaco's models, scroll position, or undo history. */
+.editor-container--covered > * {
+  visibility: hidden;
+}
+
 .main-container {
   display: flex;
   flex: 1;

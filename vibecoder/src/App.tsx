@@ -112,6 +112,17 @@ function App() {
   const [showFilterBar, setShowFilterBar] = useState(true);
   const [showTerminal, setShowTerminal] = useState(false);
   const [bottomTab, setBottomTab] = useState<"terminal" | "browser">("terminal");
+  /**
+   * Where the Terminal/Browser panel sits: the full-width strip along the
+   * bottom, or the centre, filling the editor's region.
+   *
+   * Persisted — a dock position the user has chosen is a workspace preference,
+   * and having it snap back to the bottom on every launch would make the
+   * feature not worth using.
+   */
+  const [panelDock, setPanelDock] = useState<"bottom" | "center">(
+    () => (localStorage.getItem("vibecoder-panel-dock") === "center" ? "center" : "bottom"),
+  );
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showTour, setShowTour] = useState(() => !localStorage.getItem('vibecoder-onboarding-complete'));
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -1283,6 +1294,58 @@ function App() {
     }
   };
 
+  // ── Panel docking ─────────────────────────────────────────────────────────
+  //
+  // Centre-docking positions the panel over the editor's box rather than
+  // re-parenting it into the editor subtree. Moving it in the React tree would
+  // unmount Terminal and BrowserPanel — dropping the shell session and
+  // reloading whatever page was open — so the panel stays exactly where it is
+  // and only its geometry changes. Nothing about the move is observable to
+  // either child.
+  const editorRegionRef = useRef<HTMLElement | null>(null);
+  const [centerRect, setCenterRect] = useState<{
+    top: number; left: number; width: number; height: number;
+  } | null>(null);
+
+  const dockPanel = useCallback((dock: "bottom" | "center") => {
+    setPanelDock(dock);
+    localStorage.setItem("vibecoder-panel-dock", dock);
+  }, []);
+
+  useEffect(() => {
+    if (panelDock !== "center" || !showTerminal) {
+      setCenterRect(null);
+      return;
+    }
+    const el = editorRegionRef.current;
+    const app = el?.closest(".app") as HTMLElement | null;
+    if (!el || !app) return;
+
+    const measure = () => {
+      const e = el.getBoundingClientRect();
+      const a = app.getBoundingClientRect();
+      // Relative to `.app`, which is the positioned ancestor.
+      setCenterRect({
+        top: e.top - a.top,
+        left: e.left - a.left,
+        width: e.width,
+        height: e.height,
+      });
+    };
+    measure();
+
+    // The editor's box moves whenever the sidebar or AI panel is resized or
+    // toggled, not just on window resize — observe the element itself.
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    ro.observe(app);
+    window.addEventListener("resize", measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [panelDock, showTerminal, sidebarWidth, aiPanelWidth, showEditorArea]);
+
   // Resize Handlers
   const startResizing = (type: 'sidebar' | 'terminal' | 'aipanel') => {
     setIsResizing(type);
@@ -1807,7 +1870,14 @@ function App() {
         )}
 
         {/* Editor Area */}
-        <main id="main-editor" className="editor-container" style={{ display: showEditorArea ? undefined : "none" }}>
+        <main
+          id="main-editor"
+          ref={editorRegionRef}
+          className={`editor-container${
+            showTerminal && panelDock === "center" ? " editor-container--covered" : ""
+          }`}
+          style={{ display: showEditorArea ? undefined : "none" }}
+        >
           {/* Tab Bar */}
           {openFiles.length > 0 && (
             <div className="tab-bar">
@@ -2227,17 +2297,38 @@ function App() {
         )}
       </div>
 
-      {/* Bottom Panel (Terminal / Browser) */}
+      {/* Terminal / Browser panel — bottom strip or centre, same DOM node. */}
       {showTerminal && (
         <>
+          {/* The drag handle only means something for the bottom strip; the
+              centre dock takes its size from the editor's box. */}
+          {panelDock === 'bottom' && (
+            <div
+              className="resizer-horizontal"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                startResizing('terminal');
+              }}
+            />
+          )}
           <div
-            className="resizer-horizontal"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              startResizing('terminal');
-            }}
-          />
-          <div className="terminal-panel" style={{ height: `${terminalHeight}px`, borderTop: 'none', display: 'flex', flexDirection: 'column' }}>
+            className={`terminal-panel${panelDock === 'center' ? ' terminal-panel--center' : ''}`}
+            style={
+              panelDock === 'center'
+                ? {
+                    // Until the first measurement lands there is no box to
+                    // occupy; staying hidden avoids a full-window flash of the
+                    // panel on the frame before the rect arrives.
+                    display: centerRect ? 'flex' : 'none',
+                    flexDirection: 'column',
+                    top: centerRect?.top,
+                    left: centerRect?.left,
+                    width: centerRect?.width,
+                    height: centerRect?.height,
+                  }
+                : { height: `${terminalHeight}px`, borderTop: 'none', display: 'flex', flexDirection: 'column' }
+            }
+          >
             {/* Tab bar */}
             <div role="tablist" aria-label="Bottom panel tabs" style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-secondary)', flexShrink: 0 }}>
               {(['terminal', 'browser'] as const).map((tab) => (
@@ -2258,6 +2349,23 @@ function App() {
                 </button>
               ))}
               <div style={{ flex: 1 }} />
+              <button
+                onClick={() => dockPanel(panelDock === 'center' ? 'bottom' : 'center')}
+                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '4px 8px', display: 'inline-flex', alignItems: 'center' }}
+                title={
+                  panelDock === 'center'
+                    ? 'Move panel to the bottom'
+                    : 'Move panel to the editor area'
+                }
+                aria-label={
+                  panelDock === 'center'
+                    ? 'Move panel to the bottom'
+                    : 'Move panel to the editor area'
+                }
+                aria-pressed={panelDock === 'center'}
+              >
+                <Icon name={panelDock === 'center' ? 'minimize' : 'maximize'} size={14} />
+              </button>
               <button
                 onClick={() => setShowTerminal(false)}
                 style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '4px 10px', fontSize: '16px' }}
