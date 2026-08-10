@@ -103,7 +103,10 @@ mod tests {
 
     #[test]
     fn missing_key_is_a_typed_error() {
-        let c = EmbeddingConfig::new(ModelRef::new(ProviderKind::OpenAI, "text-embedding-3-small"));
+        let c = EmbeddingConfig::new(ModelRef::new(
+            ProviderKind::OpenAI,
+            "text-embedding-3-small",
+        ));
         assert!(matches!(
             OpenAIEmbedder::new(c),
             Err(EmbeddingError::MissingApiKey("openai"))
@@ -165,9 +168,9 @@ mod tests {
 
     #[tokio::test]
     async fn empty_batch_makes_no_request() {
-        let e = OpenAIEmbedder::new(cfg("text-embedding-3-small").with_base_url(Some(
-            "http://127.0.0.1:1".into(),
-        )))
+        let e = OpenAIEmbedder::new(
+            cfg("text-embedding-3-small").with_base_url(Some("http://127.0.0.1:1".into())),
+        )
         .expect("builds");
         assert!(e
             .embed_batch(&[], EmbedKind::Document)

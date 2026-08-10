@@ -101,7 +101,11 @@ impl EmbeddingSettings {
     where
         F: FnOnce(ProviderKind) -> Option<String>,
     {
-        let key = self.provider.requires_api_key().then(|| api_key(self.provider)).flatten();
+        let key = self
+            .provider
+            .requires_api_key()
+            .then(|| api_key(self.provider))
+            .flatten();
         EmbeddingConfig::new(self.model_ref())
             .with_base_url(self.base_url.clone())
             .with_api_key(key)
@@ -117,10 +121,10 @@ impl EmbeddingSettings {
 
     /// One-line description for the startup banner and `/health`.
     pub fn describe(&self) -> String {
-        let dim = self
-            .model_ref()
-            .known_dimension()
-            .map_or_else(|| "dimension probed on first use".to_string(), |d| format!("{d}d"));
+        let dim = self.model_ref().known_dimension().map_or_else(
+            || "dimension probed on first use".to_string(),
+            |d| format!("{d}d"),
+        );
         let locality = if self.provider.is_local() {
             "local"
         } else {
@@ -312,8 +316,19 @@ mod tests {
     #[test]
     fn catalog_reports_locality_per_provider() {
         let cats = provider_catalog(|_| true);
-        assert!(cats.iter().find(|c| c.provider == ProviderKind::Ollama).expect("ollama").is_local);
-        assert!(!cats.iter().find(|c| c.provider == ProviderKind::OpenAI).expect("openai").is_local);
+        assert!(
+            cats.iter()
+                .find(|c| c.provider == ProviderKind::Ollama)
+                .expect("ollama")
+                .is_local
+        );
+        assert!(
+            !cats
+                .iter()
+                .find(|c| c.provider == ProviderKind::OpenAI)
+                .expect("openai")
+                .is_local
+        );
     }
 
     #[test]

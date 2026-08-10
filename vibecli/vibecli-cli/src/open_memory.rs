@@ -548,11 +548,8 @@ impl LocalEmbeddingEngine {
             embedding_dim: dim,
             df: HashMap::new(),
             doc_count: 0,
-            model_ref: vibe_embed::ModelRef::new(
-                vibe_embed::ProviderKind::Local,
-                Self::MODEL_ID,
-            )
-            .with_dimensions(Some(dim)),
+            model_ref: vibe_embed::ModelRef::new(vibe_embed::ProviderKind::Local, Self::MODEL_ID)
+                .with_dimensions(Some(dim)),
         }
     }
 
@@ -3990,13 +3987,10 @@ mod tests {
         engine.add_document("alpha");
         engine.add_document("beta");
         let texts = vec!["alpha".to_string(), "beta".to_string()];
-        let batch = vibe_embed::Embedder::embed_batch(
-            &engine,
-            &texts,
-            vibe_embed::EmbedKind::Document,
-        )
-        .await
-        .expect("batch");
+        let batch =
+            vibe_embed::Embedder::embed_batch(&engine, &texts, vibe_embed::EmbedKind::Document)
+                .await
+                .expect("batch");
         assert_eq!(batch.len(), 2);
         assert_eq!(batch[0], engine.embed("alpha"));
         assert_eq!(batch[1], engine.embed("beta"));

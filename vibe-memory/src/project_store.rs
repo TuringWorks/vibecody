@@ -55,15 +55,17 @@ impl ProjectMemStore {
     pub async fn store(&self, content: &str, meta: Option<MemoryMeta>) -> Result<MemoryEntry> {
         let meta = meta.unwrap_or_default();
         let sector = classify_sector(content);
-        let entry = self.create_entry(
-            content,
-            sector.as_str(),
-            meta.pinned,
-            meta.tags,
-            meta.project_id,
-            meta.session_id,
-            None,
-        ).await?;
+        let entry = self
+            .create_entry(
+                content,
+                sector.as_str(),
+                meta.pinned,
+                meta.tags,
+                meta.project_id,
+                meta.session_id,
+                None,
+            )
+            .await?;
 
         let conn = self.inner.conn.lock().await;
         conn.execute(
@@ -91,7 +93,9 @@ impl ProjectMemStore {
     }
 
     pub async fn store_with_sector(&self, content: &str, sector: &str) -> Result<MemoryEntry> {
-        let entry = self.create_entry(content, sector, false, vec![], None, None, None).await?;
+        let entry = self
+            .create_entry(content, sector, false, vec![], None, None, None)
+            .await?;
 
         let conn = self.inner.conn.lock().await;
         conn.execute(
@@ -119,15 +123,17 @@ impl ProjectMemStore {
 
     pub async fn store_with_ttl(&self, content: &str, ttl_seconds: u64) -> Result<MemoryEntry> {
         let expires_at = epoch_secs() + ttl_seconds as i64;
-        let entry = self.create_entry(
-            content,
-            "episodic",
-            false,
-            vec![],
-            None,
-            None,
-            Some(expires_at),
-        ).await?;
+        let entry = self
+            .create_entry(
+                content,
+                "episodic",
+                false,
+                vec![],
+                None,
+                None,
+                Some(expires_at),
+            )
+            .await?;
 
         let conn = self.inner.conn.lock().await;
         conn.execute(
@@ -177,8 +183,7 @@ impl ProjectMemStore {
                 // A blob that will not decode is a broken row, not an empty
                 // vector: `unwrap_or_default` here would turn corruption into
                 // a silently unsearchable memory.
-                let embedding: Vec<f32> =
-                    bincode::deserialize(&embedding_blob).unwrap_or_default();
+                let embedding: Vec<f32> = bincode::deserialize(&embedding_blob).unwrap_or_default();
                 let model_slug: Option<String> = row.get(6)?;
                 Ok((
                     row.get::<_, String>(0)?,
@@ -195,7 +200,8 @@ impl ProjectMemStore {
         let mut scored: Vec<_> = Vec::new();
         let mut diagnostics = crate::SearchDiagnostics::default();
         for row in rows {
-            let (id, content, sector, salience, tags, embedding, model_slug) = row.map_err(MemoryError::Sqlite)?;
+            let (id, content, sector, salience, tags, embedding, model_slug) =
+                row.map_err(MemoryError::Sqlite)?;
             if embedding.is_empty() {
                 diagnostics.skipped_no_vector += 1;
                 continue;
@@ -510,7 +516,11 @@ impl ProjectMemStore {
     /// An embedding failure is not silently swallowed into a zero vector: a
     /// memory stored with an all-zero vector is unreachable by every future
     /// search, and nothing would ever say why.
-    async fn generate_embedding(&self, text: &str, kind: vibe_embed::EmbedKind) -> Result<Vec<f32>> {
+    async fn generate_embedding(
+        &self,
+        text: &str,
+        kind: vibe_embed::EmbedKind,
+    ) -> Result<Vec<f32>> {
         self.inner
             .embedder
             .embed(text, kind)

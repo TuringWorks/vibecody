@@ -1195,7 +1195,12 @@ fn voice_dispatcher(
 /// default to something plausible — a `.webm` suffix on an mp3 is a confusing
 /// ffmpeg error several layers away from the cause.
 fn audio_extension_for(mime: &str) -> Option<&'static str> {
-    let base = mime.split(';').next().unwrap_or("").trim().to_ascii_lowercase();
+    let base = mime
+        .split(';')
+        .next()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
     match base.as_str() {
         "audio/webm" | "video/webm" => Some("webm"),
         "audio/wav" | "audio/wave" | "audio/x-wav" | "audio/vnd.wave" => Some("wav"),
@@ -1242,8 +1247,8 @@ async fn voice_status(_state: State<ServeState>) -> (StatusCode, Json<serde_json
         Some(status) => status,
         None => {
             // The probe spawns subprocesses; keep it off the async runtime.
-            let fresh = tokio::task::spawn_blocking(|| voice_dispatcher(None, None).status_report())
-                .await;
+            let fresh =
+                tokio::task::spawn_blocking(|| voice_dispatcher(None, None).status_report()).await;
             match fresh {
                 Ok(status) => {
                     if let Ok(mut guard) = voice_status_cache().lock() {
@@ -9372,9 +9377,8 @@ fn configured_embedding_settings() -> Result<vibe_embed::EmbeddingSettings, Stri
 /// GET /embeddings/models — the catalog, availability, and what is installed.
 async fn embedding_models(State(_state): State<ServeState>) -> Json<serde_json::Value> {
     // Availability is a fact about the credential store, not a guess.
-    let catalog = vibe_embed::provider_catalog(|p| {
-        crate::embedding_index::api_key_for(p).is_some()
-    });
+    let catalog =
+        vibe_embed::provider_catalog(|p| crate::embedding_index::api_key_for(p).is_some());
 
     let selected = configured_embedding_settings();
 
@@ -9382,12 +9386,11 @@ async fn embedding_models(State(_state): State<ServeState>) -> Json<serde_json::
     // catalog — that is the point: someone who ran `ollama pull bge-large`
     // should see `bge-large` in the picker. Unreachable Ollama is reported as
     // such rather than as an empty list, which would read as "none installed".
-    let installed = match vibe_ai::providers::ollama::OllamaProvider::list_embedding_models(None)
-        .await
-    {
-        Ok(models) => serde_json::json!({ "status": "ok", "models": models }),
-        Err(e) => serde_json::json!({ "status": "unreachable", "error": e.to_string() }),
-    };
+    let installed =
+        match vibe_ai::providers::ollama::OllamaProvider::list_embedding_models(None).await {
+            Ok(models) => serde_json::json!({ "status": "ok", "models": models }),
+            Err(e) => serde_json::json!({ "status": "unreachable", "error": e.to_string() }),
+        };
 
     Json(serde_json::json!({
         "providers": catalog,
@@ -9420,9 +9423,8 @@ async fn embeddings_embed(
     Json(req): Json<EmbedRequest>,
 ) -> impl axum::response::IntoResponse {
     let settings = match (req.provider.as_deref(), req.model.as_deref()) {
-        (Some(p), Some(m)) => vibe_embed::EmbeddingSettings::parse(p, m).ok_or_else(|| {
-            format!("unknown embedding provider/model: {p}/{m}")
-        }),
+        (Some(p), Some(m)) => vibe_embed::EmbeddingSettings::parse(p, m)
+            .ok_or_else(|| format!("unknown embedding provider/model: {p}/{m}")),
         _ => configured_embedding_settings(),
     };
     let settings = match settings {

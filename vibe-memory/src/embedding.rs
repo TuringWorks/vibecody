@@ -46,8 +46,7 @@ impl HashEmbedder {
         let dim = dim.max(1);
         Self {
             dim,
-            model: ModelRef::new(ProviderKind::Local, HASH_MODEL_ID)
-                .with_dimensions(Some(dim)),
+            model: ModelRef::new(ProviderKind::Local, HASH_MODEL_ID).with_dimensions(Some(dim)),
         }
     }
 
@@ -248,7 +247,10 @@ mod tests {
     /// plausible-looking number instead of failing.
     #[test]
     fn tag_rejects_a_same_length_different_model() {
-        let tag = VectorTag::of(&ModelRef::new(ProviderKind::Ollama, "nomic-embed-text"), 768);
+        let tag = VectorTag::of(
+            &ModelRef::new(ProviderKind::Ollama, "nomic-embed-text"),
+            768,
+        );
         let impostor = ModelRef::new(ProviderKind::Gemini, "text-embedding-004"); // also 768
         assert!(!tag.accepts(Some(&impostor.slug()), 768));
     }

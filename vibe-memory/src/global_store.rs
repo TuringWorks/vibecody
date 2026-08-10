@@ -128,16 +128,17 @@ impl GlobalMemStore {
     pub async fn store(&self, content: &str, meta: Option<MemoryMeta>) -> Result<MemoryEntry> {
         let meta = meta.unwrap_or_default();
         let sector = classify_sector(content);
-        let entry = self.create_entry(
-            content,
-            sector.as_str(),
-            meta.pinned,
-            meta.tags,
-            meta.project_id,
-            meta.session_id,
-            meta.ttl_seconds.map(|s| epoch_secs() + s as i64),
-        )
-        .await?;
+        let entry = self
+            .create_entry(
+                content,
+                sector.as_str(),
+                meta.pinned,
+                meta.tags,
+                meta.project_id,
+                meta.session_id,
+                meta.ttl_seconds.map(|s| epoch_secs() + s as i64),
+            )
+            .await?;
         self.insert_entry(entry).await
     }
 
@@ -150,35 +151,40 @@ impl GlobalMemStore {
         let mut meta = meta.unwrap_or_default();
         meta.project_id = Some(project_id.to_string());
         let sector = classify_sector(content);
-        let entry = self.create_entry(
-            content,
-            sector.as_str(),
-            meta.pinned,
-            meta.tags,
-            Some(project_id.to_string()),
-            meta.session_id,
-            meta.ttl_seconds.map(|s| epoch_secs() + s as i64),
-        )
-        .await?;
+        let entry = self
+            .create_entry(
+                content,
+                sector.as_str(),
+                meta.pinned,
+                meta.tags,
+                Some(project_id.to_string()),
+                meta.session_id,
+                meta.ttl_seconds.map(|s| epoch_secs() + s as i64),
+            )
+            .await?;
         self.insert_entry(entry).await
     }
 
     pub async fn store_with_sector(&self, content: &str, sector: &str) -> Result<MemoryEntry> {
-        let entry = self.create_entry(content, sector, false, vec![], None, None, None).await?;
+        let entry = self
+            .create_entry(content, sector, false, vec![], None, None, None)
+            .await?;
         self.insert_entry(entry).await
     }
 
     pub async fn store_with_ttl(&self, content: &str, ttl_seconds: u64) -> Result<MemoryEntry> {
         let expires_at = epoch_secs() + ttl_seconds as i64;
-        let entry = self.create_entry(
-            content,
-            "episodic",
-            false,
-            vec![],
-            None,
-            None,
-            Some(expires_at),
-        ).await?;
+        let entry = self
+            .create_entry(
+                content,
+                "episodic",
+                false,
+                vec![],
+                None,
+                None,
+                Some(expires_at),
+            )
+            .await?;
         self.insert_entry(entry).await
     }
 
@@ -203,8 +209,7 @@ impl GlobalMemStore {
                 // A blob that will not decode is a broken row, not an empty
                 // vector: `unwrap_or_default` here would turn corruption into
                 // a silently unsearchable memory.
-                let embedding: Vec<f32> =
-                    bincode::deserialize(&embedding_blob).unwrap_or_default();
+                let embedding: Vec<f32> = bincode::deserialize(&embedding_blob).unwrap_or_default();
                 let model_slug: Option<String> = row.get(7)?;
                 Ok((
                     row.get::<_, String>(0)?,
@@ -222,7 +227,8 @@ impl GlobalMemStore {
         let mut scored: Vec<_> = Vec::new();
         let mut diagnostics = crate::SearchDiagnostics::default();
         for row in rows {
-            let (id, content, sector, salience, tags, project_id, embedding, model_slug) = row.map_err(MemoryError::Sqlite)?;
+            let (id, content, sector, salience, tags, project_id, embedding, model_slug) =
+                row.map_err(MemoryError::Sqlite)?;
             if embedding.is_empty() {
                 diagnostics.skipped_no_vector += 1;
                 continue;
@@ -548,7 +554,11 @@ impl GlobalMemStore {
     /// An embedding failure is not silently swallowed into a zero vector: a
     /// memory stored with an all-zero vector is unreachable by every future
     /// search, and nothing would ever say why.
-    async fn generate_embedding(&self, text: &str, kind: vibe_embed::EmbedKind) -> Result<Vec<f32>> {
+    async fn generate_embedding(
+        &self,
+        text: &str,
+        kind: vibe_embed::EmbedKind,
+    ) -> Result<Vec<f32>> {
         self.inner
             .embedder
             .embed(text, kind)
@@ -599,7 +609,10 @@ mod tests {
             "a different bucket count is a different model"
         );
 
-        let hits = other.search("deployment runbook", 5, None).await.expect("search");
+        let hits = other
+            .search("deployment runbook", 5, None)
+            .await
+            .expect("search");
         assert!(
             hits.is_empty(),
             "a memory embedded by another model must not be scored as if comparable"
@@ -618,7 +631,10 @@ mod tests {
     async fn stored_rows_record_their_model_and_dimension() {
         let tmp = TempDir::new().expect("tempdir");
         let store = GlobalMemStore::open_at(tmp.path()).expect("open at temp");
-        store.store("a fact worth keeping", None).await.expect("store");
+        store
+            .store("a fact worth keeping", None)
+            .await
+            .expect("store");
 
         let conn = store.inner.conn.lock().await;
         let (slug, dim): (Option<String>, Option<i64>) = conn
@@ -628,7 +644,10 @@ mod tests {
                 |r| Ok((r.get(0)?, r.get(1)?)),
             )
             .expect("row");
-        assert_eq!(slug.as_deref(), Some(store.embedding_model().slug().as_str()));
+        assert_eq!(
+            slug.as_deref(),
+            Some(store.embedding_model().slug().as_str())
+        );
         assert_eq!(dim, Some(768));
     }
 

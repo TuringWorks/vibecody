@@ -399,9 +399,7 @@ impl OllamaProvider {
         Ok(list
             .models
             .into_iter()
-            .filter(|m| {
-                vibe_embed::catalog::looks_like_embedding_model(&m.name, &m.details.family)
-            })
+            .filter(|m| vibe_embed::catalog::looks_like_embedding_model(&m.name, &m.details.family))
             .map(|m| m.name)
             .collect())
     }

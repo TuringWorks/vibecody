@@ -609,9 +609,13 @@ mod legacy {
     #[derive(Deserialize)]
     #[serde(tag = "type", rename_all = "snake_case")]
     enum V1Provider {
-        Ollama { model: String },
+        Ollama {
+            model: String,
+        },
         #[serde(rename = "open_ai", alias = "openai")]
-        OpenAI { model: String },
+        OpenAI {
+            model: String,
+        },
     }
 
     #[derive(Deserialize)]
@@ -627,7 +631,9 @@ mod legacy {
             V1Provider::Ollama { model } => ModelRef::new(ProviderKind::Ollama, model),
             V1Provider::OpenAI { model } => ModelRef::new(ProviderKind::OpenAI, model),
         };
-        tracing::info!("Migrating a v1 embedding index built with {model} to v{INDEX_FORMAT_VERSION}");
+        tracing::info!(
+            "Migrating a v1 embedding index built with {model} to v{INDEX_FORMAT_VERSION}"
+        );
         let dimension = v1.vectors.first().map(|v| v.len());
         let file_count = v1
             .docs
@@ -838,9 +844,12 @@ mod tests {
     #[tokio::test]
     async fn build_records_the_observed_dimension() {
         let ws = workspace_with_files();
-        let index = EmbeddingIndex::build(ws.path(), FakeEmbedder::shared(ProviderKind::Ollama, "m", 16))
-            .await
-            .expect("builds");
+        let index = EmbeddingIndex::build(
+            ws.path(),
+            FakeEmbedder::shared(ProviderKind::Ollama, "m", 16),
+        )
+        .await
+        .expect("builds");
         assert_eq!(index.dimension(), Some(16));
         assert!(index.len() >= 2);
     }
@@ -850,12 +859,18 @@ mod tests {
     #[tokio::test]
     async fn attaching_a_different_model_is_rejected() {
         let ws = workspace_with_files();
-        let mut index =
-            EmbeddingIndex::build(ws.path(), FakeEmbedder::shared(ProviderKind::Ollama, "nomic", 8))
-                .await
-                .expect("builds");
+        let mut index = EmbeddingIndex::build(
+            ws.path(),
+            FakeEmbedder::shared(ProviderKind::Ollama, "nomic", 8),
+        )
+        .await
+        .expect("builds");
         let err = index
-            .attach(FakeEmbedder::shared(ProviderKind::OpenAI, "text-embedding-3-small", 8))
+            .attach(FakeEmbedder::shared(
+                ProviderKind::OpenAI,
+                "text-embedding-3-small",
+                8,
+            ))
             .expect_err("must reject a different model");
         assert!(err.to_string().contains("built with"));
     }
@@ -865,10 +880,12 @@ mod tests {
     #[tokio::test]
     async fn attaching_the_same_model_at_a_new_dimension_is_rejected() {
         let ws = workspace_with_files();
-        let mut index =
-            EmbeddingIndex::build(ws.path(), FakeEmbedder::shared(ProviderKind::Ollama, "m", 8))
-                .await
-                .expect("builds");
+        let mut index = EmbeddingIndex::build(
+            ws.path(),
+            FakeEmbedder::shared(ProviderKind::Ollama, "m", 8),
+        )
+        .await
+        .expect("builds");
         assert!(index
             .attach(FakeEmbedder::shared(ProviderKind::Ollama, "m", 16))
             .is_err());
@@ -877,10 +894,12 @@ mod tests {
     #[tokio::test]
     async fn attaching_the_matching_model_succeeds() {
         let ws = workspace_with_files();
-        let mut index =
-            EmbeddingIndex::build(ws.path(), FakeEmbedder::shared(ProviderKind::Ollama, "m", 8))
-                .await
-                .expect("builds");
+        let mut index = EmbeddingIndex::build(
+            ws.path(),
+            FakeEmbedder::shared(ProviderKind::Ollama, "m", 8),
+        )
+        .await
+        .expect("builds");
         assert!(index
             .attach(FakeEmbedder::shared(ProviderKind::Ollama, "m", 8))
             .is_ok());
@@ -889,15 +908,20 @@ mod tests {
     #[tokio::test]
     async fn search_without_an_embedder_says_so() {
         let ws = workspace_with_files();
-        let mut index =
-            EmbeddingIndex::build(ws.path(), FakeEmbedder::shared(ProviderKind::Ollama, "m", 8))
-                .await
-                .expect("builds");
+        let mut index = EmbeddingIndex::build(
+            ws.path(),
+            FakeEmbedder::shared(ProviderKind::Ollama, "m", 8),
+        )
+        .await
+        .expect("builds");
         let path = ws.path().join("idx.json");
         index.save(&path).expect("saves");
 
         let reloaded = EmbeddingIndex::load(&path).expect("loads");
-        let err = reloaded.search("anything", 3).await.expect_err("no embedder");
+        let err = reloaded
+            .search("anything", 3)
+            .await
+            .expect_err("no embedder");
         assert!(err.to_string().contains("no embedder attached"));
     }
 
@@ -906,7 +930,10 @@ mod tests {
     #[test]
     fn two_models_get_two_paths() {
         let dir = Path::new("/tmp/idx");
-        let a = index_path(dir, &ModelRef::new(ProviderKind::Ollama, "nomic-embed-text"));
+        let a = index_path(
+            dir,
+            &ModelRef::new(ProviderKind::Ollama, "nomic-embed-text"),
+        );
         let b = index_path(dir, &ModelRef::new(ProviderKind::Voyage, "voyage-code-3"));
         assert_ne!(a, b);
         assert!(a.to_string_lossy().contains("ollama__nomic-embed-text"));
@@ -917,10 +944,12 @@ mod tests {
         let ws = workspace_with_files();
         let store = ws.path().join("indexes");
 
-        let mut a =
-            EmbeddingIndex::build(ws.path(), FakeEmbedder::shared(ProviderKind::Ollama, "nomic", 8))
-                .await
-                .expect("builds a");
+        let mut a = EmbeddingIndex::build(
+            ws.path(),
+            FakeEmbedder::shared(ProviderKind::Ollama, "nomic", 8),
+        )
+        .await
+        .expect("builds a");
         let mut b = EmbeddingIndex::build(
             ws.path(),
             FakeEmbedder::shared(ProviderKind::Voyage, "voyage-code-3", 16),
@@ -944,16 +973,20 @@ mod tests {
         let ws = workspace_with_files();
         let store = ws.path().join("indexes");
         let model = ModelRef::new(ProviderKind::Ollama, "nomic");
-        let mut index = EmbeddingIndex::build(ws.path(), FakeEmbedder::shared(ProviderKind::Ollama, "nomic", 8))
-            .await
-            .expect("builds");
+        let mut index = EmbeddingIndex::build(
+            ws.path(),
+            FakeEmbedder::shared(ProviderKind::Ollama, "nomic", 8),
+        )
+        .await
+        .expect("builds");
         index.save_in(&store).expect("saves");
 
         assert!(EmbeddingIndex::load_for(&store, &model).is_some());
-        assert!(
-            EmbeddingIndex::load_for(&store, &ModelRef::new(ProviderKind::Cohere, "embed-v4.0"))
-                .is_none()
-        );
+        assert!(EmbeddingIndex::load_for(
+            &store,
+            &ModelRef::new(ProviderKind::Cohere, "embed-v4.0")
+        )
+        .is_none());
     }
 
     /// Several real catalog models have dots in their id (`voyage-3.5`,
@@ -982,7 +1015,10 @@ mod tests {
         let listed = list_indexes(&store);
         assert_eq!(listed.len(), 2, "both dotted models must be listed");
         for (index_file, _) in &listed {
-            assert!(index_file.exists(), "listed path must resolve: {index_file:?}");
+            assert!(
+                index_file.exists(),
+                "listed path must resolve: {index_file:?}"
+            );
         }
     }
 
@@ -997,10 +1033,12 @@ mod tests {
     async fn save_and_load_roundtrip_preserves_identity() {
         let ws = workspace_with_files();
         let path = ws.path().join("idx.json");
-        let mut index =
-            EmbeddingIndex::build(ws.path(), FakeEmbedder::shared(ProviderKind::Cohere, "embed-v4.0", 12))
-                .await
-                .expect("builds");
+        let mut index = EmbeddingIndex::build(
+            ws.path(),
+            FakeEmbedder::shared(ProviderKind::Cohere, "embed-v4.0", 12),
+        )
+        .await
+        .expect("builds");
         let chunks = index.len();
         index.save(&path).expect("saves");
 
@@ -1017,13 +1055,18 @@ mod tests {
     async fn saved_index_contains_no_credentials() {
         let ws = workspace_with_files();
         let path = ws.path().join("idx.json");
-        let mut index =
-            EmbeddingIndex::build(ws.path(), FakeEmbedder::shared(ProviderKind::OpenAI, "text-embedding-3-small", 8))
-                .await
-                .expect("builds");
+        let mut index = EmbeddingIndex::build(
+            ws.path(),
+            FakeEmbedder::shared(ProviderKind::OpenAI, "text-embedding-3-small", 8),
+        )
+        .await
+        .expect("builds");
         index.save(&path).expect("saves");
         let raw = std::fs::read_to_string(&path).expect("reads");
-        assert!(!raw.contains("api_key"), "index must not persist credentials");
+        assert!(
+            !raw.contains("api_key"),
+            "index must not persist credentials"
+        );
         assert!(!raw.contains("sk-"));
     }
 
@@ -1031,10 +1074,12 @@ mod tests {
     async fn sidecar_matches_the_index() {
         let ws = workspace_with_files();
         let path = ws.path().join("idx.json");
-        let mut index =
-            EmbeddingIndex::build(ws.path(), FakeEmbedder::shared(ProviderKind::Ollama, "m", 8))
-                .await
-                .expect("builds");
+        let mut index = EmbeddingIndex::build(
+            ws.path(),
+            FakeEmbedder::shared(ProviderKind::Ollama, "m", 8),
+        )
+        .await
+        .expect("builds");
         index.save(&path).expect("saves");
         let meta = path.with_extension("meta.json");
         let header: IndexHeader =
@@ -1089,7 +1134,9 @@ mod tests {
         let mut migrated = migrated;
         let out = dir.path().join("v2.json");
         migrated.save(&out).expect("saves");
-        assert!(!std::fs::read_to_string(&out).expect("reads").contains("sk-leaked"));
+        assert!(!std::fs::read_to_string(&out)
+            .expect("reads")
+            .contains("sk-leaked"));
     }
 
     #[test]
@@ -1121,10 +1168,12 @@ mod tests {
     #[tokio::test]
     async fn update_reembeds_only_changed_files() {
         let ws = workspace_with_files();
-        let mut index =
-            EmbeddingIndex::build(ws.path(), FakeEmbedder::shared(ProviderKind::Ollama, "m", 8))
-                .await
-                .expect("builds");
+        let mut index = EmbeddingIndex::build(
+            ws.path(),
+            FakeEmbedder::shared(ProviderKind::Ollama, "m", 8),
+        )
+        .await
+        .expect("builds");
         let before = index.len();
 
         let changed = ws.path().join("a.rs");
@@ -1139,10 +1188,12 @@ mod tests {
     #[tokio::test]
     async fn update_drops_chunks_for_a_deleted_file() {
         let ws = workspace_with_files();
-        let mut index =
-            EmbeddingIndex::build(ws.path(), FakeEmbedder::shared(ProviderKind::Ollama, "m", 8))
-                .await
-                .expect("builds");
+        let mut index = EmbeddingIndex::build(
+            ws.path(),
+            FakeEmbedder::shared(ProviderKind::Ollama, "m", 8),
+        )
+        .await
+        .expect("builds");
         let gone = ws.path().join("a.rs");
         std::fs::remove_file(&gone).expect("removes");
         index.update(&[gone.clone()]).await.expect("updates");
@@ -1153,10 +1204,12 @@ mod tests {
     #[tokio::test]
     async fn empty_update_is_a_no_op() {
         let ws = workspace_with_files();
-        let mut index =
-            EmbeddingIndex::build(ws.path(), FakeEmbedder::shared(ProviderKind::Ollama, "m", 8))
-                .await
-                .expect("builds");
+        let mut index = EmbeddingIndex::build(
+            ws.path(),
+            FakeEmbedder::shared(ProviderKind::Ollama, "m", 8),
+        )
+        .await
+        .expect("builds");
         let before = index.len();
         index.update(&[]).await.expect("no-op");
         assert_eq!(index.len(), before);
@@ -1167,10 +1220,12 @@ mod tests {
     #[tokio::test]
     async fn search_returns_ranked_hits() {
         let ws = workspace_with_files();
-        let index =
-            EmbeddingIndex::build(ws.path(), FakeEmbedder::shared(ProviderKind::Ollama, "m", 8))
-                .await
-                .expect("builds");
+        let index = EmbeddingIndex::build(
+            ws.path(),
+            FakeEmbedder::shared(ProviderKind::Ollama, "m", 8),
+        )
+        .await
+        .expect("builds");
         let hits = index.search("alpha", 2).await.expect("searches");
         assert!(hits.len() <= 2);
         assert!(hits.windows(2).all(|w| w[0].score >= w[1].score));
@@ -1185,10 +1240,12 @@ mod tests {
     #[tokio::test]
     async fn search_with_k_zero_returns_nothing() {
         let ws = workspace_with_files();
-        let index =
-            EmbeddingIndex::build(ws.path(), FakeEmbedder::shared(ProviderKind::Ollama, "m", 8))
-                .await
-                .expect("builds");
+        let index = EmbeddingIndex::build(
+            ws.path(),
+            FakeEmbedder::shared(ProviderKind::Ollama, "m", 8),
+        )
+        .await
+        .expect("builds");
         assert!(index.search("alpha", 0).await.expect("ok").is_empty());
     }
 
@@ -1203,10 +1260,12 @@ mod tests {
     #[tokio::test]
     async fn to_turboquant_succeeds_for_a_uniform_index() {
         let ws = workspace_with_files();
-        let index =
-            EmbeddingIndex::build(ws.path(), FakeEmbedder::shared(ProviderKind::Ollama, "m", 8))
-                .await
-                .expect("builds");
+        let index = EmbeddingIndex::build(
+            ws.path(),
+            FakeEmbedder::shared(ProviderKind::Ollama, "m", 8),
+        )
+        .await
+        .expect("builds");
         assert!(index.to_turboquant(42).expect("some").is_ok());
     }
 
@@ -1225,7 +1284,10 @@ mod tests {
             })
             .collect();
         index.header.dimension = Some(8);
-        let err = index.to_turboquant(42).expect("some").expect_err("must error");
+        let err = index
+            .to_turboquant(42)
+            .expect("some")
+            .expect_err("must error");
         assert!(err.to_string().contains("chunk 1"));
     }
 

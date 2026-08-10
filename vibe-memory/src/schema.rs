@@ -184,7 +184,8 @@ fn migrate_entries_table(conn: &Connection) -> SqliteResult<()> {
         ("embedding_dim", "INTEGER"),
     ];
 
-    let mut existing = conn.prepare("SELECT 1 FROM pragma_table_info('memory_entries') WHERE name = ?1")?;
+    let mut existing =
+        conn.prepare("SELECT 1 FROM pragma_table_info('memory_entries') WHERE name = ?1")?;
     for (name, ty) in ADDED {
         if !existing.exists([name])? {
             conn.execute(

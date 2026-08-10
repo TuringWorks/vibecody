@@ -61,7 +61,10 @@ struct EmbedRequest<'a> {
     content: Content<'a>,
     #[serde(rename = "taskType")]
     task_type: &'a str,
-    #[serde(rename = "outputDimensionality", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "outputDimensionality",
+        skip_serializing_if = "Option::is_none"
+    )]
     output_dimensionality: Option<usize>,
 }
 
@@ -141,7 +144,13 @@ impl Embedder for GeminiEmbedder {
         let vectors = resp
             .embeddings
             .into_iter()
-            .map(|e| if needs_renorm { l2_normalize(e.values) } else { e.values })
+            .map(|e| {
+                if needs_renorm {
+                    l2_normalize(e.values)
+                } else {
+                    e.values
+                }
+            })
             .collect();
         check_batch_len("gemini", texts.len(), vectors)
     }
@@ -214,8 +223,8 @@ mod tests {
 
     #[test]
     fn parses_batch_response() {
-        let r: Resp = serde_json::from_str(r#"{"embeddings":[{"values":[1.0,2.0]}]}"#)
-            .expect("parses");
+        let r: Resp =
+            serde_json::from_str(r#"{"embeddings":[{"values":[1.0,2.0]}]}"#).expect("parses");
         assert_eq!(r.embeddings.len(), 1);
         assert_eq!(r.embeddings[0].values, vec![1.0, 2.0]);
     }

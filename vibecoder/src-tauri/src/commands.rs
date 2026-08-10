@@ -11189,7 +11189,10 @@ use vibecli_cli::profile_store::ProfileStore as _ProfileStore;
 fn stored_embedding_settings() -> vibe_embed::EmbeddingSettings {
     let stored = _ProfileStore::new()
         .ok()
-        .and_then(|s| s.get_provider_config("default", "embeddings", "settings").ok())
+        .and_then(|s| {
+            s.get_provider_config("default", "embeddings", "settings")
+                .ok()
+        })
         .flatten()
         .and_then(|raw| serde_json::from_str::<vibe_embed::EmbeddingSettings>(&raw).ok());
 
@@ -11207,30 +11210,27 @@ fn open_workspace_index(
     workspace: &std::path::Path,
 ) -> Result<Option<vibe_core::index::EmbeddingIndex>, String> {
     let settings = stored_embedding_settings();
-    let embedder = vibecli_cli::embedding_index::build_embedder(&settings)
-        .map_err(|e| format!("{e:#}"))?;
-    vibecli_cli::embedding_index::open(workspace, &settings, embedder)
-        .map_err(|e| format!("{e:#}"))
+    let embedder =
+        vibecli_cli::embedding_index::build_embedder(&settings).map_err(|e| format!("{e:#}"))?;
+    vibecli_cli::embedding_index::open(workspace, &settings, embedder).map_err(|e| format!("{e:#}"))
 }
 
 /// Every embedding provider, its models, and whether it can be used now.
 #[tauri::command]
 pub async fn embedding_list_models() -> Result<serde_json::Value, String> {
     // Availability is read from the credential store, not assumed.
-    let catalog = vibe_embed::provider_catalog(|p| {
-        vibecli_cli::embedding_index::api_key_for(p).is_some()
-    });
+    let catalog =
+        vibe_embed::provider_catalog(|p| vibecli_cli::embedding_index::api_key_for(p).is_some());
 
     // Models the user has actually pulled into Ollama. Not in the static
     // catalog by design — a locally-pulled `bge-large` must be selectable.
     // "Ollama unreachable" is reported as its own state; an empty list would
     // read as "you have no embedding models installed".
-    let installed = match vibe_ai::providers::ollama::OllamaProvider::list_embedding_models(None)
-        .await
-    {
-        Ok(models) => serde_json::json!({ "status": "ok", "models": models }),
-        Err(e) => serde_json::json!({ "status": "unreachable", "error": e.to_string() }),
-    };
+    let installed =
+        match vibe_ai::providers::ollama::OllamaProvider::list_embedding_models(None).await {
+            Ok(models) => serde_json::json!({ "status": "ok", "models": models }),
+            Err(e) => serde_json::json!({ "status": "unreachable", "error": e.to_string() }),
+        };
 
     Ok(serde_json::json!({
         "providers": catalog,
@@ -11296,12 +11296,15 @@ pub async fn embedding_index_status(workspace: String) -> Result<serde_json::Val
 #[tauri::command]
 pub async fn embedding_index_build(workspace: String) -> Result<serde_json::Value, String> {
     let settings = stored_embedding_settings();
-    let embedder = vibecli_cli::embedding_index::build_embedder(&settings)
-        .map_err(|e| format!("{e:#}"))?;
-    let (index, path) =
-        vibecli_cli::embedding_index::rebuild(std::path::Path::new(&workspace), &settings, embedder)
-            .await
-            .map_err(|e| format!("{e:#}"))?;
+    let embedder =
+        vibecli_cli::embedding_index::build_embedder(&settings).map_err(|e| format!("{e:#}"))?;
+    let (index, path) = vibecli_cli::embedding_index::rebuild(
+        std::path::Path::new(&workspace),
+        &settings,
+        embedder,
+    )
+    .await
+    .map_err(|e| format!("{e:#}"))?;
     Ok(serde_json::json!({
         "model": settings.model_ref(),
         "chunks": index.len(),
@@ -11321,10 +11324,14 @@ pub async fn embedding_embed_texts(
     let kind = match kind.as_deref() {
         None | Some("document") => vibe_embed::EmbedKind::Document,
         Some("query") => vibe_embed::EmbedKind::Query,
-        Some(other) => return Err(format!("kind must be \"document\" or \"query\", got {other:?}")),
+        Some(other) => {
+            return Err(format!(
+                "kind must be \"document\" or \"query\", got {other:?}"
+            ))
+        }
     };
-    let embedder = vibecli_cli::embedding_index::build_embedder(&settings)
-        .map_err(|e| format!("{e:#}"))?;
+    let embedder =
+        vibecli_cli::embedding_index::build_embedder(&settings).map_err(|e| format!("{e:#}"))?;
     let vectors = vibe_embed::Embedder::embed_all(embedder.as_ref(), &texts, kind)
         .await
         .map_err(|e| e.to_string())?;
@@ -11334,7 +11341,6 @@ pub async fn embedding_embed_texts(
         "embeddings": vectors,
     }))
 }
-
 
 const _PROFILE_ID: &str = "default";
 

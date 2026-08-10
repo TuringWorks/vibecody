@@ -229,9 +229,7 @@ mod tests {
             .expect("a migration happened");
         assert!(moved.exists());
         assert!(!legacy.exists(), "the legacy file must not be left behind");
-        assert!(moved
-            .to_string_lossy()
-            .contains("ollama__nomic-embed-text"));
+        assert!(moved.to_string_lossy().contains("ollama__nomic-embed-text"));
 
         // And it is discoverable as the index for that model.
         let s = status(dir.path(), &settings("nomic-embed-text"));

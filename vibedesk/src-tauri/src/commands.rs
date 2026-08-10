@@ -668,7 +668,11 @@ pub async fn create_loop(
 ) -> Result<serde_json::Value, String> {
     let u = format!("{}/v1/loops", url.trim_end_matches('/'));
     let client = reqwest::Client::new();
-    let resp = send_authed(client.post(&u).json(&serde_json::json!({ "args": args })), token).await?;
+    let resp = send_authed(
+        client.post(&u).json(&serde_json::json!({ "args": args })),
+        token,
+    )
+    .await?;
     if !resp.status().is_success() {
         let s = resp.status();
         let b = resp.text().await.unwrap_or_default();
@@ -889,7 +893,12 @@ pub async fn stream_approvals(
 
     let u = format!("{}/v1/tainted/pending", url.trim_end_matches('/'));
     let client = reqwest::Client::new();
-    let res = send_authed_ctx(client.get(&u).header("Accept", "text/event-stream"), token, "Cannot connect to approval stream").await?;
+    let res = send_authed_ctx(
+        client.get(&u).header("Accept", "text/event-stream"),
+        token,
+        "Cannot connect to approval stream",
+    )
+    .await?;
 
     if !res.status().is_success() {
         return Err(format!("Approval stream returned {}", res.status()));

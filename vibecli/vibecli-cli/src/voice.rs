@@ -1116,9 +1116,18 @@ mod tests {
             local_whisper_candidates("base", "/models/ggml-base.bin", "en", "/tmp/a.wav");
         let names: Vec<&str> = candidates.iter().map(|c| c.binary).collect();
         assert_eq!(names[0], "whisper-cli");
-        assert!(names.contains(&"whisper-cpp"), "older Homebrew builds still work");
-        assert!(names.contains(&"main"), "source builds name the binary `main`");
-        assert!(names.contains(&"whisper"), "Python openai-whisper is the fallback");
+        assert!(
+            names.contains(&"whisper-cpp"),
+            "older Homebrew builds still work"
+        );
+        assert!(
+            names.contains(&"main"),
+            "source builds name the binary `main`"
+        );
+        assert!(
+            names.contains(&"whisper"),
+            "Python openai-whisper is the fallback"
+        );
     }
 
     #[test]
@@ -1127,7 +1136,10 @@ mod tests {
         // openai-whisper takes a model *name* and downloads its own weights.
         let candidates =
             local_whisper_candidates("base", "/models/ggml-base.bin", "de", "/tmp/a.wav");
-        let cli = candidates.iter().find(|c| c.binary == "whisper-cli").unwrap();
+        let cli = candidates
+            .iter()
+            .find(|c| c.binary == "whisper-cli")
+            .unwrap();
         assert!(cli.args.contains(&"/models/ggml-base.bin".to_string()));
         assert!(cli.args.contains(&"de".to_string()));
         assert!(cli.args.contains(&"/tmp/a.wav".to_string()));
@@ -1162,12 +1174,19 @@ mod tests {
         // other's audio back as their own transcript — silently.
         let paths: Vec<_> = (0..256).map(|_| conversion_temp_path()).collect();
         let unique: std::collections::HashSet<_> = paths.iter().collect();
-        assert_eq!(unique.len(), paths.len(), "every conversion needs its own path");
+        assert_eq!(
+            unique.len(),
+            paths.len(),
+            "every conversion needs its own path"
+        );
 
         for p in &paths {
             let name = p.file_name().and_then(|n| n.to_str()).unwrap_or_default();
             assert!(name.starts_with("vibecli_voice_"));
-            assert!(name.ends_with(".wav"), "ffmpeg picks its muxer from the extension");
+            assert!(
+                name.ends_with(".wav"),
+                "ffmpeg picks its muxer from the extension"
+            );
             // The pid keeps two daemons on one machine from colliding even
             // though each starts its counter at zero.
             assert!(name.contains(&std::process::id().to_string()));
@@ -1179,10 +1198,19 @@ mod tests {
         // The counter, not the clock, is what makes this safe — two threads can
         // observe the same nanosecond.
         let handles: Vec<_> = (0..8)
-            .map(|_| std::thread::spawn(|| (0..64).map(|_| conversion_temp_path()).collect::<Vec<_>>()))
+            .map(|_| {
+                std::thread::spawn(|| (0..64).map(|_| conversion_temp_path()).collect::<Vec<_>>())
+            })
             .collect();
-        let all: Vec<_> = handles.into_iter().flat_map(|h| h.join().unwrap()).collect();
+        let all: Vec<_> = handles
+            .into_iter()
+            .flat_map(|h| h.join().unwrap())
+            .collect();
         let unique: std::collections::HashSet<_> = all.iter().collect();
-        assert_eq!(unique.len(), all.len(), "concurrent callers must not share a path");
+        assert_eq!(
+            unique.len(),
+            all.len(),
+            "concurrent callers must not share a path"
+        );
     }
 }

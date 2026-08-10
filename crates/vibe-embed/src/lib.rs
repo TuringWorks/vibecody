@@ -355,7 +355,9 @@ pub trait Embedder: Send + Sync {
 
     /// Embed one text.
     async fn embed(&self, text: &str, kind: EmbedKind) -> Result<Vec<f32>> {
-        let batch = self.embed_batch(std::slice::from_ref(&text.to_string()), kind).await?;
+        let batch = self
+            .embed_batch(std::slice::from_ref(&text.to_string()), kind)
+            .await?;
         batch
             .into_iter()
             .next()

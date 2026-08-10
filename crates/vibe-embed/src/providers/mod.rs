@@ -246,7 +246,11 @@ mod tests {
         let r = check_batch_len("openai", 3, vec![vec![1.0], vec![2.0]]);
         assert!(matches!(
             r,
-            Err(EmbeddingError::BatchSizeMismatch { want: 3, got: 2, .. })
+            Err(EmbeddingError::BatchSizeMismatch {
+                want: 3,
+                got: 2,
+                ..
+            })
         ));
     }
 

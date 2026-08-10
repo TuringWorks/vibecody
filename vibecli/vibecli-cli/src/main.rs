@@ -281,8 +281,10 @@ fn resolve_index_settings(
         }
     }
     // Bare model name: keep the configured provider and endpoint.
-    Ok(vibe_embed::EmbeddingSettings::new(configured.provider, args)
-        .with_base_url(configured.base_url.clone()))
+    Ok(
+        vibe_embed::EmbeddingSettings::new(configured.provider, args)
+            .with_base_url(configured.base_url.clone()),
+    )
 }
 
 #[allow(dead_code)]
@@ -6982,21 +6984,22 @@ async fn main() -> Result<()> {
                             // The index must have been built with the model we
                             // are about to embed the question with; open() is
                             // what enforces that.
-                            let index: EmbeddingIndex =
-                                match crate::embedding_index::open(&cwd, &settings, embedder) {
-                                    Ok(Some(i)) => i,
-                                    Ok(None) => {
-                                        println!(
+                            let index: EmbeddingIndex = match crate::embedding_index::open(
+                                &cwd, &settings, embedder,
+                            ) {
+                                Ok(Some(i)) => i,
+                                Ok(None) => {
+                                    println!(
                                             "⚠️  No index for {}. Run /index first (/index-status lists what is built).\n",
                                             settings.describe()
                                         );
-                                        continue;
-                                    }
-                                    Err(e) => {
-                                        eprintln!("❌ Failed to load index: {e:#}\n");
-                                        continue;
-                                    }
-                                };
+                                    continue;
+                                }
+                                Err(e) => {
+                                    eprintln!("❌ Failed to load index: {e:#}\n");
+                                    continue;
+                                }
+                            };
                             println!("Searching codebase for: {}", args);
                             let hits = match index.search(args, 5).await {
                                 Ok(h) => h,

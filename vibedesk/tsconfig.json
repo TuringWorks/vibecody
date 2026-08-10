@@ -23,7 +23,12 @@
       "vite/client",
       "node"
     ],
-    "baseUrl": ".",
+    // No `baseUrl`: TypeScript 7 removed it (TS5102), and every mapping below
+    // is already relative — TS resolves `paths` against the tsconfig's own
+    // directory when `baseUrl` is absent, so this is behaviour-preserving.
+    // package.json pins typescript ^7.0.2, so CI installs a compiler that
+    // rejects the option outright while a stale local node_modules on 5.x
+    // still accepted it.
     "paths": {
       "@vibe/shared": [
         "../packages/vibe-ui-shared/src"

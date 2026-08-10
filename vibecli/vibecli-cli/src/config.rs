@@ -1456,7 +1456,10 @@ pub struct IndexConfig {
 
 impl IndexConfig {
     fn default_provider() -> String {
-        vibe_embed::EmbeddingSettings::default().provider.as_str().to_string()
+        vibe_embed::EmbeddingSettings::default()
+            .provider
+            .as_str()
+            .to_string()
     }
     fn default_model() -> String {
         vibe_embed::EmbeddingSettings::default().model
@@ -3409,13 +3412,19 @@ chain = ["claude", "openai", "ollama"]
 
         assert_eq!(derived.local_model, from_empty_toml.local_model);
         assert_eq!(derived.language, from_empty_toml.language);
-        assert_eq!(derived.silence_timeout_ms, from_empty_toml.silence_timeout_ms);
+        assert_eq!(
+            derived.silence_timeout_ms,
+            from_empty_toml.silence_timeout_ms
+        );
         assert_eq!(derived.prefer_local, from_empty_toml.prefer_local);
         assert_eq!(derived.tts_enabled, from_empty_toml.tts_enabled);
 
         // And they must be usable values, not merely equal to each other.
         assert_eq!(derived.language, "en");
         assert_eq!(derived.local_model, "base");
-        assert!(derived.silence_timeout_ms > 0, "a 0 ms silence timeout ends capture instantly");
+        assert!(
+            derived.silence_timeout_ms > 0,
+            "a 0 ms silence timeout ends capture instantly"
+        );
     }
 }

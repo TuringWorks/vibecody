@@ -33,8 +33,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
 use tracing::{info, warn};
 use vibe_core::index::embeddings::{EmbeddingIndex, SearchHit};
-use vibe_embed::{EmbeddingSettings, ProviderKind, SharedEmbedder};
 use vibe_core::path_guard::reject_sensitive_path;
+use vibe_embed::{EmbeddingSettings, ProviderKind, SharedEmbedder};
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -189,8 +189,7 @@ async fn start_index(
     let job_id_clone = job_id.clone();
     tokio::spawn(async move {
         let workspace_path = PathBuf::from(&workspace);
-        let result =
-            EmbeddingIndex::build(&workspace_path, state_clone.embedder.clone()).await;
+        let result = EmbeddingIndex::build(&workspace_path, state_clone.embedder.clone()).await;
 
         let mut jobs = state_clone.jobs.write().await;
         if let Some(job) = jobs.get_mut(&job_id_clone) {
@@ -362,27 +361,27 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or(9999);
     // Zero-config default: local Ollama + nomic-embed-text, no key needed.
     let defaults = EmbeddingSettings::default();
-    let provider_name = arg_value(&args, "--provider").unwrap_or_else(|| defaults.provider.as_str().to_string());
+    let provider_name =
+        arg_value(&args, "--provider").unwrap_or_else(|| defaults.provider.as_str().to_string());
     let model = arg_value(&args, "--model").unwrap_or_else(|| defaults.model.clone());
     let api_key = arg_value(&args, "--api-key").filter(|k| !k.trim().is_empty());
 
     // An unrecognised --provider is an error, not a silent fallback to Ollama.
     // Indexing an entire workspace with the wrong model is expensive to
     // discover later and expensive to redo.
-    let settings = EmbeddingSettings::parse(&provider_name, &model).ok_or_else(|| {
-        anyhow::anyhow!(
-            "unknown embedding provider '{provider_name}' — expected one of: {}",
-            ProviderKind::ALL
-                .iter()
-                .map(|p| p.as_str())
-                .collect::<Vec<_>>()
-                .join(", ")
-        )
-    })?
-    .with_dimensions(
-        arg_value(&args, "--dimensions").and_then(|d| d.parse().ok()),
-    )
-    .with_base_url(arg_value(&args, "--base-url").or_else(|| arg_value(&args, "--ollama-url")));
+    let settings = EmbeddingSettings::parse(&provider_name, &model)
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "unknown embedding provider '{provider_name}' — expected one of: {}",
+                ProviderKind::ALL
+                    .iter()
+                    .map(|p| p.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        })?
+        .with_dimensions(arg_value(&args, "--dimensions").and_then(|d| d.parse().ok()))
+        .with_base_url(arg_value(&args, "--base-url").or_else(|| arg_value(&args, "--ollama-url")));
 
     let embedder = settings
         .build(|_| api_key.clone())

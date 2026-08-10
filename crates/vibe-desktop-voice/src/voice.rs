@@ -21,7 +21,11 @@ const TRANSCRIBE_TIMEOUT_SECS: u64 = 180;
 fn resolve_token(explicit: Option<String>) -> Option<String> {
     explicit
         .filter(|t| !t.is_empty())
-        .or_else(|| std::env::var("VIBECLI_TOKEN").ok().filter(|t| !t.is_empty()))
+        .or_else(|| {
+            std::env::var("VIBECLI_TOKEN")
+                .ok()
+                .filter(|t| !t.is_empty())
+        })
         .or_else(|| {
             let path = std::env::var_os("HOME")
                 .map(std::path::PathBuf::from)?
@@ -172,16 +176,23 @@ pub async fn transcribe_audio(
     }
 
     let endpoint = format!("{}/voice/transcribe", base_url(url));
-    let resp = send_authed(client.post(&endpoint).json(&body), token, "Cannot reach the daemon for transcription").await?;
+    let resp = send_authed(
+        client.post(&endpoint).json(&body),
+        token,
+        "Cannot reach the daemon for transcription",
+    )
+    .await?;
 
     if !resp.status().is_success() {
         return Err(error_message(resp).await);
     }
 
-    let value: serde_json::Value = resp
-        .json()
-        .await
-        .map_err(|e| format!("Daemon returned an unreadable transcription response: {}", e))?;
+    let value: serde_json::Value = resp.json().await.map_err(|e| {
+        format!(
+            "Daemon returned an unreadable transcription response: {}",
+            e
+        )
+    })?;
     value
         .get("text")
         .and_then(|t| t.as_str())
@@ -242,8 +253,7 @@ mod tests {
     async fn transcribe_rejects_empty_and_invalid_audio_before_any_request() {
         // Both must fail locally: reaching the daemon to learn the payload was
         // malformed turns a client bug into a "daemon is broken" message.
-        let empty =
-            transcribe_audio(None, String::new(), None, None, None, Some("t".into())).await;
+        let empty = transcribe_audio(None, String::new(), None, None, None, Some("t".into())).await;
         assert!(empty.is_err());
 
         let bad = transcribe_audio(

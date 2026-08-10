@@ -430,7 +430,9 @@ mod tests {
     fn mxbai_prefixes_query_only() {
         let m = lookup(ProviderKind::Ollama, "mxbai-embed-large").expect("catalog entry");
         assert_eq!(m.apply_prefix("x", EmbedKind::Document), "x");
-        assert!(m.apply_prefix("x", EmbedKind::Query).starts_with("Represent this sentence"));
+        assert!(m
+            .apply_prefix("x", EmbedKind::Query)
+            .starts_with("Represent this sentence"));
     }
 
     #[test]
@@ -455,7 +457,10 @@ mod tests {
 
     #[test]
     fn supported_dimensions_include_native() {
-        for m in CATALOG.iter().filter(|m| !m.supported_dimensions.is_empty()) {
+        for m in CATALOG
+            .iter()
+            .filter(|m| !m.supported_dimensions.is_empty())
+        {
             let native = m.dimension.expect("catalog entries declare a dimension");
             assert!(
                 m.supports_dimension(native),
@@ -480,7 +485,10 @@ mod tests {
 
     #[test]
     fn embedding_model_detection() {
-        assert!(looks_like_embedding_model("nomic-embed-text:latest", "nomic-bert"));
+        assert!(looks_like_embedding_model(
+            "nomic-embed-text:latest",
+            "nomic-bert"
+        ));
         assert!(looks_like_embedding_model("bge-m3", ""));
         assert!(looks_like_embedding_model("embeddinggemma", "gemma3"));
         assert!(!looks_like_embedding_model("llama3.2:3b", "llama"));
