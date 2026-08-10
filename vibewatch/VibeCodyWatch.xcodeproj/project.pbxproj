@@ -20,6 +20,7 @@
 		C92DC748300926C835015A3E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 039D0536936F28F9C493B3D8 /* Assets.xcassets */; };
 		DAA20FB43FC84635A043CE6E /* VibeCodyWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D44DDFC24E59A9919BE4700 /* VibeCodyWatchApp.swift */; };
 		E1A0B2C3D4E5F60718293A4B /* GoalsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A0B2C3D4E5F60718293A4C /* GoalsView.swift */; };
+		E1A0B2C3D4E5F60718293A5B /* SkillforgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A0B2C3D4E5F60718293A5C /* SkillforgeView.swift */; };
 		E2A0B2C3D4E5F60718293A4B /* JobPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2A0B2C3D4E5F60718293A4C /* JobPickerView.swift */; };
 		E3A0B2C3D4E5F60718293A4B /* RecapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3A0B2C3D4E5F60718293A4C /* RecapView.swift */; };
 		E4A0B2C3D4E5F60718293A4B /* TaintedConfirmationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4A0B2C3D4E5F60718293A4C /* TaintedConfirmationView.swift */; };
@@ -42,6 +43,7 @@
 		C8B0D8FAD1D248DB545F4995 /* WatchAuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchAuthManager.swift; sourceTree = "<group>"; };
 		D4B90E1E5125CE0F141F0B0F /* SessionPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionPickerView.swift; sourceTree = "<group>"; };
 		E1A0B2C3D4E5F60718293A4C /* GoalsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalsView.swift; sourceTree = "<group>"; };
+		E1A0B2C3D4E5F60718293A5C /* SkillforgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillforgeView.swift; sourceTree = "<group>"; };
 		E2A0B2C3D4E5F60718293A4C /* JobPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobPickerView.swift; sourceTree = "<group>"; };
 		E3A0B2C3D4E5F60718293A4C /* RecapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecapView.swift; sourceTree = "<group>"; };
 		E4A0B2C3D4E5F60718293A4C /* TaintedConfirmationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaintedConfirmationView.swift; sourceTree = "<group>"; };
@@ -96,6 +98,7 @@
 				8A09B80FFB463A2177F32453 /* ContentView.swift */,
 				A059DE4BD832164F8E372EAB /* ConversationView.swift */,
 				E1A0B2C3D4E5F60718293A4C /* GoalsView.swift */,
+				E1A0B2C3D4E5F60718293A5C /* SkillforgeView.swift */,
 				37E7D34694471C76451FF971 /* Info.plist */,
 				E2A0B2C3D4E5F60718293A4C /* JobPickerView.swift */,
 				4D07206583247B730A3AD026 /* Models.swift */,
@@ -182,6 +185,7 @@
 				7C2A0A23ABAD1526845A29F5 /* ContentView.swift in Sources */,
 				9C0FDC24B7829A5FF7BEFB79 /* ConversationView.swift in Sources */,
 				E1A0B2C3D4E5F60718293A4B /* GoalsView.swift in Sources */,
+				E1A0B2C3D4E5F60718293A5B /* SkillforgeView.swift in Sources */,
 				E2A0B2C3D4E5F60718293A4B /* JobPickerView.swift in Sources */,
 				BBA0AA16DFE0B076269441EB /* Models.swift in Sources */,
 				E3A0B2C3D4E5F60718293A4B /* RecapView.swift in Sources */,
