@@ -1250,7 +1250,13 @@ jobs:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           name: VibeCody ${{ github.event.inputs.tag || github.ref_name }}
           draft: false
-          prerelease: ${{ contains(github.ref_name, '-') || contains(github.event.inputs.tag, '-') }}
+          # Prerelease when the *tag* looks like v1.2.3-rc1. Resolve the tag the
+          # same way every other field here does — inputs.tag first — because
+          # `github.ref_name` is the branch on a workflow_dispatch. Dispatching
+          # v0.5.8 from `release/v0.5.8-ci-fixes` matched the '-' in the branch
+          # name and published a stable release as a prerelease, which left
+          # /releases/latest (and therefore install.sh) pointing at v0.5.7.
+          prerelease: ${{ contains(github.event.inputs.tag || github.ref_name, '-') }}
           body: |
             ## VibeCody ${{ github.event.inputs.tag || github.ref_name }}
 
