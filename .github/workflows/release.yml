@@ -370,20 +370,36 @@ jobs:
       - name: Build Tauri app
         working-directory: vibecoder
         env:
-          # Tauri picks these up automatically. On non-macOS / when the cert
-          # isn't configured, they're all empty and the config-level "-"
-          # (ad-hoc) identity is used instead.
-          # '-' (ad-hoc), never '' — Tauri treats a present-but-empty
-          # APPLE_SIGNING_IDENTITY as an explicit request to sign with the
-          # identity "", which `codesign` rejects with "no identity found" and
-          # the bundle step turns into a hard failure. It does NOT fall back to
-          # the `"signingIdentity": "-"` in tauri.conf.json. That is what broke
-          # the v0.5.8 macOS builds on a repo with no signing secrets.
-          APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && steps.vibecoder-apple-cert.outputs.signed == 'true' && secrets.APPLE_SIGNING_IDENTITY || '-' }}
-          APPLE_ID: ${{ runner.os == 'macOS' && steps.vibecoder-apple-cert.outputs.signed == 'true' && secrets.APPLE_ID || '' }}
-          APPLE_TEAM_ID: ${{ runner.os == 'macOS' && steps.vibecoder-apple-cert.outputs.signed == 'true' && secrets.APPLE_TEAM_ID || '' }}
-          APPLE_PASSWORD: ${{ runner.os == 'macOS' && steps.vibecoder-apple-cert.outputs.signed == 'true' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
-        run: npx tauri build ${{ matrix.args }}
+          # Passed as S_* and exported conditionally below. They cannot be set
+          # as `env:` keys: GitHub Actions defines the key even when the
+          # expression evaluates to '', and Tauri treats a present-but-empty
+          # Apple variable as an explicit request. An empty
+          # APPLE_SIGNING_IDENTITY became `codesign -s ""` ("no identity
+          # found"); with that fixed, empty APPLE_ID/APPLE_TEAM_ID/APPLE_PASSWORD
+          # became a notarization attempt dying with "Team ID must be at least 3
+          # characters". Both failed the v0.5.8 macOS builds, one after the other.
+          #
+          # Unset is the only value meaning "don't": with none exported, Tauri
+          # logs "skipping app notarization" and ad-hoc signs — the documented
+          # unsigned path, and what a local build without these does.
+          CERT_SIGNED: ${{ steps.vibecoder-apple-cert.outputs.signed }}
+          S_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          S_APPLE_ID: ${{ secrets.APPLE_ID }}
+          S_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          S_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            if [ "$CERT_SIGNED" = "true" ]; then
+              export APPLE_SIGNING_IDENTITY="$S_IDENTITY"
+              export APPLE_ID="$S_APPLE_ID"
+              export APPLE_TEAM_ID="$S_TEAM_ID"
+              export APPLE_PASSWORD="$S_PASSWORD"
+            else
+              # Ad-hoc sign; every notarization variable stays unset.
+              export APPLE_SIGNING_IDENTITY="-"
+            fi
+          fi
+          npx tauri build ${{ matrix.args }}
 
       - name: Collect artifacts
         run: |
@@ -500,17 +516,36 @@ jobs:
       - name: Build Tauri app
         working-directory: vibeaichat
         env:
-          # '-' (ad-hoc), never '' — Tauri treats a present-but-empty
-          # APPLE_SIGNING_IDENTITY as an explicit request to sign with the
-          # identity "", which `codesign` rejects with "no identity found" and
-          # the bundle step turns into a hard failure. It does NOT fall back to
-          # the `"signingIdentity": "-"` in tauri.conf.json. That is what broke
-          # the v0.5.8 macOS builds on a repo with no signing secrets.
-          APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && steps.vibeaichat-apple-cert.outputs.signed == 'true' && secrets.APPLE_SIGNING_IDENTITY || '-' }}
-          APPLE_ID: ${{ runner.os == 'macOS' && steps.vibeaichat-apple-cert.outputs.signed == 'true' && secrets.APPLE_ID || '' }}
-          APPLE_TEAM_ID: ${{ runner.os == 'macOS' && steps.vibeaichat-apple-cert.outputs.signed == 'true' && secrets.APPLE_TEAM_ID || '' }}
-          APPLE_PASSWORD: ${{ runner.os == 'macOS' && steps.vibeaichat-apple-cert.outputs.signed == 'true' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
-        run: npx tauri build ${{ matrix.args }}
+          # Passed as S_* and exported conditionally below. They cannot be set
+          # as `env:` keys: GitHub Actions defines the key even when the
+          # expression evaluates to '', and Tauri treats a present-but-empty
+          # Apple variable as an explicit request. An empty
+          # APPLE_SIGNING_IDENTITY became `codesign -s ""` ("no identity
+          # found"); with that fixed, empty APPLE_ID/APPLE_TEAM_ID/APPLE_PASSWORD
+          # became a notarization attempt dying with "Team ID must be at least 3
+          # characters". Both failed the v0.5.8 macOS builds, one after the other.
+          #
+          # Unset is the only value meaning "don't": with none exported, Tauri
+          # logs "skipping app notarization" and ad-hoc signs — the documented
+          # unsigned path, and what a local build without these does.
+          CERT_SIGNED: ${{ steps.vibeaichat-apple-cert.outputs.signed }}
+          S_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          S_APPLE_ID: ${{ secrets.APPLE_ID }}
+          S_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          S_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            if [ "$CERT_SIGNED" = "true" ]; then
+              export APPLE_SIGNING_IDENTITY="$S_IDENTITY"
+              export APPLE_ID="$S_APPLE_ID"
+              export APPLE_TEAM_ID="$S_TEAM_ID"
+              export APPLE_PASSWORD="$S_PASSWORD"
+            else
+              # Ad-hoc sign; every notarization variable stays unset.
+              export APPLE_SIGNING_IDENTITY="-"
+            fi
+          fi
+          npx tauri build ${{ matrix.args }}
 
       - name: Collect artifacts
         run: |
@@ -631,17 +666,36 @@ jobs:
         # and the DMG step skips the Finder AppleScript that has no runner to
         # talk to. Locally that has to be set by hand — see docs/release.md.
         env:
-          # '-' (ad-hoc), never '' — Tauri treats a present-but-empty
-          # APPLE_SIGNING_IDENTITY as an explicit request to sign with the
-          # identity "", which `codesign` rejects with "no identity found" and
-          # the bundle step turns into a hard failure. It does NOT fall back to
-          # the `"signingIdentity": "-"` in tauri.conf.json. That is what broke
-          # the v0.5.8 macOS builds on a repo with no signing secrets.
-          APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && steps.vibedesk-apple-cert.outputs.signed == 'true' && secrets.APPLE_SIGNING_IDENTITY || '-' }}
-          APPLE_ID: ${{ runner.os == 'macOS' && steps.vibedesk-apple-cert.outputs.signed == 'true' && secrets.APPLE_ID || '' }}
-          APPLE_TEAM_ID: ${{ runner.os == 'macOS' && steps.vibedesk-apple-cert.outputs.signed == 'true' && secrets.APPLE_TEAM_ID || '' }}
-          APPLE_PASSWORD: ${{ runner.os == 'macOS' && steps.vibedesk-apple-cert.outputs.signed == 'true' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
-        run: npx tauri build ${{ matrix.args }}
+          # Passed as S_* and exported conditionally below. They cannot be set
+          # as `env:` keys: GitHub Actions defines the key even when the
+          # expression evaluates to '', and Tauri treats a present-but-empty
+          # Apple variable as an explicit request. An empty
+          # APPLE_SIGNING_IDENTITY became `codesign -s ""` ("no identity
+          # found"); with that fixed, empty APPLE_ID/APPLE_TEAM_ID/APPLE_PASSWORD
+          # became a notarization attempt dying with "Team ID must be at least 3
+          # characters". Both failed the v0.5.8 macOS builds, one after the other.
+          #
+          # Unset is the only value meaning "don't": with none exported, Tauri
+          # logs "skipping app notarization" and ad-hoc signs — the documented
+          # unsigned path, and what a local build without these does.
+          CERT_SIGNED: ${{ steps.vibedesk-apple-cert.outputs.signed }}
+          S_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          S_APPLE_ID: ${{ secrets.APPLE_ID }}
+          S_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          S_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            if [ "$CERT_SIGNED" = "true" ]; then
+              export APPLE_SIGNING_IDENTITY="$S_IDENTITY"
+              export APPLE_ID="$S_APPLE_ID"
+              export APPLE_TEAM_ID="$S_TEAM_ID"
+              export APPLE_PASSWORD="$S_PASSWORD"
+            else
+              # Ad-hoc sign; every notarization variable stays unset.
+              export APPLE_SIGNING_IDENTITY="-"
+            fi
+          fi
+          npx tauri build ${{ matrix.args }}
 
       - name: Collect artifacts
         run: |
