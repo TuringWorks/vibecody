@@ -915,3 +915,35 @@ describe('VibeCLIAgent.voiceStatus', () => {
     await expect(agent.voiceStatus()).rejects.toThrow(AgentError);
   });
 });
+
+// ── Auth coverage on authed routes ────────────────────────────────────────────
+
+describe('authenticated routes send the bearer token', () => {
+  // `goals.tree` used a bare `fetch`, so it was a guaranteed 401 against any
+  // daemon — every other /v1/goals method went through authedFetch. This pins
+  // the whole family rather than just the one that slipped.
+  it.each([
+    ['goals.tree', (a: VibeCLIAgent) => a.goals.tree('goal-1')],
+    ['goals.get', (a: VibeCLIAgent) => a.goals.get('goal-1')],
+    ['goals.list', (a: VibeCLIAgent) => a.goals.list()],
+  ])('%s sends Authorization', async (_name, call) => {
+    const agent = new VibeCLIAgent({ token: 'tok-123' });
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+
+    await call(agent).catch(() => undefined);
+
+    const init = (fetchMock.mock.calls[0][1] ?? {}) as RequestInit;
+    expect(headerOf(init, 'Authorization')).toBe('Bearer tok-123');
+  });
+
+  it('isConnected does not require a token (/health is public)', async () => {
+    const agent = new VibeCLIAgent({ token: 'tok-123' });
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ service: 'vibecli', status: 'ok', version: '0.5.7' }),
+    });
+
+    await expect(agent.isConnected()).resolves.toBe(true);
+    expect(fetchMock.mock.calls[0][0]).toContain('/health');
+  });
+});

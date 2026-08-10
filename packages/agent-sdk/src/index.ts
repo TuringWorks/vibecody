@@ -706,7 +706,9 @@ export class VibeCLIAgent {
      *  descendants weren't expanded carry `truncated: true`. */
     tree: async (id: string, depth?: number): Promise<GoalTreeResponse> => {
       const qs = depth ? `?depth=${depth}` : '';
-      const res = await fetch(
+      // authedFetch, not fetch: `/v1/goals/:id/tree` sits behind require_auth
+      // like the rest of /v1/goals, so a bare fetch here was a guaranteed 401.
+      const res = await this.authedFetch(
         `${this.baseUrl}/v1/goals/${encodeURIComponent(id)}/tree${qs}`,
       );
       if (!res.ok) throw new AgentError(`goals.tree failed: ${res.status} ${await res.text()}`);

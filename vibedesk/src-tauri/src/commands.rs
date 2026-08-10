@@ -66,6 +66,20 @@ async fn send_authed(
     req: reqwest::RequestBuilder,
     token: Option<String>,
 ) -> Result<reqwest::Response, String> {
+    send_authed_ctx(req, token, "Cannot reach daemon").await
+}
+
+/// [`send_authed`] with a caller-supplied prefix for transport errors.
+///
+/// The SSE endpoints want "Cannot connect to stream" rather than the generic
+/// wording. Passing the context in beats rewriting the finished message: a
+/// `String::replace` on the error stops matching the day the inner wording
+/// changes, and leaves the generic text in place with nothing failing.
+async fn send_authed_ctx(
+    req: reqwest::RequestBuilder,
+    token: Option<String>,
+    context: &str,
+) -> Result<reqwest::Response, String> {
     // Clone before the body is consumed. `try_clone` returns None for
     // streaming bodies; those simply do not get a retry.
     let retry_base = req.try_clone();
@@ -76,7 +90,7 @@ async fn send_authed(
     }
     .send()
     .await
-    .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    .map_err(|e| format!("{context}: {e}"))?;
 
     if res.status() != reqwest::StatusCode::UNAUTHORIZED {
         return Ok(res);
@@ -87,10 +101,10 @@ async fn send_authed(
     if Some(&fresh) == sent.as_ref() {
         return Ok(res); // already the newest token — a real auth failure
     }
-    base.header("Authorization", format!("Bearer {}", fresh))
+    base.header("Authorization", format!("Bearer {fresh}"))
         .send()
         .await
-        .map_err(|e| format!("Cannot reach daemon: {}", e))
+        .map_err(|e| format!("{context}: {e}"))
 }
 
 /// Ping the vibecli daemon `/health` endpoint; return "online" or an error.
@@ -875,9 +889,7 @@ pub async fn stream_approvals(
 
     let u = format!("{}/v1/tainted/pending", url.trim_end_matches('/'));
     let client = reqwest::Client::new();
-    let res = send_authed(client.get(&u).header("Accept", "text/event-stream"), token)
-        .await
-        .map_err(|e| e.replace("Cannot reach daemon", "Cannot connect to approval stream"))?;
+    let res = send_authed_ctx(client.get(&u).header("Accept", "text/event-stream"), token, "Cannot connect to approval stream").await?;
 
     if !res.status().is_success() {
         return Err(format!("Approval stream returned {}", res.status()));
@@ -969,9 +981,7 @@ pub async fn stream_agent(
         Some(n) => get.query(&[("since_seq", n)]),
         None => get,
     };
-    let res = send_authed(get, token)
-        .await
-        .map_err(|e| e.replace("Cannot reach daemon", "Cannot connect to stream"))?;
+    let res = send_authed_ctx(get, token, "Cannot connect to stream").await?;
 
     if !res.status().is_success() {
         return Err(format!("Stream returned {}", res.status()));

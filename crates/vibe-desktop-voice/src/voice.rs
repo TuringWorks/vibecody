@@ -52,6 +52,17 @@ fn file_token() -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
+/// The token worth retrying with: `fresh`, unless it is what we already sent.
+///
+/// Returning `None` for an unchanged token is the whole point. A retry with the
+/// identical bearer earns an identical 401, so every genuine auth failure would
+/// cost two round-trips and report the second one — the same error, twice as
+/// slow, with the retry hiding the fact that nothing changed.
+fn fresher_token(sent: Option<&str>, fresh: Option<String>) -> Option<String> {
+    let fresh = fresh?;
+    (Some(fresh.as_str()) != sent).then_some(fresh)
+}
+
 /// Send an authenticated daemon request, retrying once on 401 with a freshly
 /// read token.
 ///
@@ -84,12 +95,10 @@ async fn send_authed(
     if res.status() != reqwest::StatusCode::UNAUTHORIZED {
         return Ok(res);
     }
-    let (Some(base), Some(fresh)) = (retry_base, file_token()) else {
+    let (Some(base), Some(fresh)) = (retry_base, fresher_token(sent.as_deref(), file_token()))
+    else {
         return Ok(res);
     };
-    if Some(&fresh) == sent.as_ref() {
-        return Ok(res);
-    }
     base.header("Authorization", format!("Bearer {fresh}"))
         .send()
         .await
@@ -247,5 +256,47 @@ mod tests {
         )
         .await;
         assert!(bad.unwrap_err().contains("could not be encoded"));
+    }
+}
+
+#[cfg(test)]
+mod daemon_auth_tests {
+    use super::fresher_token;
+
+    /// The 401 loop: the app holds a token from a daemon that has since
+    /// restarted (every shell autostarts one, and `vibecli serve` mints a new
+    /// token on every start). The retry must offer whatever the file now holds.
+    #[test]
+    fn a_stale_token_is_replaced_by_the_current_one() {
+        assert_eq!(
+            fresher_token(Some("stale-from-a-dead-daemon"), Some("live".into())).as_deref(),
+            Some("live"),
+        );
+    }
+
+    /// A retry with the same bearer earns the same 401 — twice the latency,
+    /// same error, and the retry hides that nothing changed.
+    #[test]
+    fn an_unchanged_token_is_not_retried() {
+        assert_eq!(fresher_token(Some("same"), Some("same".into())), None);
+    }
+
+    /// Nothing on disk means nothing to try; the original 401 stands so the
+    /// daemon's own message reaches the user.
+    #[test]
+    fn no_file_token_means_no_retry() {
+        assert_eq!(fresher_token(Some("anything"), None), None);
+        assert_eq!(fresher_token(None, None), None);
+    }
+
+    /// A request that went out unauthenticated (no token anywhere at first
+    /// attempt) must still retry once the file appears — that is exactly the
+    /// race between an autostarting daemon and the first request.
+    #[test]
+    fn an_unauthenticated_first_attempt_retries_once_a_token_exists() {
+        assert_eq!(
+            fresher_token(None, Some("just-written".into())).as_deref(),
+            Some("just-written"),
+        );
     }
 }
