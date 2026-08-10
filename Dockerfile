@@ -8,7 +8,14 @@
 # With Ollama sidecar:
 #   docker compose up
 
-FROM rust:1.88-bookworm AS builder
+# 1.96, not 1.88: yrs 0.27 (transitive via vibe-collab) uses `if let` guards,
+# stabilised after 1.88, so the older image fails with
+#   error[E0658]: `if let` guards are experimental
+# 1.96 is what CI's `stable` toolchain resolves to and what the workspace is
+# developed against. Pinned rather than `rust:1` so an image rebuild cannot
+# silently change compilers — but that means this line needs bumping when the
+# workspace starts relying on something newer.
+FROM rust:1.96-bookworm AS builder
 
 # Install musl cross-compilation tools
 RUN apt-get update -qq && \
