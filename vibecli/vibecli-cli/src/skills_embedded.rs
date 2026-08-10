@@ -230,8 +230,8 @@ mod tests {
     #[test]
     fn embedded_tree_contains_the_shipped_catalogue() {
         assert!(
-            embedded_skill_count() > 500,
-            "expected the ~710-file shipped catalogue, got {}",
+            embedded_skill_count() > 1000,
+            "expected the shipped catalogue (1,143 files at time of writing), got {}",
             embedded_skill_count()
         );
     }

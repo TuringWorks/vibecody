@@ -18,7 +18,7 @@ vibecody/                          ← Cargo workspace root
 │   └── vibecli-cli/               ← Binary: terminal assistant + HTTP daemon
 │       ├── src/                   ← ~354 Rust modules
 │       ├── tests/                 ← 62+ BDD / integration harnesses
-│       └── skills/                ← 711 skill files (25+ categories)
+│       └── skills/                ← 1,143 skill files (154 categories)
 ├── vibecoder/
 │   ├── src/                       ← React + TypeScript frontend (~293 panels + 42 composites)
 │   ├── src-tauri/                 ← Binary: Tauri desktop app (1,045+ Tauri commands)
@@ -317,7 +317,7 @@ Context-aware capability snippets:
 
 #### Where the shipped catalogue comes from (`skills_embedded.rs`)
 
-The ~710 bundled `*.md` skills are **compiled into the `vibecli` binary**
+The 1,143 bundled `*.md` skills are **compiled into the `vibecli` binary**
 (`include_dir!`), because release artifacts ship the bare executable — a
 `skills/` tree that only exists beside `Cargo.toml` is invisible to every
 installed build. `skills_embedded::resolve_skills_dir()` is the single
