@@ -289,18 +289,27 @@ impl Default for ReviewPlan {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReviewCoverage {
     pub files_total: usize,
+    /// Files whose batch completed at least one successful model pass.
     pub files_reviewed: usize,
+    /// Model round-trips attempted.
     pub llm_calls: usize,
+    /// Of those, how many the provider failed. A failed call reviews nothing.
+    pub llm_calls_failed: usize,
     /// Files whose own section exceeded the per-request budget and was cut.
     pub files_truncated: Vec<String>,
     /// Files dropped entirely because `max_calls` ran out.
     pub files_skipped: Vec<String>,
+    /// Files whose every model pass errored — the provider was down, rate
+    /// limited, or unconfigured. Only the static scan looked at these.
+    pub files_provider_failed: Vec<String>,
 }
 
 impl ReviewCoverage {
-    /// True when every file in the diff reached the model whole.
+    /// True when every file in the diff reached the model whole and came back.
     pub fn is_complete(&self) -> bool {
-        self.files_skipped.is_empty() && self.files_truncated.is_empty()
+        self.files_skipped.is_empty()
+            && self.files_truncated.is_empty()
+            && self.files_provider_failed.is_empty()
     }
 
     /// One line for the terminal / PR body, or `None` when coverage was complete.
@@ -313,6 +322,12 @@ impl ReviewCoverage {
             parts.push(format!(
                 "{} file(s) not reviewed (call budget)",
                 self.files_skipped.len()
+            ));
+        }
+        if !self.files_provider_failed.is_empty() {
+            parts.push(format!(
+                "{} file(s) not reviewed (provider error)",
+                self.files_provider_failed.len()
             ));
         }
         if !self.files_truncated.is_empty() {
@@ -596,16 +611,7 @@ impl BugBot {
 
         let files = split_diff_by_file(diff);
         if files.is_empty() {
-            return (
-                static_reports,
-                ReviewCoverage {
-                    files_total: 0,
-                    files_reviewed: 0,
-                    llm_calls: 0,
-                    files_truncated: Vec::new(),
-                    files_skipped: Vec::new(),
-                },
-            );
+            return (static_reports, ReviewCoverage::default());
         }
 
         let budget = plan.char_budget.max(1);
@@ -624,39 +630,69 @@ impl BugBot {
 
         let futures = requests[..allowed].iter().map(|&(batch, pass)| {
             let prompt = review_prompt(&rotate(&batches[batch], pass));
-            async move { self.review_once(prompt).await }
+            async move { (batch, self.review_once(prompt).await) }
         });
 
         let per_request = futures::future::join_all(futures).await;
 
+        // A failed call reviewed nothing. Counting it as coverage is the exact
+        // shape of bug this struct exists to prevent: with the provider down,
+        // "0 findings, 1/1 files reviewed" is a clean bill of health nobody gave.
+        let mut succeeded: std::collections::BTreeSet<usize> = std::collections::BTreeSet::new();
+        let mut llm_calls_failed = 0usize;
         let mut all = static_reports;
-        all.extend(per_request.into_iter().flatten());
+        for (batch, outcome) in per_request {
+            match outcome {
+                Some(reports) => {
+                    succeeded.insert(batch);
+                    all.extend(reports);
+                }
+                None => llm_calls_failed += 1,
+            }
+        }
 
-        let files_skipped: Vec<String> = skipped_batches
-            .iter()
-            .flat_map(|b| batches[*b].iter().map(|f| f.path.clone()))
+        let paths_of = |batch: usize| batches[batch].iter().map(|f| f.path.clone());
+        let files_skipped: Vec<String> = skipped_batches.iter().copied().flat_map(paths_of).collect();
+        let files_provider_failed: Vec<String> = (0..batches.len())
+            .filter(|b| !succeeded.contains(b) && !skipped_batches.contains(b))
+            .flat_map(paths_of)
             .collect();
 
         let coverage = ReviewCoverage {
             files_total: files.len(),
-            files_reviewed: files.len() - files_skipped.len(),
+            files_reviewed: files
+                .len()
+                .saturating_sub(files_skipped.len() + files_provider_failed.len()),
             llm_calls: allowed,
+            llm_calls_failed,
             files_truncated: truncated,
             files_skipped,
+            files_provider_failed,
         };
 
         (dedupe_reports(all), coverage)
     }
 
-    /// One review round-trip. A provider error yields no findings, never a fake one.
-    async fn review_once(&self, prompt: String) -> Vec<BugReport> {
+    /// One review round-trip.
+    ///
+    /// `None` means the provider failed — distinct from `Some(vec![])`, which
+    /// means the model looked and found nothing. Collapsing the two is what
+    /// lets an outage read as a clean review.
+    async fn review_once(&self, prompt: String) -> Option<Vec<BugReport>> {
         let msgs = vec![Message {
             role: MessageRole::User,
             content: prompt,
         }];
         match self.llm.chat(&msgs, None).await {
-            Ok(response) => parse_reports(&response),
-            Err(_) => vec![],
+            Ok(response) => Some(parse_reports(&response)),
+            Err(e) => {
+                tracing::debug!(
+                    target: "vibecody::bugbot",
+                    error = %e,
+                    "review pass failed — its files are reported as unreviewed"
+                );
+                None
+            }
         }
     }
 
@@ -1088,11 +1124,29 @@ mod tests {
             llm_calls: 8,
             files_truncated: vec!["big.rs".into()],
             files_skipped: vec!["x.rs".into(), "y.rs".into()],
+            ..Default::default()
         };
         assert!(!coverage.is_complete());
         let caveat = coverage.caveat().expect("coverage was incomplete");
-        assert!(caveat.contains("2 file(s) not reviewed"));
+        assert!(caveat.contains("2 file(s) not reviewed (call budget)"));
         assert!(caveat.contains("1 file(s) truncated"));
+    }
+
+    #[test]
+    fn a_provider_failure_is_not_coverage() {
+        // With the provider down, the static scan still runs — but claiming the
+        // file was reviewed turns an outage into a clean bill of health.
+        let coverage = ReviewCoverage {
+            files_total: 1,
+            files_reviewed: 0,
+            llm_calls: 1,
+            llm_calls_failed: 1,
+            files_provider_failed: vec!["src/math.py".into()],
+            ..Default::default()
+        };
+        assert!(!coverage.is_complete());
+        let caveat = coverage.caveat().expect("a failed call is not coverage");
+        assert!(caveat.contains("1 file(s) not reviewed (provider error)"));
     }
 
     #[test]
@@ -1100,6 +1154,90 @@ mod tests {
         let plan = ReviewPlan::default();
         assert_eq!(plan.passes, 1);
         assert!(plan.char_budget * plan.max_calls >= 64_000);
+    }
+
+    // ── review_diff_planned (provider outcomes) ──────────────────────────────
+
+    /// A provider whose every call fails, standing in for an outage, a rate
+    /// limit, or a missing API key.
+    struct FailingProvider;
+
+    #[async_trait::async_trait]
+    impl LLMProvider for FailingProvider {
+        fn name(&self) -> &str {
+            "failing"
+        }
+        async fn is_available(&self) -> bool {
+            false
+        }
+        async fn complete(
+            &self,
+            _ctx: &vibe_ai::provider::CodeContext,
+        ) -> Result<vibe_ai::provider::CompletionResponse> {
+            anyhow::bail!("provider is down")
+        }
+        async fn stream_complete(
+            &self,
+            _ctx: &vibe_ai::provider::CodeContext,
+        ) -> Result<vibe_ai::provider::CompletionStream> {
+            anyhow::bail!("provider is down")
+        }
+        async fn chat(&self, _m: &[Message], _c: Option<String>) -> Result<String> {
+            anyhow::bail!("provider is down")
+        }
+        async fn stream_chat(
+            &self,
+            _m: &[Message],
+        ) -> Result<vibe_ai::provider::CompletionStream> {
+            anyhow::bail!("provider is down")
+        }
+    }
+
+    #[tokio::test]
+    async fn a_failed_model_call_reports_the_file_as_unreviewed() {
+        // Regression: coverage used to print "1/1 file(s) reviewed" after the
+        // only model call errored, so an outage read as a clean review.
+        let bot = BugBot {
+            llm: Arc::new(FailingProvider),
+            gh_token: None,
+        };
+        let diff = section("src/math.py", "x = 1");
+        let (_reports, coverage) = bot.review_diff_planned(&diff, ReviewPlan::default()).await;
+
+        assert_eq!(coverage.files_total, 1);
+        assert_eq!(coverage.files_reviewed, 0);
+        assert_eq!(coverage.llm_calls, 1);
+        assert_eq!(coverage.llm_calls_failed, 1);
+        assert_eq!(coverage.files_provider_failed, vec!["src/math.py".to_string()]);
+        assert!(!coverage.is_complete());
+    }
+
+    #[tokio::test]
+    async fn the_static_scan_still_runs_when_the_provider_is_down() {
+        let bot = BugBot {
+            llm: Arc::new(FailingProvider),
+            gh_token: None,
+        };
+        let diff = section("app.py", "API_KEY = \"sk-live-abcdef0123456789abcdef0123456789\"");
+        let (reports, coverage) = bot.review_diff_planned(&diff, ReviewPlan::default()).await;
+
+        assert!(
+            !reports.is_empty(),
+            "the deterministic scan does not depend on the provider"
+        );
+        assert!(!coverage.is_complete(), "but the review is still not complete");
+    }
+
+    #[tokio::test]
+    async fn an_empty_diff_costs_no_model_calls() {
+        let bot = BugBot {
+            llm: Arc::new(FailingProvider),
+            gh_token: None,
+        };
+        let (reports, coverage) = bot.review_diff_planned("", ReviewPlan::default()).await;
+        assert!(reports.is_empty());
+        assert_eq!(coverage.llm_calls, 0);
+        assert!(coverage.is_complete());
     }
 
     // ── parse_reports ────────────────────────────────────────────────────────

@@ -808,8 +808,8 @@ mod tests {
                 files_total: 4,
                 files_reviewed: 3,
                 llm_calls: 2,
-                files_truncated: Vec::new(),
                 files_skipped: vec!["late.rs".into()],
+                ..Default::default()
             },
         };
         let json = serde_json::to_string(&result).unwrap();

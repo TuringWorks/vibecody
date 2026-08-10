@@ -20000,13 +20000,33 @@ async fn run_bugbot(llm: Arc<dyn LLMProvider>, opts: BugbotRunOptions) -> Result
     print!("{}", BugBot::format_reports(&reports));
 
     println!(
-        "Reviewed {}/{} file(s) in {} model call(s).",
-        coverage.files_reviewed, coverage.files_total, coverage.llm_calls
+        "Reviewed {}/{} file(s) in {} model call(s){}.",
+        coverage.files_reviewed,
+        coverage.files_total,
+        coverage.llm_calls,
+        match coverage.llm_calls_failed {
+            0 => String::new(),
+            n => format!(", {n} of which failed"),
+        }
     );
     if let Some(caveat) = coverage.caveat() {
         // A finding count over a partial diff is not a finding count for the diff.
-        eprintln!("⚠ Incomplete coverage — {caveat}. Review a smaller change (try --staged).");
-        for path in coverage.files_skipped.iter().chain(&coverage.files_truncated) {
+        eprintln!("⚠ Incomplete coverage — {caveat}.");
+        if !coverage.files_provider_failed.is_empty() {
+            eprintln!(
+                "  The provider did not answer, so only the static scan looked at these files. \
+                 Check `vibecli --doctor`."
+            );
+        }
+        if !coverage.files_skipped.is_empty() {
+            eprintln!("  Review a smaller change (try --staged) to fit the call budget.");
+        }
+        for path in coverage
+            .files_skipped
+            .iter()
+            .chain(&coverage.files_provider_failed)
+            .chain(&coverage.files_truncated)
+        {
             eprintln!("   · {path}");
         }
     }
