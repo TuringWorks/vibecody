@@ -40,7 +40,7 @@
         mobile-setup mobile-ios mobile-ios-ipa mobile-android mobile-android-bundle \
         mobile-clean watch-ios watch-ios-archive watch-wear watch-wear-bundle \
         watch-clean build-mobile build-watch \
-        codesign-macos codesign-verify \
+        codesign-macos codesign-verify stage-artifacts \
         clean docker docker-run
 
 # Ensure ~/.cargo/bin is in PATH (fixes npm rustup shadowing on Linux)
@@ -213,7 +213,33 @@ lint-vibedesk: vibedesk/node_modules ## Run VibeDesk no-inline-edit lint guard
 
 # ── Desktop apps aggregate (the three Tauri shells) ───────────────────────────
 
-build-apps: build-ui build-aichat build-vibedesk ## Build all three Tauri shells (ui + app + vibedesk)
+# Built one at a time, staging artifacts between each.
+#
+# All three shells bundle into the *shared* workspace target dir, and Tauri
+# clears `target/release/bundle/dmg/` before writing its own .dmg — so a
+# straight `build-ui build-aichat build-vibedesk` produces three DMGs and
+# leaves exactly one on disk. The .app bundles survive (different
+# subdirectory), which is what makes the loss easy to miss: you check the apps,
+# see all three, and never notice two installers are gone.
+#
+# CI does not hit this because each shell builds on its own runner with its own
+# target dir. It only bites local release builds.
+build-apps: ## Build all three Tauri shells (ui + app + vibedesk), staging artifacts
+	$(MAKE) build-ui && $(MAKE) stage-artifacts
+	$(MAKE) build-aichat && $(MAKE) stage-artifacts
+	$(MAKE) build-vibedesk && $(MAKE) stage-artifacts
+	@echo ""
+	@echo "Artifacts staged in dist/ — the bundle dirs keep only the last build's DMG:"
+	@ls -1 dist/ 2>/dev/null || true
+
+stage-artifacts: ## Copy freshly-built bundles into dist/ before the next build clears them
+	@mkdir -p dist
+	@find target/release/bundle vibecoder/src-tauri/target/release/bundle \
+	      vibeaichat/src-tauri/target/release/bundle vibedesk/src-tauri/target/release/bundle \
+	      \( -name '*.dmg' -o -name '*.deb' -o -name '*.AppImage' -o -name '*.msi' \) \
+	      -type f -not -name 'rw.*' 2>/dev/null \
+	  | while read -r f; do cp -f "$$f" dist/; done || true
+
 
 test-apps: test-ui test-aichat test-vibedesk ## Test all three Tauri shells
 
