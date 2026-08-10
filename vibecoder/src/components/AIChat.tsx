@@ -11,6 +11,12 @@ import { McpAppEmbed, type McpAppPayload } from "./McpAppEmbed";
 import { flowContext } from "../utils/FlowContext";
 import { getSelectedEffort } from "../utils/effort";
 import { Mic, User, Paperclip, X, FileText, Loader2, Download, ZoomIn } from "lucide-react";
+// The same Markdown renderer VibeDesk and VibeAIChat use. Chat replies are
+// markdown — headings, lists, bold and above all tables — and rendering them
+// as a raw string made every structured answer an unreadable wall of pipes and
+// asterisks. Shared rather than a third local implementation.
+import { Markdown } from "@vibe/shared/markdown/Markdown";
+import "@vibe/shared/markdown/markdown.css";
 import "./AIChat.css";
 
 // Voice input lives in packages/vibe-ui-shared/src/voice — the same hook
@@ -364,30 +370,6 @@ function parseToolCalls(content: string): [string, ToolCallInfo[]] {
   });
 
   return [cleaned.trim(), tools];
-}
-
-/** Detect file paths in text and return segments. */
-function parseFileReferences(text: string): Array<{ type: "text" | "file"; value: string }> {
-  const fileRegex = /(?:^|\s)((?:\.{0,2}\/)?(?:[a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_-]+\.[a-zA-Z0-9]{1,10})(?=\s|$|[),;:])/g;
-  const segments: Array<{ type: "text" | "file"; value: string }> = [];
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = fileRegex.exec(text)) !== null) {
-    const filePath = match[1];
-    const start = match.index + (match[0].length - filePath.length);
-    if (start > lastIndex) {
-      segments.push({ type: "text", value: text.slice(lastIndex, start) });
-    }
-    segments.push({ type: "file", value: filePath });
-    lastIndex = start + filePath.length;
-  }
-
-  if (lastIndex < text.length) {
-    segments.push({ type: "text", value: text.slice(lastIndex) });
-  }
-
-  return segments.length > 0 ? segments : [{ type: "text", value: text }];
 }
 
 // ── Tool call icon/label helpers ─────────────────────────────────────────────
@@ -745,25 +727,25 @@ function renderContent(
   return parts;
 }
 
-/** Render a text segment with file path chips. */
+/** Render the prose between code fences as markdown.
+ *
+ * `renderContent` has already pulled fenced blocks out into `CodeBlock` (which
+ * carries the Apply/copy affordances), so everything reaching here is the
+ * surrounding prose — and models write that as markdown. It used to land in a
+ * `<pre>`, so a reply containing a table arrived as raw `| --- |` rows and
+ * every emphasis as literal asterisks.
+ *
+ * GFM is on, which is what makes tables, task lists and strikethrough render;
+ * `remark-gfm` was missing from VibeCoder's dependencies entirely, so tables
+ * could not have worked even had the renderer been wired up.
+ *
+ * Note this drops the old bare-path "file chip" highlighting: those chips were
+ * non-interactive styling, and there is no way to apply them to text nodes
+ * without a rehype plugin. Paths written as `inline code` — how models usually
+ * write them — are still styled by the markdown renderer.
+ */
 function TextSegment({ text }: { text: string }) {
-  const segments = parseFileReferences(text);
-  if (segments.length === 1 && segments[0].type === "text") {
-    return <pre className="msg-text">{text}</pre>;
-  }
-  return (
-    <pre className="msg-text">
-      {segments.map((seg, i) =>
-        seg.type === "file" ? (
-          <span key={i} className="file-chip" title={`Open ${seg.value}`}>
-            {seg.value}
-          </span>
-        ) : (
-          <span key={i}>{seg.value}</span>
-        )
-      )}
-    </pre>
-  );
+  return <Markdown text={text} />;
 }
 
 // ── Thinking block component ─────────────────────────────────────────────────

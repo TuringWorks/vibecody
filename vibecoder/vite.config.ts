@@ -23,9 +23,11 @@ function sharedPackageAliases(base: string) {
     { find: /^react\//, replacement: dep("react") + "/" },
     { find: /^react-dom$/, replacement: dep("react-dom") },
     { find: /^react-dom\//, replacement: dep("react-dom") + "/" },
-    // No react-markdown/remark-gfm here: VibeCoder renders markdown itself and
-    // doesn't install them. Add them alongside the dependency if it ever
-    // consumes @vibe/shared/markdown.
+    // Chat renders assistant replies through @vibe/shared/markdown, so the
+    // shared module's bare imports must resolve against this app's
+    // node_modules like every other shared dep here.
+    { find: /^react-markdown$/, replacement: dep("react-markdown") },
+    { find: /^remark-gfm$/, replacement: dep("remark-gfm") },
     { find: /^lucide-react$/, replacement: dep("lucide-react") },
     { find: /^@tauri-apps\/api\//, replacement: dep("@tauri-apps/api") + "/" },
   ];

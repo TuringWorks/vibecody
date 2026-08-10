@@ -40,6 +40,7 @@
         mobile-setup mobile-ios mobile-ios-ipa mobile-android mobile-android-bundle \
         mobile-clean watch-ios watch-ios-archive watch-wear watch-wear-bundle \
         watch-clean build-mobile build-watch \
+        codesign-macos codesign-verify \
         clean docker docker-run
 
 # Ensure ~/.cargo/bin is in PATH (fixes npm rustup shadowing on Linux)
@@ -215,6 +216,19 @@ lint-vibedesk: vibedesk/node_modules ## Run VibeDesk no-inline-edit lint guard
 build-apps: build-ui build-aichat build-vibedesk ## Build all three Tauri shells (ui + app + vibedesk)
 
 test-apps: test-ui test-aichat test-vibedesk ## Test all three Tauri shells
+
+# ── macOS code signing ────────────────────────────────────────────────────────
+# `tauri build` signs the .app bundles when APPLE_SIGNING_IDENTITY is exported,
+# but nothing signs the standalone binaries that ship in the tarballs. This
+# target covers both and *verifies* every signature — a build that reports
+# "signed" without checking is how an ad-hoc artifact reaches a release.
+
+codesign-macos: ## Sign + verify macOS release artifacts with a Developer ID cert
+	./scripts/codesign-macos.sh
+
+codesign-verify: ## Verify macOS artifact signatures without changing them
+	./scripts/codesign-macos.sh --verify-only
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SURFACE: Agent SDK — TypeScript (packages/agent-sdk)

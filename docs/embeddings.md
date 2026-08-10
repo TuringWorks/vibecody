@@ -1,6 +1,7 @@
 ---
-layout: default
-title: Embedding Models (RAG)
+layout: page
+title: Embedding Models
+permalink: /embeddings/
 ---
 
 # Embedding Models

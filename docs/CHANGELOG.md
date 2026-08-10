@@ -10,7 +10,34 @@ All notable changes to VibeCody are documented here. This project follows [Seman
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.5.8] — 2026-08-09
+
+The largest release so far — 410 commits since v0.5.7. Voice input on every
+client, SkillForge, the kodegraph code-graph substrate, goal-driven loops, a
+provider-agnostic embedding layer, and the VibeApp → VibeAIChat rename that
+brought VibeDesk in as a third desktop shell.
+
+This release adds end-to-end **Developer ID code signing** for macOS — the CLI
+binaries were previously shipped with no signature at all, and the three app
+bundles ad-hoc. Whether a given download is signed depends on whether the build
+that produced it had the certificate; `docs/release.md` § Code signing has the
+one-line check. Signing is not notarization: a signed-but-un-notarized app still
+prompts on first launch.
+
 ### Added
+
+- **Embedding models are now provider-agnostic and selectable — `crates/vibe-embed`.** Semantic search, `@codebase:`, and memory recall previously ran through a two-variant `EmbeddingProvider` enum (Ollama with a hard-coded `127.0.0.1:11434`, OpenAI locked to `text-embedding-3-small`), while `vibe-infer` carried a separate `Embedder` trait that only the candle backend implemented and nothing bridged the two. A new low-level crate collapses both into one trait with one model catalog, shared by the code index, the memory stores, the remote indexer and the daemon.
+  - **Six providers** — Ollama, OpenAI (base-URL overridable, so Azure / LiteLLM / vLLM / text-embeddings-inference need no new variant), Voyage (`voyage-code-3` is the strongest code-retrieval option), Cohere, Gemini, and an in-process candle backend registered at runtime so `vibe-embed` never links an ML toolchain.
+  - **Models the catalog doesn't know still work.** The catalog is a hint list, not an allow-list — `ollama pull some-custom-embed` and select it. What it buys is metadata no API reports: the task prefix a model expects, its Matryoshka dimensions, its input limit.
+  - **Dimension is observed, never assumed.** What gets persisted is the length of a vector the model actually returned. A guessed dimension in an index header is worse than an absent one: absent triggers a measurement, wrong triggers silence.
+  - **Documents and queries embed differently.** `EmbedKind` is a required argument, expressed natively where the provider supports it (Voyage/Cohere `input_type`, Gemini `taskType`) and by prefix where it doesn't (`nomic-embed-text`, `mxbai`, `bge`, `e5`). Getting it wrong doesn't error — it silently costs recall, which is why it isn't defaulted.
+  - **Indexes are per-model and coexist** — `<workspace>/.vibecli/index/index__<provider>__<model>.json` plus a small `.meta.json` sidecar so listing doesn't parse gigabytes of vectors. Switching models is instant when the target index exists and switching back never re-embeds.
+  - **Batched embedding.** The previous implementation issued one HTTP request per chunk; a 5 000-chunk repository meant 5 000 sequential round-trips.
+  - **Surface** — four daemon routes (`/embeddings/models`, `/embeddings/embed`, `/index/status`, `/index/build`), six Tauri commands, a Settings → Embeddings picker that labels each provider *local* or *cloud* before you choose, `/index-status` in the REPL, Agent SDK + VS Code client methods, an `embedding` block in `/health` and the startup banner, and `docs/embeddings.md`.
+  - **`[index]` config is finally wired.** `embedding_provider` / `embedding_model` existed but were referenced only by tests; `/index` used its own hard-coded literal. An unrecognised provider is now an error rather than a silent fallback to Ollama.
+
 
 - **Voice input on every client — one daemon route, one shared hook.** Before this, the whole voice stack (`VoiceDispatcher` in `voice.rs`: Groq Whisper + local whisper.cpp fallback + model download) was reachable only from the REPL, and the daemon had no voice route at all — so VibeDesk, VibeAIChat, VibeMobile, VS Code, JetBrains, Neovim and the Agent SDK had nothing to call, while VibeCoder had quietly reimplemented Groq in its own Tauri command (cloud-only, so it could never run offline).
   - **Daemon** — `POST /voice/transcribe` (bearer auth, 16 MB per-route body limit overriding the 1 MB daemon default) accepts either `{audio_base64, mime_type, language, prefer_local}` JSON or raw bytes with an audio `Content-Type` + `X-Voice-Language` / `X-Voice-Prefer-Local` headers. Seven audio types are recognised; anything else is a `415` rather than a guessed extension. `GET /voice/status` reports what the machine can actually do, including a `can_transcribe` that accounts for a downloaded model with no runtime to execute it; the probe (three subprocess spawns) is cached for 60 s. `VoiceDispatcher::transcribe_file_with_engine` reports which engine ran, so a response can say `local_whisper` vs `cloud_whisper` instead of the caller guessing. 7 new serve tests, including one asserting a 2 MB upload gets past the body layer.
@@ -21,6 +48,19 @@ All notable changes to VibeCody are documented here. This project follows [Seman
   - **Agent SDK** — `agent.transcribe(audio, {mimeType, language, preferLocal})` and `agent.voiceStatus()`. 9 new vitest cases; 60 total green.
 
 ### Fixed
+
+- **The code index persisted API keys in plaintext.** `EmbeddingProvider::OpenAI { api_key }` was `Serialize`, and the index was written as plain JSON — so every `.vibecli/index.json` built against a cloud provider contained that provider's key on disk. The index header now stores a model reference only; the embedder (and therefore the key) is supplied at runtime from the encrypted ProfileStore and is `#[serde(skip)]`. Pre-existing v1 indexes migrate automatically and the credential is dropped in the process, with a test asserting no `sk-` survives.
+
+- **Changing embedding model silently returned nonsense instead of failing.** Three separate holes: the code index recorded no dimension or format version, so a mismatched model scored `0.0` against every chunk and looked empty rather than broken; `TurboQuantIndex::insert`'s dimension error was discarded at *both* call sites (`compressed_hnsw.rs`, `embeddings.rs`), so wrong-sized vectors were dropped without a word; and `vibe-memory`'s SQLite had no model or dimension column at all, so a `VIBE_MEMORY_DIM` change made every existing memory unreachable while the rows sat in the database. Indexes now carry a validated header, TurboQuant's error propagates, and each memory row records the model that embedded it — search compares only what it can compare and logs what it skipped.
+
+- **VibeAIChat never started the VibeCLI daemon.** VibeCoder and VibeDesk both autostart it via the shared `daemon_bootstrap`; VibeAIChat had no spawn path whatsoever, and its manifest deliberately avoided the `vibecli` dependency. Since nearly every daemon route is behind `require_auth` and the bearer token only exists once a daemon has written it, launching VibeAIChat on its own produced a blanket 401 with nothing on screen explaining why. It now uses the same shared module — identity-checked `/health` reuse, binary resolution beyond bare `PATH`, poll-to-deadline for the ~16 s cold start, and four distinct failure states.
+
+- **Stale bearer tokens produced a permanent 401 loop.** `vibecli serve` mints a fresh token on **every** start and all three shells autostart the daemon, so any token held across a restart is dead — and nothing invalidated it. VibeDesk retried on none of its 20 daemon calls, and `crates/vibe-desktop-voice` (linked into all three shells, so voice input broke everywhere at once) retried on neither of its two. Both now go through a `send_authed` helper that retries once with a token read straight from `~/.vibecli/daemon.token`, deliberately bypassing the explicit-token / `VIBECLI_TOKEN` precedence — that order is right for a first attempt and exactly wrong for a retry, since the stale value is usually why the request 401'd.
+
+- **VibeCoder chat rendered markdown as raw text.** Assistant replies containing tables arrived as walls of `| --- |` rows and every emphasis as literal asterisks, while VibeDesk and VibeAIChat rendered the same reply correctly. Three causes stacked: `AIChat`'s `renderContent` extracted fenced code blocks and dumped all remaining prose into a `<pre>`; `remark-gfm` — which is what renders tables — was missing from VibeCoder's dependencies entirely; and neither the Vite alias table nor the tsconfig let the shared `Markdown` component resolve its imports. Chat now renders through the same component the other two shells use. Code blocks keep their Apply/copy affordances, and user messages stay literal.
+
+- **Two phantom design tokens meant borders and buttons never rendered.** `var(--accent)` (22 uses across 11 panels) and `var(--border)` (74 uses, plus `--border-default` / `--border-secondary` / `--border-primary`) were referenced but defined nowhere; CSS drops an undefined `var()` declaration silently, so those backgrounds were transparent and those borders simply absent. Both now use the real `--accent-color` / `--border-color`, which are themed per-theme. Separately, `.panel-btn` declared no `background` and no `color`, so 43 buttons carrying no modifier class fell through to the browser's native `buttonface`/`buttontext` — light grey with black text on a dark panel, which is what made Configuration → Keys look unthemed. The base class is now themed, and all variants share one border box so buttons in a row line up. Three source-scan regression tests guard the lot, with the remaining undefined tokens recorded as an explicit, self-cleaning inventory.
+
 
 - **JetBrains plugin and Neovim plugin sent no bearer token.** Nearly every daemon route is behind `require_auth`, so `/chat`, `/agent`, `/jobs` and the new voice routes were a silent 100% 401 from both — the JetBrains tool window's "Error" line and the Neovim "Daemon error" notice were that 401 every time. Both now resolve a token the same way every other client does (explicit config → `VIBECLI_TOKEN` → `VIBECLI_DAEMON_TOKEN` → `~/.vibecli/daemon.token`), and Neovim's SSE stream appends `?token=` since curl-as-argv can't carry a header there.
 

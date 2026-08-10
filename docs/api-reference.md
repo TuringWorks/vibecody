@@ -101,13 +101,19 @@ graph, skillforge and token-freshness status):
 {
   "status": "ok",
   "service": "vibecli",
-  "version": "0.5.7"
+  "version": "0.5.8"
 }
 ```
 
 ```bash
 curl http://localhost:7878/health
 ```
+
+The full document also carries `graph`, `skillforge`, `embedding`,
+`kv_cache_codec_probe` and `api_token` blocks — see
+[Embeddings → `GET /health`](#get-health--embedding) for the embedding one.
+`service` is the identity check every client's daemon-autostart requires: a
+process answering on 7878 that reports a different `service` is not the daemon.
 
 > **Clients must check `service`, not just the status code.** A 200 from this
 > port only proves *something* is listening; any local service could answer.

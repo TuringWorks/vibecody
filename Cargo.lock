@@ -3165,7 +3165,7 @@ dependencies = [
 
 [[package]]
 name = "fluxo-cli"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "axum",
@@ -3182,7 +3182,7 @@ dependencies = [
 
 [[package]]
 name = "fluxo-core"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "serde",
  "serde_json",
@@ -3191,7 +3191,7 @@ dependencies = [
 
 [[package]]
 name = "fluxo-engine"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "async-trait",
  "fluxo-core",
@@ -3204,7 +3204,7 @@ dependencies = [
 
 [[package]]
 name = "fluxo-server"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "axum",
  "fluxo-core",
@@ -3220,7 +3220,7 @@ dependencies = [
 
 [[package]]
 name = "fluxo-store"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "async-trait",
  "fluxo-core",
@@ -3234,7 +3234,7 @@ dependencies = [
 
 [[package]]
 name = "fluxo-worker"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "axum",
  "fluxo-core",
@@ -11919,7 +11919,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "vibe-ai"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -11945,7 +11945,7 @@ dependencies = [
 
 [[package]]
 name = "vibe-broker"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -11974,7 +11974,7 @@ dependencies = [
 
 [[package]]
 name = "vibe-coder"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -12017,7 +12017,7 @@ dependencies = [
 
 [[package]]
 name = "vibe-collab"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "axum",
  "dashmap",
@@ -12033,7 +12033,7 @@ dependencies = [
 
 [[package]]
 name = "vibe-core"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -12060,7 +12060,7 @@ dependencies = [
 
 [[package]]
 name = "vibe-desktop-settings"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "serde_json",
  "tauri",
@@ -12069,7 +12069,7 @@ dependencies = [
 
 [[package]]
 name = "vibe-desktop-voice"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "base64 0.22.1",
  "reqwest 0.12.28",
@@ -12080,7 +12080,7 @@ dependencies = [
 
 [[package]]
 name = "vibe-embed"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "async-trait",
  "reqwest 0.12.28",
@@ -12093,7 +12093,7 @@ dependencies = [
 
 [[package]]
 name = "vibe-extensions"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "dirs-next",
@@ -12108,7 +12108,7 @@ dependencies = [
 
 [[package]]
 name = "vibe-indexer"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "axum",
@@ -12125,7 +12125,7 @@ dependencies = [
 
 [[package]]
 name = "vibe-infer"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -12146,7 +12146,7 @@ dependencies = [
 
 [[package]]
 name = "vibe-lsp"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -12192,7 +12192,7 @@ dependencies = [
 
 [[package]]
 name = "vibe-profile-store"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "chacha20poly1305",
  "hex",
@@ -12205,7 +12205,7 @@ dependencies = [
 
 [[package]]
 name = "vibe-sandbox"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "cucumber",
  "futures",
@@ -12217,7 +12217,7 @@ dependencies = [
 
 [[package]]
 name = "vibe-sandbox-firecracker"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "nix 0.31.3",
  "serde",
@@ -12230,7 +12230,7 @@ dependencies = [
 
 [[package]]
 name = "vibe-sandbox-hyperlight"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "serde",
  "serde_json",
@@ -12242,7 +12242,7 @@ dependencies = [
 
 [[package]]
 name = "vibe-sandbox-native"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "cucumber",
  "futures",
@@ -12256,7 +12256,7 @@ dependencies = [
 
 [[package]]
 name = "vibeaichat"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "reqwest 0.12.28",
@@ -12272,7 +12272,7 @@ dependencies = [
 
 [[package]]
 name = "vibecli"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -12352,7 +12352,7 @@ dependencies = [
 
 [[package]]
 name = "vibedesk"
-version = "0.5.7"
+version = "0.5.8"
 dependencies = [
  "anyhow",
  "futures",

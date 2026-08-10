@@ -43,7 +43,7 @@ All surfaces are backed by a shared set of Rust crates for AI providers, text ed
 | [Watch Integration](watch-integration/) | Full architecture: P-256 pairing, `/watch/*` routes, sync model |
 | [Development Guide](./development/) | Build, test, debug, and code organization for contributors |
 | [Security](./security/) | Security model, SSRF/path-traversal prevention, command blocklists |
-| [Release Notes](./release/) | What's new in v0.4.0 — downloads, upgrade guide |
+| [Release Notes](./release/) | What's new in v0.5.8 — downloads, upgrade guide, code signing |
 | [Contributing](./contributing/) | How to build, test, and contribute |
 
 

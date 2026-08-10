@@ -199,6 +199,59 @@ jobs:
           strip "$BINARY" 2>/dev/null || true
           ls -lh "$BINARY"
 
+      # ── macOS codesigning (dual-mode, same contract as the Tauri jobs) ──────
+      # The CLI tarballs shipped completely unsigned — not even ad-hoc — so
+      # Gatekeeper on a fresh machine quarantines the binary and `spctl`
+      # rejects it. Signing must happen after `strip`, which invalidates any
+      # existing signature, and before `tar`.
+      #
+      # Without the cert secret this is a no-op with a visible notice rather
+      # than a failure, so forks and PR builds still produce a usable binary.
+      - name: Import Apple Developer ID certificate (macOS)
+        id: cli-apple-cert
+        if: runner.os == 'macOS'
+        env:
+          CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
+          CERT_P12_PASSWORD: ${{ secrets.APPLE_CERT_P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CERT_P12_BASE64:-}" ]; then
+            echo "::notice::APPLE_CERT_P12_BASE64 not set — vibecli will be unsigned"
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          CERT_PATH="$RUNNER_TEMP/cli-cert.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/cli-signing.keychain-db"
+          echo -n "$CERT_P12_BASE64" | base64 --decode -o "$CERT_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$CERT_P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" >/dev/null
+          security list-keychain -d user -s "$KEYCHAIN_PATH" $(security list-keychain -d user | tr -d '"')
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Codesign binary (macOS)
+        if: runner.os == 'macOS' && steps.cli-apple-cert.outputs.signed == 'true'
+        env:
+          SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          set -euo pipefail
+          BINARY="target/${{ matrix.target }}/release/${{ matrix.artifact }}"
+          # --options runtime is required for notarization; --timestamp keeps
+          # the signature valid past certificate expiry.
+          codesign --force --sign "$SIGNING_IDENTITY" --options runtime --timestamp "$BINARY"
+          # Verify rather than trust the exit code: codesign can succeed and
+          # still leave something Gatekeeper refuses. A tarball published as
+          # "signed" that is actually ad-hoc is worse than an unsigned one.
+          codesign --verify --strict --verbose=2 "$BINARY"
+          if codesign -dv --verbose=4 "$BINARY" 2>&1 | grep -q 'Signature=adhoc'; then
+            echo "::error::vibecli is still ad-hoc signed after codesign"
+            exit 1
+          fi
+          codesign -dv --verbose=4 "$BINARY" 2>&1 | grep '^Authority=' | head -1
+
       - name: Package (Unix tar.gz)
         if: runner.os != 'Windows'
         run: |

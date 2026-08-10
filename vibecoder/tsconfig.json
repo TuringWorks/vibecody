@@ -22,6 +22,8 @@
     "paths": {
       "@vibe/shared": ["../packages/vibe-ui-shared/src"],
       "@vibe/shared/*": ["../packages/vibe-ui-shared/src/*"],
+      "react-markdown": ["./node_modules/react-markdown"],
+      "remark-gfm": ["./node_modules/remark-gfm"],
       /* The shared sources live outside this project root with no hoisted
          node_modules, so their bare imports must be mapped to this app's
          copies — same list as VibeDesk's tsconfig and vite.config.ts. */
@@ -43,10 +45,16 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  /* Only the voice module of the shared package. VibeCoder has its own
-     Markdown renderer and does not install react-markdown/remark-gfm, so
-     type-checking the whole shared tree would fail on deps it doesn't use. */
-  "include": ["src", "../packages/vibe-ui-shared/src/voice"],
+  /* The shared modules VibeCoder actually consumes. The comment here used to
+     say VibeCoder "does not install react-markdown/remark-gfm" — it always had
+     react-markdown, and remark-gfm is now installed too, so chat renders GFM
+     tables through the same `Markdown` component as VibeDesk and VibeAIChat
+     instead of a third implementation. */
+  "include": [
+    "src",
+    "../packages/vibe-ui-shared/src/voice",
+    "../packages/vibe-ui-shared/src/markdown"
+  ],
   "exclude": ["src/**/__tests__/**", "src/**/*.test.ts", "src/**/*.test.tsx", "src/**/*.spec.ts", "src/**/*.spec.tsx", "src/test"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

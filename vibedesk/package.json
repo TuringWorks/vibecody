@@ -1,6 +1,6 @@
 {
   "name": "vibedesk",
-  "version": "0.5.7",
+  "version": "0.5.8",
   "private": true,
   "type": "module",
   "description": "VibeDesk \u2014 task-first, conversation-driven companion app in the VibeCody ecosystem",

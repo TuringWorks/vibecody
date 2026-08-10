@@ -1,6 +1,6 @@
 {
   "name": "@vibecody/ui-shared",
-  "version": "0.5.7",
+  "version": "0.5.8",
   "private": true,
   "description": "UI shared by the VibeCody Tauri shells (VibeDesk, VibeAIChat): settings screens, theme, and model-output parsing.",
   "type": "module",
