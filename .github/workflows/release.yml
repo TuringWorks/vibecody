@@ -681,7 +681,7 @@ jobs:
 
       - name: Collect Android artifacts
         run: |
-          TAG="${{ github.ref_name || github.event.inputs.tag }}"
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
           mkdir -p dist
           cp vibemobile/build/app/outputs/flutter-apk/app-release.apk \
              "dist/VibeCody-Mobile-${TAG}-android.apk"
@@ -731,7 +731,7 @@ jobs:
 
       - name: Create unsigned IPA
         run: |
-          TAG="${{ github.ref_name || github.event.inputs.tag }}"
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
           mkdir -p dist Payload
           cp -r vibemobile/build/ios/iphoneos/Runner.app Payload/
           cd Payload && zip -r "../dist/VibeCody-Mobile-${TAG}-ios.ipa" Runner.app
@@ -779,7 +779,7 @@ jobs:
 
       - name: Collect Wear OS artifacts
         run: |
-          TAG="${{ github.ref_name || github.event.inputs.tag }}"
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
           mkdir -p dist
           cp vibewatch/VibeCodyWear/app/build/outputs/apk/release/app-release*.apk \
              "dist/VibeCody-Wear-${TAG}.apk" 2>/dev/null || \
@@ -824,7 +824,7 @@ jobs:
 
       - name: Package watchOS .app
         run: |
-          TAG="${{ github.ref_name || github.event.inputs.tag }}"
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
           mkdir -p dist
           APP_DIR=$(find vibewatch/build/DerivedData -type d -name "VibeCodyWatch.app" | head -1)
           if [ -z "$APP_DIR" ]; then
@@ -960,7 +960,7 @@ jobs:
       - name: Package IPA
         if: steps.apple-secrets.outputs.skip != 'true'
         run: |
-          TAG="${{ github.ref_name || github.event.inputs.tag }}"
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
           mkdir -p dist
           cp vibewatch/build/ipa/*.ipa "dist/VibeCody-WatchOS-${TAG}-signed.ipa"
           ls -lh dist/
@@ -1047,7 +1047,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          TAG="${{ github.ref_name || github.event.inputs.tag }}"
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
           docker build -t vibecli:${TAG} -t vibecli:latest .
           docker save vibecli:${TAG} | gzip > vibecli-docker-${TAG}.tar.gz
           ls -lh vibecli-docker-*.tar.gz
@@ -1088,7 +1088,7 @@ jobs:
           test -f target/firecracker-rootfs/rootfs.ext4.sha256
           # Tag the artifact filename with the release version so it
           # doesn't collide with other releases in the same Releases page.
-          TAG="${{ github.ref_name || github.event.inputs.tag }}"
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
           mkdir -p artifacts-rootfs
           cp target/firecracker-rootfs/rootfs.ext4 \
              "artifacts-rootfs/vibecody-firecracker-rootfs-${TAG}.ext4"
@@ -1100,7 +1100,7 @@ jobs:
         env:
           COSIGN_EXPERIMENTAL: "true"
         run: |
-          TAG="${{ github.ref_name || github.event.inputs.tag }}"
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
           IMG="artifacts-rootfs/vibecody-firecracker-rootfs-${TAG}.ext4"
           # `cosign sign-blob` issues a Fulcio cert from the GitHub Actions
           # OIDC token (no long-lived keys) and writes the signature +
@@ -1163,12 +1163,12 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         with:
-          tag_name: ${{ github.ref_name || github.event.inputs.tag }}
-          name: VibeCody ${{ github.ref_name || github.event.inputs.tag }}
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: VibeCody ${{ github.event.inputs.tag || github.ref_name }}
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') || contains(github.event.inputs.tag, '-') }}
           body: |
-            ## VibeCody ${{ github.ref_name || github.event.inputs.tag }}
+            ## VibeCody ${{ github.event.inputs.tag || github.ref_name }}
 
             AI-powered developer toolchain — terminal assistant, desktop code editor, and mobile companion.
 
@@ -1251,20 +1251,20 @@ jobs:
 
             **macOS (Apple Silicon):**
             ```bash
-            curl -L https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name || github.event.inputs.tag }}/vibecli-aarch64-apple-darwin.tar.gz | tar -xz
+            curl -L https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.tag || github.ref_name }}/vibecli-aarch64-apple-darwin.tar.gz | tar -xz
             sudo mv vibecli /usr/local/bin/
             ```
 
             **Linux (x86_64):**
             ```bash
-            curl -L https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name || github.event.inputs.tag }}/vibecli-x86_64-linux.tar.gz | tar -xz
+            curl -L https://github.com/${{ github.repository }}/releases/download/${{ github.event.inputs.tag || github.ref_name }}/vibecli-x86_64-linux.tar.gz | tar -xz
             sudo mv vibecli /usr/local/bin/
             ```
 
             **Docker:**
             ```bash
             docker load < vibecli-docker-*.tar.gz
-            docker run -p 7878:7878 vibecli:${{ github.ref_name || github.event.inputs.tag }}
+            docker run -p 7878:7878 vibecli:${{ github.event.inputs.tag || github.ref_name }}
             ```
 
             **Android:**
@@ -1282,7 +1282,7 @@ jobs:
 
             ---
 
-            ### What's New in ${{ github.ref_name || github.event.inputs.tag }}
+            ### What's New in ${{ github.event.inputs.tag || github.ref_name }}
 
             - **Parallel Agent Spawning** — Claude Code-style `/spawn` command: launch multiple autonomous agents, decompose tasks, aggregate results
             - **Agent Pool Management** — Priority queuing, pause/resume, inter-agent messaging, conflict detection
