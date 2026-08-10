@@ -474,6 +474,7 @@ pub mod session_memory;
 pub mod session_sharing;
 pub mod setup;
 pub mod skill_catalog;
+pub mod skills_embedded;
 pub mod soul_generator;
 pub mod spec;
 pub mod spec_pipeline;

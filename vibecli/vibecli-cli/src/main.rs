@@ -334,6 +334,8 @@ mod setup;
 #[allow(dead_code)]
 mod skill_catalog;
 #[allow(dead_code)]
+mod skills_embedded;
+#[allow(dead_code)]
 #[allow(dead_code)]
 #[allow(dead_code)]
 mod tailscale;
@@ -19956,13 +19958,47 @@ async fn run_doctor() -> Result<()> {
         }
     }
 
-    // 7. Skills directory
-    match dirs::home_dir().map(|h| h.join(".vibecli").join("skills")) {
-        Some(dir) if dir.exists() => {
-            let count = std::fs::read_dir(&dir).map(|d| d.count()).unwrap_or(0);
-            println!("  ✅ Skills     — {} file(s) in {}", count, dir.display());
+    // 7. Skill catalogue.
+    //
+    // Reports the directory the catalogue actually loads from, not
+    // `~/.vibecli/skills` (that is the promoted-override dir). The old
+    // check watched the wrong path, so a release binary resolving its
+    // catalogue to a nonexistent CI directory — every install — printed a
+    // benign "no overrides" line while `list_skills` returned nothing.
+    {
+        use skills_embedded::SkillsDirOrigin;
+        let (dir, origin) = skills_embedded::resolve_skills_dir_with_origin();
+        let count = std::fs::read_dir(&dir)
+            .map(|d| {
+                d.flatten()
+                    .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("md"))
+                    .count()
+            })
+            .unwrap_or(0);
+        let source = match &origin {
+            SkillsDirOrigin::EnvOverride => "VIBECLI_SKILLS_DIR",
+            SkillsDirOrigin::Manifest => "source tree",
+            SkillsDirOrigin::Packaged => "packaged share/",
+            SkillsDirOrigin::Embedded => "embedded in binary",
+            SkillsDirOrigin::Unavailable(_) => "unresolved",
+        };
+        match &origin {
+            SkillsDirOrigin::Unavailable(why) => {
+                println!("  ❌ Skills     — {why}");
+            }
+            _ if count == 0 => {
+                println!(
+                    "  ❌ Skills     — 0 skills in {} ({source}); catalogue is empty",
+                    dir.display()
+                );
+            }
+            _ => {
+                println!(
+                    "  ✅ Skills     — {count} skill(s) in {} ({source})",
+                    dir.display()
+                );
+            }
         }
-        _ => println!("  ○  Skills     — no ~/.vibecli/skills/ directory"),
     }
 
     // 8. Active profile note

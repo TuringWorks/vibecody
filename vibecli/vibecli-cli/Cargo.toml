@@ -84,6 +84,11 @@ rusqlite = { workspace = true }
 vibe-profile-store = { path = "../../crates/vibe-profile-store" }
 notify = { workspace = true }
 serde_yaml = "0.9.34"
+# Embeds `skills/**` into the binary. Release artifacts ship the bare
+# executable (release.yml tars `target/<t>/release/vibecli` alone), so a
+# skills tree that only exists next to Cargo.toml is invisible to every
+# installed build — see `skills_embedded.rs`.
+include_dir = "0.7"
 vibe-collab = { path = "../../vibecoder/crates/vibe-collab" }
 vibe-infer = { path = "../../vibecoder/crates/vibe-infer" }
 vibe-sandbox = { path = "../crates/vibe-sandbox" }

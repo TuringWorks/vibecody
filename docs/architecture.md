@@ -315,6 +315,29 @@ Context-aware capability snippets:
 - Skills activate based on trigger keyword matching
 - YAML frontmatter + Markdown body format
 
+#### Where the shipped catalogue comes from (`skills_embedded.rs`)
+
+The ~710 bundled `*.md` skills are **compiled into the `vibecli` binary**
+(`include_dir!`), because release artifacts ship the bare executable — a
+`skills/` tree that only exists beside `Cargo.toml` is invisible to every
+installed build. `skills_embedded::resolve_skills_dir()` is the single
+resolver used by both `mcp_server` (`list_skills` / `get_skill`) and
+`skillforge_index` (`/v1/skilllens/*`), in order:
+
+1. `VIBECLI_SKILLS_DIR` — explicit override, used verbatim (no fallback).
+2. `${CARGO_MANIFEST_DIR}/skills` — in-tree builds, so editing a skill file
+   takes effect without a rebuild.
+3. `<exe>/../share/vibecli/skills` — distro packages that lay out a `share/`
+   tree.
+4. The embedded copy, extracted once to
+   `~/.vibecli/bundled-skills/<version>/` and loaded from there. Extraction
+   is version-scoped, marker-guarded against partial writes, and prunes
+   older versions. Note this is **not** `~/.vibecli/skills`, which is the
+   promoted-override dir written by `/v1/skillopt/promote`.
+
+`vibecli doctor` prints the resolved directory, the skill count, and which
+rule chose it.
+
 ### Artifacts (`artifacts.rs`)
 
 Structured output from agent operations:
