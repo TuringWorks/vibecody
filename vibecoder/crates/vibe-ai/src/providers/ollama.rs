@@ -777,6 +777,94 @@ impl AIProvider for OllamaProvider {
 mod tests {
     use super::*;
 
+    fn provider(model: &str) -> OllamaProvider {
+        OllamaProvider::new(ProviderConfig::new("ollama".to_string(), model.to_string()))
+    }
+
+    /// A retired cloud model is permanent. The message must say so, name the
+    /// model, and keep Ollama's own text (which carries the retirement date) —
+    /// the raw 410 body read like a transient outage, so people retried it.
+    #[test]
+    fn retired_model_error_is_actionable() {
+        let p = provider("qwen3-coder:480b");
+        let body = r#"{"error":"qwen3-coder:480b was retired at 2026-07-15 00:00:00 -0700 PDT (ref: fc5e3ca3)"}"#;
+        let msg = p
+            .api_error(reqwest::StatusCode::GONE, body, "streaming chat")
+            .to_string();
+
+        assert!(msg.contains("qwen3-coder:480b"), "names the model: {msg}");
+        assert!(msg.contains("retired"), "says retired: {msg}");
+        assert!(
+            msg.contains("retrying will not help"),
+            "tells the user not to retry: {msg}"
+        );
+        assert!(msg.contains("2026-07-15"), "keeps Ollama's detail: {msg}");
+        // The raw JSON envelope must not survive into the user-facing text.
+        assert!(!msg.contains("{\"error\""), "no raw JSON: {msg}");
+    }
+
+    /// 404 is the opposite advice — the model is fine, it just isn't pulled.
+    #[test]
+    fn missing_model_error_suggests_pulling_it() {
+        let p = provider("llama4");
+        let msg = p
+            .api_error(
+                reqwest::StatusCode::NOT_FOUND,
+                r#"{"error":"model 'llama4' not found"}"#,
+                "chat",
+            )
+            .to_string();
+        assert!(msg.contains("ollama pull llama4"), "{msg}");
+        assert!(!msg.contains("retired"), "must not blame retirement: {msg}");
+    }
+
+    /// A cloud model without a token is otherwise indistinguishable from a
+    /// broken endpoint.
+    #[test]
+    fn unauthorized_error_points_at_the_cloud_token() {
+        let p = provider("kimi-k3:cloud");
+        for status in [
+            reqwest::StatusCode::UNAUTHORIZED,
+            reqwest::StatusCode::PAYMENT_REQUIRED,
+        ] {
+            let msg = p
+                .api_error(status, r#"{"error":"unauthorized"}"#, "chat")
+                .to_string();
+            assert!(msg.contains("Settings → Providers"), "{status}: {msg}");
+        }
+    }
+
+    /// Anything unrecognised still surfaces the status and Ollama's message
+    /// rather than being swallowed into a generic string.
+    #[test]
+    fn unknown_status_keeps_the_detail() {
+        let p = provider("m");
+        let msg = p
+            .api_error(
+                reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+                r#"{"error":"out of memory"}"#,
+                "chat",
+            )
+            .to_string();
+        assert!(msg.contains("out of memory"), "{msg}");
+        assert!(msg.contains("500"), "{msg}");
+    }
+
+    /// A non-JSON body (an HTML error page from a proxy) must pass through, not
+    /// vanish because `error` could not be parsed out of it.
+    #[test]
+    fn non_json_body_is_preserved() {
+        let p = provider("m");
+        let msg = p
+            .api_error(
+                reqwest::StatusCode::BAD_GATEWAY,
+                "<html>502 nope</html>",
+                "chat",
+            )
+            .to_string();
+        assert!(msg.contains("502 nope"), "{msg}");
+    }
+
     #[test]
     fn test_build_prompt() {
         let config = ProviderConfig::new("ollama".to_string(), "codellama".to_string());

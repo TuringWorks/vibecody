@@ -46,7 +46,8 @@ fn workspace_members(root: &Path) -> Vec<String> {
     body.lines()
         .filter_map(|l| {
             let l = l.trim();
-            l.starts_with('"').then(|| l.trim_matches(|c| c == '"' || c == ',').to_string())
+            l.starts_with('"')
+                .then(|| l.trim_matches(|c| c == '"' || c == ',').to_string())
         })
         .filter(|l| !l.is_empty())
         .collect()
