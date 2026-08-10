@@ -1,6 +1,9 @@
-#![allow(dead_code)] // Staged wave6 / Phase 53 module — wired up in a later cycle
 //! `/.well-known/mcp.json` — stateless capability advertisement for the
 //! daemon's MCP surface.
+//!
+//! Wired 2026-08-10: served by `serve::well_known_mcp` from the public
+//! rate-limited router. It was staged in Phase 53 and left unrouted for four
+//! months while being counted as shipped — see CAPABILITY-BASELINE-2026-08.
 //!
 //! Phase 53 P0 (A3 from v13 fitgap, MCP 2026 roadmap). Lets a host
 //! discover the daemon's tools / prompts / resources catalogue without

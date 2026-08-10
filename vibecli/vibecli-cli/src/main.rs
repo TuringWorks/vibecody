@@ -146,6 +146,8 @@ mod tainted;
 mod tainted_http_bridge;
 mod tainted_prompter;
 mod tool_executor;
+// Named by the `/trust` REPL command (E4).
+mod trust_resolution;
 // B2.1 — `vibecli-plugin.toml` inner manifest. See lib.rs comment.
 #[allow(dead_code)]
 mod plugin_manifest;
@@ -159,6 +161,8 @@ mod plugin_install;
 mod ci;
 mod context_assembler;
 mod mcp_server;
+// Named by `serve::well_known_mcp`, which compiles into the binary too.
+mod mcp_well_known;
 mod mdns_announce;
 mod memory_projections;
 mod memory_recorder;
@@ -7253,6 +7257,78 @@ async fn main() -> Result<()> {
                                 println!("   Estimated cost:    free (local model)");
                             }
                             println!();
+                        }
+                        // E4 — workspace trust. The gate lives in
+                        // `serve::workspace_denied`; this is the only way to
+                        // write the policy it reads, so the two ship together:
+                        // an enforcement point with no setter would just be a
+                        // new unreachable module.
+                        // NB: `/trust` is taken — it scores *agents*. This one
+                        // governs *directories*, so it gets its own name rather
+                        // than shadowing an existing handler.
+                        "/trustdir" => {
+                            use crate::trust_resolution::{TrustPolicy, TrustResolver};
+                            let store = match crate::serve::trust_store_path() {
+                                Some(p) => p,
+                                None => {
+                                    println!("No home directory — cannot locate the trust store.\n");
+                                    continue;
+                                }
+                            };
+                            let cwd = std::env::current_dir()
+                                .map(|p| p.to_string_lossy().to_string())
+                                .unwrap_or_else(|_| ".".to_string());
+                            let mut resolver = TrustResolver::load(&store)
+                                .unwrap_or_else(|_| TrustResolver::new(store.clone()));
+
+                            match args.split_whitespace().next().unwrap_or("") {
+                                "allow" => {
+                                    resolver.add_allowed(&cwd);
+                                    match resolver.persist() {
+                                        Ok(()) => println!("Trusted: {cwd}\n"),
+                                        Err(e) => println!("Could not save trust policy: {e}\n"),
+                                    }
+                                }
+                                "deny" => {
+                                    resolver.add_denied(&cwd);
+                                    match resolver.persist() {
+                                        Ok(()) => println!(
+                                            "Denied: {cwd}\n   Agent runs rooted here will be refused with 403.\n"
+                                        ),
+                                        Err(e) => println!("Could not save trust policy: {e}\n"),
+                                    }
+                                }
+                                "reset" => {
+                                    let canonical = TrustResolver::canonicalize_path(&cwd);
+                                    resolver.allowed_paths.retain(|p| {
+                                        TrustResolver::canonicalize_path(p) != canonical
+                                    });
+                                    resolver.denied_paths.retain(|p| {
+                                        TrustResolver::canonicalize_path(p) != canonical
+                                    });
+                                    match resolver.persist() {
+                                        Ok(()) => println!("Reset to default: {cwd}\n"),
+                                        Err(e) => println!("Could not save trust policy: {e}\n"),
+                                    }
+                                }
+                                _ => {
+                                    // Report the stored policy, and say plainly
+                                    // what is actually enforced today — only
+                                    // `deny` blocks a run (see serve::workspace_denied).
+                                    let policy = resolver.resolve(&cwd);
+                                    println!("Workspace: {cwd}");
+                                    println!("   Policy:  {policy}");
+                                    println!(
+                                        "   Enforced: {}",
+                                        match policy {
+                                            TrustPolicy::Deny => "yes — agent runs here are refused",
+                                            _ => "no — agent runs here are permitted",
+                                        }
+                                    );
+                                    println!("   Store:   {}", store.display());
+                                    println!("\n   /trustdir allow | deny | reset\n");
+                                }
+                            }
                         }
                         // /context handled in Phase 32 Context Protocol section below
                         "/healthscore" => {
