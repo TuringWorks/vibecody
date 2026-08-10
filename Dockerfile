@@ -38,6 +38,21 @@ COPY vibecoder/src-tauri/Cargo.toml vibecoder/src-tauri/Cargo.toml
 COPY vibeaichat/src-tauri/Cargo.toml vibeaichat/src-tauri/Cargo.toml
 COPY vibe-indexer/Cargo.toml vibe-indexer/Cargo.toml
 COPY vibe-memory/Cargo.toml vibe-memory/Cargo.toml
+COPY vibedesk/src-tauri/Cargo.toml vibedesk/src-tauri/Cargo.toml
+COPY crates/vibe-desktop-settings/Cargo.toml crates/vibe-desktop-settings/Cargo.toml
+COPY crates/vibe-desktop-voice/Cargo.toml crates/vibe-desktop-voice/Cargo.toml
+COPY crates/vibe-profile-store/Cargo.toml crates/vibe-profile-store/Cargo.toml
+COPY crates/vibe-embed/Cargo.toml crates/vibe-embed/Cargo.toml
+COPY kodegraph/Cargo.toml kodegraph/Cargo.toml
+COPY skilllensai-rs/Cargo.toml skilllensai-rs/Cargo.toml
+COPY skilloptai-rs/Cargo.toml skilloptai-rs/Cargo.toml
+COPY skillforgeai-rs/Cargo.toml skillforgeai-rs/Cargo.toml
+COPY fluxo/fluxo-core/Cargo.toml fluxo/fluxo-core/Cargo.toml
+COPY fluxo/fluxo-store/Cargo.toml fluxo/fluxo-store/Cargo.toml
+COPY fluxo/fluxo-engine/Cargo.toml fluxo/fluxo-engine/Cargo.toml
+COPY fluxo/fluxo-server/Cargo.toml fluxo/fluxo-server/Cargo.toml
+COPY fluxo/fluxo-worker/Cargo.toml fluxo/fluxo-worker/Cargo.toml
+COPY fluxo/fluxo-cli/Cargo.toml fluxo/fluxo-cli/Cargo.toml
 
 # Create stub lib.rs / main.rs for each crate so cargo can resolve the dep graph
 RUN mkdir -p vibecli/vibecli-cli/src && echo 'fn main() {}' > vibecli/vibecli-cli/src/main.rs && \
@@ -55,7 +70,24 @@ RUN mkdir -p vibecli/vibecli-cli/src && echo 'fn main() {}' > vibecli/vibecli-cl
     mkdir -p vibecoder/src-tauri/src && echo '' > vibecoder/src-tauri/src/lib.rs && \
     mkdir -p vibeaichat/src-tauri/src && echo '' > vibeaichat/src-tauri/src/lib.rs && \
     mkdir -p vibe-indexer/src && echo 'fn main() {}' > vibe-indexer/src/main.rs && \
-    mkdir -p vibe-memory/src && echo '' > vibe-memory/src/lib.rs
+    mkdir -p vibe-memory/src && echo '' > vibe-memory/src/lib.rs && \
+    mkdir -p vibedesk/src-tauri/src && echo '' > vibedesk/src-tauri/src/lib.rs && \
+    mkdir -p vibedesk/src-tauri/src && echo 'fn main() {}' > vibedesk/src-tauri/src/main.rs && \
+    mkdir -p crates/vibe-desktop-settings/src && echo '' > crates/vibe-desktop-settings/src/lib.rs && \
+    mkdir -p crates/vibe-desktop-voice/src && echo '' > crates/vibe-desktop-voice/src/lib.rs && \
+    mkdir -p crates/vibe-profile-store/src && echo '' > crates/vibe-profile-store/src/lib.rs && \
+    mkdir -p crates/vibe-embed/src && echo '' > crates/vibe-embed/src/lib.rs && \
+    mkdir -p kodegraph/src && echo '' > kodegraph/src/lib.rs && \
+    mkdir -p skilllensai-rs/src && echo '' > skilllensai-rs/src/lib.rs && \
+    mkdir -p skilloptai-rs/src && echo '' > skilloptai-rs/src/lib.rs && \
+    mkdir -p skillforgeai-rs/src && echo '' > skillforgeai-rs/src/lib.rs && \
+    mkdir -p fluxo/fluxo-core/src && echo '' > fluxo/fluxo-core/src/lib.rs && \
+    mkdir -p fluxo/fluxo-store/src && echo '' > fluxo/fluxo-store/src/lib.rs && \
+    mkdir -p fluxo/fluxo-engine/src && echo '' > fluxo/fluxo-engine/src/lib.rs && \
+    mkdir -p fluxo/fluxo-server/src && echo '' > fluxo/fluxo-server/src/lib.rs && \
+    mkdir -p fluxo/fluxo-server/src && echo 'fn main() {}' > fluxo/fluxo-server/src/main.rs && \
+    mkdir -p fluxo/fluxo-worker/src && echo '' > fluxo/fluxo-worker/src/lib.rs && \
+    mkdir -p fluxo/fluxo-cli/src && echo 'fn main() {}' > fluxo/fluxo-cli/src/main.rs
 
 # Pre-build dependencies (cached layer)
 RUN cargo build --release --package vibecli --target x86_64-unknown-linux-musl 2>/dev/null || true
@@ -69,6 +101,21 @@ COPY vibecoder/src-tauri/src/ vibecoder/src-tauri/src/
 COPY vibeaichat/src-tauri/src/ vibeaichat/src-tauri/src/
 COPY vibe-indexer/src/ vibe-indexer/src/
 COPY vibe-memory/src/ vibe-memory/src/
+COPY vibedesk/src-tauri/src/ vibedesk/src-tauri/src/
+COPY crates/vibe-desktop-settings/src/ crates/vibe-desktop-settings/src/
+COPY crates/vibe-desktop-voice/src/ crates/vibe-desktop-voice/src/
+COPY crates/vibe-profile-store/src/ crates/vibe-profile-store/src/
+COPY crates/vibe-embed/src/ crates/vibe-embed/src/
+COPY kodegraph/src/ kodegraph/src/
+COPY skilllensai-rs/src/ skilllensai-rs/src/
+COPY skilloptai-rs/src/ skilloptai-rs/src/
+COPY skillforgeai-rs/src/ skillforgeai-rs/src/
+COPY fluxo/fluxo-core/src/ fluxo/fluxo-core/src/
+COPY fluxo/fluxo-store/src/ fluxo/fluxo-store/src/
+COPY fluxo/fluxo-engine/src/ fluxo/fluxo-engine/src/
+COPY fluxo/fluxo-server/src/ fluxo/fluxo-server/src/
+COPY fluxo/fluxo-worker/src/ fluxo/fluxo-worker/src/
+COPY fluxo/fluxo-cli/src/ fluxo/fluxo-cli/src/
 
 # Build the real binary
 RUN cargo build --release --package vibecli --target x86_64-unknown-linux-musl && \
