@@ -450,7 +450,7 @@ export function GoalPanel({
           width: 320,
           display: 'flex',
           flexDirection: 'column',
-          borderRight: '1px solid var(--border-default)',
+          borderRight: '1px solid var(--border-color)',
           borderRadius: 0,
         }}
       >
@@ -519,7 +519,7 @@ export function GoalPanel({
               fontSize: 'var(--font-size-sm)',
               background: 'var(--bg-default)',
               color: 'var(--text-primary)',
-              border: '1px solid var(--border-default)',
+              border: '1px solid var(--border-color)',
               borderRadius: 4,
               outline: 'none',
             }}
@@ -718,7 +718,7 @@ export function GoalPanel({
                     fontSize: 'var(--font-size-xs)',
                     background: 'var(--bg-default)',
                     color: 'var(--text-primary)',
-                    border: '1px solid var(--border-default)',
+                    border: '1px solid var(--border-color)',
                     borderRadius: 4,
                     outline: 'none',
                   }}

@@ -491,7 +491,7 @@ export function CollabChatPanel({ provider = getDefaultProvider(), daemonPort = 
           onClick={send}
           disabled={aiLoading || !input.trim()}
           title="Send"
-          style={{ background: "var(--accent)", border: "none", borderRadius: "var(--radius-sm-alt)", padding: "0 12px", cursor: "pointer", color: "var(--btn-primary-fg)", display: "flex", alignItems: "center" }}
+          style={{ background: "var(--accent-color)", border: "none", borderRadius: "var(--radius-sm-alt)", padding: "0 12px", cursor: "pointer", color: "var(--btn-primary-fg)", display: "flex", alignItems: "center" }}
         >
           {aiLoading ? <Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={15} />}
         </button>
@@ -537,7 +537,7 @@ function MessageBubble({ msg, myPeerId }: { msg: DisplayMsg; myPeerId: string | 
       </div>
       <div style={{
         maxWidth: "85%",
-        background: isAi ? "var(--bg-secondary)" : isMe ? "var(--accent)" : "var(--bg-tertiary, var(--bg-secondary))",
+        background: isAi ? "var(--bg-secondary)" : isMe ? "var(--accent-color)" : "var(--bg-tertiary, var(--bg-secondary))",
         color: isMe && !isAi ? "var(--btn-primary-fg)" : "var(--text-primary)",
         borderRadius: isMe ? "12px 12px 4px 12px" : "12px 12px 12px 4px",
         padding: "8px 12px",

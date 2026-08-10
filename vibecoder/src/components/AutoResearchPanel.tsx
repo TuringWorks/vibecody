@@ -74,7 +74,7 @@ const gridStyle = (cols: number): React.CSSProperties => ({
 });
 const statStyle: React.CSSProperties = {
   textAlign: "center", padding: 12, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)",
-  border: "1px solid var(--border)",
+  border: "1px solid var(--border-color)",
 };
 const monoStyle: React.CSSProperties = { fontFamily: "var(--font-mono, monospace)", fontSize: "var(--font-size-base)" };
 
@@ -345,7 +345,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
         <div style={{ fontWeight: 600, marginBottom: 8 }}>Metrics for {config.domain.replace(/_/g, " ")}</div>
         <table style={{ width: "100%", fontSize: "var(--font-size-base)", borderCollapse: "collapse" }}>
           <thead>
-            <tr style={{ color: "var(--text-secondary)", borderBottom: "1px solid var(--border)" }}>
+            <tr style={{ color: "var(--text-secondary)", borderBottom: "1px solid var(--border-color)" }}>
               <th style={{ textAlign: "left", padding: 6 }}>Metric</th>
               <th style={{ textAlign: "left", padding: 6 }}>Description</th>
               <th style={{ textAlign: "center", padding: 6 }}>Direction</th>
@@ -354,7 +354,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
           </thead>
           <tbody>
             {metrics.map(m => (
-              <tr key={m.name} style={{ borderBottom: "1px solid var(--border)" }}>
+              <tr key={m.name} style={{ borderBottom: "1px solid var(--border-color)" }}>
                 <td style={{ padding: 6, ...monoStyle }}>{m.name}</td>
                 <td style={{ padding: 6 }}>{m.description}</td>
                 <td style={{ padding: 6, textAlign: "center" }}>
@@ -379,7 +379,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
         <div className="panel-card">
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Previous Sessions</div>
           {savedSessions.map(s => (
-            <div key={s.id} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: "var(--font-size-base)", borderBottom: "1px solid var(--border)" }}>
+            <div key={s.id} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: "var(--font-size-base)", borderBottom: "1px solid var(--border-color)" }}>
               <span style={monoStyle}>{s.id}</span>
               <span>{s.config?.name || "Unnamed"}</span>
               <span style={{ color: "var(--text-secondary)" }}>{s.experiments?.length || 0} experiments</span>
@@ -402,7 +402,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
   const renderExperiments = () => (
     <div>
       {sessionActive && (
-        <div className="panel-card" style={{ borderColor: "var(--accent)", display: "flex", alignItems: "center", gap: 12 }}>
+        <div className="panel-card" style={{ borderColor: "var(--accent-color)", display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--success-color)", animation: "pulse 1.5s infinite" }} />
           <span style={{ fontWeight: 600 }}>Research loop active</span>
           <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
@@ -415,7 +415,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
 
       <div style={gridStyle(4)}>
         <div style={statStyle}>
-          <div style={{ fontSize: 22, fontWeight: 700, color: "var(--accent)" }}>{experiments.length}</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "var(--accent-color)" }}>{experiments.length}</div>
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Total</div>
         </div>
         <div style={statStyle}>
@@ -488,7 +488,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Acceptance Rate</div>
           </div>
           <div style={statStyle}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: "var(--accent)" }}>{bestScore.toFixed(4)}</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "var(--accent-color)" }}>{bestScore.toFixed(4)}</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Best Score</div>
           </div>
           <div style={statStyle}>
@@ -535,7 +535,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
             .filter(e => e.status === "kept" && e.delta > 0)
             .sort((a, b) => b.delta - a.delta)
             .map(exp => (
-              <div key={exp.id} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: "1px solid var(--border)" }}>
+              <div key={exp.id} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: "1px solid var(--border-color)" }}>
                 <span>{exp.hypothesis}</span>
                 <span style={{ color: "var(--success-color)", fontWeight: 600, ...monoStyle }}>+{exp.delta.toFixed(4)}</span>
               </div>
@@ -591,7 +591,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
       <div className="panel-card">
         <div style={{ fontWeight: 600, marginBottom: 12 }}>Lessons Learned</div>
         {lessons.map(l => (
-          <div key={l.id} style={{ padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
+          <div key={l.id} style={{ padding: "8px 0", borderBottom: "1px solid var(--border-color)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={tagStyle(l.confidence === "High" ? "var(--accent-green)" : l.confidence === "Medium" ? "var(--accent-gold)" : "var(--text-muted)")}>
                 {l.confidence}
@@ -648,7 +648,7 @@ export function AutoResearchPanel({ workspacePath, provider: _prov }: { workspac
           <pre style={{
             background: "var(--bg-primary)", padding: 12, borderRadius: "var(--radius-sm)",
             fontSize: "var(--font-size-sm)", overflow: "auto", maxHeight: 400,
-            border: "1px solid var(--border)", ...monoStyle,
+            border: "1px solid var(--border-color)", ...monoStyle,
           }}>
             {tsvOutput}
           </pre>

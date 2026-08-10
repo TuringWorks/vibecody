@@ -73,7 +73,7 @@ export function CompanyPortabilityPanel({ workspacePath: _wp }: CompanyPortabili
         )}
       </div>
 
-      <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
+      <div style={{ borderTop: "1px solid var(--border-color)", paddingTop: 16 }}>
         <div className="panel-label" style={{ marginBottom: 8 }}>
           Import Company Blueprint
         </div>

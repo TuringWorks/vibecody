@@ -76,7 +76,7 @@ export function StreamingPanel() {
 
   const codeBlock: React.CSSProperties = {
     background: "var(--bg-secondary)",
-    border: "1px solid var(--border)",
+    border: "1px solid var(--border-color)",
     borderRadius: "var(--radius-xs-plus)",
     padding: 12,
     fontFamily: "var(--font-mono)",
@@ -299,25 +299,25 @@ export function StreamingPanel() {
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)" }}>
                   <thead>
                     <tr style={{ background: "var(--bg-secondary)" }}>
-                      <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Name</th>
-                      <th style={{ padding: "8px 8px", textAlign: "right", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Partitions</th>
-                      <th style={{ padding: "8px 8px", textAlign: "right", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Replication</th>
-                      <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Cleanup</th>
-                      <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>CLI Command</th>
-                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600 }}></th>
+                      <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>Name</th>
+                      <th style={{ padding: "8px 8px", textAlign: "right", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>Partitions</th>
+                      <th style={{ padding: "8px 8px", textAlign: "right", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>Replication</th>
+                      <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>Cleanup</th>
+                      <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>CLI Command</th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}></th>
                     </tr>
                   </thead>
                   <tbody>
                     {topics.map((t, i) => (
                       <tr key={t.name} style={{ background: i % 2 === 0 ? "transparent" : "var(--bg-secondary)" }}>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)" }}>{t.name}</td>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "right" }}>{t.partitions}</td>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "right" }}>{t.replicationFactor}</td>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)" }}>{t.cleanupPolicy}</td>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", fontSize: "var(--font-size-xs)", opacity: 0.7 }}>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)" }}>{t.name}</td>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)", textAlign: "right" }}>{t.partitions}</td>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)", textAlign: "right" }}>{t.replicationFactor}</td>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)" }}>{t.cleanupPolicy}</td>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)", fontSize: "var(--font-size-xs)", opacity: 0.7 }}>
                           kafka-topics.sh --create --topic {t.name} --partitions {t.partitions} --replication-factor {t.replicationFactor} --config cleanup.policy={t.cleanupPolicy}
                         </td>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)", textAlign: "center" }}>
                           <button onClick={() => handleDeleteTopic(t.name)} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: "var(--font-size-lg)" }} title="Remove topic">
                             x
                           </button>
@@ -414,7 +414,7 @@ export function StreamingPanel() {
                   id="zk-toggle"
                   checked={useZookeeper}
                   onChange={(e) => setUseZookeeper(e.target.checked)}
-                  style={{ accentColor: "var(--accent)" }}
+                  style={{ accentColor: "var(--accent-color)" }}
                 />
                 <label htmlFor="zk-toggle" style={{ fontSize: "var(--font-size-base)", color: "var(--text-primary)", cursor: "pointer" }}>
                   Use Zookeeper (legacy)

@@ -381,7 +381,7 @@ export function VibeSqlPanel({ provider }: { workspacePath: string | null; provi
                   <tr key={c.name} style={{ borderBottom: "1px solid var(--border-color)" }}>
                     <td style={{ padding: "4px 8px", fontWeight: c.primary_key ? 600 : 400 }}>{c.name}</td>
                     <td style={{ padding: "4px 8px", fontFamily: "var(--font-mono, monospace)", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>{c.data_type}</td>
-                    <td style={{ padding: "4px 8px", textAlign: "center" }}>{c.primary_key ? <Key size={12} strokeWidth={1.5} style={{ color: "var(--accent, #4a9eff)" }} /> : ""}</td>
+                    <td style={{ padding: "4px 8px", textAlign: "center" }}>{c.primary_key ? <Key size={12} strokeWidth={1.5} style={{ color: "var(--accent-color)" }} /> : ""}</td>
                     <td style={{ padding: "4px 8px", textAlign: "center", color: "var(--text-secondary)" }}>{c.nullable ? "yes" : "no"}</td>
                   </tr>
                 ))}

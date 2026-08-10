@@ -217,7 +217,7 @@ export function CsvPanel() {
  {/* Paste area when empty */}
  {rows.length === 0 && (
  <div className="panel-body" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 24 }}>
- <Table size={32} strokeWidth={1.5} style={{ color: "var(--accent, #4a9eff)" }} />
+ <Table size={32} strokeWidth={1.5} style={{ color: "var(--accent-color)" }} />
  <div style={{ color: "var(--text-secondary)", textAlign: "center" }}>Open a CSV / TSV file or paste data below</div>
  <textarea
  placeholder="Paste CSV data here..."

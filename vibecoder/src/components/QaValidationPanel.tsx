@@ -131,7 +131,7 @@ export function QaValidationPanel() {
                       padding: "8px 12px",
                       marginBottom: 4,
                       background: "var(--bg-secondary)",
-                      border: "1px solid var(--border)",
+                      border: "1px solid var(--border-color)",
                       borderRadius: "var(--radius-xs-plus)",
                       borderLeft: `3px solid ${c.passed ? "var(--success-color)" : "var(--error-color)"}`,
                     }}
@@ -163,19 +163,19 @@ export function QaValidationPanel() {
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
                   <thead>
                     <tr style={{ background: "var(--bg-secondary)" }}>
-                      <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Timestamp</th>
-                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Status</th>
-                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Passed</th>
-                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Failed</th>
-                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Total</th>
-                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600, width: 60 }}></th>
+                      <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>Timestamp</th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>Status</th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>Passed</th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>Failed</th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>Total</th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border-color)", fontWeight: 600, width: 60 }}></th>
                     </tr>
                   </thead>
                   <tbody>
                     {history.map((run, i) => (
                       <tr key={run.id} style={{ background: i % 2 === 0 ? "transparent" : "var(--bg-secondary)" }}>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)" }}>{new Date(run.timestamp).toLocaleString()}</td>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)" }}>{new Date(run.timestamp).toLocaleString()}</td>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)", textAlign: "center" }}>
                           <span style={{
                             display: "inline-block",
                             padding: "2px 8px",
@@ -188,11 +188,11 @@ export function QaValidationPanel() {
                             {run.failed === 0 ? "PASS" : "FAIL"}
                           </span>
                         </td>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center", color: "var(--success-color)" }}>{run.passed}</td>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center", color: run.failed > 0 ? "var(--error-color)" : "var(--text-secondary)" }}>{run.failed}</td>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>{run.total}</td>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
-                          <button onClick={() => setSelectedRun(run.id)} style={{ background: "none", border: "none", color: "var(--accent)", cursor: "pointer", fontSize: "var(--font-size-sm)", textDecoration: "underline" }}>Details</button>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)", textAlign: "center", color: "var(--success-color)" }}>{run.passed}</td>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)", textAlign: "center", color: run.failed > 0 ? "var(--error-color)" : "var(--text-secondary)" }}>{run.failed}</td>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)", textAlign: "center" }}>{run.total}</td>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)", textAlign: "center" }}>
+                          <button onClick={() => setSelectedRun(run.id)} style={{ background: "none", border: "none", color: "var(--accent-color)", cursor: "pointer", fontSize: "var(--font-size-sm)", textDecoration: "underline" }}>Details</button>
                         </td>
                       </tr>
                     ))}
@@ -205,7 +205,7 @@ export function QaValidationPanel() {
               <div>
                 <button
                   onClick={() => setSelectedRun(null)}
-                  style={{ background: "none", border: "none", color: "var(--accent)", cursor: "pointer", fontSize: "var(--font-size-base)", marginBottom: 12, padding: 0 }}
+                  style={{ background: "none", border: "none", color: "var(--accent-color)", cursor: "pointer", fontSize: "var(--font-size-base)", marginBottom: 12, padding: 0 }}
                 >
                   &larr; Back to History
                 </button>
@@ -223,7 +223,7 @@ export function QaValidationPanel() {
                       padding: "8px 12px",
                       marginBottom: 4,
                       background: "var(--bg-secondary)",
-                      border: "1px solid var(--border)",
+                      border: "1px solid var(--border-color)",
                       borderRadius: "var(--radius-xs-plus)",
                       borderLeft: `3px solid ${c.passed ? "var(--success-color)" : "var(--error-color)"}`,
                     }}

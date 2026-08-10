@@ -214,7 +214,7 @@ collection = client.create_collection(
   const inputStyle: React.CSSProperties = {
     width: "100%",
     background: "var(--bg-secondary)",
-    border: "1px solid var(--border)",
+    border: "1px solid var(--border-color)",
     borderRadius: "var(--radius-xs-plus)",
     color: "var(--text-primary)",
     padding: "6px 8px",
@@ -297,23 +297,23 @@ collection = client.create_collection(
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
                   <thead>
                     <tr style={{ background: "var(--bg-secondary)" }}>
-                      <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Name</th>
-                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Dim</th>
-                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Metric</th>
-                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Vectors</th>
-                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>HNSW</th>
-                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600, width: 60 }}></th>
+                      <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>Name</th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>Dim</th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>Metric</th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>Vectors</th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>HNSW</th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border-color)", fontWeight: 600, width: 60 }}></th>
                     </tr>
                   </thead>
                   <tbody>
                     {collections.map((c, i) => (
                       <tr key={c.name} style={{ background: i % 2 === 0 ? "transparent" : "var(--bg-secondary)" }}>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", fontFamily: "var(--font-mono)" }}>{c.name}</td>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>{c.dimension}</td>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>{c.metric}</td>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>{c.vectorCount.toLocaleString()}</td>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center", fontSize: "var(--font-size-xs)" }}>M={c.hnsw.m} ef={c.hnsw.efConstruction}</td>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center" }}>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)", fontFamily: "var(--font-mono)" }}>{c.name}</td>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)", textAlign: "center" }}>{c.dimension}</td>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)", textAlign: "center" }}>{c.metric}</td>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)", textAlign: "center" }}>{c.vectorCount.toLocaleString()}</td>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)", textAlign: "center", fontSize: "var(--font-size-xs)" }}>M={c.hnsw.m} ef={c.hnsw.efConstruction}</td>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)", textAlign: "center" }}>
                           <button onClick={() => handleDeleteCollection(c.name)} className="panel-btn panel-btn-danger" style={{ fontSize: "var(--font-size-sm)", padding: "2px 8px" }}>Delete</button>
                         </td>
                       </tr>
@@ -372,17 +372,17 @@ collection = client.create_collection(
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
                   <thead>
                     <tr style={{ background: "var(--bg-secondary)" }}>
-                      <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>ID</th>
-                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600, width: 80 }}>Score</th>
-                      <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>Payload</th>
+                      <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>ID</th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border-color)", fontWeight: 600, width: 80 }}>Score</th>
+                      <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>Payload</th>
                     </tr>
                   </thead>
                   <tbody>
                     {searchResults.map((r, i) => (
                       <tr key={r.id} style={{ background: i % 2 === 0 ? "transparent" : "var(--bg-secondary)" }}>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", fontFamily: "var(--font-mono)" }}>{r.id}</td>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center", color: r.score > 0.8 ? "var(--success-color)" : r.score > 0.5 ? "var(--warning-color)" : "var(--text-secondary)" }}>{r.score}</td>
-                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", fontSize: "var(--font-size-sm)" }}>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)", fontFamily: "var(--font-mono)" }}>{r.id}</td>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)", textAlign: "center", color: r.score > 0.8 ? "var(--success-color)" : r.score > 0.5 ? "var(--warning-color)" : "var(--text-secondary)" }}>{r.score}</td>
+                        <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)", fontSize: "var(--font-size-sm)" }}>
                           {Object.entries(r.payload).map(([k, v]) => (
                             <span key={k} style={{ marginRight: 12 }}><strong>{k}:</strong> {v}</span>
                           ))}
@@ -420,7 +420,7 @@ collection = client.create_collection(
             {schemaOutput && (
               <pre style={{
                 background: "var(--bg-secondary)",
-                border: "1px solid var(--border)",
+                border: "1px solid var(--border-color)",
                 borderRadius: "var(--radius-xs-plus)",
                 padding: 16,
                 fontSize: "var(--font-size-base)",

@@ -98,8 +98,11 @@ class VibeCLIService {
         val active = AtomicBoolean(true)
         Thread {
             try {
+                // `/stream/:id` is behind require_auth like everything else —
+                // without the header the stream is a 401 and the tool window
+                // shows an agent that produced no output.
                 val url = URL("${settings.daemonUrl}/stream/$sessionId")
-                val conn = url.openConnection() as HttpURLConnection
+                val conn = (url.openConnection() as HttpURLConnection).withAuth()
                 conn.requestMethod = "GET"
                 conn.setRequestProperty("Accept", "text/event-stream")
                 conn.connectTimeout = 5_000

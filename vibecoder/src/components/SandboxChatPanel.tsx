@@ -680,7 +680,11 @@ export function SandboxChatPanel({ provider: initialProvider, availableProviders
               <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", maxWidth: 280 }}>
                 Pick a folder to give the AI full read/write access. It can create, edit, and delete files freely within that folder.
               </div>
-              <button className="panel-btn" onClick={handlePickFolder} style={{ background: "var(--accent)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-sm-alt)", padding: "8px 16px", cursor: "pointer", fontSize: "var(--font-size-md)", display: "flex", alignItems: "center", gap: 6 }}>
+              {/* Colours come from `.panel-btn-primary`, not inline styles:
+                  it already pairs --accent-color with the --btn-primary-fg
+                  computed for that exact background. Restating them inline is
+                  what let this button end up transparent with black text. */}
+              <button className="panel-btn panel-btn-primary" onClick={handlePickFolder} style={{ borderRadius: "var(--radius-sm-alt)", padding: "8px 16px", fontSize: "var(--font-size-md)", display: "flex", alignItems: "center", gap: 6 }}>
                 <FolderOpen size={14} /> Open Sandbox Folder
               </button>
             </div>

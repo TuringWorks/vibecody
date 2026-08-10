@@ -175,7 +175,7 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
       {/* Company list */}
       {!loading && companies.length === 0 && !error && (
         <div className="panel-empty" style={{ padding: 24 }}>
-          <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", color: "var(--accent, #4a9eff)" }}><Building2 size={32} strokeWidth={1.5} /></div>
+          <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", color: "var(--accent-color)" }}><Building2 size={32} strokeWidth={1.5} /></div>
           <div style={{ fontWeight: 600, marginBottom: 4 }}>No companies yet</div>
           <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)", marginBottom: 16 }}>
             Create your first company to get started
@@ -192,13 +192,13 @@ export function CompanyDashboardPanel({ workspacePath: _wp }: CompanyDashboardPa
           className="panel-card"
           style={{
             background: c.active ? "var(--selection-bg, rgba(99,179,237,0.1))" : undefined,
-            border: `1px solid ${c.active ? "var(--accent, #4a9eff)" : "var(--border-color)"}`,
+            border: `1px solid ${c.active ? "var(--accent-color)" : "var(--border-color)"}`,
             display: "flex", alignItems: "center", gap: 10,
           }}
         >
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-              {c.active && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--accent, #4a9eff)", fontWeight: 700 }}>ACTIVE</span>}
+              {c.active && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--accent-color)", fontWeight: 700 }}>ACTIVE</span>}
               <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>{c.name}</span>
               <span style={{
                 fontSize: "var(--font-size-xs)", padding: "1px 4px", borderRadius: 3,

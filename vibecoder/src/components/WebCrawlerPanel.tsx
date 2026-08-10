@@ -107,7 +107,7 @@ export function WebCrawlerPanel() {
   const inputStyle: React.CSSProperties = {
     width: "100%",
     background: "var(--bg-secondary)",
-    border: "1px solid var(--border)",
+    border: "1px solid var(--border-color)",
     borderRadius: "var(--radius-xs-plus)",
     color: "var(--text-primary)",
     padding: "6px 8px",
@@ -192,7 +192,7 @@ export function WebCrawlerPanel() {
                     height: 22,
                     borderRadius: 11,
                     border: "none",
-                    background: crawlConfig.respectRobots ? "var(--accent)" : "var(--bg-secondary)",
+                    background: crawlConfig.respectRobots ? "var(--accent-color)" : "var(--bg-secondary)",
                     cursor: "pointer",
                     position: "relative",
                   }}
@@ -214,7 +214,7 @@ export function WebCrawlerPanel() {
                     height: 22,
                     borderRadius: 11,
                     border: "none",
-                    background: crawlConfig.followExternal ? "var(--accent)" : "var(--bg-secondary)",
+                    background: crawlConfig.followExternal ? "var(--accent-color)" : "var(--bg-secondary)",
                     cursor: "pointer",
                     position: "relative",
                   }}
@@ -250,17 +250,17 @@ export function WebCrawlerPanel() {
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)" }}>
                     <thead>
                       <tr style={{ background: "var(--bg-secondary)" }}>
-                        <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>URL</th>
-                        <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border)", fontWeight: 600, width: 60 }}>Status</th>
-                        <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border)", fontWeight: 600, width: 120 }}>Content-Type</th>
+                        <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border-color)", fontWeight: 600 }}>URL</th>
+                        <th style={{ padding: "8px 8px", textAlign: "center", borderBottom: "1px solid var(--border-color)", fontWeight: 600, width: 60 }}>Status</th>
+                        <th style={{ padding: "8px 8px", textAlign: "left", borderBottom: "1px solid var(--border-color)", fontWeight: 600, width: 120 }}>Content-Type</th>
                       </tr>
                     </thead>
                     <tbody>
                       {crawlResults.map((r, i) => (
                         <tr key={i} style={{ background: i % 2 === 0 ? "transparent" : "var(--bg-secondary)" }}>
-                          <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", maxWidth: 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.url}</td>
-                          <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)", textAlign: "center", color: r.status === 200 ? "var(--success-color)" : r.status === 301 ? "var(--warning-color)" : "var(--error-color)" }}>{r.status}</td>
-                          <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border)" }}>{r.contentType}</td>
+                          <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)", maxWidth: 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.url}</td>
+                          <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)", textAlign: "center", color: r.status === 200 ? "var(--success-color)" : r.status === 301 ? "var(--warning-color)" : "var(--error-color)" }}>{r.status}</td>
+                          <td style={{ padding: "4px 8px", borderBottom: "1px solid var(--border-color)" }}>{r.contentType}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -299,7 +299,7 @@ export function WebCrawlerPanel() {
                 <div className="panel-card" style={{ maxHeight: 200, overflow: "auto" }}>
                   <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 6 }}>{sitemapUrls.length} URLs found</div>
                   {sitemapUrls.map((u, i) => (
-                    <div key={i} style={{ fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", padding: "2px 0", borderBottom: i < sitemapUrls.length - 1 ? "1px solid var(--border)" : "none" }}>
+                    <div key={i} style={{ fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", padding: "2px 0", borderBottom: i < sitemapUrls.length - 1 ? "1px solid var(--border-color)" : "none" }}>
                       {u}
                     </div>
                   ))}
@@ -307,7 +307,7 @@ export function WebCrawlerPanel() {
               )}
             </div>
 
-            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }} />
+            <div style={{ borderTop: "1px solid var(--border-color)", paddingTop: 16 }} />
 
             {/* Robots.txt section */}
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -330,7 +330,7 @@ export function WebCrawlerPanel() {
                 Check robots.txt
               </button>
               {robotsResult && (
-                <pre style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-xs-plus)", padding: 12, fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", margin: 0, whiteSpace: "pre-wrap", color: "var(--text-primary)" }}>
+                <pre style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: 12, fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", margin: 0, whiteSpace: "pre-wrap", color: "var(--text-primary)" }}>
                   {robotsResult}
                 </pre>
               )}

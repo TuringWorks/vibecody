@@ -573,12 +573,12 @@ export function A2aPanel() {
                             gap: 4,
                             padding: "4px 12px",
                             borderRadius: "var(--border-radius, 4px)",
-                            background: checked ? (capBadgeColors[cap] || "var(--accent)") : "var(--bg-tertiary)",
+                            background: checked ? (capBadgeColors[cap] || "var(--accent-color)") : "var(--bg-tertiary)",
                             color: checked ? "var(--btn-primary-fg, #fff)" : "var(--text-secondary)",
                             cursor: "pointer",
                             fontSize: "var(--font-size-base)",
                             fontWeight: checked ? 600 : 400,
-                            border: `1px solid ${checked ? "transparent" : "var(--border)"}`,
+                            border: `1px solid ${checked ? "transparent" : "var(--border-color)"}`,
                             transition: "all 0.15s ease",
                           }}
                         >
@@ -671,7 +671,7 @@ export function A2aPanel() {
                   </div>
                   <div className="panel-card" style={{ textAlign: "center" }}>
                     <div style={labelStyle}>Avg Completion Time</div>
-                    <div style={{ fontSize: 28, fontWeight: 700, color: "var(--accent)" }}>
+                    <div style={{ fontSize: 28, fontWeight: 700, color: "var(--accent-color)" }}>
                       {formatDuration(metrics.avg_completion_time_ms)}
                     </div>
                   </div>
@@ -679,7 +679,7 @@ export function A2aPanel() {
 
                 <div className="panel-card" style={{ textAlign: "center", marginTop: 10 }}>
                   <div style={labelStyle}>Agents Discovered</div>
-                  <div style={{ fontSize: 28, fontWeight: 700, color: "var(--accent)" }}>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: "var(--accent-color)" }}>
                     {metrics.agents_discovered}
                   </div>
                 </div>

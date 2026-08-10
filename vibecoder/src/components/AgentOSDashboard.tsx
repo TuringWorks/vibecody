@@ -85,7 +85,7 @@ const S = {
   } as React.CSSProperties,
   refreshBtn: {
     background: "var(--bg-tertiary, #333)",
-    border: "1px solid var(--border-primary, #444)",
+    border: "1px solid var(--border-color)",
     borderRadius: "var(--radius-sm)",
     color: "var(--text-primary, #e0e0e0)",
     padding: "4px 10px",
@@ -103,7 +103,7 @@ const S = {
   } as React.CSSProperties,
   statCard: {
     background: "var(--bg-secondary, #252525)",
-    border: "1px solid var(--border-primary, #333)",
+    border: "1px solid var(--border-color)",
     borderRadius: "var(--radius-sm-alt)",
     padding: "12px 14px",
     display: "flex",
@@ -141,7 +141,7 @@ const S = {
   th: {
     textAlign: "left" as const,
     padding: "6px 8px",
-    borderBottom: "1px solid var(--border-primary, #333)",
+    borderBottom: "1px solid var(--border-color)",
     color: "var(--text-secondary, #999)",
     fontWeight: 500,
     fontSize: "var(--font-size-sm)",
@@ -176,7 +176,7 @@ const S = {
   } as React.CSSProperties,
   modeCard: {
     background: "var(--bg-secondary, #252525)",
-    border: "1px solid var(--border-primary, #333)",
+    border: "1px solid var(--border-color)",
     borderRadius: "var(--radius-sm-alt)",
     padding: "10px 14px",
     flex: "1 1 140px",

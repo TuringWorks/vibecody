@@ -358,6 +358,27 @@ pub(crate) fn clean_whisper_stdout(raw: &str) -> String {
         .to_string()
 }
 
+/// A unique scratch path for one ffmpeg conversion.
+///
+/// This was a fixed `/tmp/vibecli_voice_input.wav`, which was survivable while
+/// only the single-threaded REPL called it. The daemon serves concurrent
+/// requests, so two simultaneous transcriptions raced on that one path and one
+/// caller silently received the other's words — a wrong answer, not an error.
+///
+/// A process-local counter rather than a timestamp: two threads can read the
+/// same nanosecond, and the `SystemTime` error path would have to invent a
+/// fallback value that collides for everyone at once. `pid` keeps concurrent
+/// daemons on one machine apart.
+fn conversion_temp_path() -> PathBuf {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    std::env::temp_dir().join(format!(
+        "vibecli_voice_{}_{}.wav",
+        std::process::id(),
+        SEQ.fetch_add(1, Ordering::Relaxed)
+    ))
+}
+
 /// Ensure an audio file is WAV 16kHz mono (required by whisper.cpp).
 /// If the file is already .wav, try to use it directly.
 /// Otherwise, convert via ffmpeg.
@@ -377,17 +398,7 @@ async fn ensure_wav_16k(audio_path: &Path) -> Result<PathBuf> {
         return Ok(audio_path.to_path_buf());
     }
 
-    // Convert via ffmpeg. Unique per call: the daemon serves concurrent
-    // requests, and a fixed /tmp name means two simultaneous transcriptions
-    // overwrite each other's audio — one caller silently gets the other's words.
-    let tmp = std::env::temp_dir().join(format!(
-        "vibecli_voice_{}_{}.wav",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0)
-    ));
+    let tmp = conversion_temp_path();
     let status = tokio::process::Command::new("ffmpeg")
         .args([
             "-y",
@@ -1142,5 +1153,36 @@ mod tests {
     fn whisper_stdout_cleaning_is_a_no_op_for_plain_text() {
         assert_eq!(clean_whisper_stdout("  hello world  "), "hello world");
         assert_eq!(clean_whisper_stdout(""), "");
+    }
+
+    #[test]
+    fn conversion_temp_paths_never_collide() {
+        // The daemon transcribes concurrently. A shared scratch path made two
+        // in-flight conversions overwrite each other, so one caller got the
+        // other's audio back as their own transcript — silently.
+        let paths: Vec<_> = (0..256).map(|_| conversion_temp_path()).collect();
+        let unique: std::collections::HashSet<_> = paths.iter().collect();
+        assert_eq!(unique.len(), paths.len(), "every conversion needs its own path");
+
+        for p in &paths {
+            let name = p.file_name().and_then(|n| n.to_str()).unwrap_or_default();
+            assert!(name.starts_with("vibecli_voice_"));
+            assert!(name.ends_with(".wav"), "ffmpeg picks its muxer from the extension");
+            // The pid keeps two daemons on one machine from colliding even
+            // though each starts its counter at zero.
+            assert!(name.contains(&std::process::id().to_string()));
+        }
+    }
+
+    #[test]
+    fn conversion_temp_paths_are_unique_across_threads() {
+        // The counter, not the clock, is what makes this safe — two threads can
+        // observe the same nanosecond.
+        let handles: Vec<_> = (0..8)
+            .map(|_| std::thread::spawn(|| (0..64).map(|_| conversion_temp_path()).collect::<Vec<_>>()))
+            .collect();
+        let all: Vec<_> = handles.into_iter().flat_map(|h| h.join().unwrap()).collect();
+        let unique: std::collections::HashSet<_> = all.iter().collect();
+        assert_eq!(unique.len(), all.len(), "concurrent callers must not share a path");
     }
 }

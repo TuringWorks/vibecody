@@ -100,7 +100,7 @@ const CATEGORIES: TemplateCategory[] = ["All", "Web", "Mobile", "API", "FullStac
 const tagStyle: React.CSSProperties = {
   padding: "1px 7px",
   borderRadius: "var(--radius-md)",
-  background: "var(--accent)",
+  background: "var(--accent-color)",
   color: "var(--text-primary)",
   fontSize: "var(--font-size-xs)",
   fontWeight: 600,
@@ -492,7 +492,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                     <div className="panel-label" style={{ marginBottom: 4 }}>UI Components</div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                       {enhancedSpec.uiComponents.map((c, i) => (
-                        <span key={i} style={{ ...tagStyle, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border)" }}>
+                        <span key={i} style={{ ...tagStyle, background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)" }}>
                           {c}
                         </span>
                       ))}
@@ -522,7 +522,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                         style={{
                           height: "100%",
                           width: "100%",
-                          background: "var(--accent)",
+                          background: "var(--accent-color)",
                           borderRadius: 3,
                           animation: "pulse 1.5s ease-in-out infinite",
                           opacity: 0.7,
@@ -839,7 +839,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                       gap: 8,
                       padding: "8px 12px",
                       borderRadius: "var(--radius-xs-plus)",
-                      border: "1px solid var(--border)",
+                      border: "1px solid var(--border-color)",
                       background: "var(--bg-primary)",
                     }}
                   >
@@ -904,7 +904,7 @@ export function AppBuilderPanel({ workspacePath }: { workspacePath: string }) {
                   padding: 8,
                   borderRadius: "var(--radius-xs-plus)",
                   background: "var(--bg-primary)",
-                  border: "1px solid var(--border)",
+                  border: "1px solid var(--border-color)",
                   fontSize: "var(--font-size-base)",
                   color: "var(--success)",
                   display: "flex",

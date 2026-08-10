@@ -2488,7 +2488,7 @@ export function QuantumComputingPanel() {
                   </thead>
                   <tbody>
                     {compat.map((c) => (
-                      <tr key={c.language} style={{ borderBottom: "1px solid var(--border-secondary)" }}>
+                      <tr key={c.language} style={{ borderBottom: "1px solid var(--border-color)" }}>
                         <td style={{ padding: 6, fontWeight: 500 }}>{c.language}</td>
                         <td style={{ padding: 6 }}>{c.compatibleOs.join(", ")}</td>
                       </tr>

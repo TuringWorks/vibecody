@@ -99,7 +99,7 @@ export function CompanyGoalsPanel({ workspacePath: _wp }: CompanyGoalsPanelProps
       {view === "list" && (
         isEmpty && !loading ? (
           <div className="panel-empty" style={{ padding: 24 }}>
-            <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", color: "var(--accent, #4a9eff)" }}><Target size={32} strokeWidth={1.5} /></div>
+            <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", color: "var(--accent-color)" }}><Target size={32} strokeWidth={1.5} /></div>
             <div style={{ fontWeight: 600, marginBottom: 4 }}>No goals yet</div>
             <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)", marginBottom: 16 }}>
               Set company goals to track progress

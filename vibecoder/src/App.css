@@ -959,14 +959,30 @@ textarea::placeholder {
   padding: 5px 8px; font-size: 12px;
 }
 .panel-btn {
-  padding: 5px 12px; border: none; border-radius: var(--radius-sm);
+  padding: 5px 12px; border-radius: var(--radius-sm);
   cursor: pointer; font-size: 12px; font-weight: 500;
   transition: opacity var(--transition-fast), background var(--transition-fast);
+
+  /* A themed default is mandatory, not a nicety. `.panel-btn` used to set no
+     background and no color, so any `<button className="panel-btn">` with no
+     modifier fell through to the UA's `buttonface`/`buttontext` — a light-grey
+     OS button with black text, sat on a dark panel. 43 buttons across 15
+     files rendered that way (Configuration → Keys was the visible one).
+     Modifier classes and inline styles both override this, so buttons that
+     were already themed are unaffected. */
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+
+  /* Transparent rather than `none` so every variant is the same box. The
+     filled variants below previously had no border while `-secondary` had a
+     1px one, which made them 2px shorter than their neighbours in the same
+     row. */
+  border: 1px solid transparent;
 }
 .panel-btn:hover { opacity: 0.85; }
 .panel-btn-primary { background: var(--accent-color); color: var(--btn-primary-fg); }
 .panel-btn-danger { background: var(--error-color); color: var(--btn-error-fg); }
-.panel-btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color); }
+.panel-btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); border-color: var(--border-color); }
 .panel-error {
   background: var(--error-bg); border: 1px solid var(--error-color);
   border-radius: var(--radius-sm); padding: 8px 12px;

@@ -151,7 +151,7 @@ export function BookmarkPanel({ workspacePath }: BookmarkPanelProps) {
                 onClick={() => setTypeFilter(t)}
                 style={{
                   padding: "2px 8px", fontSize: "var(--font-size-xs)", fontWeight: 600, borderRadius: 3, cursor: "pointer",
-                  border: typeFilter === t ? "1px solid var(--accent)" : "1px solid var(--border-color)",
+                  border: typeFilter === t ? "1px solid var(--accent-color)" : "1px solid var(--border-color)",
                   background: typeFilter === t ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "transparent",
                   color: t === "ALL" ? "var(--text-primary)" : (markerColor[t] || "var(--text-primary)"),
                 }}

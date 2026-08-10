@@ -103,7 +103,7 @@ export function DocumentIngestPanel() {
                 value={filePath}
                 onChange={(e) => setFilePath(e.target.value)}
                 placeholder="/path/to/document.pdf or /path/to/directory"
-                style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", padding: "8px 8px", fontSize: "var(--font-size-base)", boxSizing: "border-box" }}
+                style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", padding: "8px 8px", fontSize: "var(--font-size-base)", boxSizing: "border-box" }}
               />
             </div>
 
@@ -114,7 +114,7 @@ export function DocumentIngestPanel() {
                 id="doc-ingest-format"
                 value={format}
                 onChange={(e) => setFormat(e.target.value as Format)}
-                style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", padding: "8px 8px", fontSize: "var(--font-size-base)", boxSizing: "border-box" }}
+                style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", padding: "8px 8px", fontSize: "var(--font-size-base)", boxSizing: "border-box" }}
               >
                 <option value="auto">Auto-detect</option>
                 <option value="plain">Plain Text</option>
@@ -231,7 +231,7 @@ export function DocumentIngestPanel() {
                 max={512}
                 value={config.minChunkSize}
                 onChange={(e) => setConfig((c) => ({ ...c, minChunkSize: Number(e.target.value) }))}
-                style={{ width: 120, background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", padding: "8px 8px", fontSize: "var(--font-size-base)" }}
+                style={{ width: 120, background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", padding: "8px 8px", fontSize: "var(--font-size-base)" }}
               />
             </div>
 
@@ -251,7 +251,7 @@ export function DocumentIngestPanel() {
                   height: 22,
                   borderRadius: 11,
                   border: "none",
-                  background: config.sentenceBoundary ? "var(--accent)" : "var(--bg-secondary)",
+                  background: config.sentenceBoundary ? "var(--accent-color)" : "var(--bg-secondary)",
                   cursor: "pointer",
                   position: "relative",
                 }}
@@ -285,7 +285,7 @@ export function DocumentIngestPanel() {
                   height: 22,
                   borderRadius: 11,
                   border: "none",
-                  background: config.sectionTitle ? "var(--accent)" : "var(--bg-secondary)",
+                  background: config.sectionTitle ? "var(--accent-color)" : "var(--bg-secondary)",
                   cursor: "pointer",
                   position: "relative",
                 }}
@@ -304,7 +304,7 @@ export function DocumentIngestPanel() {
             </div>
 
             {/* Summary */}
-            <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: "var(--radius-xs-plus)", padding: 12, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 8 }}>
+            <div style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: 12, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 8 }}>
               <div style={{ fontWeight: 600, marginBottom: 4, color: "var(--text-primary)" }}>Current Config Summary</div>
               <div>Chunk size: {config.maxTokens} tokens (min {config.minChunkSize})</div>
               <div>Overlap: {config.overlap} tokens</div>

@@ -150,7 +150,7 @@ export function CompanyOrgChartPanel({ workspacePath: _wp }: CompanyOrgChartPane
         <>
           {isEmpty && !loading && !error && (
             <div className="panel-empty" style={{ padding: 24 }}>
-              <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", color: "var(--accent, #4a9eff)" }}><Users size={32} strokeWidth={1.5} /></div>
+              <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", color: "var(--accent-color)" }}><Users size={32} strokeWidth={1.5} /></div>
               <div style={{ fontWeight: 600, marginBottom: 4 }}>No agents yet</div>
               <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)", marginBottom: 16 }}>Hire your first agent to build your team</div>
               <button onClick={() => setView("hire")} className="panel-btn panel-btn-primary" style={{ fontSize: "var(--font-size-base)" }}>+ Hire Agent</button>

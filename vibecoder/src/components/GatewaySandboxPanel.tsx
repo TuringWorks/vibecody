@@ -425,9 +425,9 @@ export function GatewaySandboxPanel({ provider: defaultProvider = getDefaultProv
                             borderRadius: "var(--radius-sm)",
                             fontSize: "var(--font-size-sm)",
                             cursor: status.active ? "default" : "pointer",
-                            background: isSelected ? "var(--accent)" : "var(--bg-secondary)",
+                            background: isSelected ? "var(--accent-color)" : "var(--bg-secondary)",
                             color: isSelected ? "var(--btn-primary-fg)" : "var(--text-primary)",
-                            border: `1px solid ${isSelected ? "var(--accent)" : "var(--border-color)"}`,
+                            border: `1px solid ${isSelected ? "var(--accent-color)" : "var(--border-color)"}`,
                             display: "flex",
                             alignItems: "center",
                             gap: 5,
@@ -541,7 +541,7 @@ export function GatewaySandboxPanel({ provider: defaultProvider = getDefaultProv
               <button className="panel-btn"
                 onClick={handleStart}
                 disabled={starting || def.mode === "cli"}
-                style={{ flex: 1, background: def.mode === "cli" ? "var(--bg-secondary)" : "var(--accent)", color: def.mode === "cli" ? "var(--text-muted)" : "var(--btn-primary-fg)", border: "none", borderRadius: "var(--radius-sm-alt)", padding: "8px 16px", cursor: def.mode === "cli" ? "default" : "pointer", fontSize: "var(--font-size-md)", fontWeight: 500, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+                style={{ flex: 1, background: def.mode === "cli" ? "var(--bg-secondary)" : "var(--accent-color)", color: def.mode === "cli" ? "var(--text-muted)" : "var(--btn-primary-fg)", border: "none", borderRadius: "var(--radius-sm-alt)", padding: "8px 16px", cursor: def.mode === "cli" ? "default" : "pointer", fontSize: "var(--font-size-md)", fontWeight: 500, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
               >
                 {starting ? <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={14} />}
                 {starting ? "Starting…" : def.mode === "cli" ? "Use vibecli CLI" : "Start Gateway"}

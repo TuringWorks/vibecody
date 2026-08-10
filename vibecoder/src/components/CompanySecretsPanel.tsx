@@ -112,7 +112,7 @@ export function CompanySecretsPanel({ workspacePath: _wp }: CompanySecretsPanelP
         {/* Secrets list */}
         {isEmpty && !loading ? (
           <div className="panel-empty">
-            <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", color: "var(--accent, #4a9eff)" }}><Lock size={32} strokeWidth={1.5} /></div>
+            <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", color: "var(--accent-color)" }}><Lock size={32} strokeWidth={1.5} /></div>
             <div style={{ fontWeight: 600, marginBottom: 4 }}>No secrets stored</div>
             <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)", marginBottom: 16 }}>
               Add API keys, tokens, and credentials
