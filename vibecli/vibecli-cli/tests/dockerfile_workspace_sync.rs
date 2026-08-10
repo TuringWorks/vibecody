@@ -128,3 +128,107 @@ fn every_workspace_member_has_its_real_source_copied() {
         missing.join("\n  ")
     );
 }
+
+/// Replay the Dockerfile's cache layer and confirm cargo can resolve the
+/// workspace from it — the exact operation that failed the v0.5.8 release.
+///
+/// Needs no Docker daemon, which is the point: both previous occurrences
+/// reached a release because verifying them appeared to require one.
+///
+/// **What this catches:** a member whose manifest is never copied (the v0.5.8
+/// failure), and a manifest whose *explicitly declared* `[lib] path` or
+/// `[[bin]] path` has no stub behind it — `vibecoder/src-tauri` declares
+/// `vibe_coder_lib`, so a missing `src/lib.rs` there is a hard parse error.
+///
+/// **What it does not catch:** a wrongly-shaped stub for an *auto-discovered*
+/// target. Writing `src/main.rs` where a crate wants `src/lib.rs` leaves cargo
+/// resolving happily — it simply concludes the crate has no library — and the
+/// failure only appears later, when a dependent tries to link it. Catching
+/// that needs `cargo check`, which is far too slow for a unit test. Verified
+/// by experiment, not assumed: swapping vibe-embed's stub to `main.rs` keeps
+/// all four tests green.
+#[test]
+fn dockerfile_stub_layer_resolves_the_workspace() {
+    let root = repo_root();
+    let docker = dockerfile(&root);
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let dst = tmp.path();
+
+    std::fs::copy(root.join("Cargo.toml"), dst.join("Cargo.toml")).expect("copy root manifest");
+
+    // `COPY <member>/Cargo.toml <member>/Cargo.toml`
+    let mut copied = 0usize;
+    for line in docker.lines().filter(|l| l.starts_with("COPY ")) {
+        let Some(src) = line.split_whitespace().nth(1) else {
+            continue;
+        };
+        if !src.ends_with("/Cargo.toml") {
+            continue;
+        }
+        let out = dst.join(src);
+        std::fs::create_dir_all(out.parent().expect("has parent")).expect("mkdir");
+        std::fs::copy(root.join(src), &out).expect("copy member manifest");
+        copied += 1;
+    }
+    assert!(
+        copied > 10,
+        "parsed too few manifest COPYs ({copied}) — did the Dockerfile format change?"
+    );
+
+    // `mkdir -p <member>/src && echo '…' > <member>/src/<file>`
+    //
+    // Split on "/src && ", not "/src": `vibecoder/src-tauri` contains "/src",
+    // so the loose match truncated the member to `vibecoder` and silently
+    // stubbed the wrong directory. This test caught that in its own parser,
+    // which is a fair demonstration of why the string-only assertions above
+    // are not enough on their own.
+    let mut stubbed = 0usize;
+    for chunk in docker.split("mkdir -p ").skip(1) {
+        let Some((member, rest)) = chunk.split_once("/src && ") else {
+            continue;
+        };
+        let Some(path) = rest
+            .split_once("> ")
+            .and_then(|(_, p)| p.split_whitespace().next())
+        else {
+            continue;
+        };
+        let out = dst.join(path);
+        std::fs::create_dir_all(out.parent().expect("has parent")).expect("mkdir");
+        let body = if path.ends_with("main.rs") {
+            "fn main() {}\n"
+        } else {
+            "\n"
+        };
+        std::fs::write(&out, body).expect("write stub");
+        debug_assert!(
+            path.starts_with(member),
+            "stub path must sit under its member"
+        );
+        stubbed += 1;
+    }
+    assert!(
+        stubbed > 10,
+        "parsed too few stub sources ({stubbed}) — did the Dockerfile format change?"
+    );
+
+    let output =
+        std::process::Command::new(std::env::var("CARGO").unwrap_or_else(|_| "cargo".into()))
+            .args([
+                "metadata",
+                "--no-deps",
+                "--format-version",
+                "1",
+                "--offline",
+            ])
+            .current_dir(dst)
+            .output()
+            .expect("run cargo metadata");
+
+    assert!(
+        output.status.success(),
+        "the Dockerfile's dependency-cache layer does not resolve — the Docker \
+         release job will fail before it compiles anything:\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
