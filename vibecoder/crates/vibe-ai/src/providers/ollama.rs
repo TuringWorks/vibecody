@@ -280,6 +280,62 @@ impl OllamaProvider {
         }
     }
 
+    /// Turn a non-2xx Ollama response into an error a user can act on.
+    ///
+    /// Ollama Cloud retires hosted models on a published schedule and answers
+    /// `410 Gone` for one afterwards, with the retirement date in the body.
+    /// That is permanent: no retry, no token, and no amount of waiting brings
+    /// it back — the only fix is to pick a different model. Passing the raw
+    /// body through (`Ollama API error (410 Gone): {"error":"…"}`) buries that
+    /// under JSON and reads like a transient outage, so people retry it.
+    ///
+    /// A retirement cannot be prevented by a static model list: it happens
+    /// server-side, after the list was written, and `/api/tags` may still
+    /// advertise the model locally. The error path is the only place that can
+    /// know.
+    fn api_error(&self, status: reqwest::StatusCode, body: &str, what: &str) -> anyhow::Error {
+        let detail = serde_json::from_str::<serde_json::Value>(body)
+            .ok()
+            .and_then(|v| v.get("error")?.as_str().map(str::to_owned));
+
+        if status == reqwest::StatusCode::GONE {
+            let model = &self.config.model;
+            return anyhow::anyhow!(
+                "The Ollama model `{model}` has been retired and can no longer be used.\n\
+                 Pick a different model — this is permanent, so retrying will not help.\n\
+                 Ollama's message: {}",
+                detail.as_deref().unwrap_or(body)
+            );
+        }
+
+        if status == reqwest::StatusCode::NOT_FOUND {
+            let model = &self.config.model;
+            return anyhow::anyhow!(
+                "Ollama does not have a model named `{model}`.\n\
+                 Pull it with `ollama pull {model}`, or pick a model that is installed.\n\
+                 Ollama's message: {}",
+                detail.as_deref().unwrap_or(body)
+            );
+        }
+
+        if status == reqwest::StatusCode::UNAUTHORIZED
+            || status == reqwest::StatusCode::PAYMENT_REQUIRED
+        {
+            return anyhow::anyhow!(
+                "Ollama rejected the request for `{}` ({status}). Cloud-hosted models \
+                 need an Ollama Cloud/Turbo token — add one in Settings → Providers.\n\
+                 Ollama's message: {}",
+                self.config.model,
+                detail.as_deref().unwrap_or(body)
+            );
+        }
+
+        anyhow::anyhow!(
+            "Ollama {what} failed ({status}): {}",
+            detail.as_deref().unwrap_or(body)
+        )
+    }
+
     fn build_options(&self) -> Option<OllamaOptions> {
         // Always send options to ensure a reasonable num_predict default (16K tokens).
         // Ollama's built-in default is 2048 which truncates large code generation.
@@ -515,7 +571,7 @@ impl AIProvider for OllamaProvider {
             .context("Failed to read response body")?;
 
         if !status.is_success() {
-            anyhow::bail!("Ollama API error: {}", body_text);
+            return Err(self.api_error(status, &body_text, "chat"));
         }
 
         let ollama_response: OllamaChatResponse = serde_json::from_str(&body_text).context(
@@ -553,7 +609,7 @@ impl AIProvider for OllamaProvider {
         if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
-            anyhow::bail!("Ollama API error ({}): {}", status, error_text);
+            return Err(self.api_error(status, &error_text, "streaming chat"));
         }
 
         let stream = response.bytes_stream();
@@ -702,7 +758,7 @@ impl AIProvider for OllamaProvider {
             .context("Failed to read response body")?;
 
         if !status.is_success() {
-            anyhow::bail!("Ollama vision API error: {}", body_text);
+            return Err(self.api_error(status, &body_text, "vision"));
         }
 
         let ollama_response: OllamaChatResponse = serde_json::from_str(&body_text).context(
