@@ -7,7 +7,13 @@ plugins {
 
 android {
     namespace = "dev.vibecody.vibecody_mobile"
-    compileSdk = 36
+    // 37, not flutter.compileSdkVersion: permission_handler_android (pulled in
+    // by the voice-input microphone permission added in v0.5.8) declares an AAR
+    // metadata minimum of API 37, and `:app:checkReleaseAarMetadata` fails the
+    // release build against anything lower. compileSdk only controls which APIs
+    // are available at compile time; minSdk/targetSdk are unchanged, so device
+    // support is unaffected.
+    compileSdk = 37
     ndkVersion = "28.2.13676358"
 
     compileOptions {

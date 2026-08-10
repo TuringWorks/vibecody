@@ -35,6 +35,14 @@ As of **v0.5.5** VibeMobile gained URL-only pairing, zero-config mDNS / Tailscal
 | Linux / Windows | GTK 3 / Edge WebView2 |
 | Build toolchain | Flutter 3.44.2 (CI-pinned, floor ≥ 3.8.0), Xcode 26 (App Store submissions after 2026-04-28) |
 
+> **Android build SDK** — `compileSdk = 37` from v0.5.8. `permission_handler_android`,
+> pulled in by the voice-input microphone permission, declares an AAR metadata
+> minimum of API 37, and `:app:checkReleaseAarMetadata` fails the release build
+> against anything lower. `compileSdk` only selects which APIs are available at
+> compile time — `minSdk` (API 24) and `targetSdk` are unchanged, so the supported
+> device range is the same. VibeCodyWear is already on 37 for a comparable reason
+> (see [Wear OS](./wearos/)).
+
 ---
 
 ## Install
@@ -45,9 +53,9 @@ See the [Releases page](/vibecody/release/) for the current build. For v0.5.5:
 
 | Platform | Artifact |
 |----------|----------|
-| iOS | [`VibeCody-Mobile-v0.5.5-ios.ipa`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeCody-Mobile-v0.5.5-ios.ipa) (unsigned — sideload via AltStore / Sideloadly) |
-| Android APK | [`VibeCody-Mobile-v0.5.5-android.apk`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeCody-Mobile-v0.5.5-android.apk) |
-| Android AAB | [`VibeCody-Mobile-v0.5.5-android.aab`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeCody-Mobile-v0.5.5-android.aab) |
+| iOS | [`VibeCody-Mobile-v0.5.8-ios.ipa`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCody-Mobile-v0.5.8-ios.ipa) (unsigned — sideload via AltStore / Sideloadly) |
+| Android APK | [`VibeCody-Mobile-v0.5.8-android.apk`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCody-Mobile-v0.5.8-android.apk) |
+| Android AAB | [`VibeCody-Mobile-v0.5.8-android.aab`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCody-Mobile-v0.5.8-android.aab) |
 
 ### From source
 
