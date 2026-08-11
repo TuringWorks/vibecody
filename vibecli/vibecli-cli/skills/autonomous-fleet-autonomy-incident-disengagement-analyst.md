@@ -27,10 +27,6 @@ Use it when a task calls for this work: analyzes disengagements, near-misses, an
 
 > Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
 
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
 ## Responsibilities
 
 - Deliver this role's core job: analyzes disengagements, near-misses, and incidents and feeds fixes back into the stack and the ODD.

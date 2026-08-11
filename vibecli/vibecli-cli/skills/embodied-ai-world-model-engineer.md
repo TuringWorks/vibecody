@@ -29,8 +29,6 @@ These robot roles are assumed to be **LLM-brained embodied agents**, not hard-co
 
 > Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
 
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
 ## Responsibilities
 
 - Deliver this role's core job: builds and validates the learned predictive simulators (world models) used for planning, imagination, and training.

@@ -27,10 +27,6 @@ Use it when a task calls for this work: monitors exclusion zones and the proximi
 
 > Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
 
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
 ## Responsibilities
 
 - Deliver this role's core job: monitors exclusion zones and the proximity of people, animals, and vehicles to operating machines and triggers slow-downs or stops.

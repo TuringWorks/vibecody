@@ -29,8 +29,6 @@ These robot roles are assumed to be **LLM-brained embodied agents**, not hard-co
 
 > Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
 
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
 ## Responsibilities
 
 - Deliver this role's core job: designs the reinforcement-learning-from-AI-feedback pipelines and AI critics that shape robot skills and judgment at scale.

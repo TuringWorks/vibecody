@@ -27,10 +27,6 @@ Use it when a task calls for this work: deploys autonomous loaders, haul trucks,
 
 > Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
 
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
 ## Responsibilities
 
 - Deliver this role's core job: deploys autonomous loaders, haul trucks, excavators, dozers, graders, and quarry/construction/port machines.

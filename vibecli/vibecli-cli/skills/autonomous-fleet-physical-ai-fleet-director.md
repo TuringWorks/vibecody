@@ -27,10 +27,6 @@ Use it when a task calls for this work: owns strategy, safety, economics, and op
 
 > Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
 
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
 ## Responsibilities
 
 - Deliver this role's core job: owns strategy, safety, economics, and operations for a mixed fleet of non-humanoid autonomous machines across deployment and accountability.

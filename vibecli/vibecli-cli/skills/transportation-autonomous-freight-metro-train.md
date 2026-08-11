@@ -28,10 +28,6 @@ When a task needs the physical job "run scheduled freight or transit services on
 
 > Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
 
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
 ## Division of labor and safety
 
 > Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Division of labor and safety”.
@@ -59,7 +55,5 @@ These remain human-owned. The machine operates within its ODD and engineered saf
 > Shared pattern — see the `shared-ai-personnel-pattern` skill, section “Labor-market grounding”.
 
 ## Adapting to any nation (context modifiers)
-
-> Shared pattern — see the `shared-national-context-modifiers` skill, section “Adapting to any nation (context modifiers)”.
 
 > Shared pattern — see the `shared-national-context-modifiers` skill, section “Adapting to any nation (context modifiers)”.

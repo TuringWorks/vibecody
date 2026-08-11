@@ -27,10 +27,6 @@ Use it when a task calls for this work: detects and diagnoses perception failure
 
 > Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
 
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
 ## Responsibilities
 
 - Deliver this role's core job: detects and diagnoses perception failures (missed, mislabeled, or hallucinated objects) and triages them by safety impact.

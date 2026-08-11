@@ -29,8 +29,6 @@ These robot roles are assumed to be **LLM-brained embodied agents**, not hard-co
 
 > Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
 
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
 ## Responsibilities
 
 - Deliver this role's core job: operates massively parallel physics simulation (robot gyms) and manages transfer of learned skills from sim to hardware.
