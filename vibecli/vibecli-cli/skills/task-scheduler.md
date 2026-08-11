@@ -1,3 +1,9 @@
+---
+triggers: ["task scheduler", "cron", "interval task", "schedule job", "next run time"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: automation
+---
+
 # Task Scheduler
 Cron/interval/once task scheduler — compute next-run times, detect due tasks, and manage a task registry.
 

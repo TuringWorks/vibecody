@@ -1,3 +1,9 @@
+---
+triggers: ["collaborative review", "review thread", "review round", "approval workflow", "review precision"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: review
+---
+
 # Collaborative Review Protocol
 
 Multi-round code review system with structured comment threads, approval workflows, and quality metrics tracking. Measures review precision to distinguish real issues from false positives.

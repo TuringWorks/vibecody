@@ -1,3 +1,9 @@
+---
+triggers: ["Pencil", "Evolus Pencil", "wireframe", ".ep format", ".pen design file"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: design
+---
+
 # Pencil Wireframe Integration
 
 Two Pencil integrations: Evolus Pencil (.ep format) for wireframes and TuringWorks Pencil MCP for .pen design files.

@@ -1,3 +1,9 @@
+---
+triggers: ["design providers", "Figma", "Penpot", "Draw.io", "PlantUML", "design tool interop"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: design
+---
+
 # Design Providers — Multi-Tool Interop
 
 VibeCody supports Figma, Penpot, Pencil (Evolus + TuringWorks), Draw.io, Mermaid, PlantUML, C4 Model, and built-in design capabilities through a unified provider abstraction.

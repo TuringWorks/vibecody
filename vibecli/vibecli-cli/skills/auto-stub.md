@@ -1,3 +1,9 @@
+---
+triggers: ["auto stub", "test stub", "mock implementation", "generate stubs", "TDD bootstrap"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: testing
+---
+
 # Auto Stub Generator
 
 Generate test stubs and mock implementations from function signatures and trait/interface definitions. Supports Rust and TypeScript. Matches Devin 2.0's automated test stub generator.

@@ -1,3 +1,9 @@
+---
+triggers: ["bwrap", "bubblewrap", "Linux sandbox", "sandbox profile"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: security
+---
+
 # sandbox-bwrap
 
 Linux bwrap (bubblewrap) sandbox profile builder. Generates the argv list for a `bwrap` invocation from a structured Rust policy. Pure logic — no actual syscalls — fully testable on any OS.

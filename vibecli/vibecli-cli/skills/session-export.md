@@ -1,3 +1,9 @@
+---
+triggers: ["session export", "export session", "import session", "session bundle"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: session
+---
+
 # session-export
 
 Export and import sessions as portable bundles (JSON, Markdown, CSV).

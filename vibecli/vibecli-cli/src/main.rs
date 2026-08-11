@@ -202,6 +202,8 @@ mod webhook;
 mod workflow;
 use session_store::SessionStore;
 mod acp;
+// Named by the `--acp` stdio entry point below.
+mod acp_stdio;
 mod cloud_agent;
 mod compliance;
 mod github_app;
@@ -3480,6 +3482,15 @@ struct Cli {
     #[arg(long)]
     doctor: bool,
 
+    // ── ACP (Agent Client Protocol) ───────────────────────────────────────────
+    /// Serve the Agent Client Protocol over stdin/stdout (JSON-RPC 2.0).
+    ///
+    /// This is the entry point an ACP editor launches — Zed, JetBrains,
+    /// Neovim, and Emacs spawn the agent as a subprocess and speak over its
+    /// stdio. Not for interactive use: stdout carries protocol frames only.
+    #[arg(long = "acp")]
+    acp: bool,
+
     // ── Phase 12 additions ────────────────────────────────────────────────────
     /// Name this session (used as prefix for trace files, e.g. --session-name debug-auth).
     #[arg(long, value_name = "NAME")]
@@ -3894,6 +3905,23 @@ async fn main() -> Result<()> {
     // ── Doctor mode ───────────────────────────────────────────────────────────
     if cli.doctor {
         return run_doctor().await;
+    }
+
+    // ── ACP stdio mode ────────────────────────────────────────────────────────
+    //
+    // Placed early and returning immediately: from here on stdout belongs to
+    // the protocol, so this must run before any banner, tip, or status line is
+    // printed. A single stray byte on stdout desynchronises the JSON-RPC
+    // stream and the editor drops the agent.
+    //
+    // `acp_stdio` has been complete and tested since Phase 53; only this
+    // wrapper was missing, which meant no editor could launch VibeCody as an
+    // ACP agent at all. The daemon's HTTP `/acp/v1/*` routes never served that
+    // purpose — ACP clients spawn a subprocess, they do not make HTTP calls.
+    if cli.acp {
+        let stdin = std::io::stdin();
+        let mut stdout = std::io::stdout();
+        return acp_stdio::run_stdio(stdin.lock(), &mut stdout);
     }
 
     // ── Copilot device-flow login ─────────────────────────────────────────────
@@ -19881,6 +19909,7 @@ fn show_help() {
     println!("  --tailscale              - Expose daemon via Tailscale Funnel (use with --serve)");
     println!("  --profile <name>         - Load a named config profile (~/.vibecli/profiles/<name>.toml)");
     println!("  --doctor                 - Run health checks on the VibeCLI installation");
+    println!("  --acp                    - Serve Agent Client Protocol over stdio (for Zed/JetBrains/Neovim)");
     println!(
         "  --bugbot                 - Review a diff (--staged, --pr N, --propose-fixes, --passes N)"
     );

@@ -1,3 +1,9 @@
+---
+triggers: ["worktree pool", "git worktree", "parallel agents in worktrees", "merge worktree results"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: workflow
+---
+
 # Worktree Pool
 
 Parallel agent execution using git worktrees. Spawn N independent agents, each in its own worktree, to work on separate tasks simultaneously. Merge results back with conflict resolution and quality checks.

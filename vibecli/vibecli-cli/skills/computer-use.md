@@ -1,3 +1,9 @@
+---
+triggers: ["computer use", "desktop automation", "GUI action", "click type screenshot"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: automation
+---
+
 # Computer Use
 Desktop automation action model — represent, validate, and serialize GUI actions (click, type, screenshot, scroll, key press).
 

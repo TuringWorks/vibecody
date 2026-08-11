@@ -1,3 +1,9 @@
+---
+triggers: ["TurboQuant", "vector compression", "KV-cache compression", "quantize embeddings"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: ai
+---
+
 # TurboQuant Vector Compression
 
 ## Overview

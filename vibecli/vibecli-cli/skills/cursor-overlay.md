@@ -1,3 +1,9 @@
+---
+triggers: ["cursor overlay", "peer cursor", "live collaboration cursor", "CRDT cursor"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: session
+---
+
 # Live Collaboration Cursor Overlay
 
 Tracks remote peer cursors for live display in the editor. Extends the CRDT sync module with named, coloured, positioned peer cursors.

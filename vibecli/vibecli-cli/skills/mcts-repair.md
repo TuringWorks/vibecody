@@ -1,3 +1,9 @@
+---
+triggers: ["MCTS repair", "Monte Carlo tree search repair", "autonomous bug fix", "repair strategy search"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: code-intelligence
+---
+
 # MCTS Code Repair
 
 Monte Carlo tree search for autonomous bug fixing. Explores multiple repair strategies in parallel, evaluates each via test execution, and selects the highest-confidence fix. Handles complex multi-file bugs that simple single-shot prompting misses.

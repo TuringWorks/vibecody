@@ -2,6 +2,7 @@
 name: Debugging
 description: Systematic approach to debugging errors and issues
 triggers: ["debug", "error", "bug", "issue", "crash", "fix", "broken", "failing", "stacktrace", "traceback"]
+category: developer-experience
 ---
 
 When debugging:

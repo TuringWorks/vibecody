@@ -1,3 +1,9 @@
+---
+triggers: ["context handoff", "transfer conversation", "switch provider mid-session", "portable context"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: ai
+---
+
 # Context Handoff
 
 Serialize and transfer a live AI conversation — system prompt, messages, and tool definitions — verbatim to a different provider mid-session. Bridges the pi-mono gap: a portable `HandoffContext` that every provider can consume without adaptation.

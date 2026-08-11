@@ -1,3 +1,9 @@
+---
+triggers: ["lane events", "event lanes", "agent event bus", "audit events", "cost lane"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: observability
+---
+
 # Lane Events
 
 Structured agent event bus with typed lanes for observability, audit, and cost tracking. Events are bucketed into Tool, Plan, Memory, User, System, Error, and Cost lanes.

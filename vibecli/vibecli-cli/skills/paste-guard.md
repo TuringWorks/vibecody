@@ -1,3 +1,9 @@
+---
+triggers: ["paste guard", "large paste", "TUI paste", "paste protection"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: terminal
+---
+
 # Paste Guard
 
 Protect the TUI input handler from large or malicious pastes by collapsing

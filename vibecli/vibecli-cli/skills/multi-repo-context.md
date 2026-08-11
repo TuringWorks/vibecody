@@ -1,3 +1,9 @@
+---
+triggers: ["multi-repo", "cross-repo", "monorepo context", "multi repository imports"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: code-intelligence
+---
+
 # Multi-Repo Context
 
 Aggregate context across multiple repositories with cross-repo import graph analysis. Closes gap vs Cursor 4.0, Copilot Workspace v2, and Cody 6.0.

@@ -1,3 +1,9 @@
+---
+triggers: ["Penpot", "open-source Figma", "penpot design"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: design
+---
+
 # Penpot Design Integration
 
 Open-source Figma alternative. Self-hosted or cloud (design.penpot.app).

@@ -1,3 +1,9 @@
+---
+triggers: ["agent state machine", "agent FSM", "agent state transitions", "agent status badge"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: agent
+---
+
 # Agent State Machine
 
 Formal FSM for the agent execution loop — exposes state (Idle/Planning/Executing/Reviewing/Blocked/Complete/Aborted) as a first-class API. Matches Cody 6.0's agent FSM and Claude Code SDK state transitions.

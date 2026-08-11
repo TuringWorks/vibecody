@@ -1,3 +1,9 @@
+---
+triggers: ["diagram generator", "generate diagram", "architecture diagram", "sequence diagram", "Mermaid diagram"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: design
+---
+
 # AI Diagram Generator
 
 Generate software architecture, flow, data model, and sequence diagrams from natural language.

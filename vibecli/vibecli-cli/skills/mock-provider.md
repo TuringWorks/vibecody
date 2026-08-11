@@ -1,3 +1,9 @@
+---
+triggers: ["mock provider", "mock AI provider", "deterministic provider", "test provider", "zero-network provider"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: testing
+---
+
 # Mock AI Provider
 
 A deterministic, zero-network `AIProvider` implementation for CI testing. Provides claw-code parity for reproducible, scenario-driven AI response sequences without hitting live APIs.

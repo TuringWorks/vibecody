@@ -1,3 +1,9 @@
+---
+triggers: ["cost router", "model routing", "smart model routing", "cost budget", "cheap model fallback"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: ai
+---
+
 # Cost Router
 
 Smart model routing that selects the optimal AI model based on task complexity, cost, latency, and quality requirements. Routes simple tasks to cheap fast models and complex tasks to capable expensive models, reducing costs by up to 70%.

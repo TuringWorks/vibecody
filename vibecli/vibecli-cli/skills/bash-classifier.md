@@ -1,3 +1,9 @@
+---
+triggers: ["bash classifier", "command risk", "dangerous command", "command category"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: security
+---
+
 # Bash Classifier
 
 Assess bash commands for risk level and semantic category before execution. Provides two complementary views: a risk-based classifier (Safe→Critical) and a semantic category classifier (ReadOnly/WorkspaceWrite/DangerousWrite/NetworkAccess/ProcessControl).

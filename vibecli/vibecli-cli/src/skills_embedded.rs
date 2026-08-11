@@ -283,11 +283,11 @@ mod tests {
     /// for a free-text query only when the words happen to appear somewhere
     /// in its prose.
     ///
-    /// 157 of the pre-import skills have no YAML frontmatter at all, so they
-    /// parse to `SkillFrontmatter::default()` — no triggers, no category.
-    /// Every one of the 433 imported skills declares both.
+    /// Backfilled 2026-08-10: 157 pre-import skills carried no YAML
+    /// frontmatter at all and parsed to `SkillFrontmatter::default()`. This
+    /// test is what keeps the next one from slipping in — a skill file with
+    /// no frontmatter is a silent regression everywhere else.
     #[test]
-    #[ignore = "157 pre-import skills carry no frontmatter — see docs/CHANGELOG.md; un-ignore once they are backfilled"]
     fn every_embedded_skill_declares_triggers_and_a_category() {
         let tmp = tempfile::tempdir().unwrap();
         write_tree(tmp.path(), &EMBEDDED).unwrap();

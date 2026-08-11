@@ -1,7 +1,7 @@
 ---
-trigger: "quantum OS|quantum operating system|Qiskit Runtime|Azure Quantum|Amazon Braket|ARTIQ|quantum control plane|quantum cloud|QNodeOS"
+triggers: ["quantum OS", "quantum operating system", "Qiskit Runtime", "Azure Quantum", "Amazon Braket", "ARTIQ", "quantum control plane"]
+tools_allowed: ["read_file", "write_file", "bash"]
 category: quantum
-allowed_tools: ["read_file", "write_file", "bash"]
 ---
 
 # Quantum Operating Systems

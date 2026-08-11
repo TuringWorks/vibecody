@@ -1,3 +1,9 @@
+---
+triggers: ["dependency update", "semver constraint", "update safety", "breaking update"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: devops
+---
+
 # Dependency Update Advisor
 
 SemVer constraint analysis and update safety scoring. Matches Cody 6.0.

@@ -1,3 +1,9 @@
+---
+triggers: ["focus view", "focus mode", "distraction free", "deep work session"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: productivity
+---
+
 # Focus View
 Distraction-free UI session mode with configurable notification suppression, auto-exit timers, and distraction tracking.
 

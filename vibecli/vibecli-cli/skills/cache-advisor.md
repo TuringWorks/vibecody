@@ -1,3 +1,9 @@
+---
+triggers: ["prompt cache advisor", "cache_control", "cache breakpoint", "prompt caching cost"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: performance
+---
+
 # Prompt Cache Advisor
 
 Analyzes prompt structure and recommends optimal `cache_control` breakpoints to minimize cost. Matches Claude Code 1.x's prompt caching guidance.

@@ -1,3 +1,9 @@
+---
+triggers: ["company orchestration", "zero-human company", "autonomous company", "paperclip parity"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: strategy
+---
+
 # Company Orchestration (Paperclip Parity)
 
 VibeCody's zero-human company orchestration system. Full feature parity with

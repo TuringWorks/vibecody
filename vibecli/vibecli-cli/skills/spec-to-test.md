@@ -1,3 +1,9 @@
+---
+triggers: ["spec to test", "Gherkin", "BDD spec", "feature file", "test skeleton"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: testing
+---
+
 # Spec-to-Test Generator
 
 BDD Gherkin spec → test stub generator for Rust, TypeScript, and Python. Matches Copilot Workspace v2 and Devin 2.0.

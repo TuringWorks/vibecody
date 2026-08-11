@@ -1,3 +1,9 @@
+---
+triggers: ["fast context", "SWE-grep", "fast search", "symbol search", "trigram search", "find context", "code lookup", "quick find"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: code-intelligence
+---
+
 # Fast Context Search (SWE-grep)
 
 Optimized code context finder with trigram indexing, symbol-aware search, and ranked results.

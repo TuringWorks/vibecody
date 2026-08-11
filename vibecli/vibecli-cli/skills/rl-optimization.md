@@ -1,3 +1,9 @@
+---
+triggers: ["RL optimization", "policy distillation", "RL quantization", "policy pruning"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: ai
+---
+
 # RL Optimization & Distillation
 
 Optimize RL policies with policy distillation, RL-aware quantization, structured pruning, and multi-format export for deployment.

@@ -1,3 +1,9 @@
+---
+triggers: ["parallel tools", "concurrent tool dispatch", "parallel tool execution", "tool preflight hooks"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: performance
+---
+
 # Parallel Tool Executor
 
 Concurrent tool dispatch with sequential preflight hooks and ordered result emission. Bridges the pi-mono gap (Phase A2): VibeCody now matches Claude Code 1.x default-parallel execution behaviour.

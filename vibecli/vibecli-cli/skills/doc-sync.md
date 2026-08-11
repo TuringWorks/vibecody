@@ -1,3 +1,9 @@
+---
+triggers: ["doc sync", "stale documentation", "sync docs and code", "documentation drift"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: documentation
+---
+
 # Doc Sync
 
 Bidirectional synchronization between documentation and code. Detects when code changes make docs stale, when spec changes require code updates, and automatically generates patches to keep both in sync.

@@ -1,3 +1,9 @@
+---
+triggers: ["AI code review", "automated code review", "PR review engine", "review findings"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: review
+---
+
 # AI-Assisted Code Review
 
 Automated code review engine that analyzes PRs and files for bugs, security issues, complexity, style violations, test gaps, and architecture concerns. Matches and exceeds Qodo Merge, CodeRabbit, and Bito capabilities.

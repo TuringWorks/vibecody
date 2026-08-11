@@ -1,3 +1,9 @@
+---
+triggers: ["code template", "scaffolding", "code generation template", "snippet template"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: automation
+---
+
 # Code Generation Templates
 
 Parameterized scaffolding for common code patterns with `{{variable}}` placeholders. Matches GitHub Copilot Workspace v2's snippet/template feature.

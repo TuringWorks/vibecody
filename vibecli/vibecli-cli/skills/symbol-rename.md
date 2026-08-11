@@ -1,3 +1,9 @@
+---
+triggers: ["symbol rename", "rename refactor", "workspace-wide rename", "multi-file rename"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: code-intelligence
+---
+
 # Multi-File Symbol Rename
 
 Workspace-wide symbol rename with whole-word matching, reference classification, and safe diff generation. Matches Cursor 4.0's rename refactor.

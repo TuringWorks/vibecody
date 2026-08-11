@@ -2,6 +2,7 @@
 name: Simplify
 description: Review code for reuse, quality, and efficiency then fix issues
 triggers: ["simplify", "cleanup", "refactor", "clean up", "optimize", "improve code"]
+category: review
 ---
 
 When simplifying code:

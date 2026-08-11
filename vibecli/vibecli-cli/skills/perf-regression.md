@@ -1,3 +1,9 @@
+---
+triggers: ["perf regression", "performance regression", "statistical baseline", "benchmark regression"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: performance
+---
+
 # perf-regression
 
 Automated performance regression detection using statistical baselines.

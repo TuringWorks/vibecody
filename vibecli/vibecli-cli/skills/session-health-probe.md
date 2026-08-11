@@ -1,3 +1,9 @@
+---
+triggers: ["session health", "stalled session", "degraded session", "health probe"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: observability
+---
+
 # Session Health Probe
 
 Monitor active agent sessions for health status (Healthy/Degraded/Stalled/Dead) based on token utilization, idle time, and error rates. Also runs post-compaction probes to verify tool responsiveness before resuming the agent loop.

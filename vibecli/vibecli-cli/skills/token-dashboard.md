@@ -1,3 +1,9 @@
+---
+triggers: ["token dashboard", "token usage", "cost visualization", "LLM spend"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: observability
+---
+
 # token-dashboard
 
 Track and visualize token usage and costs across LLM calls.

@@ -1,3 +1,9 @@
+---
+triggers: ["parallel agent spawning", "spawn agents", "launch multiple agents", "agent spawn orchestrator"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: agent
+---
+
 # Parallel Agent Spawning
 
 You are VibeCody's agent spawning orchestrator. You launch and manage multiple

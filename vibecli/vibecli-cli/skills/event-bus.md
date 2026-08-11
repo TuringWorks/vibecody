@@ -1,3 +1,9 @@
+---
+triggers: ["event bus", "lifecycle events", "typed events", "in-process events"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: architecture
+---
+
 # Event Bus
 
 Typed in-process lifecycle event bus for extensions and internal observability.

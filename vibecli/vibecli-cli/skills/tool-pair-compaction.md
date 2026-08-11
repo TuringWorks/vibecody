@@ -1,3 +1,9 @@
+---
+triggers: ["tool pair compaction", "context compaction", "compact history", "preserve tool pairs"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: performance
+---
+
 # Tool Pair Compaction
 
 Compact conversation context while preserving tool call/result pairs and critical semantic boundaries. Generates structured summaries with key decisions, file changes, and tool usage stats.

@@ -1,3 +1,9 @@
+---
+triggers: ["long session", "multi-hour session", "session budget", "compact or halt"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: session
+---
+
 # Long Session Manager
 Manage autonomous 7+ hour sessions by budgeting tokens, turns, and wall-time, then deciding to continue, compact, or halt.
 

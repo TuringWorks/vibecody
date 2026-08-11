@@ -1,3 +1,9 @@
+---
+triggers: ["file watcher", "watch files", "debounce file changes", "live reindex"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: code-intelligence
+---
+
 # File Watcher
 
 Debounced file-system change detection for live index refresh. Batches rapid changes within a configurable debounce window (default 50ms) and emits `ChangeBatch` events. Matches Cursor 4.0 and Cody 6.0's sub-50ms reindex latency.

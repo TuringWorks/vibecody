@@ -1,3 +1,9 @@
+---
+triggers: ["agent team", "lead agent", "teammate", "team hierarchy", "peer messaging", "delegate task", "team coordination"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: agent
+---
+
 # Agent Teams with Lead/Teammate Hierarchy
 
 Multi-agent teams with lead coordination, peer-to-peer messaging, and shared task lists.

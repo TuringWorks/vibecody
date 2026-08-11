@@ -1,3 +1,9 @@
+---
+triggers: ["plugin marketplace", "browse extensions", "install extension", "WASM extension"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: developer-experience
+---
+
 # Plugin Marketplace
 
 Discovery, metadata browsing, and one-click installation of WASM-based VibeCoder extensions. Extends the `vibe-extensions` WASM system.

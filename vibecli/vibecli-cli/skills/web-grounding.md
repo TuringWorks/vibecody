@@ -1,3 +1,9 @@
+---
+triggers: ["web grounding", "search the web", "look up documentation", "ground responses"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: ai
+---
+
 # Web Grounding
 
 Search the web mid-task to find documentation, API references, Stack Overflow solutions, and changelog entries. Grounds agent responses in up-to-date information rather than relying solely on training data.

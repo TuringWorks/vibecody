@@ -1,3 +1,9 @@
+---
+triggers: ["agent analytics", "token consumption", "AI ROI", "usage dashboard", "per-team analytics"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: agent
+---
+
 # Agent Analytics
 
 Enterprise usage analytics with per-user, per-team, and per-project dashboards. Track token consumption, task completion rates, time savings, ROI metrics, and model performance to optimize AI investment.

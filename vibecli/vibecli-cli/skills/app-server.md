@@ -1,3 +1,9 @@
+---
+triggers: ["app server", "JSON-RPC", "JSON-RPC 2.0", "server dispatcher", "RPC handler"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: api
+---
+
 # App Server
 Unified JSON-RPC 2.0 server dispatcher powering CLI, VS Code extension, and VibeCoder over the same wire protocol.
 

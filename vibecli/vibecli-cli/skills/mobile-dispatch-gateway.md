@@ -1,3 +1,9 @@
+---
+triggers: ["mobile dispatch", "mobile gateway", "iOS Android control", "remote session from phone"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: mobile
+---
+
 # Mobile Dispatch Gateway
 
 Remote management of VibeCody CLI/UI sessions from iOS and Android devices. Similar to Claude's dispatch feature and OpenClaw gateway.

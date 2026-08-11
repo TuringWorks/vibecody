@@ -1,3 +1,9 @@
+---
+triggers: ["prompt vcs", "version prompts", "prompt branch", "prompt diff"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: ai
+---
+
 # prompt-vcs
 
 Version-control your prompts — branch, diff, tag, and restore.

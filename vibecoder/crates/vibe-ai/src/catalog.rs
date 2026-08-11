@@ -338,6 +338,39 @@ mod tests {
         );
     }
 
+    /// Every catalog provider must be offered by the JetBrains settings combo.
+    ///
+    /// That box listed five providers while the daemon supported twenty, so
+    /// most keys a user had configured could not be selected in the IDE. The
+    /// Kotlin can't be compiled on every machine (it needs a JDK 17 toolchain),
+    /// so this checks the source text for each id — enough to catch the
+    /// omission that actually happens.
+    #[test]
+    fn jetbrains_settings_offer_every_catalog_provider() {
+        let Some(root) = repo_root() else {
+            return;
+        };
+        let settings = root.join(
+            "jetbrains-plugin/src/main/kotlin/com/vibecody/vibecli/VibeCLISettingsConfigurable.kt",
+        );
+        let Ok(text) = std::fs::read_to_string(&settings) else {
+            return;
+        };
+
+        let missing: Vec<&str> = PROVIDER_MODELS
+            .iter()
+            .map(|(id, _)| *id)
+            .filter(|id| !text.contains(&format!("\"{id}\"")))
+            .collect();
+
+        assert!(
+            missing.is_empty(),
+            "these providers are in the catalog but absent from `PROVIDERS` in \
+             VibeCLISettingsConfigurable.kt, so JetBrains users cannot select \
+             them: {missing:?}"
+        );
+    }
+
     /// `*-cloud` models are datacenter-hosted and live in
     /// `providers::ollama::OLLAMA_CLOUD_MODELS`; the chat catalog is pull-able.
     #[test]

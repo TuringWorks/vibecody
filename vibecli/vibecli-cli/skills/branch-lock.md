@@ -1,3 +1,9 @@
+---
+triggers: ["branch lock", "lock branch", "concurrent agent edits", "branch lock TTL"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: workflow
+---
+
 # Branch Lock
 
 Distributed branch locking to prevent concurrent agent modifications. Locks expire automatically (TTL), can be renewed, and support force-release for admin recovery.

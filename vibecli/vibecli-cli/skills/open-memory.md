@@ -1,3 +1,9 @@
+---
+triggers: ["OpenMemory", "cognitive memory", "MemPalace", "long-term agent memory", "memory sectors"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: ai
+---
+
 # OpenMemory — Cognitive Memory Engine + MemPalace Verbatim Drawers
 
 ## Overview

@@ -1,3 +1,9 @@
+---
+triggers: ["RL deployment", "policy serving", "A/B test policy", "policy auto-rollback", "edge policy deployment"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: ai
+---
+
 # RL Deployment & Serving
 
 Deploy RL policies with stateful serving, A/B testing, edge deployment, auto-rollback, and domain-specific integrations.

@@ -1,3 +1,9 @@
+---
+triggers: ["security scan", "vulnerability check", "OWASP scan", "secret detection", "code security", "SAST"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: security
+---
+
 # Security Scanning in Agent Flow
 
 Inline security analysis that scans code for vulnerabilities as the agent generates or edits.

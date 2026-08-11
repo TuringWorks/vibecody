@@ -1,3 +1,9 @@
+---
+triggers: ["workspace snapshot", "checkpoint", "restore workspace", "point-in-time capture"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: session
+---
+
 # Workspace Snapshot
 
 Point-in-time workspace capture and restore. Matches Cursor 4.0 and Devin 2.0's checkpoint system.

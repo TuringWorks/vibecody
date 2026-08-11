@@ -2,6 +2,7 @@
 name: Security Review
 description: Perform a security review of code changes
 triggers: ["security review", "security audit", "vulnerability", "owasp", "pen test"]
+category: security
 ---
 
 When performing a security review:

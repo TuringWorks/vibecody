@@ -1,3 +1,9 @@
+---
+triggers: ["feature demo", "record demo", "browser automation demo", "CDP recording"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: documentation
+---
+
 # Feature Demo Recording
 
 Record, generate, and export interactive feature demos using browser automation (CDP).

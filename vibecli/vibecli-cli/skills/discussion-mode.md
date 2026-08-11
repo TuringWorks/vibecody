@@ -1,3 +1,9 @@
+---
+triggers: ["discussion mode", "brainstorm", "design critique", "let's discuss", "pause build", "talk about", "review design", "architecture discussion"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: workflow
+---
+
 # Discussion / Brainstorm Mode
 
 Pause building to brainstorm with AI about design, architecture, and UX decisions.

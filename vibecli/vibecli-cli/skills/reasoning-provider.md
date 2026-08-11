@@ -1,3 +1,9 @@
+---
+triggers: ["reasoning provider", "extended thinking", "thinking tokens", "o3 model", "reasoning budget"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: ai
+---
+
 # Reasoning Provider
 
 Wrap AI provider calls with reasoning/thinking model support (o3-class, extended thinking). Budgets thinking tokens separately from response tokens.

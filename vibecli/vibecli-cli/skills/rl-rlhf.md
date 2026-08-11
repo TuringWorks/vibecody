@@ -1,3 +1,9 @@
+---
+triggers: ["RLHF", "DPO", "KTO", "ORPO", "GRPO", "reward model", "Constitutional AI", "LLM alignment"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: ai
+---
+
 # RLHF & LLM Alignment
 
 Align language models with PPO, DPO, KTO, ORPO, GRPO, reward model training, RLEF (execution feedback), and Constitutional AI.
