@@ -112,6 +112,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   fireworks: "Fireworks",
   minimax: "MiniMax",
   sambanova: "SambaNova",
+  poolside: "Poolside AI",
   azure_openai: "Azure OpenAI",
   bedrock: "AWS Bedrock",
   copilot: "GitHub Copilot",

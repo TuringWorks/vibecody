@@ -10,6 +10,7 @@
 |---------|-------------|--------|
 | [VibeCLI](./vibecli/) | AI coding assistant for the terminal (TUI + REPL + `--serve` daemon) | Active |
 | [VibeCoder](./vibecoder/) | AI-powered desktop code editor (Tauri + Monaco) | Active |
+| [VibeDesk](./vibedesk/) | Task-first, conversation-driven desktop companion (Tauri + React) — type a task, watch it happen | Active |
 | [VibeAIChat](./vibeaichat/) | Secondary Tauri shell | Active |
 | [VibeMobile](./vibemobile/) | Mobile companion app (Flutter — iOS, Android, macOS, Linux, Windows, Web) | Active |
 | [VibeWatch](./vibewatch/) | Apple Watch (SwiftUI, watchOS 10+) + Wear OS (Kotlin/Compose) clients with companion relays | Active |
@@ -36,6 +37,12 @@ Or run the setup script directly:
 
 ```bash
 make ui
+```
+
+### Run VibeDesk (Task-First Companion)
+
+```bash
+make vibedesk               # needs the VibeCLI daemon running (`vibecli --serve`)
 ```
 
 ### Build & Run VibeCLI (Terminal AI Assistant)
@@ -150,7 +157,10 @@ vibecody/
 │       ├── vibe-lsp/           # Language Server Protocol client
 │       ├── vibe-extensions/    # WASM-based extension system
 │       └── vibe-collab/        # CRDT multiplayer collaboration
-├── vibeaichat/                    # Secondary Tauri shell
+├── vibedesk/                   # Task-first desktop companion (Tauri + React, dev :1422)
+│   ├── src/                    # Three-column shell: project nav · conversation · Environment
+│   └── src-tauri/              # Thin daemon bridge — no agent logic of its own
+├── vibeaichat/                 # Secondary Tauri shell
 ├── vibemobile/                 # Flutter mobile companion app
 │   ├── lib/screens/            # 11 screens (home, chat, pair, machines, sessions, sandbox, watch…)
 │   ├── lib/services/           # api_client, auth, discovery, handoff, notifications, watch_sync
@@ -413,6 +423,7 @@ Full documentation is available at the [GitHub Pages site](https://vibecody.gith
 - [Architecture Overview](./docs/architecture.md)
 - [VibeCLI Reference](./docs/vibecli.md)
 - [VibeCoder Reference](./docs/vibecoder.md)
+- [VibeDesk README](./vibedesk/README.md)
 - [Configuration Guide](./docs/configuration.md)
 - [Contributing](./docs/contributing.md)
 

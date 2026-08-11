@@ -18,8 +18,44 @@ import javax.swing.DefaultCellEditor
  */
 class VibeCLISettingsConfigurable : Configurable {
 
+    companion object {
+        /**
+         * Provider ids the daemon can build, mirroring `PROVIDER_MODELS` in
+         * `vibecoder/crates/vibe-ai/src/catalog.rs` plus `ollama` (which is
+         * dynamic and so absent from the catalog).
+         *
+         * This box listed five providers while the daemon supported twenty, so
+         * a JetBrains user could not select most of what they had a key for.
+         * When adding a provider, update this list too — see the
+         * `add-provider` skill.
+         */
+        val PROVIDERS = arrayOf(
+            "ollama",
+            "claude",
+            "openai",
+            "gemini",
+            "grok",
+            "groq",
+            "mistral",
+            "deepseek",
+            "cerebras",
+            "perplexity",
+            "together",
+            "fireworks",
+            "openrouter",
+            "azure_openai",
+            "bedrock",
+            "copilot",
+            "zhipu",
+            "minimax",
+            "sambanova",
+            "poolside",
+            "vibecli-mistralrs",
+        )
+    }
+
     private var urlField    = JBTextField()
-    private var providerBox = ComboBox(arrayOf("ollama", "claude", "openai", "gemini", "grok"))
+    private var providerBox = ComboBox(PROVIDERS)
     private var modelField  = JBTextField()
     private var approvalBox = ComboBox(arrayOf("suggest", "auto-edit", "full-auto"))
     private var panel: JPanel? = null
