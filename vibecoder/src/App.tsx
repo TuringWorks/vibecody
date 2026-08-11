@@ -3,7 +3,8 @@ import { useToast } from "./hooks/useToast";
 import { useNotifications } from "./hooks/useNotifications";
 import { useApiKeyMonitor } from "./hooks/useApiKeyMonitor";
 import { useDaemonMonitor } from "./hooks/useDaemonMonitor";
-import { probeAndCacheDefaultProvider } from "./hooks/useModelRegistry";
+import { probeAndCacheDefaultProvider, PROVIDER_DEFAULT_MODEL } from "./hooks/useModelRegistry";
+import { registerGhostText, type GhostTextHandle } from "./lib/ghostText";
 import { Toaster } from "./components/Toaster";
 import { NotificationCenter } from "./components/NotificationCenter";
 import Editor, { DiffEditor, OnMount } from "@monaco-editor/react";
@@ -190,6 +191,14 @@ function App() {
   useEffect(() => {
     selectedProviderRef.current = selectedProvider;
   }, [selectedProvider]);
+
+  // The toolbar selects a provider; the model is that provider's registry
+  // default, the same resolution every other panel uses. Sent explicitly with
+  // each AI-editing request so the backend never has to guess one — and never
+  // re-points the shared chat engine to find out.
+  const selectedModel = PROVIDER_DEFAULT_MODEL[selectedProvider] ?? "";
+  const selectedModelRef = useRef<string>(selectedModel);
+  selectedModelRef.current = selectedModel;
 
   // Listen for file-tree refresh requests from child panels (e.g. Screenshot to App)
   useEffect(() => {
@@ -658,6 +667,7 @@ function App() {
   activeFilePathRef.current = activeFilePath;
   const lspBridgeRef = useRef<LspBridge | null>(null);
   const lspNoticesRef = useRef(new Set<string>());
+  const ghostTextRef = useRef<GhostTextHandle | null>(null);
 
   /** Tell the user once per language why IntelliSense is quiet. */
   const reportLspUnavailable = useCallback((support: LspLanguageSupport) => {
@@ -685,6 +695,10 @@ function App() {
   useEffect(() => () => {
     lspBridgeRef.current?.dispose();
     lspBridgeRef.current = null;
+    // Registered on "*", so leaking it would leave a dead provider consulted
+    // on every keystroke for the rest of the process.
+    ghostTextRef.current?.dispose();
+    ghostTextRef.current = null;
   }, []);
 
   // Now that each file gets its own Monaco model (see the editor's `path`
@@ -734,6 +748,28 @@ function App() {
           selectionEndLine: hasSelection ? selection.endLineNumber : 0,
         });
       }
+    );
+
+    // ── Ctrl+Space (⌥\ on mac too): ghost text ──
+    // The provider answers only Monaco's `Explicit` trigger kind, so this
+    // chord is the sole path to a suggestion — typing never produces one.
+    // See `lib/ghostText.ts` for why that gate is the whole design.
+    const ghost = registerGhostText(monaco, {
+      invoke: <T,>(command: string, args?: Record<string, unknown>) =>
+        invoke<T>(command, args),
+      getProvider: () => selectedProviderRef.current,
+      getModel: () => selectedModelRef.current,
+      getFilePath: () => activeFilePathRef.current ?? "",
+      onError: (message) => toast.warn(message),
+      // The cap lives in `vibe_ai::ghost`; don't restate the number here, it
+      // would go stale silently. The backend reports *that* it clipped.
+      onTruncated: () =>
+        toast.info("Suggestion was clipped — accept it and re-trigger for more."),
+    });
+    ghostTextRef.current = ghost;
+    editor.addCommand(
+      monaco.KeyMod.Alt | monaco.KeyCode.Backslash,
+      () => ghost.trigger(editor),
     );
 
     // IntelliSense: completion, hover, go-to-definition, signature help and
@@ -1017,6 +1053,19 @@ function App() {
       action: handleNewFolder,
     },
     // Editor actions
+    {
+      id: 'editor.ghostText',
+      label: 'AI: Inline Completion at Cursor',
+      category: 'Editor',
+      icon: <Icon name="sparkles" size={16} />,
+      shortcut: isMac ? '⌥\\' : 'Alt+\\',
+      action: () => {
+        const editor = editorRef.current;
+        if (!editor) return;
+        editor.focus();
+        ghostTextRef.current?.trigger(editor);
+      },
+    },
     {
       id: 'editor.toggleSidebar',
       label: 'Toggle Sidebar',
@@ -2135,6 +2184,11 @@ function App() {
                         suggestOnTriggerCharacters: true,
                         parameterHints: { enabled: true },
                         tabCompletion: "on",
+                        // Renders ghost text and binds Tab to accept it. The
+                        // widget being enabled does NOT mean suggestions are
+                        // requested while typing — the provider answers only
+                        // the explicit trigger kind (see lib/ghostText.ts).
+                        inlineSuggest: { enabled: true },
                       }}
                     />
                   )
@@ -2159,6 +2213,7 @@ function App() {
                           const shift = isMac ? '⇧' : 'Shift+';
                           return [
                             [`${mod}.`, 'AI Edit (DiffComplete)'],
+                            [isMac ? '⌥\\' : 'Alt+\\', 'AI Inline Completion'],
                             [`${mod}K`, 'Command Palette'],
                             [`${mod}${shift}P`, 'Command Palette'],
                             [`${mod}J`, 'Toggle AI Panel'],
@@ -2478,6 +2533,7 @@ function App() {
           selectionStartLine={diffComplete.selectionStartLine}
           selectionEndLine={diffComplete.selectionEndLine}
           provider={selectedProvider}
+          model={selectedModel}
           onApply={(modified) => {
             if (modified === null) return;
             const editor = editorRef.current;

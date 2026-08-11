@@ -65,6 +65,11 @@ export interface MonacoLspEnums {
   readonly completionKinds: MonacoCompletionKinds;
   readonly insertAsSnippet: number;
   readonly deprecatedTag: number;
+  readonly completionTriggerKinds: {
+    readonly Invoke: number;
+    readonly TriggerCharacter: number;
+    readonly TriggerForIncompleteCompletions: number;
+  };
   readonly markerSeverity: {
     readonly Error: number;
     readonly Warning: number;
@@ -80,8 +85,54 @@ export function enumsFromMonaco(monaco: typeof Monaco): MonacoLspEnums {
     insertAsSnippet:
       monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
     deprecatedTag: monaco.languages.CompletionItemTag.Deprecated,
+    completionTriggerKinds: monaco.languages.CompletionTriggerKind,
     markerSeverity: monaco.MarkerSeverity,
   };
+}
+
+/**
+ * The `context` field of an LSP `textDocument/completion` request.
+ *
+ * LSP numbers these from 1 (`Invoked = 1`, `TriggerCharacter = 2`,
+ * `TriggerForIncompleteCompletions = 3`); Monaco numbers the same three from 0.
+ * They are *not* interchangeable, which is why the mapping below is explicit
+ * rather than `monacoKind + 1`.
+ */
+export interface LspCompletionContext {
+  triggerKind: 1 | 2 | 3;
+  triggerCharacter?: string;
+}
+
+/**
+ * Translate Monaco's completion context into LSP's.
+ *
+ * This used to be hardcoded to `{ triggerKind: 1 }` — every request claimed to
+ * be a manual invoke. Servers use this to decide what to offer: a member list
+ * after `.` is gated on `TriggerCharacter` by several servers, and a server
+ * that returned `isIncomplete` expects `TriggerForIncompleteCompletions` on the
+ * refilter rather than a fresh invoke.
+ */
+export function toLspCompletionContext(
+  context: { triggerKind: number; triggerCharacter?: string } | undefined,
+  kinds: MonacoLspEnums["completionTriggerKinds"],
+): LspCompletionContext {
+  if (!context) return { triggerKind: 1 };
+
+  if (context.triggerKind === kinds.TriggerCharacter) {
+    return {
+      triggerKind: 2,
+      // A TriggerCharacter request without the character is malformed; omit
+      // the field rather than send `triggerCharacter: undefined`, which some
+      // servers reject outright.
+      ...(context.triggerCharacter !== undefined
+        ? { triggerCharacter: context.triggerCharacter }
+        : {}),
+    };
+  }
+  if (context.triggerKind === kinds.TriggerForIncompleteCompletions) {
+    return { triggerKind: 3 };
+  }
+  return { triggerKind: 1 };
 }
 
 // ── LSP wire types ──────────────────────────────────────────────────────────
@@ -1088,7 +1139,7 @@ export function createLspBridge(
     const disposables: Monaco.IDisposable[] = [
       monaco.languages.registerCompletionItemProvider(monacoLanguage, {
         triggerCharacters: triggerList,
-        provideCompletionItems: async (model, position) => {
+        provideCompletionItems: async (model, position, completionContext) => {
           const document = documentFor(model);
           if (!document) return { suggestions: [] };
           // The edit that triggered this completion may still be queued; the
@@ -1111,7 +1162,10 @@ export function createLspBridge(
                 params: {
                   textDocument: { uri: document.uri },
                   position: toLspPosition(position),
-                  context: { triggerKind: 1 },
+                  context: toLspCompletionContext(
+                    completionContext,
+                    enums.completionTriggerKinds,
+                  ),
                 },
               },
             );

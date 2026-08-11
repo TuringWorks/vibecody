@@ -130,6 +130,13 @@ export interface DiffCompleteModalProps {
   selectionEndLine: number;
   /** Active provider id (e.g. "claude", "openai"). */
   provider: string;
+  /**
+   * Model id for `provider`. Sent with the request so the backend uses the
+   * host's selection instead of re-pointing the shared chat engine to find a
+   * provider — which used to switch the model for the whole chat session as a
+   * side effect of a ⌘. press.
+   */
+  model: string;
   /** Called with the modified file content on apply; null means cancelled. */
   onApply: (modified: string | null) => void;
 }
@@ -145,7 +152,7 @@ type ProviderStatus = "unknown" | "ready" | "no_providers";
 
 export function DiffCompleteModal(props: DiffCompleteModalProps) {
   const { open, onClose, filePath, language, originalContent, selectionText,
-    selectionStartLine, selectionEndLine, provider, onApply } = props;
+    selectionStartLine, selectionEndLine, provider, model, onApply } = props;
 
   const [phase, setPhase] = useState<Phase>("prompt");
   const [instruction, setInstruction] = useState("");
@@ -305,6 +312,7 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
         afterContext,
         instruction: instruction.trim(),
         provider,
+        model,
         additionalFiles: additionalFiles.length ? additionalFiles : null,
         previousDiff: opts.previousDiff && opts.previousDiff.length ? opts.previousDiff : null,
         refinement: opts.refinement && opts.refinement.trim().length ? opts.refinement.trim() : null,
