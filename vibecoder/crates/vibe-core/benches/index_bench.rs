@@ -3,7 +3,8 @@
 //! Run with: `cargo bench -p vibe-core`
 //! Compile-check only: `cargo bench -p vibe-core --no-run`
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
+use std::hint::black_box;
 use std::path::PathBuf;
 use vibe_core::diff::DiffEngine;
 use vibe_core::index::symbol::extract_symbols;

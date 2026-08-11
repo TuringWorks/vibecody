@@ -376,7 +376,7 @@ fn encrypt(key: &[u8; 32], plaintext: &str) -> Result<Vec<u8>, String> {
     rand::rng().fill(&mut nonce);
     let cipher = ChaCha20Poly1305::new(key.into());
     let mut ct = cipher
-        .encrypt(Nonce::from_slice(&nonce), plaintext.as_bytes())
+        .encrypt(&Nonce::from(nonce), plaintext.as_bytes())
         .map_err(|e| format!("encrypt: {e}"))?;
     let mut blob = Vec::with_capacity(12 + ct.len());
     blob.extend_from_slice(&nonce);
@@ -390,8 +390,9 @@ fn decrypt(key: &[u8; 32], blob: &[u8]) -> Result<String, String> {
     }
     let (nonce, ct) = blob.split_at(12);
     let cipher = ChaCha20Poly1305::new(key.into());
+    let nonce = Nonce::try_from(nonce).map_err(|_| "bad nonce".to_string())?;
     let pt = cipher
-        .decrypt(Nonce::from_slice(nonce), ct)
+        .decrypt(&nonce, ct)
         .map_err(|e| format!("decrypt: {e}"))?;
     String::from_utf8(pt).map_err(|e| format!("utf8: {e}"))
 }
