@@ -904,9 +904,10 @@ mod tests {
     #[test]
     fn verify_p256_valid_signature_accepted() {
         use p256::ecdsa::{signature::Signer, SigningKey};
+        use p256::elliptic_curve::Generate;
 
         // Generate a real P256 keypair
-        let signing_key = SigningKey::random(&mut rand::rng());
+        let signing_key = SigningKey::generate_from_rng(&mut rand::rng());
         let verifying_key = signing_key.verifying_key();
 
         // Swift uses: SHA256.hash(data: msg) → sign the hash directly.
@@ -933,8 +934,9 @@ mod tests {
     #[test]
     fn verify_p256_wrong_message_rejected() {
         use p256::ecdsa::{signature::Signer, SigningKey};
+        use p256::elliptic_curve::Generate;
 
-        let signing_key = SigningKey::random(&mut rand::rng());
+        let signing_key = SigningKey::generate_from_rng(&mut rand::rng());
         let verifying_key = signing_key.verifying_key();
 
         let msg = b"correct message";
@@ -953,9 +955,10 @@ mod tests {
     #[test]
     fn verify_p256_wrong_key_rejected() {
         use p256::ecdsa::{signature::Signer, SigningKey};
+        use p256::elliptic_curve::Generate;
 
-        let signing_key = SigningKey::random(&mut rand::rng());
-        let wrong_key = SigningKey::random(&mut rand::rng());
+        let signing_key = SigningKey::generate_from_rng(&mut rand::rng());
+        let wrong_key = SigningKey::generate_from_rng(&mut rand::rng());
         let wrong_verifying = wrong_key.verifying_key();
 
         let msg = b"some message";
@@ -975,12 +978,13 @@ mod tests {
     fn register_device_full_p256_roundtrip() {
         use base64::{engine::general_purpose::URL_SAFE_NO_PAD as B64, Engine};
         use p256::ecdsa::{signature::Signer, SigningKey};
+        use p256::elliptic_curve::Generate;
 
         let (mut mgr, _tmp) = make_manager();
         let ch = mgr.issue_challenge().unwrap();
 
         // Simulate what Swift does: generate key, build message, sign
-        let signing_key = SigningKey::random(&mut rand::rng());
+        let signing_key = SigningKey::generate_from_rng(&mut rand::rng());
         let verifying_key = signing_key.verifying_key();
         let device_id = "deadbeef12345678deadbeef12345678";
 

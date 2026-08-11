@@ -199,11 +199,12 @@ fn sort_value(v: serde_json::Value) -> serde_json::Value {
 mod tests {
     use super::*;
     use p256::ecdsa::SigningKey;
+    use p256::elliptic_curve::Generate;
     // Key generation uses `rand::rng()` — see the note in
     // signed_agent_card.rs for why the OS RNG does not satisfy the bound.
 
     fn keypair() -> (Vec<u8>, Vec<u8>) {
-        let sk = SigningKey::random(&mut rand::rng());
+        let sk = SigningKey::generate_from_rng(&mut rand::rng());
         let sk_bytes = sk.to_bytes().to_vec();
         let pk_sec1 = sk
             .verifying_key()

@@ -382,6 +382,7 @@ mod tests {
     use crate::plugin_signing::{sign_manifest, MANIFEST_FILENAME, SIGNATURE_FILENAME};
     use crate::signed_agent_card::jwk_from_verifying_key;
     use p256::ecdsa::SigningKey;
+    use p256::elliptic_curve::Generate;
     use std::fs;
     use tempfile::tempdir;
 
@@ -394,7 +395,7 @@ mod tests {
     }
 
     fn fixture_key() -> SigningKey {
-        SigningKey::random(&mut rand::rng())
+        SigningKey::generate_from_rng(&mut rand::rng())
     }
 
     fn fixture_manifest(name: &str, key: &SigningKey, policy: DefaultPolicy) -> PluginManifest {
