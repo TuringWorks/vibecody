@@ -292,7 +292,7 @@ mod tests {
     }
 
     fn fixture_key() -> SigningKey {
-        SigningKey::generate_from_rng(&mut rand::rng())
+        SigningKey::try_generate_from_rng(&mut rand::rng()).expect("ThreadRng is Infallible")
     }
 
     /// Build a signed MCPB bundle with all five component kinds, one

@@ -1168,7 +1168,7 @@ mod tests {
     use p256::elliptic_curve::Generate;
         use tempfile::tempdir;
 
-        let key = SigningKey::generate_from_rng(&mut rand::rng());
+        let key = SigningKey::try_generate_from_rng(&mut rand::rng()).expect("ThreadRng is Infallible");
         let manifest = PluginManifest {
             name: plugin_name.into(),
             version: "1.0.0".into(),

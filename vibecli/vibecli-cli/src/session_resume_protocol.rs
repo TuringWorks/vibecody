@@ -204,7 +204,7 @@ mod tests {
     // signed_agent_card.rs for why the OS RNG does not satisfy the bound.
 
     fn keypair() -> (Vec<u8>, Vec<u8>) {
-        let sk = SigningKey::generate_from_rng(&mut rand::rng());
+        let sk = SigningKey::try_generate_from_rng(&mut rand::rng()).expect("ThreadRng is Infallible");
         let sk_bytes = sk.to_bytes().to_vec();
         let pk_sec1 = sk
             .verifying_key()
