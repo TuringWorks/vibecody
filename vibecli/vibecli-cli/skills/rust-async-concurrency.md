@@ -1,8 +1,10 @@
 ---
+name: "Rust Async & Concurrency"
+description: "Rust Async & Concurrency: Guidance for working with async Rust and concurrency. Use when the task involves tokio, async rust, await, spawn, Arc Mutex."
+category: rust
 triggers: ["tokio", "async rust", "await", "spawn", "Arc Mutex", "channel", "select!", "concurrency rust", "async fn"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["cargo"]
-category: rust
 ---
 
 # Rust Async & Concurrency

@@ -1,7 +1,9 @@
 ---
+name: "Healthcare Administration"
+description: "Healthcare Administration: Guidance for working with healthcare administration and hospital management. Use when the task involves healthcare administration, hospital management, health informatics, EHR management, clinical operations."
+category: healthcare
 triggers: ["healthcare administration", "hospital management", "health informatics", "EHR management", "clinical operations", "healthcare compliance"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: healthcare
 ---
 
 # Healthcare Administration

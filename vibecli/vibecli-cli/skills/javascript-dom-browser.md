@@ -1,7 +1,9 @@
 ---
+name: "JavaScript DOM & Browser APIs"
+description: "JavaScript DOM & Browser APIs: Guidance for working with DOM and browser APIs. Use when the task involves DOM, event listener, querySelector, fetch API, Web Worker."
+category: javascript
 triggers: ["DOM", "event listener", "querySelector", "fetch API", "Web Worker", "browser API", "localStorage", "addEventListener"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: javascript
 ---
 
 # JavaScript DOM & Browser APIs

@@ -1,7 +1,9 @@
 ---
+name: "Multi-QA Agent Cross-Validation"
+description: "Multi-QA Agent Cross-Validation: Guidance for validating code through the QA pipeline. Use when the task involves qa validation, quality assurance, multi-qa, cross validation, qa pipeline."
+category: workflow
 triggers: ["qa validation", "quality assurance", "multi-qa", "cross validation", "qa pipeline", "code review agents", "qa agents", "quality gate", "automated review"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: workflow
 ---
 
 # Multi-QA Agent Cross-Validation

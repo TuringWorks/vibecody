@@ -1,7 +1,9 @@
 ---
+name: "Problem-Solving Frameworks"
+description: "Problem-Solving Frameworks: Guidance for working with structured problem solving and analytical thinking. Use when the task involves problem solving, structured thinking, MECE, issue tree, consulting frameworks."
+category: personal-development
 triggers: ["problem solving", "structured thinking", "MECE", "issue tree", "consulting frameworks", "case study", "McKinsey"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: personal-development
 ---
 
 # Problem-Solving Frameworks

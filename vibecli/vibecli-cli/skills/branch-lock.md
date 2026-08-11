@@ -1,7 +1,9 @@
 ---
+name: "Branch Lock"
+description: "Branch Lock: Distributed branch locking to prevent concurrent agent modifications. Use when the task involves branch lock, lock branch, concurrent agent edits, branch lock TTL."
+category: workflow
 triggers: ["branch lock", "lock branch", "concurrent agent edits", "branch lock TTL"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: workflow
 ---
 
 # Branch Lock

@@ -1,7 +1,9 @@
 ---
+name: "Grant and Proposal Writing"
+description: "Grant and Proposal Writing: Guidance for working with grant writing and proposal development. Use when the task involves grant writing, proposal writing, RFP response, funding proposal, business proposal."
+category: writing
 triggers: ["grant writing", "proposal writing", "RFP response", "funding proposal", "business proposal", "technical proposal"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: writing
 ---
 
 # Grant and Proposal Writing

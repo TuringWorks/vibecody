@@ -1,8 +1,10 @@
 ---
+name: "Swift Vapor Framework"
+description: "Swift Vapor Framework: Guidance for working with Swift Vapor. Use when the task involves Vapor, vapor swift, fluent, vapor routing, swift server side."
+category: swift
 triggers: ["Vapor", "vapor swift", "fluent", "vapor routing", "swift server side", "swift-nio", "hummingbird swift"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["swift"]
-category: swift
 ---
 
 # Swift Vapor Framework

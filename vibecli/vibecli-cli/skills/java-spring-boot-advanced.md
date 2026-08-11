@@ -1,8 +1,10 @@
 ---
+name: "Advanced Spring Boot"
+description: "Advanced Spring Boot: Guidance for working with advanced Spring Boot features (WebFlux, R2DBC, GraalVM, Modulith, Virtual Threads). Use when the task involves Spring WebFlux, R2DBC, GraalVM native image, spring modulith, spring virtual threads."
+category: java
 triggers: ["Spring WebFlux", "R2DBC", "GraalVM native image", "spring modulith", "spring virtual threads", "reactive spring", "spring native"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["java"]
-category: java
 ---
 
 # Advanced Spring Boot

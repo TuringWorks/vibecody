@@ -1,7 +1,9 @@
 ---
+name: "Visual Verification"
+description: "Visual Verification: Screenshot-based UI verification that compares actual rendered output against expected baselines. Use when the task involves visual verification, screenshot diff, visual regression, pixel diff."
+category: testing
 triggers: ["visual verification", "screenshot diff", "visual regression", "pixel diff"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: testing
 ---
 
 # Visual Verification

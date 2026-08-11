@@ -1,7 +1,9 @@
 ---
+name: "Skill Library Governance — Skill Quality Review Agent"
+description: "Skill Library Governance — Skill Quality Review Agent: This agent reviews skill files for usability, discoverability, correctness, and maintainability. Use when the task involves skill library governance — skill quality review agent, skill quality review agent."
+category: governance
 triggers: ["skill library governance — skill quality review agent", "skill quality review agent"]
 tools_allowed: ["read_file", "write_file"]
-category: governance
 ---
 
 # Skill Library Governance — Skill Quality Review Agent
@@ -39,4 +41,3 @@ Skill file, adjacent skills, framework guidance, naming conventions, user tasks,
 3. Check accountability, operating procedure, required context, and failure modes.
 4. Identify duplication and missing cross-links.
 5. Return findings and recommended patch plan.
-

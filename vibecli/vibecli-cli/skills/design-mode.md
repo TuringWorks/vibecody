@@ -1,7 +1,9 @@
 ---
+name: "Visual UI Feedback and Design Mode for Agents"
+description: "Visual UI Feedback and Design Mode for Agents: Guidance for providing visual UI feedback to agents via screenshots and annotations. Use when the task involves design mode, UI annotation, screenshot feedback, visual agent feedback, annotate UI."
+category: developer-experience
 triggers: ["design mode", "UI annotation", "screenshot feedback", "visual agent feedback", "annotate UI"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: developer-experience
 ---
 
 # Visual UI Feedback and Design Mode for Agents

@@ -1,8 +1,10 @@
 ---
+name: "Go Web Services"
+description: "Go Web Services: Guidance for building Go web services. Use when the task involves go http, chi router, gin, go REST, go middleware."
+category: go
 triggers: ["go http", "chi router", "gin", "go REST", "go middleware", "go JSON API", "net/http"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["go"]
-category: go
 ---
 
 # Go Web Services

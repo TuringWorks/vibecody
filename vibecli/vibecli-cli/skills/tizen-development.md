@@ -1,7 +1,9 @@
 ---
+name: "Tizen App Development"
+description: "Tizen App Development: Guidance for working with Tizen. Use when the task involves Tizen, tizen, tizen studio, tizen wearable, tizen tv."
+category: tizen
 triggers: ["Tizen", "tizen", "tizen studio", "tizen wearable", "tizen tv", "tizen .net", "tizen web app"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: tizen
 ---
 
 # Tizen App Development

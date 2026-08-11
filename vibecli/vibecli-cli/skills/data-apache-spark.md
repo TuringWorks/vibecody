@@ -1,7 +1,9 @@
 ---
+name: "Apache Spark Best Practices"
+description: "Apache Spark Best Practices: Guidance for working with Apache Spark. Use when the task involves Apache Spark, PySpark, Spark SQL, Spark Streaming, distributed processing."
+category: data-engineering
 triggers: ["Apache Spark", "PySpark", "Spark SQL", "Spark Streaming", "distributed processing"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: data-engineering
 ---
 
 # Apache Spark Best Practices

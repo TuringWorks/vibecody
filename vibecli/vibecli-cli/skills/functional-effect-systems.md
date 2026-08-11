@@ -1,7 +1,9 @@
 ---
+name: "Effect Systems and IO Monads"
+description: "Effect Systems and IO Monads: Guidance for working with effect systems and IO monads. Use when the task involves effect system, IO monad, ZIO, cats effect, arrow."
+category: architecture
 triggers: ["effect system", "IO monad", "ZIO", "cats effect", "arrow", "algebraic effects", "effect handlers", "free monad"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: architecture
 ---
 
 # Effect Systems and IO Monads

@@ -1,7 +1,9 @@
 ---
+name: "Self-Improvement Loop"
+description: "Self-Improvement Loop: Continuous learning from corrections and mistakes. Use when the task involves self improvement loop, lessons learned, learn from mistakes, capture lesson, record correction."
+category: workflow
 triggers: ["self improvement loop", "lessons learned", "learn from mistakes", "capture lesson", "record correction", "prevent mistake"]
 tools_allowed: ["read_file", "write_file"]
-category: workflow
 ---
 
 # Self-Improvement Loop

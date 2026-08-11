@@ -1,8 +1,10 @@
 ---
+name: "AWS AppSync GraphQL API"
+description: "AWS AppSync GraphQL API: Guidance for working with AWS AppSync. Use when the task involves AppSync, aws appsync, aws graphql, appsync resolver, appsync subscription."
+category: cloud-aws
 triggers: ["AppSync", "aws appsync", "aws graphql", "appsync resolver", "appsync subscription", "vtl template"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["aws"]
-category: cloud-aws
 ---
 
 # AWS AppSync GraphQL API

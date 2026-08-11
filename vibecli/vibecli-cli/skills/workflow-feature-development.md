@@ -1,7 +1,9 @@
 ---
+name: "Feature Development Workflow"
+description: "Feature Development Workflow: Guidance for implementing a new feature (inspired by fire-flow). Use when the task involves feature development, spec to code, implementation pipeline, feature workflow, plan implement test."
+category: workflow
 triggers: ["feature development", "spec to code", "implementation pipeline", "feature workflow", "plan implement test"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: workflow
 ---
 
 # Feature Development Workflow

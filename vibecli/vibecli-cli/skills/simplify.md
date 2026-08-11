@@ -1,8 +1,9 @@
 ---
-name: Simplify
-description: Review code for reuse, quality, and efficiency then fix issues
-triggers: ["simplify", "cleanup", "refactor", "clean up", "optimize", "improve code"]
+name: "Simplify"
+description: "Simplify: Guidance for simplifying code. Use when the task involves simplify, cleanup, refactor, clean up, optimize."
 category: review
+triggers: ["simplify", "cleanup", "refactor", "clean up", "optimize", "improve code"]
+tools_allowed: ["read_file", "write_file", "bash"]
 ---
 
 When simplifying code:

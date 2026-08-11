@@ -1,8 +1,10 @@
 ---
+name: "AWS Cognito Authentication"
+description: "AWS Cognito Authentication: Guidance for working with AWS Cognito. Use when the task involves Cognito, aws cognito, user pool, identity pool, cognito trigger."
+category: cloud-aws
 triggers: ["Cognito", "aws cognito", "user pool", "identity pool", "cognito trigger", "cognito JWT", "cognito hosted UI"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["aws"]
-category: cloud-aws
 ---
 
 # AWS Cognito Authentication

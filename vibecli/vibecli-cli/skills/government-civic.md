@@ -1,7 +1,9 @@
 ---
+name: "Government & Civic Tech Engineering"
+description: "Government & Civic Tech Engineering: Guidance for working with government and civic technology systems. Use when the task involves government, civic tech, GovTech, e-government, permitting."
+category: government
 triggers: ["government", "civic tech", "GovTech", "e-government", "permitting", "citizen portal", "public records", "FOIA", "government compliance", "municipal", "voting system", "benefits system"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: government
 ---
 
 # Government & Civic Tech Engineering

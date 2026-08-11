@@ -1,8 +1,10 @@
 ---
+name: "Solana Program Development"
+description: "Solana Program Development: Guidance for working with Solana programs. Use when the task involves Solana, solana, Anchor, anchor framework, solana program."
+category: blockchain
 triggers: ["Solana", "solana", "Anchor", "anchor framework", "solana program", "PDA", "SPL token", "Metaplex", "solana CLI", "lamports"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["solana"]
-category: blockchain
 ---
 
 # Solana Program Development

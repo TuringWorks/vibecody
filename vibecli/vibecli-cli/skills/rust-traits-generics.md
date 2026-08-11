@@ -1,8 +1,10 @@
 ---
+name: "Rust Traits & Generics"
+description: "Rust Traits & Generics: Guidance for designing with traits and generics. Use when the task involves trait bounds, impl Trait, dyn dispatch, generics rust, associated type."
+category: rust
 triggers: ["trait bounds", "impl Trait", "dyn dispatch", "generics rust", "associated type", "where clause", "trait object"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["cargo"]
-category: rust
 ---
 
 # Rust Traits & Generics

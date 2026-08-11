@@ -1,7 +1,9 @@
 ---
+name: "Wholesale Trade and Distribution"
+description: "Wholesale Trade and Distribution: This overlay composes OS 03, 08, 11, 16, and 17 into an establishment-level operating model. Use when the task involves wholesale trade and distribution, wholesale trade, distribution."
+category: industry
 triggers: ["wholesale trade and distribution", "wholesale trade", "distribution"]
 tools_allowed: ["read_file", "write_file"]
-category: industry
 ---
 
 # Wholesale Trade and Distribution

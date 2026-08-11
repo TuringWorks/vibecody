@@ -1,7 +1,9 @@
 ---
+name: "Cross-Repository Knowledge Graph"
+description: "Cross-Repository Knowledge Graph: Guidance for building or querying a cross-repo knowledge graph. Use when the task involves knowledge graph, cross-repo, code graph, symbol graph, dependency graph."
+category: code-intelligence
 triggers: ["knowledge graph", "cross-repo", "code graph", "symbol graph", "dependency graph", "callers", "callees", "implementors", "cross-repository", "code intelligence", "semantic graph"]
 tools_allowed: ["read_file", "write_file", "bash", "search_files"]
-category: code-intelligence
 ---
 
 # Cross-Repository Knowledge Graph

@@ -1,8 +1,10 @@
 ---
+name: "Wallet Integration and dApp Frontend"
+description: "Wallet Integration and dApp Frontend: Guidance for working with dApp frontends and wallet integration. Use when the task involves dApp, dapp, MetaMask, WalletConnect, wagmi."
+category: blockchain
 triggers: ["dApp", "dapp", "MetaMask", "WalletConnect", "wagmi", "RainbowKit", "wallet connect", "web3 frontend", "EIP-712", "ENS"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["node"]
-category: blockchain
 ---
 
 # Wallet Integration and dApp Frontend

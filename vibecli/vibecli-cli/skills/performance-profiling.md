@@ -1,7 +1,9 @@
 ---
+name: "Performance Profiling"
+description: "Performance Profiling: Guidance for profiling application performance. Use when the task involves flamegraph, perf, profiling, Chrome DevTools, benchmark."
+category: performance
 triggers: ["flamegraph", "perf", "profiling", "Chrome DevTools", "benchmark", "CPU profiling", "memory profiling"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: performance
 ---
 
 # Performance Profiling

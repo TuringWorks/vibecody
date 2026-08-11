@@ -1,8 +1,10 @@
 ---
+name: "Symfony Framework"
+description: "Symfony Framework: Guidance for working with Symfony. Use when the task involves Symfony, symfony bundle, doctrine, symfony console, symfony messenger."
+category: php
 triggers: ["Symfony", "symfony bundle", "doctrine", "symfony console", "symfony messenger"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["php"]
-category: php
 ---
 
 # Symfony Framework

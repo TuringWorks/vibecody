@@ -1,7 +1,9 @@
 ---
+name: "Informal Economy — Informal finance & savings-group agent"
+description: "Informal Economy — Informal finance & savings-group agent: The Informal finance & savings-group agent is an AI-personnel role that supports rotating savings groups, microcredit, and mobile-money bookkeeping. Use when the task involves informal economy — informal finance & savings-group agent, informal finance & savi..."
+category: economics
 triggers: ["informal economy — informal finance & savings-group agent", "informal finance & savings-group agent"]
 tools_allowed: ["read_file", "write_file"]
-category: economics
 ---
 
 # Informal Economy — Informal finance & savings-group agent
@@ -39,12 +41,7 @@ When the task is to supports rotating savings groups, microcredit, and mobile-mo
 
 In low- and middle-income economies this is not a niche — informal employment is often the **majority** of work. In high-income settings it shows up as gig work, cash work, and care work. Re-read through:
 
-- **Scale** (city-state → federation): whether this role is unified or layered across local/regional/national tiers.
-- **State capacity** (fragile → high-capacity): whether the owning institution exists and can be held to account, or the job is met by markets, households, NGOs, or donors.
-- **Income level** (low → high): affordability of automation and the balance of subsistence vs. wage work.
-- **Formality** (informal → formal): whether the people and assets this role acts on appear in any registry at all.
-- **Resource & geography**: which hazards and dependencies dominate (water-scarce, flood-prone, landlocked, trade-dependent).
-- **Political system & legitimacy**: where the human-accountability boundary actually binds and who may hold power to account.
+> Shared pattern — see the `shared-national-context-modifiers` skill, section “Adapting to any nation (context modifiers)”.
 
 ## Operating procedure
 

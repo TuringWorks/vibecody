@@ -1,7 +1,9 @@
 ---
+name: "prompt-vcs"
+description: "prompt-vcs: Version-control your prompts — branch, diff, tag, and restore. Use when the task involves prompt vcs, version prompts, prompt branch, prompt diff."
+category: ai
 triggers: ["prompt vcs", "version prompts", "prompt branch", "prompt diff"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # prompt-vcs

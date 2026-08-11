@@ -1,7 +1,9 @@
 ---
+name: "Site Reliability Engineering (SRE) Practices"
+description: "Site Reliability Engineering (SRE) Practices: Guidance for implementing SRE practices and building reliable systems. Use when the task involves SRE, site reliability, incident response, postmortem, chaos engineering."
+category: sre
 triggers: ["SRE", "site reliability", "incident response", "postmortem", "chaos engineering", "runbook", "on-call", "error budget", "toil reduction"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: sre
 ---
 
 # Site Reliability Engineering (SRE) Practices

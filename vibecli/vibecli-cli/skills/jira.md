@@ -1,7 +1,9 @@
 ---
+name: "Jira Integration"
+description: "Jira Integration: VibeCLI connects to Jira Cloud and Server via the REST API using /jira commands. Use when the task involves jira, jira ticket, jira issue, sprint, backlog."
+category: productivity
 triggers: ["jira", "jira ticket", "jira issue", "sprint", "backlog", "jira comment", "create ticket", "jira board", "story points", "epic", "bug ticket"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: productivity
 ---
 
 # Jira Integration

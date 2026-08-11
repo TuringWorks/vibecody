@@ -1,7 +1,9 @@
 ---
-triggers: ["energy", "utilities", "smart grid", "smart meter", "AMI", "SCADA energy", "DERMS", "energy trading", "load forecasting", "demand response", "renewable energy", "microgrid"]
-tools_allowed: ["read_file", "write_file", "bash"]
+name: "Energy & Utilities Systems"
+description: "Energy & Utilities Systems: Guidance for working with energy, utilities, and smart grid systems. Use when the task involves utilities, smart grid, smart meter, AMI, SCADA energy."
 category: energy
+triggers: ["utilities", "smart grid", "smart meter", "AMI", "SCADA energy", "DERMS", "energy trading", "load forecasting", "demand response", "renewable energy", "microgrid"]
+tools_allowed: ["read_file", "write_file", "bash"]
 ---
 
 # Energy & Utilities Systems

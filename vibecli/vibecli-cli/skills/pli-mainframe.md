@@ -1,7 +1,9 @@
 ---
+name: "PL/I (Programming Language One)"
+description: "PL/I (Programming Language One): Guidance for maintaining or working with PL/I code on IBM mainframes. Use when the task involves PL/I, PL/1, PL1, PL/I mainframe, Enterprise PL/I."
+category: legacy
 triggers: ["PL/I", "PL/1", "PL1", "PL/I mainframe", "Enterprise PL/I", "IBM PL/I"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: legacy
 ---
 
 # PL/I (Programming Language One)

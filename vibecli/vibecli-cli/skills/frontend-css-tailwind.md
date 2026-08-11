@@ -1,7 +1,9 @@
 ---
+name: "CSS & Tailwind"
+description: "CSS & Tailwind: Guidance for styling with CSS and Tailwind. Use when the task involves Tailwind, CSS, responsive design, dark mode, animation CSS."
+category: frontend
 triggers: ["Tailwind", "CSS", "responsive design", "dark mode", "animation CSS", "utility classes", "flexbox", "grid CSS"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: frontend
 ---
 
 # CSS & Tailwind

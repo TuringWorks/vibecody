@@ -1,8 +1,10 @@
 ---
+name: "JHipster Full-Stack Generator"
+description: "JHipster Full-Stack Generator: Guidance for working with JHipster. Use when the task involves JHipster, jhipster, jhipster generator, jhipster microservice, jhipster monolith."
+category: java
 triggers: ["JHipster", "jhipster", "jhipster generator", "jhipster microservice", "jhipster monolith", "jdl"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["java", "node"]
-category: java
 ---
 
 # JHipster Full-Stack Generator

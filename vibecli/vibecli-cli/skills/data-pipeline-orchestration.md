@@ -1,7 +1,9 @@
 ---
+name: "Data Pipeline Orchestration Best Practices"
+description: "Data Pipeline Orchestration Best Practices: Guidance for working with data pipeline orchestration. Use when the task involves Airflow, Prefect, Dagster, pipeline orchestration, DAG."
+category: data-engineering
 triggers: ["Airflow", "Prefect", "Dagster", "pipeline orchestration", "DAG", "ETL orchestration", "data pipeline"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: data-engineering
 ---
 
 # Data Pipeline Orchestration Best Practices

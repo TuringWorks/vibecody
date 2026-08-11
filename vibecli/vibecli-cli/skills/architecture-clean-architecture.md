@@ -1,7 +1,9 @@
 ---
+name: "Clean Architecture"
+description: "Clean Architecture: Guidance for applying clean architecture principles. Use when the task involves clean architecture, hexagonal, ports and adapters, onion architecture, dependency inversion."
+category: architecture
 triggers: ["clean architecture", "hexagonal", "ports and adapters", "onion architecture", "dependency inversion", "layers"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: architecture
 ---
 
 # Clean Architecture

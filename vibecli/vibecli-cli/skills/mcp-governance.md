@@ -1,7 +1,9 @@
 ---
+name: "Enterprise MCP Governance"
+description: "Enterprise MCP Governance: Guidance for deploying MCP (Model Context Protocol) in enterprise environments. Use when the task involves MCP audit, MCP enterprise, SSO MCP, gateway policy, MCP config portability."
+category: protocols
 triggers: ["MCP audit", "MCP enterprise", "SSO MCP", "gateway policy", "MCP config portability"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: protocols
 ---
 
 # Enterprise MCP Governance

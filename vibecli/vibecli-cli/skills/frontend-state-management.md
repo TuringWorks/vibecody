@@ -1,7 +1,9 @@
 ---
+name: "Frontend State Management"
+description: "Frontend State Management: Guidance for managing state in React applications. Use when the task involves Redux, Zustand, Jotai, TanStack Query, state management."
+category: frontend
 triggers: ["Redux", "Zustand", "Jotai", "TanStack Query", "state management", "React state", "global state"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: frontend
 ---
 
 # Frontend State Management

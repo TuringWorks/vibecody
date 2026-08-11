@@ -1,7 +1,9 @@
 ---
+name: "Dapr Distributed Application Runtime"
+description: "Dapr Distributed Application Runtime: Guidance for working with Dapr. Use when the task involves Dapr, dapr, dapr sidecar, dapr component, dapr pub sub."
+category: devops
 triggers: ["Dapr", "dapr", "dapr sidecar", "dapr component", "dapr pub sub", "dapr state store", "dapr binding", "dapr workflow", "dapr actor"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: devops
 ---
 
 # Dapr Distributed Application Runtime

@@ -1,8 +1,10 @@
 ---
+name: "GCP Cloud Build CI/CD"
+description: "GCP Cloud Build CI/CD: Guidance for working with Cloud Build. Use when the task involves Cloud Build, gcp cloud build, cloud deploy, artifact registry, cloud build trigger."
+category: cloud-gcp
 triggers: ["Cloud Build", "gcp cloud build", "cloud deploy", "artifact registry", "cloud build trigger", "gcp cicd", "cloud build yaml"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["gcloud"]
-category: cloud-gcp
 ---
 
 # GCP Cloud Build CI/CD

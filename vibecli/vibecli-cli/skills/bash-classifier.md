@@ -1,7 +1,9 @@
 ---
+name: "Bash Classifier"
+description: "Bash Classifier: Assess bash commands for risk level and semantic category before execution. Use when the task involves bash classifier, command risk, dangerous command, command category."
+category: security
 triggers: ["bash classifier", "command risk", "dangerous command", "command category"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: security
 ---
 
 # Bash Classifier

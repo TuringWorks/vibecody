@@ -1,7 +1,9 @@
 ---
+name: "Civil & Structural Engineering"
+description: "Civil & Structural Engineering: Guidance for working with civil and structural engineering. Use when the task involves civil engineering, structural engineering, BIM, Revit, structural analysis."
+category: engineering
 triggers: ["civil engineering", "structural engineering", "BIM", "Revit", "structural analysis", "geotechnical", "construction management"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: engineering
 ---
 
 # Civil & Structural Engineering

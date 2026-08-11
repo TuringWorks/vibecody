@@ -1,7 +1,9 @@
 ---
+name: "Project Initialization & Onboarding"
+description: "Project Initialization & Onboarding: Practical rules — e.g. Languages: Rust, TypeScript/JavaScript, Python, Go, Java, C#, Ruby, PHP. Use when the task involves project init, /init, project setup, onboarding, new project."
+category: workflow
 triggers: ["project init", "/init", "project setup", "onboarding", "new project"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: workflow
 ---
 
 # Project Initialization & Onboarding

@@ -1,7 +1,9 @@
 ---
+name: "Identity and Access Management"
+description: "Identity and Access Management: Guidance for working with IAM, authentication protocols, and access control systems. Use when the task involves IAM, identity management, OAuth, OIDC, SAML."
+category: security
 triggers: ["IAM", "identity management", "OAuth", "OIDC", "SAML", "SSO", "RBAC", "ABAC", "zero trust", "MFA", "SCIM", "directory service"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: security
 ---
 
 # Identity and Access Management

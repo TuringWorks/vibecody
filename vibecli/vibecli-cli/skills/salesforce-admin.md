@@ -1,7 +1,9 @@
 ---
+name: "Salesforce Administration & Configuration"
+description: "Salesforce Administration & Configuration: Guidance for working with Salesforce admin and configuration tasks. Use when the task involves Salesforce admin, salesforce object, salesforce flow builder, salesforce permission, salesforce report."
+category: salesforce
 triggers: ["Salesforce admin", "salesforce object", "salesforce flow builder", "salesforce permission", "salesforce report", "salesforce sandbox", "salesforce change set"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: salesforce
 ---
 
 # Salesforce Administration & Configuration

@@ -1,7 +1,9 @@
 ---
+name: "Animation & Motion Design"
+description: "Animation & Motion Design: Guidance for working with animation and motion design. Use when the task involves animation, motion design, 2D animation, character animation, motion graphics."
+category: creative
 triggers: ["animation", "motion design", "2D animation", "character animation", "motion graphics", "Lottie", "spine animation"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: creative
 ---
 
 # Animation & Motion Design

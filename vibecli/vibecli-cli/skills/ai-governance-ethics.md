@@ -1,7 +1,9 @@
 ---
+name: "AI Governance and Ethics"
+description: "AI Governance and Ethics: Guidance for implementing responsible AI practices and governance. Use when the task involves AI governance, AI ethics, responsible AI, AI safety, AI bias."
+category: ai
 triggers: ["AI governance", "AI ethics", "responsible AI", "AI safety", "AI bias", "AI regulation", "AI policy"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # AI Governance and Ethics

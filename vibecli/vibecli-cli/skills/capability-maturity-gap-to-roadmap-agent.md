@@ -1,7 +1,9 @@
 ---
+name: "Capability Maturity Assessment — Gap-To-Roadmap Agent"
+description: "Capability Maturity Assessment — Gap-To-Roadmap Agent: This agent turns readiness gaps into a practical implementation sequence. Use when the task involves capability maturity assessment — gap-to-roadmap agent, capability maturity gap to roadmap agent."
+category: strategy
 triggers: ["capability maturity assessment — gap-to-roadmap agent", "capability maturity gap to roadmap agent"]
 tools_allowed: ["read_file", "write_file"]
-category: strategy
 ---
 
 # Capability Maturity Assessment — Gap-To-Roadmap Agent
@@ -40,4 +42,3 @@ Maturity assessment, mission goals, constraints, owners, budget, legal requireme
 3. Sequence dependencies.
 4. Attach owners, milestones, metrics, and evidence gates.
 5. Draft roadmap for human approval.
-

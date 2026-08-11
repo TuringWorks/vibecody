@@ -1,8 +1,10 @@
 ---
+name: "GCP Cloud Spanner"
+description: "GCP Cloud Spanner: Guidance for working with Cloud Spanner. Use when the task involves Spanner, cloud spanner, gcp spanner, spanner interleave, spanner query."
+category: cloud-gcp
 triggers: ["Spanner", "cloud spanner", "gcp spanner", "spanner interleave", "spanner query", "google spanner", "globally distributed database"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["gcloud"]
-category: cloud-gcp
 ---
 
 # GCP Cloud Spanner

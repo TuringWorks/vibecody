@@ -1,7 +1,9 @@
 ---
+name: "Email Automation (Gmail & Outlook)"
+description: "Email Automation (Gmail & Outlook): VibeCLI provides direct Gmail and Outlook integration via /email commands. Use when the task involves email, gmail, outlook, inbox, send email."
+category: productivity
 triggers: ["email", "gmail", "outlook", "inbox", "send email", "read email", "email triage", "unread emails", "email search"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: productivity
 ---
 
 # Email Automation (Gmail & Outlook)

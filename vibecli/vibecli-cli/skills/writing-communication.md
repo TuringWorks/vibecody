@@ -1,7 +1,9 @@
 ---
+name: "Writing and Professional Communication"
+description: "Writing and Professional Communication: Guidance for working with business writing and professional communication. Use when the task involves business writing, professional communication, email writing, memo writing, executive communication."
+category: personal-development
 triggers: ["business writing", "professional communication", "email writing", "memo writing", "executive communication", "clear writing"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: personal-development
 ---
 
 # Writing and Professional Communication

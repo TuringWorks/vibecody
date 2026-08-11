@@ -1,8 +1,10 @@
 ---
+name: "Fortran"
+description: "Fortran: Guidance for writing modern Fortran (Fortran 2008/2018) for scientific and HPC computing. Use when the task involves Fortran, Fortran 90, Fortran 2008, Fortran 2018, gfortran."
+category: fortran
 triggers: ["Fortran", "Fortran 90", "Fortran 2008", "Fortran 2018", "gfortran", "ifort", "HPC Fortran", "numerical Fortran", "Fortran array"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["gfortran"]
-category: fortran
 ---
 
 # Fortran

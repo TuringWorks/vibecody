@@ -1,7 +1,9 @@
 ---
+name: "Data Visualization Best Practices"
+description: "Data Visualization Best Practices: Guidance for working with data visualization. Use when the task involves data visualization, Tableau, Power BI, D3.js, Grafana."
+category: data-analytics
 triggers: ["data visualization", "Tableau", "Power BI", "D3.js", "Grafana", "dashboard design", "chart", "data storytelling"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: data-analytics
 ---
 
 # Data Visualization Best Practices

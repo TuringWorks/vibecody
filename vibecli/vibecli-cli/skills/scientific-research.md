@@ -1,7 +1,9 @@
 ---
+name: "Scientific Research Workflow"
+description: "Scientific Research Workflow: Guidance for supporting scientific research, computational experiments, and paper writing. Use when the task involves scientific research, research paper, experiment, hypothesis, statistical analysis."
+category: scientific
 triggers: ["scientific research", "research paper", "experiment", "hypothesis", "statistical analysis", "reproducibility", "peer review", "citation", "LaTeX", "scientific computing", "research workflow"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: scientific
 ---
 
 # Scientific Research Workflow

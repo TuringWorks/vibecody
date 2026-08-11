@@ -1,8 +1,10 @@
 ---
+name: "Cocoa / AppKit macOS Development"
+description: "Cocoa / AppKit macOS Development: Guidance for working with Cocoa and AppKit. Use when the task involves Cocoa, AppKit, NSWindow, NSViewController, macOS app."
+category: swift
 triggers: ["Cocoa", "AppKit", "NSWindow", "NSViewController", "macOS app", "core data mac", "cocoa bindings", "mac app development"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["xcodebuild"]
-category: swift
 ---
 
 # Cocoa / AppKit macOS Development

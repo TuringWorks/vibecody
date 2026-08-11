@@ -1,7 +1,9 @@
 ---
+name: "OpenFaaS Functions-as-a-Service"
+description: "OpenFaaS Functions-as-a-Service: Guidance for working with OpenFaaS. Use when the task involves OpenFaaS, openfaas, faas-cli, openfaas template, openfaas function."
+category: devops
 triggers: ["OpenFaaS", "openfaas", "faas-cli", "openfaas template", "openfaas function", "faasd", "openfaas kubernetes"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: devops
 ---
 
 # OpenFaaS Functions-as-a-Service

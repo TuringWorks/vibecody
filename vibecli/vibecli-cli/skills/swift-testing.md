@@ -1,8 +1,10 @@
 ---
+name: "Swift Testing"
+description: "Swift Testing: Guidance for testing Swift applications. Use when the task involves XCTest, swift test, UI testing swift, snapshot test swift, swift unit test."
+category: testing
 triggers: ["XCTest", "swift test", "UI testing swift", "snapshot test swift", "swift unit test"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["swift"]
-category: testing
 ---
 
 # Swift Testing

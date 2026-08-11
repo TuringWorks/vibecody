@@ -1,7 +1,9 @@
 ---
+name: "Networking and Relationship Building"
+description: "Networking and Relationship Building: Guidance for working with professional networking and relationship building. Use when the task involves professional networking, relationship building, LinkedIn networking, networking strategy, personal branding."
+category: personal-development
 triggers: ["professional networking", "relationship building", "LinkedIn networking", "networking strategy", "personal branding", "professional reputation"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: personal-development
 ---
 
 # Networking and Relationship Building

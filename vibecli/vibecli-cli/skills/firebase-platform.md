@@ -1,8 +1,10 @@
 ---
+name: "Firebase Platform"
+description: "Firebase Platform: Guidance for working with Firebase. Use when the task involves Firebase, firebase, firebase auth, firebase hosting, firebase messaging."
+category: cloud-firebase
 triggers: ["Firebase", "firebase", "firebase auth", "firebase hosting", "firebase messaging", "firebase analytics", "firebase emulator", "firebase rules"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["firebase"]
-category: cloud-firebase
 ---
 
 # Firebase Platform

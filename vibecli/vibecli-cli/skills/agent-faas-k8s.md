@@ -1,8 +1,10 @@
 ---
+name: "AI Agent Deployment on FaaS + Kubernetes"
+description: "AI Agent Deployment on FaaS + Kubernetes: Guidance for deploying AI agents on serverless and Kubernetes infrastructure. Use when the task involves agent kubernetes, agent faas, agent k8s, agent serverless, agent deployment."
+category: ai
 triggers: ["agent kubernetes", "agent faas", "agent k8s", "agent serverless", "agent deployment", "agent scaling", "agent orchestration kubernetes", "keda agent"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["kubectl"]
-category: ai
 ---
 
 # AI Agent Deployment on FaaS + Kubernetes

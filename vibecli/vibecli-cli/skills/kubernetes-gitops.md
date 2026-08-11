@@ -1,8 +1,10 @@
 ---
+name: "GitOps with ArgoCD and Flux"
+description: "GitOps with ArgoCD and Flux: Guidance for implementing GitOps workflows for Kubernetes deployments. Use when the task involves GitOps, ArgoCD, argo cd, Flux CD, gitops pattern."
+category: devops
 triggers: ["GitOps", "ArgoCD", "argo cd", "Flux CD", "gitops pattern", "argo rollouts", "applicationset", "progressive delivery"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["kubectl"]
-category: devops
 ---
 
 # GitOps with ArgoCD and Flux

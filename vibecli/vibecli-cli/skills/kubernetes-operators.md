@@ -1,8 +1,10 @@
 ---
+name: "Building Kubernetes Operators"
+description: "Building Kubernetes Operators: Guidance for working with Kubernetes operators. Use when the task involves k8s operator sdk, kubebuilder, operator pattern, controller-runtime, custom controller."
+category: devops
 triggers: ["k8s operator sdk", "kubebuilder", "operator pattern", "controller-runtime", "custom controller", "reconciliation loop"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["kubectl"]
-category: devops
 ---
 
 # Building Kubernetes Operators

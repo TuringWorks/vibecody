@@ -1,7 +1,9 @@
 ---
+name: "Code Generation Templates"
+description: "Code Generation Templates: Parameterized scaffolding for common code patterns with {{variable}} placeholders. Use when the task involves code template, scaffolding, code generation template, snippet template."
+category: automation
 triggers: ["code template", "scaffolding", "code generation template", "snippet template"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: automation
 ---
 
 # Code Generation Templates

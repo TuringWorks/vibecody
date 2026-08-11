@@ -1,7 +1,9 @@
 ---
+name: "Safety-Critical Systems"
+description: "Safety-Critical Systems: Guidance for developing software for safety-critical domains (automotive, rail, nuclear, industrial, medical devices). Use when the task involves safety critical, IEC 61508, ISO 26262, SIL, ASIL."
+category: safety-critical
 triggers: ["safety critical", "IEC 61508", "ISO 26262", "SIL", "ASIL", "functional safety", "fault tree", "FMEA", "hazard analysis", "safety integrity level", "safety case", "EN 50128", "nuclear safety"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: safety-critical
 ---
 
 # Safety-Critical Systems

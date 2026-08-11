@@ -1,7 +1,9 @@
 ---
+name: "Autonomous Vehicle and Drone Systems"
+description: "Autonomous Vehicle and Drone Systems: Guidance for working with autonomous vehicles, ADAS, and drone software. Use when the task involves autonomous vehicle, self-driving, ADAS, lidar, perception pipeline."
+category: robotics
 triggers: ["autonomous vehicle", "self-driving", "ADAS", "lidar", "perception pipeline", "path planning", "autonomous drone", "V2X", "HD map", "behavioral planning", "sensor calibration"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: robotics
 ---
 
 # Autonomous Vehicle and Drone Systems

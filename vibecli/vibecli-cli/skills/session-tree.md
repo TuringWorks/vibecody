@@ -1,8 +1,11 @@
 ---
+name: "Session Tree"
+description: "Session Tree: Rules for working with in-file session tree branching (session_tree module). Use when the task involves session tree, branch session, navigate history, /tree, branch history."
+category: session
 triggers: ["session tree", "branch session", "navigate history", "/tree", "branch history", "fork session", "session branch"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: session
 ---
+
 # Session Tree
 
 Rules for working with in-file session tree branching (`session_tree` module).

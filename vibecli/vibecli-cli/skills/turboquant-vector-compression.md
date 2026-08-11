@@ -1,7 +1,9 @@
 ---
+name: "TurboQuant Vector Compression"
+description: "TurboQuant Vector Compression: TurboQuant has higher recall than Product Quantization at comparable compression. Use when the task involves TurboQuant, vector compression, KV-cache compression, quantize embeddings."
+category: ai
 triggers: ["TurboQuant", "vector compression", "KV-cache compression", "quantize embeddings"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # TurboQuant Vector Compression

@@ -1,7 +1,9 @@
 ---
+name: "CRM Strategy"
+description: "CRM Strategy: Guidance for working with CRM systems and customer relationship management. Use when the task involves CRM, customer relationship management, HubSpot, Salesforce CRM, Dynamics 365."
+category: enterprise
 triggers: ["CRM", "customer relationship management", "HubSpot", "Salesforce CRM", "Dynamics 365", "Zoho CRM", "pipeline management"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: enterprise
 ---
 
 # CRM Strategy

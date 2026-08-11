@@ -116,7 +116,7 @@ struct HmacSha256 {
 
 impl HmacSha256 {
     fn new(key: &[u8]) -> Self {
-        use hmac::Mac;
+        use hmac::KeyInit;
         Self {
             mac: hmac::Hmac::<sha2::Sha256>::new_from_slice(key)
                 .expect("HMAC can take key of any size"),

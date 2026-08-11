@@ -1,7 +1,9 @@
 ---
+name: "Talent Acquisition"
+description: "Talent Acquisition: Guidance for working with talent acquisition and recruiting. Use when the task involves talent acquisition, recruiting, hiring process, sourcing candidates, employer branding."
+category: hr
 triggers: ["talent acquisition", "recruiting", "hiring process", "sourcing candidates", "employer branding", "ATS", "job posting"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: hr
 ---
 
 # Talent Acquisition

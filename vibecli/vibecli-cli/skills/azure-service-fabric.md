@@ -1,8 +1,10 @@
 ---
+name: "Azure Service Fabric"
+description: "Azure Service Fabric: Guidance for working with Azure Service Fabric. Use when the task involves Service Fabric, service fabric, reliable services, reliable actors, service fabric cluster."
+category: cloud-azure
 triggers: ["Service Fabric", "service fabric", "reliable services", "reliable actors", "service fabric cluster", "service fabric partition", "azure service fabric"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["sfctl"]
-category: cloud-azure
 ---
 
 # Azure Service Fabric

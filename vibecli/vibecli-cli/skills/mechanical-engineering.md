@@ -1,7 +1,9 @@
 ---
+name: "Mechanical Engineering & CAE Analysis"
+description: "Mechanical Engineering & CAE Analysis: Guidance for working with mechanical engineering and computer-aided engineering. Use when the task involves mechanical engineering, FEA, CFD, ANSYS, stress analysis."
+category: engineering
 triggers: ["mechanical engineering", "FEA", "CFD", "ANSYS", "stress analysis", "thermodynamics", "material science", "CAE"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: engineering
 ---
 
 # Mechanical Engineering & CAE Analysis

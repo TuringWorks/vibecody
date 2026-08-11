@@ -1,7 +1,9 @@
 ---
+name: "Infinite Code Context"
+description: "Infinite Code Context: Guidance for working with large codebases that exceed context window limits. Use when the task involves infinite context, context window, large codebase, context management, token budget."
+category: ai
 triggers: ["infinite context", "context window", "large codebase", "context management", "token budget", "context compression", "codebase understanding", "code context", "unlimited context"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # Infinite Code Context

@@ -1,7 +1,9 @@
 ---
+name: "Customs Brokerage and Clearance"
+description: "Customs Brokerage and Clearance: Compose this pack with the international-trade overlay and jurisdiction-specific customs law. Use when the task involves customs brokerage and clearance, customs brokerage, clearance."
+category: industry
 triggers: ["customs brokerage and clearance", "customs brokerage", "clearance"]
 tools_allowed: ["read_file", "write_file"]
-category: industry
 ---
 
 # Customs Brokerage and Clearance

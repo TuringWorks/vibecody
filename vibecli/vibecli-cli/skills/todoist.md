@@ -1,7 +1,9 @@
 ---
+name: "Todoist Integration"
+description: "Todoist Integration: VibeCLI connects to Todoist for task management via /todo (alias /todoist). Use when the task involves todoist, todo, task list, tasks today, add task."
+category: productivity
 triggers: ["todoist", "todo", "task list", "tasks today", "add task", "complete task", "task management", "inbox tasks", "due today"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: productivity
 ---
 
 # Todoist Integration

@@ -1,7 +1,9 @@
 ---
+name: "Finance - Hedge Fund & Quantitative Strategies"
+description: "Finance - Hedge Fund & Quantitative Strategies: Guidance for working with hedge fund and quantitative trading systems. Use when the task involves hedge fund, quant, alpha generation, systematic trading, signal."
+category: finance
 triggers: ["hedge fund", "quant", "alpha generation", "systematic trading", "signal", "quant strategy", "stat arb", "market neutral", "long-short", "factor investing", "risk model"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: finance
 ---
 
 # Finance - Hedge Fund & Quantitative Strategies

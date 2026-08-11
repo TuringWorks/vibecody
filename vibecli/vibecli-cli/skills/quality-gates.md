@@ -1,7 +1,9 @@
 ---
+name: "Quality Gates"
+description: "Quality Gates: Enforce configurable pass/fail criteria (tests, coverage, clippy, security, compilation) before marking a task complete. Use when the task involves quality gates, merge readiness, coverage threshold, blocking gate, green contract."
+category: testing
 triggers: ["quality gates", "merge readiness", "coverage threshold", "blocking gate", "green contract"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: testing
 ---
 
 # Quality Gates

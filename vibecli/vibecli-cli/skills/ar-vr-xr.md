@@ -1,7 +1,9 @@
 ---
+name: "AR/VR/XR Development"
+description: "AR/VR/XR Development: Guidance for building augmented reality, virtual reality, and spatial computing applications. Use when the task involves AR, VR, XR, augmented reality, virtual reality."
+category: xr
 triggers: ["AR", "VR", "XR", "augmented reality", "virtual reality", "mixed reality", "WebXR", "spatial computing", "3D rendering", "OpenXR"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: xr
 ---
 
 # AR/VR/XR Development

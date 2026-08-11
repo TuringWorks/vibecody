@@ -1,7 +1,9 @@
 ---
+name: "Agent Quota"
+description: "Agent Quota: Per-agent token, cost, time, and task quotas with soft-warn + hard-block enforcement. Use when the task involves agent quota, token quota, cost quota, per-agent budget."
+category: agent
 triggers: ["agent quota", "token quota", "cost quota", "per-agent budget"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: agent
 ---
 
 # Agent Quota

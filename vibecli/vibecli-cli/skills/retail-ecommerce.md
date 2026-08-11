@@ -1,7 +1,9 @@
 ---
+name: "Retail & E-Commerce Engineering"
+description: "Retail & E-Commerce Engineering: Guidance for working with retail and e-commerce systems. Use when the task involves e-commerce, ecommerce, retail, shopping cart, product catalog."
+category: retail
 triggers: ["e-commerce", "ecommerce", "retail", "shopping cart", "product catalog", "checkout", "POS", "point of sale", "order management", "inventory retail", "pricing engine", "promotions engine"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: retail
 ---
 
 # Retail & E-Commerce Engineering

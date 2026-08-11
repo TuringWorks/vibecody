@@ -1,7 +1,9 @@
 ---
+name: "gRPC & Protocol Buffers"
+description: "gRPC & Protocol Buffers: Guidance for building gRPC services. Use when the task involves gRPC, protobuf, Protocol Buffers, proto3, streaming RPC."
+category: api
 triggers: ["gRPC", "protobuf", "Protocol Buffers", "proto3", "streaming RPC", "tonic", "grpc-go"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: api
 ---
 
 # gRPC & Protocol Buffers

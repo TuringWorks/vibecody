@@ -1,8 +1,10 @@
 ---
+name: "Prisma ORM"
+description: "Prisma ORM: Guidance for working with Prisma. Use when the task involves Prisma, prisma schema, prisma migrate, prisma client, prisma studio."
+category: database
 triggers: ["Prisma", "prisma schema", "prisma migrate", "prisma client", "prisma studio", "prisma orm", "@prisma/client"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["npx"]
-category: database
 ---
 
 # Prisma ORM

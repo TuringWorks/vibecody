@@ -1,7 +1,9 @@
 ---
+name: "MLOps and Machine Learning Operations"
+description: "MLOps and Machine Learning Operations: Guidance for working with ML pipelines, model lifecycle management, and production ML systems. Use when the task involves MLOps, ML pipeline, model training, feature store, model registry."
+category: data
 triggers: ["MLOps", "ML pipeline", "model training", "feature store", "model registry", "model serving", "experiment tracking", "MLflow", "Kubeflow", "model monitoring"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: data
 ---
 
 # MLOps and Machine Learning Operations

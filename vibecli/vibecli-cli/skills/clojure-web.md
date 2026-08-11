@@ -1,8 +1,10 @@
 ---
+name: "Clojure Web Development"
+description: "Clojure Web Development: Guidance for working with Clojure web frameworks. Use when the task involves Clojure, ring, compojure, reitit, pedestal."
+category: clojure
 triggers: ["Clojure", "ring", "compojure", "reitit", "pedestal", "luminus", "clojure web", "leiningen"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["java"]
-category: clojure
 ---
 
 # Clojure Web Development

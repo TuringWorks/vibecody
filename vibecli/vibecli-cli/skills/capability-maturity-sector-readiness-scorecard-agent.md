@@ -1,7 +1,9 @@
 ---
+name: "Capability Maturity Assessment — Sector Readiness Scorecard Agent"
+description: "Capability Maturity Assessment — Sector Readiness Scorecard Agent: This agent builds evidence-based readiness scorecards for a sector or institution. Use when the task involves capability maturity sector readiness scorecard agent."
+category: strategy
 triggers: ["capability maturity sector readiness scorecard agent"]
 tools_allowed: ["read_file", "write_file"]
-category: strategy
 ---
 
 # Capability Maturity Assessment — Sector Readiness Scorecard Agent
@@ -41,4 +43,3 @@ Sector goals, current processes, digital maturity, workforce, infrastructure, bu
 3. Identify bottlenecks.
 4. Flag missing or weak data.
 5. Prepare readiness summary and next steps.
-

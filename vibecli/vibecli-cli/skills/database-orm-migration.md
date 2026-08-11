@@ -1,7 +1,9 @@
 ---
+name: "ORM Patterns & Database Migrations"
+description: "ORM Patterns & Database Migrations: Guidance for working with ORMs and migrations. Use when the task involves ORM, database migration, zero downtime migration, Prisma, Drizzle."
+category: database
 triggers: ["ORM", "database migration", "zero downtime migration", "Prisma", "Drizzle", "SQLAlchemy", "ActiveRecord migration"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: database
 ---
 
 # ORM Patterns & Database Migrations

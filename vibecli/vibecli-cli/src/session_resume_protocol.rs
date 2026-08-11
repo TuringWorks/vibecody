@@ -199,18 +199,15 @@ fn sort_value(v: serde_json::Value) -> serde_json::Value {
 mod tests {
     use super::*;
     use p256::ecdsa::SigningKey;
-    // p256's SigningKey::random binds to its bundled rand_core (older
-    // version than the top-level `rand` crate). Importing `rand::rngs::OsRng`
-    // here fails to satisfy `CryptoRngCore`; this is the same pattern the
-    // rest of the crate uses (see watch_auth.rs, signed_agent_card.rs).
-    use p256::elliptic_curve::rand_core::OsRng;
+    // Key generation uses `rand::rng()` — see the note in
+    // signed_agent_card.rs for why the OS RNG does not satisfy the bound.
 
     fn keypair() -> (Vec<u8>, Vec<u8>) {
-        let sk = SigningKey::random(&mut OsRng);
+        let sk = SigningKey::random(&mut rand::rng());
         let sk_bytes = sk.to_bytes().to_vec();
         let pk_sec1 = sk
             .verifying_key()
-            .to_encoded_point(false)
+            .to_sec1_point(false)
             .as_bytes()
             .to_vec();
         (sk_bytes, pk_sec1)

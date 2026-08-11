@@ -1,7 +1,9 @@
 ---
+name: "Task Scheduler"
+description: "Task Scheduler: let mut sched = Scheduler::new(); sched.add(CronTask::new(\"cleanup\", \"Nightly cleanup\", \"rm -rf /tmp/cache\", Schedule::Cron { hour: 2, minute: 0 }, 0)); sched.add(CronTas. Use when the task involves task scheduler, cron, interval task, schedule job, next run time."
+category: automation
 triggers: ["task scheduler", "cron", "interval task", "schedule job", "next run time"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: automation
 ---
 
 # Task Scheduler

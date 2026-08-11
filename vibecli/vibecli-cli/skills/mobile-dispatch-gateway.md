@@ -1,7 +1,9 @@
 ---
+name: "Mobile Dispatch Gateway"
+description: "Mobile Dispatch Gateway: Remote management of VibeCody CLI/UI sessions from iOS and Android devices. Use when the task involves mobile dispatch, mobile gateway, iOS Android control, remote session from phone."
+category: mobile
 triggers: ["mobile dispatch", "mobile gateway", "iOS Android control", "remote session from phone"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: mobile
 ---
 
 # Mobile Dispatch Gateway

@@ -1,7 +1,9 @@
 ---
+name: "Netlify Platform"
+description: "Netlify Platform: Guidance for working with Netlify. Use when the task involves Netlify, netlify deploy, netlify functions, netlify edge, netlify build plugin."
+category: cloud-netlify
 triggers: ["Netlify", "netlify deploy", "netlify functions", "netlify edge", "netlify build plugin", "netlify forms", "netlify identity"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: cloud-netlify
 ---
 
 # Netlify Platform

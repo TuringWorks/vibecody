@@ -1,7 +1,9 @@
 ---
+name: "session-export"
+description: "session-export: Export and import sessions as portable bundles (JSON, Markdown, CSV). Use when the task involves session export, export session, import session, session bundle."
+category: session
 triggers: ["session export", "export session", "import session", "session bundle"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: session
 ---
 
 # session-export

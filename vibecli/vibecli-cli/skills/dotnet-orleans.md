@@ -1,8 +1,10 @@
 ---
+name: "Microsoft Orleans"
+description: "Microsoft Orleans: Guidance for working with Microsoft Orleans. Use when the task involves Orleans, orleans, orleans grain, orleans silo, virtual actor."
+category: csharp
 triggers: ["Orleans", "orleans", "orleans grain", "orleans silo", "virtual actor", "orleans stream", "orleans persistence", "microsoft orleans"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["dotnet"]
-category: csharp
 ---
 
 # Microsoft Orleans

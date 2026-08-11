@@ -1,7 +1,9 @@
 ---
+name: "COBOL"
+description: "COBOL: Guidance for writing or modernizing COBOL code. Use when the task involves COBOL, mainframe, CICS, JCL, DB2 COBOL."
+category: cobol
 triggers: ["COBOL", "mainframe", "CICS", "JCL", "DB2 COBOL", "COBOL modernization", "batch processing COBOL", "copybook", "VSAM"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: cobol
 ---
 
 # COBOL

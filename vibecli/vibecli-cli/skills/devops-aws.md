@@ -1,8 +1,10 @@
 ---
+name: "AWS Cloud Services"
+description: "AWS Cloud Services: Guidance for building on AWS. Use when the task involves AWS, Lambda, S3, DynamoDB, ECS."
+category: devops
 triggers: ["AWS", "Lambda", "S3", "DynamoDB", "ECS", "IAM", "CloudFormation", "API Gateway"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["aws"]
-category: devops
 ---
 
 # AWS Cloud Services

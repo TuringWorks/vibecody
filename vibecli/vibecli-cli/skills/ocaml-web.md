@@ -1,8 +1,10 @@
 ---
+name: "OCaml Web Development"
+description: "OCaml Web Development: Guidance for working with OCaml web frameworks. Use when the task involves OCaml, dream ocaml, opium, dune, ocaml web."
+category: ocaml
 triggers: ["OCaml", "dream ocaml", "opium", "dune", "ocaml web", "ocaml lwt"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["ocaml"]
-category: ocaml
 ---
 
 # OCaml Web Development

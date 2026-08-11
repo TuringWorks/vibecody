@@ -1,7 +1,9 @@
 ---
+name: "Plugin Bundle"
+description: "Plugin Bundle: let manifest = BundleManifest { name: \"vibe-git\".into(), version: BundleVersion::parse(\"1.0.0\").unwrap(), author: \"VibeTeam\".into(), description: \"Git integration skills\". Use when the task involves plugin bundle, .vibepkg, install plugin, plugin manifest validation."
+category: developer-experience
 triggers: ["plugin bundle", ".vibepkg", "install plugin", "plugin manifest validation"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: developer-experience
 ---
 
 # Plugin Bundle

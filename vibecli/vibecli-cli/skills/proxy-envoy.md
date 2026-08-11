@@ -1,8 +1,10 @@
 ---
+name: "Envoy Proxy"
+description: "Envoy Proxy: Guidance for working with Envoy proxy. Use when the task involves Envoy proxy, envoy, envoy filter, envoy cluster, envoy listener."
+category: devops
 triggers: ["Envoy proxy", "envoy", "envoy filter", "envoy cluster", "envoy listener", "envoy sidecar", "xDS"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["envoy"]
-category: devops
 ---
 
 # Envoy Proxy

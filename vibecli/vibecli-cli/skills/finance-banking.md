@@ -1,7 +1,9 @@
 ---
+name: "Finance - Banking & Payments"
+description: "Finance - Banking & Payments: Guidance for working with banking and payment processing systems. Use when the task involves banking, core banking, payment processing, wire transfer, ACH."
+category: finance
 triggers: ["banking", "core banking", "payment processing", "wire transfer", "ACH", "SWIFT", "KYC", "AML", "loan origination", "credit scoring", "deposit", "open banking"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: finance
 ---
 
 # Finance - Banking & Payments

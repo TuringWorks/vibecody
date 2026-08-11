@@ -1,7 +1,9 @@
 ---
+name: "Contract Law Basics"
+description: "Contract Law Basics: Guidance for working with contracts and legal agreements. Use when the task involves contract law, legal agreements, NDA, SLA agreement, terms of service."
+category: legal
 triggers: ["contract law", "legal agreements", "NDA", "SLA agreement", "terms of service", "licensing agreement", "IP protection"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: legal
 ---
 
 # Contract Law Basics

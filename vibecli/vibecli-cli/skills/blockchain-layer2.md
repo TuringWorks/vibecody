@@ -1,7 +1,9 @@
 ---
+name: "Layer 2 and Scaling Solutions"
+description: "Layer 2 and Scaling Solutions: Guidance for working with Layer 2 solutions. Use when the task involves Layer 2, L2, optimistic rollup, ZK rollup, zkSync."
+category: blockchain
 triggers: ["Layer 2", "L2", "optimistic rollup", "ZK rollup", "zkSync", "StarkNet", "OP Stack", "Polygon CDK", "Arbitrum", "Base chain", "EIP-4844"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: blockchain
 ---
 
 # Layer 2 and Scaling Solutions

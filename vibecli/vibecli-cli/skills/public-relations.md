@@ -1,7 +1,9 @@
 ---
+name: "Public Relations"
+description: "Public Relations: Guidance for working with public relations and media communications. Use when the task involves public relations, PR, media relations, press release, crisis communications."
+category: marketing
 triggers: ["public relations", "PR", "media relations", "press release", "crisis communications", "reputation management", "media training"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: marketing
 ---
 
 # Public Relations

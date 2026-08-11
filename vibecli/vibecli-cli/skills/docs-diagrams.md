@@ -1,7 +1,9 @@
 ---
+name: "Technical Diagrams"
+description: "Technical Diagrams: Guidance for creating technical diagrams. Use when the task involves Mermaid, PlantUML, C4 model, sequence diagram, architecture diagram."
+category: documentation
 triggers: ["Mermaid", "PlantUML", "C4 model", "sequence diagram", "architecture diagram", "flowchart"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: documentation
 ---
 
 # Technical Diagrams

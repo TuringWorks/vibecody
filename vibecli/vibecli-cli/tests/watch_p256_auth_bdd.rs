@@ -54,7 +54,7 @@ fn a_fresh_manager(world: &mut P256World) {
 #[given("a P256 signing key is generated")]
 fn generate_p256_key(world: &mut P256World) {
     world.signing_key = Some(SigningKey::random(
-        &mut p256::elliptic_curve::rand_core::OsRng,
+        &mut rand::rng(),
     ));
 }
 
@@ -77,7 +77,7 @@ fn sign_challenge(world: &mut P256World) {
     msg.extend_from_slice(&world.issued_at.to_be_bytes());
 
     let sig: Signature = sk.sign(&msg);
-    let pk_uncompressed = vk.to_encoded_point(false);
+    let pk_uncompressed = vk.to_sec1_point(false);
     let pk_bytes = &pk_uncompressed.as_bytes()[1..]; // strip 0x04
 
     let req = world.build_req(pk_bytes, &sig.to_bytes());
@@ -101,7 +101,7 @@ fn call_with_short_key(world: &mut P256World) {
 fn call_with_zero_sig(world: &mut P256World) {
     let sk = world.signing_key.as_ref().expect("no signing key");
     let vk = sk.verifying_key();
-    let pk_uncompressed = vk.to_encoded_point(false);
+    let pk_uncompressed = vk.to_sec1_point(false);
     let pk_bytes = &pk_uncompressed.as_bytes()[1..];
     let sig = vec![0u8; 64];
     let req = world.build_req(pk_bytes, &sig);
@@ -117,7 +117,7 @@ fn call_with_zero_sig(world: &mut P256World) {
 fn sign_tampered_message(world: &mut P256World) {
     let sk = world.signing_key.as_ref().expect("no signing key");
     let vk = sk.verifying_key();
-    let pk_uncompressed = vk.to_encoded_point(false);
+    let pk_uncompressed = vk.to_sec1_point(false);
     let pk_bytes = &pk_uncompressed.as_bytes()[1..];
 
     // Sign the wrong message

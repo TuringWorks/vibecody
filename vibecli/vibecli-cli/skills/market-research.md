@@ -1,7 +1,9 @@
 ---
+name: "Market Research"
+description: "Market Research: Guidance for working with market research and consumer insights. Use when the task involves market research, consumer insights, survey design, focus groups, competitive intelligence."
+category: marketing
 triggers: ["market research", "consumer insights", "survey design", "focus groups", "competitive intelligence", "market sizing", "TAM SAM SOM"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: marketing
 ---
 
 # Market Research

@@ -1,7 +1,9 @@
 ---
+name: "Apache Flink Best Practices"
+description: "Apache Flink Best Practices: Guidance for working with Apache Flink. Use when the task involves Apache Flink, Flink SQL, stream processing Flink, CEP Flink, stateful streaming."
+category: data-engineering
 triggers: ["Apache Flink", "Flink SQL", "stream processing Flink", "CEP Flink", "stateful streaming"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: data-engineering
 ---
 
 # Apache Flink Best Practices

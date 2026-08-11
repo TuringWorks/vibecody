@@ -1,7 +1,9 @@
 ---
+name: "TiDB"
+description: "TiDB: Guidance for working with TiDB. Use when the task involves TiDB, tidb, tidb cloud, tikv, tiflash."
+category: database
 triggers: ["TiDB", "tidb", "tidb cloud", "tikv", "tiflash", "htap database", "mysql distributed"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: database
 ---
 
 # TiDB

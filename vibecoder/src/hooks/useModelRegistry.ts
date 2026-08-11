@@ -36,15 +36,34 @@ const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 export const STATIC_MODELS: Record<string, string[]> = {
   // claude-code uses the local Claude Code CLI — works with Free, Pro, Max, Team, and Enterprise plans
   // without consuming Anthropic API credits.
-  // claude-opus-4-8 is the highest *available* Anthropic model as of 2026-06: Fable 5 /
-  // Mythos 5 are deliberately omitted here — both were suspended for all customers by US
-  // export-control directive on 2026-06-12 and are not a routable production option.
-  "claude-code": ["claude-opus-5", "claude-sonnet-5", "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5"],
+  //
+  // Fable 5 restored 2026-08-10. The 2026-06-12 US export-control directive that
+  // suspended it was lifted on 06-30, and Fable 5 returned *globally* on 07-01
+  // after 19 days — the comment that used to sit here claiming it was "not a
+  // routable production option" was 40 days stale.
+  //
+  // Mythos 5 stays omitted, and for a different reason than before: it was
+  // restored only to approved *US organisations*, permanently. A flat string[]
+  // cannot say "available to some callers", so listing it would 403 for most
+  // users. It waits on per-model availability metadata.
+  "claude-code": ["claude-opus-5", "claude-fable-5", "claude-sonnet-5", "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5"],
   // claude-3-5-sonnet-20241022 removed 2026-08-05 — retired 2025-10-28 (404s).
-  claude: ["claude-opus-5", "claude-sonnet-5", "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5", "claude-sonnet-4-5"],
+  claude: ["claude-opus-5", "claude-fable-5", "claude-sonnet-5", "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5", "claude-sonnet-4-5"],
   openai: ["gpt-5.6-sol-pro", "gpt-5.6-sol", "gpt-5.6-terra-pro", "gpt-5.6-terra", "gpt-5.6-luna-pro", "gpt-5.6-luna", "gpt-5.5-pro", "gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-5.3-codex", "gpt-5.3-chat", "gpt-5", "gpt-4.1", "gpt-4.1-mini", "gpt-4o", "gpt-4o-mini"],
-  // gemini-3.5-pro GA'd end-June 2026 (2M context, Deep Think); 3.6-flash shipped 2026-07.
-  gemini: ["gemini-3.5-pro", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-pro", "gemini-3-pro", "gemini-2.5-pro", "gemini-2.5-flash"],
+  // gemini-3.6-flash is the current workhorse (shipped 2026-07-21).
+  //
+  // gemini-3.5-pro removed 2026-08-10: it has NEVER GA'd. It was announced at
+  // I/O on 2026-05-19, delayed three times, and as of August 2026 remains a
+  // limited Vertex AI preview for selected enterprise customers — absent from
+  // the consumer Gemini app and AI Studio. It was listed here (and defaulted
+  // to) on the strength of a *projection* written during a June refresh, so
+  // every user picking Gemini got a model id the API rejects on first call.
+  //
+  // RULE: only ship model ids that are shipped and callable today. A forecast
+  // belongs in a planning note, never in the registry — the narrative can
+  // absorb a wrong projection, the code cannot. Enforced by
+  // `defaults are present in their provider list` in useModelRegistry.test.ts.
+  gemini: ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-pro", "gemini-3-pro", "gemini-2.5-pro", "gemini-2.5-flash"],
   // llama-3.1-8b-instant / llama-3.3-70b-versatile were deprecated 2026-06-17 (Groq
   // points at gpt-oss-20b / gpt-oss-120b); mixtral-8x7b-32768 and gemma2-9b-it are gone.
   groq: ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b", "minimaxai/minimax-m2.7", "groq/compound", "groq/compound-mini"],
@@ -173,7 +192,7 @@ export const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
   "claude-code": "claude-opus-5",
   claude:       "claude-opus-5",
   openai:       "gpt-5.6-sol",
-  gemini:       "gemini-3.5-pro",
+  gemini:       "gemini-3.6-flash",
   groq:         "openai/gpt-oss-120b",
   grok:         "grok-4.5",
   mistral:      "mistral-large-latest",

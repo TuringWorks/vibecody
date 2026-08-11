@@ -1,7 +1,9 @@
 ---
+name: "Agent State Machine"
+description: "Agent State Machine: Formal FSM for the agent execution loop — exposes state (Idle/Planning/Executing/Reviewing/Blocked/Complete/Aborted) as a first-class API. Use when the task involves agent state machine, agent FSM, agent state transitions, agent status badge."
+category: agent
 triggers: ["agent state machine", "agent FSM", "agent state transitions", "agent status badge"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: agent
 ---
 
 # Agent State Machine

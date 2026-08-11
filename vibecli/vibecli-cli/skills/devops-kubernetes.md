@@ -1,8 +1,10 @@
 ---
+name: "Kubernetes"
+description: "Kubernetes: Guidance for deploying to Kubernetes. Use when the task involves Kubernetes, k8s, pod, deployment, service k8s."
+category: devops
 triggers: ["Kubernetes", "k8s", "pod", "deployment", "service k8s", "helm", "HPA", "kubectl"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["kubectl"]
-category: devops
 ---
 
 # Kubernetes

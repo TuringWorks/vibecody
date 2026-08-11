@@ -1,7 +1,9 @@
 ---
+name: "Specialized Sub-Agent Roles"
+description: "Specialized Sub-Agent Roles: Spawn typed sub-agents with domain-specific expertise for focused tasks. Use when the task involves sub-agent, spawn agent, code reviewer agent, test writer agent, security reviewer."
+category: agent
 triggers: ["sub-agent", "spawn agent", "code reviewer agent", "test writer agent", "security reviewer", "debugger agent", "architect agent"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: agent
 ---
 
 # Specialized Sub-Agent Roles

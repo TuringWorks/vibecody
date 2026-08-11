@@ -1,8 +1,10 @@
 ---
+name: "Crystal Web Development"
+description: "Crystal Web Development: Guidance for working with Crystal web frameworks. Use when the task involves Crystal, crystal lang, kemal, amber crystal, lucky framework."
+category: crystal
 triggers: ["Crystal", "crystal lang", "kemal", "amber crystal", "lucky framework", "crystal shards"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["crystal"]
-category: crystal
 ---
 
 # Crystal Web Development

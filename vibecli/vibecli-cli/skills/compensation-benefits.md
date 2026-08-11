@@ -1,7 +1,9 @@
 ---
+name: "Compensation and Benefits"
+description: "Compensation and Benefits: Guidance for working with compensation and benefits programs. Use when the task involves compensation, benefits, total rewards, salary structure, equity compensation."
+category: hr
 triggers: ["compensation", "benefits", "total rewards", "salary structure", "equity compensation", "pay equity", "benefits administration"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: hr
 ---
 
 # Compensation and Benefits

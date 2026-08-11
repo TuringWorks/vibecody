@@ -1,8 +1,10 @@
 ---
+name: "GCP BigQuery"
+description: "GCP BigQuery: Guidance for working with BigQuery. Use when the task involves BigQuery, bigquery, gcp bigquery, bq query, bigquery ml."
+category: cloud-gcp
 triggers: ["BigQuery", "bigquery", "gcp bigquery", "bq query", "bigquery ml", "bigquery streaming", "bigquery partition"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["gcloud"]
-category: cloud-gcp
 ---
 
 # GCP BigQuery

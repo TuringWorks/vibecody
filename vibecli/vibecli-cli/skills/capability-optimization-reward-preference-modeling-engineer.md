@@ -1,7 +1,9 @@
 ---
+name: "Capability & Optimization — Reward & preference modeling engineer"
+description: "Capability & Optimization — Reward & preference modeling engineer: The Reward & preference modeling engineer builds the reward, preference, and constitutional signals that shape behavior (RLHF, RLAIF, rule-based rewards). Use when the task involves reward & preference modeling engineer, capability optimization rewar..."
+category: strategy
 triggers: ["reward & preference modeling engineer", "capability optimization reward preference modeling engineer"]
 tools_allowed: ["read_file", "write_file"]
-category: strategy
 ---
 
 # Capability & Optimization — Reward & preference modeling engineer
@@ -74,9 +76,4 @@ Use it when a task calls for this work: builds the reward, preference, and const
 
 Compute, data, and connectivity budgets vary enormously; lower-resource settings push capability toward **smaller, on-device, and deterministic** methods, and toward distillation of expensive models into cheap ones. Re-read through:
 
-- **Scale** (city-state → federation): whether this role is unified or layered across local/regional/national tiers.
-- **State capacity** (fragile → high-capacity): whether the owning institution exists and can be held to account, or the job is met by markets, households, NGOs, or donors.
-- **Income level** (low → high): affordability of automation and the balance of subsistence vs. wage work.
-- **Formality** (informal → formal): whether the people and assets this role acts on appear in any registry at all.
-- **Resource & geography**: which hazards and dependencies dominate (water-scarce, flood-prone, landlocked, trade-dependent).
-- **Political system & legitimacy**: where the human-accountability boundary actually binds and who may hold power to account.
+> Shared pattern — see the `shared-national-context-modifiers` skill, section “Adapting to any nation (context modifiers)”.

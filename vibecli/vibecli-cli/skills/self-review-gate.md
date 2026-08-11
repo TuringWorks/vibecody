@@ -1,17 +1,9 @@
 ---
-name: Agent Self-Review Gate
+name: "Agent Self-Review Gate"
+description: "Agent Self-Review Gate: The self-review gate runs automated quality checks before an agent marks a task complete. Use when the task involves self-review, self review, review gate, agent review, pre-completion check."
 category: agent
-triggers:
-  - self-review
-  - self review
-  - review gate
-  - agent review
-  - pre-completion check
-  - quality gate
-  - lint check
-  - test before complete
-  - security scan
-  - auto-review
+triggers: ["self-review", "self review", "review gate", "agent review", "pre-completion check", "quality gate", "lint check", "test before complete", "security scan", "auto-review"]
+tools_allowed: ["read_file", "write_file", "bash"]
 ---
 
 # Agent Self-Review Gate

@@ -1,7 +1,9 @@
 ---
+name: "Electrical Engineering & PCB Design"
+description: "Electrical Engineering & PCB Design: Guidance for working with circuit and PCB design. Use when the task involves PCB design, electrical engineering, schematic, KiCad, Altium."
+category: engineering
 triggers: ["PCB design", "electrical engineering", "schematic", "KiCad", "Altium", "Eagle", "circuit design", "EDA"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: engineering
 ---
 
 # Electrical Engineering & PCB Design

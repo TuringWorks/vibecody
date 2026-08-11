@@ -1,7 +1,9 @@
 ---
+name: "TechEmpower Benchmark Optimization Patterns"
+description: "TechEmpower Benchmark Optimization Patterns: Guidance for working with TechEmpower-style benchmark optimization. Use when the task involves TechEmpower, techempower, framework benchmark, json serialization benchmark, fortunes test."
+category: performance
 triggers: ["TechEmpower", "techempower", "framework benchmark", "json serialization benchmark", "fortunes test", "plaintext benchmark", "database benchmark optimization"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: performance
 ---
 
 # TechEmpower Benchmark Optimization Patterns

@@ -1,7 +1,9 @@
 ---
+name: "App Server"
+description: "App Server: let mut server = AppServer::new(); server.register(\"ping\", Box::new(|_params| json!(\"pong\")));. Use when the task involves app server, JSON-RPC, JSON-RPC 2.0, server dispatcher, RPC handler."
+category: api
 triggers: ["app server", "JSON-RPC", "JSON-RPC 2.0", "server dispatcher", "RPC handler"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: api
 ---
 
 # App Server

@@ -1,7 +1,9 @@
 ---
+name: "Industry Taxonomy Router"
+description: "Industry Taxonomy Router: Use this skill to prevent category errors before selecting execution skills. Use when the task involves industry taxonomy router."
+category: agent
 triggers: ["industry taxonomy router"]
 tools_allowed: ["read_file", "write_file"]
-category: agent
 ---
 
 # Industry Taxonomy Router

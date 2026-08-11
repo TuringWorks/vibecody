@@ -1,8 +1,10 @@
 ---
+name: "Ethereum Development Ecosystem"
+description: "Ethereum Development Ecosystem: Guidance for working with Ethereum development. Use when the task involves Ethereum, ethereum, Hardhat, hardhat, Foundry."
+category: blockchain
 triggers: ["Ethereum", "ethereum", "Hardhat", "hardhat", "Foundry", "forge test", "ethers.js", "viem", "anvil", "cast send", "EVM"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["forge"]
-category: blockchain
 ---
 
 # Ethereum Development Ecosystem

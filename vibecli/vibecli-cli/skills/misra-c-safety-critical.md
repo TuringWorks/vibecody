@@ -1,8 +1,10 @@
 ---
+name: "MISRA C / Safety-Critical C"
+description: "MISRA C / Safety-Critical C: When writing C code for safety-critical systems under MISRA C:2012 and related standards. Use when the task involves MISRA C, MISRA C++, safety critical C, automotive C, CERT C."
+category: safety-critical
 triggers: ["MISRA C", "MISRA C++", "safety critical C", "automotive C", "CERT C", "IEC 61508 C", "ISO 26262 C", "embedded C safety", "static analysis C", "coding standard C"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["gcc"]
-category: safety-critical
 ---
 
 # MISRA C / Safety-Critical C

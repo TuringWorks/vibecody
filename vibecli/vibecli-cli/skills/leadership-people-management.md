@@ -1,7 +1,9 @@
 ---
+name: "Leadership and People Management"
+description: "Leadership and People Management: Guidance for leading engineering teams and managing people. Use when the task involves leadership, people management, team lead, engineering manager, managing engineers."
+category: management
 triggers: ["leadership", "people management", "team lead", "engineering manager", "managing engineers", "1:1 meetings"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: management
 ---
 
 # Leadership and People Management

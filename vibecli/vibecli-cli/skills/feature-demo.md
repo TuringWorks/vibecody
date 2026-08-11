@@ -1,7 +1,9 @@
 ---
+name: "Feature Demo Recording"
+description: "Feature Demo Recording: Record, generate, and export interactive feature demos using browser automation (CDP). Use when the task involves feature demo, record demo, browser automation demo, CDP recording."
+category: documentation
 triggers: ["feature demo", "record demo", "browser automation demo", "CDP recording"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: documentation
 ---
 
 # Feature Demo Recording

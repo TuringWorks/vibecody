@@ -1,8 +1,10 @@
 ---
+name: "GCP AlloyDB"
+description: "GCP AlloyDB: Guidance for working with AlloyDB. Use when the task involves AlloyDB, alloydb, gcp alloydb, google alloydb, alloydb ai."
+category: cloud-gcp
 triggers: ["AlloyDB", "alloydb", "gcp alloydb", "google alloydb", "alloydb ai", "alloydb omni"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["gcloud"]
-category: cloud-gcp
 ---
 
 # GCP AlloyDB

@@ -1,7 +1,9 @@
 ---
+name: "Information Integrity / Epistemic Security — Deepfake / Synthetic Media Response Agent"
+description: "Information Integrity / Epistemic Security — Deepfake / Synthetic Media Response Agent: This agent helps assess suspected synthetic media and prepare evidence-aware responses. Use when the task involves information integrity, epistemic security — deepfake, synthetic media response agent."
+category: security
 triggers: ["information integrity", "epistemic security — deepfake", "synthetic media response agent"]
 tools_allowed: ["read_file", "write_file"]
-category: security
 ---
 
 # Information Integrity / Epistemic Security — Deepfake / Synthetic Media Response Agent
@@ -41,4 +43,3 @@ Media file, metadata, source, claimed context, affected person/institution, corr
 3. Seek independent corroboration.
 4. Classify confidence and harm.
 5. Draft response and monitoring plan.
-

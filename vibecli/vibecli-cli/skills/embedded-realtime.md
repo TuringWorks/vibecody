@@ -1,7 +1,9 @@
 ---
+name: "Embedded Real-Time Systems"
+description: "Embedded Real-Time Systems: Guidance for developing embedded real-time software for safety-critical and mission-critical applications. Use when the task involves embedded real-time, RTOS, real-time operating system, VxWorks, FreeRTOS."
+category: safety-critical
 triggers: ["embedded real-time", "RTOS", "real-time operating system", "VxWorks", "FreeRTOS", "Zephyr", "WCET", "rate monotonic", "priority inversion", "interrupt handler", "bare metal", "embedded systems"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: safety-critical
 ---
 
 # Embedded Real-Time Systems

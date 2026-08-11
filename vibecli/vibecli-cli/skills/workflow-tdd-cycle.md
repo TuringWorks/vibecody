@@ -1,7 +1,9 @@
 ---
+name: "TDD Cycle Orchestration"
+description: "TDD Cycle Orchestration: Guidance for orchestrating a TDD workflow. Use when the task involves TDD cycle, red green refactor, test first development, test driven cycle."
+category: workflow
 triggers: ["TDD cycle", "red green refactor", "test first development", "test driven cycle"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: workflow
 ---
 
 # TDD Cycle Orchestration

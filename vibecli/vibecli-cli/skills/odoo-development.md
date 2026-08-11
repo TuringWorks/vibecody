@@ -1,8 +1,10 @@
 ---
+name: "Odoo ERP Development"
+description: "Odoo ERP Development: Guidance for working with Odoo ERP development. Use when the task involves Odoo, odoo, odoo module, odoo model, odoo view."
+category: odoo
 triggers: ["Odoo", "odoo", "odoo module", "odoo model", "odoo view", "odoo ORM", "odoo controller", "odoo.sh", "OWL odoo"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["python3"]
-category: odoo
 ---
 
 # Odoo ERP Development

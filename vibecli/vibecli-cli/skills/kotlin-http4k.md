@@ -1,8 +1,10 @@
 ---
+name: "Kotlin http4k Framework"
+description: "Kotlin http4k Framework: Guidance for working with http4k. Use when the task involves http4k, http4k lens, http4k filter, http4k contract, http4k testing."
+category: kotlin
 triggers: ["http4k", "http4k lens", "http4k filter", "http4k contract", "http4k testing"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["java"]
-category: kotlin
 ---
 
 # Kotlin http4k Framework

@@ -1,7 +1,9 @@
 ---
+name: "REST API Design"
+description: "REST API Design: Practical rules — e.g. Use nouns for resources: /users, /orders — not /getUsers. Use when the task involves REST API, API design, endpoint, HTTP method, status code."
+category: api-design
 triggers: ["REST API", "API design", "endpoint", "HTTP method", "status code"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: api-design
 ---
 
 # REST API Design

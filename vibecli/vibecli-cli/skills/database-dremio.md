@@ -1,7 +1,9 @@
 ---
+name: "Dremio"
+description: "Dremio: Guidance for working with Dremio. Use when the task involves Dremio, dremio, dremio query, data lakehouse, dremio reflections."
+category: database
 triggers: ["Dremio", "dremio", "dremio query", "data lakehouse", "dremio reflections", "apache iceberg dremio", "dremio sonar"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: database
 ---
 
 # Dremio

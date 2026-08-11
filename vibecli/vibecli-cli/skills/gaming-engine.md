@@ -1,7 +1,9 @@
 ---
+name: "Game Engine Development"
+description: "Game Engine Development: Guidance for working with game engines, rendering, and game architecture. Use when the task involves game engine, Unity, Unreal, Godot, game development."
+category: gaming
 triggers: ["game engine", "Unity", "Unreal", "Godot", "game development", "ECS", "game loop", "physics engine", "rendering pipeline", "shader"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: gaming
 ---
 
 # Game Engine Development

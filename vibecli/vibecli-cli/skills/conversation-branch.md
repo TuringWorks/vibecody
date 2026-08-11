@@ -1,7 +1,9 @@
 ---
+name: "Conversation Branching"
+description: "Conversation Branching: Fork a conversation session at any message, explore alternative directions, and compare or restore branches. Use when the task involves conversation branch, fork conversation, branch session, restore branch."
+category: session
 triggers: ["conversation branch", "fork conversation", "branch session", "restore branch"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: session
 ---
 
 # Conversation Branching

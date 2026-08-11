@@ -1,7 +1,9 @@
 ---
+name: "Remote Control"
+description: "Remote Control: Control VibeCLI sessions from mobile devices or web browsers. Use when the task involves remote control, mobile access, QR code, phone control, remote session."
+category: mobile
 triggers: ["remote control", "mobile access", "QR code", "phone control", "remote session", "browser control", "pair device"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: mobile
 ---
 
 # Remote Control

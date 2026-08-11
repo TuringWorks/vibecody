@@ -1,7 +1,9 @@
 ---
+name: "Utilities and Network Infrastructure"
+description: "Utilities and Network Infrastructure: This overlay composes OS 06, 07, 11, 12, 19, and 22. Use when the task involves utilities and network infrastructure, utilities, network infrastructure."
+category: industry
 triggers: ["utilities and network infrastructure", "utilities", "network infrastructure"]
 tools_allowed: ["read_file", "write_file"]
-category: industry
 ---
 
 # Utilities and Network Infrastructure

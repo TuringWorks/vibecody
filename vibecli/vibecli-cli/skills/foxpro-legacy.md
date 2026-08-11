@@ -1,7 +1,9 @@
 ---
+name: "Visual FoxPro / xBase"
+description: "Visual FoxPro / xBase: Guidance for maintaining or migrating Visual FoxPro code. Use when the task involves FoxPro, Visual FoxPro, VFP, dBASE, xBase."
+category: legacy
 triggers: ["FoxPro", "Visual FoxPro", "VFP", "dBASE", "xBase", "FoxPro migration", "DBF files"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: legacy
 ---
 
 # Visual FoxPro / xBase

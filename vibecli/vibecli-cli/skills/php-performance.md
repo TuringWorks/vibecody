@@ -1,8 +1,10 @@
 ---
+name: "High-Performance PHP (Swoole, RoadRunner, FrankenPHP)"
+description: "High-Performance PHP (Swoole, RoadRunner, FrankenPHP): Guidance for working with high-performance PHP. Use when the task involves Swoole, openswoole, RoadRunner, FrankenPHP, php async."
+category: php
 triggers: ["Swoole", "openswoole", "RoadRunner", "FrankenPHP", "php async", "php performance", "hyperf", "reactphp"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["php"]
-category: php
 ---
 
 # High-Performance PHP (Swoole, RoadRunner, FrankenPHP)

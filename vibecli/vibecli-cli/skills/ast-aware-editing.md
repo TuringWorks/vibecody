@@ -1,7 +1,9 @@
 ---
+name: "AST-Aware Code Editing"
+description: "AST-Aware Code Editing: Apply deterministic code edits using AST node targeting instead of text-based diffs. Use when the task involves ast edit, structural edit, rename function, move method, refactor struct."
+category: code-intelligence
 triggers: ["ast edit", "structural edit", "rename function", "move method", "refactor struct", "extract function", "wrap in module"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: code-intelligence
 ---
 
 # AST-Aware Code Editing

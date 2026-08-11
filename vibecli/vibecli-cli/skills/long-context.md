@@ -1,7 +1,9 @@
 ---
+name: "Long Context (2M–10M Token) Strategies"
+description: "Long Context (2M–10M Token) Strategies: Guidance for working with extremely large codebases or documents requiring multi-million token contexts. Use when the task involves long context, ultra long context, 2M tokens, 10M tokens, large codebase ingestion."
+category: ai
 triggers: ["long context", "ultra long context", "2M tokens", "10M tokens", "large codebase ingestion"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # Long Context (2M–10M Token) Strategies

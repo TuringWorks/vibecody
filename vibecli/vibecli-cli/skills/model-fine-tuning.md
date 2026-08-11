@@ -1,7 +1,9 @@
 ---
+name: "Model Fine-Tuning for Code"
+description: "Model Fine-Tuning for Code: Guidance for preparing datasets, launching fine-tuning jobs, or evaluating custom coding models. Use when the task involves fine-tune, fine tuning, finetune, model training, LoRA."
+category: ai-models
 triggers: ["fine-tune", "fine tuning", "finetune", "model training", "LoRA", "SWE-bench", "training data", "dataset preparation", "custom model", "coding model", "adapter", "training job"]
 tools_allowed: ["read_file", "write_file", "bash", "search_files"]
-category: ai-models
 ---
 
 # Model Fine-Tuning for Code

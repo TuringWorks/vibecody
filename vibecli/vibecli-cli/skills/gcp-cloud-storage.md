@@ -1,8 +1,10 @@
 ---
+name: "GCP Cloud Storage"
+description: "GCP Cloud Storage: Guidance for working with Cloud Storage. Use when the task involves Cloud Storage, gcs, gcp storage, google cloud storage, gcs bucket."
+category: cloud-gcp
 triggers: ["Cloud Storage", "gcs", "gcp storage", "google cloud storage", "gcs bucket", "signed URL gcp", "storage lifecycle"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["gcloud"]
-category: cloud-gcp
 ---
 
 # GCP Cloud Storage

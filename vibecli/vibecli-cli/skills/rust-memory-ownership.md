@@ -1,8 +1,10 @@
 ---
+name: "Rust Memory & Ownership"
+description: "Rust Memory & Ownership: Guidance for working with Rust's ownership system. Use when the task involves borrow checker, lifetime, ownership, Pin, Drop."
+category: rust
 triggers: ["borrow checker", "lifetime", "ownership", "Pin", "Drop", "smart pointer", "Rc", "Arc", "Box", "Cow"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["cargo"]
-category: rust
 ---
 
 # Rust Memory & Ownership

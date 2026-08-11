@@ -1,7 +1,9 @@
 ---
+name: "GPU Inference Serving"
+description: "GPU Inference Serving: Guidance for deploying and optimizing model inference. Use when the task involves inference serving, model serving, vLLM, TGI, Triton."
+category: ai
 triggers: ["inference serving", "model serving", "vLLM", "TGI", "Triton", "model deployment", "inference optimization"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # GPU Inference Serving

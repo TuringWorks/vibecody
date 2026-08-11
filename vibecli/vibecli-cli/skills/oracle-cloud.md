@@ -1,8 +1,10 @@
 ---
+name: "Oracle Cloud Infrastructure (OCI)"
+description: "Oracle Cloud Infrastructure (OCI): Guidance for working with Oracle Cloud Infrastructure. Use when the task involves OCI, oracle cloud, autonomous database, oracle oci, oci compartment."
+category: cloud-oci
 triggers: ["OCI", "oracle cloud", "autonomous database", "oracle oci", "oci compartment", "oci vcn", "oracle kubernetes", "oci functions"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["oci"]
-category: cloud-oci
 ---
 
 # Oracle Cloud Infrastructure (OCI)

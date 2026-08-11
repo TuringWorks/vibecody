@@ -1,7 +1,9 @@
 ---
+name: "Pull Request Best Practices"
+description: "Pull Request Best Practices: Guidance for creating and managing pull requests. Use when the task involves pull request, PR description, PR workflow, review process, CI gate."
+category: review
 triggers: ["pull request", "PR description", "PR workflow", "review process", "CI gate", "merge strategy"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: review
 ---
 
 # Pull Request Best Practices

@@ -1,7 +1,9 @@
 ---
+name: "Standup & Status Reporting"
+description: "Standup & Status Reporting: Guidance for preparing status updates and progress reports. Use when the task involves standup, status report, progress tracking, daily update, blockers report."
+category: workflow
 triggers: ["standup", "status report", "progress tracking", "daily update", "blockers report", "sprint update"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: workflow
 ---
 
 # Standup & Status Reporting

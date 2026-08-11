@@ -1,7 +1,9 @@
 ---
+name: "Customer Success"
+description: "Customer Success: Guidance for managing customer success and retention. Use when the task involves customer success, client management, client engagement, customer retention, NPS."
+category: strategy
 triggers: ["customer success", "client management", "client engagement", "customer retention", "NPS", "CSAT", "churn"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: strategy
 ---
 
 # Customer Success

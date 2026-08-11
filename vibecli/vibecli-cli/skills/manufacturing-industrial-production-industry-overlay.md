@@ -1,7 +1,9 @@
 ---
+name: "Manufacturing and Industrial Production"
+description: "Manufacturing and Industrial Production: This overlay composes OS 07, 08, 09, 11, 12, 15, 19, and 20. Use when the task involves manufacturing and industrial production, manufacturing, industrial production."
+category: industry
 triggers: ["manufacturing and industrial production", "manufacturing", "industrial production"]
 tools_allowed: ["read_file", "write_file"]
-category: industry
 ---
 
 # Manufacturing and Industrial Production

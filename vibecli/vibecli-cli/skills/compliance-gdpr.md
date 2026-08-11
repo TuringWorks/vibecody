@@ -1,7 +1,9 @@
 ---
+name: "GDPR and Data Privacy Compliance"
+description: "GDPR and Data Privacy Compliance: Guidance for implementing data privacy and GDPR compliance. Use when the task involves GDPR, data privacy, CCPA, right to erasure, privacy by design."
+category: compliance
 triggers: ["GDPR", "data privacy", "CCPA", "right to erasure", "privacy by design", "cookie consent", "data retention", "DPA"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: compliance
 ---
 
 # GDPR and Data Privacy Compliance

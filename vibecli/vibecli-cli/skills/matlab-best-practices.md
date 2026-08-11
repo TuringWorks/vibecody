@@ -1,8 +1,10 @@
 ---
+name: "MATLAB Best Practices"
+description: "MATLAB Best Practices: Guidance for writing MATLAB code for engineering and scientific computing. Use when the task involves MATLAB, Simulink, matlab script, matlab function, .m file."
+category: matlab
 triggers: ["MATLAB", "Simulink", "matlab script", "matlab function", ".m file", "MEX", "matlab toolbox", "matlab plot", "matlab matrix"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["matlab"]
-category: matlab
 ---
 
 # MATLAB Best Practices

@@ -1,7 +1,9 @@
 ---
+name: "CLI to IDE Context Bridging"
+description: "CLI to IDE Context Bridging: Guidance for bridging context between the CLI agent and an IDE (VibeCoder or external editors). Use when the task involves IDE bridge, CLI IDE context, VibeCoder context, open files agent, IDE state."
+category: developer-experience
 triggers: ["IDE bridge", "CLI IDE context", "VibeCoder context", "open files agent", "IDE state"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: developer-experience
 ---
 
 # CLI to IDE Context Bridging

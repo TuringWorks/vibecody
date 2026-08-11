@@ -1,7 +1,9 @@
 ---
+name: "Entrepreneurship and Startups"
+description: "Entrepreneurship and Startups: Guidance for building and scaling a startup. Use when the task involves entrepreneurship, startup, MVP, lean startup, product-market fit."
+category: strategy
 triggers: ["entrepreneurship", "startup", "MVP", "lean startup", "product-market fit", "bootstrapping", "fundraising"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: strategy
 ---
 
 # Entrepreneurship and Startups

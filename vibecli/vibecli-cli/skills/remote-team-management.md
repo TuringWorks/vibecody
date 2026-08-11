@@ -1,7 +1,9 @@
 ---
+name: "Remote and Distributed Team Management"
+description: "Remote and Distributed Team Management: Guidance for managing remote, distributed, or hybrid teams. Use when the task involves remote team, distributed team, remote work, async communication, virtual collaboration."
+category: management
 triggers: ["remote team", "distributed team", "remote work", "async communication", "virtual collaboration", "hybrid work"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: management
 ---
 
 # Remote and Distributed Team Management

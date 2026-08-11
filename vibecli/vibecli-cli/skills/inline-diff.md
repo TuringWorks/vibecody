@@ -1,7 +1,9 @@
 ---
+name: "Inline Diff Accept/Reject"
+description: "Inline Diff Accept/Reject: Hunk-level patch application with partial acceptance. Use when the task involves inline diff, accept hunk, reject hunk, partial patch application."
+category: review
 triggers: ["inline diff", "accept hunk", "reject hunk", "partial patch application"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: review
 ---
 
 # Inline Diff Accept/Reject

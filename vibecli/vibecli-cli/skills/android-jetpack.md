@@ -1,8 +1,10 @@
 ---
+name: "Android Jetpack Compose & Modern Android"
+description: "Android Jetpack Compose & Modern Android: Guidance for working with Android Jetpack Compose. Use when the task involves Jetpack Compose, android compose, compose ui, android viewmodel, android room."
+category: android
 triggers: ["Jetpack Compose", "android compose", "compose ui", "android viewmodel", "android room", "hilt android", "android navigation compose", "material3 android"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["gradle"]
-category: android
 ---
 
 # Android Jetpack Compose & Modern Android

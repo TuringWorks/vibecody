@@ -1,8 +1,10 @@
 ---
+name: "Azure Blob Storage Programming"
+description: "Azure Blob Storage Programming: Guidance for working with Azure Blob Storage. Use when the task involves Blob Storage, azure blob, azure storage, blob container, SAS token."
+category: cloud-azure
 triggers: ["Blob Storage", "azure blob", "azure storage", "blob container", "SAS token", "blob tier", "azure storage account"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["az"]
-category: cloud-azure
 ---
 
 # Azure Blob Storage Programming

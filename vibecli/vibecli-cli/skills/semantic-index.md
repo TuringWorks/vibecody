@@ -1,7 +1,9 @@
 ---
+name: "Semantic Index"
+description: "Semantic Index: Deep semantic code indexing that builds call graphs, type hierarchies, import chains, and cross-reference maps. Use when the task involves semantic index, call graph, type hierarchy, cross-reference map, find callers."
+category: code-intelligence
 triggers: ["semantic index", "call graph", "type hierarchy", "cross-reference map", "find callers"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: code-intelligence
 ---
 
 # Semantic Index

@@ -1,7 +1,9 @@
 ---
+name: "OAuth Login for AI Providers"
+description: "OAuth Login for AI Providers: Guidance for implementing or extending subscription-based OAuth authentication for AI providers. Use when the task involves OAuth login, OAuth credentials, Claude Pro, Max subscription, GitHub Copilot auth."
+category: security
 triggers: ["OAuth login", "OAuth credentials", "Claude Pro", "Max subscription", "GitHub Copilot auth", "Gemini CLI login", "ChatGPT Plus", "device code flow", "token refresh", "subscription auth", "OAuthManager", "OAuthProvider", "oauth_login"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: security
 ---
 
 # OAuth Login for AI Providers

@@ -1,8 +1,10 @@
 ---
+name: "Actix-web Framework"
+description: "Actix-web Framework: Guidance for working with Actix-web. Use when the task involves actix-web, actix, actix handler, actix middleware, actix extractors."
+category: rust
 triggers: ["actix-web", "actix", "actix handler", "actix middleware", "actix extractors"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["cargo"]
-category: rust
 ---
 
 # Actix-web Framework

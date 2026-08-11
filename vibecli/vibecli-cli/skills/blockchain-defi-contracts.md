@@ -1,7 +1,9 @@
 ---
+name: "DeFi Smart Contract Patterns"
+description: "DeFi Smart Contract Patterns: Guidance for working with DeFi smart contracts. Use when the task involves DeFi contract, AMM contract, flash loan, ERC4626, Chainlink oracle."
+category: blockchain
 triggers: ["DeFi contract", "AMM contract", "flash loan", "ERC4626", "Chainlink oracle", "liquidity pool contract", "yield vault", "governance contract", "DAO voting", "Uniswap"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: blockchain
 ---
 
 # DeFi Smart Contract Patterns

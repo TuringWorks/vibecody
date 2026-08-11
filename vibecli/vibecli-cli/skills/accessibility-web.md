@@ -1,7 +1,9 @@
 ---
+name: "Web Accessibility Best Practices"
+description: "Web Accessibility Best Practices: Guidance for building accessible web applications. Use when the task involves accessibility, a11y, WCAG, ARIA, screen reader."
+category: accessibility
 triggers: ["accessibility", "a11y", "WCAG", "ARIA", "screen reader", "keyboard navigation", "focus management", "color contrast", "alt text"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: accessibility
 ---
 
 # Web Accessibility Best Practices

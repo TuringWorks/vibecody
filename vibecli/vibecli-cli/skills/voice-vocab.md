@@ -1,7 +1,9 @@
 ---
+name: "Codebase-Specific Voice Recognition"
+description: "Codebase-Specific Voice Recognition: Guidance for configuring speech recognition for coding and codebase-specific vocabulary. Use when the task involves voice coding, speech recognition, Whisper vocabulary, codebase voice, voice accuracy."
+category: developer-experience
 triggers: ["voice coding", "speech recognition", "Whisper vocabulary", "codebase voice", "voice accuracy"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: developer-experience
 ---
 
 # Codebase-Specific Voice Recognition

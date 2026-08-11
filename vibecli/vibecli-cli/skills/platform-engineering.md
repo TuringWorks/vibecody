@@ -1,7 +1,9 @@
 ---
+name: "Platform Engineering"
+description: "Platform Engineering: Guidance for building Internal Developer Platforms and self-service infrastructure. Use when the task involves platform engineering, internal developer platform, Backstage, Crossplane, golden path."
+category: devops
 triggers: ["platform engineering", "internal developer platform", "Backstage", "Crossplane", "golden path", "developer portal", "self-service infrastructure", "Kratix", "paved road"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: devops
 ---
 
 # Platform Engineering

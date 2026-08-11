@@ -1,7 +1,9 @@
 ---
+name: "Hard Problem Decomposition and Solving"
+description: "Hard Problem Decomposition and Solving: Guidance for tackling complex, ambiguous, or multi-file engineering problems. Use when the task involves complex problem, hard problem, multi-file refactor, ambiguous spec, problem decomposition."
+category: agent
 triggers: ["complex problem", "hard problem", "multi-file refactor", "ambiguous spec", "problem decomposition"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: agent
 ---
 
 # Hard Problem Decomposition and Solving

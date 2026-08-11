@@ -1,7 +1,9 @@
 ---
+name: "Input Validation & Security"
+description: "Input Validation & Security: Practical rules — e.g. Validate ALL user input at system boundaries (API endpoints, CLI args, form data). Use when the task involves input validation, sanitize, XSS, SQL injection, OWASP."
+category: security
 triggers: ["input validation", "sanitize", "XSS", "SQL injection", "OWASP", "security"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: security
 ---
 
 # Input Validation & Security

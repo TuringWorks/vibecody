@@ -1,7 +1,9 @@
 ---
+name: "MCP Lazy Tool Schema Loading"
+description: "MCP Lazy Tool Schema Loading: Guidance for implementing or using deferred MCP tool schema loading to reduce upfront context. Use when the task involves mcp tool search, lazy tool schema, deferred schema, tool registry, context reduction."
+category: ai
 triggers: ["mcp tool search", "lazy tool schema", "deferred schema", "tool registry", "context reduction", "tool stub", "schema on demand", "MCP tool loading"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # MCP Lazy Tool Schema Loading

@@ -1,7 +1,9 @@
 ---
+name: "Quality Management"
+description: "Quality Management: Guidance for working with quality management and continuous improvement. Use when the task involves quality management, Six Sigma, Lean, continuous improvement, ISO 9001."
+category: operations
 triggers: ["quality management", "Six Sigma", "Lean", "continuous improvement", "ISO 9001", "TQM", "kaizen", "process improvement"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: operations
 ---
 
 # Quality Management

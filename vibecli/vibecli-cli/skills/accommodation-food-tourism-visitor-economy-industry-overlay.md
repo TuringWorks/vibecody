@@ -1,7 +1,9 @@
 ---
-triggers: ["accommodation, food, tourism, and visitor economy", "accommodation", "food", "tourism", "visitor economy"]
-tools_allowed: ["read_file", "write_file"]
+name: "Accommodation, Food, Tourism, and Visitor Economy"
+description: "Accommodation, Food, Tourism, and Visitor Economy: This overlay composes OS 05, 11, 12, 16, 17, 18, and 20. Use when the task involves accommodation, food, tourism, and visitor economy, accommodation, tourism, visitor economy."
 category: industry
+triggers: ["accommodation, food, tourism, and visitor economy", "accommodation", "tourism", "visitor economy"]
+tools_allowed: ["read_file", "write_file"]
 ---
 
 # Accommodation, Food, Tourism, and Visitor Economy

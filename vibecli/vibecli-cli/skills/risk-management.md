@@ -1,7 +1,9 @@
 ---
+name: "Risk Management"
+description: "Risk Management: Guidance for working with risk assessment and mitigation. Use when the task involves risk management, risk assessment, risk mitigation, risk register, enterprise risk."
+category: management
 triggers: ["risk management", "risk assessment", "risk mitigation", "risk register", "enterprise risk", "operational risk", "risk matrix"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: management
 ---
 
 # Risk Management

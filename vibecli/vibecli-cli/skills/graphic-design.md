@@ -1,7 +1,9 @@
 ---
+name: "Graphic Design"
+description: "Graphic Design: Guidance for working with graphic design. Use when the task involves graphic design, Illustrator, InDesign, print design, layout."
+category: design
 triggers: ["graphic design", "Illustrator", "InDesign", "print design", "layout", "typography", "branding design", "logo design"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: design
 ---
 
 # Graphic Design

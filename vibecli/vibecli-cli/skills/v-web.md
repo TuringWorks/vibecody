@@ -1,7 +1,9 @@
 ---
+name: "V Language Web"
+description: "V Language Web: Guidance for working with V for web development. Use when the task involves V lang, vlang, veb, v web."
+category: v
 triggers: ["V lang", "vlang", "veb", "v web"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: v
 ---
 
 # V Language Web

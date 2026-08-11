@@ -1,8 +1,10 @@
 ---
+name: "Vue.js"
+description: "Vue.js: Guidance for working with Vue. Use when the task involves Vue, vue, vue3, composition api, Pinia."
+category: frontend
 triggers: ["Vue", "vue", "vue3", "composition api", "Pinia", "Nuxt", "vue router", "vue composable", "vue reactive"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["node"]
-category: frontend
 ---
 
 # Vue.js

@@ -1,7 +1,9 @@
 ---
+name: "Cloud Cost Optimization"
+description: "Cloud Cost Optimization: Guidance for optimizing cloud spending. Use when the task involves cloud cost, cost optimization, right-sizing, spot instance, cloud spending."
+category: workflow
 triggers: ["cloud cost", "cost optimization", "right-sizing", "spot instance", "cloud spending", "FinOps"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: workflow
 ---
 
 # Cloud Cost Optimization

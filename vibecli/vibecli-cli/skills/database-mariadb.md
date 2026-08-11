@@ -1,7 +1,9 @@
 ---
+name: "MariaDB"
+description: "MariaDB: Guidance for working with MariaDB. Use when the task involves MariaDB, mariadb, mariadb query, galera cluster, mariadb columnstore."
+category: database
 triggers: ["MariaDB", "mariadb", "mariadb query", "galera cluster", "mariadb columnstore", "mariadb replication"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: database
 ---
 
 # MariaDB

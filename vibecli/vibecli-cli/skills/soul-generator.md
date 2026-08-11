@@ -1,7 +1,9 @@
 ---
+name: "Soul.md Generator"
+description: "Soul.md Generator: Generate a SOUL.md file that captures a project's philosophy, core beliefs, and design principles. Use when the task involves SOUL.md, soul generator, project philosophy, design principles document."
+category: documentation
 triggers: ["SOUL.md", "soul generator", "project philosophy", "design principles document"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: documentation
 ---
 
 # Soul.md Generator

@@ -1,7 +1,9 @@
 ---
+name: "Claw Code Framework Compatibility"
+description: "Claw Code Framework Compatibility: Guidance for integrating VibeCody agents with the Claw Code open-source agent framework. Use when the task involves Claw Code, ClawCode, open source agent framework, agent framework compat, worker protocol."
+category: protocols
 triggers: ["Claw Code", "ClawCode", "open source agent framework", "agent framework compat", "worker protocol"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: protocols
 ---
 
 # Claw Code Framework Compatibility

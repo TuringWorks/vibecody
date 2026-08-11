@@ -1,7 +1,9 @@
 ---
+name: "Medical Research & Clinical Data"
+description: "Medical Research & Clinical Data: Guidance for working on medical research, clinical trials, and health data analysis. Use when the task involves medical research, clinical trial, biostatistics, epidemiology, survival analysis."
+category: scientific
 triggers: ["medical research", "clinical trial", "biostatistics", "epidemiology", "survival analysis", "clinical data", "HIPAA", "HL7", "FHIR", "electronic health records", "EHR", "pharmacovigilance", "drug discovery"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: scientific
 ---
 
 # Medical Research & Clinical Data

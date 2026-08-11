@@ -1,7 +1,9 @@
 ---
+name: "Industrial Automation and Factory Robotics"
+description: "Industrial Automation and Factory Robotics: Guidance for working with industrial automation, PLC programming, and factory systems. Use when the task involves industrial automation, PLC, SCADA, OPC-UA, MES."
+category: robotics
 triggers: ["industrial automation", "PLC", "SCADA", "OPC-UA", "MES", "digital twin", "cobot", "pick and place", "conveyor", "industrial IoT", "factory automation"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: robotics
 ---
 
 # Industrial Automation and Factory Robotics

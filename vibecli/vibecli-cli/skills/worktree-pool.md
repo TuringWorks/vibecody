@@ -1,7 +1,9 @@
 ---
+name: "Worktree Pool"
+description: "Worktree Pool: Parallel agent execution using git worktrees. Use when the task involves worktree pool, git worktree, parallel agents in worktrees, merge worktree results."
+category: workflow
 triggers: ["worktree pool", "git worktree", "parallel agents in worktrees", "merge worktree results"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: workflow
 ---
 
 # Worktree Pool

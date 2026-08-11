@@ -1,7 +1,9 @@
 ---
+name: "Web3 DeFi Development"
+description: "Web3 DeFi Development: Guidance for building decentralized finance protocols and applications. Use when the task involves DeFi, DEX, AMM, yield farming, liquidity pool."
+category: web3
 triggers: ["DeFi", "DEX", "AMM", "yield farming", "liquidity pool", "flash loan", "lending protocol", "staking", "governance token"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: web3
 ---
 
 # Web3 DeFi Development

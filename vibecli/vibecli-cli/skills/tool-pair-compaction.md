@@ -1,7 +1,9 @@
 ---
+name: "Tool Pair Compaction"
+description: "Tool Pair Compaction: Compact conversation context while preserving tool call/result pairs and critical semantic boundaries. Use when the task involves tool pair compaction, context compaction, compact history, preserve tool pairs."
+category: performance
 triggers: ["tool pair compaction", "context compaction", "compact history", "preserve tool pairs"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: performance
 ---
 
 # Tool Pair Compaction

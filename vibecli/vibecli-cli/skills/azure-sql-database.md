@@ -1,8 +1,10 @@
 ---
+name: "Azure SQL Database"
+description: "Azure SQL Database: Guidance for working with Azure SQL Database. Use when the task involves Azure SQL, azure sql database, azure sql server, elastic pool, sql hyperscale."
+category: cloud-azure
 triggers: ["Azure SQL", "azure sql database", "azure sql server", "elastic pool", "sql hyperscale", "azure database", "sql managed instance"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["az"]
-category: cloud-azure
 ---
 
 # Azure SQL Database

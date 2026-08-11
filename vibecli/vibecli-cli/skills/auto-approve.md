@@ -1,7 +1,9 @@
 ---
+name: "auto-approve"
+description: "auto-approve: Heuristic auto-approval scorer for tool calls. Use when the task involves auto-approve, tool approval, risk score, auto deny, approval policy."
+category: security
 triggers: ["auto-approve", "tool approval", "risk score", "auto deny", "approval policy"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: security
 ---
 
 # auto-approve

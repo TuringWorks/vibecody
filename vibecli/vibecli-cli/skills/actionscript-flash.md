@@ -1,7 +1,9 @@
 ---
+name: "ActionScript"
+description: "ActionScript: Guidance for maintaining or migrating ActionScript/Flash codebases. Use when the task involves ActionScript, ActionScript 3, AS3, Flash, Adobe AIR."
+category: legacy
 triggers: ["ActionScript", "ActionScript 3", "AS3", "Flash", "Adobe AIR", "SWF", "Flex", "Flash migration", "Apache Royale"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: legacy
 ---
 
 # ActionScript

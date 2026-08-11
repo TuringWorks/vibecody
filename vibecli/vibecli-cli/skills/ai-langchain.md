@@ -1,7 +1,9 @@
 ---
+name: "LangChain & LangGraph"
+description: "LangChain & LangGraph: Guidance for building with LangChain. Use when the task involves LangChain, LangGraph, chain, agent langchain, tool calling."
+category: ai
 triggers: ["LangChain", "LangGraph", "chain", "agent langchain", "tool calling", "LangSmith", "LCEL"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # LangChain & LangGraph

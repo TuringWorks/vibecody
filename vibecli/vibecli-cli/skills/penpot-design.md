@@ -1,7 +1,9 @@
 ---
+name: "Penpot Design Integration"
+description: "Penpot Design Integration: Open-source Figma alternative. Use when the task involves Penpot, open-source Figma, penpot design."
+category: design
 triggers: ["Penpot", "open-source Figma", "penpot design"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: design
 ---
 
 # Penpot Design Integration

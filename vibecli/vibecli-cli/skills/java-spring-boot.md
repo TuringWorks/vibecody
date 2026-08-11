@@ -1,8 +1,10 @@
 ---
+name: "Java Spring Boot"
+description: "Java Spring Boot: Guidance for building Spring Boot applications. Use when the task involves Spring Boot, spring, @RestController, @Autowired, JPA."
+category: java
 triggers: ["Spring Boot", "spring", "@RestController", "@Autowired", "JPA", "spring security", "java REST"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["java"]
-category: java
 ---
 
 # Java Spring Boot

@@ -1,7 +1,9 @@
 ---
+name: "Technical Debt Assessment"
+description: "Technical Debt Assessment: Guidance for assessing and managing technical debt. Use when the task involves tech debt, technical debt, code quality, debt assessment, risk scoring."
+category: review
 triggers: ["tech debt", "technical debt", "code quality", "debt assessment", "risk scoring", "code smell"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: review
 ---
 
 # Technical Debt Assessment

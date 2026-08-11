@@ -1,7 +1,9 @@
 ---
+name: "Autonomous Freight Corridor Deployment"
+description: "Autonomous Freight Corridor Deployment: Compose this pack with transportation, customs, warehousing, vehicle-specific skills, public safety, and every jurisdiction traversed. Use when the task involves autonomous freight corridor deployment, autonomous freight corridor deployment subsector pack."
+category: industry
 triggers: ["autonomous freight corridor deployment", "autonomous freight corridor deployment subsector pack"]
 tools_allowed: ["read_file", "write_file"]
-category: industry
 ---
 
 # Autonomous Freight Corridor Deployment

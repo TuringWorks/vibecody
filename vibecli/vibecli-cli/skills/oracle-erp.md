@@ -1,7 +1,9 @@
 ---
+name: "Oracle ERP"
+description: "Oracle ERP: Guidance for working with Oracle ERP systems and Oracle Cloud applications. Use when the task involves Oracle ERP, Oracle Cloud, Oracle Financials, Oracle E-Business Suite, PL/SQL."
+category: enterprise
 triggers: ["Oracle ERP", "Oracle Cloud", "Oracle Financials", "Oracle E-Business Suite", "PL/SQL", "Oracle Forms"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: enterprise
 ---
 
 # Oracle ERP

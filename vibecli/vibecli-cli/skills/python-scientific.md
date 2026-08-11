@@ -1,8 +1,10 @@
 ---
+name: "Python Scientific Computing"
+description: "Python Scientific Computing: Guidance for using Python for scientific computing, simulations, and numerical analysis. Use when the task involves scipy, scientific python, numerical computing, simulation, signal processing."
+category: python
 triggers: ["scipy", "scientific python", "numerical computing", "simulation", "signal processing", "optimization python", "sympy", "symbolic math", "ODE solver python", "FFT python"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["python3"]
-category: python
 ---
 
 # Python Scientific Computing

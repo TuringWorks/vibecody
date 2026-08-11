@@ -1,8 +1,10 @@
 ---
+name: "AWS S3 Programming"
+description: "AWS S3 Programming: Guidance for working with AWS S3. Use when the task involves S3, aws s3, s3 bucket, presigned URL, s3 multipart."
+category: cloud-aws
 triggers: ["S3", "aws s3", "s3 bucket", "presigned URL", "s3 multipart", "s3 lifecycle", "s3 event notification"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["aws"]
-category: cloud-aws
 ---
 
 # AWS S3 Programming

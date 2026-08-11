@@ -1,7 +1,9 @@
 ---
+name: "Nonprofits, Associations, and Civil Society"
+description: "Nonprofits, Associations, and Civil Society: This overlay composes OS 01, 02, 16, 18, 20, 21, and 22. Use when the task involves nonprofits, associations, and civil society, nonprofits, associations, civil society."
+category: industry
 triggers: ["nonprofits, associations, and civil society", "nonprofits", "associations", "civil society"]
 tools_allowed: ["read_file", "write_file"]
-category: industry
 ---
 
 # Nonprofits, Associations, and Civil Society

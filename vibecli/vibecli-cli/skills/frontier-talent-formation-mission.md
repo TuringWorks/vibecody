@@ -1,7 +1,9 @@
 ---
+name: "Strategic Mission — Frontier Talent Formation"
+description: "Strategic Mission — Frontier Talent Formation: Build the human talent system needed to lead frontier technology using AI tutors, simulation, labs, apprenticeships, and robot-enabled facilities. Use when the task involves strategic mission — frontier talent formation, frontier talent formation."
+category: strategy
 triggers: ["strategic mission — frontier talent formation", "frontier talent formation"]
 tools_allowed: ["read_file", "write_file"]
-category: strategy
 ---
 
 # Strategic Mission — Frontier Talent Formation
@@ -94,9 +96,4 @@ Strategic prioritization, public legitimacy, national-security judgment, scarce-
 
 Whether a nation pursues this mission at all — and how (sovereign build, ally-and-buy, or import) — depends heavily on scale, income, resource endowment, and geopolitics. Re-read through:
 
-- **Scale** (city-state → federation): whether this role is unified or layered across local/regional/national tiers.
-- **State capacity** (fragile → high-capacity): whether the owning institution exists and can be held to account, or the job is met by markets, households, NGOs, or donors.
-- **Income level** (low → high): affordability of automation and the balance of subsistence vs. wage work.
-- **Formality** (informal → formal): whether the people and assets this role acts on appear in any registry at all.
-- **Resource & geography**: which hazards and dependencies dominate (water-scarce, flood-prone, landlocked, trade-dependent).
-- **Political system & legitimacy**: where the human-accountability boundary actually binds and who may hold power to account.
+> Shared pattern — see the `shared-national-context-modifiers` skill, section “Adapting to any nation (context modifiers)”.

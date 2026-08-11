@@ -1,7 +1,9 @@
 ---
+name: "TUI Images"
+description: "TUI Images: Inline image rendering in terminal emulators — Kitty Graphics Protocol and iTerm2 inline images. Use when the task involves TUI images, Kitty graphics protocol, iTerm2 inline images, terminal image rendering."
+category: terminal
 triggers: ["TUI images", "Kitty graphics protocol", "iTerm2 inline images", "terminal image rendering"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: terminal
 ---
 
 # TUI Images

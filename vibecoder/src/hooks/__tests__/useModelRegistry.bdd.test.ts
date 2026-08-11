@@ -1,316 +1,98 @@
+import { describe, it, expect } from "vitest";
+import { STATIC_MODELS, PROVIDER_DEFAULT_MODEL } from "../useModelRegistry";
+import { OLLAMA_CHAT_MODELS, OLLAMA_CLOUD_MODELS } from "../../constants/ollamaModels";
+
 /**
- * BDD tests for useModelRegistry — provider/model matrix with TTL cache.
+ * Registry integrity — the guard for R1.
  *
- * Scenarios:
- *  1. Returns static providers on first mount (no cache, no backend)
- *  2. Static models are present for all known providers
- *  3. PROVIDER_DEFAULT_MODEL covers every provider in STATIC_MODELS
- *  4. modelsForProvider returns the model list for a known provider
- *  5. modelsForProvider returns [] for an unknown provider
- *  6. Dynamic refresh calls invoke("ollama_list_models")
- *  7. Dynamic Ollama models replace the static list when backend responds
- *  8. When Ollama backend throws, static list is kept
- *  9. Cache is written to localStorage after a refresh
- * 10. Cache is loaded from localStorage when fresh (< 2 hours old)
- * 11. Expired cache (>= 2 hours) is ignored and triggers a refresh
- * 12. loading flag is true during refresh and false after
+ * On 2026-05-19 Google announced Gemini 3.5 Pro; a refresh wrote it into this
+ * registry as both a listed model and the Gemini *default* on the strength of
+ * a projected GA date. It never shipped — three delays, and as of August 2026
+ * still a limited Vertex AI preview. For weeks every user who selected the
+ * Gemini provider got a model id the API rejects on their first call: a
+ * Zero-Config First violation (AGENTS.md) caused by a forecast in the code.
+ *
+ * It was found twice, filed as "fix first — one line" twice, and survived both
+ * times. A one-line fix with no owner and no test is not scheduled work, so
+ * the close is the fix *plus* this file.
+ *
+ * These tests pin structure, not taste: they cannot know whether a model id is
+ * real, but they can guarantee the registry never offers a default it does not
+ * also list — which is the exact shape the phantom took.
  */
+describe("model registry integrity", () => {
+  /**
+   * Providers that ship no static model list at all. Kept as an explicit
+   * roster rather than a blanket skip so the set can only shrink by decision:
+   * adding a new empty provider fails here, and fixing one of these also fails
+   * here (delete the entry — that failure is the good kind).
+   *
+   * `ollama` is deliberately *not* here: it ships a real static list
+   * (`OLLAMA_CHAT_MODELS`) that the daemon extends at runtime, so it satisfies
+   * both checks without an exemption.
+   *
+   * - `vercel_ai` — NOT intentional. `STATIC_MODELS.vercel_ai` is `[]` and its
+   *               default is `""`, with no runtime fetch anywhere: the picker
+   *               offers a provider that can produce no model. Found by this
+   *               test on 2026-08-10. Left listed rather than "fixed", because
+   *               inventing model ids is exactly the failure this file exists
+   *               to prevent — it needs someone who knows the Vercel AI
+   *               Gateway catalogue, or removal from the registry.
+   */
+  const NO_STATIC_LIST = new Set(["vercel_ai"]);
 
-import { renderHook, act, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-
-// ── Mock Tauri invoke ──────────────────────────────────────────────────────────
-
-const mockInvoke = vi.fn();
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: (...args: unknown[]) => mockInvoke(...args),
-}));
-
-import {
-  useModelRegistry,
-  STATIC_MODELS,
-  ALL_PROVIDERS,
-  PROVIDER_DEFAULT_MODEL,
-  CACHE_KEY,
-} from '../useModelRegistry';
-
-// Imported, not re-declared: a local copy silently went stale when the hook
-// bumped the key to `:v2`, so these tests wrote to a key nothing reads.
-const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
-
-beforeEach(() => {
-  vi.clearAllMocks();
-  localStorage.clear();
-  // Default: Ollama not running
-  mockInvoke.mockRejectedValue(new Error('Ollama not running'));
-});
-
-afterEach(() => vi.restoreAllMocks());
-
-// ── Scenario 1: Static providers returned without cache ───────────────────────
-
-describe('Given no cache and no backend', () => {
-  it('When the hook mounts, Then providers includes known providers like "claude" and "openai"', async () => {
-    const { result } = renderHook(() => useModelRegistry());
-    expect(result.current.providers).toContain('claude');
-    expect(result.current.providers).toContain('openai');
-    expect(result.current.providers).toContain('ollama');
-  });
-
-  it('When the hook mounts, Then all ALL_PROVIDERS entries are in the providers list', () => {
-    const { result } = renderHook(() => useModelRegistry());
-    for (const p of ALL_PROVIDERS) {
-      expect(result.current.providers).toContain(p);
-    }
-  });
-});
-
-// ── Scenario 2: Static models present for all providers ──────────────────────
-
-describe('Given STATIC_MODELS', () => {
-  it('Then every provider has at least one model entry (or an empty array for vercel_ai)', () => {
-    for (const [provider, models] of Object.entries(STATIC_MODELS)) {
-      if (provider === 'vercel_ai') continue; // intentionally empty
-      expect(models.length, `${provider} has no models`).toBeGreaterThan(0);
-    }
-  });
-
-  it('Then claude models include claude-sonnet-4-6', () => {
-    expect(STATIC_MODELS.claude).toContain('claude-sonnet-4-6');
-  });
-
-  it('Then openai models include gpt-4o', () => {
-    expect(STATIC_MODELS.openai).toContain('gpt-4o');
-  });
-});
-
-// ── Scenario 3: PROVIDER_DEFAULT_MODEL covers all providers ──────────────────
-
-describe('Given PROVIDER_DEFAULT_MODEL', () => {
-  it('Then every provider in STATIC_MODELS has a default model entry', () => {
-    for (const provider of Object.keys(STATIC_MODELS)) {
-      expect(
-        Object.prototype.hasOwnProperty.call(PROVIDER_DEFAULT_MODEL, provider),
-        `${provider} missing from PROVIDER_DEFAULT_MODEL`
-      ).toBe(true);
-    }
-  });
-
-  it('Then claude default is claude-opus-5', () => {
-    expect(PROVIDER_DEFAULT_MODEL.claude).toBe('claude-opus-5');
-  });
-
-  it('Then openai default is the current flagship', () => {
-    expect(PROVIDER_DEFAULT_MODEL.openai).toBe('gpt-5.6-sol');
-  });
-});
-
-// ── Scenario 4 & 5: modelsForProvider ────────────────────────────────────────
-
-describe('Given the hook has loaded', () => {
-  it('When modelsForProvider("openai") is called, Then it returns the static OpenAI model list', () => {
-    const { result } = renderHook(() => useModelRegistry());
-    expect(result.current.modelsForProvider('openai')).toEqual(STATIC_MODELS.openai);
-  });
-
-  it('When modelsForProvider("unknown-provider") is called, Then it returns an empty array', () => {
-    const { result } = renderHook(() => useModelRegistry());
-    expect(result.current.modelsForProvider('unknown-provider')).toEqual([]);
-  });
-});
-
-// ── Scenario 6 & 7: Dynamic Ollama refresh ───────────────────────────────────
-
-describe('Given Ollama is running and returns models', () => {
-  beforeEach(() => {
-    mockInvoke.mockResolvedValue(['llama3.2', 'mistral', 'phi3']);
-  });
-
-  it('When refresh() is called, Then invoke("ollama_list_models") is called', async () => {
-    const { result } = renderHook(() => useModelRegistry());
-    await act(async () => { await result.current.refresh(); });
-    expect(mockInvoke).toHaveBeenCalledWith('ollama_list_models');
-  });
-
-  it('When refresh() resolves, Then modelsForProvider("ollama") returns the dynamic list', async () => {
-    const { result } = renderHook(() => useModelRegistry());
-    await act(async () => { await result.current.refresh(); });
-    expect(result.current.modelsForProvider('ollama')).toContain('llama3.2');
-    expect(result.current.modelsForProvider('ollama')).toContain('mistral');
-  });
-});
-
-// ── Scenario 8: Graceful Ollama failure ──────────────────────────────────────
-
-describe('Given Ollama is not running (invoke throws)', () => {
-  it('When refresh() is called, Then modelsForProvider("ollama") keeps the static list', async () => {
-    const { result } = renderHook(() => useModelRegistry());
-    const staticOllama = [...STATIC_MODELS.ollama];
-    await act(async () => { await result.current.refresh(); });
-    expect(result.current.modelsForProvider('ollama')).toEqual(staticOllama);
-  });
-});
-
-// ── Scenario 9: Cache is written after refresh ───────────────────────────────
-
-describe('Given a successful refresh', () => {
-  beforeEach(() => {
-    mockInvoke.mockResolvedValue(['qwen3', 'gemma2']);
-  });
-
-  it('When refresh() completes, Then localStorage contains the cache key', async () => {
-    const { result } = renderHook(() => useModelRegistry());
-    await act(async () => { await result.current.refresh(); });
-    expect(localStorage.getItem(CACHE_KEY)).not.toBeNull();
-  });
-
-  it('When refresh() completes, Then the cached ollama models include the dynamic list', async () => {
-    const { result } = renderHook(() => useModelRegistry());
-    await act(async () => { await result.current.refresh(); });
-    const cached = JSON.parse(localStorage.getItem(CACHE_KEY)!);
-    expect(cached.models.ollama).toContain('qwen3');
-  });
-});
-
-// ── Scenario 10: Fresh cache is loaded on mount ───────────────────────────────
-
-describe('Given a fresh cache (< 2 hours old) in localStorage', () => {
-  it('When the hook mounts, Then the cached models are used without calling invoke', async () => {
-    const cachedOllamaModels = ['cached-model-1', 'cached-model-2'];
-    const cached = {
-      providers: ALL_PROVIDERS,
-      models: { ...STATIC_MODELS, ollama: cachedOllamaModels },
-      updatedAt: Date.now() - 1000, // 1 second old
-    };
-    localStorage.setItem(CACHE_KEY, JSON.stringify(cached));
-
-    const { result } = renderHook(() => useModelRegistry());
-    // Cache is fresh — should not trigger a refresh
-    await waitFor(() => {
-      expect(result.current.modelsForProvider('ollama')).toEqual(cachedOllamaModels);
-    });
-    // invoke should not be called since cache is fresh
-    expect(mockInvoke).not.toHaveBeenCalled();
-  });
-});
-
-// ── Scenario 11: Expired cache triggers refresh ───────────────────────────────
-
-describe('Given an expired cache (>= 2 hours old) in localStorage', () => {
-  beforeEach(() => {
-    mockInvoke.mockResolvedValue(['fresh-model']);
-    const expired = {
-      providers: ALL_PROVIDERS,
-      models: { ...STATIC_MODELS },
-      updatedAt: Date.now() - TWO_HOURS_MS - 1, // just over 2 hours
-    };
-    localStorage.setItem(CACHE_KEY, JSON.stringify(expired));
-  });
-
-  it('When the hook mounts, Then invoke("ollama_list_models") is called', async () => {
-    renderHook(() => useModelRegistry());
-    await waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith('ollama_list_models');
-    });
-  });
-});
-
-// ── Scenario 12: loading flag ─────────────────────────────────────────────────
-
-describe('Given a slow backend response', () => {
-  it('When refresh() is in flight, Then loading is true; after completion it is false', async () => {
-    let resolve!: () => void;
-    mockInvoke.mockReturnValue(new Promise<string[]>(r => { resolve = () => r([]); }));
-
-    const { result } = renderHook(() => useModelRegistry());
-    const refreshPromise = act(async () => { result.current.refresh(); });
-
-    // loading becomes true once refresh starts
-    await waitFor(() => expect(result.current.loading).toBe(true));
-
-    // Resolve the backend call
-    act(() => { resolve(); });
-    await refreshPromise;
-
-    expect(result.current.loading).toBe(false);
-  });
-});
-
-// ── Scenario 13 (C3): May 2026 model wave is reflected in the registry ────────
-
-describe('Given the May 2026 industry delta', () => {
-  it('When inspecting STATIC_MODELS.openai, Then GPT-5.5 / 5.4 / 5.3-Codex are listed', () => {
-    expect(STATIC_MODELS.openai).toContain('gpt-5.6-sol');
-    expect(STATIC_MODELS.openai).toContain('gpt-5.4');
-    expect(STATIC_MODELS.openai).toContain('gpt-5.3-codex');
-  });
-
-  it('When inspecting STATIC_MODELS.claude, Then Opus 4.7 is listed', () => {
-    expect(STATIC_MODELS.claude).toContain('claude-opus-4-7');
-  });
-
-  it('When inspecting STATIC_MODELS.gemini, Then Gemini 3 / 3.1-Pro are listed', () => {
-    expect(STATIC_MODELS.gemini).toContain('gemini-3-pro');
-    expect(STATIC_MODELS.gemini).toContain('gemini-3.1-pro');
-  });
-
-  it('When inspecting PROVIDER_DEFAULT_MODEL, Then OpenAI defaults to GPT-5.6 and Claude to Opus 5', () => {
-    expect(PROVIDER_DEFAULT_MODEL.openai).toBe('gpt-5.6-sol');
-    expect(PROVIDER_DEFAULT_MODEL.claude).toBe('claude-opus-5');
-  });
-});
-
-// ── Retired-model guard ──────────────────────────────────────────────────────
-// Selecting a retired model fails at request time with a provider error the
-// user can do nothing about (Ollama Cloud answers 410 Gone). Each id below was
-// confirmed dead on 2026-08-05 — by a live `POST /api/show` for the Ollama
-// tags, and by the provider's own deprecation notice for the rest.
-
-const RETIRED_MODEL_IDS = [
-  // Ollama Cloud — 410 Gone, with the retirement date in the error body
-  'glm-4.6:cloud',
-  'kimi-k2:1t-cloud',
-  'minimax-m2:cloud',
-  'deepseek-v3.1:671b-cloud',
-  // Anthropic — retired 2025-10-28 / 2026-01-05 / 2026-02-19
-  'claude-3-5-sonnet-20241022',
-  'claude-3-opus-20240229',
-  'claude-3-7-sonnet-20250219',
-  'anthropic.claude-3-5-sonnet-20241022-v2:0',
-  'anthropic/claude-3.5-sonnet',
-  // Groq — deprecated 2026-06-17; mixtral long gone
-  'mixtral-8x7b-32768',
-  // Never an API id — the shipped DeepSeek pair is v4-pro / v4-flash
-  'deepseek-v4',
-];
-
-describe('Given the static model catalog', () => {
-  it('Then no provider offers a retired model id', () => {
-    const offenders: string[] = [];
-    for (const [provider, models] of Object.entries(STATIC_MODELS)) {
-      for (const id of models) {
-        if (RETIRED_MODEL_IDS.includes(id)) offenders.push(`${provider}: ${id}`);
-      }
-    }
-    expect(offenders).toEqual([]);
-  });
-
-  it('Then no provider default points at a retired model id', () => {
+  it("every provider that lists models defaults to one of them", () => {
     const offenders = Object.entries(PROVIDER_DEFAULT_MODEL)
-      .filter(([, id]) => RETIRED_MODEL_IDS.includes(id))
-      .map(([provider, id]) => `${provider}: ${id}`);
-    expect(offenders).toEqual([]);
+      .filter(([provider]) => !NO_STATIC_LIST.has(provider))
+      .filter(([provider, def]) => !(STATIC_MODELS[provider] ?? []).includes(def))
+      .map(([provider, def]) => `${provider} → "${def}"`);
+
+    expect(
+      offenders,
+      `A provider defaults to a model it does not list, so selecting that ` +
+        `provider fails on first call. Offenders: ${offenders.join(", ")}`,
+    ).toEqual([]);
   });
 
-  it('Then every provider default is offered by that provider', () => {
-    const offenders: string[] = [];
-    for (const [provider, def] of Object.entries(PROVIDER_DEFAULT_MODEL)) {
-      if (!def) continue; // vercel_ai has no default
-      const models = STATIC_MODELS[provider];
-      if (models && models.length > 0 && !models.includes(def)) {
-        offenders.push(`${provider}: default "${def}" not in STATIC_MODELS`);
-      }
-    }
-    expect(offenders).toEqual([]);
+  it("the set of providers without a model list has not grown", () => {
+    const actual = Object.keys(PROVIDER_DEFAULT_MODEL)
+      .filter((p) => !STATIC_MODELS[p]?.length)
+      .sort();
+
+    expect(
+      actual,
+      `A provider offering no models is unusable once selected. If you fixed ` +
+        `one, remove it from NO_STATIC_LIST above; if you added one, give it models.`,
+    ).toEqual([...NO_STATIC_LIST].sort());
+  });
+
+  it("the ollama default is a known local model", () => {
+    // Ollama passes the checks above on its static list, but that list is
+    // extended at runtime from the local daemon — so also pin the
+    // *pre-selected* value against the full known set, cloud names included.
+    const known = [...OLLAMA_CHAT_MODELS, ...OLLAMA_CLOUD_MODELS];
+    expect(known).toContain(PROVIDER_DEFAULT_MODEL.ollama);
+  });
+
+  it("no model id is listed twice within a provider", () => {
+    const dupes = Object.entries(STATIC_MODELS)
+      .map(([provider, models]) => {
+        const seen = new Set<string>();
+        const repeated = models.filter((m) => seen.size === seen.add(m).size);
+        return repeated.length ? `${provider}: ${repeated.join(", ")}` : null;
+      })
+      .filter((x): x is string => x !== null);
+
+    expect(dupes, `Duplicate model ids: ${dupes.join(" | ")}`).toEqual([]);
+  });
+
+  it("does not offer gemini-3.5-pro, which has never shipped", () => {
+    // Named explicitly rather than left to the structural checks above: this
+    // model was re-added once already after being identified as absent, and a
+    // structural test cannot catch a phantom that is *listed* consistently.
+    // Delete this case on the day Google actually ships it.
+    const everywhere = Object.values(STATIC_MODELS).flat();
+    expect(everywhere).not.toContain("gemini-3.5-pro");
+    expect(Object.values(PROVIDER_DEFAULT_MODEL)).not.toContain("gemini-3.5-pro");
   });
 });

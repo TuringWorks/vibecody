@@ -1,8 +1,10 @@
 ---
+name: "Swift iOS Development"
+description: "Swift iOS Development: Guidance for building iOS apps with Swift. Use when the task involves SwiftUI, Combine, Core Data, swift async, iOS development."
+category: swift
 triggers: ["SwiftUI", "Combine", "Core Data", "swift async", "iOS development", "swift app", "ObservableObject"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["swift"]
-category: swift
 ---
 
 # Swift iOS Development

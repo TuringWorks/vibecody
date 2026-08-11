@@ -1,7 +1,9 @@
 ---
+name: "Workspace Snapshot"
+description: "Workspace Snapshot: Point-in-time workspace capture and restore. Use when the task involves workspace snapshot, checkpoint, restore workspace, point-in-time capture."
+category: session
 triggers: ["workspace snapshot", "checkpoint", "restore workspace", "point-in-time capture"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: session
 ---
 
 # Workspace Snapshot

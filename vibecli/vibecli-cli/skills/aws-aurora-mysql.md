@@ -1,8 +1,10 @@
 ---
+name: "AWS Aurora MySQL"
+description: "AWS Aurora MySQL: Guidance for working with Aurora MySQL. Use when the task involves Aurora MySQL, aurora mysql, aws aurora mysql, aurora mysql compatible, aurora mysql replication."
+category: cloud-aws
 triggers: ["Aurora MySQL", "aurora mysql", "aws aurora mysql", "aurora mysql compatible", "aurora mysql replication"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["aws"]
-category: cloud-aws
 ---
 
 # AWS Aurora MySQL

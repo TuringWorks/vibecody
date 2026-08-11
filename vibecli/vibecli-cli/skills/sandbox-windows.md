@@ -1,7 +1,9 @@
 ---
+name: "Windows Sandbox Policy"
+description: "Windows Sandbox Policy: let sb = WindowsSandbox::new(cfg);. Use when the task involves Windows sandbox, ACL policy, path isolation, network isolation."
+category: security
 triggers: ["Windows sandbox", "ACL policy", "path isolation", "network isolation"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: security
 ---
 
 # Windows Sandbox Policy

@@ -1,7 +1,9 @@
 ---
+name: "Multi-Repo Context"
+description: "Multi-Repo Context: Aggregate context across multiple repositories with cross-repo import graph analysis. Use when the task involves multi-repo, cross-repo, monorepo context, multi repository imports."
+category: code-intelligence
 triggers: ["multi-repo", "cross-repo", "monorepo context", "multi repository imports"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: code-intelligence
 ---
 
 # Multi-Repo Context

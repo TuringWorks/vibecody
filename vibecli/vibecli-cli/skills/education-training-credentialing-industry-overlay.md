@@ -1,7 +1,9 @@
 ---
-triggers: ["education, training, credentialing, and knowledge services", "education", "training", "credentialing", "knowledge services"]
-tools_allowed: ["read_file", "write_file"]
+name: "Education, Training, Credentialing, and Knowledge Services"
+description: "Education, Training, Credentialing, and Knowledge Services: This overlay composes OS 12, 14, 15, 16, 20, and 23. Use when the task involves education, training, credentialing, and knowledge services, training, credentialing, knowledge services."
 category: industry
+triggers: ["education, training, credentialing, and knowledge services", "training", "credentialing", "knowledge services"]
+tools_allowed: ["read_file", "write_file"]
 ---
 
 # Education, Training, Credentialing, and Knowledge Services

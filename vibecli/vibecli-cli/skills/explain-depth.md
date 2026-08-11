@@ -1,7 +1,9 @@
 ---
+name: "explain-depth"
+description: "explain-depth: Code explanation at configurable depth levels for different audiences. Use when the task involves explain depth, explain code, code explanation, audience level."
+category: documentation
 triggers: ["explain depth", "explain code", "code explanation", "audience level"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: documentation
 ---
 
 # explain-depth

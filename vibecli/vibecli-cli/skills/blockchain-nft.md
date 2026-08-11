@@ -1,7 +1,9 @@
 ---
+name: "NFT Development"
+description: "NFT Development: Guidance for working with NFT projects. Use when the task involves NFT, nft, ERC721, ERC1155, nft mint."
+category: blockchain
 triggers: ["NFT", "nft", "ERC721", "ERC1155", "nft mint", "nft metadata", "IPFS", "Arweave", "soul-bound token", "Merkle tree mint", "nft royalty"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: blockchain
 ---
 
 # NFT Development

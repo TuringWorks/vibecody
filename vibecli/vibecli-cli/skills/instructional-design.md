@@ -1,7 +1,9 @@
 ---
+name: "Instructional Design"
+description: "Instructional Design: Guidance for working with instructional design and course development. Use when the task involves instructional design, course design, curriculum design, learning objectives, assessment design."
+category: education
 triggers: ["instructional design", "course design", "curriculum design", "learning objectives", "assessment design", "Bloom's taxonomy"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: education
 ---
 
 # Instructional Design

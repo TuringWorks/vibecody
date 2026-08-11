@@ -16,7 +16,14 @@ use sha2::{Digest, Sha256};
 pub fn hash_content(content: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(content.as_bytes());
-    format!("{:x}", hasher.finalize())
+    hasher
+        .finalize()
+        .iter()
+        .fold(String::with_capacity(64), |mut s, b| {
+            use std::fmt::Write as _;
+            let _ = write!(s, "{b:02x}");
+            s
+        })
 }
 
 /// Map of `file_path -> content hash` persisted between runs.
@@ -81,6 +88,25 @@ pub fn hash_file(path: &Path) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The hash is a persisted cache key (`file_path -> content hash`), so
+    /// its *encoding* is part of the on-disk format, not an implementation
+    /// detail. `hash_is_deterministic` below would still pass if the
+    /// encoding changed to uppercase or gained separators — and every
+    /// stored hash would silently stop matching, forcing a full re-index
+    /// that looks like a performance regression rather than a format break.
+    ///
+    /// Pinned after sha2 0.11 changed `finalize()` from `GenericArray` to
+    /// `hybrid_array::Array`, which does not implement `LowerHex`; the
+    /// `format!("{:x}", …)` that produced this string no longer compiles.
+    #[test]
+    fn hash_encoding_is_lowercase_hex_and_unchanged() {
+        assert_eq!(
+            hash_content("hello"),
+            "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+        );
+        assert_eq!(hash_content("").len(), 64);
+    }
 
     #[test]
     fn hash_is_deterministic() {

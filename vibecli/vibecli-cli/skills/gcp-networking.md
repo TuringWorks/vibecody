@@ -1,8 +1,10 @@
 ---
+name: "GCP Networking"
+description: "GCP Networking: Guidance for working with GCP networking. Use when the task involves GCP networking, gcp vpc, cloud load balancer, cloud armor, cloud nat."
+category: cloud-gcp
 triggers: ["GCP networking", "gcp vpc", "cloud load balancer", "cloud armor", "cloud nat", "cloud cdn", "gcp firewall rules", "private google access"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["gcloud"]
-category: cloud-gcp
 ---
 
 # GCP Networking

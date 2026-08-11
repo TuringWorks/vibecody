@@ -1,7 +1,9 @@
 ---
+name: "Observability: Metrics and Monitoring"
+description: "Observability: Metrics and Monitoring: Guidance for implementing metrics, SLOs, and monitoring dashboards. Use when the task involves Prometheus, Grafana, metrics, SLO, SLI."
+category: observability
 triggers: ["Prometheus", "Grafana", "metrics", "SLO", "SLI", "RED method", "USE method", "histogram", "counter", "gauge", "alerting"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: observability
 ---
 
 # Observability: Metrics and Monitoring

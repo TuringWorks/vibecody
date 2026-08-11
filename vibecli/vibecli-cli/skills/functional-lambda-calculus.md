@@ -1,7 +1,9 @@
 ---
+name: "Lambda and Function Composition Patterns"
+description: "Lambda and Function Composition Patterns: Guidance for working with lambda functions and composition patterns. Use when the task involves lambda function, function composition, point-free, combinators, lambda calculus."
+category: architecture
 triggers: ["lambda function", "function composition", "point-free", "combinators", "lambda calculus", "closure patterns", "partial application"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: architecture
 ---
 
 # Lambda and Function Composition Patterns

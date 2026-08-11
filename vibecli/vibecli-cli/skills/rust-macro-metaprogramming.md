@@ -1,8 +1,10 @@
 ---
+name: "Rust Macros & Metaprogramming"
+description: "Rust Macros & Metaprogramming: Guidance for writing Rust macros. Use when the task involves proc macro, derive macro, macro_rules, quote, syn."
+category: rust
 triggers: ["proc macro", "derive macro", "macro_rules", "quote", "syn", "TokenStream", "metaprogramming rust"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["cargo"]
-category: rust
 ---
 
 # Rust Macros & Metaprogramming

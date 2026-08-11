@@ -1,7 +1,9 @@
 ---
+name: "RLCEF Training"
+description: "RLCEF Training: Reinforcement learning from code execution feedback. Use when the task involves RLCEF, execution feedback, learn from test results, code execution feedback."
+category: ai
 triggers: ["RLCEF", "execution feedback", "learn from test results", "code execution feedback"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # RLCEF Training

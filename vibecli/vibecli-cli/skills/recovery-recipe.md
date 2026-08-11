@@ -1,7 +1,9 @@
 ---
+name: "Recovery Recipes"
+description: "Recovery Recipes: Automatic error recovery using pattern-matched recipes with attempt-bounded retry, backoff, inject, and escalate actions. Use when the task involves recovery recipe, error recovery, retry with backoff, escalate error."
+category: resilience
 triggers: ["recovery recipe", "error recovery", "retry with backoff", "escalate error"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: resilience
 ---
 
 # Recovery Recipes

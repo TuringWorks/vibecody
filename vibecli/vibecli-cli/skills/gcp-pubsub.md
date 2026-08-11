@@ -1,8 +1,10 @@
 ---
+name: "GCP Pub/Sub"
+description: "GCP Pub/Sub: Guidance for working with Pub/Sub. Use when the task involves Pub/Sub, pubsub, gcp pubsub, pubsub topic, pubsub subscription."
+category: cloud-gcp
 triggers: ["Pub/Sub", "pubsub", "gcp pubsub", "pubsub topic", "pubsub subscription", "google messaging", "pubsub ordering"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["gcloud"]
-category: cloud-gcp
 ---
 
 # GCP Pub/Sub

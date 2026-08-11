@@ -1,7 +1,9 @@
 ---
+name: "Changelog & Release Notes"
+description: "Changelog & Release Notes: Guidance for managing changelogs and releases. Use when the task involves changelog, conventional commits, semver, release notes, CHANGELOG.md."
+category: documentation
 triggers: ["changelog", "conventional commits", "semver", "release notes", "CHANGELOG.md", "version bump"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: documentation
 ---
 
 # Changelog & Release Notes

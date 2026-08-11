@@ -1,7 +1,9 @@
 ---
+name: "Real Estate, Rental, and Leasing"
+description: "Real Estate, Rental, and Leasing: This overlay composes OS 10, 11, 12, 16, 17, 19, and 20. Use when the task involves real estate, rental, and leasing, real estate, rental, leasing."
+category: industry
 triggers: ["real estate, rental, and leasing", "real estate", "rental", "leasing"]
 tools_allowed: ["read_file", "write_file"]
-category: industry
 ---
 
 # Real Estate, Rental, and Leasing

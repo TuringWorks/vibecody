@@ -1,7 +1,9 @@
 ---
+name: "Compliance & Regulatory"
+description: "Compliance & Regulatory: Guidance for implementing compliance requirements. Use when the task involves GDPR, HIPAA, SOC2, PCI-DSS, compliance."
+category: workflow
 triggers: ["GDPR", "HIPAA", "SOC2", "PCI-DSS", "compliance", "data privacy", "regulation", "audit trail"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: workflow
 ---
 
 # Compliance & Regulatory

@@ -1,8 +1,10 @@
 ---
+name: "Terraform Infrastructure as Code"
+description: "Terraform Infrastructure as Code: Guidance for managing infrastructure with Terraform. Use when the task involves Terraform, IaC, infrastructure as code, terraform module, terraform state."
+category: devops
 triggers: ["Terraform", "IaC", "infrastructure as code", "terraform module", "terraform state", "HCL"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["terraform"]
-category: devops
 ---
 
 # Terraform Infrastructure as Code

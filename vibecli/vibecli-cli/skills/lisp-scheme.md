@@ -1,8 +1,10 @@
 ---
+name: "Lisp (Common Lisp / Scheme / Racket)"
+description: "Lisp (Common Lisp / Scheme / Racket): Guidance for writing Lisp code. Use when the task involves Lisp, Common Lisp, Scheme, Racket, Emacs Lisp."
+category: lisp
 triggers: ["Lisp", "Common Lisp", "Scheme", "Racket", "Emacs Lisp", "SBCL", "CLISP", "S-expression", "macro Lisp", "REPL Lisp"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["sbcl"]
-category: lisp
 ---
 
 # Lisp (Common Lisp / Scheme / Racket)

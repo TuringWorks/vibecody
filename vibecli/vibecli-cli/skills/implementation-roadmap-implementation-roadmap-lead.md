@@ -1,7 +1,9 @@
 ---
+name: "Implementation Roadmaps — Roadmap Lead"
+description: "Implementation Roadmaps — Roadmap Lead: The implementation roadmap lead turns strategy into sequenced programs with owners, milestones, risks, and evidence gates. Use when the task involves implementation roadmaps — roadmap lead, implementation roadmap implementation roadmap lead."
+category: strategy
 triggers: ["implementation roadmaps — roadmap lead", "implementation roadmap implementation roadmap lead"]
 tools_allowed: ["read_file", "write_file"]
-category: strategy
 ---
 
 # Implementation Roadmaps — Roadmap Lead
@@ -36,4 +38,3 @@ Mission, current maturity, budget, owners, constraints, regulatory requirements,
 3. Create phased roadmap: discovery, pilot, scale, institutionalize.
 4. Attach owners, dates, evidence gates, and risks.
 5. Review progress and adapt.
-

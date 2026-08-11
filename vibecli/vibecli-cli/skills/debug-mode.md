@@ -1,7 +1,9 @@
 ---
+name: "Debug Mode"
+description: "Debug Mode: Dedicated debugging workflow with breakpoints, watches, stack inspection, and AI-powered root cause analysis. Use when the task involves debug mode, debug session, debugger, breakpoint, step through."
+category: developer-experience
 triggers: ["debug mode", "debug session", "debugger", "breakpoint", "step through", "watch variable", "stack trace", "root cause"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: developer-experience
 ---
 
 # Debug Mode

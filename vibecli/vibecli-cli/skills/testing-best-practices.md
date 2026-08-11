@@ -1,7 +1,9 @@
 ---
+name: "Testing Best Practices"
+description: "Testing Best Practices: Practical rules — e.g. Name tests descriptively: test_<function>_<scenario>_<expected>. Use when the task involves unit test, integration test, test coverage, mocking, TDD."
+category: testing
 triggers: ["unit test", "integration test", "test coverage", "mocking", "TDD"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: testing
 ---
 
 # Testing Best Practices

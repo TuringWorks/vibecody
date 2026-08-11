@@ -1,7 +1,9 @@
 ---
+name: "Information Integrity / Epistemic Security — Lead"
+description: "Information Integrity / Epistemic Security — Lead: The information integrity lead protects the shared information environment needed for democracy, markets, emergency response, science, and public trust. Use when the task involves information integrity / epistemic security — lead, information integrity, epistemic se..."
+category: security
 triggers: ["information integrity / epistemic security — lead", "information integrity", "epistemic security — lead"]
 tools_allowed: ["read_file", "write_file"]
-category: security
 ---
 
 # Information Integrity / Epistemic Security — Lead
@@ -36,4 +38,3 @@ Claims, media artifacts, provenance, source network, affected communities, offic
 3. Classify misinformation, disinformation, satire, error, or unknown.
 4. Draft proportionate response and corrections.
 5. Track spread, trust impact, and recurrence.
-

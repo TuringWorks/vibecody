@@ -1,7 +1,9 @@
 ---
+name: "Real Estate Basics"
+description: "Real Estate Basics: Guidance for working with real estate investment and property management. Use when the task involves real estate, property investment, real estate analysis, rental property, commercial real estate."
+category: finance
 triggers: ["real estate", "property investment", "real estate analysis", "rental property", "commercial real estate", "property management"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: finance
 ---
 
 # Real Estate Basics

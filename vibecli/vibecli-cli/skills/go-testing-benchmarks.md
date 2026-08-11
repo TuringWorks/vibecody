@@ -1,8 +1,10 @@
 ---
+name: "Go Testing & Benchmarks"
+description: "Go Testing & Benchmarks: Guidance for testing Go code. Use when the task involves go test, go benchmark, table driven test, go fuzzing, testify."
+category: testing
 triggers: ["go test", "go benchmark", "table driven test", "go fuzzing", "testify", "go testing"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["go"]
-category: testing
 ---
 
 # Go Testing & Benchmarks

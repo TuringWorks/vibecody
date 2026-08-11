@@ -1,8 +1,10 @@
 ---
+name: "DigitalOcean"
+description: "DigitalOcean: Guidance for working with DigitalOcean. Use when the task involves DigitalOcean, digitalocean, droplet, app platform, DOKS."
+category: cloud-do
 triggers: ["DigitalOcean", "digitalocean", "droplet", "app platform", "DOKS", "digitalocean spaces", "doctl", "digitalocean database"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["doctl"]
-category: cloud-do
 ---
 
 # DigitalOcean

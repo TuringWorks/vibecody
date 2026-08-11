@@ -1,7 +1,9 @@
 ---
+name: "Emotional Intelligence"
+description: "Emotional Intelligence: Guidance for developing and applying emotional intelligence in engineering work. Use when the task involves emotional intelligence, EQ, empathy, self-awareness, interpersonal skills."
+category: people-skills
 triggers: ["emotional intelligence", "EQ", "empathy", "self-awareness", "interpersonal skills", "social awareness"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: people-skills
 ---
 
 # Emotional Intelligence

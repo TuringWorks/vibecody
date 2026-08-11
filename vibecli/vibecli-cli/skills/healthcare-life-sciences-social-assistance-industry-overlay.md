@@ -1,7 +1,9 @@
 ---
-triggers: ["healthcare, life sciences, and social assistance", "healthcare", "life sciences", "social assistance"]
-tools_allowed: ["read_file", "write_file"]
+name: "Healthcare, Life Sciences, and Social Assistance"
+description: "Healthcare, Life Sciences, and Social Assistance: This overlay composes OS 05, 12, 13, 15, 16, 20, 21, and 23. Use when the task involves healthcare, life sciences, and social assistance, life sciences, social assistance."
 category: industry
+triggers: ["healthcare, life sciences, and social assistance", "life sciences", "social assistance"]
+tools_allowed: ["read_file", "write_file"]
 ---
 
 # Healthcare, Life Sciences, and Social Assistance

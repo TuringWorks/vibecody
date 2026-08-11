@@ -1,7 +1,9 @@
 ---
+name: "Professional, Scientific, and Technical Services"
+description: "Professional, Scientific, and Technical Services: This overlay turns a broad cross-industry gap into an operating model for expert-service establishments. Use when the task involves professional, scientific, and technical services, professional, scientific, technical services."
+category: industry
 triggers: ["professional, scientific, and technical services", "professional", "scientific", "technical services"]
 tools_allowed: ["read_file", "write_file"]
-category: industry
 ---
 
 # Professional, Scientific, and Technical Services

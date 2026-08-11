@@ -1,7 +1,9 @@
 ---
+name: "Biotech Genomics and Bioinformatics"
+description: "Biotech Genomics and Bioinformatics: Guidance for working with genomics data, bioinformatics pipelines, and biological sequence analysis. Use when the task involves genomics, bioinformatics, DNA, sequencing, FASTA."
+category: biotech
 triggers: ["genomics", "bioinformatics", "DNA", "sequencing", "FASTA", "VCF", "gene expression", "variant calling", "genome assembly", "phylogenetics"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: biotech
 ---
 
 # Biotech Genomics and Bioinformatics

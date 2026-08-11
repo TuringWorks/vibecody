@@ -1,7 +1,9 @@
 ---
+name: "Distributed Systems Patterns"
+description: "Distributed Systems Patterns: Guidance for designing and operating distributed systems. Use when the task involves distributed systems, consensus algorithm, Raft, eventual consistency, CRDT."
+category: architecture
 triggers: ["distributed systems", "consensus algorithm", "Raft", "eventual consistency", "CRDT", "circuit breaker", "bulkhead pattern", "backpressure", "distributed transaction", "idempotency"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: architecture
 ---
 
 # Distributed Systems Patterns

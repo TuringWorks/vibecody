@@ -1,8 +1,10 @@
 ---
+name: "Axum Framework"
+description: "Axum Framework: Guidance for working with Axum. Use when the task involves axum, axum router, axum tower, axum extractors, axum state."
+category: rust
 triggers: ["axum", "axum router", "axum tower", "axum extractors", "axum state"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["cargo"]
-category: rust
 ---
 
 # Axum Framework

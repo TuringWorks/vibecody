@@ -1,7 +1,9 @@
 ---
+name: "Config Layers"
+description: "Config Layers: Multi-source layered configuration with well-defined precedence, typed values, Cleared semantics, and origin tracking. Use when the task involves config layers, layered configuration, config precedence, deep merge config."
+category: architecture
 triggers: ["config layers", "layered configuration", "config precedence", "deep merge config"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: architecture
 ---
 
 # Config Layers

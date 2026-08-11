@@ -1,7 +1,9 @@
 ---
+name: "Code Documentation"
+description: "Code Documentation: Guidance for documenting code. Use when the task involves code comments, README, ADR, architecture decision, code documentation."
+category: documentation
 triggers: ["code comments", "README", "ADR", "architecture decision", "code documentation", "inline comments"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: documentation
 ---
 
 # Code Documentation

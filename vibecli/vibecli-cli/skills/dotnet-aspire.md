@@ -1,8 +1,10 @@
 ---
+name: ".NET Aspire"
+description: ".NET Aspire: Guidance for working with .NET Aspire. Use when the task involves .NET Aspire, aspire, aspire dashboard, aspire orchestration, aspire service defaults."
+category: csharp
 triggers: [".NET Aspire", "aspire", "aspire dashboard", "aspire orchestration", "aspire service defaults"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["dotnet"]
-category: csharp
 ---
 
 # .NET Aspire

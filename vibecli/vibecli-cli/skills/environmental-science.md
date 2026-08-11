@@ -1,7 +1,9 @@
 ---
+name: "Environmental Science & Sustainability"
+description: "Environmental Science & Sustainability: Guidance for working with environmental science and sustainability. Use when the task involves environmental science, environmental impact, sustainability, carbon footprint, climate."
+category: science
 triggers: ["environmental science", "environmental impact", "sustainability", "carbon footprint", "climate", "EIA", "ESG", "environmental compliance"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: science
 ---
 
 # Environmental Science & Sustainability

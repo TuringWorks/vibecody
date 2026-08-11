@@ -1,8 +1,10 @@
 ---
+name: "Julia Web (HTTP.jl, Oxygen, Genie)"
+description: "Julia Web (HTTP.jl, Oxygen, Genie): Guidance for working with Julia web frameworks. Use when the task involves Julia web, Genie.jl, HTTP.jl, Oxygen.jl, julia server."
+category: julia
 triggers: ["Julia web", "Genie.jl", "HTTP.jl", "Oxygen.jl", "julia server"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["julia"]
-category: julia
 ---
 
 # Julia Web (HTTP.jl, Oxygen, Genie)

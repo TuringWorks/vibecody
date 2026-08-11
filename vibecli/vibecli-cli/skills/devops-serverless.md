@@ -1,7 +1,9 @@
 ---
+name: "Serverless Architecture"
+description: "Serverless Architecture: Guidance for building serverless applications. Use when the task involves serverless, Lambda, cold start, API Gateway, event trigger."
+category: devops
 triggers: ["serverless", "Lambda", "cold start", "API Gateway", "event trigger", "cloud function", "edge function"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: devops
 ---
 
 # Serverless Architecture

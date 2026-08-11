@@ -1,7 +1,9 @@
 ---
+name: "Capability Maturity Assessment — Lead"
+description: "Capability Maturity Assessment — Lead: The capability maturity assessment lead scores readiness across the full system needed to deploy technology safely and productively. Use when the task involves capability maturity assessment — lead, capability maturity capability maturity assessment lead."
+category: strategy
 triggers: ["capability maturity assessment — lead", "capability maturity capability maturity assessment lead"]
 tools_allowed: ["read_file", "write_file"]
-category: strategy
 ---
 
 # Capability Maturity Assessment — Lead
@@ -49,4 +51,3 @@ Mission goals, sector data, budgets, skills inventory, infrastructure, legal con
 3. Identify binding constraints.
 4. Prioritize gaps by mission impact.
 5. Convert gaps into roadmap and owners.
-

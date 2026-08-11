@@ -1,8 +1,10 @@
 ---
+name: "Docker & Containers"
+description: "Docker & Containers: Guidance for building Docker images and containers. Use when the task involves Dockerfile, docker compose, multi-stage build, container image, docker build."
+category: devops
 triggers: ["Dockerfile", "docker compose", "multi-stage build", "container image", "docker build", "layer caching"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["docker"]
-category: devops
 ---
 
 # Docker & Containers

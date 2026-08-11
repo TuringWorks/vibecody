@@ -1,7 +1,9 @@
 ---
+name: "Redis"
+description: "Redis: Guidance for using Redis. Use when the task involves Redis, caching redis, pub/sub, Redis streams, TTL."
+category: database
 triggers: ["Redis", "caching redis", "pub/sub", "Redis streams", "TTL", "redis cluster", "session store"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: database
 ---
 
 # Redis

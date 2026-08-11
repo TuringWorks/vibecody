@@ -1,7 +1,9 @@
 ---
+name: "Context Budget"
+description: "Context Budget: Token budget enforcement for context windows — soft warn at 80%, auto-prune at 90%, hard block at 100%. Use when the task involves context budget, token budget, context pruning, context window limit."
+category: performance
 triggers: ["context budget", "token budget", "context pruning", "context window limit"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: performance
 ---
 
 # Context Budget

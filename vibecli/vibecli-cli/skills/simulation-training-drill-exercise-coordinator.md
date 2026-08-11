@@ -1,7 +1,9 @@
 ---
+name: "Simulation & Keep-Warm — Drill & exercise coordinator"
+description: "Simulation & Keep-Warm — Drill & exercise coordinator: The Drill & exercise coordinator schedules and runs manual-reversion drills and full-scale 'automation-off' exercises. Use when the task involves simulation & keep-warm — drill & exercise coordinator, drill & exercise coordinator, job and role simulators, job, r..."
+category: security
 triggers: ["simulation & keep-warm — drill & exercise coordinator", "drill & exercise coordinator", "job and role simulators", "job", "role simulators"]
 tools_allowed: ["read_file", "write_file"]
-category: security
 ---
 
 # Simulation & Keep-Warm — Drill & exercise coordinator
@@ -43,12 +45,7 @@ Use it when a task calls for this work: schedules and runs manual-reversion dril
 
 Simulators are cheaper and more scalable than real practice, which makes them a leapfrog opportunity for lower-resource settings; fidelity and access still vary. Re-read through:
 
-- **Scale** (city-state → federation): whether this role is unified or layered across local/regional/national tiers.
-- **State capacity** (fragile → high-capacity): whether the owning institution exists and can be held to account, or the job is met by markets, households, NGOs, or donors.
-- **Income level** (low → high): affordability of automation and the balance of subsistence vs. wage work.
-- **Formality** (informal → formal): whether the people and assets this role acts on appear in any registry at all.
-- **Resource & geography**: which hazards and dependencies dominate (water-scarce, flood-prone, landlocked, trade-dependent).
-- **Political system & legitimacy**: where the human-accountability boundary actually binds and who may hold power to account.
+> Shared pattern — see the `shared-national-context-modifiers` skill, section “Adapting to any nation (context modifiers)”.
 
 ## Operating procedure
 

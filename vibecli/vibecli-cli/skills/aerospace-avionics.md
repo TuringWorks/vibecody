@@ -1,7 +1,9 @@
 ---
+name: "Aerospace & Avionics Software"
+description: "Aerospace & Avionics Software: Guidance for developing airborne/avionics software under DO-178C and related standards. Use when the task involves aerospace, avionics, DO-178C, DO-178B, DO-254."
+category: aerospace
 triggers: ["aerospace", "avionics", "DO-178C", "DO-178B", "DO-254", "flight software", "flight control", "autopilot", "ARINC 429", "ARINC 653", "MIL-STD-1553", "airborne software", "DAL", "Design Assurance Level"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: aerospace
 ---
 
 # Aerospace & Avionics Software

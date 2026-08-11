@@ -1,7 +1,9 @@
 ---
+name: "Skill Library Governance — Deprecation / Versioning Agent"
+description: "Skill Library Governance — Deprecation / Versioning Agent: This agent manages skill lifecycle changes without breaking references or confusing future agents. Use when the task involves skill library governance — deprecation / versioning agent, skill library governance — deprecation, versioning agent."
+category: governance
 triggers: ["skill library governance — deprecation / versioning agent", "skill library governance — deprecation", "versioning agent"]
 tools_allowed: ["read_file", "write_file"]
-category: governance
 ---
 
 # Skill Library Governance — Deprecation / Versioning Agent
@@ -40,4 +42,3 @@ Old skill, new skill, references, indexes, framework, user-facing purpose, and m
 3. Draft migration/deprecation plan.
 4. Update references and indexes.
 5. Validate inventory and report changed paths.
-

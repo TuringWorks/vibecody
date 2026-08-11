@@ -1,7 +1,9 @@
 ---
+name: "Translation and Localization"
+description: "Translation and Localization: Guidance for working with translation and localization. Use when the task involves translation, localization, i18n, l10n, internationalization."
+category: writing
 triggers: ["translation", "localization", "i18n", "l10n", "internationalization", "multilingual", "CAT tools", "translation management"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: writing
 ---
 
 # Translation and Localization

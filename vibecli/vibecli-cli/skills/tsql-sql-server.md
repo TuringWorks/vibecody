@@ -1,7 +1,9 @@
 ---
+name: "Transact-SQL (SQL Server)"
+description: "Transact-SQL (SQL Server): Guidance for writing T-SQL for Microsoft SQL Server. Use when the task involves Transact-SQL, T-SQL, SQL Server, SSMS, SQL Server stored procedure."
+category: sql
 triggers: ["Transact-SQL", "T-SQL", "SQL Server", "SSMS", "SQL Server stored procedure", "SQL Server performance", "SSIS", "SSRS", "Azure SQL"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: sql
 ---
 
 # Transact-SQL (SQL Server)

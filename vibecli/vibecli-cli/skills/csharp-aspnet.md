@@ -1,8 +1,10 @@
 ---
+name: "ASP.NET Core"
+description: "ASP.NET Core: Guidance for working with ASP.NET Core. Use when the task involves ASP.NET, aspnet core, dotnet web api, blazor, minimal api."
+category: csharp
 triggers: ["ASP.NET", "aspnet core", "dotnet web api", "blazor", "minimal api", "entity framework", "SignalR"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["dotnet"]
-category: csharp
 ---
 
 # ASP.NET Core

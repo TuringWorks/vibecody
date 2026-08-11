@@ -1,7 +1,9 @@
 ---
+name: "Agent Recruiter"
+description: "Agent Recruiter: Dynamic task-to-agent assignment with scoring heuristic. Use when the task involves agent recruiter, task-to-agent assignment, agent scoring, agent recruitment."
+category: agent
 triggers: ["agent recruiter", "task-to-agent assignment", "agent scoring", "agent recruitment"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: agent
 ---
 
 # Agent Recruiter

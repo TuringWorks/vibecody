@@ -1,7 +1,9 @@
 ---
+name: "Pod Manager — vLLM GPU Pod Deployment"
+description: "Pod Manager — vLLM GPU Pod Deployment: Deploy and manage vLLM on remote GPU pods (RunPod, Lambda Labs, Vast.ai) with automatic VRAM validation, tool-call-parser selection, multi-GPU assignment, and build-varia. Use when the task involves pod manager, vLLM, GPU pod, RunPod, Lambda Labs."
+category: infrastructure
 triggers: ["pod manager", "vLLM", "GPU pod", "RunPod", "Lambda Labs", "Vast.ai", "VRAM validation"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: infrastructure
 ---
 
 # Pod Manager — vLLM GPU Pod Deployment

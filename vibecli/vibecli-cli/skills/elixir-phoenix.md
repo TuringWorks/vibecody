@@ -1,8 +1,10 @@
 ---
+name: "Elixir Phoenix Framework"
+description: "Elixir Phoenix Framework: Guidance for working with Phoenix. Use when the task involves Phoenix, phoenix framework, elixir phoenix, LiveView, phoenix liveview."
+category: elixir
 triggers: ["Phoenix", "phoenix framework", "elixir phoenix", "LiveView", "phoenix liveview", "phoenix channels", "ecto", "elixir plug"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["elixir", "mix"]
-category: elixir
 ---
 
 # Elixir Phoenix Framework

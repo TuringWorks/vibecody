@@ -1,7 +1,9 @@
 ---
+name: "sandbox-bwrap"
+description: "sandbox-bwrap: Linux bwrap (bubblewrap) sandbox profile builder. Use when the task involves bwrap, bubblewrap, Linux sandbox, sandbox profile."
+category: security
 triggers: ["bwrap", "bubblewrap", "Linux sandbox", "sandbox profile"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: security
 ---
 
 # sandbox-bwrap

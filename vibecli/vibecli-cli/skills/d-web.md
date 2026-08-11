@@ -1,7 +1,9 @@
 ---
+name: "D Language Web (vibe.d)"
+description: "D Language Web (vibe.d): Guidance for working with D and vibe.d for web development. Use when the task involves D language web, vibe.d, vibed, dlang web, dlang server."
+category: d
 triggers: ["D language web", "vibe.d", "vibed", "dlang web", "dlang server"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: d
 ---
 
 # D Language Web (vibe.d)

@@ -1,7 +1,9 @@
 ---
+name: "Implementation Roadmaps — First 90 Days Deployment Agent"
+description: "Implementation Roadmaps — First 90 Days Deployment Agent: This agent defines the first practical moves after a mission or deployment idea is approved. Use when the task involves implementation roadmaps — first 90 days deployment agent, implementation roadmap first 90 days deployment agent."
+category: strategy
 triggers: ["implementation roadmaps — first 90 days deployment agent", "implementation roadmap first 90 days deployment agent"]
 tools_allowed: ["read_file", "write_file"]
-category: strategy
 ---
 
 # Implementation Roadmaps — First 90 Days Deployment Agent
@@ -40,4 +42,3 @@ Mission idea, stakeholders, current systems, budget, data availability, risks, l
 3. Establish baseline and readiness gaps.
 4. Select pilot with clear evidence gates.
 5. Define 30/60/90-day actions.
-

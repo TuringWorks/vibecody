@@ -1,7 +1,9 @@
 ---
+name: "TUI IME — Input Method Editor & CJK Width Support"
+description: "TUI IME — Input Method Editor & CJK Width Support: rust use vibecli_cli::tui_ime::{ insert_cursor_marker, find_cursor_marker, strip_cursor_marker, visible_width, truncate_to_width, wrap_to_width, cursor_position_sequen. Use when the task involves TUI IME, input method editor, CJK width, IME candidate window."
+category: terminal
 triggers: ["TUI IME", "input method editor", "CJK width", "IME candidate window"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: terminal
 ---
 
 # TUI IME — Input Method Editor & CJK Width Support

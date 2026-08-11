@@ -1,7 +1,9 @@
 ---
+name: "Infrastructure Security Scanning"
+description: "Infrastructure Security Scanning: Guidance for working with infrastructure scanning. Use when the task involves infrastructure scanning, tfsec, Checkov, kube-bench, kubescape."
+category: security
 triggers: ["infrastructure scanning", "tfsec", "Checkov", "kube-bench", "kubescape", "Prowler", "ScoutSuite", "CIS benchmark", "cloud security posture", "CSPM"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: security
 ---
 
 # Infrastructure Security Scanning

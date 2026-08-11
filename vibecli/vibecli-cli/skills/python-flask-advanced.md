@@ -1,8 +1,10 @@
 ---
+name: "Flask Advanced Patterns"
+description: "Flask Advanced Patterns: Guidance for working with advanced Flask. Use when the task involves Flask blueprint, flask factory, flask-sqlalchemy, flask-migrate, flask celery."
+category: python
 triggers: ["Flask blueprint", "flask factory", "flask-sqlalchemy", "flask-migrate", "flask celery", "flask async"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["python3"]
-category: python
 ---
 
 # Flask Advanced Patterns

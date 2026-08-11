@@ -1,7 +1,9 @@
 ---
+name: "VibeSQL"
+description: "VibeSQL: Guidance for working with VibeSQL (vibesql.online). Use when the task involves VibeSQL, vibesql, vibesql.online, visual sql, sql playground."
+category: database
 triggers: ["VibeSQL", "vibesql", "vibesql.online", "visual sql", "sql playground", "sql learning"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: database
 ---
 
 # VibeSQL

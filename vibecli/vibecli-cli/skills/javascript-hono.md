@@ -1,8 +1,10 @@
 ---
+name: "Hono Framework (Multi-Runtime)"
+description: "Hono Framework (Multi-Runtime): Guidance for working with Hono. Use when the task involves Hono, hono framework, hono middleware, hono cloudflare, hono bun."
+category: javascript
 triggers: ["Hono", "hono framework", "hono middleware", "hono cloudflare", "hono bun", "hono deno"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["node"]
-category: javascript
 ---
 
 # Hono Framework (Multi-Runtime)

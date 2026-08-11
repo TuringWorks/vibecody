@@ -1,8 +1,10 @@
 ---
+name: "Modern C++ (C++17/20)"
+description: "Modern C++ (C++17/20): Guidance for writing modern C++. Use when the task involves C++17, C++20, smart pointer, RAII, move semantics."
+category: cpp
 triggers: ["C++17", "C++20", "smart pointer", "RAII", "move semantics", "unique_ptr", "shared_ptr", "modern C++"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["g++"]
-category: cpp
 ---
 
 # Modern C++ (C++17/20)

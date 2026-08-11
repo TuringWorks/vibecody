@@ -1,7 +1,9 @@
 ---
+name: "Google Cloud Functions and Cloud Run"
+description: "Google Cloud Functions and Cloud Run: Guidance for working with Google Cloud Functions and Cloud Run. Use when the task involves Cloud Functions, Cloud Run, GCP serverless, google cloud functions, cloud run jobs."
+category: devops
 triggers: ["Cloud Functions", "Cloud Run", "GCP serverless", "google cloud functions", "cloud run jobs"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: devops
 ---
 
 # Google Cloud Functions and Cloud Run

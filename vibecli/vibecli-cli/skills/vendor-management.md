@@ -1,7 +1,9 @@
 ---
+name: "Vendor Management"
+description: "Vendor Management: Guidance for evaluating, contracting, and managing third-party vendors. Use when the task involves vendor management, procurement, SLA, contract negotiation, third-party risk."
+category: management
 triggers: ["vendor management", "procurement", "SLA", "contract negotiation", "third-party risk", "outsourcing"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: management
 ---
 
 # Vendor Management

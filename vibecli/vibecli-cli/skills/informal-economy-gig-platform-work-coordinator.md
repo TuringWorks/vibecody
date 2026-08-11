@@ -1,7 +1,9 @@
 ---
+name: "Informal Economy — Gig & platform-work coordinator"
+description: "Informal Economy — Gig & platform-work coordinator: The Gig & platform-work coordinator is an AI-personnel role that matches gig and platform workers to work, tracks earnings, and surfaces rights, benefits, and dispute. Use when the task involves informal economy — gig & platform-work coordinator, gig & platform-wor..."
+category: economics
 triggers: ["informal economy — gig & platform-work coordinator", "gig & platform-work coordinator"]
 tools_allowed: ["read_file", "write_file"]
-category: economics
 ---
 
 # Informal Economy — Gig & platform-work coordinator
@@ -39,12 +41,7 @@ When the task is to matches gig and platform workers to work, tracks earnings, a
 
 In low- and middle-income economies this is not a niche — informal employment is often the **majority** of work. In high-income settings it shows up as gig work, cash work, and care work. Re-read through:
 
-- **Scale** (city-state → federation): whether this role is unified or layered across local/regional/national tiers.
-- **State capacity** (fragile → high-capacity): whether the owning institution exists and can be held to account, or the job is met by markets, households, NGOs, or donors.
-- **Income level** (low → high): affordability of automation and the balance of subsistence vs. wage work.
-- **Formality** (informal → formal): whether the people and assets this role acts on appear in any registry at all.
-- **Resource & geography**: which hazards and dependencies dominate (water-scarce, flood-prone, landlocked, trade-dependent).
-- **Political system & legitimacy**: where the human-accountability boundary actually binds and who may hold power to account.
+> Shared pattern — see the `shared-national-context-modifiers` skill, section “Adapting to any nation (context modifiers)”.
 
 ## Operating procedure
 

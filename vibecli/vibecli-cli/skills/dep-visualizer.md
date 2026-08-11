@@ -1,7 +1,9 @@
 ---
+name: "Dependency Visualizer"
+description: "Dependency Visualizer: Import graph generation with Mermaid and DOT output, cycle detection, and coupling metrics. Use when the task involves dependency visualizer, import graph, cycle detection, coupling metrics, dependency graph."
+category: architecture
 triggers: ["dependency visualizer", "import graph", "cycle detection", "coupling metrics", "dependency graph"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: architecture
 ---
 
 # Dependency Visualizer

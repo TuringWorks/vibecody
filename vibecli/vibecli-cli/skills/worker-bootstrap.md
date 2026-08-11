@@ -1,7 +1,9 @@
 ---
+name: "Worker Bootstrap"
+description: "Worker Bootstrap: Validate agent capability whitelists and enforce token budgets when spawning worker agents. Use when the task involves worker bootstrap, capability whitelist, worker token budget, least-privilege agent."
+category: agent
 triggers: ["worker bootstrap", "capability whitelist", "worker token budget", "least-privilege agent"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: agent
 ---
 
 # Worker Bootstrap

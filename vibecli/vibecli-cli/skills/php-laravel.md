@@ -1,8 +1,10 @@
 ---
+name: "Laravel Framework"
+description: "Laravel Framework: Guidance for working with Laravel. Use when the task involves Laravel, laravel eloquent, laravel artisan, laravel livewire, laravel queue."
+category: php
 triggers: ["Laravel", "laravel eloquent", "laravel artisan", "laravel livewire", "laravel queue", "laravel sanctum"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["php"]
-category: php
 ---
 
 # Laravel Framework

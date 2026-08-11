@@ -1,7 +1,9 @@
 ---
+name: "Autonomous Bug Fixing"
+description: "Autonomous Bug Fixing: Fix bugs without hand-holding — zero context switching for the user. Use when the task involves autonomous bug fix, fix bug autonomously, auto debug, fix failing tests, fix ci."
+category: workflow
 triggers: ["autonomous bug fix", "fix bug autonomously", "auto debug", "fix failing tests", "fix ci", "debug from logs"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: workflow
 ---
 
 # Autonomous Bug Fixing

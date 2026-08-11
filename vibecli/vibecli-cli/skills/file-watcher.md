@@ -1,7 +1,9 @@
 ---
+name: "File Watcher"
+description: "File Watcher: Debounced file-system change detection for live index refresh. Use when the task involves file watcher, watch files, debounce file changes, live reindex."
+category: code-intelligence
 triggers: ["file watcher", "watch files", "debounce file changes", "live reindex"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: code-intelligence
 ---
 
 # File Watcher

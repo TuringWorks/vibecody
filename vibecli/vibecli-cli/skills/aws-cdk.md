@@ -1,8 +1,10 @@
 ---
+name: "AWS CDK Infrastructure as Code"
+description: "AWS CDK Infrastructure as Code: Guidance for working with AWS CDK. Use when the task involves AWS CDK, cdk, cdk construct, cdk stack, cdk pipeline."
+category: cloud-aws
 triggers: ["AWS CDK", "cdk", "cdk construct", "cdk stack", "cdk pipeline", "cdk deploy", "aws infrastructure as code"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["cdk"]
-category: cloud-aws
 ---
 
 # AWS CDK Infrastructure as Code

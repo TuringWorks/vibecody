@@ -1,7 +1,9 @@
 ---
+name: "HR & Workforce Management Engineering"
+description: "HR & Workforce Management Engineering: Guidance for working with human resources and workforce management systems. Use when the task involves HR, human resources, payroll, HRIS, workforce management."
+category: hr
 triggers: ["HR", "human resources", "payroll", "HRIS", "workforce management", "talent acquisition", "ATS", "applicant tracking", "performance management", "benefits administration", "time tracking", "onboarding"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: hr
 ---
 
 # HR & Workforce Management Engineering

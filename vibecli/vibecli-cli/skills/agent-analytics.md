@@ -1,7 +1,9 @@
 ---
+name: "Agent Analytics"
+description: "Agent Analytics: Enterprise usage analytics with per-user, per-team, and per-project dashboards. Use when the task involves agent analytics, token consumption, AI ROI, usage dashboard, per-team analytics."
+category: agent
 triggers: ["agent analytics", "token consumption", "AI ROI", "usage dashboard", "per-team analytics"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: agent
 ---
 
 # Agent Analytics

@@ -1,8 +1,10 @@
 ---
+name: "Azure Container Instances"
+description: "Azure Container Instances: Guidance for working with Azure Container Instances. Use when the task involves ACI, azure container instances, container group, az container, aci sidecar."
+category: cloud-azure
 triggers: ["ACI", "azure container instances", "container group", "az container", "aci sidecar", "aci gpu", "azure container instance"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["az"]
-category: cloud-azure
 ---
 
 # Azure Container Instances

@@ -1,7 +1,9 @@
 ---
+name: "Professional Attestation Engagements"
+description: "Professional Attestation Engagements: Compose this pack with the applicable professional standard, legal regime, subject-matter criteria, firm quality system, and engagement terms. Use when the task involves professional attestation engagements, professional attestation engagements subsector pack."
+category: industry
 triggers: ["professional attestation engagements", "professional attestation engagements subsector pack"]
 tools_allowed: ["read_file", "write_file"]
-category: industry
 ---
 
 # Professional Attestation Engagements

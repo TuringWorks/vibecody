@@ -1,8 +1,10 @@
 ---
+name: "TypeScript Next.js"
+description: "TypeScript Next.js: Guidance for building with Next.js App Router. Use when the task involves next.js, nextjs, App Router, Server Component, SSR."
+category: typescript
 triggers: ["next.js", "nextjs", "App Router", "Server Component", "SSR", "SSG", "API route next", "use server"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["node"]
-category: typescript
 ---
 
 # TypeScript Next.js

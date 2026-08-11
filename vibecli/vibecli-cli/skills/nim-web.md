@@ -1,8 +1,10 @@
 ---
+name: "Nim Web Development"
+description: "Nim Web Development: Guidance for working with Nim web frameworks. Use when the task involves Nim, nim lang, jester, prologue nim, httpbeast."
+category: nim
 triggers: ["Nim", "nim lang", "jester", "prologue nim", "httpbeast", "karax"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["nim"]
-category: nim
 ---
 
 # Nim Web Development

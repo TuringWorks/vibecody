@@ -1,8 +1,10 @@
 ---
+name: "GCP Vertex AI"
+description: "GCP Vertex AI: Guidance for working with Vertex AI. Use when the task involves Vertex AI, vertex ai, gcp ml, vertex pipeline, vertex endpoint."
+category: cloud-gcp
 triggers: ["Vertex AI", "vertex ai", "gcp ml", "vertex pipeline", "vertex endpoint", "gemini api gcp", "vertex model", "google ai platform"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["gcloud"]
-category: cloud-gcp
 ---
 
 # GCP Vertex AI

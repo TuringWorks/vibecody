@@ -1,8 +1,10 @@
 ---
+name: "Rust for Safety-Critical Systems"
+description: "Rust for Safety-Critical Systems: Guidance for using Rust for safety-critical development (automotive, aerospace, industrial, medical). Use when the task involves Rust safety critical, Ferrocene, Rust automotive, Rust aerospace, Rust embedded safety."
+category: safety-critical
 triggers: ["Rust safety critical", "Ferrocene", "Rust automotive", "Rust aerospace", "Rust embedded safety", "Rust DO-178", "Rust ISO 26262", "Rust IEC 61508", "Rust MISRA", "no_std safety", "Rust certification"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["cargo"]
-category: safety-critical
 ---
 
 # Rust for Safety-Critical Systems

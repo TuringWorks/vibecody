@@ -1,7 +1,9 @@
 ---
+name: "Twelve-Factor Agents"
+description: "Twelve-Factor Agents: Guidance for building AI agents following the 12-Factor Agents methodology. Use when the task involves 12 factor agent, twelve factor agent, agent methodology, agent best practices, agent architecture."
+category: ai
 triggers: ["12 factor agent", "twelve factor agent", "agent methodology", "agent best practices", "agent architecture", "stateless reducer agent", "agent design patterns"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # Twelve-Factor Agents

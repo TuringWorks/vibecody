@@ -1,7 +1,9 @@
 ---
+name: "capability-discovery"
+description: "capability-discovery: Dynamic agent capability advertisement and negotiation. Use when the task involves capability discovery, capability advertisement, capability negotiation."
+category: agent
 triggers: ["capability discovery", "capability advertisement", "capability negotiation"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: agent
 ---
 
 # capability-discovery

@@ -1,7 +1,9 @@
 ---
+name: "Skill Library Governance — Governance Lead"
+description: "Skill Library Governance — Governance Lead: The skill library governance lead keeps the skill library coherent, discoverable, current, and safe to use as it grows. Use when the task involves skill library governance — governance lead, skill library governance lead."
+category: governance
 triggers: ["skill library governance — governance lead", "skill library governance lead"]
 tools_allowed: ["read_file", "write_file"]
-category: governance
 ---
 
 # Skill Library Governance — Governance Lead
@@ -36,4 +38,3 @@ Skill inventory, framework index, naming conventions, existing catalogs, user go
 3. Update indexes and framework references.
 4. Assign review cadence and owner.
 5. Deprecate, merge, or split skills when needed.
-

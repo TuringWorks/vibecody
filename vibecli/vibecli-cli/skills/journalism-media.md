@@ -1,7 +1,9 @@
 ---
+name: "Journalism and Media"
+description: "Journalism and Media: Guidance for working with journalism and news media. Use when the task involves journalism, news writing, investigative reporting, editorial, fact-checking."
+category: writing
 triggers: ["journalism", "news writing", "investigative reporting", "editorial", "fact-checking", "media literacy", "news editing"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: writing
 ---
 
 # Journalism and Media

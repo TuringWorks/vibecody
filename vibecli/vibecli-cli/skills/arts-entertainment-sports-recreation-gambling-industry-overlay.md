@@ -1,7 +1,9 @@
 ---
+name: "Arts, Entertainment, Sports, Recreation, and Gambling"
+description: "Arts, Entertainment, Sports, Recreation, and Gambling: This overlay composes OS 04, 12, 16, 17, 18, and 20. Use when the task involves arts, entertainment, sports, recreation, and gambling, arts, entertainment, sports, recreation."
+category: industry
 triggers: ["arts, entertainment, sports, recreation, and gambling", "arts", "entertainment", "sports", "recreation", "gambling"]
 tools_allowed: ["read_file", "write_file"]
-category: industry
 ---
 
 # Arts, Entertainment, Sports, Recreation, and Gambling

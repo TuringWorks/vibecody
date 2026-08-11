@@ -1,7 +1,9 @@
 ---
+name: "Negotiation Skills"
+description: "Negotiation Skills: Guidance for negotiating in professional settings. Use when the task involves negotiation, salary negotiation, contract negotiation, deal making, persuasion."
+category: people-skills
 triggers: ["negotiation", "salary negotiation", "contract negotiation", "deal making", "persuasion"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: people-skills
 ---
 
 # Negotiation Skills

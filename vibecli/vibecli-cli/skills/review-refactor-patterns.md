@@ -1,7 +1,9 @@
 ---
+name: "Refactoring Patterns"
+description: "Refactoring Patterns: Guidance for applying refactoring patterns. Use when the task involves extract method, refactor pattern, replace conditional, introduce parameter, code refactoring."
+category: review
 triggers: ["extract method", "refactor pattern", "replace conditional", "introduce parameter", "code refactoring"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: review
 ---
 
 # Refactoring Patterns

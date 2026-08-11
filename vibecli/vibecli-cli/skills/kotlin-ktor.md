@@ -1,8 +1,10 @@
 ---
+name: "Kotlin Ktor Framework"
+description: "Kotlin Ktor Framework: Guidance for working with Ktor. Use when the task involves Ktor, ktor, ktor routing, ktor plugin, ktor client."
+category: kotlin
 triggers: ["Ktor", "ktor", "ktor routing", "ktor plugin", "ktor client", "ktor server"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["java"]
-category: kotlin
 ---
 
 # Kotlin Ktor Framework

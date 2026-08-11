@@ -1,7 +1,9 @@
 ---
+name: "Container Security"
+description: "Container Security: Guidance for securing containers. Use when the task involves container security, image scanning, rootless container, seccomp, network policy."
+category: security
 triggers: ["container security", "image scanning", "rootless container", "seccomp", "network policy", "container hardening"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: security
 ---
 
 # Container Security

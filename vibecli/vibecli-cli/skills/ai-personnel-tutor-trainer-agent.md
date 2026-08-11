@@ -1,7 +1,9 @@
 ---
+name: "AI Personnel Catalog — Tutor/trainer agent"
+description: "AI Personnel Catalog — Tutor/trainer agent: Handles the job: diagnose learner gaps and adapt practice. Use when the task involves ai personnel catalog — tutor/trainer agent, ai personnel catalog — tutor, trainer agent, tutor/trainer agent, tutor."
+category: agent
 triggers: ["ai personnel catalog — tutor/trainer agent", "ai personnel catalog — tutor", "trainer agent", "tutor/trainer agent", "tutor"]
 tools_allowed: ["read_file", "write_file"]
-category: agent
 ---
 
 # AI Personnel Catalog — Tutor/trainer agent
@@ -19,13 +21,7 @@ Whenever the job "diagnose learner gaps and adapt practice" appears in any secto
 
 ## Lifecycle
 
-- **Sense reality** — gather data, observe conditions, inspect sources, listen to people.
-- **Interpret reality** — diagnose, forecast, model risk, prioritize.
-- **Decide** — choose policy, design, action, allocation, escalation, or tradeoff.
-- **Mobilize** — assign labor, budget, materials, rights, permissions, logistics, schedule.
-- **Execute** — perform the work in digital or physical space.
-- **Verify** — test, audit, measure, inspect, certify, and learn.
-- **Govern** — maintain legitimacy, safety, accountability, continuity, and trust.
+> Shared pattern — see the `shared-ai-personnel-pattern` skill, section “Core Jobs To Be Done (lifecycle)”.
 
 ## Division of labor
 
@@ -45,9 +41,4 @@ Fabrication, prompt injection, specification gaming, silent drift, and automatio
 
 ## Adapting to any nation
 
-- **Scale** (city-state → federation): whether this role is unified or layered across local/regional/national tiers.
-- **State capacity** (fragile → high-capacity): whether the owning institution exists and can be held to account, or the job is met by markets, households, NGOs, or donors.
-- **Income level** (low → high): affordability of automation and the balance of subsistence vs. wage work.
-- **Formality** (informal → formal): whether the people and assets this role acts on appear in any registry at all.
-- **Resource & geography**: which hazards and dependencies dominate (water-scarce, flood-prone, landlocked, trade-dependent).
-- **Political system & legitimacy**: where the human-accountability boundary actually binds and who may hold power to account.
+> Shared pattern — see the `shared-national-context-modifiers` skill, section “Adapting to any nation (context modifiers)”.

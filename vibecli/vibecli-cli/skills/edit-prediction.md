@@ -1,7 +1,9 @@
 ---
+name: "RL-Trained Next-Edit Prediction"
+description: "RL-Trained Next-Edit Prediction: Reinforcement learning model that predicts your next edit based on patterns and history. Use when the task involves edit prediction, next edit, predict edit, edit suggestion, RL prediction."
+category: code-intelligence
 triggers: ["edit prediction", "next edit", "predict edit", "edit suggestion", "RL prediction", "edit pattern", "learn edits"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: code-intelligence
 ---
 
 # RL-Trained Next-Edit Prediction

@@ -1,7 +1,9 @@
 ---
+name: "Doc Sync"
+description: "Doc Sync: Bidirectional synchronization between documentation and code. Use when the task involves doc sync, stale documentation, sync docs and code, documentation drift."
+category: documentation
 triggers: ["doc sync", "stale documentation", "sync docs and code", "documentation drift"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: documentation
 ---
 
 # Doc Sync

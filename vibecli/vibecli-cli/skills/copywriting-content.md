@@ -1,7 +1,9 @@
 ---
+name: "Copywriting & Content Strategy"
+description: "Copywriting & Content Strategy: Guidance for working with copywriting and content. Use when the task involves copywriting, content writing, content strategy, content marketing, blogging."
+category: marketing
 triggers: ["copywriting", "content writing", "content strategy", "content marketing", "blogging", "SEO writing", "content creation"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: marketing
 ---
 
 # Copywriting & Content Strategy

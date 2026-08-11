@@ -1,7 +1,9 @@
 ---
+name: "Zero Trust Architecture"
+description: "Zero Trust Architecture: Guidance for implementing zero trust security principles. Use when the task involves zero trust, zero trust architecture, microsegmentation, SPIFFE, SPIRE."
+category: security
 triggers: ["zero trust", "zero trust architecture", "microsegmentation", "SPIFFE", "SPIRE", "OPA policy", "Cedar policy", "identity aware proxy", "beyondcorp"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: security
 ---
 
 # Zero Trust Architecture

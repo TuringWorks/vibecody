@@ -1,8 +1,10 @@
 ---
+name: "Ruby Testing with RSpec"
+description: "Ruby Testing with RSpec: Guidance for testing Ruby applications with RSpec. Use when the task involves RSpec, FactoryBot, Capybara, ruby test, rspec describe."
+category: testing
 triggers: ["RSpec", "FactoryBot", "Capybara", "ruby test", "rspec describe", "shoulda matchers"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["ruby"]
-category: testing
 ---
 
 # Ruby Testing with RSpec

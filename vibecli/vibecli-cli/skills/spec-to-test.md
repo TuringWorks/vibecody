@@ -1,7 +1,9 @@
 ---
+name: "Spec-to-Test Generator"
+description: "Spec-to-Test Generator: BDD Gherkin spec → test stub generator for Rust, TypeScript, and Python. Use when the task involves spec to test, Gherkin, BDD spec, feature file, test skeleton."
+category: testing
 triggers: ["spec to test", "Gherkin", "BDD spec", "feature file", "test skeleton"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: testing
 ---
 
 # Spec-to-Test Generator

@@ -14,7 +14,7 @@ use crate::provider::{
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
 use futures::stream;
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 

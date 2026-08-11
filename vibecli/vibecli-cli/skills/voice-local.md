@@ -1,7 +1,9 @@
 ---
+name: "Voice Local"
+description: "Voice Local: Offline voice coding using local whisper.cpp for speech-to-text. Use when the task involves voice local, whisper.cpp, offline voice, speech to text, voice coding."
+category: productivity
 triggers: ["voice local", "whisper.cpp", "offline voice", "speech to text", "voice coding"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: productivity
 ---
 
 # Voice Local

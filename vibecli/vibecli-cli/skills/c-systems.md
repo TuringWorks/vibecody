@@ -1,8 +1,10 @@
 ---
+name: "C Systems Programming"
+description: "C Systems Programming: Guidance for writing systems-level C code. Use when the task involves C programming, malloc, valgrind, POSIX, socket programming."
+category: c
 triggers: ["C programming", "malloc", "valgrind", "POSIX", "socket programming", "systems programming C", "memory management C"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["gcc"]
-category: c
 ---
 
 # C Systems Programming

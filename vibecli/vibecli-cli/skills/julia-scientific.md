@@ -1,8 +1,10 @@
 ---
+name: "Julia Scientific Computing"
+description: "Julia Scientific Computing: Guidance for writing Julia code for scientific computing and numerical analysis. Use when the task involves Julia, julia scientific, DifferentialEquations.jl, Flux.jl, Plots.jl."
+category: julia
 triggers: ["Julia", "julia scientific", "DifferentialEquations.jl", "Flux.jl", "Plots.jl", "DataFrames.jl", "julia package", "julia performance", "julia type system"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["julia"]
-category: julia
 ---
 
 # Julia Scientific Computing

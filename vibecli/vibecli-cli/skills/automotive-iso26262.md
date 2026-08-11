@@ -1,7 +1,9 @@
 ---
+name: "Automotive Software (ISO 26262 / AUTOSAR)"
+description: "Automotive Software (ISO 26262 / AUTOSAR): Guidance for developing automotive software under ISO 26262 and AUTOSAR. Use when the task involves automotive software, ISO 26262, AUTOSAR, ASIL, ECU."
+category: safety-critical
 triggers: ["automotive software", "ISO 26262", "AUTOSAR", "ASIL", "ECU", "automotive safety", "vehicle software", "ADAS", "autonomous driving", "CAN bus", "automotive Ethernet", "SOTIF"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: safety-critical
 ---
 
 # Automotive Software (ISO 26262 / AUTOSAR)

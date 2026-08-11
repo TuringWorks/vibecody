@@ -1,7 +1,9 @@
 ---
+name: "GitHub Actions Agent"
+description: "GitHub Actions Agent: Run VibeCLI as a CI/CD agent in GitHub Actions workflows. Use when the task involves github actions, CI agent, actions workflow, GH actions, workflow yaml."
+category: devops
 triggers: ["github actions", "CI agent", "actions workflow", "GH actions", "workflow yaml", "CI/CD agent", "actions integration"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: devops
 ---
 
 # GitHub Actions Agent

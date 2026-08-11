@@ -1,7 +1,9 @@
 ---
+name: "Conversational Codebase Search"
+description: "Conversational Codebase Search: Interactive conversational search engine for asking natural language questions about your codebase. Use when the task involves conversational search, ask codebase, code Q&A, search chat, devin search."
+category: code-intelligence
 triggers: ["conversational search", "ask codebase", "code Q&A", "search chat", "devin search", "codebase question", "find and explain"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: code-intelligence
 ---
 
 # Conversational Codebase Search

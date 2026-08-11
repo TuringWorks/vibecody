@@ -1,8 +1,10 @@
 ---
+name: "R Statistical Computing"
+description: "R Statistical Computing: Guidance for writing R code for statistical analysis, visualization, and data science. Use when the task involves R language, R statistics, ggplot2, tidyverse, dplyr."
+category: r-lang
 triggers: ["R language", "R statistics", "ggplot2", "tidyverse", "dplyr", "R markdown", "Shiny", "CRAN", "Bioconductor", "R programming", "statistical computing R"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["Rscript"]
-category: r-lang
 ---
 
 # R Statistical Computing

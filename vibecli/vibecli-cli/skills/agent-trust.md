@@ -1,7 +1,9 @@
 ---
+name: "Agent Trust"
+description: "Agent Trust: Trust scoring system that tracks historical agent accuracy and adjusts review thresholds automatically. Use when the task involves agent trust, trust score, agent autonomy, review threshold."
+category: agent
 triggers: ["agent trust", "trust score", "agent autonomy", "review threshold"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: agent
 ---
 
 # Agent Trust

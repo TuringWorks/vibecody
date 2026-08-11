@@ -1,7 +1,9 @@
 ---
+name: "Autonomous Deployment Pipelines"
+description: "Autonomous Deployment Pipelines: Guidance for building or operating agent-driven autonomous deployment pipelines. Use when the task involves autonomous deploy, deploy pipeline, auto promote, deployment agent, plan to production."
+category: devops
 triggers: ["autonomous deploy", "deploy pipeline", "auto promote", "deployment agent", "plan to production"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: devops
 ---
 
 # Autonomous Deployment Pipelines

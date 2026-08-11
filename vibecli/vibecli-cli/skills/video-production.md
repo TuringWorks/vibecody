@@ -1,7 +1,9 @@
 ---
+name: "Video Production"
+description: "Video Production: Guidance for working with video production. Use when the task involves video production, video editing, Premiere Pro, Final Cut, DaVinci Resolve."
+category: creative
 triggers: ["video production", "video editing", "Premiere Pro", "Final Cut", "DaVinci Resolve", "After Effects", "motion graphics"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: creative
 ---
 
 # Video Production

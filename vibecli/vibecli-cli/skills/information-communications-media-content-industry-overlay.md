@@ -1,7 +1,9 @@
 ---
-triggers: ["information, communications, media, and digital content", "information", "communications", "media", "digital content"]
-tools_allowed: ["read_file", "write_file"]
+name: "Information, Communications, Media, and Digital Content"
+description: "Information, Communications, Media, and Digital Content: This overlay composes OS 12, 16, 17, 18, 20, and 23. Use when the task involves information, communications, media, and digital content, information, digital content."
 category: industry
+triggers: ["information, communications, media, and digital content", "information", "digital content"]
+tools_allowed: ["read_file", "write_file"]
 ---
 
 # Information, Communications, Media, and Digital Content

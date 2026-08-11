@@ -1,7 +1,9 @@
 ---
+name: "Finance - Investment & Portfolio Management"
+description: "Finance - Investment & Portfolio Management: Guidance for working with investment and portfolio management systems. Use when the task involves investment, portfolio, asset allocation, portfolio optimization, Markowitz."
+category: finance
 triggers: ["investment", "portfolio", "asset allocation", "portfolio optimization", "Markowitz", "Sharpe ratio", "alpha", "beta", "risk-adjusted return", "backtesting", "rebalancing", "robo-advisor"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: finance
 ---
 
 # Finance - Investment & Portfolio Management

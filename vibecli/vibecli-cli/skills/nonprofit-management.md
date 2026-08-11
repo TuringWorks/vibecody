@@ -1,7 +1,9 @@
 ---
+name: "Nonprofit Management"
+description: "Nonprofit Management: Guidance for working with nonprofit management and NGO operations. Use when the task involves nonprofit management, NGO, fundraising, grant management, board governance."
+category: operations
 triggers: ["nonprofit management", "NGO", "fundraising", "grant management", "board governance", "volunteer management", "donor relations"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: operations
 ---
 
 # Nonprofit Management

@@ -1,7 +1,9 @@
 ---
+name: "Intent-Preserving Refactoring"
+description: "Intent-Preserving Refactoring: Transform code based on high-level intent while preserving behavioral equivalence. Use when the task involves intent-preserving refactor, behavioral equivalence, safe refactor, preserve public API."
+category: code-intelligence
 triggers: ["intent-preserving refactor", "behavioral equivalence", "safe refactor", "preserve public API"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: code-intelligence
 ---
 
 # Intent-Preserving Refactoring

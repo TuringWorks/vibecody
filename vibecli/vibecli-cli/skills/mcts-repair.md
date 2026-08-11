@@ -1,7 +1,9 @@
 ---
+name: "MCTS Code Repair"
+description: "MCTS Code Repair: Monte Carlo tree search for autonomous bug fixing. Use when the task involves MCTS repair, Monte Carlo tree search repair, autonomous bug fix, repair strategy search."
+category: code-intelligence
 triggers: ["MCTS repair", "Monte Carlo tree search repair", "autonomous bug fix", "repair strategy search"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: code-intelligence
 ---
 
 # MCTS Code Repair

@@ -1,7 +1,9 @@
 ---
+name: "Fly.io and Railway Deployment"
+description: "Fly.io and Railway Deployment: Guidance for working with Fly.io and Railway. Use when the task involves Fly.io, flyctl, fly deploy, fly machine, Railway."
+category: cloud-paas
 triggers: ["Fly.io", "flyctl", "fly deploy", "fly machine", "Railway", "railway deploy", "railway service", "fly multi-region"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: cloud-paas
 ---
 
 # Fly.io and Railway Deployment

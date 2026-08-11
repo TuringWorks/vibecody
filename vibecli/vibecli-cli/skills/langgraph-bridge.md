@@ -1,7 +1,9 @@
 ---
+name: "LangGraph Bridge"
+description: "LangGraph Bridge: Bridge to the Python LangGraph agent ecosystem. Use when the task involves LangGraph, LangChain, LangSmith, Python agent bridge."
+category: ai
 triggers: ["LangGraph", "LangChain", "LangSmith", "Python agent bridge"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # LangGraph Bridge

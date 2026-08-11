@@ -1,7 +1,9 @@
 ---
+name: "LabVIEW"
+description: "LabVIEW: Guidance for developing LabVIEW (G language) applications for test, measurement, and automation. Use when the task involves LabVIEW, National Instruments, NI LabVIEW, virtual instrument, VI."
+category: scientific
 triggers: ["LabVIEW", "National Instruments", "NI LabVIEW", "virtual instrument", "VI", "dataflow programming", "DAQ LabVIEW", "FPGA LabVIEW", "G language"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: scientific
 ---
 
 # LabVIEW

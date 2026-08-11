@@ -1,7 +1,9 @@
 ---
+name: "Web Crawling & Scraping"
+description: "Web Crawling & Scraping: Guidance for building web crawlers and scrapers. Use when the task involves web crawling, web scraping, spider, sitemap, robots.txt."
+category: data
 triggers: ["web crawling", "web scraping", "spider", "sitemap", "robots.txt", "link extraction", "content extraction"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: data
 ---
 
 # Web Crawling & Scraping

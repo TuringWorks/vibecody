@@ -1,7 +1,9 @@
 ---
+name: "On-Device and Local Inference"
+description: "On-Device and Local Inference: Guidance for deploying AI models for local or air-gapped inference. Use when the task involves on device model, local inference, GGUF, llama.cpp, private inference."
+category: ai
 triggers: ["on device model", "local inference", "GGUF", "llama.cpp", "private inference", "air-gapped"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # On-Device and Local Inference

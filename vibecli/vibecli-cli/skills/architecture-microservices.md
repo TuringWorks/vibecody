@@ -1,7 +1,9 @@
 ---
+name: "Microservices Architecture"
+description: "Microservices Architecture: Guidance for designing microservices. Use when the task involves microservices, service boundary, saga pattern, event sourcing, service mesh."
+category: architecture
 triggers: ["microservices", "service boundary", "saga pattern", "event sourcing", "service mesh", "domain driven"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: architecture
 ---
 
 # Microservices Architecture

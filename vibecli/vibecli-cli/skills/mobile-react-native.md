@@ -1,8 +1,10 @@
 ---
+name: "React Native & Expo"
+description: "React Native & Expo: Guidance for building mobile apps with React Native. Use when the task involves React Native, Expo, mobile app, react navigation, native module."
+category: mobile
 triggers: ["React Native", "Expo", "mobile app", "react navigation", "native module", "mobile performance"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["node"]
-category: mobile
 ---
 
 # React Native & Expo

@@ -1,7 +1,9 @@
 ---
+name: "Quantum Programming Languages"
+description: "Quantum Programming Languages: Best practices for working with quantum programming languages and frameworks. Use when the task involves quantum language, quantum programming, Qiskit, Cirq, Q#."
+category: quantum
 triggers: ["quantum language", "quantum programming", "Qiskit", "Cirq", "Q#", "OpenQASM", "PennyLane", "quantum SDK"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: quantum
 ---
 
 # Quantum Programming Languages

@@ -1,7 +1,9 @@
 ---
+name: "Prompt Cache"
+description: "Prompt Cache: Static prefix caching — freeze system prompt, tools JSON, and config JSON into a FNV-1a cache key. Use when the task involves prompt cache, prefix caching, cache key, cache hit rate."
+category: performance
 triggers: ["prompt cache", "prefix caching", "cache key", "cache hit rate"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: performance
 ---
 
 # Prompt Cache

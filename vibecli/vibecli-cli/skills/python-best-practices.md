@@ -1,8 +1,10 @@
 ---
+name: "Python Best Practices"
+description: "Python Best Practices: Practical rules — e.g. Use type hints everywhere: def greet(name: str) -> str. Use when the task involves python, pip, pytest, django, flask."
+category: python
 triggers: ["python", "pip", "pytest", "django", "flask", "fastapi"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["python3"]
-category: python
 ---
 
 # Python Best Practices

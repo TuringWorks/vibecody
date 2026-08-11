@@ -1,7 +1,9 @@
 ---
+name: "RL Deployment & Serving"
+description: "RL Deployment & Serving: Deploy RL policies with stateful serving, A/B testing, edge deployment, auto-rollback, and domain-specific integrations. Use when the task involves RL deployment, policy serving, A/B test policy, policy auto-rollback, edge policy deployment."
+category: ai
 triggers: ["RL deployment", "policy serving", "A/B test policy", "policy auto-rollback", "edge policy deployment"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # RL Deployment & Serving

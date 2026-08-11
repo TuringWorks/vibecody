@@ -1,8 +1,10 @@
 ---
+name: "Python ML & AI"
+description: "Python ML & AI: Guidance for building machine learning and AI systems. Use when the task involves scikit-learn, pytorch, tensorflow, transformers, model training."
+category: python
 triggers: ["scikit-learn", "pytorch", "tensorflow", "transformers", "model training", "machine learning python", "neural network", "huggingface"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["python3"]
-category: python
 ---
 
 # Python ML & AI

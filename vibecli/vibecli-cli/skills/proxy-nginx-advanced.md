@@ -1,8 +1,10 @@
 ---
+name: "Advanced Nginx"
+description: "Advanced Nginx: Guidance for working with advanced Nginx configurations. Use when the task involves nginx upstream, nginx lua, nginx rate limit, nginx load balancer, nginx caching."
+category: devops
 triggers: ["nginx upstream", "nginx lua", "nginx rate limit", "nginx load balancer", "nginx caching", "nginx stream", "nginx map", "nginx rewrite"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["nginx"]
-category: devops
 ---
 
 # Advanced Nginx

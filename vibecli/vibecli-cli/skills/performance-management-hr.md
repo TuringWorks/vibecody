@@ -1,7 +1,9 @@
 ---
+name: "Performance Management"
+description: "Performance Management: Guidance for working with performance management and employee evaluation. Use when the task involves performance management, performance review, employee evaluation, goal setting HR, KPI employee."
+category: hr
 triggers: ["performance management", "performance review", "employee evaluation", "goal setting HR", "KPI employee", "360 feedback"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: hr
 ---
 
 # Performance Management

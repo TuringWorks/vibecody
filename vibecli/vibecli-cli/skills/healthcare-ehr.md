@@ -1,7 +1,9 @@
 ---
+name: "Healthcare EHR Systems"
+description: "Healthcare EHR Systems: Guidance for working with electronic health record (EHR) systems and clinical software. Use when the task involves EHR, electronic health record, EMR, patient record, clinical workflow."
+category: healthcare
 triggers: ["EHR", "electronic health record", "EMR", "patient record", "clinical workflow", "CDSS", "clinical decision support", "e-prescribing", "patient portal", "health informatics"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: healthcare
 ---
 
 # Healthcare EHR Systems

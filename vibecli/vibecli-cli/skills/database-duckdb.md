@@ -1,7 +1,9 @@
 ---
+name: "DuckDB"
+description: "DuckDB: Guidance for working with DuckDB. Use when the task involves DuckDB, duckdb, duckdb query, analytical query, duckdb parquet."
+category: database
 triggers: ["DuckDB", "duckdb", "duckdb query", "analytical query", "duckdb parquet", "olap database", "embedded analytics"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: database
 ---
 
 # DuckDB

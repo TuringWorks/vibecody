@@ -1,7 +1,9 @@
 ---
+name: "Implementation Roadmaps — Domain Rollout Sequencer Agent"
+description: "Implementation Roadmaps — Domain Rollout Sequencer Agent: This agent sequences rollout across domains, sites, and phases to reduce risk and maximize learning. Use when the task involves implementation roadmaps — domain rollout sequencer agent, implementation roadmap domain rollout sequencer agent."
+category: strategy
 triggers: ["implementation roadmaps — domain rollout sequencer agent", "implementation roadmap domain rollout sequencer agent"]
 tools_allowed: ["read_file", "write_file"]
-category: strategy
 ---
 
 # Implementation Roadmaps — Domain Rollout Sequencer Agent
@@ -40,4 +42,3 @@ Pilot results, site inventory, readiness scores, risk tiers, infrastructure, wor
 3. Define gate criteria and support model.
 4. Sequence procurement, training, infrastructure, and governance.
 5. Monitor and adjust rollout.
-

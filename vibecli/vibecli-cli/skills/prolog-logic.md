@@ -1,8 +1,10 @@
 ---
+name: "Prolog & Logic Programming"
+description: "Prolog & Logic Programming: Guidance for writing Prolog code. Use when the task involves Prolog, logic programming, SWI-Prolog, SICStus, Prolog rules."
+category: prolog
 triggers: ["Prolog", "logic programming", "SWI-Prolog", "SICStus", "Prolog rules", "Prolog facts", "unification", "backtracking", "constraint logic programming", "Datalog"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["swipl"]
-category: prolog
 ---
 
 # Prolog & Logic Programming

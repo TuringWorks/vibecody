@@ -1,7 +1,9 @@
 ---
+name: "CISA Known Exploited Vulnerabilities Catalog"
+description: "CISA Known Exploited Vulnerabilities Catalog: Guidance for working with the CISA KEV catalog. Use when the task involves CISA KEV, known exploited vulnerabilities, CISA catalog, KEV catalog, BOD 22-01."
+category: security
 triggers: ["CISA KEV", "known exploited vulnerabilities", "CISA catalog", "KEV catalog", "BOD 22-01", "cisa vulnerability", "exploited vulnerability catalog"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: security
 ---
 
 # CISA Known Exploited Vulnerabilities Catalog

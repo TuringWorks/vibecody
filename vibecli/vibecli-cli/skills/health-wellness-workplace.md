@@ -1,7 +1,9 @@
 ---
+name: "Health and Wellness in the Workplace"
+description: "Health and Wellness in the Workplace: Guidance for working with workplace wellness and burnout prevention. Use when the task involves workplace wellness, burnout prevention, stress management, ergonomics, mental health workplace."
+category: personal-development
 triggers: ["workplace wellness", "burnout prevention", "stress management", "ergonomics", "mental health workplace", "work-life balance"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: personal-development
 ---
 
 # Health and Wellness in the Workplace

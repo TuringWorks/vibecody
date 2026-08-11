@@ -1,8 +1,10 @@
 ---
+name: "Jooby Framework"
+description: "Jooby Framework: Guidance for working with Jooby. Use when the task involves jooby, jooby mvc, jooby netty, jooby-apt."
+category: java
 triggers: ["jooby", "jooby mvc", "jooby netty", "jooby-apt"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["java"]
-category: java
 ---
 
 # Jooby Framework

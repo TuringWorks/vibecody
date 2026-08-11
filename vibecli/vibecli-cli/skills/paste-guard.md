@@ -1,7 +1,9 @@
 ---
+name: "Paste Guard"
+description: "Paste Guard: Protect the TUI input handler from large or malicious pastes by collapsing bracketed paste events to compact markers and storing the full content in a ring buffer. Use when the task involves paste guard, large paste, TUI paste, paste protection."
+category: terminal
 triggers: ["paste guard", "large paste", "TUI paste", "paste protection"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: terminal
 ---
 
 # Paste Guard

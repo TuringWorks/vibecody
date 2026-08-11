@@ -1,7 +1,9 @@
 ---
+name: "PlanetScale"
+description: "PlanetScale: Guidance for working with PlanetScale. Use when the task involves PlanetScale, planetscale, vitess, database branching mysql, planetscale deploy."
+category: database
 triggers: ["PlanetScale", "planetscale", "vitess", "database branching mysql", "planetscale deploy"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: database
 ---
 
 # PlanetScale

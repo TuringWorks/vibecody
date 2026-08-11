@@ -1,8 +1,10 @@
 ---
+name: "Knative Serverless on Kubernetes"
+description: "Knative Serverless on Kubernetes: Guidance for working with Knative. Use when the task involves Knative, knative, knative serving, knative eventing, knative function."
+category: devops
 triggers: ["Knative", "knative", "knative serving", "knative eventing", "knative function", "scale to zero", "knative broker", "knative trigger"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["kubectl"]
-category: devops
 ---
 
 # Knative Serverless on Kubernetes

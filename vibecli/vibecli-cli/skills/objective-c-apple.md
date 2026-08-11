@@ -1,8 +1,10 @@
 ---
+name: "Objective-C"
+description: "Objective-C: Guidance for writing Objective-C code (iOS/macOS legacy codebases). Use when the task involves Objective-C, ObjC, Objective C, NSObject, Foundation framework."
+category: objective-c
 triggers: ["Objective-C", "ObjC", "Objective C", "NSObject", "Foundation framework", "UIKit Objective-C", "Cocoa Objective-C", "ARC Objective-C", "@interface", "@implementation"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["clang"]
-category: objective-c
 ---
 
 # Objective-C

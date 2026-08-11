@@ -1,7 +1,9 @@
 ---
+name: "Workflow Orchestration"
+description: "Workflow Orchestration: Structured AI-assisted development workflow with feedback loops. Use when the task involves workflow orchestration, orchestrate, plan before build, lessons learned, self improvement."
+category: workflow
 triggers: ["workflow orchestration", "orchestrate", "plan before build", "lessons learned", "self improvement", "demand elegance", "verification gate"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: workflow
 ---
 
 # Workflow Orchestration

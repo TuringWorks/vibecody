@@ -1,7 +1,9 @@
 ---
+name: "Blockchain Node and Infrastructure"
+description: "Blockchain Node and Infrastructure: Guidance for working with blockchain infrastructure. Use when the task involves blockchain node, Geth, Reth, Erigon, The Graph."
+category: blockchain
 triggers: ["blockchain node", "Geth", "Reth", "Erigon", "The Graph", "subgraph", "Ponder", "Flashbots", "MEV", "blockchain indexing", "IPFS pinning", "validator node"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: blockchain
 ---
 
 # Blockchain Node and Infrastructure

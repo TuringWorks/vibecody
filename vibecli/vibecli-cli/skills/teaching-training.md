@@ -1,7 +1,9 @@
 ---
+name: "Teaching and Training"
+description: "Teaching and Training: Guidance for working with teaching, training delivery, and facilitated learning. Use when the task involves teaching, training delivery, facilitated learning, adult learning, andragogy."
+category: education
 triggers: ["teaching", "training delivery", "facilitated learning", "adult learning", "andragogy", "classroom management", "trainer skills"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: education
 ---
 
 # Teaching and Training

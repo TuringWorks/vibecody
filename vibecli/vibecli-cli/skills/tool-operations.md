@@ -1,8 +1,10 @@
 ---
+name: "Tool Operations — Pluggable I/O Backends"
+description: "Tool Operations — Pluggable I/O Backends: Guidance for an agent operates inside a workspace directory, construct the edit backend with an explicit root so relative paths stay sandboxed. Use when the task involves tool operations, bash backend, edit backend, ops registry, ssh backend."
+category: rust
 triggers: ["tool operations", "bash backend", "edit backend", "ops registry", "ssh backend", "docker backend", "dry-run ops", "memory edit", "redirect tool", "pluggable tool", "LocalBashOps", "DryRunBashOps", "MemoryEditOps", "OpsRegistry"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["cargo"]
-category: rust
 ---
 
 # Tool Operations — Pluggable I/O Backends

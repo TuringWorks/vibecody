@@ -1,7 +1,9 @@
 ---
+name: "API Documentation"
+description: "API Documentation: Guidance for documenting APIs. Use when the task involves OpenAPI, Swagger, JSDoc, rustdoc, typedoc."
+category: documentation
 triggers: ["OpenAPI", "Swagger", "JSDoc", "rustdoc", "typedoc", "API documentation", "openapi spec"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: documentation
 ---
 
 # API Documentation

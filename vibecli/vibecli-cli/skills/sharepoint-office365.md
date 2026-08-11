@@ -1,7 +1,9 @@
 ---
+name: "SharePoint and Microsoft 365"
+description: "SharePoint and Microsoft 365: Guidance for working with SharePoint, Microsoft 365, and the Power Platform. Use when the task involves SharePoint, Office 365, Microsoft 365, Power Platform, Power Automate."
+category: enterprise
 triggers: ["SharePoint", "Office 365", "Microsoft 365", "Power Platform", "Power Automate", "Power Apps", "Teams administration"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: enterprise
 ---
 
 # SharePoint and Microsoft 365

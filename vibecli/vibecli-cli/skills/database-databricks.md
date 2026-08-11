@@ -1,7 +1,9 @@
 ---
+name: "Databricks / Delta Lake"
+description: "Databricks / Delta Lake: Guidance for working with Databricks. Use when the task involves Databricks, databricks sql, Delta Lake, delta table, Unity Catalog."
+category: database
 triggers: ["Databricks", "databricks sql", "Delta Lake", "delta table", "Unity Catalog", "databricks notebook", "lakehouse", "spark sql databricks"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: database
 ---
 
 # Databricks / Delta Lake

@@ -1,7 +1,9 @@
 ---
+name: "Parallel Tool Executor"
+description: "Parallel Tool Executor: Concurrent tool dispatch with sequential preflight hooks and ordered result emission. Use when the task involves parallel tools, concurrent tool dispatch, parallel tool execution, tool preflight hooks."
+category: performance
 triggers: ["parallel tools", "concurrent tool dispatch", "parallel tool execution", "tool preflight hooks"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: performance
 ---
 
 # Parallel Tool Executor

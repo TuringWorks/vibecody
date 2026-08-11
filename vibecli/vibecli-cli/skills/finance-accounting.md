@@ -1,7 +1,9 @@
 ---
+name: "Finance - Accounting Systems"
+description: "Finance - Accounting Systems: Guidance for working with accounting and bookkeeping systems. Use when the task involves accounting, ledger, double-entry, journal entry, chart of accounts."
+category: finance
 triggers: ["accounting", "ledger", "double-entry", "journal entry", "chart of accounts", "GL", "general ledger", "accounts payable", "accounts receivable", "GAAP", "IFRS", "trial balance", "reconciliation"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: finance
 ---
 
 # Finance - Accounting Systems

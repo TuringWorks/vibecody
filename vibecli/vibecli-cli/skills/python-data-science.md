@@ -1,8 +1,10 @@
 ---
+name: "Python Data Science"
+description: "Python Data Science: Guidance for doing data analysis and visualization. Use when the task involves pandas, numpy, matplotlib, jupyter, dataframe."
+category: python
 triggers: ["pandas", "numpy", "matplotlib", "jupyter", "dataframe", "data analysis python", "seaborn", "plotly"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["python3"]
-category: python
 ---
 
 # Python Data Science

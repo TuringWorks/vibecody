@@ -1,7 +1,9 @@
 ---
+name: "Supabase Database"
+description: "Supabase Database: Guidance for working with Supabase's PostgreSQL database. Use when the task involves Supabase, supabase database, supabase postgres, supabase query, supabase rpc."
+category: database
 triggers: ["Supabase", "supabase database", "supabase postgres", "supabase query", "supabase rpc", "supabase realtime", "supabase edge"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: database
 ---
 
 # Supabase Database

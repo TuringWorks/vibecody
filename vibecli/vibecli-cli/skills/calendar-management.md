@@ -1,7 +1,9 @@
 ---
+name: "Calendar Management (Google Calendar & Outlook)"
+description: "Calendar Management (Google Calendar & Outlook): VibeCLI integrates with Google Calendar and Outlook Calendar via /calendar (alias /cal). Use when the task involves calendar, google calendar, outlook calendar, schedule, meeting."
+category: productivity
 triggers: ["calendar", "google calendar", "outlook calendar", "schedule", "meeting", "event", "free slots", "book time", "reschedule"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: productivity
 ---
 
 # Calendar Management (Google Calendar & Outlook)

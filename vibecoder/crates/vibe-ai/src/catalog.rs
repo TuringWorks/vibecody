@@ -65,8 +65,15 @@ pub const OLLAMA_CHAT_MODELS: &[&str] = &[
     "qwen2.5-coder",
 ];
 
+// claude-fable-5 restored 2026-08-10: US export controls were lifted on
+// 2026-06-30 and Fable 5 returned globally on 07-01 after a 19-day suspension.
+// claude-mythos-5 is deliberately still absent — it came back only for approved
+// US organisations, and a flat list cannot express "available to some callers",
+// so offering it would 403 for most users. It waits on per-model availability
+// metadata rather than being listed optimistically.
 const CLAUDE: &[&str] = &[
     "claude-opus-5",
+    "claude-fable-5",
     "claude-sonnet-5",
     "claude-opus-4-8",
     "claude-opus-4-7",
@@ -96,8 +103,13 @@ const OPENAI: &[&str] = &[
     "gpt-4o-mini",
 ];
 
+// gemini-3.5-pro removed 2026-08-10 (R1): it has never GA'd. Announced at I/O
+// on 2026-05-19, delayed three times, and as of August 2026 it is still a
+// limited Vertex AI preview for selected enterprise customers — not in the
+// consumer app, not in AI Studio. Offering it here made `/models` advertise an
+// id the API rejects. Do not re-add until it ships; see the registry rule in
+// useModelRegistry.ts.
 const GEMINI: &[&str] = &[
-    "gemini-3.5-pro",
     "gemini-3.6-flash",
     "gemini-3.5-flash",
     "gemini-3.5-flash-lite",

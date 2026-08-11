@@ -1,7 +1,9 @@
 ---
+name: "Lane Events"
+description: "Lane Events: Structured agent event bus with typed lanes for observability, audit, and cost tracking. Use when the task involves lane events, event lanes, agent event bus, audit events, cost lane."
+category: observability
 triggers: ["lane events", "event lanes", "agent event bus", "audit events", "cost lane"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: observability
 ---
 
 # Lane Events

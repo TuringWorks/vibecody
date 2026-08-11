@@ -1,7 +1,9 @@
 ---
+name: "Secrets Detection and Management"
+description: "Secrets Detection and Management: Guidance for working with secrets scanning. Use when the task involves secrets scanning, GitLeaks, TruffleHog, secret detection, API key leak."
+category: security
 triggers: ["secrets scanning", "GitLeaks", "TruffleHog", "secret detection", "API key leak", "credential scanning", "git secrets", "secret rotation", "pre-commit secrets"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: security
 ---
 
 # Secrets Detection and Management

@@ -1,7 +1,9 @@
 ---
+name: "Subsector Pack Router"
+description: "Subsector Pack Router: Use this router after selecting the parent industry overlay. Use when the task involves subsector pack router."
+category: agent
 triggers: ["subsector pack router"]
 tools_allowed: ["read_file", "write_file"]
-category: agent
 ---
 
 # Subsector Pack Router

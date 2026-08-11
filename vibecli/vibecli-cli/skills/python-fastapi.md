@@ -1,8 +1,10 @@
 ---
+name: "Python FastAPI"
+description: "Python FastAPI: Guidance for building FastAPI applications. Use when the task involves fastapi, pydantic, uvicorn, dependency injection python, async endpoint."
+category: python
 triggers: ["fastapi", "pydantic", "uvicorn", "dependency injection python", "async endpoint", "python API"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["python3"]
-category: python
 ---
 
 # Python FastAPI

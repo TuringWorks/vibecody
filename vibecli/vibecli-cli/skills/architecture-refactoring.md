@@ -1,7 +1,9 @@
 ---
+name: "Refactoring & Tech Debt"
+description: "Refactoring & Tech Debt: Guidance for managing refactoring and technical debt. Use when the task involves strangler fig, feature flag, tech debt, refactoring strategy, legacy code."
+category: architecture
 triggers: ["strangler fig", "feature flag", "tech debt", "refactoring strategy", "legacy code", "incremental migration"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: architecture
 ---
 
 # Refactoring & Tech Debt

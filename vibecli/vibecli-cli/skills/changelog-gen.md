@@ -1,7 +1,9 @@
 ---
+name: "Automated Changelog Generator"
+description: "Automated Changelog Generator: Git history → conventional changelog. Use when the task involves changelog, generate changelog, release notes, conventional commits."
+category: documentation
 triggers: ["changelog", "generate changelog", "release notes", "conventional commits"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: documentation
 ---
 
 # Automated Changelog Generator

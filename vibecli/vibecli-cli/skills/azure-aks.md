@@ -1,8 +1,10 @@
 ---
+name: "Azure Kubernetes Service (AKS)"
+description: "Azure Kubernetes Service (AKS): Guidance for working with Azure AKS. Use when the task involves AKS, azure aks, azure kubernetes, aks node pool, aks workload identity."
+category: cloud-azure
 triggers: ["AKS", "azure aks", "azure kubernetes", "aks node pool", "aks workload identity", "aks ingress", "azure container"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["az", "kubectl"]
-category: cloud-azure
 ---
 
 # Azure Kubernetes Service (AKS)

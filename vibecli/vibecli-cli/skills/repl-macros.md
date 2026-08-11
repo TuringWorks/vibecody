@@ -1,7 +1,9 @@
 ---
+name: "repl-macros"
+description: "repl-macros: Define and invoke parameterized REPL command macros. Use when the task involves repl macro, command macro, parameterized macro, define macro."
+category: terminal
 triggers: ["repl macro", "command macro", "parameterized macro", "define macro"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: terminal
 ---
 
 # repl-macros

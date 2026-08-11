@@ -1,7 +1,9 @@
 ---
+name: "Software, IT, Data, Cybersecurity, and AI Businesses"
+description: "Software, IT, Data, Cybersecurity, and AI Businesses: This overlay composes OS 12, 15, 16, 17, 20, and 23. Use when the task involves software, it, data, cybersecurity, and ai businesses, software, data, cybersecurity, ai businesses."
+category: industry
 triggers: ["software, it, data, cybersecurity, and ai businesses", "software", "data", "cybersecurity", "ai businesses"]
 tools_allowed: ["read_file", "write_file"]
-category: industry
 ---
 
 # Software, IT, Data, Cybersecurity, and AI Businesses

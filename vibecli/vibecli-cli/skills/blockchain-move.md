@@ -1,7 +1,9 @@
 ---
+name: "Move Language (Sui/Aptos)"
+description: "Move Language (Sui/Aptos): Guidance for working with Move smart contracts. Use when the task involves Move, move language, Sui, Aptos, move module."
+category: blockchain
 triggers: ["Move", "move language", "Sui", "Aptos", "move module", "move resource", "sui object", "aptos move", "move prover"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: blockchain
 ---
 
 # Move Language (Sui/Aptos)

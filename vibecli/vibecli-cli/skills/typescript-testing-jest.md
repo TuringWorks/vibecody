@@ -1,8 +1,10 @@
 ---
+name: "TypeScript Testing with Jest/Vitest"
+description: "TypeScript Testing with Jest/Vitest: Guidance for writing TypeScript tests. Use when the task involves jest, vitest, testing typescript, mock function, snapshot test."
+category: testing
 triggers: ["jest", "vitest", "testing typescript", "mock function", "snapshot test", "test coverage", "describe it expect"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["node"]
-category: testing
 ---
 
 # TypeScript Testing with Jest/Vitest

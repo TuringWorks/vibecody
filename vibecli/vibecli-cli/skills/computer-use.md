@@ -1,7 +1,9 @@
 ---
+name: "Computer Use"
+description: "Computer Use: let bounds = ScreenBounds::new(1920, 1080); let plan = ActionPlan::new(\"Submit login form\") .add(Action::Click { x: 400, y: 300, button: MouseButton::Left }) .add(Action. Use when the task involves computer use, desktop automation, GUI action, click type screenshot."
+category: automation
 triggers: ["computer use", "desktop automation", "GUI action", "click type screenshot"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: automation
 ---
 
 # Computer Use

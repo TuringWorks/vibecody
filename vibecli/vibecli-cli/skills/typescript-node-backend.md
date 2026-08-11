@@ -1,8 +1,10 @@
 ---
+name: "TypeScript Node.js Backend"
+description: "TypeScript Node.js Backend: Guidance for building Node.js backends with TypeScript. Use when the task involves express, fastify, node backend, middleware, zod."
+category: typescript
 triggers: ["express", "fastify", "node backend", "middleware", "zod", "node.js API", "REST server node"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["node"]
-category: typescript
 ---
 
 # TypeScript Node.js Backend

@@ -1,7 +1,9 @@
 ---
+name: "Session Health Probe"
+description: "Session Health Probe: Monitor active agent sessions for health status (Healthy/Degraded/Stalled/Dead) based on token utilization, idle time, and error rates. Use when the task involves session health, stalled session, degraded session, health probe."
+category: observability
 triggers: ["session health", "stalled session", "degraded session", "health probe"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: observability
 ---
 
 # Session Health Probe

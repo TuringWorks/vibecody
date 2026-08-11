@@ -1,8 +1,10 @@
 ---
+name: "Go Gin Framework"
+description: "Go Gin Framework: Guidance for working with Gin. Use when the task involves Gin, gin-gonic, gin router, gin middleware, gin handler."
+category: go
 triggers: ["Gin", "gin-gonic", "gin router", "gin middleware", "gin handler"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["go"]
-category: go
 ---
 
 # Go Gin Framework

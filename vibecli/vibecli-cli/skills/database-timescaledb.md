@@ -1,7 +1,9 @@
 ---
+name: "TimescaleDB"
+description: "TimescaleDB: Guidance for working with TimescaleDB. Use when the task involves TimescaleDB, timescale, hypertable, time series database, timescaledb continuous aggregate."
+category: database
 triggers: ["TimescaleDB", "timescale", "hypertable", "time series database", "timescaledb continuous aggregate", "tsdb"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: database
 ---
 
 # TimescaleDB

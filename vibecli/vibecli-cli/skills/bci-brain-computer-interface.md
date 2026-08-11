@@ -1,8 +1,10 @@
 ---
+name: "Brain-Computer Interface (BCI) Development"
+description: "Brain-Computer Interface (BCI) Development: Guidance for building BCI systems and neural signal processing pipelines. Use when the task involves BCI, brain computer interface, EEG, neural interface, neurofeedback."
+category: scientific
 triggers: ["BCI", "brain computer interface", "EEG", "neural interface", "neurofeedback", "brain signals", "OpenBCI", "MNE", "brainflow", "P300", "SSVEP", "motor imagery"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["python3"]
-category: scientific
 ---
 
 # Brain-Computer Interface (BCI) Development

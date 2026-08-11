@@ -1,7 +1,9 @@
 ---
+name: "Enterprise Architecture Specification"
+description: "Enterprise Architecture Specification: Unified architecture framework supporting TOGAF ADM, Zachman Framework, C4 Model, and Architecture Decision Records (ADRs). Use when the task involves architecture specification, TOGAF, Zachman, C4 model, ADR."
+category: architecture
 triggers: ["architecture specification", "TOGAF", "Zachman", "C4 model", "ADR", "architecture decision record"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: architecture
 ---
 
 # Enterprise Architecture Specification

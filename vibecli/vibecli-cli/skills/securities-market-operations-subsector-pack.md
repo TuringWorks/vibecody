@@ -1,7 +1,9 @@
 ---
+name: "Securities Market Operations"
+description: "Securities Market Operations: Compose this pack with finance, cybersecurity, legal, and jurisdiction-specific securities rules. Use when the task involves securities market operations, securities market operations subsector pack."
+category: industry
 triggers: ["securities market operations", "securities market operations subsector pack"]
 tools_allowed: ["read_file", "write_file"]
-category: industry
 ---
 
 # Securities Market Operations

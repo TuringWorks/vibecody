@@ -1,8 +1,10 @@
 ---
+name: "Java Testing"
+description: "Java Testing: Guidance for testing Java applications. Use when the task involves JUnit, Mockito, AssertJ, Testcontainers, java test."
+category: testing
 triggers: ["JUnit", "Mockito", "AssertJ", "Testcontainers", "java test", "MockBean", "SpringBootTest"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["java"]
-category: testing
 ---
 
 # Java Testing

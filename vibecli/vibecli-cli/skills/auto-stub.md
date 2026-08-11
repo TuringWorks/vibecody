@@ -1,7 +1,9 @@
 ---
+name: "Auto Stub Generator"
+description: "Auto Stub Generator: Generate test stubs and mock implementations from function signatures and trait/interface definitions. Use when the task involves auto stub, test stub, mock implementation, generate stubs, TDD bootstrap."
+category: testing
 triggers: ["auto stub", "test stub", "mock implementation", "generate stubs", "TDD bootstrap"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: testing
 ---
 
 # Auto Stub Generator

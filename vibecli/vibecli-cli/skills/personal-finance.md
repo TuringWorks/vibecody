@@ -1,7 +1,9 @@
 ---
+name: "Personal Finance"
+description: "Personal Finance: Guidance for working with personal finance and financial planning. Use when the task involves personal finance, budgeting personal, investing basics, retirement planning, tax planning personal."
+category: personal-development
 triggers: ["personal finance", "budgeting personal", "investing basics", "retirement planning", "tax planning personal", "financial literacy"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: personal-development
 ---
 
 # Personal Finance

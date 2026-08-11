@@ -1,8 +1,10 @@
 ---
+name: "Haskell Web Development"
+description: "Haskell Web Development: Guidance for working with Haskell web frameworks. Use when the task involves Haskell, servant, yesod, warp haskell, ihp."
+category: haskell
 triggers: ["Haskell", "servant", "yesod", "warp haskell", "ihp", "haskell web", "cabal", "stack haskell"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["ghc"]
-category: haskell
 ---
 
 # Haskell Web Development
