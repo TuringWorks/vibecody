@@ -27,7 +27,7 @@ reqwest = { workspace = true }
 # RS256 JWT signing. Already in the tree via rcgen + rustls, so this is a
 # direct declaration of something we were compiling anyway, not a new dep.
 ring = "0.17"
-base64 = "0.22"
+base64 = "0.23"
 async-trait = { workspace = true }
 
 [dev-dependencies]

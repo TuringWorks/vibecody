@@ -53,7 +53,7 @@ vibe-memory = { path = "../../vibe-memory" }
 vibecli_cli = { package = "vibecli", path = "../../vibecli/vibecli-cli" }
 # Voice input — the same daemon bridge VibeDesk and VibeAIChat use.
 vibe-desktop-voice = { path = "../../crates/vibe-desktop-voice" }
-base64 = "0.22.1"
+base64 = "0.23.1"
 chrono = "0.4.44"
 rusqlite = { version = "0.40", features = ["bundled"] }
 chacha20poly1305 = "0.10"
