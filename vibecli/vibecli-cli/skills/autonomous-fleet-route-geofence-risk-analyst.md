@@ -27,10 +27,6 @@ Use it when a task calls for this work: assesses routes, maps, and geofences for
 
 > Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
 
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
 ## Responsibilities
 
 - Deliver this role's core job: assesses routes, maps, and geofences for hazards and ODD violations before and during missions.

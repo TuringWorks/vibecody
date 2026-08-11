@@ -28,10 +28,6 @@ When a task needs the physical job "fly fields to scout stand, weeds, pests, dis
 
 > Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
 
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
 ## Division of labor and safety
 
 - **Human owner (farmer / ranch manager)** — owns the safety case, the ODD, land/site/airspace rules, and stop authority; accountable for incidents.
@@ -63,7 +59,5 @@ These remain human-owned. The machine operates within its ODD and engineered saf
 > Shared pattern — see the `shared-ai-personnel-pattern` skill, section “Labor-market grounding”.
 
 ## Adapting to any nation (context modifiers)
-
-> Shared pattern — see the `shared-national-context-modifiers` skill, section “Adapting to any nation (context modifiers)”.
 
 > Shared pattern — see the `shared-national-context-modifiers` skill, section “Adapting to any nation (context modifiers)”.

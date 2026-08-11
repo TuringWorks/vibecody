@@ -25,8 +25,6 @@ These robot roles are assumed to be **LLM-brained embodied agents**, not hard-co
 
 > Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
 
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
 ## When to use this skill
 
 When a task needs the physical job "pick, pack, sort, palletize, replenish" in environments such as logistics hubs, retail backrooms. Pair with the relevant operating-system skill (01–23) for domain safety rules and the human accountability boundary, and with `embodied-ai-*` for the roles that build and operate the brain, policies, and safety layer.

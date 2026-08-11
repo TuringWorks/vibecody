@@ -27,10 +27,6 @@ Use it when a task calls for this work: operates AMRs, autonomous forklifts, sor
 
 > Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
 
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
 ## Responsibilities
 
 - Deliver this role's core job: operates AMRs, autonomous forklifts, sortation, inventory robots, fixed cells, and warehouse orchestration.

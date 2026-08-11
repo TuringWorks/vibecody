@@ -257,6 +257,7 @@ mod tests {
     use super::*;
     use crate::plugin_manifest::{Components, Publisher};
     use p256::ecdsa::SigningKey;
+    use p256::elliptic_curve::Generate;
     use tempfile::tempdir;
 
     fn fixture_key() -> SigningKey {
@@ -266,7 +267,7 @@ mod tests {
         // (OS entropy), so it does not qualify; `ThreadRng`'s error is
         // `Infallible`, so it does. p256 0.14 put elliptic-curve on the
         // same rand_core generation as the workspace `rand`.
-        SigningKey::random(&mut rand::rng())
+        SigningKey::generate_from_rng(&mut rand::rng())
     }
 
     fn fixture_manifest_with(key: &SigningKey) -> PluginManifest {

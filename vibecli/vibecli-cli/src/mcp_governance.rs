@@ -1165,9 +1165,10 @@ mod tests {
         use crate::plugin_signing::{sign_manifest, MANIFEST_FILENAME, SIGNATURE_FILENAME};
         use crate::signed_agent_card::jwk_from_verifying_key;
         use p256::ecdsa::SigningKey;
+    use p256::elliptic_curve::Generate;
         use tempfile::tempdir;
 
-        let key = SigningKey::random(&mut rand::rng());
+        let key = SigningKey::generate_from_rng(&mut rand::rng());
         let manifest = PluginManifest {
             name: plugin_name.into(),
             version: "1.0.0".into(),

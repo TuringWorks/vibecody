@@ -27,10 +27,6 @@ Use it when a task calls for this work: operates autonomous tractors, sprayers, 
 
 > Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
 
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
 ## Responsibilities
 
 - Deliver this role's core job: operates autonomous tractors, sprayers, seeders, harvesters, and field drones under agronomic, safety, food-safety, animal-welfare, and environmental constraints.

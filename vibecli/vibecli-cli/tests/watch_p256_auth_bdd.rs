@@ -7,6 +7,7 @@
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD as B64, Engine};
 use cucumber::{given, then, when, World};
 use p256::ecdsa::{signature::Signer, Signature, SigningKey};
+use p256::elliptic_curve::Generate;
 use tempfile::TempDir;
 use vibecli_cli::watch_auth::{WatchAuthManager, WatchRegisterRequest};
 
@@ -53,7 +54,7 @@ fn a_fresh_manager(world: &mut P256World) {
 
 #[given("a P256 signing key is generated")]
 fn generate_p256_key(world: &mut P256World) {
-    world.signing_key = Some(SigningKey::random(
+    world.signing_key = Some(SigningKey::generate_from_rng(
         &mut rand::rng(),
     ));
 }

@@ -27,10 +27,6 @@ When a task needs the physical job "haul ore and overburden on mine haul roads a
 
 > Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
 
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
 ## Division of labor and safety
 
 - **Human owner / fleet operator** — owns the safety case, the ODD, and stop authority; accountable for incidents.

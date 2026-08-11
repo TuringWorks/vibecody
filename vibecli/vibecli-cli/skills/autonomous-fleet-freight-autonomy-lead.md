@@ -27,10 +27,6 @@ Use it when a task calls for this work: coordinates autonomous trucks, yard trac
 
 > Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
 
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
-> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
-
 ## Responsibilities
 
 - Deliver this role's core job: coordinates autonomous trucks, yard tractors, delivery vehicles, warehouse AMRs, forklifts, and port equipment across autonomous logistics networks.

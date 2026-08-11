@@ -279,6 +279,7 @@ mod tests {
     use crate::signed_agent_card::jwk_from_verifying_key;
     use crate::workspace_store::{PluginPolicy, PolicySetter};
     use p256::ecdsa::SigningKey;
+    use p256::elliptic_curve::Generate;
     use std::fs;
     use tempfile::tempdir;
 
@@ -291,7 +292,7 @@ mod tests {
     }
 
     fn fixture_key() -> SigningKey {
-        SigningKey::random(&mut rand::rng())
+        SigningKey::generate_from_rng(&mut rand::rng())
     }
 
     /// Build a signed MCPB bundle with all five component kinds, one

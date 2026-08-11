@@ -9950,7 +9950,11 @@ async fn main() -> Result<()> {
                                 args.trim().to_string()
                             };
                             let _ = ws;
-                            println!("Running: {}\n", cmd);
+                            // E3: redact before echoing. The command string can carry a
+                            // credential as a flag (deploy CLIs take --token=/--auth=), and
+                            // until 2026-08-10 only the command *output* was redacted — the
+                            // command itself went to the terminal and the log verbatim.
+                            println!("Running: {}\n", warp_features::SecretRedactor::new().redact(&cmd));
                             let (prog, cmd_args) = if cmd.starts_with("cargo") {
                                 ("cargo", vec!["test"])
                             } else if cmd.starts_with("npm") {
@@ -10093,7 +10097,11 @@ async fn main() -> Result<()> {
                                         continue;
                                     }
                                     println!("Deploying to {} ({})...\n", resolved, desc);
-                                    println!("Running: {}\n", cmd);
+                                    // E3: redact before echoing. The command string can carry a
+                                    // credential as a flag (deploy CLIs take --token=/--auth=), and
+                                    // until 2026-08-10 only the command *output* was redacted — the
+                                    // command itself went to the terminal and the log verbatim.
+                                    println!("Running: {}\n", warp_features::SecretRedactor::new().redact(&cmd));
                                     let status = std::process::Command::new("sh")
                                         .args(["-c", cmd])
                                         .current_dir(&cwd)
@@ -10150,7 +10158,11 @@ async fn main() -> Result<()> {
                                     }
                                 }
                             };
-                            println!("Running: {}\n", fw);
+                            // E3: redact before echoing. The command string can carry a
+                            // credential as a flag (deploy CLIs take --token=/--auth=), and
+                            // until 2026-08-10 only the command *output* was redacted — the
+                            // command itself went to the terminal and the log verbatim.
+                            println!("Running: {}\n", warp_features::SecretRedactor::new().redact(&fw));
                             let status = std::process::Command::new("sh")
                                 .args(["-c", fw])
                                 .current_dir(&cwd)

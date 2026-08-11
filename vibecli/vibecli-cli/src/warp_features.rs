@@ -315,22 +315,71 @@ impl SecretRedactor {
         result
     }
 
-    fn redact_password(text: &str) -> String {
-        let mut result = String::with_capacity(text.len());
-        let mut remaining = text;
-        let needle = "password=";
+    /// Keys whose `=value` is a credential. Matched case-insensitively and
+    /// suffix-wise, so `--token=`, `-token=`, and `api_token=` all hit the
+    /// `token=` entry.
+    ///
+    /// `password=` alone was not enough once this redactor started covering
+    /// *commands* rather than only their output: deploy CLIs take credentials
+    /// as flags (`vercel --token=…`, `netlify deploy --auth=…`), and those are
+    /// exactly the strings echoed before execution.
+    const SECRET_KEYS: &'static [&'static str] = &[
+        "password=",
+        "passwd=",
+        "token=",
+        "auth=",
+        "apikey=",
+        "api-key=",
+        "api_key=",
+        "secret=",
+        "access-key=",
+        "access_key=",
+    ];
 
-        while let Some(pos) = remaining.find(needle) {
-            result.push_str(&remaining[..pos]);
-            let after = &remaining[pos + needle.len()..];
-            let val_len: usize = after
-                .chars()
-                .take_while(|c| !c.is_whitespace() && *c != '&' && *c != ';')
-                .count();
-            result.push_str("password=****");
-            remaining = &after[val_len..];
+    fn redact_password(text: &str) -> String {
+        Self::SECRET_KEYS
+            .iter()
+            .fold(text.to_string(), |acc, key| Self::redact_keyed(&acc, key))
+    }
+
+    /// Replace `<key><value>` with `<key>****`, where the value runs to the
+    /// next whitespace, `&`, or `;`.
+    ///
+    /// Indexing is in **bytes** throughout. The previous implementation
+    /// measured the value with `chars().take_while(..).count()` — a *char*
+    /// count — and then sliced with it, so any non-ASCII byte inside a secret
+    /// shifted the split off a char boundary and panicked. A panic in a
+    /// redactor is a bad failure twice over: it happens on the path that
+    /// handles credentials, and it happens in a daemon path, which
+    /// CLAUDE.md forbids.
+    fn redact_keyed(text: &str, key: &str) -> String {
+        let lower = text.to_lowercase();
+        // `to_lowercase` can change byte length for some scripts; fall back to
+        // leaving the text untouched rather than risk mismatched offsets.
+        if lower.len() != text.len() {
+            return text.to_string();
         }
-        result.push_str(remaining);
+
+        let mut result = String::with_capacity(text.len());
+        let mut cursor = 0usize;
+
+        while let Some(rel) = lower[cursor..].find(key) {
+            let start = cursor + rel;
+            let val_start = start + key.len();
+            let val_len = text[val_start..]
+                .find(|c: char| c.is_whitespace() || c == '&' || c == ';')
+                .unwrap_or(text.len() - val_start);
+
+            result.push_str(&text[cursor..val_start]);
+            // Preserve an empty value (`token=` with nothing after it) rather
+            // than inventing a redaction for a secret that is not there.
+            if val_len > 0 {
+                result.push_str("****");
+            }
+            cursor = val_start + val_len;
+        }
+
+        result.push_str(&text[cursor..]);
         result
     }
 
@@ -859,6 +908,63 @@ mod tests {
         let output = r.redact(input);
         assert!(output.contains("password=****"));
         assert!(!output.contains("s3cret"));
+    }
+
+    // ── E3: redacting *commands*, not just their output ─────────────────────
+    //
+    // `SecretRedactor` was only ever applied to command stdout/stderr while
+    // `println!("Running: {cmd}")` echoed the command itself verbatim. Deploy
+    // CLIs take credentials as flags, so the echo was the leak.
+
+    #[test]
+    fn redacts_credential_flags_in_a_command_line() {
+        let r = SecretRedactor::new();
+        for cmd in [
+            "vercel deploy --token=abc123secret --prod",
+            "netlify deploy --auth=nfp_liveSecretValue",
+            "curl -X POST https://api.example.com --api-key=k_live_9999",
+            "deploy --access_key=AKIAV3RYS3CR3T --region=us-east-1",
+        ] {
+            let out = r.redact(cmd);
+            assert!(out.contains("****"), "no redaction applied to: {cmd}");
+            for leaked in ["abc123secret", "nfp_liveSecretValue", "k_live_9999", "AKIAV3RYS3CR3T"] {
+                assert!(!out.contains(leaked), "leaked {leaked} in {out}");
+            }
+        }
+    }
+
+    #[test]
+    fn redacts_credential_flags_case_insensitively() {
+        let r = SecretRedactor::new();
+        let out = r.redact("deploy --TOKEN=Sup3rS3cret --Password=hunter2");
+        assert!(!out.contains("Sup3rS3cret"), "got: {out}");
+        assert!(!out.contains("hunter2"), "got: {out}");
+    }
+
+    #[test]
+    fn redacting_a_non_ascii_secret_does_not_panic() {
+        // Regression: the value length was measured in `chars()` and then used
+        // as a *byte* index, so a multi-byte character inside a secret split
+        // mid-codepoint and panicked — on the credential-handling path, in a
+        // daemon. Any non-panicking result is a pass; the point is the crash.
+        let r = SecretRedactor::new();
+        let out = r.redact("deploy --token=pässwörd–value --flag=x");
+        assert!(!out.contains("pässwörd–value"), "got: {out}");
+    }
+
+    #[test]
+    fn preserves_an_empty_credential_value() {
+        // `token=` with nothing after it is not a secret; inventing a `****`
+        // there would assert a fact about the input that is not true.
+        let r = SecretRedactor::new();
+        assert_eq!(r.redact("run --token= --verbose"), "run --token= --verbose");
+    }
+
+    #[test]
+    fn leaves_ordinary_command_lines_untouched() {
+        let r = SecretRedactor::new();
+        let cmd = "cargo test --workspace --no-fail-fast";
+        assert_eq!(r.redact(cmd), cmd);
     }
 
     #[test]

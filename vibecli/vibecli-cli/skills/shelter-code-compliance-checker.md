@@ -48,8 +48,6 @@ Run every task through the universal seven-step lifecycle:
 
 > Shared pattern — see the `shared-ai-personnel-pattern` skill, section “Inputs and outputs”.
 
-> Shared pattern — see the `shared-ai-personnel-pattern` skill, section “Inputs and outputs”.
-
 ## Decision rights
 
 > Shared pattern — see the `shared-ai-personnel-pattern` skill, section “Decision rights”.
