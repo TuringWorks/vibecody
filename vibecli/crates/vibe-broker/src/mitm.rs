@@ -361,7 +361,7 @@ fn sign_aws_v4(
     path_and_query: &str,
     creds: &crate::secrets::AwsCredentials,
 ) -> Option<Vec<(String, String)>> {
-    use hmac::{Hmac, Mac};
+    use hmac::{Hmac, KeyInit, Mac};
     use sha2::Sha256;
     type HmacSha256 = Hmac<Sha256>;
 
@@ -467,7 +467,7 @@ fn sha256_hex(input: &[u8]) -> String {
 }
 
 fn hmac_sha256(key: &[u8], data: &[u8]) -> Vec<u8> {
-    use hmac::{Hmac, Mac};
+    use hmac::{Hmac, KeyInit, Mac};
     use sha2::Sha256;
     type HmacSha256 = Hmac<Sha256>;
     let mut mac = HmacSha256::new_from_slice(key).expect("hmac key length valid");
