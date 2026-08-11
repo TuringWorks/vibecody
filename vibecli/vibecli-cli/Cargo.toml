@@ -130,7 +130,7 @@ subtle = "2.5"
 dashmap = "6"
 hex.workspace = true
 uuid.workspace = true
-base64 = "0.22"
+base64 = "0.23"
 keyring = "4"
 chacha20poly1305 = "0.10"
 chrono = { version = "0.4", features = ["serde"] }
