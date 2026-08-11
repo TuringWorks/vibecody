@@ -1,7 +1,9 @@
 ---
+name: "Headquarters, Holding Companies, and Shared Services"
+description: "Headquarters, Holding Companies, and Shared Services: This overlay composes OS 01, 02, 12, 16, 20, and 22. Use when the task involves headquarters, holding companies, and shared services, headquarters, holding companies, shared services."
+category: industry
 triggers: ["headquarters, holding companies, and shared services", "headquarters", "holding companies", "shared services"]
 tools_allowed: ["read_file", "write_file"]
-category: industry
 ---
 
 # Headquarters, Holding Companies, and Shared Services

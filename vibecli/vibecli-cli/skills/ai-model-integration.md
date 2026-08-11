@@ -1,7 +1,9 @@
 ---
+name: "AI Model Integration"
+description: "AI Model Integration: Guidance for integrating LLM provider APIs. Use when the task involves provider API, LLM integration, streaming response, token counting, model fallback."
+category: ai
 triggers: ["provider API", "LLM integration", "streaming response", "token counting", "model fallback", "Claude API", "OpenAI API"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # AI Model Integration

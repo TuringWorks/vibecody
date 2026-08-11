@@ -1,7 +1,9 @@
 ---
+name: "Logo Programming"
+description: "Logo Programming: Guidance for working with Logo (turtle graphics and educational computing). Use when the task involves Logo, Logo programming, turtle graphics, UCBLogo, NetLogo."
+category: educational
 triggers: ["Logo", "Logo programming", "turtle graphics", "UCBLogo", "NetLogo", "StarLogo", "Logo language"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: educational
 ---
 
 # Logo Programming

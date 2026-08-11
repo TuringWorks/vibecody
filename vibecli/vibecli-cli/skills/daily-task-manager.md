@@ -1,7 +1,9 @@
 ---
+name: "Daily Task Manager"
+description: "Daily Task Manager: Use clawchief/tasks.md as the canonical live task list and clawchief/tasks-completed.md as the completed-task archive. Use when the task involves task list, todo, add task, complete task, remove task."
+category: productivity
 triggers: ["task list", "todo", "add task", "complete task", "remove task", "defer task", "reprioritize", "task manager", "task summary", "tasks for today", "what's left", "open tasks", "task status"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: productivity
 ---
 
 # Daily Task Manager

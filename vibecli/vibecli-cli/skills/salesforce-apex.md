@@ -1,8 +1,10 @@
 ---
+name: "Salesforce Apex Development"
+description: "Salesforce Apex Development: Guidance for working with Salesforce Apex development. Use when the task involves Salesforce, Apex, salesforce apex, SOQL, lightning web component."
+category: salesforce
 triggers: ["Salesforce", "Apex", "salesforce apex", "SOQL", "lightning web component", "LWC", "sfdx", "salesforce trigger", "governor limits", "salesforce flow"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["sf"]
-category: salesforce
 ---
 
 # Salesforce Apex Development

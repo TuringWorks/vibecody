@@ -1,8 +1,9 @@
 ---
-name: Security Review
-description: Perform a security review of code changes
-triggers: ["security review", "security audit", "vulnerability", "owasp", "pen test"]
+name: "Security Review"
+description: "Security Review: Guidance for performing a security review. Use when the task involves security review, security audit, vulnerability, owasp, pen test."
 category: security
+triggers: ["security review", "security audit", "vulnerability", "owasp", "pen test"]
+tools_allowed: ["read_file", "write_file", "bash"]
 ---
 
 When performing a security review:

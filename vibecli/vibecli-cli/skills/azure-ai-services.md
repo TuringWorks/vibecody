@@ -1,8 +1,10 @@
 ---
+name: "Azure AI Services"
+description: "Azure AI Services: Guidance for working with Azure AI Services. Use when the task involves Azure OpenAI, azure ai, azure cognitive, azure ai search, azure speech."
+category: cloud-azure
 triggers: ["Azure OpenAI", "azure ai", "azure cognitive", "azure ai search", "azure speech", "azure vision", "document intelligence", "prompt flow"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["az"]
-category: cloud-azure
 ---
 
 # Azure AI Services

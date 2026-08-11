@@ -1,7 +1,9 @@
 ---
-triggers: ["agent development", "ReAct agent", "agent tool calling", "agent memory", "agent guardrails", "agent testing", "agent observability", "agent loop", "agentic AI"]
-tools_allowed: ["read_file", "write_file", "bash"]
+name: "AI Agent Development Patterns"
+description: "AI Agent Development Patterns: Guidance for developing AI agents with tool calling and autonomous capabilities. Use when the task involves agent development, ReAct agent, agent tool calling, agent memory, agent guardrails."
 category: ai
+triggers: ["agent development", "ReAct agent", "agent tool calling", "agent memory", "agent guardrails", "agent testing", "agent observability", "agent loop", "agentic AI", "AI agent", "tool use", "ReAct", "MCP", "function calling", "agent planning"]
+tools_allowed: ["read_file", "write_file", "bash"]
 ---
 
 # AI Agent Development Patterns

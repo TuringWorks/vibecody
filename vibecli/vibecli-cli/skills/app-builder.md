@@ -1,7 +1,9 @@
 ---
+name: "App Builder"
+description: "App Builder: Guidance for building or scaffolding new applications. Use when the task involves app builder, scaffold app, project template, new project, quick start."
+category: workflow
 triggers: ["app builder", "scaffold app", "project template", "new project", "quick start", "app generator", "full stack generator", "bolt.new", "provision database", "provision auth"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: workflow
 ---
 
 # App Builder

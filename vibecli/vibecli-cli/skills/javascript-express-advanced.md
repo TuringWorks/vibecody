@@ -1,8 +1,10 @@
 ---
+name: "Express.js Advanced Patterns"
+description: "Express.js Advanced Patterns: Guidance for working with Express.js advanced patterns. Use when the task involves Express middleware, express router, express error handling, express async, express production."
+category: javascript
 triggers: ["Express middleware", "express router", "express error handling", "express async", "express production"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["node"]
-category: javascript
 ---
 
 # Express.js Advanced Patterns

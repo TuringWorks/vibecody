@@ -1,7 +1,9 @@
 ---
+name: "Regulatory Compliance"
+description: "Regulatory Compliance: Guidance for working with regulatory compliance and audit preparation. Use when the task involves regulatory compliance, GDPR compliance, HIPAA compliance, SOX compliance, PCI DSS."
+category: legal
 triggers: ["regulatory compliance", "GDPR compliance", "HIPAA compliance", "SOX compliance", "PCI DSS", "data privacy", "audit preparation"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: legal
 ---
 
 # Regulatory Compliance

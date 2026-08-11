@@ -1,7 +1,9 @@
 ---
+name: "Insurance Core Systems"
+description: "Insurance Core Systems: Guidance for working with insurance policy administration, underwriting, and claims systems. Use when the task involves insurance, underwriting, claims processing, actuarial, policy administration."
+category: insurance
 triggers: ["insurance", "underwriting", "claims processing", "actuarial", "policy administration", "premium calculation", "loss ratio", "risk scoring", "InsurTech", "ACORD", "reinsurance", "catastrophe modeling"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: insurance
 ---
 
 # Insurance Core Systems

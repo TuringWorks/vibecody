@@ -1,7 +1,9 @@
 ---
+name: "Logistics and Supply Chain Systems"
+description: "Logistics and Supply Chain Systems: Guidance for working with logistics, warehouse, and supply chain software. Use when the task involves supply chain, logistics, warehouse, WMS, TMS."
+category: logistics
 triggers: ["supply chain", "logistics", "warehouse", "WMS", "TMS", "inventory", "fulfillment", "last mile", "route optimization", "freight", "shipping", "procurement"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: logistics
 ---
 
 # Logistics and Supply Chain Systems

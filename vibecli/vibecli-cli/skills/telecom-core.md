@@ -1,7 +1,9 @@
 ---
+name: "Telecommunications Core Systems"
+description: "Telecommunications Core Systems: Guidance for working with telecom BSS/OSS and network systems. Use when the task involves telecom, telecommunications, BSS, OSS, billing telecom."
+category: telecom
 triggers: ["telecom", "telecommunications", "BSS", "OSS", "billing telecom", "CDR", "call detail record", "provisioning", "network management", "5G", "SIP", "VoIP"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: telecom
 ---
 
 # Telecommunications Core Systems

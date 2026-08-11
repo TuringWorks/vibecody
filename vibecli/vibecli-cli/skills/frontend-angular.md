@@ -1,8 +1,10 @@
 ---
+name: "Angular Framework"
+description: "Angular Framework: Guidance for working with Angular. Use when the task involves Angular, angular, angular component, angular service, angular signals."
+category: frontend
 triggers: ["Angular", "angular", "angular component", "angular service", "angular signals", "NgRx", "angular routing", "angular form", "angular universal"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["node"]
-category: frontend
 ---
 
 # Angular Framework

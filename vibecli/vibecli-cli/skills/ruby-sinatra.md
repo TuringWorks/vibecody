@@ -1,8 +1,10 @@
 ---
+name: "Sinatra and Lightweight Ruby"
+description: "Sinatra and Lightweight Ruby: Guidance for working with Sinatra. Use when the task involves Sinatra, sinatra ruby, rack, sinatra-activerecord, roda."
+category: ruby
 triggers: ["Sinatra", "sinatra ruby", "rack", "sinatra-activerecord", "roda", "hanami"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["ruby"]
-category: ruby
 ---
 
 # Sinatra and Lightweight Ruby

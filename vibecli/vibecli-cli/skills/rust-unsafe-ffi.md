@@ -1,8 +1,10 @@
 ---
+name: "Rust Unsafe & FFI"
+description: "Rust Unsafe & FFI: Guidance for working with unsafe Rust and FFI. Use when the task involves unsafe rust, FFI, bindgen, raw pointer, transmute."
+category: rust
 triggers: ["unsafe rust", "FFI", "bindgen", "raw pointer", "transmute", "extern C", "ffi binding"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["cargo"]
-category: rust
 ---
 
 # Rust Unsafe & FFI

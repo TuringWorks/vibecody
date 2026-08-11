@@ -1,7 +1,9 @@
 ---
+name: "SQLite"
+description: "SQLite: Guidance for using SQLite. Use when the task involves SQLite, WAL mode, FTS5, embedded database, rusqlite."
+category: database
 triggers: ["SQLite", "WAL mode", "FTS5", "embedded database", "rusqlite", "better-sqlite3"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: database
 ---
 
 # SQLite

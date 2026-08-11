@@ -1,7 +1,9 @@
 ---
-triggers: ["transportation, warehousing, postal, and mobility", "transportation", "warehousing", "postal", "mobility"]
-tools_allowed: ["read_file", "write_file"]
+name: "Transportation, Warehousing, Postal, and Mobility"
+description: "Transportation, Warehousing, Postal, and Mobility: This overlay composes OS 03, 07, 11, 12, 16, 17, and 22. Use when the task involves transportation, warehousing, postal, and mobility, warehousing, postal, mobility."
 category: industry
+triggers: ["transportation, warehousing, postal, and mobility", "warehousing", "postal", "mobility"]
+tools_allowed: ["read_file", "write_file"]
 ---
 
 # Transportation, Warehousing, Postal, and Mobility

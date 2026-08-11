@@ -1,7 +1,9 @@
 ---
+name: "Application Security"
+description: "Application Security: Guidance for working with application security, vulnerability management, and secure development. Use when the task involves application security, OWASP, SAST, DAST, penetration testing."
+category: security
 triggers: ["application security", "OWASP", "SAST", "DAST", "penetration testing", "vulnerability scanning", "secure coding", "threat modeling", "security review", "CVE"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: security
 ---
 
 # Application Security

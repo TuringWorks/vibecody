@@ -1,7 +1,9 @@
 ---
+name: "Facilitation and Meetings"
+description: "Facilitation and Meetings: Guidance for working with meeting facilitation and workshop design. Use when the task involves meeting facilitation, workshop facilitation, meeting management, brainstorming session, retrospective facilitation."
+category: personal-development
 triggers: ["meeting facilitation", "workshop facilitation", "meeting management", "brainstorming session", "retrospective facilitation", "standup meeting"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: personal-development
 ---
 
 # Facilitation and Meetings

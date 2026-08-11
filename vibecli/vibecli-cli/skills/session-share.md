@@ -1,7 +1,9 @@
 ---
+name: "session-share"
+description: "session-share: Export sessions as self-contained HTML and share them via private GitHub Gist. Use when the task involves session share, share session, GitHub Gist, export session HTML."
+category: session
 triggers: ["session share", "share session", "GitHub Gist", "export session HTML"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: session
 ---
 
 # session-share

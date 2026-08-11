@@ -1,7 +1,9 @@
 ---
+name: "Focus View"
+description: "Focus View: mgr.enter_focus(cfg, unix_now());. Use when the task involves focus view, focus mode, distraction free, deep work session."
+category: productivity
 triggers: ["focus view", "focus mode", "distraction free", "deep work session"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: productivity
 ---
 
 # Focus View

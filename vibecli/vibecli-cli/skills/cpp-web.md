@@ -1,8 +1,10 @@
 ---
+name: "C++ Web Frameworks"
+description: "C++ Web Frameworks: Guidance for working with C++ web frameworks (Drogon, Oat++, userver, Crow). Use when the task involves Drogon, oatpp, userver, cpp web framework, C++ REST."
+category: cpp
 triggers: ["Drogon", "oatpp", "userver", "cpp web framework", "C++ REST", "C++ http server", "crow", "cinatra"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["cmake"]
-category: cpp
 ---
 
 # C++ Web Frameworks

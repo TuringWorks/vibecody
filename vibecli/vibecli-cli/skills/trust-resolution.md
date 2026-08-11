@@ -1,7 +1,9 @@
 ---
+name: "Trust Resolution"
+description: "Trust Resolution: Resolve whether files, URLs, and agent-generated content can be trusted based on provenance, and enforce workspace-directory access policies (AutoTrust / RequireApproval. Use when the task involves trust resolution, workspace trust, trust policy, content provenance, AutoTrust."
+category: security
 triggers: ["trust resolution", "workspace trust", "trust policy", "content provenance", "AutoTrust"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: security
 ---
 
 # Trust Resolution

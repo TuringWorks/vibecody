@@ -1,7 +1,9 @@
 ---
+name: "PostgreSQL"
+description: "PostgreSQL: Guidance for working with PostgreSQL. Use when the task involves PostgreSQL, JSONB, CTE, window function, partitioning."
+category: database
 triggers: ["PostgreSQL", "JSONB", "CTE", "window function", "partitioning", "postgres index", "pg query"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: database
 ---
 
 # PostgreSQL

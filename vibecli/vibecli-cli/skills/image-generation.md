@@ -1,7 +1,9 @@
 ---
+name: "Image Generation Agent (Painter)"
+description: "Image Generation Agent (Painter): Generate images from text prompts with style control, variations, and batch processing. Use when the task involves image generation, generate image, painter, create image, dall-e."
+category: creative
 triggers: ["image generation", "generate image", "painter", "create image", "dall-e", "stable diffusion", "text to image", "image agent"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: creative
 ---
 
 # Image Generation Agent (Painter)

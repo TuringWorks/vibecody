@@ -1,8 +1,10 @@
 ---
+name: "Service Mesh Patterns"
+description: "Service Mesh Patterns: Guidance for implementing service mesh infrastructure with Istio, Linkerd, or Consul Connect. Use when the task involves service mesh, istio, linkerd, consul connect, mTLS."
+category: devops
 triggers: ["service mesh", "istio", "linkerd", "consul connect", "mTLS", "traffic management mesh", "envoy sidecar", "istio virtual service"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["kubectl"]
-category: devops
 ---
 
 # Service Mesh Patterns

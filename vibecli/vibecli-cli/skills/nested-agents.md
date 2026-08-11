@@ -1,7 +1,9 @@
 ---
+name: "Nested Agent Architectures"
+description: "Nested Agent Architectures: Guidance for designing recursive or hierarchical agent systems. Use when the task involves nested agents, recursive subagents, agent tree, child agent, subagent spawning."
+category: agent
 triggers: ["nested agents", "recursive subagents", "agent tree", "child agent", "subagent spawning"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: agent
 ---
 
 # Nested Agent Architectures

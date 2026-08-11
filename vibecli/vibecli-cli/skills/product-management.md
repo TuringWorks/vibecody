@@ -1,7 +1,9 @@
 ---
+name: "Product Management"
+description: "Product Management: Guidance for managing product strategy, requirements, and delivery. Use when the task involves product management, product roadmap, user stories, PRD, product requirements."
+category: management
 triggers: ["product management", "product roadmap", "user stories", "PRD", "product requirements", "feature prioritization", "OKRs"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: management
 ---
 
 # Product Management

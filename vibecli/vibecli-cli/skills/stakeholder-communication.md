@@ -1,7 +1,9 @@
 ---
+name: "Stakeholder Communication"
+description: "Stakeholder Communication: Guidance for communicating with stakeholders across the organization. Use when the task involves stakeholder communication, executive reporting, status updates, cross-functional communication, RACI."
+category: management
 triggers: ["stakeholder communication", "executive reporting", "status updates", "cross-functional communication", "RACI"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: management
 ---
 
 # Stakeholder Communication

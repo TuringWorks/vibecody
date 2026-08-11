@@ -1,7 +1,9 @@
 ---
+name: "Formal Verification & Formal Methods"
+description: "Formal Verification & Formal Methods: Guidance for applying formal methods to verify safety-critical, security-critical, or high-assurance software. Use when the task involves formal verification, formal methods, model checking, theorem proving, abstract interpretation."
+category: safety-critical
 triggers: ["formal verification", "formal methods", "model checking", "theorem proving", "abstract interpretation", "TLA+", "Alloy", "CBMC", "Frama-C", "Kani", "Coq", "Isabelle", "SPIN", "NuSMV", "Z notation", "proof assistant"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: safety-critical
 ---
 
 # Formal Verification & Formal Methods

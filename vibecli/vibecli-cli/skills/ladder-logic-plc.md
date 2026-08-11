@@ -1,7 +1,9 @@
 ---
+name: "Ladder Logic & PLC Programming"
+description: "Ladder Logic & PLC Programming: Guidance for programming PLCs under IEC 61131-3. Use when the task involves Ladder Logic, PLC programming, programmable logic controller, IEC 61131-3, structured text."
+category: industrial
 triggers: ["Ladder Logic", "PLC programming", "programmable logic controller", "IEC 61131-3", "structured text", "function block diagram", "Allen-Bradley", "Siemens PLC", "SCADA"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: industrial
 ---
 
 # Ladder Logic & PLC Programming

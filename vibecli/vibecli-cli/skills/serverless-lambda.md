@@ -1,8 +1,10 @@
 ---
+name: "AWS Lambda and Serverless Functions"
+description: "AWS Lambda and Serverless Functions: Guidance for working with AWS Lambda and serverless functions. Use when the task involves AWS Lambda, lambda function, serverless framework, SAM template, lambda layers."
+category: devops
 triggers: ["AWS Lambda", "lambda function", "serverless framework", "SAM template", "lambda layers", "cold start", "lambda@edge"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["aws"]
-category: devops
 ---
 
 # AWS Lambda and Serverless Functions

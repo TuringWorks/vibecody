@@ -1,7 +1,9 @@
 ---
+name: "Snowflake"
+description: "Snowflake: Guidance for working with Snowflake. Use when the task involves Snowflake, snowflake sql, snowflake warehouse, snowpark, snowflake stage."
+category: database
 triggers: ["Snowflake", "snowflake sql", "snowflake warehouse", "snowpark", "snowflake stage", "snowflake pipe", "data warehouse snowflake"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: database
 ---
 
 # Snowflake

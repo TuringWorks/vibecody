@@ -1,7 +1,9 @@
 ---
+name: "Agent-to-Agent (A2A) Protocol v0.3"
+description: "Agent-to-Agent (A2A) Protocol v0.3: Guidance for implementing or integrating with the A2A v0.3 specification. Use when the task involves A2A protocol, A2A v0.3, gRPC agent, security card, agent-to-agent."
+category: protocols
 triggers: ["A2A protocol", "A2A v0.3", "gRPC agent", "security card", "agent-to-agent"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: protocols
 ---
 
 # Agent-to-Agent (A2A) Protocol v0.3

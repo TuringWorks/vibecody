@@ -1,7 +1,9 @@
 ---
+name: "Agriculture & AgTech Systems"
+description: "Agriculture & AgTech Systems: Guidance for working with agriculture technology and farm management systems. Use when the task involves agriculture, AgTech, precision farming, crop monitoring, farm management."
+category: agriculture
 triggers: ["agriculture", "AgTech", "precision farming", "crop monitoring", "farm management", "irrigation", "yield prediction", "livestock", "soil sensor", "drone agriculture", "FMIS"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: agriculture
 ---
 
 # Agriculture & AgTech Systems

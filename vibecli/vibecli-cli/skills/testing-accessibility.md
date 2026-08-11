@@ -1,7 +1,9 @@
 ---
+name: "Accessibility Testing"
+description: "Accessibility Testing: Guidance for testing for accessibility. Use when the task involves WCAG, accessibility test, axe-core, screen reader, a11y."
+category: testing
 triggers: ["WCAG", "accessibility test", "axe-core", "screen reader", "a11y", "aria", "keyboard navigation"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: testing
 ---
 
 # Accessibility Testing

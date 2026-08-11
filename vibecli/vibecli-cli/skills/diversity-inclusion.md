@@ -1,7 +1,9 @@
 ---
+name: "Diversity and Inclusion"
+description: "Diversity and Inclusion: Guidance for building diverse and inclusive teams and culture. Use when the task involves diversity, inclusion, DEI, belonging, equity."
+category: strategy
 triggers: ["diversity", "inclusion", "DEI", "belonging", "equity", "inclusive culture", "bias"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: strategy
 ---
 
 # Diversity and Inclusion

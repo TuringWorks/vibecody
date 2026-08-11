@@ -1,7 +1,9 @@
 ---
+name: "VS Code Session Browser"
+description: "VS Code Session Browser: Browse, search, and replay past VibeCLI agent sessions from VS Code. Use when the task involves session browser, session history, replay session, VS Code sessions, past sessions."
+category: session
 triggers: ["session browser", "session history", "replay session", "VS Code sessions", "past sessions", "session list"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: session
 ---
 
 # VS Code Session Browser

@@ -1,7 +1,9 @@
 ---
+name: "RL Model Registry"
+description: "RL Model Registry: Manage RL policies with versioning, lineage tracking, quality gates, promotion workflows, and cross-framework export. Use when the task involves RL model registry, policy versioning, policy lineage, policy promotion."
+category: ai
 triggers: ["RL model registry", "policy versioning", "policy lineage", "policy promotion"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # RL Model Registry

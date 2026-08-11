@@ -1,7 +1,9 @@
 ---
+name: "Monorepo Architecture"
+description: "Monorepo Architecture: Guidance for managing monorepos. Use when the task involves monorepo, workspace, turborepo, nx, dependency graph."
+category: architecture
 triggers: ["monorepo", "workspace", "turborepo", "nx", "dependency graph", "build caching", "pnpm workspace"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: architecture
 ---
 
 # Monorepo Architecture

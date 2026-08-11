@@ -1,8 +1,10 @@
 ---
+name: "Vercel Platform"
+description: "Vercel Platform: Guidance for working with Vercel. Use when the task involves Vercel, vercel deploy, vercel edge, vercel serverless, vercel kv."
+category: cloud-vercel
 triggers: ["Vercel", "vercel deploy", "vercel edge", "vercel serverless", "vercel kv", "vercel postgres", "vercel blob", "vercel preview"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["vercel"]
-category: cloud-vercel
 ---
 
 # Vercel Platform

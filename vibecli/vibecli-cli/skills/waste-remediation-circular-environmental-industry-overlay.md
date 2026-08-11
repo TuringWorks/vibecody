@@ -1,7 +1,9 @@
 ---
+name: "Waste, Remediation, Circular Economy, and Environmental Services"
+description: "Waste, Remediation, Circular Economy, and Environmental Services: This overlay composes OS 06, 08, 11, 16, 19, and 20. Use when the task involves waste, remediation, circular economy, environmental services."
+category: industry
 triggers: ["waste", "remediation", "circular economy", "environmental services"]
 tools_allowed: ["read_file", "write_file"]
-category: industry
 ---
 
 # Waste, Remediation, Circular Economy, and Environmental Services

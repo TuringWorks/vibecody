@@ -1,8 +1,10 @@
 ---
+name: "Git Workflow"
+description: "Git Workflow: Practical rules — e.g. Branch naming: feat/description, fix/description, chore/description. Use when the task involves git commit, branch, merge, rebase, git workflow."
+category: devops
 triggers: ["git commit", "branch", "merge", "rebase", "git workflow"]
 tools_allowed: ["bash"]
 requires_bins: ["git"]
-category: devops
 ---
 
 # Git Workflow

@@ -1,7 +1,9 @@
 ---
+name: "Business Intelligence"
+description: "Business Intelligence: Guidance for building business intelligence and analytics platforms. Use when the task involves business intelligence, BI, data warehouse, OLAP, reporting."
+category: data-analytics
 triggers: ["business intelligence", "BI", "data warehouse", "OLAP", "reporting", "analytics platform", "Snowflake", "BigQuery analytics"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: data-analytics
 ---
 
 # Business Intelligence

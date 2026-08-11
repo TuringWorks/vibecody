@@ -1,8 +1,10 @@
 ---
+name: "Rust Error Handling"
+description: "Rust Error Handling: Guidance for implementing error handling in Rust. Use when the task involves rust error, anyhow, thiserror, Result type, error handling."
+category: rust
 triggers: ["rust error", "anyhow", "thiserror", "Result type", "error handling"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["cargo"]
-category: rust
 ---
 
 # Rust Error Handling

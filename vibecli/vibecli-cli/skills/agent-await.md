@@ -1,7 +1,9 @@
 ---
+name: "Agent Wait Conditions"
+description: "Agent Wait Conditions: Guidance for an agent must pause and wait for an external condition before continuing. Use when the task involves agent await, conditional pause, wait for build, await condition, agent dependency."
+category: agent
 triggers: ["agent await", "conditional pause", "wait for build", "await condition", "agent dependency"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: agent
 ---
 
 # Agent Wait Conditions

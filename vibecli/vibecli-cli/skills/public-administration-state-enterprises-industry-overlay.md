@@ -1,7 +1,9 @@
 ---
+name: "Public Administration and State Enterprises"
+description: "Public Administration and State Enterprises: This overlay composes OS 01, 02, 03, 04, 22, and 23 and the relevant service/industry operating systems. Use when the task involves public administration and state enterprises, public administration, state enterprises."
+category: industry
 triggers: ["public administration and state enterprises", "public administration", "state enterprises"]
 tools_allowed: ["read_file", "write_file"]
-category: industry
 ---
 
 # Public Administration and State Enterprises

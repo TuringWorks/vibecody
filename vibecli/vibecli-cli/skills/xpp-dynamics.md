@@ -1,7 +1,9 @@
 ---
+name: "X++ (Dynamics 365 Finance & Operations)"
+description: "X++ (Dynamics 365 Finance & Operations): Guidance for developing in X++ for Microsoft Dynamics 365 Finance and Operations. Use when the task involves X++, Dynamics 365, D365 Finance, D365 Supply Chain, Dynamics AX."
+category: erp
 triggers: ["X++", "Dynamics 365", "D365 Finance", "D365 Supply Chain", "Dynamics AX", "X++ development", "Finance and Operations"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: erp
 ---
 
 # X++ (Dynamics 365 Finance & Operations)

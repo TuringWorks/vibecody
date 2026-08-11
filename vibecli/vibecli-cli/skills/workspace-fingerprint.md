@@ -1,7 +1,9 @@
 ---
+name: "Workspace Fingerprint"
+description: "Workspace Fingerprint: Guidance for fingerprints don't match, diff() returns. Use when the task involves workspace fingerprint, workspace changed, session namespace, workspace hash."
+category: session
 triggers: ["workspace fingerprint", "workspace changed", "session namespace", "workspace hash"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: session
 ---
 
 # Workspace Fingerprint

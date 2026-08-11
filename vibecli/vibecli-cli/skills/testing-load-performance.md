@@ -1,7 +1,9 @@
 ---
+name: "Load & Performance Testing"
+description: "Load & Performance Testing: Guidance for conducting load tests. Use when the task involves load test, k6, artillery, performance test, latency percentile."
+category: testing
 triggers: ["load test", "k6", "artillery", "performance test", "latency percentile", "capacity planning", "stress test"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: testing
 ---
 
 # Load & Performance Testing

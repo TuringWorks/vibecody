@@ -1,7 +1,9 @@
 ---
+name: "Apigee API Gateway"
+description: "Apigee API Gateway: Guidance for working with Apigee API Gateway. Use when the task involves Apigee, apigee proxy, apigee policy, apigee edge, apigee X."
+category: devops
 triggers: ["Apigee", "apigee proxy", "apigee policy", "apigee edge", "apigee X", "apigee api management", "apigee developer portal"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: devops
 ---
 
 # Apigee API Gateway

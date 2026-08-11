@@ -1,8 +1,10 @@
 ---
+name: "Perl"
+description: "Perl: Guidance for writing Perl code. Use when the task involves Perl, perl script, CPAN, regex Perl, Perl one-liner."
+category: perl
 triggers: ["Perl", "perl script", "CPAN", "regex Perl", "Perl one-liner", "Moose", "Mojo", "Mojolicious", "perl module"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["perl"]
-category: perl
 ---
 
 # Perl

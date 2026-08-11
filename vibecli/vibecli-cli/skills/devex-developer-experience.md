@@ -1,7 +1,9 @@
 ---
+name: "Developer Experience (DX) Best Practices"
+description: "Developer Experience (DX) Best Practices: Guidance for designing developer tools, APIs, and platforms. Use when the task involves developer experience, DX, developer portal, SDK design, developer onboarding."
+category: devex
 triggers: ["developer experience", "DX", "developer portal", "SDK design", "developer onboarding", "platform engineering", "golden path"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: devex
 ---
 
 # Developer Experience (DX) Best Practices

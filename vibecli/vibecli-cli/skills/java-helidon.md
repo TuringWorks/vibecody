@@ -1,8 +1,10 @@
 ---
+name: "Helidon Framework"
+description: "Helidon Framework: Guidance for working with Helidon (SE and MP). Use when the task involves Helidon, helidon SE, helidon MP, helidon webserver, helidon nima."
+category: java
 triggers: ["Helidon", "helidon SE", "helidon MP", "helidon webserver", "helidon nima"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["java"]
-category: java
 ---
 
 # Helidon Framework

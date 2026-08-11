@@ -1,7 +1,9 @@
 ---
+name: "Statistics & Research Methods"
+description: "Statistics & Research Methods: Guidance for working with statistical analysis and research methodology. Use when the task involves statistics, statistical analysis, SPSS, SAS, Stata."
+category: science
 triggers: ["statistics", "statistical analysis", "SPSS", "SAS", "Stata", "research methods", "hypothesis testing", "regression analysis"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: science
 ---
 
 # Statistics & Research Methods

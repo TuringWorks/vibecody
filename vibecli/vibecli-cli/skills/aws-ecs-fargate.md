@@ -1,8 +1,10 @@
 ---
+name: "AWS ECS/Fargate Container Orchestration"
+description: "AWS ECS/Fargate Container Orchestration: Guidance for working with ECS and Fargate. Use when the task involves ECS, Fargate, aws ecs, ecs task, ecs service."
+category: cloud-aws
 triggers: ["ECS", "Fargate", "aws ecs", "ecs task", "ecs service", "fargate spot", "ecs exec", "aws container"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["aws"]
-category: cloud-aws
 ---
 
 # AWS ECS/Fargate Container Orchestration

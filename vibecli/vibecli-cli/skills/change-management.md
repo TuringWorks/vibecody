@@ -1,7 +1,9 @@
 ---
+name: "Change Management"
+description: "Change Management: Guidance for planning and executing organizational or technology change. Use when the task involves change management, organizational change, transformation, adoption, migration planning."
+category: management
 triggers: ["change management", "organizational change", "transformation", "adoption", "migration planning"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: management
 ---
 
 # Change Management

@@ -1,7 +1,9 @@
 ---
+name: "Multi-Platform Git Integration"
+description: "Multi-Platform Git Integration: Guidance for working with Git platforms beyond GitHub. Use when the task involves gitlab, azure devops, bitbucket, gitea, git platform."
+category: devops
 triggers: ["gitlab", "azure devops", "bitbucket", "gitea", "git platform", "multi-platform git", "gitlab integration", "azure repos", "bitbucket integration"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: devops
 ---
 
 # Multi-Platform Git Integration

@@ -1,7 +1,9 @@
 ---
+name: "Delphi / Object Pascal"
+description: "Delphi / Object Pascal: Guidance for writing Delphi/Object Pascal code. Use when the task involves Delphi, Object Pascal, Free Pascal, Lazarus, RAD Studio."
+category: delphi
 triggers: ["Delphi", "Object Pascal", "Free Pascal", "Lazarus", "RAD Studio", "FireMonkey", "VCL", "Embarcadero", "FPC"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: delphi
 ---
 
 # Delphi / Object Pascal

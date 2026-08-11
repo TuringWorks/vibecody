@@ -1,8 +1,10 @@
 ---
+name: "Flutter Mobile & Cross-Platform"
+description: "Flutter Mobile & Cross-Platform: Guidance for working with Flutter. Use when the task involves Flutter, flutter, flutter widget, flutter state, Riverpod."
+category: dart
 triggers: ["Flutter", "flutter", "flutter widget", "flutter state", "Riverpod", "flutter bloc", "flutter navigation", "flutter test"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["flutter"]
-category: dart
 ---
 
 # Flutter Mobile & Cross-Platform

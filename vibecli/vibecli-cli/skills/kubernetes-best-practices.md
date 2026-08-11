@@ -1,8 +1,10 @@
 ---
+name: "Kubernetes Production Best Practices"
+description: "Kubernetes Production Best Practices: Guidance for running Kubernetes in production environments. Use when the task involves k8s best practices, kubernetes production, k8s security hardening, k8s cost optimization, kubernetes gitops."
+category: devops
 triggers: ["k8s best practices", "kubernetes production", "k8s security hardening", "k8s cost optimization", "kubernetes gitops", "argocd", "flux cd", "k8s multi-tenancy", "pod security standards"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["kubectl"]
-category: devops
 ---
 
 # Kubernetes Production Best Practices

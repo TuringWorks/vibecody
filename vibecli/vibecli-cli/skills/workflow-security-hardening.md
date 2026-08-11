@@ -1,7 +1,9 @@
 ---
+name: "Security Hardening Workflow"
+description: "Security Hardening Workflow: Guidance for hardening application security. Use when the task involves security hardening, threat model, security audit, hardening checklist, security review."
+category: workflow
 triggers: ["security hardening", "threat model", "security audit", "hardening checklist", "security review"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: workflow
 ---
 
 # Security Hardening Workflow

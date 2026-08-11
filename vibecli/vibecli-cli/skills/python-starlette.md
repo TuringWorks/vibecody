@@ -1,8 +1,10 @@
 ---
+name: "Starlette and ASGI"
+description: "Starlette and ASGI: Guidance for working with Starlette. Use when the task involves Starlette, starlette ASGI, starlette middleware, starlette websocket."
+category: python
 triggers: ["Starlette", "starlette ASGI", "starlette middleware", "starlette websocket"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["python3"]
-category: python
 ---
 
 # Starlette and ASGI

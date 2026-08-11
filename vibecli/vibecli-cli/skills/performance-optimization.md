@@ -1,7 +1,9 @@
 ---
+name: "Performance Optimization"
+description: "Performance Optimization: Practical rules — e.g. Measure before optimizing — use profilers (flamegraph, perf, Chrome DevTools). Use when the task involves performance, optimization, slow, memory, profiling."
+category: performance
 triggers: ["performance", "optimization", "slow", "memory", "profiling", "benchmark"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: performance
 ---
 
 # Performance Optimization

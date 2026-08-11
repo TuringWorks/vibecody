@@ -1,7 +1,9 @@
 ---
+name: "Autonomous Farm Deployment"
+description: "Autonomous Farm Deployment: Compose this pack with agriculture, machinery-specific skills, worker safety, environmental controls, and local equipment/aviation/chemical rules. Use when the task involves autonomous farm deployment, autonomous farm deployment subsector pack."
+category: industry
 triggers: ["autonomous farm deployment", "autonomous farm deployment subsector pack"]
 tools_allowed: ["read_file", "write_file"]
-category: industry
 ---
 
 # Autonomous Farm Deployment

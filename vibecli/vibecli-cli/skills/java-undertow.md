@@ -1,8 +1,10 @@
 ---
+name: "Undertow and High-Performance Java HTTP"
+description: "Undertow and High-Performance Java HTTP: Guidance for working with Undertow and high-performance Java HTTP servers. Use when the task involves Undertow, undertow handler, XNIO, wildfly undertow, java nio server."
+category: java
 triggers: ["Undertow", "undertow handler", "XNIO", "wildfly undertow", "java nio server", "netty java"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["java"]
-category: java
 ---
 
 # Undertow and High-Performance Java HTTP

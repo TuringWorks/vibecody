@@ -1,7 +1,9 @@
 ---
+name: "Supabase Platform"
+description: "Supabase Platform: Guidance for working with Supabase. Use when the task involves Supabase, supabase, supabase auth, supabase realtime, supabase edge function."
+category: cloud-supabase
 triggers: ["Supabase", "supabase", "supabase auth", "supabase realtime", "supabase edge function", "supabase storage", "row level security", "supabase postgres"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: cloud-supabase
 ---
 
 # Supabase Platform

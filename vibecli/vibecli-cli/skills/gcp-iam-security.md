@@ -1,8 +1,10 @@
 ---
+name: "GCP IAM & Security"
+description: "GCP IAM & Security: Guidance for working with GCP IAM and security. Use when the task involves GCP IAM, gcp iam, service account, workload identity federation, vpc service controls."
+category: cloud-gcp
 triggers: ["GCP IAM", "gcp iam", "service account", "workload identity federation", "vpc service controls", "secret manager gcp", "cloud kms", "gcp security"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["gcloud"]
-category: cloud-gcp
 ---
 
 # GCP IAM & Security

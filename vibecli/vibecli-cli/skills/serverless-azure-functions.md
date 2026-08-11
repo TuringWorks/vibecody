@@ -1,7 +1,9 @@
 ---
+name: "Azure Functions"
+description: "Azure Functions: Guidance for working with Azure Functions. Use when the task involves Azure Functions, azure function app, azure durable functions, azure event grid, azure function binding."
+category: devops
 triggers: ["Azure Functions", "azure function app", "azure durable functions", "azure event grid", "azure function binding"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: devops
 ---
 
 # Azure Functions

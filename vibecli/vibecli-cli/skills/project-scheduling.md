@@ -1,7 +1,9 @@
 ---
+name: "Project Scheduling & Resource Planning"
+description: "Project Scheduling & Resource Planning: Guidance for working with project scheduling and resource management. Use when the task involves project scheduling, Gantt chart, CPM, PERT, Microsoft Project."
+category: management
 triggers: ["project scheduling", "Gantt chart", "CPM", "PERT", "Microsoft Project", "Primavera", "resource planning", "WBS"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: management
 ---
 
 # Project Scheduling & Resource Planning

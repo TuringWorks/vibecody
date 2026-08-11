@@ -1,7 +1,9 @@
 ---
+name: "Sketch Canvas"
+description: "Sketch Canvas: Freeform drawing canvas that converts hand-drawn sketches, wireframes, and diagrams into production code. Use when the task involves sketch canvas, wireframe to code, sketch to code, hand-drawn UI."
+category: design
 triggers: ["sketch canvas", "wireframe to code", "sketch to code", "hand-drawn UI"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: design
 ---
 
 # Sketch Canvas

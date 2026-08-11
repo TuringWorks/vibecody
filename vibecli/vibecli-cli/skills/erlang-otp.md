@@ -1,8 +1,10 @@
 ---
+name: "Erlang/OTP and Cowboy"
+description: "Erlang/OTP and Cowboy: Guidance for working with Erlang/OTP. Use when the task involves Erlang, OTP erlang, cowboy, erlang gen_server, erlang supervisor."
+category: erlang
 triggers: ["Erlang", "OTP erlang", "cowboy", "erlang gen_server", "erlang supervisor", "mochiweb", "erlang distribution"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["erl"]
-category: erlang
 ---
 
 # Erlang/OTP and Cowboy

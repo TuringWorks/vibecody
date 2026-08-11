@@ -1,7 +1,9 @@
 ---
+name: "Neon (Serverless PostgreSQL)"
+description: "Neon (Serverless PostgreSQL): Guidance for working with Neon. Use when the task involves Neon, neon database, neon postgres, neon serverless, neon branching."
+category: database
 triggers: ["Neon", "neon database", "neon postgres", "neon serverless", "neon branching", "serverless postgres"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: database
 ---
 
 # Neon (Serverless PostgreSQL)

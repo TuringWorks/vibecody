@@ -1,7 +1,9 @@
 ---
+name: "Conflict Resolution"
+description: "Conflict Resolution: Guidance for handling conflicts in engineering teams. Use when the task involves conflict resolution, team conflict, disagreement, mediation, difficult conversations."
+category: people-skills
 triggers: ["conflict resolution", "team conflict", "disagreement", "mediation", "difficult conversations"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: people-skills
 ---
 
 # Conflict Resolution

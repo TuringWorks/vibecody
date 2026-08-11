@@ -1,7 +1,9 @@
 ---
+name: "Long Session Manager"
+description: "Long Session Manager: loop { state.record_turn(run_turn(), tool_calls); match mgr.decide(&state, unix_now()) { ContinuationDecision::Continue => continue, ContinuationDecision::CompactAndConti. Use when the task involves long session, multi-hour session, session budget, compact or halt."
+category: session
 triggers: ["long session", "multi-hour session", "session budget", "compact or halt"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: session
 ---
 
 # Long Session Manager

@@ -1,7 +1,9 @@
 ---
+name: "Construction & BIM Engineering"
+description: "Construction & BIM Engineering: Guidance for working with construction and Building Information Modeling systems. Use when the task involves construction, BIM, building information, project management construction, cost estimation."
+category: construction
 triggers: ["construction", "BIM", "building information", "project management construction", "cost estimation", "quantity takeoff", "IFC", "scheduling construction", "safety management", "site management"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: construction
 ---
 
 # Construction & BIM Engineering

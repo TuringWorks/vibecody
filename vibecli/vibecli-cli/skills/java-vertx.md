@@ -1,8 +1,10 @@
 ---
+name: "Eclipse Vert.x"
+description: "Eclipse Vert.x: Guidance for working with Vert.x. Use when the task involves Vert.x, vertx, vertx-web, vertx eventbus, vertx reactive."
+category: java
 triggers: ["Vert.x", "vertx", "vertx-web", "vertx eventbus", "vertx reactive"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["java"]
-category: java
 ---
 
 # Eclipse Vert.x

@@ -1,7 +1,9 @@
 ---
+name: "Anti-Corruption / Institutional Integrity — Procurement Integrity Lead"
+description: "Anti-Corruption / Institutional Integrity — Procurement Integrity Lead: The procurement integrity lead protects public and institutional technology procurement from corruption, capture, favoritism, and waste. Use when the task involves anti-corruption, institutional integrity — procurement integrity lead."
+category: government
 triggers: ["anti-corruption", "institutional integrity — procurement integrity lead"]
 tools_allowed: ["read_file", "write_file"]
-category: government
 ---
 
 # Anti-Corruption / Institutional Integrity — Procurement Integrity Lead
@@ -36,4 +38,3 @@ Procurement rules, RFPs, scoring criteria, vendor communications, ownership reco
 3. Verify transparent scoring and competition.
 4. Monitor amendments, change orders, and sole-source justifications.
 5. Preserve audit trail and complaint path.
-

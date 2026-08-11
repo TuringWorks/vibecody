@@ -1,7 +1,9 @@
 ---
+name: "CI/CD with GitHub Actions"
+description: "CI/CD with GitHub Actions: Guidance for building GitHub Actions workflows. Use when the task involves GitHub Actions, CI/CD, workflow yaml, matrix build, reusable workflow."
+category: devops
 triggers: ["GitHub Actions", "CI/CD", "workflow yaml", "matrix build", "reusable workflow", "github ci"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: devops
 ---
 
 # CI/CD with GitHub Actions

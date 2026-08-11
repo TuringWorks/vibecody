@@ -1,7 +1,9 @@
 ---
+name: "SBOM Generation and Management"
+description: "SBOM Generation and Management: Guidance for working with SBOMs. Use when the task involves SBOM, software bill of materials, CycloneDX, SPDX, Syft."
+category: security
 triggers: ["SBOM", "software bill of materials", "CycloneDX", "SPDX", "Syft", "sbom generation", "software composition", "VEX", "dependency inventory"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: security
 ---
 
 # SBOM Generation and Management

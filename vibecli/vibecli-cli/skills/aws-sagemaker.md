@@ -1,8 +1,10 @@
 ---
+name: "AWS SageMaker ML Platform"
+description: "AWS SageMaker ML Platform: Guidance for working with AWS SageMaker. Use when the task involves SageMaker, aws sagemaker, sagemaker endpoint, sagemaker pipeline, ml training aws."
+category: cloud-aws
 triggers: ["SageMaker", "aws sagemaker", "sagemaker endpoint", "sagemaker pipeline", "ml training aws", "sagemaker studio", "model deployment aws"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["aws"]
-category: cloud-aws
 ---
 
 # AWS SageMaker ML Platform

@@ -1,7 +1,9 @@
 ---
+name: "GitHub Action Workflow Generation"
+description: "GitHub Action Workflow Generation: Guidance for generating or validating VibeCLI GitHub Actions workflows. Use when the task involves github action, github actions, workflow yaml, CI workflow, vibecody-action."
+category: devops
 triggers: ["github action", "github actions", "workflow yaml", "CI workflow", "vibecody-action", "PR review workflow", "action.yml", "entrypoint.sh"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: devops
 ---
 
 # GitHub Action Workflow Generation

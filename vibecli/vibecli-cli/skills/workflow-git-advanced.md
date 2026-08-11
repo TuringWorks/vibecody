@@ -1,8 +1,10 @@
 ---
+name: "Advanced Git Workflows"
+description: "Advanced Git Workflows: Guidance for using advanced git features. Use when the task involves git rebase, git bisect, git worktree, git submodule, sparse checkout."
+category: workflow
 triggers: ["git rebase", "git bisect", "git worktree", "git submodule", "sparse checkout", "git advanced", "interactive rebase"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["git"]
-category: workflow
 ---
 
 # Advanced Git Workflows

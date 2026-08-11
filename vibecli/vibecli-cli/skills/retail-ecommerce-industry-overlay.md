@@ -1,7 +1,9 @@
 ---
+name: "Retail Trade and E-Commerce"
+description: "Retail Trade and E-Commerce: This overlay composes OS 11, 12, 16, 17, and 20. Use when the task involves retail trade and e-commerce, retail trade, e-commerce."
+category: industry
 triggers: ["retail trade and e-commerce", "retail trade", "e-commerce"]
 tools_allowed: ["read_file", "write_file"]
-category: industry
 ---
 
 # Retail Trade and E-Commerce

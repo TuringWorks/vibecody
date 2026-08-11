@@ -1,7 +1,9 @@
 ---
+name: "Stream Tool Args"
+description: "Stream Tool Args: Real-time partial argument streaming for LLM tool calls via toolcall_delta events. Use when the task involves stream tool args, toolcall_delta, partial tool arguments, streaming tool call."
+category: api
 triggers: ["stream tool args", "toolcall_delta", "partial tool arguments", "streaming tool call"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: api
 ---
 
 # Stream Tool Args

@@ -1,7 +1,9 @@
 ---
+name: "Informal Economy — Informal vendor support agent"
+description: "Informal Economy — Informal vendor support agent: The Informal vendor support agent is an AI-personnel role that helps street and market vendors with pricing, inventory, micro-licensing, and access to payments and cr. Use when the task involves informal economy — informal vendor support agent, informal vendor suppor..."
+category: economics
 triggers: ["informal economy — informal vendor support agent", "informal vendor support agent"]
 tools_allowed: ["read_file", "write_file"]
-category: economics
 ---
 
 # Informal Economy — Informal vendor support agent
@@ -39,12 +41,7 @@ When the task is to helps street and market vendors with pricing, inventory, mic
 
 In low- and middle-income economies this is not a niche — informal employment is often the **majority** of work. In high-income settings it shows up as gig work, cash work, and care work. Re-read through:
 
-- **Scale** (city-state → federation): whether this role is unified or layered across local/regional/national tiers.
-- **State capacity** (fragile → high-capacity): whether the owning institution exists and can be held to account, or the job is met by markets, households, NGOs, or donors.
-- **Income level** (low → high): affordability of automation and the balance of subsistence vs. wage work.
-- **Formality** (informal → formal): whether the people and assets this role acts on appear in any registry at all.
-- **Resource & geography**: which hazards and dependencies dominate (water-scarce, flood-prone, landlocked, trade-dependent).
-- **Political system & legitimacy**: where the human-accountability boundary actually binds and who may hold power to account.
+> Shared pattern — see the `shared-national-context-modifiers` skill, section “Adapting to any nation (context modifiers)”.
 
 ## Operating procedure
 

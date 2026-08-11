@@ -1,7 +1,9 @@
 ---
+name: "Embodied-AI Stack — Robot fleet operations agent"
+description: "Embodied-AI Stack — Robot fleet operations agent: The Robot fleet operations agent schedules, dispatches, monitors, and load-balances a fleet of embodied agents and flags exceptions. Use when the task involves embodied-ai stack — robot fleet operations agent, robot fleet operations agent, task calls for this work: s..."
+category: robotics
 triggers: ["embodied-ai stack — robot fleet operations agent", "robot fleet operations agent", "task calls for this work: schedules", "dispatches", "monitors", "load-balances a fleet of embodied agents", "flags exceptions"]
 tools_allowed: ["read_file", "write_file"]
-category: robotics
 ---
 
 # Embodied-AI Stack — Robot fleet operations agent
@@ -25,13 +27,9 @@ Use this skill when a task calls for this work: schedules, dispatches, monitors,
 
 These robot roles are assumed to be **LLM-brained embodied agents**, not hard-coded automatons. The stack:
 
-- **Cognitive core (the "brain").** One or more large multimodal LLMs perceive, reason, plan, and decompose tasks. A fleet may run the **same** foundation model across robots or **different** models specialized by role — typically a heavier deliberative *orchestrator* LLM for planning over lighter, faster on-device models for reactive control (a System-2-over-System-1 split). The brain is interchangeable and upgradable independent of the body.
-- **Actions are tool calls.** Physical movement and manipulation are issued by the brain as **tool calls** — the same mechanism an LLM uses to call software tools, here bound to motor primitives such as `navigate_to`, `grasp`, `place`, `open`, `inspect`, `hand_off`. The brain decides *what*; lower-level policies execute *how*.
-- **Low-level control: Vision-Language-Action (VLA) policies.** Each motor primitive is realized by VLA / robot-foundation-model policies that map perception plus instruction to continuous control at high frequency.
-- **Trained on world models + robot gyms.** Planners and policies are trained against **world models** (learned predictive simulators of physics and outcomes, used to imagine consequences before acting) and **robot gyms** (massively parallel physics simulation for sim-to-real skill learning), then transferred to hardware.
-- **RLAIF (RL from AI Feedback) — one method among many.** Skills can be refined with reinforcement learning where an **AI critic** supplies reward and preference signals at scale, but RLAIF is only one option: imitation/behavior cloning, model-based and offline RL, sim-to-real, supervised fine-tuning, and **distillation/compression** into SLMs and tiny LMs all contribute, with **deterministic controllers** for hard-real-time, safety-critical loops. The brain is right-sized per task — LLM ↔ SLM ↔ tiny LM ↔ deterministic. See `capability-optimization-*`.
+> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
 
-**Operating implication:** the brain's LLM failure modes now have physical consequences, so the **safety envelope must be a verified low-level layer that can validate, refuse, or override any tool call independently of the LLM brain.**
+> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Cognitive and control architecture (assumed)”.
 
 ## Responsibilities
 
@@ -54,20 +52,11 @@ These robot roles are assumed to be **LLM-brained embodied agents**, not hard-co
 
 ## Failure modes and safeguards
 
-- **Hallucinated or unsafe tool calls** — the LLM brain issues a wrong or dangerous action. Mitigation: a verified low-level safety layer that validates every tool call against the physical envelope and can refuse it.
-- **Sim-to-real gap** — world-model / robot-gym training diverges from reality. Mitigation: conservative behavior on out-of-distribution inputs, real-world evaluation, graceful degradation.
-- **Reward hacking from RLAIF** — the AI critic is gamed, yielding behavior that scores well but is unsafe. Mitigation: diverse critics, human spot-checks, outcome-based evaluation.
-- **Physical-world prompt injection** — adversarial signs, audio, or objects manipulate the brain. Mitigation: treat perceived instructions as untrusted; require authenticated commands for high-consequence actions.
-- **Fleet model-monoculture** — a shared brain fails in lockstep across many robots. Mitigation: model diversity, staged rollouts, manual fallback.
+> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Architecture-specific failure modes”.
 
 ## Adapting to any nation (context modifiers)
 
-- **Scale** (city-state → federation): whether this role is unified or layered across local/regional/national tiers.
-- **State capacity** (fragile → high-capacity): whether the owning institution exists and can be held to account, or the job is met by markets, households, NGOs, or donors.
-- **Income level** (low → high): affordability of automation and the balance of subsistence vs. wage work.
-- **Formality** (informal → formal): whether the people and assets this role acts on appear in any registry at all.
-- **Resource & geography**: which hazards and dependencies dominate (water-scarce, flood-prone, landlocked, trade-dependent).
-- **Political system & legitimacy**: where the human-accountability boundary actually binds and who may hold power to account.
+> Shared pattern — see the `shared-national-context-modifiers` skill, section “Adapting to any nation (context modifiers)”.
 
 ## Operating procedure
 

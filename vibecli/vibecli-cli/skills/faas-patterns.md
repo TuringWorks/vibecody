@@ -1,7 +1,9 @@
 ---
+name: "FaaS Architecture Patterns"
+description: "FaaS Architecture Patterns: Guidance for working with FaaS architecture patterns. Use when the task involves FaaS, faas, function as a service, serverless patterns, cold start."
+category: architecture
 triggers: ["FaaS", "faas", "function as a service", "serverless patterns", "cold start", "function composition", "serverless architecture", "event driven serverless"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: architecture
 ---
 
 # FaaS Architecture Patterns

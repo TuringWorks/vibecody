@@ -1,7 +1,9 @@
 ---
+name: "Batch Builder — Autonomous Bulk Code Generation"
+description: "Batch Builder — Autonomous Bulk Code Generation: Guidance for performing large-scale autonomous code generation. Use when the task involves batch build, bulk generation, batch code, autonomous build, hands-off development."
+category: workflow
 triggers: ["batch build", "bulk generation", "batch code", "autonomous build", "hands-off development", "outsource development", "batch run", "bulk code generation", "system 2", "batch agent"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: workflow
 ---
 
 # Batch Builder — Autonomous Bulk Code Generation

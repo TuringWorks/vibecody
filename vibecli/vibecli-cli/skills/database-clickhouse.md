@@ -1,7 +1,9 @@
 ---
+name: "ClickHouse"
+description: "ClickHouse: Guidance for working with ClickHouse. Use when the task involves ClickHouse, clickhouse, clickhouse query, MergeTree, clickhouse materialized view."
+category: database
 triggers: ["ClickHouse", "clickhouse", "clickhouse query", "MergeTree", "clickhouse materialized view", "OLAP analytics", "clickhouse insert"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: database
 ---
 
 # ClickHouse

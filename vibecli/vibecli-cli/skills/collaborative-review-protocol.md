@@ -1,7 +1,9 @@
 ---
+name: "Collaborative Review Protocol"
+description: "Collaborative Review Protocol: Multi-round code review system with structured comment threads, approval workflows, and quality metrics tracking. Use when the task involves collaborative review, review thread, review round, approval workflow, review precision."
+category: review
 triggers: ["collaborative review", "review thread", "review round", "approval workflow", "review precision"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: review
 ---
 
 # Collaborative Review Protocol

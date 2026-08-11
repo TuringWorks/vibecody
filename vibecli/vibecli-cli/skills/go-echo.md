@@ -1,8 +1,10 @@
 ---
+name: "Go Echo Framework"
+description: "Go Echo Framework: Guidance for working with Echo. Use when the task involves Echo framework, echo golang, echo middleware, echo group routes."
+category: go
 triggers: ["Echo framework", "echo golang", "echo middleware", "echo group routes"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["go"]
-category: go
 ---
 
 # Go Echo Framework

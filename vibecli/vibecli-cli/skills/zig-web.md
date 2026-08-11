@@ -1,8 +1,10 @@
 ---
+name: "Zig Web and Systems"
+description: "Zig Web and Systems: Guidance for working with Zig for web and systems programming. Use when the task involves Zig, zig lang, zap zig, zig http, zig build system."
+category: zig
 triggers: ["Zig", "zig lang", "zap zig", "zig http", "zig build system", "zig allocator"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["zig"]
-category: zig
 ---
 
 # Zig Web and Systems

@@ -1,7 +1,9 @@
 ---
+name: "Cloudflare Workers and Edge Computing"
+description: "Cloudflare Workers and Edge Computing: Guidance for working with Cloudflare Workers and edge computing. Use when the task involves Cloudflare Workers, workers, cloudflare pages, durable objects, KV store."
+category: devops
 triggers: ["Cloudflare Workers", "workers", "cloudflare pages", "durable objects", "KV store", "R2", "D1 database"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: devops
 ---
 
 # Cloudflare Workers and Edge Computing

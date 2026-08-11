@@ -1,7 +1,9 @@
 ---
+name: "Property-Based Testing"
+description: "Property-Based Testing: Guidance for using property-based testing. Use when the task involves property based test, proptest, hypothesis, fast-check, fuzzing test."
+category: testing
 triggers: ["property based test", "proptest", "hypothesis", "fast-check", "fuzzing test", "quickcheck", "shrinking"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: testing
 ---
 
 # Property-Based Testing

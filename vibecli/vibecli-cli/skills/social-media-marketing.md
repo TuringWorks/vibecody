@@ -1,7 +1,9 @@
 ---
+name: "Social Media Marketing"
+description: "Social Media Marketing: Guidance for working with social media marketing. Use when the task involves social media marketing, social media strategy, Instagram, TikTok, LinkedIn marketing."
+category: marketing
 triggers: ["social media marketing", "social media strategy", "Instagram", "TikTok", "LinkedIn marketing", "content calendar", "community management"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: marketing
 ---
 
 # Social Media Marketing

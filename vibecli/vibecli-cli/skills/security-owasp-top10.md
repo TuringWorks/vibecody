@@ -1,7 +1,9 @@
 ---
+name: "OWASP Top 10 Security"
+description: "OWASP Top 10 Security: Guidance for protecting against OWASP Top 10 vulnerabilities. Use when the task involves OWASP, SSRF, XXE, deserialization, CSRF."
+category: security
 triggers: ["OWASP", "SSRF", "XXE", "deserialization", "CSRF", "IDOR", "injection", "XSS", "broken access"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: security
 ---
 
 # OWASP Top 10 Security

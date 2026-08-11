@@ -1,7 +1,9 @@
 ---
+name: "Multiplayer Game Networking"
+description: "Multiplayer Game Networking: Guidance for working with multiplayer netcode, game servers, and online game systems. Use when the task involves multiplayer, netcode, game server, matchmaking, lobby."
+category: gaming
 triggers: ["multiplayer", "netcode", "game server", "matchmaking", "lobby", "dedicated server", "client prediction", "rollback", "lag compensation", "game networking"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: gaming
 ---
 
 # Multiplayer Game Networking

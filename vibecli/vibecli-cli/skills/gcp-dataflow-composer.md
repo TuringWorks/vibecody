@@ -1,8 +1,10 @@
 ---
+name: "GCP Dataflow & Cloud Composer"
+description: "GCP Dataflow & Cloud Composer: Guidance for working with Dataflow and Cloud Composer. Use when the task involves Dataflow, cloud composer, apache beam, gcp dataflow, beam pipeline."
+category: cloud-gcp
 triggers: ["Dataflow", "cloud composer", "apache beam", "gcp dataflow", "beam pipeline", "cloud composer dag", "dataproc spark", "gcp data pipeline"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["gcloud"]
-category: cloud-gcp
 ---
 
 # GCP Dataflow & Cloud Composer

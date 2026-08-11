@@ -1,8 +1,10 @@
 ---
+name: "Qt / QML Development"
+description: "Qt / QML Development: Guidance for working with Qt and QML. Use when the task involves Qt, QML, qt framework, qt quick, qt widget."
+category: cpp
 triggers: ["Qt", "QML", "qt framework", "qt quick", "qt widget", "qml component", "qt signals slots", "qt embedded", "pyside"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["cmake"]
-category: cpp
 ---
 
 # Qt / QML Development

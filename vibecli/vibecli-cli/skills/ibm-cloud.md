@@ -1,7 +1,9 @@
 ---
+name: "IBM Cloud"
+description: "IBM Cloud: Guidance for working with IBM Cloud. Use when the task involves IBM Cloud, ibm cloud, code engine, cloudant, ibm kubernetes."
+category: cloud-ibm
 triggers: ["IBM Cloud", "ibm cloud", "code engine", "cloudant", "ibm kubernetes", "ibm cloud functions", "ibm object storage", "ibm watson"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: cloud-ibm
 ---
 
 # IBM Cloud

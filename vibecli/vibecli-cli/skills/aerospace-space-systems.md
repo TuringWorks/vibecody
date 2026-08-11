@@ -1,7 +1,9 @@
 ---
+name: "Space Systems & Satellite Software"
+description: "Space Systems & Satellite Software: Guidance for developing software for spacecraft, satellites, and launch vehicles. Use when the task involves space systems, satellite software, spacecraft, ECSS, NASA."
+category: aerospace
 triggers: ["space systems", "satellite software", "spacecraft", "ECSS", "NASA", "cFS", "CCSDS", "space flight software", "CubeSat", "radiation hardening", "RTOS space", "launch vehicle"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: aerospace
 ---
 
 # Space Systems & Satellite Software

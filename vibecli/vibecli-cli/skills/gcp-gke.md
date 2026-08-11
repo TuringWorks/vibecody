@@ -1,8 +1,10 @@
 ---
+name: "GCP Google Kubernetes Engine"
+description: "GCP Google Kubernetes Engine: Guidance for working with GKE. Use when the task involves GKE, gcp gke, google kubernetes, gke autopilot, gke workload identity."
+category: cloud-gcp
 triggers: ["GKE", "gcp gke", "google kubernetes", "gke autopilot", "gke workload identity", "gke gateway", "gke cluster"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["gcloud", "kubectl"]
-category: cloud-gcp
 ---
 
 # GCP Google Kubernetes Engine

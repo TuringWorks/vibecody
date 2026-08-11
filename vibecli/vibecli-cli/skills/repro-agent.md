@@ -1,7 +1,9 @@
 ---
+name: "Reproducible and Deterministic Agent Sessions"
+description: "Reproducible and Deterministic Agent Sessions: Guidance for building agents that must be reproducible, debuggable, or validated in CI. Use when the task involves reproducible agent, deterministic replay, session snapshot, flaky agent, agent reproducibility."
+category: agent
 triggers: ["reproducible agent", "deterministic replay", "session snapshot", "flaky agent", "agent reproducibility"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: agent
 ---
 
 # Reproducible and Deterministic Agent Sessions

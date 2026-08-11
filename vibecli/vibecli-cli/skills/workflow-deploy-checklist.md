@@ -1,7 +1,9 @@
 ---
+name: "Deployment Checklist"
+description: "Deployment Checklist: Guidance for deploying to production. Use when the task involves deploy checklist, pre-flight, rollback plan, deployment process, release checklist."
+category: workflow
 triggers: ["deploy checklist", "pre-flight", "rollback plan", "deployment process", "release checklist"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: workflow
 ---
 
 # Deployment Checklist

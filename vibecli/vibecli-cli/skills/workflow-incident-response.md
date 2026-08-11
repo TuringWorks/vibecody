@@ -1,7 +1,9 @@
 ---
+name: "Incident Response"
+description: "Incident Response: Guidance for handling production incidents. Use when the task involves incident response, outage, RCA, postmortem, on-call."
+category: workflow
 triggers: ["incident response", "outage", "RCA", "postmortem", "on-call", "mitigation", "rollback"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: workflow
 ---
 
 # Incident Response

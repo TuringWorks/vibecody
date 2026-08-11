@@ -1,7 +1,9 @@
 ---
-triggers: ["mining, quarrying, oil, gas, and extraction support", "mining", "quarrying", "oil", "gas", "extraction support"]
-tools_allowed: ["read_file", "write_file"]
+name: "Mining, Quarrying, Oil, Gas, and Extraction Support"
+description: "Mining, Quarrying, Oil, Gas, and Extraction Support: This overlay composes OS 03, 07, 08, 11, 16, and 19. Use when the task involves mining, quarrying, oil, gas, and extraction support, quarrying, oil, gas, extraction support."
 category: industry
+triggers: ["mining, quarrying, oil, gas, and extraction support", "quarrying", "oil", "gas", "extraction support"]
+tools_allowed: ["read_file", "write_file"]
 ---
 
 # Mining, Quarrying, Oil, Gas, and Extraction Support

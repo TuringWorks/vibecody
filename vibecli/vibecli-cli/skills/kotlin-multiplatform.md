@@ -1,8 +1,10 @@
 ---
+name: "Kotlin Multiplatform (KMP)"
+description: "Kotlin Multiplatform (KMP): Guidance for working with Kotlin Multiplatform. Use when the task involves Kotlin Multiplatform, KMP, kotlin multiplatform, compose multiplatform, expect actual."
+category: kotlin
 triggers: ["Kotlin Multiplatform", "KMP", "kotlin multiplatform", "compose multiplatform", "expect actual", "sqldelight", "kotlin native"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["java"]
-category: kotlin
 ---
 
 # Kotlin Multiplatform (KMP)

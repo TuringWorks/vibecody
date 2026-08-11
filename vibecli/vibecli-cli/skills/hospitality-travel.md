@@ -1,7 +1,9 @@
 ---
+name: "Hospitality and Travel Technology Systems"
+description: "Hospitality and Travel Technology Systems: Guidance for working with hospitality, hotel management, and travel tech software. Use when the task involves hospitality, hotel, PMS, property management system, booking engine."
+category: hospitality
 triggers: ["hospitality", "hotel", "PMS", "property management system", "booking engine", "reservation", "OTA", "channel manager", "revenue management", "travel tech", "GDS"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: hospitality
 ---
 
 # Hospitality and Travel Technology Systems

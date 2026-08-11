@@ -1,7 +1,9 @@
 ---
+name: "Sales Strategy"
+description: "Sales Strategy: Guidance for working with sales strategy and process optimization. Use when the task involves sales strategy, sales process, B2B sales, sales enablement, sales pipeline."
+category: sales
 triggers: ["sales strategy", "sales process", "B2B sales", "sales enablement", "sales pipeline", "consultative selling", "solution selling"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: sales
 ---
 
 # Sales Strategy

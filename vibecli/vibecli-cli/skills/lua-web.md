@@ -1,7 +1,9 @@
 ---
+name: "Lua Web (OpenResty, Lapis)"
+description: "Lua Web (OpenResty, Lapis): Guidance for working with Lua web frameworks. Use when the task involves Lapis, openresty, lua web, luajit, lua nginx."
+category: lua
 triggers: ["Lapis", "openresty", "lua web", "luajit", "lua nginx"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: lua
 ---
 
 # Lua Web (OpenResty, Lapis)

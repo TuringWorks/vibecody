@@ -1,7 +1,9 @@
 ---
+name: "SEO and Digital Marketing"
+description: "SEO and Digital Marketing: Guidance for optimizing for search engines and running digital marketing. Use when the task involves SEO, search engine optimization, digital marketing, content marketing, analytics."
+category: marketing
 triggers: ["SEO", "search engine optimization", "digital marketing", "content marketing", "analytics", "Google Analytics"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: marketing
 ---
 
 # SEO and Digital Marketing

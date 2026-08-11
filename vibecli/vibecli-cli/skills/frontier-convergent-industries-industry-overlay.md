@@ -1,7 +1,9 @@
 ---
+name: "Frontier and Convergent Industries"
+description: "Frontier and Convergent Industries: This overlay composes OS 03, 07, 08, 09, 11, 12, 13, 15, 16, and 20 plus the strategic missions. Use when the task involves frontier and convergent industries, frontier, convergent industries."
+category: industry
 triggers: ["frontier and convergent industries", "frontier", "convergent industries"]
 tools_allowed: ["read_file", "write_file"]
-category: industry
 ---
 
 # Frontier and Convergent Industries

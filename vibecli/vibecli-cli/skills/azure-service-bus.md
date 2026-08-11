@@ -1,8 +1,10 @@
 ---
+name: "Azure Service Bus Messaging"
+description: "Azure Service Bus Messaging: Guidance for working with Azure Service Bus. Use when the task involves Service Bus, azure service bus, service bus topic, service bus queue, azure messaging."
+category: cloud-azure
 triggers: ["Service Bus", "azure service bus", "service bus topic", "service bus queue", "azure messaging", "service bus session"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["az"]
-category: cloud-azure
 ---
 
 # Azure Service Bus Messaging

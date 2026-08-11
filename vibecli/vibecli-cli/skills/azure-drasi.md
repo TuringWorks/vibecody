@@ -1,7 +1,9 @@
 ---
+name: "Drasi Real-Time Event Processing"
+description: "Drasi Real-Time Event Processing: Guidance for working with Drasi. Use when the task involves Drasi, drasi, drasi source, drasi reaction, continuous query."
+category: cloud-azure
 triggers: ["Drasi", "drasi", "drasi source", "drasi reaction", "continuous query", "drasi change detection", "real-time event processing"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: cloud-azure
 ---
 
 # Drasi Real-Time Event Processing

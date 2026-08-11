@@ -1,8 +1,10 @@
 ---
+name: "Go fasthttp and High-Performance HTTP"
+description: "Go fasthttp and High-Performance HTTP: Guidance for working with fasthttp. Use when the task involves fasthttp, go fasthttp, gnet, go high performance http."
+category: go
 triggers: ["fasthttp", "go fasthttp", "gnet", "go high performance http"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["go"]
-category: go
 ---
 
 # Go fasthttp and High-Performance HTTP

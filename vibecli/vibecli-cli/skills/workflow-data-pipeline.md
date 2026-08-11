@@ -1,7 +1,9 @@
 ---
+name: "Data Pipeline Design"
+description: "Data Pipeline Design: Guidance for building data pipelines. Use when the task involves ETL, data pipeline, data validation, ELT, data engineering."
+category: workflow
 triggers: ["ETL", "data pipeline", "data validation", "ELT", "data engineering", "Airflow", "dbt"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: workflow
 ---
 
 # Data Pipeline Design

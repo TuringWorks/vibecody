@@ -1,8 +1,10 @@
 ---
+name: "Dart Backend (Shelf, Dart Frog, Angel)"
+description: "Dart Backend (Shelf, Dart Frog, Angel): Guidance for working with Dart backend frameworks. Use when the task involves Dart backend, dart server, shelf dart, dart_frog, angel3."
+category: dart
 triggers: ["Dart backend", "dart server", "shelf dart", "dart_frog", "angel3", "dart http server"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["dart"]
-category: dart
 ---
 
 # Dart Backend (Shelf, Dart Frog, Angel)

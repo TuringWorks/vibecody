@@ -1,7 +1,9 @@
 ---
+name: "Parallel Tool Scheduler"
+description: "Parallel Tool Scheduler: Dependency-tracked concurrent tool execution — up to N tools run in parallel when declared dependencies have completed. Use when the task involves parallel tool scheduler, concurrent tools, tool dependency DAG, sequence write conflicts."
+category: performance
 triggers: ["parallel tool scheduler", "concurrent tools", "tool dependency DAG", "sequence write conflicts"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: performance
 ---
 
 # Parallel Tool Scheduler

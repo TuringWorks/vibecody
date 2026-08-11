@@ -1,7 +1,9 @@
 ---
+name: "Supply Chain and Operations"
+description: "Supply Chain and Operations: Guidance for working with supply chain management and operations. Use when the task involves supply chain, procurement, inventory management, logistics, warehouse management."
+category: operations
 triggers: ["supply chain", "procurement", "inventory management", "logistics", "warehouse management", "demand planning", "S&OP"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: operations
 ---
 
 # Supply Chain and Operations

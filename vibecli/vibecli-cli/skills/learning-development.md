@@ -1,7 +1,9 @@
 ---
+name: "Learning and Development"
+description: "Learning and Development: Guidance for working with learning and development programs. Use when the task involves learning and development, L&D, training program, instructional design, eLearning."
+category: hr
 triggers: ["learning and development", "L&D", "training program", "instructional design", "eLearning", "LMS", "corporate training", "curriculum development"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: hr
 ---
 
 # Learning and Development

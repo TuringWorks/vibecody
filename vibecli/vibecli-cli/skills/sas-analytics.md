@@ -1,7 +1,9 @@
 ---
+name: "SAS Programming"
+description: "SAS Programming: Guidance for writing SAS code for analytics, clinical trials, and enterprise reporting. Use when the task involves SAS, SAS programming, SAS macro, PROC SQL, SAS dataset."
+category: sas
 triggers: ["SAS", "SAS programming", "SAS macro", "PROC SQL", "SAS dataset", "SAS clinical", "SAS analytics", "DATA step", "PROC MEANS"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: sas
 ---
 
 # SAS Programming

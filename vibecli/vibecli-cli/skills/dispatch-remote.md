@@ -1,7 +1,9 @@
 ---
+name: "Remote Dispatch Queue"
+description: "Remote Dispatch Queue: // Worker loop while let Some(job) = q.dequeue_next() { q.mark_running(&job.id); let result = execute(&job.prompt); q.mark_completed(&job.id, result); }. Use when the task involves remote dispatch, job queue, dequeue job, priority work queue, mobile job dispatch."
+category: workflow
 triggers: ["remote dispatch", "job queue", "dequeue job", "priority work queue", "mobile job dispatch"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: workflow
 ---
 
 # Remote Dispatch Queue

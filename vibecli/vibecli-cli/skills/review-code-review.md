@@ -1,7 +1,9 @@
 ---
+name: "Code Review Best Practices"
+description: "Code Review Best Practices: Guidance for reviewing code (inspired by Claude Code/fire-flow review patterns). Use when the task involves code review, review checklist, review feedback, PR review, review severity."
+category: review
 triggers: ["code review", "review checklist", "review feedback", "PR review", "review severity"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: review
 ---
 
 # Code Review Best Practices

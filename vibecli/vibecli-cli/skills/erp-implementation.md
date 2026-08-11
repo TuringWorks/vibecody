@@ -1,7 +1,9 @@
 ---
+name: "ERP Implementation"
+description: "ERP Implementation: Guidance for working with ERP implementations and digital transformation projects. Use when the task involves ERP implementation, ERP migration, enterprise resource planning, digital transformation, business process reengineering."
+category: enterprise
 triggers: ["ERP implementation", "ERP migration", "enterprise resource planning", "digital transformation", "business process reengineering"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: enterprise
 ---
 
 # ERP Implementation

@@ -1,7 +1,9 @@
 ---
+name: "Audio & Music Production"
+description: "Audio & Music Production: Guidance for working with audio and music production. Use when the task involves audio production, music production, Pro Tools, Ableton, Logic Pro."
+category: creative
 triggers: ["audio production", "music production", "Pro Tools", "Ableton", "Logic Pro", "audio engineering", "mixing", "mastering", "sound design"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: creative
 ---
 
 # Audio & Music Production

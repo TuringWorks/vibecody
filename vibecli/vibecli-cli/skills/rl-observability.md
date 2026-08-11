@@ -1,7 +1,9 @@
 ---
+name: "RL Observability"
+description: "RL Observability: Monitor RL systems with reward drift detection, distributional shift alerts, safety constraint tracking, and multi-agent traces. Use when the task involves RL observability, reward drift, distributional shift, safety constraint tracking."
+category: ai
 triggers: ["RL observability", "reward drift", "distributional shift", "safety constraint tracking"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # RL Observability

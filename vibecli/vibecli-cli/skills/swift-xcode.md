@@ -1,8 +1,10 @@
 ---
+name: "Xcode & SwiftUI Development"
+description: "Xcode & SwiftUI Development: Guidance for working with Xcode and SwiftUI. Use when the task involves Xcode, xcode, SwiftUI, swiftui, xcode project."
+category: swift
 triggers: ["Xcode", "xcode", "SwiftUI", "swiftui", "xcode project", "xcode build", "swift package manager", "Instruments profiling"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["xcodebuild"]
-category: swift
 ---
 
 # Xcode & SwiftUI Development

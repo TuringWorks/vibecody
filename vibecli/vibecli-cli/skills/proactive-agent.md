@@ -1,7 +1,9 @@
 ---
+name: "Proactive Agent"
+description: "Proactive Agent: Background intelligence that continuously scans your codebase for issues, improvements, and opportunities. Use when the task involves proactive agent, background code scan, always-on analysis, detect issues automatically."
+category: agent
 triggers: ["proactive agent", "background code scan", "always-on analysis", "detect issues automatically"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: agent
 ---
 
 # Proactive Agent

@@ -1,7 +1,9 @@
 ---
+name: "Desktop Computer Use Automation"
+description: "Desktop Computer Use Automation: Guidance for automating desktop applications and browser interactions with an agent. Use when the task involves desktop automation, computer use, click automation, browser debugging, desktop testing."
+category: agent
 triggers: ["desktop automation", "computer use", "click automation", "browser debugging", "desktop testing"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: agent
 ---
 
 # Desktop Computer Use Automation

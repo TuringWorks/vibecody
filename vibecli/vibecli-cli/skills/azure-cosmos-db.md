@@ -1,8 +1,10 @@
 ---
+name: "Azure Cosmos DB Programming"
+description: "Azure Cosmos DB Programming: Guidance for working with Azure Cosmos DB. Use when the task involves Cosmos DB, cosmosdb, azure cosmos, cosmos partition, cosmos change feed."
+category: cloud-azure
 triggers: ["Cosmos DB", "cosmosdb", "azure cosmos", "cosmos partition", "cosmos change feed", "cosmos consistency", "request units"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["az"]
-category: cloud-azure
 ---
 
 # Azure Cosmos DB Programming

@@ -1,7 +1,9 @@
 ---
+name: "Administrative, Facilities, Security, and Support Services"
+description: "Administrative, Facilities, Security, and Support Services: This overlay composes OS 04, 10, 12, 17, 20, 21, 22, and 23. Use when the task involves administrative, facilities, security, and support services, administrative, facilities, security, support services."
+category: industry
 triggers: ["administrative, facilities, security, and support services", "administrative", "facilities", "security", "support services"]
 tools_allowed: ["read_file", "write_file"]
-category: industry
 ---
 
 # Administrative, Facilities, Security, and Support Services

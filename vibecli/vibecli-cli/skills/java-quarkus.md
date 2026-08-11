@@ -1,8 +1,10 @@
 ---
+name: "Quarkus Framework"
+description: "Quarkus Framework: Guidance for working with Quarkus. Use when the task involves Quarkus, quarkus-reactive, quarkus-native, @QuarkusTest, quarkus extension."
+category: java
 triggers: ["Quarkus", "quarkus-reactive", "quarkus-native", "@QuarkusTest", "quarkus extension", "quarkus dev services"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["java"]
-category: java
 ---
 
 # Quarkus Framework

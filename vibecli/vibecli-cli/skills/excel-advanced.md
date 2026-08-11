@@ -1,7 +1,9 @@
 ---
+name: "Advanced Excel"
+description: "Advanced Excel: Guidance for working with advanced Excel techniques and data analysis. Use when the task involves Excel, spreadsheet, VBA, Power Query, pivot tables."
+category: productivity
 triggers: ["Excel", "spreadsheet", "VBA", "Power Query", "pivot tables", "Excel macros", "financial modeling Excel"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: productivity
 ---
 
 # Advanced Excel

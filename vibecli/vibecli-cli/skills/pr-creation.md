@@ -1,8 +1,9 @@
 ---
-name: Pull Request Creation
-description: Best practices for creating pull requests
-triggers: ["pull request", "PR", "gh pr", "create pr"]
+name: "Pull Request Creation"
+description: "Pull Request Creation: Guidance for creating a pull request. Use when the task involves pull request, PR, gh pr, create pr."
 category: workflow
+triggers: ["pull request", "PR", "gh pr", "create pr"]
+tools_allowed: ["read_file", "write_file", "bash"]
 ---
 
 When creating a pull request:

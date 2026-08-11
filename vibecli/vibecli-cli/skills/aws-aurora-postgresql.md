@@ -1,8 +1,10 @@
 ---
+name: "AWS Aurora PostgreSQL"
+description: "AWS Aurora PostgreSQL: Guidance for working with Aurora PostgreSQL. Use when the task involves Aurora PostgreSQL, aurora postgres, aws aurora postgresql, aurora pg, aurora postgresql compatible."
+category: cloud-aws
 triggers: ["Aurora PostgreSQL", "aurora postgres", "aws aurora postgresql", "aurora pg", "aurora postgresql compatible"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["aws"]
-category: cloud-aws
 ---
 
 # AWS Aurora PostgreSQL

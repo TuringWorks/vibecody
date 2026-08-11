@@ -1,7 +1,9 @@
 ---
-triggers: ["manufacturing", "MES", "production planning", "quality management", "SPC", "ERP manufacturing", "bill of materials", "BOM", "work order", "shop floor", "lean manufacturing"]
-tools_allowed: ["read_file", "write_file", "bash"]
+name: "Manufacturing & MES Engineering"
+description: "Manufacturing & MES Engineering: Guidance for working with manufacturing execution and production systems. Use when the task involves MES, production planning, quality management, SPC, ERP manufacturing."
 category: manufacturing
+triggers: ["MES", "production planning", "quality management", "SPC", "ERP manufacturing", "bill of materials", "BOM", "work order", "shop floor", "lean manufacturing"]
+tools_allowed: ["read_file", "write_file", "bash"]
 ---
 
 # Manufacturing & MES Engineering

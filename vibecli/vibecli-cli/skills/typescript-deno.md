@@ -1,8 +1,10 @@
 ---
+name: "Deno and Oak Framework"
+description: "Deno and Oak Framework: Guidance for working with Deno and its web ecosystem. Use when the task involves Deno, deno serve, oak deno, deno deploy, fresh deno."
+category: typescript
 triggers: ["Deno", "deno serve", "oak deno", "deno deploy", "fresh deno", "deno permissions"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["deno"]
-category: typescript
 ---
 
 # Deno and Oak Framework

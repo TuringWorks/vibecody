@@ -1,7 +1,9 @@
 ---
+name: "Hook Abort Protocol"
+description: "Hook Abort Protocol: Implement and manage pre/post-tool-use hooks with structured exit-code signaling, JSON decision payloads, abort signals, and progress event channels. Use when the task involves hook abort, pre-tool hook, post-tool hook, hook decision, block tool call."
+category: automation
 triggers: ["hook abort", "pre-tool hook", "post-tool hook", "hook decision", "block tool call"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: automation
 ---
 
 # Hook Abort Protocol

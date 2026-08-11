@@ -1,7 +1,9 @@
 ---
-triggers: ["project management", "Agile", "Scrum", "Kanban", "sprint planning", "retrospective", "JIRA", "backlog"]
-tools_allowed: ["read_file", "write_file", "bash"]
+name: "Project Management and Agile Practices"
+description: "Project Management and Agile Practices: Guidance for managing projects using Agile methodologies. Use when the task involves project management, Agile, Scrum, Kanban, sprint planning."
 category: management
+triggers: ["project management", "Agile", "Scrum", "Kanban", "sprint planning", "retrospective", "JIRA", "backlog", "standup", "backlog grooming"]
+tools_allowed: ["read_file", "write_file", "bash"]
 ---
 
 # Project Management and Agile Practices

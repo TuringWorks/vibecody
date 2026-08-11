@@ -1,7 +1,9 @@
 ---
+name: "Observability: Distributed Tracing"
+description: "Observability: Distributed Tracing: Guidance for implementing distributed tracing across services. Use when the task involves distributed tracing, OpenTelemetry, Jaeger, Zipkin, trace context."
+category: observability
 triggers: ["distributed tracing", "OpenTelemetry", "Jaeger", "Zipkin", "trace context", "span", "baggage", "W3C trace context", "trace sampling"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: observability
 ---
 
 # Observability: Distributed Tracing

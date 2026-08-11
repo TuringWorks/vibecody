@@ -1,8 +1,10 @@
 ---
+name: "AWS Amplify (Gen 2)"
+description: "AWS Amplify (Gen 2): Guidance for working with AWS Amplify Gen 2. Use when the task involves Amplify, aws amplify, amplify gen2, amplify data, amplify auth."
+category: cloud-aws
 triggers: ["Amplify", "aws amplify", "amplify gen2", "amplify data", "amplify auth", "amplify hosting", "amplify function", "amplify sandbox"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["npx"]
-category: cloud-aws
 ---
 
 # AWS Amplify (Gen 2)

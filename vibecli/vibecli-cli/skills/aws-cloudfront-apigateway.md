@@ -1,8 +1,10 @@
 ---
+name: "AWS CloudFront CDN and API Gateway"
+description: "AWS CloudFront CDN and API Gateway: Guidance for working with CloudFront and API Gateway. Use when the task involves CloudFront, API Gateway, aws cloudfront, aws api gateway, lambda@edge."
+category: cloud-aws
 triggers: ["CloudFront", "API Gateway", "aws cloudfront", "aws api gateway", "lambda@edge", "cloudfront functions", "api gateway authorizer", "usage plan"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["aws"]
-category: cloud-aws
 ---
 
 # AWS CloudFront CDN and API Gateway

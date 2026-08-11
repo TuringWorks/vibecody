@@ -1,8 +1,10 @@
 ---
+name: "AWS Step Functions Orchestration"
+description: "AWS Step Functions Orchestration: Guidance for working with AWS Step Functions. Use when the task involves Step Functions, step functions, aws step, state machine, ASL."
+category: cloud-aws
 triggers: ["Step Functions", "step functions", "aws step", "state machine", "ASL", "express workflow", "step functions map"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["aws"]
-category: cloud-aws
 ---
 
 # AWS Step Functions Orchestration

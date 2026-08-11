@@ -1,7 +1,9 @@
 ---
+name: "Dual-Log Session Logging"
+description: "Dual-Log Session Logging: Rules for working with the dual_log module (pi-mono gap bridge, Phase B4). Use when the task involves dual log, dual-log, session log, log.jsonl, context.jsonl."
+category: ai
 triggers: ["dual log", "dual-log", "session log", "log.jsonl", "context.jsonl", "append-only log", "compacted context", "pi-mom", "pi-mono gap", "channel session", "DualLog"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # Dual-Log Session Logging

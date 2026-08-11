@@ -1,7 +1,9 @@
 ---
+name: "GPU Cluster Provisioning"
+description: "GPU Cluster Provisioning: Guidance for provisioning and managing GPU clusters. Use when the task involves GPU cluster, GPU provisioning, CUDA, GPU server, GPU node."
+category: infrastructure
 triggers: ["GPU cluster", "GPU provisioning", "CUDA", "GPU server", "GPU node", "multi-GPU", "GPU scheduling"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: infrastructure
 ---
 
 # GPU Cluster Provisioning

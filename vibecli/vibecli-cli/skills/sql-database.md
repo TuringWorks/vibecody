@@ -1,7 +1,9 @@
 ---
+name: "SQL Best Practices"
+description: "SQL Best Practices: Guidance for writing SQL queries and database code. Use when the task involves SQL, SQL query, SELECT, JOIN, stored procedure."
+category: sql
 triggers: ["SQL", "SQL query", "SELECT", "JOIN", "stored procedure", "database query", "SQL optimization", "SQL injection prevention", "relational database", "DDL", "DML"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: sql
 ---
 
 # SQL Best Practices

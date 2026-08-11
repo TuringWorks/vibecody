@@ -1,7 +1,9 @@
 ---
+name: "Critical Thinking"
+description: "Critical Thinking: Guidance for applying critical thinking and analytical problem solving. Use when the task involves critical thinking, problem solving, root cause analysis, first principles, analytical thinking."
+category: strategy
 triggers: ["critical thinking", "problem solving", "root cause analysis", "first principles", "analytical thinking", "5 whys"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: strategy
 ---
 
 # Critical Thinking

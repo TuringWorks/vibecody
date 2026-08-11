@@ -1,7 +1,9 @@
 ---
+name: "GPU Training & Distributed Training"
+description: "GPU Training & Distributed Training: Guidance for training or fine-tuning models across GPUs. Use when the task involves distributed training, model training, fine-tuning, LoRA, DeepSpeed."
+category: ai
 triggers: ["distributed training", "model training", "fine-tuning", "LoRA", "DeepSpeed", "FSDP", "data parallel", "model parallel"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # GPU Training & Distributed Training

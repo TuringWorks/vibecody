@@ -1,8 +1,10 @@
 ---
+name: "Python Django"
+description: "Python Django: Guidance for building Django applications. Use when the task involves django, Django REST, DRF, Django model, Django migration."
+category: python
 triggers: ["django", "Django REST", "DRF", "Django model", "Django migration", "Django admin", "Django view"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["python3"]
-category: python
 ---
 
 # Python Django

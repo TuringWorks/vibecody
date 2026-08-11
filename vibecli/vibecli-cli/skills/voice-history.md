@@ -1,7 +1,9 @@
 ---
+name: "Voice Command History"
+description: "Voice Command History: Records, indexes, and replays voice commands with full-text search and confidence scoring. Use when the task involves voice history, voice command history, replay voice command."
+category: productivity
 triggers: ["voice history", "voice command history", "replay voice command"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: productivity
 ---
 
 # Voice Command History

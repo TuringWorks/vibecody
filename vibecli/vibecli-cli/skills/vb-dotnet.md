@@ -1,8 +1,10 @@
 ---
+name: "Visual Basic .NET"
+description: "Visual Basic .NET: Guidance for writing VB.NET code. Use when the task involves Visual Basic, VB.NET, VB .NET, Visual Basic .NET, VB6."
+category: vb
 triggers: ["Visual Basic", "VB.NET", "VB .NET", "Visual Basic .NET", "VB6", "VBA", "Basic .NET"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["dotnet"]
-category: vb
 ---
 
 # Visual Basic .NET

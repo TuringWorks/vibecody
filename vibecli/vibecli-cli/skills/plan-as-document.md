@@ -1,7 +1,9 @@
 ---
+name: "Plan-as-Document with Feedback"
+description: "Plan-as-Document with Feedback: Create structured plan documents with human review loops before execution. Use when the task involves plan document, create plan, review plan, plan feedback, plan approval."
+category: workflow
 triggers: ["plan document", "create plan", "review plan", "plan feedback", "plan approval", "plan markdown", "step-by-step plan"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: workflow
 ---
 
 # Plan-as-Document with Feedback

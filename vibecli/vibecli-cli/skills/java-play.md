@@ -1,8 +1,10 @@
 ---
+name: "Play Framework"
+description: "Play Framework: Guidance for working with Play Framework (Java and Scala). Use when the task involves Play Framework, play2, playframework, play java, play scala."
+category: java
 triggers: ["Play Framework", "play2", "playframework", "play java", "play scala", "sbt play"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["java"]
-category: java
 ---
 
 # Play Framework

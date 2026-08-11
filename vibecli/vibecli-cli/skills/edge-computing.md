@@ -1,7 +1,9 @@
 ---
+name: "Edge Computing Development"
+description: "Edge Computing Development: Guidance for building applications for edge computing environments. Use when the task involves edge computing, CDN edge, Cloudflare Workers, edge functions, Deno Deploy."
+category: edge
 triggers: ["edge computing", "CDN edge", "Cloudflare Workers", "edge functions", "Deno Deploy", "edge database", "edge caching", "IoT edge"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: edge
 ---
 
 # Edge Computing Development

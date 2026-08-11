@@ -1,8 +1,10 @@
 ---
+name: "Fastify Framework"
+description: "Fastify Framework: Guidance for working with Fastify. Use when the task involves Fastify, fastify plugin, fastify schema, fastify hooks, fastify decorator."
+category: javascript
 triggers: ["Fastify", "fastify plugin", "fastify schema", "fastify hooks", "fastify decorator"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["node"]
-category: javascript
 ---
 
 # Fastify Framework

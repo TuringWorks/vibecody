@@ -1,7 +1,9 @@
 ---
+name: "Career Development"
+description: "Career Development: Guidance for planning career growth and professional development. Use when the task involves career development, career growth, promotion, career ladder, engineering levels."
+category: people-skills
 triggers: ["career development", "career growth", "promotion", "career ladder", "engineering levels", "IC track", "career path"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: people-skills
 ---
 
 # Career Development

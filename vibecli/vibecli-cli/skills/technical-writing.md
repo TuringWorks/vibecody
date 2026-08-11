@@ -1,7 +1,9 @@
 ---
+name: "Technical Writing"
+description: "Technical Writing: Guidance for writing technical documentation and communications. Use when the task involves technical writing, documentation writing, writing RFCs, writing ADRs, clear writing."
+category: people-skills
 triggers: ["technical writing", "documentation writing", "writing RFCs", "writing ADRs", "clear writing", "engineering blog"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: people-skills
 ---
 
 # Technical Writing

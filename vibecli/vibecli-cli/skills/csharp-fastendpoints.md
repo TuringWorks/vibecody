@@ -1,8 +1,10 @@
 ---
+name: "FastEndpoints and High-Performance .NET"
+description: "FastEndpoints and High-Performance .NET: Guidance for working with FastEndpoints. Use when the task involves FastEndpoints, fastendpoints, .NET minimal api, dotnet AOT, kestrel performance."
+category: csharp
 triggers: ["FastEndpoints", "fastendpoints", ".NET minimal api", "dotnet AOT", "kestrel performance"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["dotnet"]
-category: csharp
 ---
 
 # FastEndpoints and High-Performance .NET

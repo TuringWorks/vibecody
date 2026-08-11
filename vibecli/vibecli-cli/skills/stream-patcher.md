@@ -1,7 +1,9 @@
 ---
+name: "Stream Patcher"
+description: "Stream Patcher: Streaming unified diff applicator — applies patch hunks as they arrive, with per-hunk rollback and conflict detection. Use when the task involves stream patcher, streaming diff, apply hunks incrementally, per-hunk rollback."
+category: code-intelligence
 triggers: ["stream patcher", "streaming diff", "apply hunks incrementally", "per-hunk rollback"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: code-intelligence
 ---
 
 # Stream Patcher

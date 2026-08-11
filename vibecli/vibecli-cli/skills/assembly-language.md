@@ -1,8 +1,10 @@
 ---
+name: "Assembly Language"
+description: "Assembly Language: Guidance for writing assembly code (x86-64, ARM, RISC-V). Use when the task involves assembly language, assembly, ASM, x86 assembly, ARM assembly."
+category: assembly
 triggers: ["assembly language", "assembly", "ASM", "x86 assembly", "ARM assembly", "RISC-V assembly", "NASM", "MASM", "GAS", "inline assembly", "machine code"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["nasm"]
-category: assembly
 ---
 
 # Assembly Language

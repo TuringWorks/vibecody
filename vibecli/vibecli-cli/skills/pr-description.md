@@ -1,7 +1,9 @@
 ---
+name: "PR Description Generator"
+description: "PR Description Generator: Diff-aware pull request title and body generation. Use when the task involves PR description, pull request description, PR title, PR test plan."
+category: documentation
 triggers: ["PR description", "pull request description", "PR title", "PR test plan"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: documentation
 ---
 
 # PR Description Generator

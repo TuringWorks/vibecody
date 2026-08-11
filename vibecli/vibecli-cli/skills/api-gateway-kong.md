@@ -1,7 +1,9 @@
 ---
+name: "Kong API Gateway"
+description: "Kong API Gateway: Guidance for working with Kong API Gateway. Use when the task involves Kong, kong gateway, kong plugin, kong deck, kong route."
+category: devops
 triggers: ["Kong", "kong gateway", "kong plugin", "kong deck", "kong route", "kong service", "kong ingress controller"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: devops
 ---
 
 # Kong API Gateway

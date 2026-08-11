@@ -1,7 +1,9 @@
 ---
+name: "Fintech Cryptocurrency and Blockchain Development"
+description: "Fintech Cryptocurrency and Blockchain Development: Guidance for working with cryptocurrency, blockchain, and DeFi systems. Use when the task involves cryptocurrency, blockchain, DeFi, smart contract, Solidity."
+category: fintech
 triggers: ["cryptocurrency", "blockchain", "DeFi", "smart contract", "Solidity", "Web3", "wallet", "NFT", "token", "DEX", "staking"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: fintech
 ---
 
 # Fintech Cryptocurrency and Blockchain Development

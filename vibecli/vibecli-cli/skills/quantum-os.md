@@ -1,7 +1,9 @@
 ---
+name: "Quantum Operating Systems"
+description: "Quantum Operating Systems: Best practices for quantum control planes and operating systems. Use when the task involves quantum OS, quantum operating system, Qiskit Runtime, Azure Quantum, Amazon Braket."
+category: quantum
 triggers: ["quantum OS", "quantum operating system", "Qiskit Runtime", "Azure Quantum", "Amazon Braket", "ARTIQ", "quantum control plane"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: quantum
 ---
 
 # Quantum Operating Systems

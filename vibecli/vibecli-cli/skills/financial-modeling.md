@@ -1,7 +1,9 @@
 ---
+name: "Financial Modeling"
+description: "Financial Modeling: Guidance for working with financial models and valuation analysis. Use when the task involves financial modeling, financial analysis, DCF, valuation, investment analysis."
+category: finance
 triggers: ["financial modeling", "financial analysis", "DCF", "valuation", "investment analysis", "financial projections", "three-statement model"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: finance
 ---
 
 # Financial Modeling

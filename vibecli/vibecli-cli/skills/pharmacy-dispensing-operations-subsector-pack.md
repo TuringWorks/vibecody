@@ -1,7 +1,9 @@
 ---
+name: "Pharmacy Dispensing Operations"
+description: "Pharmacy Dispensing Operations: Compose this pack with healthcare, supply-chain, finance, privacy, and jurisdiction-specific pharmacy law. Use when the task involves pharmacy dispensing operations, pharmacy dispensing operations subsector pack."
+category: industry
 triggers: ["pharmacy dispensing operations", "pharmacy dispensing operations subsector pack"]
 tools_allowed: ["read_file", "write_file"]
-category: industry
 ---
 
 # Pharmacy Dispensing Operations

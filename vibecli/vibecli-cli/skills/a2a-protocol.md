@@ -1,7 +1,9 @@
 ---
+name: "A2A Protocol"
+description: "A2A Protocol: Agent-to-agent communication using Google's A2A protocol. Use when the task involves A2A protocol, agent-to-agent, agent card, agent discovery, delegate task to agent."
+category: protocols
 triggers: ["A2A protocol", "agent-to-agent", "agent card", "agent discovery", "delegate task to agent"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: protocols
 ---
 
 # A2A Protocol

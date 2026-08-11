@@ -1,7 +1,9 @@
 ---
+name: "Budget and Financial Planning"
+description: "Budget and Financial Planning: Guidance for planning budgets, managing costs, and making financial decisions for technology organizations. Use when the task involves budget planning, financial planning, cost management, CapEx, OpEx."
+category: management
 triggers: ["budget planning", "financial planning", "cost management", "CapEx", "OpEx", "TCO", "ROI calculation"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: management
 ---
 
 # Budget and Financial Planning

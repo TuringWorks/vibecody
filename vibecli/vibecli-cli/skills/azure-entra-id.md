@@ -1,8 +1,10 @@
 ---
+name: "Azure Entra ID (formerly Azure AD)"
+description: "Azure Entra ID (formerly Azure AD): Guidance for working with Azure Entra ID. Use when the task involves Entra ID, Azure AD, azure entra, MSAL, managed identity."
+category: cloud-azure
 triggers: ["Entra ID", "Azure AD", "azure entra", "MSAL", "managed identity", "service principal", "azure authentication", "azure RBAC"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["az"]
-category: cloud-azure
 ---
 
 # Azure Entra ID (formerly Azure AD)

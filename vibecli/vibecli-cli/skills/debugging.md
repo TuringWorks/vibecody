@@ -1,8 +1,9 @@
 ---
-name: Debugging
-description: Systematic approach to debugging errors and issues
-triggers: ["debug", "error", "bug", "issue", "crash", "fix", "broken", "failing", "stacktrace", "traceback"]
+name: "Debugging"
+description: "Debugging: Guidance for debugging. Use when the task involves debug, error, bug, issue, crash."
 category: developer-experience
+triggers: ["debug", "error", "bug", "issue", "crash", "fix", "broken", "failing", "stacktrace", "traceback"]
+tools_allowed: ["read_file", "write_file", "bash"]
 ---
 
 When debugging:

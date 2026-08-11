@@ -1,7 +1,9 @@
 ---
+name: "Human Command — National technology strategist"
+description: "Human Command — National technology strategist: The National technology strategist is an accountable human owner whose job is to set national technology direction across frontier AI, compute, chips, energy, robotic. Use when the task involves human command — national technology strategist, national technology strate..."
+category: management
 triggers: ["human command — national technology strategist", "national technology strategist"]
 tools_allowed: ["read_file", "write_file"]
-category: management
 ---
 
 # Human Command — National technology strategist
@@ -49,9 +51,4 @@ Apply the operating loop and command cadence from `jobs-to-be-done-framework`: a
 
 ## Adapting to any nation (context modifiers)
 
-- **Scale** (city-state → federation): whether this role is unified or layered across local/regional/national tiers.
-- **State capacity** (fragile → high-capacity): whether the owning institution exists and can be held to account, or the job is met by markets, households, NGOs, or donors.
-- **Income level** (low → high): affordability of automation and the balance of subsistence vs. wage work.
-- **Formality** (informal → formal): whether the people and assets this role acts on appear in any registry at all.
-- **Resource & geography**: which hazards and dependencies dominate (water-scarce, flood-prone, landlocked, trade-dependent).
-- **Political system & legitimacy**: where the human-accountability boundary actually binds and who may hold power to account.
+> Shared pattern — see the `shared-national-context-modifiers` skill, section “Adapting to any nation (context modifiers)”.

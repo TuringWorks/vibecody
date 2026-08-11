@@ -1,7 +1,9 @@
 ---
+name: "MATLAB & Simulink Engineering Computing"
+description: "MATLAB & Simulink Engineering Computing: Guidance for working with MATLAB and Simulink. Use when the task involves MATLAB, Simulink, signal processing, control systems, numerical computing."
+category: engineering
 triggers: ["MATLAB", "Simulink", "signal processing", "control systems", "numerical computing", "MATLAB scripting"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: engineering
 ---
 
 # MATLAB & Simulink Engineering Computing

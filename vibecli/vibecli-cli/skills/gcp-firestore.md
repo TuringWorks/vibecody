@@ -1,8 +1,10 @@
 ---
+name: "GCP Firestore"
+description: "GCP Firestore: Guidance for working with Firestore. Use when the task involves Firestore, google firestore, gcp firestore, firestore query, firestore security rules."
+category: cloud-gcp
 triggers: ["Firestore", "google firestore", "gcp firestore", "firestore query", "firestore security rules", "firestore transaction", "cloud datastore"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["gcloud"]
-category: cloud-gcp
 ---
 
 # GCP Firestore

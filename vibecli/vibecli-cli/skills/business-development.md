@@ -1,7 +1,9 @@
 ---
+name: "Business Development"
+description: "Business Development: Guidance for partner / referral emails come in, process the inbox and the tracker as one workflow. Use when the task involves business development, outreach, prospect, lead pipeline, referral partner."
+category: productivity
 triggers: ["business development", "outreach", "prospect", "lead pipeline", "referral partner", "CRM", "outreach tracker", "prospecting", "sales outreach", "lead status", "prospect pipeline"]
 tools_allowed: ["read_file", "write_file", "bash", "web_search"]
-category: productivity
 ---
 
 # Business Development

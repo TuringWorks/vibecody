@@ -1,8 +1,10 @@
 ---
+name: "AWS Kinesis Streaming"
+description: "AWS Kinesis Streaming: Guidance for working with AWS Kinesis. Use when the task involves Kinesis, aws kinesis, kinesis stream, kinesis firehose, KCL."
+category: cloud-aws
 triggers: ["Kinesis", "aws kinesis", "kinesis stream", "kinesis firehose", "KCL", "kinesis data analytics", "aws streaming"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["aws"]
-category: cloud-aws
 ---
 
 # AWS Kinesis Streaming

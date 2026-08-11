@@ -1,29 +1,9 @@
 ---
-name: Event-Driven Automations
+name: "Event-Driven Automations"
+description: "Event-Driven Automations: Set up automation rules that spawn agent tasks from external events. Use when the task involves automation, automations, event-driven, webhook trigger, github webhook."
 category: automation
-triggers:
-  - automation
-  - automations
-  - event-driven
-  - webhook trigger
-  - github webhook
-  - slack automation
-  - pagerduty alert
-  - linear automation
-  - telegram bot
-  - signal automation
-  - whatsapp automation
-  - discord bot
-  - teams automation
-  - matrix bot
-  - twilio sms
-  - imessage automation
-  - irc bot
-  - twitch bot
-  - spawn agent
-  - external trigger
-  - event handler
-  - messaging trigger
+triggers: ["automation", "automations", "event-driven", "webhook trigger", "github webhook", "slack automation", "pagerduty alert", "linear automation", "telegram bot", "signal automation", "whatsapp automation", "discord bot", "teams automation", "matrix bot", "twilio sms", "imessage automation", "irc bot", "twitch bot", "spawn agent", "external trigger", "event handler", "messaging trigger"]
+tools_allowed: ["read_file", "write_file", "bash"]
 ---
 
 # Event-Driven Automations

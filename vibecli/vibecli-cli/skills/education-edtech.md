@@ -1,7 +1,9 @@
 ---
+name: "Education & EdTech Development"
+description: "Education & EdTech Development: Guidance for working with education technology and learning management systems. Use when the task involves EdTech, LMS, learning management, e-learning, SCORM."
+category: education
 triggers: ["EdTech", "LMS", "learning management", "e-learning", "SCORM", "xAPI", "adaptive learning", "course management", "student portal", "grading system", "assessment engine"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: education
 ---
 
 # Education & EdTech Development

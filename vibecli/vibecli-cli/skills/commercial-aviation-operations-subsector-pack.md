@@ -1,7 +1,9 @@
 ---
+name: "Commercial Aviation Operations"
+description: "Commercial Aviation Operations: Compose this pack with transportation, communications, resilience, security, finance, and jurisdiction-specific aviation requirements. Use when the task involves commercial aviation operations, commercial aviation operations subsector pack."
+category: industry
 triggers: ["commercial aviation operations", "commercial aviation operations subsector pack"]
 tools_allowed: ["read_file", "write_file"]
-category: industry
 ---
 
 # Commercial Aviation Operations

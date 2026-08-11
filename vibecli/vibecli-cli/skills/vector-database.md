@@ -1,7 +1,9 @@
 ---
+name: "Vector Database"
+description: "Vector Database: Guidance for working with vector databases and embedding storage. Use when the task involves vector database, vector store, Qdrant, Pinecone, pgvector."
+category: data
 triggers: ["vector database", "vector store", "Qdrant", "Pinecone", "pgvector", "Milvus", "Weaviate", "Chroma", "embedding storage"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: data
 ---
 
 # Vector Database

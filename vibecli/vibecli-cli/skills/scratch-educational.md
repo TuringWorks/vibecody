@@ -1,7 +1,9 @@
 ---
+name: "Scratch Programming"
+description: "Scratch Programming: Guidance for working with Scratch (MIT's visual programming language) for education and prototyping. Use when the task involves Scratch, Scratch programming, Scratch MIT, block programming, visual programming."
+category: educational
 triggers: ["Scratch", "Scratch programming", "Scratch MIT", "block programming", "visual programming", "Scratch game", "Scratch animation", "CS education Scratch"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: educational
 ---
 
 # Scratch Programming

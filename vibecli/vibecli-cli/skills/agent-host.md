@@ -1,7 +1,9 @@
 ---
+name: "Agent Host"
+description: "Agent Host: Multi-agent terminal that hosts multiple AI coding assistants simultaneously. Use when the task involves agent host, multi-agent terminal, parallel agent panes, route task to agent."
+category: agent
 triggers: ["agent host", "multi-agent terminal", "parallel agent panes", "route task to agent"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: agent
 ---
 
 # Agent Host

@@ -1,7 +1,9 @@
 ---
+name: "Dependency and SCA Scanning"
+description: "Dependency and SCA Scanning: Guidance for working with dependency scanning. Use when the task involves dependency scanning, npm audit, cargo audit, Dependabot, Renovate."
+category: security
 triggers: ["dependency scanning", "npm audit", "cargo audit", "Dependabot", "Renovate", "pip audit", "OSV", "dependency vulnerability", "SCA scanning", "license scanning"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: security
 ---
 
 # Dependency and SCA Scanning

@@ -1,7 +1,9 @@
 ---
+name: "Functional Programming Patterns"
+description: "Functional Programming Patterns: Guidance for working with functional programming patterns. Use when the task involves functional programming, FP patterns, immutability, pure functions, monads."
+category: architecture
 triggers: ["functional programming", "FP patterns", "immutability", "pure functions", "monads", "functors", "algebraic data types", "pattern matching", "higher-order functions", "currying"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: architecture
 ---
 
 # Functional Programming Patterns

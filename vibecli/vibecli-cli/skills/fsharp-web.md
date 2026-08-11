@@ -1,8 +1,10 @@
 ---
+name: "F# Web Development"
+description: "F# Web Development: Guidance for working with F# web frameworks. Use when the task involves F#, fsharp, giraffe, falco, saturn."
+category: fsharp
 triggers: ["F#", "fsharp", "giraffe", "falco", "saturn", "suave", "fsharp web", "SAFE stack"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["dotnet"]
-category: fsharp
 ---
 
 # F# Web Development

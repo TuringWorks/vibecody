@@ -1,7 +1,9 @@
 ---
+name: "Home Assistant Integration"
+description: "Home Assistant Integration: VibeCLI connects to your local Home Assistant instance via /home (alias /ha). Use when the task involves home assistant, smart home, lights, thermostat, climate."
+category: smart-home
 triggers: ["home assistant", "smart home", "lights", "thermostat", "climate", "smart lights", "home automation", "hass", "HA", "scene", "automation", "switch", "sensor"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: smart-home
 ---
 
 # Home Assistant Integration

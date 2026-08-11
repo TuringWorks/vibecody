@@ -1,7 +1,9 @@
 ---
+name: "Health Insurance Systems"
+description: "Health Insurance Systems: Guidance for working with health insurance, medical claims, and healthcare interoperability. Use when the task involves health insurance, medical claims, HL7, FHIR, EDI 837."
+category: insurance
 triggers: ["health insurance", "medical claims", "HL7", "FHIR", "EDI 837", "CPT code", "ICD-10", "prior authorization", "formulary", "pharmacy benefit", "utilization review"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: insurance
 ---
 
 # Health Insurance Systems

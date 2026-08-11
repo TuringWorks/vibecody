@@ -1,8 +1,10 @@
 ---
+name: "Sanic Async Framework"
+description: "Sanic Async Framework: Guidance for working with Sanic. Use when the task involves Sanic, sanic async, sanic blueprint, sanic middleware."
+category: python
 triggers: ["Sanic", "sanic async", "sanic blueprint", "sanic middleware"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["python3"]
-category: python
 ---
 
 # Sanic Async Framework

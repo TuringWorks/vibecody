@@ -1,7 +1,9 @@
 ---
+name: "Notion Integration"
+description: "Notion Integration: VibeCLI connects to Notion via the official API for search, reading, and creating pages. Use when the task involves notion, notion page, notion database, notion search, knowledge base."
+category: productivity
 triggers: ["notion", "notion page", "notion database", "notion search", "knowledge base", "notion workspace", "notion blocks"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: productivity
 ---
 
 # Notion Integration

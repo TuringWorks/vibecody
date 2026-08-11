@@ -1,8 +1,10 @@
 ---
+name: "Advanced Kubernetes Operations"
+description: "Advanced Kubernetes Operations: Guidance for working with advanced Kubernetes operations. Use when the task involves k8s operator, custom resource, CRD, k8s networking, service mesh."
+category: devops
 triggers: ["k8s operator", "custom resource", "CRD", "k8s networking", "service mesh", "istio", "k8s RBAC", "kustomize", "k8s admission webhook", "k8s scaling"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["kubectl"]
-category: devops
 ---
 
 # Advanced Kubernetes Operations

@@ -1,8 +1,10 @@
 ---
+name: "Litestar Framework"
+description: "Litestar Framework: Guidance for working with Litestar. Use when the task involves Litestar, litestar framework, starlite, litestar dto, litestar guards."
+category: python
 triggers: ["Litestar", "litestar framework", "starlite", "litestar dto", "litestar guards"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["python3"]
-category: python
 ---
 
 # Litestar Framework

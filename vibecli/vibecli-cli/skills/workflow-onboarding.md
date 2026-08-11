@@ -1,7 +1,9 @@
 ---
+name: "Project Onboarding Workflow"
+description: "Project Onboarding Workflow: Guidance for onboarding to a new project (inspired by fire-flow /fire-0-orient). Use when the task involves onboarding, project orientation, codebase tour, new developer, fire-0-orient."
+category: workflow
 triggers: ["onboarding", "project orientation", "codebase tour", "new developer", "fire-0-orient", "getting started"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: workflow
 ---
 
 # Project Onboarding Workflow

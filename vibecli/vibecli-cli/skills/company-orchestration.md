@@ -1,7 +1,9 @@
 ---
+name: "Company Orchestration (Paperclip Parity)"
+description: "Company Orchestration (Paperclip Parity): VibeCody's zero-human company orchestration system. Use when the task involves company orchestration, zero-human company, autonomous company, paperclip parity."
+category: strategy
 triggers: ["company orchestration", "zero-human company", "autonomous company", "paperclip parity"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: strategy
 ---
 
 # Company Orchestration (Paperclip Parity)

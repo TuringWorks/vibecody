@@ -1,7 +1,9 @@
 ---
+name: "Fintech Payments Integration"
+description: "Fintech Payments Integration: Guidance for working with payment gateway integration and processing. Use when the task involves payment gateway, Stripe, PayPal, payment processing, PCI DSS."
+category: fintech
 triggers: ["payment gateway", "Stripe", "PayPal", "payment processing", "PCI DSS", "tokenization", "3D Secure", "payment orchestration", "checkout", "recurring billing"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: fintech
 ---
 
 # Fintech Payments Integration

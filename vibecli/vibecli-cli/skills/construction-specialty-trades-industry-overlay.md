@@ -1,7 +1,9 @@
 ---
+name: "Construction and Specialty Trades"
+description: "Construction and Specialty Trades: This overlay composes OS 08, 10, 11, 16, 19, and 20. Use when the task involves construction and specialty trades, construction, specialty trades."
+category: industry
 triggers: ["construction and specialty trades", "construction", "specialty trades"]
 tools_allowed: ["read_file", "write_file"]
-category: industry
 ---
 
 # Construction and Specialty Trades

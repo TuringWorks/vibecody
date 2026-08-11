@@ -1,8 +1,10 @@
 ---
+name: "Rocket Framework"
+description: "Rocket Framework: Guidance for working with Rocket. Use when the task involves Rocket, rocket.rs, rocket framework, rocket fairings."
+category: rust
 triggers: ["Rocket", "rocket.rs", "rocket framework", "rocket fairings"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["cargo"]
-category: rust
 ---
 
 # Rocket Framework

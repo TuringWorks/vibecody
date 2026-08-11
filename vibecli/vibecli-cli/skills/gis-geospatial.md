@@ -1,7 +1,9 @@
 ---
+name: "GIS & Geospatial Analysis"
+description: "GIS & Geospatial Analysis: Guidance for working with geographic information systems and spatial data. Use when the task involves GIS, geospatial, ArcGIS, QGIS, mapping."
+category: engineering
 triggers: ["GIS", "geospatial", "ArcGIS", "QGIS", "mapping", "spatial analysis", "remote sensing", "cartography"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: engineering
 ---
 
 # GIS & Geospatial Analysis

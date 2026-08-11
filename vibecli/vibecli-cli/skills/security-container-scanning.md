@@ -1,8 +1,10 @@
 ---
+name: "Container and Image Vulnerability Scanning"
+description: "Container and Image Vulnerability Scanning: Guidance for working with container scanning. Use when the task involves container scanning, Trivy, Grype, image scanning, container vulnerability."
+category: security
 triggers: ["container scanning", "Trivy", "Grype", "image scanning", "container vulnerability", "cosign", "Sigstore", "distroless", "chainguard", "container security"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["docker"]
-category: security
 ---
 
 # Container and Image Vulnerability Scanning

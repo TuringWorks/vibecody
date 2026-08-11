@@ -1,7 +1,9 @@
 ---
+name: "Token Design and Economics"
+description: "Token Design and Economics: Guidance for working with token economics. Use when the task involves tokenomics, token economics, ERC20 token, vesting schedule, bonding curve."
+category: blockchain
 triggers: ["tokenomics", "token economics", "ERC20 token", "vesting schedule", "bonding curve", "token burn", "token distribution", "liquidity bootstrapping", "token launch"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: blockchain
 ---
 
 # Token Design and Economics

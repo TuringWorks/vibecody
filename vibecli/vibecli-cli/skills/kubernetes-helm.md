@@ -1,8 +1,10 @@
 ---
+name: "Helm Charts and Package Management"
+description: "Helm Charts and Package Management: Guidance for working with Helm charts and package management. Use when the task involves Helm, helm chart, helm template, helm values, helm dependency."
+category: devops
 triggers: ["Helm", "helm chart", "helm template", "helm values", "helm dependency", "helm hooks", "helmfile"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["helm"]
-category: devops
 ---
 
 # Helm Charts and Package Management

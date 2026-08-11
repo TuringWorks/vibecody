@@ -1,7 +1,9 @@
 ---
+name: "Twelve-Factor App Methodology"
+description: "Twelve-Factor App Methodology: Guidance for building cloud-native applications following the 12-Factor methodology. Use when the task involves 12 factor, twelve factor, 12-factor app, twelve-factor, heroku methodology."
+category: architecture
 triggers: ["12 factor", "twelve factor", "12-factor app", "twelve-factor", "heroku methodology", "cloud native app", "twelve factor app"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: architecture
 ---
 
 # Twelve-Factor App Methodology

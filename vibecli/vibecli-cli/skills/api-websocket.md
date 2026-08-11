@@ -1,7 +1,9 @@
 ---
+name: "WebSocket API Design"
+description: "WebSocket API Design: Guidance for implementing WebSocket APIs. Use when the task involves WebSocket, ws://, real-time, heartbeat, reconnection."
+category: api
 triggers: ["WebSocket", "ws://", "real-time", "heartbeat", "reconnection", "socket.io", "ws protocol"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: api
 ---
 
 # WebSocket API Design

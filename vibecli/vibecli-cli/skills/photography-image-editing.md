@@ -1,7 +1,9 @@
 ---
+name: "Photography & Image Editing"
+description: "Photography & Image Editing: Guidance for working with photography and image editing. Use when the task involves photography, photo editing, Photoshop, Lightroom, image editing."
+category: creative
 triggers: ["photography", "photo editing", "Photoshop", "Lightroom", "image editing", "photo retouching", "RAW processing"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: creative
 ---
 
 # Photography & Image Editing

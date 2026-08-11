@@ -1,8 +1,10 @@
 ---
+name: "Elixir Language Patterns"
+description: "Elixir Language Patterns: Guidance for working with Elixir. Use when the task involves Elixir, elixir lang, GenServer, OTP, supervisor."
+category: elixir
 triggers: ["Elixir", "elixir lang", "GenServer", "OTP", "supervisor", "elixir pattern matching", "elixir pipe operator", "BEAM"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["elixir"]
-category: elixir
 ---
 
 # Elixir Language Patterns

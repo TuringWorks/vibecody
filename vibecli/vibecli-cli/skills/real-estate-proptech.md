@@ -1,7 +1,9 @@
 ---
+name: "Real Estate and PropTech Systems"
+description: "Real Estate and PropTech Systems: Guidance for working with real estate technology, property management, and PropTech software. Use when the task involves real estate, PropTech, property management, MLS, RETS."
+category: real-estate
 triggers: ["real estate", "PropTech", "property management", "MLS", "RETS", "rental", "lease management", "property valuation", "AVM", "smart building", "tenant portal"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: real-estate
 ---
 
 # Real Estate and PropTech Systems

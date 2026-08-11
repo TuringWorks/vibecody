@@ -1,8 +1,10 @@
 ---
+name: "Dropwizard Framework"
+description: "Dropwizard Framework: Guidance for working with Dropwizard. Use when the task involves Dropwizard, dropwizard metrics, dropwizard jersey, dropwizard-hibernate."
+category: java
 triggers: ["Dropwizard", "dropwizard metrics", "dropwizard jersey", "dropwizard-hibernate"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["java"]
-category: java
 ---
 
 # Dropwizard Framework

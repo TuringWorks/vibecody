@@ -1,7 +1,9 @@
 ---
+name: "VBScript"
+description: "VBScript: Guidance for maintaining or migrating VBScript code. Use when the task involves VBScript, VBS, Windows Script Host, WSH, ASP Classic."
+category: vb
 triggers: ["VBScript", "VBS", "Windows Script Host", "WSH", "ASP Classic", "WMI scripting", "HTA"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: vb
 ---
 
 # VBScript

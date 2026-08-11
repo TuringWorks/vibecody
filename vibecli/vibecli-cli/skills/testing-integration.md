@@ -1,7 +1,9 @@
 ---
+name: "Integration Testing"
+description: "Integration Testing: Guidance for writing integration tests. Use when the task involves integration test, testcontainers, API mock, end to end, E2E test."
+category: testing
 triggers: ["integration test", "testcontainers", "API mock", "end to end", "E2E test", "fixture", "test database"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: testing
 ---
 
 # Integration Testing

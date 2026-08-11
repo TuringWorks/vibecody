@@ -1,7 +1,9 @@
 ---
+name: "Application Security Verification"
+description: "Application Security Verification: Guidance for working with application security verification. Use when the task involves ASVS, application security verification, penetration testing, threat modeling, STRIDE."
+category: security
 triggers: ["ASVS", "application security verification", "penetration testing", "threat modeling", "STRIDE", "PASTA", "security requirements", "security testing", "AppSec verification"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: security
 ---
 
 # Application Security Verification

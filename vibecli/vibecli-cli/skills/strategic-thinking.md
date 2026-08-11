@@ -1,7 +1,9 @@
 ---
+name: "Strategic Thinking"
+description: "Strategic Thinking: Guidance for approaching strategic thinking and long-term planning. Use when the task involves strategic thinking, strategy, long-term planning, vision, strategic planning."
+category: strategy
 triggers: ["strategic thinking", "strategy", "long-term planning", "vision", "strategic planning", "north star"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: strategy
 ---
 
 # Strategic Thinking

@@ -1,7 +1,9 @@
 ---
+name: "Nginx & Caddy Reverse Proxy"
+description: "Nginx & Caddy Reverse Proxy: Guidance for configuring reverse proxies. Use when the task involves nginx, Caddy, reverse proxy, load balancing, TLS termination."
+category: devops
 triggers: ["nginx", "Caddy", "reverse proxy", "load balancing", "TLS termination", "rate limiting proxy"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: devops
 ---
 
 # Nginx & Caddy Reverse Proxy

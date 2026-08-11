@@ -1,7 +1,9 @@
 ---
-triggers: ["media", "streaming", "content management", "CMS", "DAM", "digital asset", "video transcoding", "CDN", "DRM", "ad tech", "programmatic advertising", "OTT"]
-tools_allowed: ["read_file", "write_file", "bash"]
+name: "Media & Entertainment Systems"
+description: "Media & Entertainment Systems: Guidance for working with media, streaming, and entertainment platforms. Use when the task involves streaming, content management, CMS, DAM, digital asset."
 category: media
+triggers: ["streaming", "content management", "CMS", "DAM", "digital asset", "video transcoding", "CDN", "DRM", "ad tech", "programmatic advertising", "OTT"]
+tools_allowed: ["read_file", "write_file", "bash"]
 ---
 
 # Media & Entertainment Systems

@@ -1,7 +1,9 @@
 ---
+name: "RL Optimization & Distillation"
+description: "RL Optimization & Distillation: Optimize RL policies with policy distillation, RL-aware quantization, structured pruning, and multi-format export for deployment. Use when the task involves RL optimization, policy distillation, RL quantization, policy pruning."
+category: ai
 triggers: ["RL optimization", "policy distillation", "RL quantization", "policy pruning"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # RL Optimization & Distillation

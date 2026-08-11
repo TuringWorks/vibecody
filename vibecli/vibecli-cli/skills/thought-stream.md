@@ -1,7 +1,9 @@
 ---
+name: "Agent Thought Stream Visibility"
+description: "Agent Thought Stream Visibility: Guidance for exposing agent reasoning and chain-of-thought to users or downstream systems. Use when the task involves streaming thoughts, agent reasoning, chain of thought visible, agent transparency, CoT stream."
+category: agent
 triggers: ["streaming thoughts", "agent reasoning", "chain of thought visible", "agent transparency", "CoT stream"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: agent
 ---
 
 # Agent Thought Stream Visibility

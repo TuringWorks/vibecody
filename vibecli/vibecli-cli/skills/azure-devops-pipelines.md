@@ -1,8 +1,10 @@
 ---
+name: "Azure DevOps Pipelines"
+description: "Azure DevOps Pipelines: Guidance for working with Azure DevOps Pipelines. Use when the task involves Azure DevOps, azure pipelines, azure pipeline yaml, ado pipeline, azure devops template."
+category: cloud-azure
 triggers: ["Azure DevOps", "azure pipelines", "azure pipeline yaml", "ado pipeline", "azure devops template", "azure artifacts"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["az"]
-category: cloud-azure
 ---
 
 # Azure DevOps Pipelines

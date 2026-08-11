@@ -1,7 +1,9 @@
 ---
+name: "Country-Economy JTBD Skill Library — Framework & Index"
+description: "Country-Economy JTBD Skill Library — Framework & Index: This library turns a country-economy Jobs-To-Be-Done map into deployable skills. Use when the task involves country-economy jtbd skill library — framework & index, jobs to be done framework."
+category: strategy
 triggers: ["country-economy jtbd skill library — framework & index", "jobs to be done framework"]
 tools_allowed: ["read_file", "write_file"]
-category: strategy
 ---
 
 # Country-Economy JTBD Skill Library — Framework & Index
@@ -31,13 +33,7 @@ This library turns a country-economy Jobs-To-Be-Done map into deployable skills.
 
 **The universal seven-step lifecycle** (used in every skill):
 
-- **Sense reality** — gather data, observe conditions, inspect sources, listen to people.
-- **Interpret reality** — diagnose, forecast, model risk, prioritize.
-- **Decide** — choose policy, design, action, allocation, escalation, or tradeoff.
-- **Mobilize** — assign labor, budget, materials, rights, permissions, logistics, schedule.
-- **Execute** — perform the work in digital or physical space.
-- **Verify** — test, audit, measure, inspect, certify, and learn.
-- **Govern** — maintain legitimacy, safety, accountability, continuity, and trust.
+> Shared pattern — see the `shared-ai-personnel-pattern` skill, section “Core Jobs To Be Done (lifecycle)”.
 
 **The five-layer role design pattern** (used to staff every job):
 

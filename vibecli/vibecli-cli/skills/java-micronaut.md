@@ -1,8 +1,10 @@
 ---
+name: "Micronaut Framework"
+description: "Micronaut Framework: Guidance for working with Micronaut. Use when the task involves Micronaut, micronaut-data, @Controller micronaut, micronaut GraalVM, micronaut test."
+category: java
 triggers: ["Micronaut", "micronaut-data", "@Controller micronaut", "micronaut GraalVM", "micronaut test"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["java"]
-category: java
 ---
 
 # Micronaut Framework

@@ -1,7 +1,9 @@
 ---
+name: "Edge AI and TinyML"
+description: "Edge AI and TinyML: Guidance for working with on-device machine learning and TinyML. Use when the task involves TinyML, edge AI, on-device ML, model compression, edge inference."
+category: ai
 triggers: ["TinyML", "edge AI", "on-device ML", "model compression", "edge inference", "TensorFlow Lite Micro"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # Edge AI and TinyML

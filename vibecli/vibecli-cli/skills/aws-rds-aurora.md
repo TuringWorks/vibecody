@@ -1,8 +1,10 @@
 ---
+name: "AWS RDS and Aurora Programming"
+description: "AWS RDS and Aurora Programming: Guidance for working with RDS and Aurora. Use when the task involves RDS, Aurora, aws rds, rds proxy, aurora serverless."
+category: cloud-aws
 triggers: ["RDS", "Aurora", "aws rds", "rds proxy", "aurora serverless", "aws database", "rds iam auth", "aurora global database"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["aws"]
-category: cloud-aws
 ---
 
 # AWS RDS and Aurora Programming

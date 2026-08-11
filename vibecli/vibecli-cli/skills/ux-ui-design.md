@@ -1,7 +1,9 @@
 ---
+name: "UX/UI Design"
+description: "UX/UI Design: Guidance for designing user experiences and interfaces. Use when the task involves UX design, UI design, user experience, user interface, wireframe."
+category: design
 triggers: ["UX design", "UI design", "user experience", "user interface", "wireframe", "Figma", "usability"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: design
 ---
 
 # UX/UI Design

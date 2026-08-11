@@ -1,7 +1,9 @@
 ---
+name: "Observability: Structured Logging"
+description: "Observability: Structured Logging: Guidance for implementing structured logging and log aggregation. Use when the task involves structured logging, log aggregation, ELK stack, Loki, Fluentd."
+category: observability
 triggers: ["structured logging", "log aggregation", "ELK stack", "Loki", "Fluentd", "log levels", "correlation ID", "centralized logging", "syslog"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: observability
 ---
 
 # Observability: Structured Logging

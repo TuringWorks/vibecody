@@ -1,7 +1,9 @@
 ---
+name: "Customer Service"
+description: "Customer Service: Guidance for working with customer service and support operations. Use when the task involves customer service, customer support, help desk, service desk, customer experience."
+category: operations
 triggers: ["customer service", "customer support", "help desk", "service desk", "customer experience", "ITIL service", "SLA management"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: operations
 ---
 
 # Customer Service

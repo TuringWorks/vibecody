@@ -1,8 +1,10 @@
 ---
+name: "Go Fiber Framework"
+description: "Go Fiber Framework: Guidance for working with Fiber. Use when the task involves Fiber, gofiber, fiber v2, fiber middleware, fiber handler."
+category: go
 triggers: ["Fiber", "gofiber", "fiber v2", "fiber middleware", "fiber handler"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["go"]
-category: go
 ---
 
 # Go Fiber Framework

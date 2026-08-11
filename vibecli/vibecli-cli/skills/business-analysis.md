@@ -1,7 +1,9 @@
 ---
+name: "Business Analysis"
+description: "Business Analysis: Guidance for performing business analysis and requirements gathering. Use when the task involves business analysis, requirements gathering, process mapping, business process, BRD."
+category: strategy
 triggers: ["business analysis", "requirements gathering", "process mapping", "business process", "BRD", "use cases"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: strategy
 ---
 
 # Business Analysis

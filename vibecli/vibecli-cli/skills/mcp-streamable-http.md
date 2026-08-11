@@ -1,7 +1,9 @@
 ---
+name: "MCP Streamable HTTP"
+description: "MCP Streamable HTTP: MCP transport using Streamable HTTP with OAuth 2.1 enterprise authentication. Use when the task involves MCP streamable HTTP, MCP transport, OAuth 2.1 MCP, PKCE, streamable HTTP."
+category: protocols
 triggers: ["MCP streamable HTTP", "MCP transport", "OAuth 2.1 MCP", "PKCE", "streamable HTTP"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: protocols
 ---
 
 # MCP Streamable HTTP

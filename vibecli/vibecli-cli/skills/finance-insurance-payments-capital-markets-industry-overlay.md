@@ -1,7 +1,9 @@
 ---
-triggers: ["finance, insurance, payments, and capital markets", "finance", "insurance", "payments", "capital markets"]
-tools_allowed: ["read_file", "write_file"]
+name: "Finance, Insurance, Payments, and Capital Markets"
+description: "Finance, Insurance, Payments, and Capital Markets: This overlay composes OS 02, 03, 12, 16, 17, 22, and 23. Use when the task involves finance, insurance, payments, and capital markets, insurance, payments, capital markets."
 category: industry
+triggers: ["finance, insurance, payments, and capital markets", "insurance", "payments", "capital markets"]
+tools_allowed: ["read_file", "write_file"]
 ---
 
 # Finance, Insurance, Payments, and Capital Markets

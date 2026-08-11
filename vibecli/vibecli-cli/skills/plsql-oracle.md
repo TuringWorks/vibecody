@@ -1,7 +1,9 @@
 ---
+name: "PL/SQL (Oracle)"
+description: "PL/SQL (Oracle): Guidance for writing PL/SQL code for Oracle databases. Use when the task involves PL/SQL, Oracle PL/SQL, Oracle database, Oracle stored procedure, Oracle package."
+category: sql
 triggers: ["PL/SQL", "Oracle PL/SQL", "Oracle database", "Oracle stored procedure", "Oracle package", "Oracle trigger", "DBMS_OUTPUT", "Oracle cursor"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: sql
 ---
 
 # PL/SQL (Oracle)

@@ -1,7 +1,9 @@
 ---
+name: "GraphQL API Design"
+description: "GraphQL API Design: Guidance for building GraphQL APIs. Use when the task involves GraphQL, schema SDL, resolver, mutation, subscription."
+category: api
 triggers: ["GraphQL", "schema SDL", "resolver", "mutation", "subscription", "N+1 graphql", "apollo"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: api
 ---
 
 # GraphQL API Design

@@ -1,7 +1,9 @@
 ---
+name: "System Design"
+description: "System Design: Guidance for designing scalable systems. Use when the task involves system design, load balancing, sharding, CAP theorem, scalability."
+category: architecture
 triggers: ["system design", "load balancing", "sharding", "CAP theorem", "scalability", "high availability", "distributed system"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: architecture
 ---
 
 # System Design

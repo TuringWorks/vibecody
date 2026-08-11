@@ -1,7 +1,9 @@
 ---
+name: "Frontend Performance Optimization"
+description: "Frontend Performance Optimization: Guidance for optimizing frontend performance and Core Web Vitals. Use when the task involves Core Web Vitals, LCP, FID, CLS, page speed."
+category: performance
 triggers: ["Core Web Vitals", "LCP", "FID", "CLS", "page speed", "lazy loading", "code splitting", "bundle size", "image optimization", "web performance"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: performance
 ---
 
 # Frontend Performance Optimization

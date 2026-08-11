@@ -1,7 +1,9 @@
 ---
+name: "OpenMemory — Cognitive Memory Engine + MemPalace Verbatim Drawers"
+description: "OpenMemory — Cognitive Memory Engine + MemPalace Verbatim Drawers: VibeCody's OpenMemory is a bio-inspired cognitive memory engine for AI agents. Use when the task involves OpenMemory, cognitive memory, MemPalace, long-term agent memory, memory sectors."
+category: ai
 triggers: ["OpenMemory", "cognitive memory", "MemPalace", "long-term agent memory", "memory sectors"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # OpenMemory — Cognitive Memory Engine + MemPalace Verbatim Drawers

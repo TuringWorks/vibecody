@@ -1,7 +1,9 @@
 ---
+name: "Robotics Core Systems"
+description: "Robotics Core Systems: Guidance for working with robotics software, ROS2, and motion control. Use when the task involves robotics, ROS, ROS2, robot, kinematics."
+category: robotics
 triggers: ["robotics", "ROS", "ROS2", "robot", "kinematics", "motion planning", "SLAM", "sensor fusion", "actuator", "inverse kinematics", "trajectory planning", "robotic arm"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: robotics
 ---
 
 # Robotics Core Systems

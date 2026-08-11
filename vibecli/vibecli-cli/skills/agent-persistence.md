@@ -1,7 +1,9 @@
 ---
+name: "Agent Persistence"
+description: "Agent Persistence: Serialize and restore agent state across restarts. Use when the task involves agent persistence, restore agent state, agent state across restarts, background agent persistence."
+category: agent
 triggers: ["agent persistence", "restore agent state", "agent state across restarts", "background agent persistence"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: agent
 ---
 
 # Agent Persistence

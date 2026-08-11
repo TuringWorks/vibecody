@@ -1,7 +1,9 @@
 ---
+name: "CI/CD AI Status Checks"
+description: "CI/CD AI Status Checks: Run AI-powered checks as GitHub/GitLab status checks on every PR. Use when the task involves CI check, status check, PR review, AI review, GitHub check."
+category: devops
 triggers: ["CI check", "status check", "PR review", "AI review", "GitHub check", "GitLab status", "code review CI"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: devops
 ---
 
 # CI/CD AI Status Checks

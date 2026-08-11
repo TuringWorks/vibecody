@@ -1,7 +1,9 @@
 ---
+name: "Data Privacy and Ethics"
+description: "Data Privacy and Ethics: Guidance for working with data privacy and data protection. Use when the task involves data privacy, privacy by design, data protection, privacy impact assessment, cookie consent."
+category: legal
 triggers: ["data privacy", "privacy by design", "data protection", "privacy impact assessment", "cookie consent", "data ethics", "privacy engineering"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: legal
 ---
 
 # Data Privacy and Ethics

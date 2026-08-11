@@ -1,7 +1,9 @@
 ---
+name: "Web Grounding"
+description: "Web Grounding: Search the web mid-task to find documentation, API references, Stack Overflow solutions, and changelog entries. Use when the task involves web grounding, search the web, look up documentation, ground responses."
+category: ai
 triggers: ["web grounding", "search the web", "look up documentation", "ground responses"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # Web Grounding

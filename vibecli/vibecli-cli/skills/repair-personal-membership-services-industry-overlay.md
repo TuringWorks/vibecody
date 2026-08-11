@@ -1,7 +1,9 @@
 ---
+name: "Repair, Personal, and Membership Services"
+description: "Repair, Personal, and Membership Services: This overlay composes OS 09, 10, 11, 17, 18, 20, and 21. Use when the task involves repair, personal, and membership services, repair, personal, membership services."
+category: industry
 triggers: ["repair, personal, and membership services", "repair", "personal", "membership services"]
 tools_allowed: ["read_file", "write_file"]
-category: industry
 ---
 
 # Repair, Personal, and Membership Services

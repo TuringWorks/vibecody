@@ -1,7 +1,9 @@
 ---
+name: "Finance - Capital Markets & Trading"
+description: "Finance - Capital Markets & Trading: Guidance for working with capital markets and trading systems. Use when the task involves capital markets, trading, order book, FIX protocol, market data."
+category: finance
 triggers: ["capital markets", "trading", "order book", "FIX protocol", "market data", "exchange", "matching engine", "tick data", "VWAP", "TWAP", "dark pool", "smart order routing"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: finance
 ---
 
 # Finance - Capital Markets & Trading

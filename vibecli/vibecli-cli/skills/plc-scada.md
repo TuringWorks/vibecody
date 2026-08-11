@@ -1,7 +1,9 @@
 ---
+name: "PLC & SCADA Industrial Automation"
+description: "PLC & SCADA Industrial Automation: Guidance for working with PLC programming and SCADA systems. Use when the task involves PLC, SCADA, industrial automation, ladder logic, HMI."
+category: engineering
 triggers: ["PLC", "SCADA", "industrial automation", "ladder logic", "HMI", "Allen Bradley", "Siemens PLC", "DCS"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: engineering
 ---
 
 # PLC & SCADA Industrial Automation

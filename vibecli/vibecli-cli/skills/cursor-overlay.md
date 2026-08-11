@@ -1,7 +1,9 @@
 ---
+name: "Live Collaboration Cursor Overlay"
+description: "Live Collaboration Cursor Overlay: Tracks remote peer cursors for live display in the editor. Use when the task involves cursor overlay, peer cursor, live collaboration cursor, CRDT cursor."
+category: session
 triggers: ["cursor overlay", "peer cursor", "live collaboration cursor", "CRDT cursor"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: session
 ---
 
 # Live Collaboration Cursor Overlay

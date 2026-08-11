@@ -1,7 +1,9 @@
 ---
+name: "Smart Diff"
+description: "Smart Diff: Syntax-aware diff renderer — splits unified diff hunks by semantic blocks (fn, struct, impl, class, def), and renders side-by-side or inline colour views. Use when the task involves smart diff, syntax-aware diff, side-by-side diff, hunk annotation."
+category: review
 triggers: ["smart diff", "syntax-aware diff", "side-by-side diff", "hunk annotation"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: review
 ---
 
 # Smart Diff

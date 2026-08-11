@@ -1,7 +1,9 @@
 ---
+name: "Agent Auto-Scaler"
+description: "Agent Auto-Scaler: Adjusts agent pool size based on utilization and queue depth. Use when the task involves agent autoscale, agent pool size, auto-scaling agents, queue depth."
+category: agent
 triggers: ["agent autoscale", "agent pool size", "auto-scaling agents", "queue depth"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: agent
 ---
 
 # Agent Auto-Scaler

@@ -1,7 +1,9 @@
 ---
+name: "Public Speaking and Presentation"
+description: "Public Speaking and Presentation: Guidance for preparing and delivering technical presentations. Use when the task involves public speaking, presentation skills, tech talk, conference talk, demo presentation."
+category: people-skills
 triggers: ["public speaking", "presentation skills", "tech talk", "conference talk", "demo presentation", "pitch"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: people-skills
 ---
 
 # Public Speaking and Presentation

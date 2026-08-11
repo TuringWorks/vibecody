@@ -1,7 +1,9 @@
 ---
+name: "Monitoring & Observability"
+description: "Monitoring & Observability: Guidance for implementing monitoring and observability. Use when the task involves Prometheus, Grafana, OpenTelemetry, SLO, SLI."
+category: devops
 triggers: ["Prometheus", "Grafana", "OpenTelemetry", "SLO", "SLI", "alerting", "observability", "metrics monitoring"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: devops
 ---
 
 # Monitoring & Observability

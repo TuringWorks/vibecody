@@ -1,7 +1,9 @@
 ---
+name: "REST API & OpenAPI Design"
+description: "REST API & OpenAPI Design: Guidance for designing REST APIs. Use when the task involves REST API, OpenAPI, API design, REST best practices, HTTP API."
+category: api
 triggers: ["REST API", "OpenAPI", "API design", "REST best practices", "HTTP API", "resource naming", "API versioning"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: api
 ---
 
 # REST API & OpenAPI Design

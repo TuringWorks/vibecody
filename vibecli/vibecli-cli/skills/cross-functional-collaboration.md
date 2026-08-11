@@ -1,7 +1,9 @@
 ---
+name: "Cross-Functional Collaboration"
+description: "Cross-Functional Collaboration: Guidance for working across teams and disciplines. Use when the task involves cross-functional, collaboration, teamwork, interdisciplinary, working across teams."
+category: people-skills
 triggers: ["cross-functional", "collaboration", "teamwork", "interdisciplinary", "working across teams"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: people-skills
 ---
 
 # Cross-Functional Collaboration

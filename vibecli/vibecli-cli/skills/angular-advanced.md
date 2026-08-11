@@ -1,8 +1,10 @@
 ---
+name: "Angular Advanced Patterns"
+description: "Angular Advanced Patterns: Guidance for working with advanced Angular development. Use when the task involves Angular standalone, angular signals, angular defer, angular SSR, angular zoneless."
+category: frontend
 triggers: ["Angular standalone", "angular signals", "angular defer", "angular SSR", "angular zoneless", "angular nx", "angular CDK", "angular schematics", "angular micro frontend"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["node"]
-category: frontend
 ---
 
 # Angular Advanced Patterns

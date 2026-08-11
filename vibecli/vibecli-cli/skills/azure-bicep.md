@@ -1,8 +1,10 @@
 ---
+name: "Azure Bicep Infrastructure as Code"
+description: "Azure Bicep Infrastructure as Code: Guidance for working with Azure Bicep. Use when the task involves Bicep, azure bicep, bicep module, bicep template, azure infrastructure as code."
+category: cloud-azure
 triggers: ["Bicep", "azure bicep", "bicep module", "bicep template", "azure infrastructure as code", "arm template", "bicep deploy"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["az"]
-category: cloud-azure
 ---
 
 # Azure Bicep Infrastructure as Code

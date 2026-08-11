@@ -1,7 +1,9 @@
 ---
+name: "Environment Dispatch for Agents"
+description: "Environment Dispatch for Agents: Guidance for dispatching agents across local, SSH, and cloud environments. Use when the task involves cross-environment agents, remote SSH agent, cloud VM dispatch, parallel environments, env dispatch."
+category: agent
 triggers: ["cross-environment agents", "remote SSH agent", "cloud VM dispatch", "parallel environments", "env dispatch"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: agent
 ---
 
 # Environment Dispatch for Agents

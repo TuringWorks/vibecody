@@ -1,7 +1,9 @@
 ---
+name: "Cryptography & Key Management"
+description: "Cryptography & Key Management: Guidance for working with cryptography. Use when the task involves encryption, hashing, TLS, key management, AES."
+category: security
 triggers: ["encryption", "hashing", "TLS", "key management", "AES", "RSA", "cryptography", "HMAC", "digital signature"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: security
 ---
 
 # Cryptography & Key Management

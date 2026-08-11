@@ -1,8 +1,10 @@
 ---
+name: "Ballerina Language"
+description: "Ballerina Language: Guidance for working with Ballerina. Use when the task involves Ballerina, ballerina lang, ballerina service, ballerina connector, bal build."
+category: ballerina
 triggers: ["Ballerina", "ballerina lang", "ballerina service", "ballerina connector", "bal build", "ballerina integration"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["bal"]
-category: ballerina
 ---
 
 # Ballerina Language

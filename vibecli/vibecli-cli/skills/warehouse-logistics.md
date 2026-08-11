@@ -1,7 +1,9 @@
 ---
+name: "Warehouse and Logistics"
+description: "Warehouse and Logistics: Guidance for working with warehouse management and logistics. Use when the task involves warehouse management, WMS, inventory control, logistics planning, distribution."
+category: operations
 triggers: ["warehouse management", "WMS", "inventory control", "logistics planning", "distribution", "order fulfillment", "3PL"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: operations
 ---
 
 # Warehouse and Logistics

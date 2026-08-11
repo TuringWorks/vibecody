@@ -1,7 +1,9 @@
 ---
+name: "Legacy Code Migration"
+description: "Legacy Code Migration: Guidance for migrating legacy codebases to modern languages. Use when the task involves legacy migration, code migration, cobol migration, fortran migration, legacy modernization."
+category: workflow
 triggers: ["legacy migration", "code migration", "cobol migration", "fortran migration", "legacy modernization", "language migration", "modernize codebase", "rewrite legacy", "strangler fig", "legacy refactor"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: workflow
 ---
 
 # Legacy Code Migration

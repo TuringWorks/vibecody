@@ -1,7 +1,9 @@
 ---
+name: "Brand Strategy"
+description: "Brand Strategy: Guidance for working with brand strategy. Use when the task involves brand strategy, branding, brand identity, brand positioning, brand management."
+category: marketing
 triggers: ["brand strategy", "branding", "brand identity", "brand positioning", "brand management", "brand guidelines", "brand voice"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: marketing
 ---
 
 # Brand Strategy

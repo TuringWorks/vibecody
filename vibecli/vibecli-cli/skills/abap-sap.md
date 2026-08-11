@@ -1,7 +1,9 @@
 ---
+name: "ABAP (SAP)"
+description: "ABAP (SAP): Guidance for writing ABAP code for SAP systems. Use when the task involves ABAP, SAP ABAP, SAP development, SAP HANA ABAP, ABAP OO."
+category: erp
 triggers: ["ABAP", "SAP ABAP", "SAP development", "SAP HANA ABAP", "ABAP OO", "ABAP CDS", "SAP Fiori", "ALV report", "BAPI", "RFC"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: erp
 ---
 
 # ABAP (SAP)

@@ -1,7 +1,9 @@
 ---
+name: "Thinking Levels"
+description: "Thinking Levels: Rules for selecting and configuring the 6-level thinking abstraction (off/minimal/low/medium/high/xhigh). Use when the task involves thinking level, reasoning budget, token budget, extended thinking, model:level."
+category: ai
 triggers: ["thinking level", "reasoning budget", "token budget", "extended thinking", "model:level", "thinking tokens", "sonnet:high", "xhigh", "reasoning effort"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # Thinking Levels

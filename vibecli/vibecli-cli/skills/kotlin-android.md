@@ -1,8 +1,10 @@
 ---
+name: "Kotlin Android Development"
+description: "Kotlin Android Development: Guidance for building Android apps with Kotlin. Use when the task involves Jetpack Compose, kotlin android, ViewModel, Room database, coroutine android."
+category: kotlin
 triggers: ["Jetpack Compose", "kotlin android", "ViewModel", "Room database", "coroutine android", "composable"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["java"]
-category: kotlin
 ---
 
 # Kotlin Android Development

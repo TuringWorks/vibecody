@@ -1,7 +1,9 @@
 ---
+name: "Interviewing and Hiring"
+description: "Interviewing and Hiring: Guidance for building and running a hiring process. Use when the task involves interviewing, hiring, recruiting engineers, interview process, technical interview."
+category: people-skills
 triggers: ["interviewing", "hiring", "recruiting engineers", "interview process", "technical interview", "hiring pipeline"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: people-skills
 ---
 
 # Interviewing and Hiring

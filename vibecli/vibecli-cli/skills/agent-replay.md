@@ -1,7 +1,9 @@
 ---
+name: "Agent Replay Debugger"
+description: "Agent Replay Debugger: Records agent execution traces and replays them step-by-step for debugging. Use when the task involves agent replay, replay debugger, execution trace, time-travel debugging."
+category: agent
 triggers: ["agent replay", "replay debugger", "execution trace", "time-travel debugging"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: agent
 ---
 
 # Agent Replay Debugger

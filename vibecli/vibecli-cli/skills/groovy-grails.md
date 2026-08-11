@@ -1,8 +1,10 @@
 ---
+name: "Groovy/Grails Framework"
+description: "Groovy/Grails Framework: Guidance for working with Groovy/Grails. Use when the task involves Grails, grails, groovy web, GORM, grails plugin."
+category: groovy
 triggers: ["Grails", "grails", "groovy web", "GORM", "grails plugin", "grails domain"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["java"]
-category: groovy
 ---
 
 # Groovy/Grails Framework

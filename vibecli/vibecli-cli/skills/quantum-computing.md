@@ -1,7 +1,9 @@
 ---
+name: "Quantum Computing Development"
+description: "Quantum Computing Development: Guidance for working with quantum computing, circuits, and algorithms. Use when the task involves quantum computing, qubit, Qiskit, Cirq, quantum circuit."
+category: quantum
 triggers: ["quantum computing", "qubit", "Qiskit", "Cirq", "quantum circuit", "quantum algorithm", "quantum error correction", "quantum machine learning"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: quantum
 ---
 
 # Quantum Computing Development

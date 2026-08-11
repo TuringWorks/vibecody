@@ -1,7 +1,9 @@
 ---
+name: "Design Thinking"
+description: "Design Thinking: Guidance for applying design thinking and user-centered design. Use when the task involves design thinking, user-centered design, ideation, prototyping, empathy mapping."
+category: strategy
 triggers: ["design thinking", "user-centered design", "ideation", "prototyping", "empathy mapping", "human-centered"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: strategy
 ---
 
 # Design Thinking

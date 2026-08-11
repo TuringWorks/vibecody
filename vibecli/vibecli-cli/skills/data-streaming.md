@@ -1,7 +1,9 @@
 ---
+name: "Data Streaming and Event Processing"
+description: "Data Streaming and Event Processing: Guidance for working with stream processing, event-driven architectures, and real-time data pipelines. Use when the task involves stream processing, Apache Kafka, Apache Flink, event streaming, Kafka Streams."
+category: data
 triggers: ["stream processing", "Apache Kafka", "Apache Flink", "event streaming", "Kafka Streams", "Apache Pulsar", "real-time analytics", "event sourcing", "CQRS", "CDC"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: data
 ---
 
 # Data Streaming and Event Processing

@@ -1,7 +1,9 @@
 ---
+name: "Embedded RTOS Development"
+description: "Embedded RTOS Development: Guidance for working with real-time operating systems. Use when the task involves RTOS, FreeRTOS, Zephyr, real-time operating system, task scheduling embedded."
+category: embedded
 triggers: ["RTOS", "FreeRTOS", "Zephyr", "real-time operating system", "task scheduling embedded", "embedded OS"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: embedded
 ---
 
 # Embedded RTOS Development

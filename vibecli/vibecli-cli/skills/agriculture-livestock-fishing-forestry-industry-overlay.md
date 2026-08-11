@@ -1,7 +1,9 @@
 ---
+name: "Agriculture, Livestock, Fishing, and Forestry"
+description: "Agriculture, Livestock, Fishing, and Forestry: This overlay composes OS 05, 08, 11, 16, 17, and 19. Use when the task involves agriculture, livestock, fishing, and forestry, agriculture, livestock, fishing, forestry."
+category: industry
 triggers: ["agriculture, livestock, fishing, and forestry", "agriculture", "livestock", "fishing", "forestry"]
 tools_allowed: ["read_file", "write_file"]
-category: industry
 ---
 
 # Agriculture, Livestock, Fishing, and Forestry

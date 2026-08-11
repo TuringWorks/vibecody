@@ -1,7 +1,9 @@
 ---
+name: "LLM Engineering Best Practices"
+description: "LLM Engineering Best Practices: Guidance for working with LLM engineering. Use when the task involves LLM engineering, LLM ops, model serving, LLM deployment, inference optimization."
+category: ai
 triggers: ["LLM engineering", "LLM ops", "model serving", "LLM deployment", "inference optimization", "model fine-tuning"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # LLM Engineering Best Practices

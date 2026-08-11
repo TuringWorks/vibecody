@@ -1,7 +1,9 @@
 ---
+name: "Plugin Marketplace"
+description: "Plugin Marketplace: Discovery, metadata browsing, and one-click installation of WASM-based VibeCoder extensions. Use when the task involves plugin marketplace, browse extensions, install extension, WASM extension."
+category: developer-experience
 triggers: ["plugin marketplace", "browse extensions", "install extension", "WASM extension"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: developer-experience
 ---
 
 # Plugin Marketplace

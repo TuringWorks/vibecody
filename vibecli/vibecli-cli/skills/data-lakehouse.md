@@ -1,7 +1,9 @@
 ---
+name: "Data Lakehouse Architecture"
+description: "Data Lakehouse Architecture: Guidance for working with data lakehouse platforms, table formats, and data governance. Use when the task involves data lakehouse, Delta Lake, Apache Iceberg, Apache Hudi, data lake."
+category: data
 triggers: ["data lakehouse", "Delta Lake", "Apache Iceberg", "Apache Hudi", "data lake", "Parquet", "data catalog", "data mesh", "data governance", "medallion architecture"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: data
 ---
 
 # Data Lakehouse Architecture

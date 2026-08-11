@@ -1,7 +1,9 @@
 ---
+name: "Test-Driven Development Workflow"
+description: "Test-Driven Development Workflow: Guidance for practicing TDD (inspired by fire-flow /fire-tdd). Use when the task involves TDD, test driven, red green refactor, test first, failing test."
+category: testing
 triggers: ["TDD", "test driven", "red green refactor", "test first", "failing test", "fire-tdd"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: testing
 ---
 
 # Test-Driven Development Workflow

@@ -1,7 +1,9 @@
 ---
+name: "Skill Distillation — Cross-Session Learning"
+description: "Skill Distillation — Cross-Session Learning: Automatically extracts coding patterns from your sessions and distills them into reusable skills. Use when the task involves skill distillation, cross-session learning, extract coding patterns, learn conventions."
+category: ai
 triggers: ["skill distillation", "cross-session learning", "extract coding patterns", "learn conventions"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # Skill Distillation — Cross-Session Learning

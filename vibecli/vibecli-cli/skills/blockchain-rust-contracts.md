@@ -1,8 +1,10 @@
 ---
+name: "Rust Smart Contracts (CosmWasm/NEAR/Ink!)"
+description: "Rust Smart Contracts (CosmWasm/NEAR/Ink!): Guidance for working with Rust smart contracts. Use when the task involves CosmWasm, cosmwasm, NEAR contract, ink!, substrate contract."
+category: blockchain
 triggers: ["CosmWasm", "cosmwasm", "NEAR contract", "ink!", "substrate contract", "rust smart contract", "cosmos SDK", "NEAR SDK", "wasm contract"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["cargo"]
-category: blockchain
 ---
 
 # Rust Smart Contracts (CosmWasm/NEAR/Ink!)

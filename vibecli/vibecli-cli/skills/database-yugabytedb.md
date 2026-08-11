@@ -1,7 +1,9 @@
 ---
+name: "YugabyteDB"
+description: "YugabyteDB: Guidance for working with YugabyteDB. Use when the task involves YugabyteDB, yugabyte, ysql, ycql, distributed postgresql."
+category: database
 triggers: ["YugabyteDB", "yugabyte", "ysql", "ycql", "distributed postgresql", "yugabyte cluster"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: database
 ---
 
 # YugabyteDB

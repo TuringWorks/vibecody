@@ -1,7 +1,9 @@
 ---
+name: "DevSecOps Pipeline Integration"
+description: "DevSecOps Pipeline Integration: Guidance for working with DevSecOps pipelines. Use when the task involves DevSecOps, devsecops, security pipeline, shift left security, security gate."
+category: security
 triggers: ["DevSecOps", "devsecops", "security pipeline", "shift left security", "security gate", "DefectDojo", "vulnerability SLA", "security CI/CD", "security orchestration"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: security
 ---
 
 # DevSecOps Pipeline Integration

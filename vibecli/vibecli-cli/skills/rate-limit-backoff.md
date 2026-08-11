@@ -1,7 +1,9 @@
 ---
+name: "Rate Limit Backoff"
+description: "Rate Limit Backoff: Provider-aware exponential backoff with jitter and per-provider circuit-breaker logic. Use when the task involves rate limit, exponential backoff, 429 response, circuit breaker, retry strategy."
+category: resilience
 triggers: ["rate limit", "exponential backoff", "429 response", "circuit breaker", "retry strategy"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: resilience
 ---
 
 # Rate Limit Backoff

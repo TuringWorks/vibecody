@@ -1,7 +1,9 @@
 ---
+name: "Agent Protocols: MCP and ACP"
+description: "Agent Protocols: MCP and ACP: Guidance for implementing Model Context Protocol (MCP) servers/clients and Agent Client Protocol (ACP) integrations. Use when the task involves MCP server, MCP client, model context protocol, agent client protocol, ACP."
+category: ai
 triggers: ["MCP server", "MCP client", "model context protocol", "agent client protocol", "ACP", "MCP tool", "MCP resource", "agent protocol"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # Agent Protocols: MCP and ACP

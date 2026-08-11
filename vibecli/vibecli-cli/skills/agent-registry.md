@@ -1,7 +1,9 @@
 ---
+name: "Agent Registry"
+description: "Agent Registry: Discovery and capability advertisement for the Agent-OS pool. Use when the task involves agent registry, capability advertisement, agent pool discovery."
+category: agent
 triggers: ["agent registry", "capability advertisement", "agent pool discovery"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: agent
 ---
 
 # Agent Registry

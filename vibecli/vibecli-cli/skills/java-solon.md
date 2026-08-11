@@ -1,8 +1,10 @@
 ---
+name: "Solon Framework"
+description: "Solon Framework: Guidance for working with the Solon framework. Use when the task involves Solon, solon java, solon framework, solon cloud."
+category: java
 triggers: ["Solon", "solon java", "solon framework", "solon cloud"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["java"]
-category: java
 ---
 
 # Solon Framework

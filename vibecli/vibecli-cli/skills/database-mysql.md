@@ -1,7 +1,9 @@
 ---
+name: "MySQL"
+description: "MySQL: Guidance for working with MySQL. Use when the task involves MySQL, mysql query, InnoDB, mysql replication, mysql index."
+category: database
 triggers: ["MySQL", "mysql query", "InnoDB", "mysql replication", "mysql index", "mysql performance", "mysql migration"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: database
 ---
 
 # MySQL

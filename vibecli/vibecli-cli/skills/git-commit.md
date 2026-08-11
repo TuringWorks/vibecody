@@ -1,8 +1,9 @@
 ---
-name: Git Commit
-description: Best practices for creating git commits
-triggers: ["commit", "git commit", "stage", "check in"]
+name: "Git Commit"
+description: "Git Commit: Guidance for creating a git commit. Use when the task involves commit, git commit, stage, check in."
 category: workflow
+triggers: ["commit", "git commit", "stage", "check in"]
+tools_allowed: ["read_file", "write_file", "bash"]
 ---
 
 When creating a git commit:

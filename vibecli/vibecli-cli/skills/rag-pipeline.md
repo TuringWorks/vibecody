@@ -1,7 +1,9 @@
 ---
-triggers: ["RAG", "retrieval augmented generation", "RAG pipeline", "knowledge base", "semantic search", "document QA", "context retrieval"]
-tools_allowed: ["read_file", "write_file", "bash"]
+name: "RAG Pipeline"
+description: "RAG Pipeline: Guidance for building a retrieval augmented generation pipeline. Use when the task involves RAG, retrieval augmented generation, RAG pipeline, knowledge base, semantic search."
 category: ai
+triggers: ["RAG", "retrieval augmented generation", "RAG pipeline", "knowledge base", "semantic search", "document QA", "context retrieval", "retrieval augmented", "embeddings", "vector store", "chunking", "Pinecone", "Qdrant"]
+tools_allowed: ["read_file", "write_file", "bash"]
 ---
 
 # RAG Pipeline

@@ -1,7 +1,9 @@
 ---
+name: "Operating System 06 — Water, Sanitation, and Public Hygiene"
+description: "Operating System 06 — Water, Sanitation, and Public Hygiene: Provide safe water, remove waste, control flooding, and prevent waterborne disease. Use when the task involves water, sanitation, and public hygiene, water, sanitation, public hygiene."
+category: water
 triggers: ["water, sanitation, and public hygiene", "water", "sanitation", "public hygiene"]
 tools_allowed: ["read_file", "write_file"]
-category: water
 ---
 
 # Operating System 06 — Water, Sanitation, and Public Hygiene
@@ -30,13 +32,7 @@ These are the durable outcomes this operating system must reliably produce, writ
 
 Every job in this sector moves through the same seven steps. Use it as a checklist when designing or executing work here:
 
-- **Sense reality** — gather data, observe conditions, inspect sources, listen to people.
-- **Interpret reality** — diagnose, forecast, model risk, prioritize.
-- **Decide** — choose policy, design, action, allocation, escalation, or tradeoff.
-- **Mobilize** — assign labor, budget, materials, rights, permissions, logistics, schedule.
-- **Execute** — perform the work in digital or physical space.
-- **Verify** — test, audit, measure, inspect, certify, and learn.
-- **Govern** — maintain legitimacy, safety, accountability, continuity, and trust.
+> Shared pattern — see the `shared-ai-personnel-pattern` skill, section “Core Jobs To Be Done (lifecycle)”.
 
 ## Human role families (who owns the work)
 
@@ -50,7 +46,7 @@ These remain human-owned. AI personnel and robots augment them; they do not repl
 
 ## Labor-market grounding (how these roles are advertised)
 
-The human roles this operating system staffs appear on job boards with concrete, checkable signals. The AI-personnel and robot skills here are designed to *support* these advertised roles, not to replace the accountable human in them.
+> Shared pattern — see the `shared-ai-personnel-pattern` skill, section “Labor-market grounding (how these roles are advertised)”.
 
 - **Advertised titles & seniority ladder:** Operator trainee → certified operator (Grade I–IV) → chief operator/superintendent → utility director; engineering: EIT → PE.
 - **Skills, tools & tech employers list:** SCADA, GIS, hydraulic modeling (EPANET, WaterGEMS), LIMS, CMMS (asset/maintenance), telemetry.
@@ -58,7 +54,7 @@ The human roles this operating system staffs appear on job boards with concrete,
 - **KPIs / metrics in postings:** Water-quality compliance, non-revenue water/leakage, NPDES permit compliance, boil-water/outage events, asset condition.
 - **Where these roles are posted:** GovernmentJobs, Careers.<state>.gov, AWWA/WEF job boards, Indeed, ZipRecruiter.
 
-> Grounding reflects 2026 job-posting conventions across LinkedIn, Indeed, Dice, ZipRecruiter, Glassdoor, USAJOBS, GovernmentJobs, and specialized boards, spot-verified against public listings and O\*NET/BLS. Re-verify specifics — especially pay, certifications, and licenses — against live postings before operational use.
+> Shared pattern — see the `shared-ai-personnel-pattern` skill, section “Labor-market grounding”.
 
 ## AI personnel in this operating system (deployable role skills)
 
@@ -76,7 +72,7 @@ Each of the following has a dedicated, extensive skill under `water-*`. Deploy t
 - Plant rounds, valve turning, sample transport, confined-space inspection support with proper safety design.
 - Pipe repair assistant, meter reading, emergency sandbag/logistics support.
 
-> **How these robots work (assumed architecture):** each is an **LLM-brained embodied agent** — a multimodal LLM brain plans and issues physical **actions as tool calls** (e.g. `grasp`, `navigate_to`, `place`), executed by Vision-Language-Action policies trained on world models, robot gyms, and **RLAIF**. Fleets may share one brain model or mix specialized ones. A verified low-level safety layer can override unsafe actions independently of the brain. Full detail in `jobs-to-be-done-framework` and `humanoid-*`.
+> Shared pattern — see the `shared-embodied-autonomy-architecture` skill, section “Humanoid robot roles”.
 
 ## Non-humanoid autonomous machines
 
@@ -91,57 +87,39 @@ Self-driving vehicles, equipment, and drones for this sector (LLM-planned; physi
 
 Public health notices, water shutoffs, infrastructure investment, environmental-discharge approvals, and emergency allocation remain human-led.
 
-Treat this boundary as a hard constraint. Agents in this sector may sense, interpret, draft, model, monitor, and coordinate up to this line, then must hand off to an accountable human for the decision itself.
+> Shared pattern — see the `shared-sector-operations-pattern` skill, section “Human accountability boundary (must stay human-led)”.
 
 ## Division of labor (human / AI / robot)
 
-- **Human owner** — accountable for goals, values, exceptions, relationships, signoff, and everything inside the accountability boundary above.
-- **AI personnel** — research, draft, analyze, monitor, simulate, coordinate, document. Strongest on digital signals and repeatable decision support.
-- **Robot personnel** — fetch, carry, inspect, clean, assemble, assist, enter hazardous spaces. Strongest on physical work in human-built environments.
-- **Control layer** — permissions, audit logs, escalation thresholds, incident reporting, evaluation.
-- **Public trust layer** — explainability, appeal, privacy, bias testing, safety certification, labor-impact review.
+> Shared pattern — see the `shared-sector-operations-pattern` skill, section “Division of labor (human / AI / robot)”.
 
 ## Interfaces with other operating systems
 
 This sector regularly depends on and feeds: Energy & Utilities, Health & Care, Environment & Waste, Shelter & Built Environment. Coordinate handoffs explicitly; most systemic failures happen at the seams between operating systems.
 
-
 ## Sector success metrics (illustrative)
 
-- Coverage / reliability: the share of the population or demand reliably served.
-- Quality / safety: defect, incident, and harm rates within tolerance.
-- Cost / efficiency: unit cost and resource use trending down without eroding safety.
-- Trust / legitimacy: public confidence, complaint resolution, and auditability.
-- Resilience: time-to-detect and time-to-recover from shocks.
+> Shared pattern — see the `shared-sector-operations-pattern` skill, section “Sector success metrics (illustrative)”.
 
 ## Failure modes to watch
 
-- **Monoculture / correlated failure** — shared models or vendors failing in lockstep; require diversity and manual fallback.
-- **Cascading dependency** — failures propagating from the systems listed above; map dependencies and design graceful degradation.
-- **Deskilling** — losing the human bench that can run the sector manually; retain drills and manual modes.
-- **Agent-specific failure** — fabrication, prompt injection, reward hacking, silent drift; keep the control layer independent.
-- **Speed mismatch** — automated action outrunning human oversight; install circuit breakers for high-consequence steps.
+> Shared pattern — see the `shared-sector-operations-pattern` skill, section “Failure modes to watch”.
 
 ## Deskilling watch & keep-warm regime
 
-Automating routine cases erodes three things over time: the **human fallback bench** (who runs this when automation fails), **tacit / craft judgment** (lost as the experienced cohort retires), and the **learning ladder** (juniors never get the cases they used to learn on). Job and role simulators are the primary countermeasure.
+> Shared pattern — see the `shared-sector-operations-pattern` skill, section “Deskilling watch & keep-warm regime”.
 
 - **Risk here:** Operators cannot run the plant manually during a SCADA failure; process intuition fades.
 - **Countermeasures:** Manual-operation drills; operator recertification; contamination tabletops.
 - **Role/job simulators (keep-warm):** Plant-operation simulators (SCADA-down); contamination-response and manual-valving drills.
 
-> **Dual-use simulators:** the world models and simulation built to *train the machines* in this sector double as the **keep-warm simulators** that keep humans current and rebuild the learning ladder. Owned cross-sector by OS 22 (Resilience) and the `simulation-training-*` roles; the verified deterministic fallback in `capability-optimization-*` is its technical complement.
+> Shared pattern — see the `shared-ai-personnel-pattern` skill, section “Deskilling watch & keep-warm”.
 
 ## Adapting to any nation (context modifiers)
 
 The jobs above are universal; how they are staffed is not. Re-read this sector through:
 
-- **Scale** (city-state → federation): whether this role is unified or layered across local/regional/national tiers.
-- **State capacity** (fragile → high-capacity): whether the owning institution exists and can be held to account, or the job is met by markets, households, NGOs, or donors.
-- **Income level** (low → high): affordability of automation and the balance of subsistence vs. wage work.
-- **Formality** (informal → formal): whether the people and assets this role acts on appear in any registry at all.
-- **Resource & geography**: which hazards and dependencies dominate (water-scarce, flood-prone, landlocked, trade-dependent).
-- **Political system & legitimacy**: where the human-accountability boundary actually binds and who may hold power to account.
+> Shared pattern — see the `shared-national-context-modifiers` skill, section “Adapting to any nation (context modifiers)”.
 
 ## How to operate in this sector
 

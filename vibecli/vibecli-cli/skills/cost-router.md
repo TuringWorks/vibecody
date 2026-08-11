@@ -1,7 +1,9 @@
 ---
+name: "Cost Router"
+description: "Cost Router: Smart model routing that selects the optimal AI model based on task complexity, cost, latency, and quality requirements. Use when the task involves cost router, model routing, smart model routing, cost budget, cheap model fallback."
+category: ai
 triggers: ["cost router", "model routing", "smart model routing", "cost budget", "cheap model fallback"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # Cost Router

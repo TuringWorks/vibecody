@@ -1,8 +1,10 @@
 ---
+name: "Azure Key Vault + Security Patterns"
+description: "Azure Key Vault + Security Patterns: Guidance for working with Azure Key Vault. Use when the task involves Key Vault, azure key vault, azure secrets, DefaultAzureCredential, azure certificate."
+category: cloud-azure
 triggers: ["Key Vault", "azure key vault", "azure secrets", "DefaultAzureCredential", "azure certificate", "azure encryption", "managed HSM"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["az"]
-category: cloud-azure
 ---
 
 # Azure Key Vault + Security Patterns

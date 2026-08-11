@@ -1,7 +1,9 @@
 ---
+name: "AI Prompt Engineering"
+description: "AI Prompt Engineering: Guidance for designing prompts for LLMs. Use when the task involves prompt engineering, system prompt, few-shot, chain of thought, CoT."
+category: ai
 triggers: ["prompt engineering", "system prompt", "few-shot", "chain of thought", "CoT", "structured output", "prompt design"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # AI Prompt Engineering

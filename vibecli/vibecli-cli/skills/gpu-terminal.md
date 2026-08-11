@@ -1,7 +1,9 @@
 ---
+name: "GPU-Accelerated Terminal Rendering"
+description: "GPU-Accelerated Terminal Rendering: Guidance for configuring or optimizing GPU-accelerated terminal rendering. Use when the task involves gpu terminal, GPU rendering, gpu accelerated, terminal rendering, glyph atlas."
+category: terminal
 triggers: ["gpu terminal", "GPU rendering", "gpu accelerated", "terminal rendering", "glyph atlas", "wgpu", "frame rate", "terminal performance", "vsync", "subpixel rendering", "ligatures"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: terminal
 ---
 
 # GPU-Accelerated Terminal Rendering

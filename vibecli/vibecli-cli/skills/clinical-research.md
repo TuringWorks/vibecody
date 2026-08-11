@@ -1,7 +1,9 @@
 ---
+name: "Clinical Research"
+description: "Clinical Research: Guidance for working with clinical research and clinical trials. Use when the task involves clinical research, clinical trials, GCP, IRB, FDA regulations."
+category: healthcare
 triggers: ["clinical research", "clinical trials", "GCP", "IRB", "FDA regulations", "protocol development", "pharmacovigilance"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: healthcare
 ---
 
 # Clinical Research

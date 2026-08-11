@@ -1,8 +1,10 @@
 ---
+name: "Elysia (Bun) Framework"
+description: "Elysia (Bun) Framework: Guidance for working with Elysia on Bun. Use when the task involves Elysia, elysia bun, elysia plugin, elysia eden, bun web framework."
+category: typescript
 triggers: ["Elysia", "elysia bun", "elysia plugin", "elysia eden", "bun web framework"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["bun"]
-category: typescript
 ---
 
 # Elysia (Bun) Framework

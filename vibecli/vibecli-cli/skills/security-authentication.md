@@ -1,7 +1,9 @@
 ---
+name: "Authentication & Authorization Security"
+description: "Authentication & Authorization Security: Guidance for implementing authentication. Use when the task involves OAuth2, JWT, session management, MFA, PKCE."
+category: security
 triggers: ["OAuth2", "JWT", "session management", "MFA", "PKCE", "authentication", "login security", "access token"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: security
 ---
 
 # Authentication & Authorization Security

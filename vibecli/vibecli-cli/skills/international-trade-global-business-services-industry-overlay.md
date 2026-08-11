@@ -1,7 +1,9 @@
 ---
+name: "International Trade and Global Business Services"
+description: "International Trade and Global Business Services: This overlay composes OS 02, 03, 08, 11, 12, 16, 17, and 23. Use when the task involves international trade and global business services, international trade, global business services."
+category: industry
 triggers: ["international trade and global business services", "international trade", "global business services"]
 tools_allowed: ["read_file", "write_file"]
-category: industry
 ---
 
 # International Trade and Global Business Services

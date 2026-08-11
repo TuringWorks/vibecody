@@ -1,7 +1,9 @@
 ---
+name: "Nuclear Facility Operations"
+description: "Nuclear Facility Operations: Use this pack only with the facility license basis, approved procedures, qualified staff, regulator requirements, and site configuration. Use when the task involves nuclear facility operations, nuclear facility operations subsector pack."
+category: industry
 triggers: ["nuclear facility operations", "nuclear facility operations subsector pack"]
 tools_allowed: ["read_file", "write_file"]
-category: industry
 ---
 
 # Nuclear Facility Operations

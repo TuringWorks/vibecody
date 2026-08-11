@@ -1,8 +1,10 @@
 ---
+name: "Go Concurrency"
+description: "Go Concurrency: Guidance for writing concurrent Go code. Use when the task involves goroutine, go channel, go select, sync.WaitGroup, worker pool go."
+category: go
 triggers: ["goroutine", "go channel", "go select", "sync.WaitGroup", "worker pool go", "go concurrency"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["go"]
-category: go
 ---
 
 # Go Concurrency

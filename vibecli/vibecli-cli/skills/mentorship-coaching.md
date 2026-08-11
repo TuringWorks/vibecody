@@ -1,7 +1,9 @@
 ---
+name: "Mentorship and Coaching"
+description: "Mentorship and Coaching: Guidance for developing engineering talent. Use when the task involves mentorship, coaching, career development, talent development, growing engineers."
+category: people-skills
 triggers: ["mentorship", "coaching", "career development", "talent development", "growing engineers", "tech lead coaching"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: people-skills
 ---
 
 # Mentorship and Coaching

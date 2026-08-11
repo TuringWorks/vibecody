@@ -1,7 +1,9 @@
 ---
+name: "Microsoft Agent Framework (MSAF) 1.0 Compatibility"
+description: "Microsoft Agent Framework (MSAF) 1.0 Compatibility: Guidance for integrating agents with Microsoft Agent Framework 1.0. Use when the task involves Microsoft Agent Framework, MSAF, Azure agent, agent catalog, Azure AD agent."
+category: protocols
 triggers: ["Microsoft Agent Framework", "MSAF", "Azure agent", "agent catalog", "Azure AD agent"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: protocols
 ---
 
 # Microsoft Agent Framework (MSAF) 1.0 Compatibility

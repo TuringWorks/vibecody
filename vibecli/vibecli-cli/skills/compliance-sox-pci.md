@@ -1,7 +1,9 @@
 ---
+name: "SOX, PCI DSS, and SOC 2 Compliance"
+description: "SOX, PCI DSS, and SOC 2 Compliance: Guidance for implementing regulatory compliance controls for SOX, PCI DSS, and SOC 2. Use when the task involves SOX, PCI DSS, SOC 2, audit trail, change management."
+category: compliance
 triggers: ["SOX", "PCI DSS", "SOC 2", "audit trail", "change management", "separation of duties", "compliance automation"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: compliance
 ---
 
 # SOX, PCI DSS, and SOC 2 Compliance

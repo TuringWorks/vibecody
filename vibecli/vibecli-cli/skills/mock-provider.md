@@ -1,7 +1,9 @@
 ---
+name: "Mock AI Provider"
+description: "Mock AI Provider: A deterministic, zero-network AIProvider implementation for CI testing. Use when the task involves mock provider, mock AI provider, deterministic provider, test provider, zero-network provider."
+category: testing
 triggers: ["mock provider", "mock AI provider", "deterministic provider", "test provider", "zero-network provider"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: testing
 ---
 
 # Mock AI Provider

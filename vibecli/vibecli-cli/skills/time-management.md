@@ -1,7 +1,9 @@
 ---
+name: "Time Management"
+description: "Time Management: Guidance for working with time management and personal productivity. Use when the task involves time management, productivity, prioritization, GTD, Pomodoro."
+category: personal-development
 triggers: ["time management", "productivity", "prioritization", "GTD", "Pomodoro", "deep work", "focus", "work-life balance"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: personal-development
 ---
 
 # Time Management

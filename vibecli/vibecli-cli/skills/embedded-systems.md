@@ -1,7 +1,9 @@
 ---
+name: "Embedded Systems Development"
+description: "Embedded Systems Development: Guidance for working with embedded systems and firmware. Use when the task involves embedded systems, firmware, microcontroller, MCU, bare metal."
+category: embedded
 triggers: ["embedded systems", "firmware", "microcontroller", "MCU", "bare metal", "embedded C", "ARM Cortex"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: embedded
 ---
 
 # Embedded Systems Development

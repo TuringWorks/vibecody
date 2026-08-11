@@ -1,8 +1,10 @@
 ---
+name: "Go Patterns"
+description: "Go Patterns: Practical rules — e.g. Use error return values — Go doesn't have exceptions. Use when the task involves golang, go module, goroutine, go test, go fmt."
+category: go
 triggers: ["golang", "go module", "goroutine", "go test", "go fmt"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["go"]
-category: go
 ---
 
 # Go Patterns

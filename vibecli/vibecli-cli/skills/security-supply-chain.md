@@ -1,7 +1,9 @@
 ---
+name: "Supply Chain Security"
+description: "Supply Chain Security: Guidance for managing dependency security. Use when the task involves dependency audit, lockfile, SBOM, CVE, supply chain."
+category: security
 triggers: ["dependency audit", "lockfile", "SBOM", "CVE", "supply chain", "npm audit", "cargo audit", "dependabot"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: security
 ---
 
 # Supply Chain Security

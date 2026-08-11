@@ -1,7 +1,9 @@
 ---
+name: "Cost Estimator"
+description: "Cost Estimator: Pre-execution token cost estimation — estimates input + output tokens and provider cost in USD before running an agent task. Use when the task involves cost estimator, estimate cost, token cost, pre-execution cost."
+category: ai
 triggers: ["cost estimator", "estimate cost", "token cost", "pre-execution cost"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: ai
 ---
 
 # Cost Estimator

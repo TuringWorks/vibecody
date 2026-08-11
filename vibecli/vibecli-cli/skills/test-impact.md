@@ -1,7 +1,9 @@
 ---
+name: "Test Impact Analysis"
+description: "Test Impact Analysis: Changed-file → affected-test mapping using symbol-import graph BFS traversal. Use when the task involves test impact, affected tests, changed-file tests, skip unaffected tests."
+category: testing
 triggers: ["test impact", "affected tests", "changed-file tests", "skip unaffected tests"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: testing
 ---
 
 # Test Impact Analysis

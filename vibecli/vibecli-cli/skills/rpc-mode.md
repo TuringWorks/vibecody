@@ -1,7 +1,9 @@
 ---
+name: "RPC Mode"
+description: "RPC Mode: Bidirectional stdin/stdout JSONL protocol for embedding VibeCLI in non-Rust processes — Python scripts, Node.js tools, CI pipelines, and editor plugins. Use when the task involves RPC mode, JSONL protocol, stdin stdout protocol, embed VibeCLI."
+category: api
 triggers: ["RPC mode", "JSONL protocol", "stdin stdout protocol", "embed VibeCLI"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: api
 ---
 
 # RPC Mode

@@ -1,7 +1,9 @@
 ---
+name: "Applied Cryptography for Developers"
+description: "Applied Cryptography for Developers: Guidance for working with applied cryptography. Use when the task involves cryptography, TLS 1.3, X.509, AEAD, key derivation."
+category: security
 triggers: ["cryptography", "TLS 1.3", "X.509", "AEAD", "key derivation", "digital signature", "HSM", "post-quantum cryptography", "envelope encryption", "zero knowledge proof"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: security
 ---
 
 # Applied Cryptography for Developers

@@ -1,8 +1,10 @@
 ---
+name: "Ada & SPARK for Safety-Critical Systems"
+description: "Ada & SPARK for Safety-Critical Systems: Guidance for writing Ada/SPARK code for aerospace, defense, and safety-critical systems. Use when the task involves Ada, SPARK, Ada 2012, Ada 2022, GNAT."
+category: safety-critical
 triggers: ["Ada", "SPARK", "Ada 2012", "Ada 2022", "GNAT", "Ravenscar", "Jorvik", "Ada tasking", "Ada safety", "SPARK formal verification", "Ada avionics", "Ada defense", "pragma Restrictions"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["gnatmake"]
-category: safety-critical
 ---
 
 # Ada & SPARK for Safety-Critical Systems

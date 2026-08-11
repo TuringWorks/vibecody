@@ -1,8 +1,10 @@
 ---
+name: "GCP Cloud SQL"
+description: "GCP Cloud SQL: Guidance for working with Cloud SQL. Use when the task involves Cloud SQL, gcp cloud sql, cloud sql proxy, alloydb, gcp postgres."
+category: cloud-gcp
 triggers: ["Cloud SQL", "gcp cloud sql", "cloud sql proxy", "alloydb", "gcp postgres", "gcp mysql", "google sql database"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["gcloud"]
-category: cloud-gcp
 ---
 
 # GCP Cloud SQL

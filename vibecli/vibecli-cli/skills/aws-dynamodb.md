@@ -1,8 +1,10 @@
 ---
+name: "AWS DynamoDB Data Modeling and SDK Usage"
+description: "AWS DynamoDB Data Modeling and SDK Usage: Guidance for working with DynamoDB. Use when the task involves DynamoDB, dynamodb, dynamo table, dynamodb stream, single table design."
+category: cloud-aws
 triggers: ["DynamoDB", "dynamodb", "dynamo table", "dynamodb stream", "single table design", "GSI", "DynamoDB DAX"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["aws"]
-category: cloud-aws
 ---
 
 # AWS DynamoDB Data Modeling and SDK Usage

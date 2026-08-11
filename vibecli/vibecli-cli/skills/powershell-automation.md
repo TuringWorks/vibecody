@@ -1,8 +1,10 @@
 ---
+name: "PowerShell"
+description: "PowerShell: Guidance for writing PowerShell scripts and automation. Use when the task involves PowerShell, pwsh, PSScript, cmdlet, PowerShell module."
+category: powershell
 triggers: ["PowerShell", "pwsh", "PSScript", "cmdlet", "PowerShell module", "PowerShell automation", "Windows automation", "Azure PowerShell", "PowerShell Core"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["pwsh"]
-category: powershell
 ---
 
 # PowerShell

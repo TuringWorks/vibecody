@@ -1,7 +1,9 @@
 ---
+name: "Message Queue"
+description: "Message Queue: Default for both queues in AgentMessageQueues::new() is OneAtATime. Use when the task involves message queue, steer agent, follow-up message, mid-turn steering."
+category: architecture
 triggers: ["message queue", "steer agent", "follow-up message", "mid-turn steering"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: architecture
 ---
 
 # Message Queue

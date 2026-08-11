@@ -1,7 +1,9 @@
 ---
+name: "Households, Informal Work, and Microenterprise"
+description: "Households, Informal Work, and Microenterprise: This overlay composes OS 02, 05, 11, 16, 17, 20, 21, and 23. Use when the task involves households, informal work, and microenterprise, households, informal work, microenterprise."
+category: industry
 triggers: ["households, informal work, and microenterprise", "households", "informal work", "microenterprise"]
 tools_allowed: ["read_file", "write_file"]
-category: industry
 ---
 
 # Households, Informal Work, and Microenterprise

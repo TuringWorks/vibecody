@@ -1,7 +1,9 @@
 ---
+name: "Debugging Workflow"
+description: "Debugging Workflow: Guidance for debugging issues (inspired by fire-flow /fire-debug). Use when the task involves debugging, reproduce bug, root cause, debug workflow, fire-debug."
+category: workflow
 triggers: ["debugging", "reproduce bug", "root cause", "debug workflow", "fire-debug", "bisect debug"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: workflow
 ---
 
 # Debugging Workflow

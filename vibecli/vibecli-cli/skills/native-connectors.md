@@ -1,7 +1,9 @@
 ---
+name: "Native Connectors"
+description: "Native Connectors: Pre-built integrations for 20+ popular services including Slack, Jira, Confluence, Notion, PagerDuty, Datadog, Sentry, and more. Use when the task involves native connectors, Slack, Jira, Confluence, PagerDuty."
+category: api
 triggers: ["native connectors", "Slack", "Jira", "Confluence", "PagerDuty", "Datadog", "Sentry", "Notion"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: api
 ---
 
 # Native Connectors

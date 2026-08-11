@@ -1,8 +1,10 @@
 ---
+name: "HAProxy Load Balancer"
+description: "HAProxy Load Balancer: Guidance for working with HAProxy. Use when the task involves HAProxy, haproxy, haproxy config, haproxy backend, haproxy frontend."
+category: devops
 triggers: ["HAProxy", "haproxy", "haproxy config", "haproxy backend", "haproxy frontend", "haproxy ACL", "haproxy ssl"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["haproxy"]
-category: devops
 ---
 
 # HAProxy Load Balancer

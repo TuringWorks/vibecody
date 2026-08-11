@@ -1,7 +1,9 @@
 ---
+name: "Carbon Language"
+description: "Carbon Language: Guidance for working with Carbon. Use when the task involves Carbon, carbon lang, carbon language, carbon cpp successor, carbon generics."
+category: carbon
 triggers: ["Carbon", "carbon lang", "carbon language", "carbon cpp successor", "carbon generics"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: carbon
 ---
 
 # Carbon Language

@@ -1,7 +1,9 @@
 ---
+name: "Developer Relations and Developer Advocacy"
+description: "Developer Relations and Developer Advocacy: Guidance for building developer relations and community programs. Use when the task involves developer relations, DevRel, developer advocacy, developer experience, DX."
+category: strategy
 triggers: ["developer relations", "DevRel", "developer advocacy", "developer experience", "DX", "developer community", "open source community"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: strategy
 ---
 
 # Developer Relations and Developer Advocacy

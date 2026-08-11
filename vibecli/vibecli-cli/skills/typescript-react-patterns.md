@@ -1,8 +1,10 @@
 ---
+name: "React + TypeScript Patterns"
+description: "React + TypeScript Patterns: Practical rules — e.g. Use functional components with explicit prop types: const Foo: React.FC<Props> = ({ ... }) =>. Use when the task involves react component, useState, useEffect, tsx, react hook."
+category: typescript
 triggers: ["react component", "useState", "useEffect", "tsx", "react hook"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["node"]
-category: typescript
 ---
 
 # React + TypeScript Patterns

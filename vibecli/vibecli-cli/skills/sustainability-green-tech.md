@@ -1,7 +1,9 @@
 ---
+name: "Sustainable Software and Green Computing"
+description: "Sustainable Software and Green Computing: Guidance for building energy-efficient, carbon-aware software systems. Use when the task involves green computing, carbon footprint, sustainable software, energy efficiency, carbon aware."
+category: sustainability
 triggers: ["green computing", "carbon footprint", "sustainable software", "energy efficiency", "carbon aware", "green cloud", "sustainability metrics"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: sustainability
 ---
 
 # Sustainable Software and Green Computing

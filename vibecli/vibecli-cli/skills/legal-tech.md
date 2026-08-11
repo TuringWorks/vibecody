@@ -1,7 +1,9 @@
 ---
+name: "Legal Technology Systems"
+description: "Legal Technology Systems: Guidance for working with legal tech, contract management, and compliance software. Use when the task involves legal tech, contract management, e-discovery, legal document, CLM."
+category: legal
 triggers: ["legal tech", "contract management", "e-discovery", "legal document", "CLM", "contract lifecycle", "legal AI", "case management", "compliance management", "regulatory tech", "RegTech"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: legal
 ---
 
 # Legal Technology Systems

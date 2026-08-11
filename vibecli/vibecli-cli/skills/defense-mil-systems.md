@@ -1,7 +1,9 @@
 ---
-triggers: ["defense", "military", "MIL-STD", "weapons system", "tactical", "C4ISR", "ITAR", "CUI", "NIST 800-171", "CMMC", "defense software", "mission critical", "electronic warfare", "radar software"]
-tools_allowed: ["read_file", "write_file", "bash"]
+name: "Defense & Military Systems Software"
+description: "Defense & Military Systems Software: Guidance for developing defense/military software systems under MIL-STD and DoD regulations. Use when the task involves military, MIL-STD, weapons system, tactical, C4ISR."
 category: defense
+triggers: ["military", "MIL-STD", "weapons system", "tactical", "C4ISR", "ITAR", "CUI", "NIST 800-171", "CMMC", "defense software", "mission critical", "electronic warfare", "radar software"]
+tools_allowed: ["read_file", "write_file", "bash"]
 ---
 
 # Defense & Military Systems Software

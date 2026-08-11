@@ -1,8 +1,10 @@
 ---
+name: "Azure Event Grid + Event Hubs"
+description: "Azure Event Grid + Event Hubs: Guidance for working with Azure Event Grid and Event Hubs. Use when the task involves Event Grid, Event Hubs, azure event grid, azure event hubs, event subscription."
+category: cloud-azure
 triggers: ["Event Grid", "Event Hubs", "azure event grid", "azure event hubs", "event subscription", "event grid topic", "azure kafka"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["az"]
-category: cloud-azure
 ---
 
 # Azure Event Grid + Event Hubs

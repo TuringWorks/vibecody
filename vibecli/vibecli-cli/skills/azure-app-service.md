@@ -1,8 +1,10 @@
 ---
+name: "Azure App Service + Container Apps"
+description: "Azure App Service + Container Apps: Guidance for working with Azure App Service and Container Apps. Use when the task involves App Service, azure app service, Container Apps, azure container apps, deployment slot."
+category: cloud-azure
 triggers: ["App Service", "azure app service", "Container Apps", "azure container apps", "deployment slot", "azure web app", "dapr azure"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["az"]
-category: cloud-azure
 ---
 
 # Azure App Service + Container Apps

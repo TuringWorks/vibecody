@@ -1,7 +1,9 @@
 ---
+name: "Document Ingestion"
+description: "Document Ingestion: Guidance for building document ingestion and parsing pipelines. Use when the task involves document ingestion, document parsing, PDF extraction, text chunking, document pipeline."
+category: data
 triggers: ["document ingestion", "document parsing", "PDF extraction", "text chunking", "document pipeline", "ETL documents"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: data
 ---
 
 # Document Ingestion

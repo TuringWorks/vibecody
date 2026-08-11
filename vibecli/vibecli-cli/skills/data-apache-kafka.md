@@ -1,7 +1,9 @@
 ---
+name: "Apache Kafka Best Practices"
+description: "Apache Kafka Best Practices: Guidance for working with Apache Kafka. Use when the task involves Apache Kafka, Kafka Streams, Kafka Connect, event streaming, message broker Kafka."
+category: data-engineering
 triggers: ["Apache Kafka", "Kafka Streams", "Kafka Connect", "event streaming", "message broker Kafka"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: data-engineering
 ---
 
 # Apache Kafka Best Practices

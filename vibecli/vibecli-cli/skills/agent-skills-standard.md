@@ -1,7 +1,9 @@
 ---
+name: "Agent Skills Standard"
+description: "Agent Skills Standard: Cross-tool agent skill format for importing, exporting, and validating portable skill definitions. Use when the task involves agent skills standard, skill format, import skills, export skills, portable skill."
+category: agent
 triggers: ["agent skills standard", "skill format", "import skills", "export skills", "portable skill"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: agent
 ---
 
 # Agent Skills Standard

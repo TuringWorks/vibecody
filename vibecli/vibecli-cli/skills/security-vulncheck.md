@@ -1,7 +1,9 @@
 ---
+name: "VulnCheck Exploit Intelligence Platform"
+description: "VulnCheck Exploit Intelligence Platform: Guidance for working with VulnCheck. Use when the task involves VulnCheck, vulncheck, vulncheck API, exploit intelligence, vulncheck index."
+category: security
 triggers: ["VulnCheck", "vulncheck", "vulncheck API", "exploit intelligence", "vulncheck index", "canary intelligence", "vulncheck nvd2"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: security
 ---
 
 # VulnCheck Exploit Intelligence Platform

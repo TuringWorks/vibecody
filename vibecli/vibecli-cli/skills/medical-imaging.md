@@ -1,8 +1,10 @@
 ---
+name: "Medical Imaging"
+description: "Medical Imaging: Guidance for working with medical imaging pipelines (DICOM, MRI, CT, X-ray). Use when the task involves medical imaging, DICOM, NIfTI, CT scan, MRI."
+category: scientific
 triggers: ["medical imaging", "DICOM", "NIfTI", "CT scan", "MRI", "X-ray", "radiology", "segmentation", "ITK", "SimpleITK", "nibabel", "pydicom", "3D Slicer", "MONAI"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["python3"]
-category: scientific
 ---
 
 # Medical Imaging

@@ -1,7 +1,9 @@
 ---
+name: "Cloud Sandbox IDE"
+description: "Cloud Sandbox IDE: Launch browser-based development environments powered by cloud containers. Use when the task involves cloud sandbox, remote IDE, cloud dev environment, sandbox instance, dev container."
+category: infrastructure
 triggers: ["cloud sandbox", "remote IDE", "cloud dev environment", "sandbox instance", "dev container", "browser IDE"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: infrastructure
 ---
 
 # Cloud Sandbox IDE

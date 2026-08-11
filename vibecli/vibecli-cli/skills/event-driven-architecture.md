@@ -1,7 +1,9 @@
 ---
-triggers: ["event sourcing", "CQRS", "saga pattern", "outbox pattern", "Debezium", "CDC", "event driven", "event storming", "choreography", "domain events"]
-tools_allowed: ["read_file", "write_file", "bash"]
+name: "Event-Driven Architecture Patterns"
+description: "Event-Driven Architecture Patterns: Guidance for designing event-driven systems with event sourcing, CQRS, and messaging patterns. Use when the task involves event sourcing, CQRS, saga pattern, outbox pattern, Debezium."
 category: architecture
+triggers: ["event sourcing", "CQRS", "saga pattern", "outbox pattern", "Debezium", "CDC", "event driven", "event storming", "choreography", "domain events", "message queue", "idempotency", "Kafka", "RabbitMQ", "pub sub architecture"]
+tools_allowed: ["read_file", "write_file", "bash"]
 ---
 
 # Event-Driven Architecture Patterns

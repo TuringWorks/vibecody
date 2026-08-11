@@ -1,8 +1,10 @@
 ---
+name: "Scala Language and Ecosystem"
+description: "Scala Language and Ecosystem: Guidance for working with Scala. Use when the task involves Scala, scala 3, akka, akka-http, http4s."
+category: scala
 triggers: ["Scala", "scala 3", "akka", "akka-http", "http4s", "ZIO", "zio-http", "cats effect", "tapir", "pekko"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["scala"]
-category: scala
 ---
 
 # Scala Language and Ecosystem

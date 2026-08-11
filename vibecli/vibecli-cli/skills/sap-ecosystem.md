@@ -1,7 +1,9 @@
 ---
+name: "SAP Ecosystem"
+description: "SAP Ecosystem: Guidance for working with SAP systems and ABAP development. Use when the task involves SAP, SAP ERP, SAP HANA, SAP FICO, SAP MM."
+category: enterprise
 triggers: ["SAP", "SAP ERP", "SAP HANA", "SAP FICO", "SAP MM", "SAP SD", "SAP BW", "ABAP"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: enterprise
 ---
 
 # SAP Ecosystem

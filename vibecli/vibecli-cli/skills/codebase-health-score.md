@@ -1,7 +1,9 @@
 ---
+name: "Codebase Health Score"
+description: "Codebase Health Score: Analyze and score codebase health across 12 dimensions. Use when the task involves codebase health, health score, healthscore, code quality score."
+category: code-intelligence
 triggers: ["codebase health", "health score", "healthscore", "code quality score"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: code-intelligence
 ---
 
 # Codebase Health Score

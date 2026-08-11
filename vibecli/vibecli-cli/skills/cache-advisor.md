@@ -1,7 +1,9 @@
 ---
+name: "Prompt Cache Advisor"
+description: "Prompt Cache Advisor: Analyzes prompt structure and recommends optimal cache_control breakpoints to minimize cost. Use when the task involves prompt cache advisor, cache_control, cache breakpoint, prompt caching cost."
+category: performance
 triggers: ["prompt cache advisor", "cache_control", "cache breakpoint", "prompt caching cost"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: performance
 ---
 
 # Prompt Cache Advisor

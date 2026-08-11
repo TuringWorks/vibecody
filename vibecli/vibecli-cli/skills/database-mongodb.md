@@ -1,7 +1,9 @@
 ---
+name: "MongoDB"
+description: "MongoDB: Guidance for working with MongoDB. Use when the task involves MongoDB, document database, aggregation pipeline, mongoose, mongo index."
+category: database
 triggers: ["MongoDB", "document database", "aggregation pipeline", "mongoose", "mongo index", "sharding mongo"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: database
 ---
 
 # MongoDB

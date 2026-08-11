@@ -1,7 +1,9 @@
 ---
+name: "Executive Assistant"
+description: "Executive Assistant: Use gog for Gmail + Calendar work and your configured messaging surface for principal updates. Use when the task involves executive assistant, inbox triage, email reply, schedule meeting, reschedule meeting."
+category: productivity
 triggers: ["executive assistant", "inbox triage", "email reply", "schedule meeting", "reschedule meeting", "cancel meeting", "calendar check", "inbox sweep", "EA sweep", "check calendar", "book meeting", "meeting notes", "inbox management"]
 tools_allowed: ["read_file", "write_file", "bash", "web_search"]
-category: productivity
 ---
 
 # Executive Assistant

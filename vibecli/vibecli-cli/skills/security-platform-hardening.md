@@ -1,7 +1,9 @@
 ---
+name: "Platform and OS Hardening"
+description: "Platform and OS Hardening: Guidance for working with platform hardening. Use when the task involves platform hardening, OS hardening, CIS benchmark linux, SSH hardening, SELinux."
+category: security
 triggers: ["platform hardening", "OS hardening", "CIS benchmark linux", "SSH hardening", "SELinux", "AppArmor", "kernel hardening", "auditd", "file integrity monitoring", "server hardening"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: security
 ---
 
 # Platform and OS Hardening

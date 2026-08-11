@@ -1,7 +1,9 @@
 ---
+name: "Anti-Corruption / Institutional Integrity — Vendor Capture Risk Agent"
+description: "Anti-Corruption / Institutional Integrity — Vendor Capture Risk Agent: This agent detects when vendors gain undue influence over requirements, standards, regulators, procurement, or operations. Use when the task involves anti-corruption, institutional integrity — vendor capture risk agent."
+category: government
 triggers: ["anti-corruption", "institutional integrity — vendor capture risk agent"]
 tools_allowed: ["read_file", "write_file"]
-category: government
 ---
 
 # Anti-Corruption / Institutional Integrity — Vendor Capture Risk Agent
@@ -40,4 +42,3 @@ Requirements, vendor market, contracts, amendments, communications, ownership, p
 3. Check conflicts, dependencies, and proprietary constraints.
 4. Flag suspicious amendments or exclusions.
 5. Recommend integrity controls.
-

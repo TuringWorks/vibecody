@@ -1,7 +1,9 @@
 ---
+name: "Email Marketing"
+description: "Email Marketing: Guidance for working with email marketing. Use when the task involves email marketing, newsletter, Mailchimp, email automation, drip campaign."
+category: marketing
 triggers: ["email marketing", "newsletter", "Mailchimp", "email automation", "drip campaign", "email deliverability"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: marketing
 ---
 
 # Email Marketing

@@ -1,7 +1,9 @@
 ---
+name: "Confidential Computing"
+description: "Confidential Computing: Guidance for working with confidential computing. Use when the task involves confidential computing, TEE, trusted execution, Intel SGX, AMD SEV."
+category: security
 triggers: ["confidential computing", "TEE", "trusted execution", "Intel SGX", "AMD SEV", "secure enclave", "confidential containers", "azure confidential", "attestation"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: security
 ---
 
 # Confidential Computing

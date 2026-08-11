@@ -1,7 +1,9 @@
 ---
+name: "Azure Boost Infrastructure"
+description: "Azure Boost Infrastructure: Guidance for working with Azure Boost. Use when the task involves Azure Boost, azure boost, smartnic, azure hardware acceleration, azure storage acceleration."
+category: cloud-azure
 triggers: ["Azure Boost", "azure boost", "smartnic", "azure hardware acceleration", "azure storage acceleration", "azure network acceleration"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: cloud-azure
 ---
 
 # Azure Boost Infrastructure

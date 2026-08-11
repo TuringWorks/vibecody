@@ -1,7 +1,9 @@
 ---
+name: "perf-regression"
+description: "perf-regression: Automated performance regression detection using statistical baselines. Use when the task involves perf regression, performance regression, statistical baseline, benchmark regression."
+category: performance
 triggers: ["perf regression", "performance regression", "statistical baseline", "benchmark regression"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: performance
 ---
 
 # perf-regression

@@ -1,8 +1,10 @@
 ---
+name: "React Native Advanced"
+description: "React Native Advanced: Guidance for working with advanced React Native development. Use when the task involves React Native Fabric, expo router, turbo module, react native reanimated, EAS build."
+category: mobile
 triggers: ["React Native Fabric", "expo router", "turbo module", "react native reanimated", "EAS build", "react native performance", "hermes engine", "expo"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["node"]
-category: mobile
 ---
 
 # React Native Advanced

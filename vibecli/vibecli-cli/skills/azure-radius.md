@@ -1,7 +1,9 @@
 ---
+name: "Radius Application Platform"
+description: "Radius Application Platform: Guidance for working with Radius. Use when the task involves Radius, radius project, radius application, rad cli, radius recipe."
+category: cloud-azure
 triggers: ["Radius", "radius project", "radius application", "rad cli", "radius recipe", "radius environment", "application graph"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: cloud-azure
 ---
 
 # Radius Application Platform

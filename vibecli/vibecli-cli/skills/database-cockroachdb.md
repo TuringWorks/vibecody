@@ -1,7 +1,9 @@
 ---
+name: "CockroachDB"
+description: "CockroachDB: Guidance for working with CockroachDB. Use when the task involves CockroachDB, cockroach, cockroachdb, crdb, distributed sql."
+category: database
 triggers: ["CockroachDB", "cockroach", "cockroachdb", "crdb", "distributed sql", "cockroach cluster", "cockroach serverless"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: database
 ---
 
 # CockroachDB

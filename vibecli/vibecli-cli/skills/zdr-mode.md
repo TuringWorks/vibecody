@@ -1,7 +1,9 @@
 ---
+name: "ZDR Mode — Zero Data Retention"
+description: "ZDR Mode — Zero Data Retention: Zero Data Retention (ZDR) mode makes every AI interaction stateless and ephemeral. Use when the task involves ZDR, zero data retention, stateless AI, HIPAA, GDPR."
+category: compliance
 triggers: ["ZDR", "zero data retention", "stateless AI", "HIPAA", "GDPR", "ephemeral session"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: compliance
 ---
 
 # ZDR Mode — Zero Data Retention

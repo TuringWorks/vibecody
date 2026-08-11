@@ -1,7 +1,9 @@
 ---
+name: "Full-Stack Code Generation"
+description: "Full-Stack Code Generation: Generate complete frontend + backend + database + infrastructure in one pass. Use when the task involves full-stack generation, generate app, scaffold full stack, create project, generate frontend backend."
+category: automation
 triggers: ["full-stack generation", "generate app", "scaffold full stack", "create project", "generate frontend backend", "full app"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: automation
 ---
 
 # Full-Stack Code Generation

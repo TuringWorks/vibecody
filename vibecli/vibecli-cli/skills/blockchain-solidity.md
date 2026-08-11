@@ -1,8 +1,10 @@
 ---
+name: "Solidity Smart Contract Development"
+description: "Solidity Smart Contract Development: Guidance for working with Solidity smart contracts. Use when the task involves Solidity, solidity, smart contract, ERC20, ERC721."
+category: blockchain
 triggers: ["Solidity", "solidity", "smart contract", "ERC20", "ERC721", "ERC1155", "solidity modifier", "solidity event", "pragma solidity", "reentrancy"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["forge"]
-category: blockchain
 ---
 
 # Solidity Smart Contract Development

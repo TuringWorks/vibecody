@@ -1,8 +1,10 @@
 ---
+name: "Ruby on Rails"
+description: "Ruby on Rails: Guidance for building Rails applications. Use when the task involves Ruby on Rails, ActiveRecord, rails migration, rails model, rails controller."
+category: ruby
 triggers: ["Ruby on Rails", "ActiveRecord", "rails migration", "rails model", "rails controller", "devise", "rails routes"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["ruby"]
-category: ruby
 ---
 
 # Ruby on Rails

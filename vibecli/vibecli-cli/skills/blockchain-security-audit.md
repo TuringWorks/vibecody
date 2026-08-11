@@ -1,7 +1,9 @@
 ---
+name: "Smart Contract Security Auditing"
+description: "Smart Contract Security Auditing: Guidance for working with smart contract security. Use when the task involves smart contract audit, Slither, Mythril, Echidna, contract security."
+category: blockchain
 triggers: ["smart contract audit", "Slither", "Mythril", "Echidna", "contract security", "reentrancy attack", "front running", "smart contract vulnerability", "formal verification", "solidity audit"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: blockchain
 ---
 
 # Smart Contract Security Auditing

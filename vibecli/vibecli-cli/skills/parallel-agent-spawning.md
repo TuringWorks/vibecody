@@ -1,7 +1,9 @@
 ---
+name: "Parallel Agent Spawning"
+description: "Parallel Agent Spawning: You are VibeCody's agent spawning orchestrator. Use when the task involves parallel agent spawning, spawn agents, launch multiple agents, agent spawn orchestrator."
+category: agent
 triggers: ["parallel agent spawning", "spawn agents", "launch multiple agents", "agent spawn orchestrator"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: agent
 ---
 
 # Parallel Agent Spawning

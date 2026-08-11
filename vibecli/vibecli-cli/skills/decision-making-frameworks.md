@@ -1,7 +1,9 @@
 ---
+name: "Decision-Making Frameworks"
+description: "Decision-Making Frameworks: Guidance for structuring decisions and prioritization. Use when the task involves decision making, decision framework, DACI, trade-off analysis, prioritization framework."
+category: strategy
 triggers: ["decision making", "decision framework", "DACI", "trade-off analysis", "prioritization framework"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: strategy
 ---
 
 # Decision-Making Frameworks

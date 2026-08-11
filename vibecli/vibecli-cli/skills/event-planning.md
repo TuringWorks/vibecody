@@ -1,7 +1,9 @@
 ---
+name: "Event Planning"
+description: "Event Planning: Guidance for working with event planning and management. Use when the task involves event planning, conference planning, event management, corporate events, webinar planning."
+category: operations
 triggers: ["event planning", "conference planning", "event management", "corporate events", "webinar planning", "hackathon planning"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: operations
 ---
 
 # Event Planning

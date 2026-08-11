@@ -1,7 +1,9 @@
 ---
+name: "AI-Driven Team Onboarding"
+description: "AI-Driven Team Onboarding: Guidance for designing or executing AI-assisted onboarding experiences for new team members. Use when the task involves team onboarding, new member, onboarding guide, ramp up, learning path."
+category: developer-experience
 triggers: ["team onboarding", "new member", "onboarding guide", "ramp up", "learning path"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: developer-experience
 ---
 
 # AI-Driven Team Onboarding

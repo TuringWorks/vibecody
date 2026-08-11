@@ -1,8 +1,10 @@
 ---
+name: "AWS Messaging Services (SQS, SNS, EventBridge)"
+description: "AWS Messaging Services (SQS, SNS, EventBridge): Guidance for working with AWS messaging services. Use when the task involves SQS, SNS, EventBridge, aws messaging, dead letter queue."
+category: cloud-aws
 triggers: ["SQS", "SNS", "EventBridge", "aws messaging", "dead letter queue", "sns topic", "event bus", "sqs fifo"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["aws"]
-category: cloud-aws
 ---
 
 # AWS Messaging Services (SQS, SNS, EventBridge)

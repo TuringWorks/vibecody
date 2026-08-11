@@ -1,8 +1,10 @@
 ---
+name: "NestJS Advanced Patterns"
+description: "NestJS Advanced Patterns: Guidance for working with advanced NestJS patterns. Use when the task involves NestJS microservice, nest graphql, nest websocket, nest CQRS, nest guards."
+category: typescript
 triggers: ["NestJS microservice", "nest graphql", "nest websocket", "nest CQRS", "nest guards", "nest interceptors"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["node"]
-category: typescript
 ---
 
 # NestJS Advanced Patterns

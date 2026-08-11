@@ -1,7 +1,9 @@
 ---
+name: "Draw.io Integration"
+description: "Draw.io Integration: Deep integration with draw.io (diagrams.net) for architecture, flowchart, ERD, sequence, and C4 diagrams. Use when the task involves draw.io, diagrams.net, drawio, flowchart, ERD diagram."
+category: design
 triggers: ["draw.io", "diagrams.net", "drawio", "flowchart", "ERD diagram"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: design
 ---
 
 # Draw.io Integration

@@ -1,7 +1,9 @@
 ---
+name: "Caching Strategies"
+description: "Caching Strategies: Guidance for implementing caching. Use when the task involves cache invalidation, LRU cache, CDN, HTTP caching, cache-control."
+category: performance
 triggers: ["cache invalidation", "LRU cache", "CDN", "HTTP caching", "cache-control", "memoization", "ETag"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: performance
 ---
 
 # Caching Strategies

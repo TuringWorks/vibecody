@@ -1,8 +1,10 @@
 ---
+name: "React Advanced Patterns"
+description: "React Advanced Patterns: Guidance for working with advanced React patterns. Use when the task involves React Server Components, RSC, react suspense, react error boundary, react custom hook."
+category: frontend
 triggers: ["React Server Components", "RSC", "react suspense", "react error boundary", "react custom hook", "react performance", "react concurrent", "react form actions", "react testing library"]
 tools_allowed: ["read_file", "write_file", "bash"]
 requires_bins: ["node"]
-category: frontend
 ---
 
 # React Advanced Patterns

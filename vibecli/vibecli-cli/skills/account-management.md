@@ -1,7 +1,9 @@
 ---
+name: "Account Management"
+description: "Account Management: Guidance for working with account management and client relationships. Use when the task involves account management, key account, client relationship, customer retention, upselling."
+category: sales
 triggers: ["account management", "key account", "client relationship", "customer retention", "upselling", "cross-selling", "strategic accounts"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: sales
 ---
 
 # Account Management

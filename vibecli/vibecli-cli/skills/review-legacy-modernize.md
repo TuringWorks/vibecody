@@ -1,7 +1,9 @@
 ---
+name: "Legacy Code Modernization"
+description: "Legacy Code Modernization: Guidance for modernizing legacy systems. Use when the task involves legacy code, modernize, migration strategy, adapter pattern, incremental rewrite."
+category: review
 triggers: ["legacy code", "modernize", "migration strategy", "adapter pattern", "incremental rewrite", "legacy system"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: review
 ---
 
 # Legacy Code Modernization

@@ -1,7 +1,9 @@
 ---
+name: "Design System Hub"
+description: "Design System Hub: Cross-provider design token registry with audit, drift detection, and multi-format export. Use when the task involves design system hub, design token, token registry, design drift detection."
+category: design
 triggers: ["design system hub", "design token", "token registry", "design drift detection"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: design
 ---
 
 # Design System Hub

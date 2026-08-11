@@ -1,7 +1,9 @@
 ---
+name: "Backend Performance Optimization"
+description: "Backend Performance Optimization: Guidance for optimizing backend API and server performance. Use when the task involves API performance, caching strategy, connection pooling, query optimization, N+1."
+category: performance
 triggers: ["API performance", "caching strategy", "connection pooling", "query optimization", "N+1", "pagination", "async processing", "load balancing"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: performance
 ---
 
 # Backend Performance Optimization

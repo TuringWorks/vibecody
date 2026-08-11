@@ -1,7 +1,9 @@
 ---
+name: "Accounting and Bookkeeping"
+description: "Accounting and Bookkeeping: Guidance for working with accounting, bookkeeping, and financial management. Use when the task involves accounting, bookkeeping, QuickBooks, Xero, general ledger."
+category: finance
 triggers: ["accounting", "bookkeeping", "QuickBooks", "Xero", "general ledger", "accounts payable", "accounts receivable", "GAAP"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: finance
 ---
 
 # Accounting and Bookkeeping

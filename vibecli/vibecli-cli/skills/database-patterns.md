@@ -1,7 +1,9 @@
 ---
+name: "Database Patterns"
+description: "Database Patterns: Practical rules — e.g. Always use migrations — never modify schema manually in production. Use when the task involves database, SQL, migration, index, query optimization."
+category: database
 triggers: ["database", "SQL", "migration", "index", "query optimization"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: database
 ---
 
 # Database Patterns

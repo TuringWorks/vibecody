@@ -1,7 +1,9 @@
 ---
+name: "IoT Protocols and Connectivity"
+description: "IoT Protocols and Connectivity: Guidance for working with IoT protocols and smart devices. Use when the task involves IoT, MQTT, CoAP, Zigbee, BLE."
+category: iot
 triggers: ["IoT", "MQTT", "CoAP", "Zigbee", "BLE", "LoRaWAN", "IoT protocol", "smart device"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: iot
 ---
 
 # IoT Protocols and Connectivity

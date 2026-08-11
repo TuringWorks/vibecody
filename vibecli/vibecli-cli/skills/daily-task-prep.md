@@ -1,7 +1,9 @@
 ---
+name: "Daily Task Prep"
+description: "Daily Task Prep: Use clawchief/tasks.md as the canonical live task file and clawchief/tasks-completed.md as the completed-task archive. Use when the task involves daily prep, task prep, morning prep, prepare tasks, prepare today."
+category: productivity
 triggers: ["daily prep", "task prep", "morning prep", "prepare tasks", "prepare today", "seed today", "daily task prep", "start of day", "morning tasks", "task list prep"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: productivity
 ---
 
 # Daily Task Prep

@@ -1,7 +1,9 @@
 ---
+name: "3D Modeling & CAD"
+description: "3D Modeling & CAD: Guidance for working with 3D modeling and CAD systems. Use when the task involves 3D modeling, CAD, AutoCAD, SolidWorks, Blender."
+category: design
 triggers: ["3D modeling", "CAD", "AutoCAD", "SolidWorks", "Blender", "Fusion 360", "3D printing", "CAD/CAM"]
 tools_allowed: ["read_file", "write_file", "bash"]
-category: design
 ---
 
 # 3D Modeling & CAD
