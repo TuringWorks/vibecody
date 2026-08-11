@@ -8508,6 +8508,7 @@ pub async fn diffcomplete_generate(
     after_context: String,
     instruction: String,
     provider: String,
+    model: Option<String>,
     additional_files: Option<Vec<vibe_ai::diffcomplete::AdditionalFile>>,
     previous_diff: Option<String>,
     refinement: Option<String>,
@@ -8535,16 +8536,7 @@ pub async fn diffcomplete_generate(
         project_memory,
     };
 
-    let active = {
-        let mut chat_engine = state.chat_engine.lock().await;
-        if !provider.is_empty() {
-            let _ = chat_engine.set_provider_by_name(&provider);
-        }
-        chat_engine
-            .active_provider()
-            .cloned()
-            .ok_or_else(|| "No active AI provider configured".to_string())?
-    };
+    let active = resolve_editing_provider(&state, &provider, model.as_deref()).await?;
 
     let response = vibe_ai::diffcomplete::generate(active, request)
         .await
@@ -8554,6 +8546,89 @@ pub async fn diffcomplete_generate(
         unified_diff: response.unified_diff,
         explanation: response.explanation,
         model_name: response.model_name,
+    })
+}
+
+/// Resolve the provider for an explicit-trigger editing surface (⌘. and ghost
+/// text) from the toolbar's `provider` + `model` selection.
+///
+/// Built per request via [`build_temp_provider`] rather than by calling
+/// `set_provider_by_name` on the shared chat engine. The old path had two
+/// faults: it dropped `model` entirely, so the toolbar's model selection never
+/// reached the request, and `set_provider_by_name` mutates engine state — one
+/// ⌘. with a different provider silently re-pointed the whole chat session.
+///
+/// Falls back to the engine's active provider only when the caller sends no
+/// selection at all, which is the "no model selected" case the hosts already
+/// guard against.
+async fn resolve_editing_provider(
+    state: &tauri::State<'_, AppState>,
+    provider: &str,
+    model: Option<&str>,
+) -> Result<Arc<dyn vibe_ai::provider::AIProvider>, String> {
+    if !provider.is_empty() {
+        if let Some(model) = model.map(str::trim).filter(|m| !m.is_empty()) {
+            return build_temp_provider(provider, model).ok_or_else(|| {
+                format!("No API key configured for provider '{provider}'")
+            });
+        }
+    }
+
+    let chat_engine = state.chat_engine.lock().await;
+    chat_engine
+        .active_provider()
+        .cloned()
+        .ok_or_else(|| "No active AI provider configured".to_string())
+}
+
+// ── Ghost text — explicit-trigger inline completion ──────────────────────────
+
+/// Response for [`ghost_complete`].
+#[derive(serde::Serialize)]
+pub struct GhostResponseDto {
+    pub completion: String,
+    pub model_name: String,
+    pub truncated: bool,
+}
+
+/// Generate an inline completion for the cursor position.
+///
+/// **This command must only be invoked from an explicit user gesture.** It has
+/// no way to tell an explicit request from an automatic one; the gate lives in
+/// the host's inline-completion provider, which returns early for the editor's
+/// automatic trigger kind. See `vibe_ai::ghost` for why that boundary matters.
+#[tauri::command]
+pub async fn ghost_complete(
+    state: tauri::State<'_, AppState>,
+    file_path: String,
+    language: String,
+    prefix: String,
+    suffix: String,
+    provider: String,
+    model: Option<String>,
+) -> Result<GhostResponseDto, String> {
+    let project_memory = read_active_workspace_path()
+        .as_deref()
+        .and_then(build_diffcomplete_project_memory);
+
+    let request = vibe_ai::ghost::GhostRequest {
+        file_path,
+        language,
+        prefix,
+        suffix,
+        project_memory,
+    };
+
+    let active = resolve_editing_provider(&state, &provider, model.as_deref()).await?;
+
+    let response = vibe_ai::ghost::generate(active, request)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(GhostResponseDto {
+        completion: response.completion,
+        model_name: response.model_name,
+        truncated: response.truncated,
     })
 }
 
