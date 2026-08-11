@@ -1,3 +1,9 @@
+---
+triggers: ["visual verification", "screenshot diff", "visual regression", "pixel diff"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: testing
+---
+
 # Visual Verification
 
 Screenshot-based UI verification that compares actual rendered output against expected baselines. Detects visual regressions, layout shifts, and rendering bugs by analyzing screenshots with pixel diffing and AI vision.

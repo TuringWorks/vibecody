@@ -1,3 +1,9 @@
+---
+triggers: ["clarifying questions", "megaplan", "plan mode", "ask before coding", "clarify scope", "implementation plan", "plan with questions"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: workflow
+---
+
 # Plan Mode with Clarifying Questions
 
 Ask clarifying questions before generating implementation plans, ensuring alignment before coding.

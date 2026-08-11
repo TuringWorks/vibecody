@@ -1,3 +1,9 @@
+---
+triggers: ["policy engine", "authorization policy", "RBAC", "ABAC", "Cerbos", "policy as code"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: security
+---
+
 # Policy-as-Code Authorization Engine
 
 Cerbos-inspired authorization engine providing RBAC and ABAC policy evaluation, derived roles, policy testing, audit trails, and conflict detection.

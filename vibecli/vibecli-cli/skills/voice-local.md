@@ -1,3 +1,9 @@
+---
+triggers: ["voice local", "whisper.cpp", "offline voice", "speech to text", "voice coding"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: productivity
+---
+
 # Voice Local
 
 Offline voice coding using local whisper.cpp for speech-to-text. No cloud API calls, no data leaves your machine. Supports voice commands, code dictation, and natural language instructions with configurable wake words.

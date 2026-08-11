@@ -1,3 +1,9 @@
+---
+triggers: ["conversation branch", "fork conversation", "branch session", "restore branch"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: session
+---
+
 # Conversation Branching
 
 Fork a conversation session at any message, explore alternative directions, and compare or restore branches. Matches Cursor 4.0's conversation branch feature.

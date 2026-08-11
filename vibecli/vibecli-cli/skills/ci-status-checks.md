@@ -1,3 +1,9 @@
+---
+triggers: ["CI check", "status check", "PR review", "AI review", "GitHub check", "GitLab status", "code review CI"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: devops
+---
+
 # CI/CD AI Status Checks
 
 Run AI-powered checks as GitHub/GitLab status checks on every PR.

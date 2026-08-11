@@ -1,3 +1,9 @@
+---
+triggers: ["test impact", "affected tests", "changed-file tests", "skip unaffected tests"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: testing
+---
+
 # Test Impact Analysis
 
 Changed-file → affected-test mapping using symbol-import graph BFS traversal. Runs only the tests that could be affected by a given set of file changes. Language-agnostic (Rust, TypeScript, JavaScript, Python, Go). Matches GitHub Copilot Workspace v2's test impact analysis.

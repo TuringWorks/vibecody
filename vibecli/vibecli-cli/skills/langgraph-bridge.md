@@ -1,3 +1,9 @@
+---
+triggers: ["LangGraph", "LangChain", "LangSmith", "Python agent bridge"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: ai
+---
+
 # LangGraph Bridge
 
 Bridge to the Python LangGraph agent ecosystem. Run LangGraph workflows, import LangChain tools, and connect to LangSmith for tracing, all from within VibeCody without leaving your Rust/TypeScript workflow.

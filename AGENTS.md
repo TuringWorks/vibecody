@@ -6,23 +6,24 @@ This file instructs AI coding agents (Claude Code, Cursor, Windsurf, etc.) on co
 
 ## Product Matrix — know every surface before you change code
 
-VibeCody is **not a single app**. It's a toolchain of ~13 clients that share one Rust daemon. Before editing anything that crosses a boundary (RPC, auth, pairing, settings, provider list, artifact name, OS floor), consult this table so you don't leave half the matrix broken.
+VibeCody is **not a single app**. It's a toolchain of ~14 clients that share one Rust daemon. Before editing anything that crosses a boundary (RPC, auth, pairing, settings, provider list, artifact name, OS floor), consult this table so you don't leave half the matrix broken.
 
 | # | Product | Path | Stack | Purpose | Talks to |
 |---|---------|------|-------|---------|----------|
 | 1 | **VibeCLI** (daemon + TUI + REPL) | `vibecli/vibecli-cli/` | Rust, Axum, Ratatui | Terminal AI assistant; `--serve` daemon is the **source of truth** for every other client. ~354 modules. | Providers direct · serves `/mobile/*` · `/watch/*` · `/api/*` |
 | 2 | **VibeCoder** (desktop editor) | `vibecoder/` | Tauri 2 + React/TS, Monaco | Full desktop code editor. **1,045+ Tauri commands**, ~293 panels + 42 composites. | Embeds VibeCLI crates · Tauri IPC to frontend |
-| 3 | **VibeCLI App** (secondary Tauri shell) | `vibeaichat/` | Tauri 2 + React/TS | Lightweight desktop chat shell. | Same Tauri commands as VibeCoder (subset) |
-| 4 | **VibeMobile** | `vibemobile/` | Flutter (Dart) | Phone / tablet / web companion. 11 screens, 6 services. | HTTPS/SSE to VibeCLI daemon `/mobile/*` + `/watch/*` relay |
-| 5 | **VibeCodyWatch** (Apple Watch) | `vibewatch/VibeCodyWatch Watch App/` | SwiftUI, watchOS 10+ | Wrist client. Secure Enclave P-256 keys. | HTTPS/SSE `/watch/*` or WatchConnectivity relay |
-| 6 | **VibeCodyWatchCompanion** (iOS) | `vibewatch/VibeCodyWatchCompanion/` | Swift, WatchConnectivity | Phone-side relay when watch is off-LAN. | Bridges watch ↔ VibeMobile ↔ daemon |
-| 7 | **VibeCodyWear** (Wear OS) | `vibewatch/VibeCodyWear/` | Kotlin / Compose, Wear OS 3+ | Wrist client. Android Keystore / StrongBox P-256. | HTTPS/SSE `/watch/*` or Wearable Data Layer |
-| 8 | **VibeCodyWearCompanion** (Android) | `vibewatch/VibeCodyWearCompanion/` | Kotlin, Wearable Data Layer | Phone-side relay when watch is off-LAN. | Bridges watch ↔ VibeMobile ↔ daemon |
-| 9 | **VS Code extension** | `vscode-extension/` | TypeScript | Inline chat, code actions, sidebar. | HTTP to VibeCLI daemon |
-| 10 | **JetBrains plugin** | `jetbrains-plugin/` | Kotlin, Gradle | IntelliJ / WebStorm / PyCharm integration. | HTTP to VibeCLI daemon |
-| 11 | **Neovim plugin** | `neovim-plugin/` | Lua | Neovim + Telescope integration. | HTTP to VibeCLI daemon |
-| 12 | **Agent SDK** | `packages/agent-sdk/` | TypeScript | Programmatic SDK for third-party integrations. | HTTP to VibeCLI daemon |
-| 13 | **vibe-indexer** | `vibe-indexer/` | Rust | Standalone code-indexing service (semantic search, embeddings). | Standalone HTTP service |
+| 3 | **VibeDesk** (task-first companion) | `vibedesk/` | Tauri 2 + React/TS | Fast path: type a task, watch it happen. Three-column shell (project nav · conversation · Environment). Worktree-native; **no Cmd+K / no inline completion** — AI edits go through conversation+Review or ⌘. `DiffCompleteModal`, gated by `scripts/check-no-inline-edit.mjs`. Dev port 1422. | Own `src-tauri/src/commands.rs` bridge → HTTP/SSE to the daemon; never re-implements agent logic |
+| 4 | **VibeCLI App** (secondary Tauri shell) | `vibeaichat/` | Tauri 2 + React/TS | Lightweight desktop chat shell. Dev port 1421. | Same Tauri commands as VibeCoder (subset) |
+| 5 | **VibeMobile** | `vibemobile/` | Flutter (Dart) | Phone / tablet / web companion. 11 screens, 6 services. | HTTPS/SSE to VibeCLI daemon `/mobile/*` + `/watch/*` relay |
+| 6 | **VibeCodyWatch** (Apple Watch) | `vibewatch/VibeCodyWatch Watch App/` | SwiftUI, watchOS 10+ | Wrist client. Secure Enclave P-256 keys. | HTTPS/SSE `/watch/*` or WatchConnectivity relay |
+| 7 | **VibeCodyWatchCompanion** (iOS) | `vibewatch/VibeCodyWatchCompanion/` | Swift, WatchConnectivity | Phone-side relay when watch is off-LAN. | Bridges watch ↔ VibeMobile ↔ daemon |
+| 8 | **VibeCodyWear** (Wear OS) | `vibewatch/VibeCodyWear/` | Kotlin / Compose, Wear OS 3+ | Wrist client. Android Keystore / StrongBox P-256. | HTTPS/SSE `/watch/*` or Wearable Data Layer |
+| 9 | **VibeCodyWearCompanion** (Android) | `vibewatch/VibeCodyWearCompanion/` | Kotlin, Wearable Data Layer | Phone-side relay when watch is off-LAN. | Bridges watch ↔ VibeMobile ↔ daemon |
+| 10 | **VS Code extension** | `vscode-extension/` | TypeScript | Inline chat, code actions, sidebar. | HTTP to VibeCLI daemon |
+| 11 | **JetBrains plugin** | `jetbrains-plugin/` | Kotlin, Gradle | IntelliJ / WebStorm / PyCharm integration. | HTTP to VibeCLI daemon |
+| 12 | **Neovim plugin** | `neovim-plugin/` | Lua | Neovim + Telescope integration. | HTTP to VibeCLI daemon |
+| 13 | **Agent SDK** | `packages/agent-sdk/` | TypeScript | Programmatic SDK for third-party integrations. | HTTP to VibeCLI daemon |
+| 14 | **vibe-indexer** | `vibe-indexer/` | Rust | Standalone code-indexing service (semantic search, embeddings). | Standalone HTTP service |
 
 **Shared crates** (`vibecoder/crates/`): `vibe-core` (buffers/FS/Git), `vibe-ai` (22 providers), `vibe-lsp`, `vibe-extensions` (Wasmtime), `vibe-collab` (CRDT).
 
@@ -178,11 +179,11 @@ grep -rn 'fetch(`${this.baseUrl}' packages/agent-sdk/src vscode-extension/src
 
 ### Adding a new Tauri command
 
-`vibecoder/src-tauri/src/commands.rs` (implementation) → `vibecoder/src-tauri/src/lib.rs` (register in `tauri::generate_handler!`). VibeAIChat (`vibeaichat/src-tauri/`) has its own `lib.rs` — register there too if the command is needed there. **Frontend consumers**: `vibecoder/src/` panels call `invoke("your_command", …)` from TypeScript. No mobile/watch impact (mobile/watch don't speak Tauri IPC, only HTTP).
+`vibecoder/src-tauri/src/commands.rs` (implementation) → `vibecoder/src-tauri/src/lib.rs` (register in `tauri::generate_handler!`). VibeDesk (`vibedesk/src-tauri/`) and VibeAIChat (`vibeaichat/src-tauri/`) each have their own `lib.rs` and their own handler list — register there too if the command is needed in that shell. **Frontend consumers**: `vibecoder/src/` panels call `invoke("your_command", …)` from TypeScript. No mobile/watch impact (mobile/watch don't speak Tauri IPC, only HTTP).
 
 ### Adding or updating an AI provider
 
-Follow the 6-file dance in **"Adding / Updating Providers and Models"** below. **No changes needed** in VibeMobile, watch clients, plugins, or SDK — they use the provider through the CLI daemon's `/api/chat` route.
+Follow the 8-file dance in **"Adding / Updating Providers and Models"** below, then update the three clients that keep their own provider list: the `vibecli.provider` `enum` in `vscode-extension/package.json`, `PROVIDERS` in `jetbrains-plugin/.../VibeCLISettingsConfigurable.kt`, and `PROVIDER_LABELS` in `vibeaichat/src/App.tsx`. A provider absent from a closed list is unselectable there however well the daemon supports it. **No changes needed** in VibeMobile, the watch clients, VibeDesk, Neovim, or the SDK — they either read `/models` from the daemon or have no provider setting at all.
 
 ### Adding a new device-pairing / auth flow
 
@@ -216,7 +217,7 @@ Follow the 6-file dance in **"Adding / Updating Providers and Models"** below. *
 | iOS deployment target | `vibemobile/ios/Runner.xcodeproj/project.pbxproj` (3× `IPHONEOS_DEPLOYMENT_TARGET`), `vibemobile/ios/Flutter/AppFrameworkInfo.plist` (`MinimumOSVersion`), `vibemobile/ios/Podfile` (commented `platform :ios, 'X.Y'`), `docs/vibemobile.md` Platform-requirements table |
 | watchOS deployment target | `vibewatch/project.yml` (`deploymentTarget.watchOS`), regenerate with `xcodegen`, `docs/watchos.md` |
 | Wear OS / Android `compileSdk` / `targetSdk` / `minSdk` | `vibewatch/VibeCodyWear/app/build.gradle.kts`, `vibewatch/VibeCodyWear/gradle/libs.versions.toml` (`compileSdk` / `minSdk`), `docs/wearos.md` |
-| macOS `minimumSystemVersion` | `vibecoder/src-tauri/tauri.conf.json` and `vibeaichat/src-tauri/tauri.conf.json` (`bundle.macOS.minimumSystemVersion`) |
+| macOS `minimumSystemVersion` | `vibecoder/src-tauri/tauri.conf.json`, `vibedesk/src-tauri/tauri.conf.json` and `vibeaichat/src-tauri/tauri.conf.json` (`bundle.macOS.minimumSystemVersion`) |
 | Linux runner pin | `.github/workflows/release.yml` (`ubuntu-22.04`, `ubuntu-22.04-arm`, `smoke-linux-next` uses `ubuntu-24.04`) |
 | Xcode version | `.github/workflows/release.yml` — `maxim-lobanov/setup-xcode` `xcode-version` (currently `^26.0`, required for App Store submissions after **2026-04-28**) |
 
@@ -233,7 +234,7 @@ Follow the 6-file dance in **"Adding / Updating Providers and Models"** below. *
 
 ### Version bump
 
-`Cargo.toml` (`[workspace.package].version`) → `vibecoder/package.json` → `vibeaichat/package.json` → `vibecoder/src-tauri/tauri.conf.json` → `vibeaichat/src-tauri/tauri.conf.json` → `vibemobile/pubspec.yaml` (`version:`) → `docs/release.md` + `docs/CHANGELOG.md` + `RELEASE.md`. Watch apps inherit version from their project files (`vibewatch/project.yml`, `vibewatch/VibeCodyWear/app/build.gradle.kts` `versionName`). Keep them in lockstep.
+`Cargo.toml` (`[workspace.package].version`) → `vibecoder/package.json` → `vibedesk/package.json` → `vibeaichat/package.json` → `vibecoder/src-tauri/tauri.conf.json` → `vibedesk/src-tauri/tauri.conf.json` → `vibeaichat/src-tauri/tauri.conf.json` → `vibemobile/pubspec.yaml` (`version:`) → `docs/release.md` + `docs/CHANGELOG.md` + `RELEASE.md`. Watch apps inherit version from their project files (`vibewatch/project.yml`, `vibewatch/VibeCodyWear/app/build.gradle.kts` `versionName`). Keep them in lockstep.
 
 ---
 
@@ -379,7 +380,7 @@ VibeCody is shipped to users (developers, integrators, operators) who want to *u
 
 ## Functional Style & Safe Refactoring — Rust & TypeScript
 
-VibeCody is a large, long-lived daemon with 13 clients. Code that is **pure, immutable, and total** is easier to test, parallelize, and reason about across that surface. Write new code this way, and when you touch existing code, leave it a little more functional than you found it — as long as the refactor is behaviour-preserving and covered by tests.
+VibeCody is a large, long-lived daemon with 14 clients. Code that is **pure, immutable, and total** is easier to test, parallelize, and reason about across that surface. Write new code this way, and when you touch existing code, leave it a little more functional than you found it — as long as the refactor is behaviour-preserving and covered by tests.
 
 **Guiding principle:** separate *computation* (pure, deterministic, easy to test) from *effects* (IO, DB, network, mutation). Push effects to the edges; keep the core a set of pure functions over immutable data. A function that both computes a result and writes to the DB is two functions wearing a trenchcoat.
 
@@ -524,7 +525,7 @@ A flat "hottest functions" list is a list of **symptoms** — it tells you what 
 
 Work down this list. The top items routinely return 10–100×; the bottom is where most people start.
 
-1. **Cadence — is it running at all, and how often?** The cheapest work is work you don't do. Match every poll to how fast the data actually changes, and check whether something else already refreshes it. In a system with 13 clients polling one daemon, duplicate cadence is the default failure, not the exception.
+1. **Cadence — is it running at all, and how often?** The cheapest work is work you don't do. Match every poll to how fast the data actually changes, and check whether something else already refreshes it. In a system with 14 clients polling one daemon, duplicate cadence is the default failure, not the exception.
 2. **Eager instantiation — is it built before it's needed?** 314 components live under `vibecoder/src/components/`. A panel that mounts on app start because it's a direct child of a tab container costs its whole subtree at launch. Use `React.lazy()` + `Suspense` for panel routes; `OnceCell`/`LazyLock` for expensive Rust singletons. **Defer, don't unload** — latch activation false-until-first-shown, true forever after; tearing down on exit trades startup cost for navigation jank and loses panel state.
 3. **Recycling — is it rebuilt on every scroll or frame?** Virtualise long lists (file trees, log views, chat transcripts). Recycling reduces *churn*, not the resident set — claim the right win. Check the precondition: recycled rows skip one-time init, so per-index work in a mount effect goes silently stale.
 4. **Dirty-checking — does it notify when nothing changed?** A change signal that drives a re-render or an SSE broadcast costs the same whether or not anything moved. **Make a dirty check conservative:** compare *more strictly* than the thing you're guarding, so you may over-notify but never under-notify. A dirty check that can suppress a real update produces a silently stale UI — far worse than the cost it saves. Exclude fields that change every tick by definition (timestamps, sequence numbers); including one makes the check always true.

@@ -1,7 +1,7 @@
 ---
-trigger: "quantum language|quantum programming|Qiskit setup|Cirq setup|Q# setup|OpenQASM|PennyLane|quantum SDK|quantum framework"
+triggers: ["quantum language", "quantum programming", "Qiskit", "Cirq", "Q#", "OpenQASM", "PennyLane", "quantum SDK"]
+tools_allowed: ["read_file", "write_file", "bash"]
 category: quantum
-allowed_tools: ["read_file", "write_file", "bash"]
 ---
 
 # Quantum Programming Languages

@@ -1,3 +1,9 @@
+---
+triggers: ["inline diff", "accept hunk", "reject hunk", "partial patch application"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: review
+---
+
 # Inline Diff Accept/Reject
 
 Hunk-level patch application with partial acceptance. Matches Claude Code 1.x, Cursor 4.0, and Copilot inline diff UI.

@@ -1,3 +1,9 @@
+---
+triggers: ["agile", "scrum", "kanban", "sprint planning", "standup", "retrospective", "backlog grooming"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: management
+---
+
 # Agile Project Management
 
 AI-enhanced Scrum, Kanban, and Agile project management with full ceremony support.

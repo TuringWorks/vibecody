@@ -1,3 +1,9 @@
+---
+triggers: ["ZDR", "zero data retention", "stateless AI", "HIPAA", "GDPR", "ephemeral session"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: compliance
+---
+
 # ZDR Mode — Zero Data Retention
 
 ## What is ZDR Mode?

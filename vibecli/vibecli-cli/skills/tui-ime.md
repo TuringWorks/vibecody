@@ -1,3 +1,9 @@
+---
+triggers: ["TUI IME", "input method editor", "CJK width", "IME candidate window"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: terminal
+---
+
 # TUI IME — Input Method Editor & CJK Width Support
 Zero-width APC CURSOR_MARKER embedding for IME candidate window positioning,
 plus ANSI-safe Unicode East Asian Width calculations for CJK terminal layout.

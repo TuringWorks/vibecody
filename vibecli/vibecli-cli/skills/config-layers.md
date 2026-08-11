@@ -1,3 +1,9 @@
+---
+triggers: ["config layers", "layered configuration", "config precedence", "deep merge config"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: architecture
+---
+
 # Config Layers
 
 Multi-source layered configuration with well-defined precedence, typed values, Cleared semantics, and origin tracking. Also provides three-level JSON deep-merge (user → project → local).

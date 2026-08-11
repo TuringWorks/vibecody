@@ -1,3 +1,9 @@
+---
+triggers: ["worker bootstrap", "capability whitelist", "worker token budget", "least-privilege agent"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: agent
+---
+
 # Worker Bootstrap
 
 Validate agent capability whitelists and enforce token budgets when spawning worker agents. Prevents workers from acquiring capabilities beyond what the parent agent explicitly authorizes.

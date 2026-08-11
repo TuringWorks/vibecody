@@ -1,3 +1,9 @@
+---
+triggers: ["architecture specification", "TOGAF", "Zachman", "C4 model", "ADR", "architecture decision record"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: architecture
+---
+
 # Enterprise Architecture Specification
 
 Unified architecture framework supporting TOGAF ADM, Zachman Framework, C4 Model, and Architecture Decision Records (ADRs). Includes governance engine for compliance validation.

@@ -1,3 +1,9 @@
+---
+triggers: ["semantic merge", "merge conflict resolution", "three-way merge", "auto-resolve conflict"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: workflow
+---
+
 # AI Semantic Merge
 
 AI-assisted three-way merge conflict resolution that classifies conflicts by type and auto-resolves trivial cases. Matches GitHub Copilot Workspace v2's semantic merge.

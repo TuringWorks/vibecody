@@ -1,3 +1,9 @@
+---
+triggers: ["issue triage", "triage issues", "GitHub issues", "Linear tickets", "auto-label issues"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: management
+---
+
 # Issue Triage
 
 Autonomous issue triage for GitHub and Linear. Automatically classifies incoming issues, applies labels, estimates priority and effort, assigns to appropriate team members, and drafts initial responses with reproduction steps or clarifying questions.

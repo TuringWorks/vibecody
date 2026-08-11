@@ -1,3 +1,9 @@
+---
+triggers: ["autodream", "memory consolidation", "prune memory", "deduplicate memory"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: ai
+---
+
 # AutoDream
 
 Background memory consolidation — merge duplicate entries, prune stale ones, and rank survivors by recency and access frequency.

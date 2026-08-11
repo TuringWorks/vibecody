@@ -1,3 +1,9 @@
+---
+triggers: ["agent registry", "capability advertisement", "agent pool discovery"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: agent
+---
+
 # Agent Registry
 
 Discovery and capability advertisement for the Agent-OS pool. Matches Devin 2.0's agent registry.

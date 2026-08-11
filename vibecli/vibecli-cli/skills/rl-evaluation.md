@@ -1,3 +1,9 @@
+---
+triggers: ["RL evaluation", "off-policy evaluation", "policy safety constraints", "adversarial robustness"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: ai
+---
+
 # RL Evaluation
 
 Evaluate RL policies with scenario-based testing, off-policy evaluation, safety constraint checking, adversarial robustness, and regression detection.

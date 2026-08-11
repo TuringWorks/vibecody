@@ -1,3 +1,9 @@
+---
+triggers: ["semantic search", "hybrid code search", "embedding search", "structural search"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: code-intelligence
+---
+
 # semantic-search-v2
 
 Hybrid semantic code search — lexical + structural + embedding.

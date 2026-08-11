@@ -1,3 +1,9 @@
+---
+triggers: ["stream tool args", "toolcall_delta", "partial tool arguments", "streaming tool call"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: api
+---
+
 # Stream Tool Args
 
 Real-time partial argument streaming for LLM tool calls via `toolcall_delta` events. Pi-mono gap bridge: Phase B3.

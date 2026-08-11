@@ -1,3 +1,9 @@
+---
+triggers: ["stream patcher", "streaming diff", "apply hunks incrementally", "per-hunk rollback"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: code-intelligence
+---
+
 # Stream Patcher
 
 Streaming unified diff applicator — applies patch hunks as they arrive, with per-hunk rollback and conflict detection. Matches Claude Code 1.x and Devin 2.0's streaming patch application.

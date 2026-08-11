@@ -1,3 +1,9 @@
+---
+triggers: ["session browser", "session history", "replay session", "VS Code sessions", "past sessions", "session list"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: session
+---
+
 # VS Code Session Browser
 
 Browse, search, and replay past VibeCLI agent sessions from VS Code.

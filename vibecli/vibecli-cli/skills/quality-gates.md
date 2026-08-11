@@ -1,3 +1,9 @@
+---
+triggers: ["quality gates", "merge readiness", "coverage threshold", "blocking gate", "green contract"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: testing
+---
+
 # Quality Gates
 
 Enforce configurable pass/fail criteria (tests, coverage, clippy, security, compilation) before marking a task complete. Supports blocking vs advisory gates and a GreenContract hierarchical merge-readiness system.

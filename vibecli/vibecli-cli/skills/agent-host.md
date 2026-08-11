@@ -1,3 +1,9 @@
+---
+triggers: ["agent host", "multi-agent terminal", "parallel agent panes", "route task to agent"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: agent
+---
+
 # Agent Host
 
 Multi-agent terminal that hosts multiple AI coding assistants simultaneously. Run Claude Code, Gemini CLI, Aider, and other agents in parallel panes, route tasks to the best agent, and orchestrate collaborative workflows.

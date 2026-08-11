@@ -1,3 +1,9 @@
+---
+triggers: ["agent replay", "replay debugger", "execution trace", "time-travel debugging"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: agent
+---
+
 # Agent Replay Debugger
 
 Records agent execution traces and replays them step-by-step for debugging. Extends `repro_agent` with time-travel and assertion support.

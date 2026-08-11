@@ -1,3 +1,9 @@
+---
+triggers: ["render optimization", "TUI performance", "re-render reduction", "frame diff", "render cache", "dirty region"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: performance
+---
+
 # Terminal Render Optimization
 
 Optimized TUI rendering with frame diffing, dirty region detection, and cache-based re-render reduction.

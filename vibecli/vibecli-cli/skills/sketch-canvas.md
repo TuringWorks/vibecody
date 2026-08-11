@@ -1,3 +1,9 @@
+---
+triggers: ["sketch canvas", "wireframe to code", "sketch to code", "hand-drawn UI"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: design
+---
+
 # Sketch Canvas
 
 Freeform drawing canvas that converts hand-drawn sketches, wireframes, and diagrams into production code. Supports output to React components, HTML/CSS, SwiftUI views, and Flutter widgets using AI vision.

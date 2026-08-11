@@ -1,3 +1,9 @@
+---
+triggers: ["parallel tool scheduler", "concurrent tools", "tool dependency DAG", "sequence write conflicts"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: performance
+---
+
 # Parallel Tool Scheduler
 
 Dependency-tracked concurrent tool execution — up to N tools run in parallel when declared dependencies have completed. Tools sharing write targets are automatically sequenced. Matches Claude Code 1.x behaviour.

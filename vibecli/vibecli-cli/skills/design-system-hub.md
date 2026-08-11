@@ -1,3 +1,9 @@
+---
+triggers: ["design system hub", "design token", "token registry", "design drift detection"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: design
+---
+
 # Design System Hub
 
 Cross-provider design token registry with audit, drift detection, and multi-format export.

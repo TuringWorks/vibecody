@@ -1,3 +1,9 @@
+---
+triggers: ["plugin bundle", ".vibepkg", "install plugin", "plugin manifest validation"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: developer-experience
+---
+
 # Plugin Bundle
 `.vibepkg` plugin bundle format — manifest validation, install, uninstall, and list for VibeCLI plugin bundles.
 

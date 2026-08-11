@@ -1,3 +1,9 @@
+---
+triggers: ["message queue", "steer agent", "follow-up message", "mid-turn steering"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: architecture
+---
+
 # Message Queue
 Thread-safe agent message queues for mid-turn steering and post-turn follow-up injection. Pi-mono gap bridge (Phase A4): mirrors `agent.steer(msg)` / `agent.followUp(msg)`.
 

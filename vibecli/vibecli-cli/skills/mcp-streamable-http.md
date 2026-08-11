@@ -1,3 +1,9 @@
+---
+triggers: ["MCP streamable HTTP", "MCP transport", "OAuth 2.1 MCP", "PKCE", "streamable HTTP"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: protocols
+---
+
 # MCP Streamable HTTP
 
 MCP transport using Streamable HTTP with OAuth 2.1 enterprise authentication. Replaces legacy SSE transport with bidirectional streaming, supports token refresh, PKCE flows, and multi-tenant authorization for enterprise MCP deployments.

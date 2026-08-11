@@ -1,3 +1,9 @@
+---
+triggers: ["workspace fingerprint", "workspace changed", "session namespace", "workspace hash"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: session
+---
+
 # Workspace Fingerprint
 
 Generate and compare FNV-1a workspace fingerprints from git HEAD, branch, and tracked file hashes. Detects workspace changes across sessions and enables session namespace isolation.

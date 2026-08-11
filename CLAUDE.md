@@ -120,18 +120,19 @@ let store = WorkspaceStore::open_with(&tmp_dir.join("ws.db"), [42u8; 32]).unwrap
 
 ### Adding / updating providers and models
 
-Use the **`add-provider` skill** (`.claude/skills/add-provider/SKILL.md`) — it has the one-file frontend edit (`useModelRegistry.ts`) for model lists and defaults, and the ordered 6-file backend dance for a new Rust provider implementation.
+Use the **`add-provider` skill** (`.claude/skills/add-provider/SKILL.md`) — it has the one-file frontend edit (`useModelRegistry.ts`) for model lists and defaults, the ordered 8-file backend dance for a new Rust provider implementation, and the client lists that make the provider *selectable*. A provider missing from a closed client list isn't unstyled, it's unreachable.
 
 ---
 
 ## Product Matrix (know every surface)
 
-VibeCody is **13 clients talking to one Rust daemon**. Before a cross-cutting change (RPC, auth, pairing, settings, provider, artifact, OS floor), consult **[AGENTS.md → Product Matrix + Change-Surface Cookbook](./AGENTS.md)** — it's the authoritative "when I change X, I must also touch Y" checklist.
+VibeCody is **14 clients talking to one Rust daemon**. Before a cross-cutting change (RPC, auth, pairing, settings, provider, artifact, OS floor), consult **[AGENTS.md → Product Matrix + Change-Surface Cookbook](./AGENTS.md)** — it's the authoritative "when I change X, I must also touch Y" checklist.
 
 | Client | Path | Stack |
 |--------|------|-------|
 | VibeCLI (daemon + TUI + REPL) | `vibecli/vibecli-cli/` | Rust · Axum · Ratatui |
 | VibeCoder (desktop editor) | `vibecoder/` | Tauri 2 + React |
+| VibeDesk (task-first companion) | `vibedesk/` | Tauri 2 + React |
 | VibeCLI App (secondary shell) | `vibeaichat/` | Tauri 2 + React |
 | VibeMobile | `vibemobile/` | Flutter |
 | VibeCodyWatch + Companion | `vibewatch/VibeCodyWatch*/` | SwiftUI · watchOS 10+ |
@@ -146,13 +147,13 @@ The VibeCLI daemon is the **single source of truth** for protocol semantics. If 
 
 | Type of change | Surfaces to touch |
 |---|---|
-| New HTTP/RPC route | `serve.rs` / `watch_bridge.rs` → Tauri wrapper (VibeCoder + VibeAIChat) → Flutter `api_client.dart` → Swift `WatchNetworkManager.swift` → Wear Kotlin → VS Code `api-client.ts` → SDK `index.ts` → docs |
-| New Tauri command | `commands.rs` → `generate_handler!` in both `vibecoder/src-tauri/src/lib.rs` and (if needed) `vibeaichat/src-tauri/src/lib.rs` — no mobile/watch impact |
-| New AI provider | 6-file dance in the `add-provider` skill — no mobile/watch/plugin impact |
+| New HTTP/RPC route | `serve.rs` / `watch_bridge.rs` → Tauri wrapper (VibeCoder + VibeDesk + VibeAIChat) → Flutter `api_client.dart` → Swift `WatchNetworkManager.swift` → Wear Kotlin → VS Code `api-client.ts` → SDK `index.ts` → docs |
+| New Tauri command | `commands.rs` → `generate_handler!` in `vibecoder/src-tauri/src/lib.rs`, and (if needed) `vibedesk/src-tauri/src/lib.rs` and `vibeaichat/src-tauri/src/lib.rs` — each shell has its own handler list; no mobile/watch impact |
+| New AI provider | 8-file dance in the `add-provider` skill + the client provider lists (VS Code `package.json` enum, JetBrains `PROVIDERS`, VibeAIChat `PROVIDER_LABELS`). No mobile/watch impact — but **plugins do need editing**, contrary to what this row used to say |
 | New pairing / device flow | `pairing.rs` + `watch_auth.rs` + `/pair/*` routes + mobile `pair_screen.dart` + Swift/Kotlin pairing views + Governance panel + 4 docs files. **Keys MUST be P-256 ECDSA**, not Ed25519 (Secure Enclave constraint) |
 | New release artifact | `release.yml` (job + `release.needs[]`) + `Makefile` (`build-*`) + `docs/release.md` + `docs/CHANGELOG.md` + release-notes YAML matrix + root README make-targets list |
-| OS/SDK floor change | iOS → `project.pbxproj` (3×) + `AppFrameworkInfo.plist` + `Podfile`. watchOS → `vibewatch/project.yml`. Wear OS → `app/build.gradle.kts` + `libs.versions.toml`. macOS → both `tauri.conf.json` files (`bundle.macOS.minimumSystemVersion`). Xcode → `release.yml` `xcode-version` pin. Always update the corresponding `docs/*.md` platform-requirements table |
-| Version bump | `Cargo.toml` (workspace) → `vibecoder/package.json` → `vibeaichat/package.json` → both `tauri.conf.json` → `vibemobile/pubspec.yaml` → `docs/release.md` + `docs/CHANGELOG.md` + `RELEASE.md` |
+| OS/SDK floor change | iOS → `project.pbxproj` (3×) + `AppFrameworkInfo.plist` + `Podfile`. watchOS → `vibewatch/project.yml`. Wear OS → `app/build.gradle.kts` + `libs.versions.toml`. macOS → all three `tauri.conf.json` files — VibeCoder, VibeDesk, VibeAIChat (`bundle.macOS.minimumSystemVersion`). Xcode → `release.yml` `xcode-version` pin. Always update the corresponding `docs/*.md` platform-requirements table |
+| Version bump | `Cargo.toml` (workspace) → `vibecoder/package.json` → `vibedesk/package.json` → `vibeaichat/package.json` → all three `tauri.conf.json` → `vibemobile/pubspec.yaml` → `docs/release.md` + `docs/CHANGELOG.md` + `RELEASE.md` |
 
 ### Cross-cutting invariants
 

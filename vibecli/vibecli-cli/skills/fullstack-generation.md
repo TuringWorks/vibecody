@@ -1,3 +1,9 @@
+---
+triggers: ["full-stack generation", "generate app", "scaffold full stack", "create project", "generate frontend backend", "full app"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: automation
+---
+
 # Full-Stack Code Generation
 
 Generate complete frontend + backend + database + infrastructure in one pass.

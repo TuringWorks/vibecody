@@ -1,3 +1,9 @@
+---
+triggers: ["session share", "share session", "GitHub Gist", "export session HTML"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: session
+---
+
 # session-share
 
 Export sessions as self-contained HTML and share them via private GitHub Gist.

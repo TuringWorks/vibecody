@@ -1,3 +1,9 @@
+---
+triggers: ["smart dependencies", "CVE patch", "license compliance", "upgrade plan", "dependency conflict"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: devops
+---
+
 # Smart Dependencies
 
 Intelligent dependency management with conflict resolution, CVE patching, license compliance checking, and upgrade planning. Analyzes your dependency tree to find vulnerabilities, license violations, and safe upgrade paths.

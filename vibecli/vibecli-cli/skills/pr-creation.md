@@ -2,6 +2,7 @@
 name: Pull Request Creation
 description: Best practices for creating pull requests
 triggers: ["pull request", "PR", "gh pr", "create pr"]
+category: workflow
 ---
 
 When creating a pull request:

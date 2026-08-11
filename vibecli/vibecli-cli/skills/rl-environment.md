@@ -1,3 +1,9 @@
+---
+triggers: ["RL environment", "observation space", "action space", "reward function", "MuJoCo", "Brax"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: ai
+---
+
 # RL Environment Management
 
 Manage reinforcement learning environments with versioning, declarative YAML definitions, simulation backends, real-world connectors, and hybrid sim+real training pipelines.

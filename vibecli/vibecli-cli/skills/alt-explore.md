@@ -1,3 +1,9 @@
+---
+triggers: ["alt explore", "exploration tournament", "candidate scoring", "best-of-N agents"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: agent
+---
+
 # Alt Explore
 
 Alternative exploration tournament — score N agent candidates on a task by test pass rate, diff size, and compile success, then select the best.

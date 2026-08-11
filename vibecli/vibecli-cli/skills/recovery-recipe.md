@@ -1,3 +1,9 @@
+---
+triggers: ["recovery recipe", "error recovery", "retry with backoff", "escalate error"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: resilience
+---
+
 # Recovery Recipes
 
 Automatic error recovery using pattern-matched recipes with attempt-bounded retry, backoff, inject, and escalate actions. Prevents infinite retry loops and surfaces actionable suggestions when retries are exhausted.

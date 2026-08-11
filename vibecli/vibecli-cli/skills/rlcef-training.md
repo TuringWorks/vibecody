@@ -1,3 +1,9 @@
+---
+triggers: ["RLCEF", "execution feedback", "learn from test results", "code execution feedback"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: ai
+---
+
 # RLCEF Training
 
 Reinforcement learning from code execution feedback. The agent learns from test results, build outcomes, and runtime behavior to improve its code generation quality over time. Tracks which patterns lead to passing tests and applies that knowledge to future tasks.

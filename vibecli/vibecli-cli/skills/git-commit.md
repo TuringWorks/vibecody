@@ -2,6 +2,7 @@
 name: Git Commit
 description: Best practices for creating git commits
 triggers: ["commit", "git commit", "stage", "check in"]
+category: workflow
 ---
 
 When creating a git commit:

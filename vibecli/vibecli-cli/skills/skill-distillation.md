@@ -1,3 +1,9 @@
+---
+triggers: ["skill distillation", "cross-session learning", "extract coding patterns", "learn conventions"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: ai
+---
+
 # Skill Distillation — Cross-Session Learning
 
 Automatically extracts coding patterns from your sessions and distills them into reusable skills. Learns your library preferences, naming conventions, error handling patterns, and file organization.

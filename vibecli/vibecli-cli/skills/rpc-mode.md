@@ -1,3 +1,9 @@
+---
+triggers: ["RPC mode", "JSONL protocol", "stdin stdout protocol", "embed VibeCLI"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: api
+---
+
 # RPC Mode
 
 Bidirectional stdin/stdout JSONL protocol for embedding VibeCLI in non-Rust

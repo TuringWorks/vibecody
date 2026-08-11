@@ -1,3 +1,9 @@
+---
+triggers: ["project init", "/init", "project setup", "onboarding", "new project"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: workflow
+---
+
 # Project Initialization & Onboarding
 
 ## Trigger

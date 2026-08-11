@@ -1,3 +1,9 @@
+---
+triggers: ["stale branch", "branch cleanup", "zombie branch", "dormant branch"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: workflow
+---
+
 # Stale Branch Detection
 
 Classify git branches by staleness (Active/Dormant/Stale/Zombie), recommend cleanup actions (Keep/Delete/Archive/Review), and assess branch freshness against a base branch using configurable policies.

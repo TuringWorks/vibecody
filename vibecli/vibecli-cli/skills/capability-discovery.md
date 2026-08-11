@@ -1,3 +1,9 @@
+---
+triggers: ["capability discovery", "capability advertisement", "capability negotiation"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: agent
+---
+
 # capability-discovery
 
 Dynamic agent capability advertisement and negotiation.

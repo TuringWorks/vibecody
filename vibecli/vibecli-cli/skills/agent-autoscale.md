@@ -1,3 +1,9 @@
+---
+triggers: ["agent autoscale", "agent pool size", "auto-scaling agents", "queue depth"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: agent
+---
+
 # Agent Auto-Scaler
 
 Adjusts agent pool size based on utilization and queue depth. Matches Devin 2.0's auto-scaling.

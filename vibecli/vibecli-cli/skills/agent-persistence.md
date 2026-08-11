@@ -1,3 +1,9 @@
+---
+triggers: ["agent persistence", "restore agent state", "agent state across restarts", "background agent persistence"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: agent
+---
+
 # Agent Persistence
 
 Serialize and restore agent state across restarts. Matches Claude Code 1.x background agent persistence.

@@ -1,3 +1,9 @@
+---
+triggers: ["A2A protocol", "agent-to-agent", "agent card", "agent discovery", "delegate task to agent"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: protocols
+---
+
 # A2A Protocol
 
 Agent-to-agent communication using Google's A2A protocol. Publish agent cards, discover peer agents, delegate tasks across organizational boundaries, and coordinate multi-agent workflows with structured message passing.

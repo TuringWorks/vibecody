@@ -1,3 +1,9 @@
+---
+triggers: ["repl macro", "command macro", "parameterized macro", "define macro"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: terminal
+---
+
 # repl-macros
 
 Define and invoke parameterized REPL command macros.

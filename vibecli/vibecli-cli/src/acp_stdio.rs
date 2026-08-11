@@ -1,5 +1,9 @@
-#![allow(dead_code)] // Staged wave6 / Phase 53 module — wired up in a later cycle
 //! ACP (Agent Client Protocol) v0.11+ server — JSON-RPC 2.0 over stdio.
+//!
+//! Wired 2026-08-10 via `run_stdio` + the `--acp` flag. It was staged in
+//! Phase 53 and left without its stdin/stdout wrapper, so for months the
+//! dispatcher was complete, tested, and **unreachable** — no editor could
+//! launch VibeCody as an ACP agent. See CAPABILITY-BASELINE-2026-08.
 //!
 //! Zed and JetBrains co-developed ACP as the LSP-equivalent for AI coding
 //! agents: any IDE that speaks ACP can drive any agent that speaks ACP,
@@ -330,6 +334,67 @@ pub fn parse_request(line: &str) -> std::result::Result<AcpRequest, AcpResponse>
     }
 }
 
+/// Run the ACP server loop: newline-delimited JSON-RPC 2.0 in, the same out.
+///
+/// This is the stdin/stdout plumbing the module header described as living
+/// "in the CLI subcommand or a separate binary" — it was never written, so
+/// until 2026-08-10 **no editor could launch VibeCody as an ACP agent at
+/// all**, despite the dispatcher below being complete and tested. ACP clients
+/// (Zed, JetBrains, Neovim, Emacs) spawn the agent as a **subprocess** and
+/// speak over its stdin/stdout; the daemon's HTTP `/acp/v1/*` routes are a
+/// VibeCody-specific convenience that no ACP client will ever call.
+///
+/// # stdout belongs to the protocol
+///
+/// Every byte written to `output` must be a JSON-RPC message. A stray
+/// `println!` anywhere on this path corrupts the stream and the editor drops
+/// the connection — the classic LSP/ACP failure, and the reason this takes a
+/// writer rather than reaching for `stdout()` itself. Diagnostics go to
+/// stderr; `main` is responsible for not logging to stdout while this runs.
+///
+/// Framing is one JSON object per line. Blank lines are skipped rather than
+/// treated as parse errors, because some clients pad the stream. A
+/// notification (no `id`) produces no reply — `dispatch` returns `None` — and
+/// unparseable input produces a JSON-RPC parse error rather than a
+/// disconnect, so a single bad line cannot kill an otherwise healthy session.
+///
+/// Returns when stdin reaches EOF, which is how an editor signals shutdown.
+pub fn run_stdio<R: std::io::BufRead, W: std::io::Write>(input: R, output: &mut W) -> Result<()> {
+    let server = AcpServer::new();
+    for line in input.lines() {
+        let line = line?;
+        if line.trim().is_empty() {
+            continue;
+        }
+        // `dispatch` already turns a `HandlerError` into an error *response*,
+        // so `Err` here means an internal failure, not a protocol one. Report
+        // it as INTERNAL_ERROR and keep serving rather than tearing down the
+        // session — the editor has no way to recover a dropped agent except
+        // by relaunching it.
+        let reply = match parse_request(&line) {
+            Ok(req) => {
+                let id = req.id.clone().unwrap_or(json!(null));
+                match server.dispatch(req) {
+                    Ok(maybe) => maybe,
+                    Err(e) => Some(AcpResponse::err(
+                        id,
+                        errors::INTERNAL_ERROR,
+                        format!("internal: {e}"),
+                    )),
+                }
+            }
+            Err(parse_err) => Some(parse_err),
+        };
+        if let Some(resp) = reply {
+            writeln!(output, "{}", serde_json::to_string(&resp)?)?;
+            // Flush per message: the editor is a pipe reader waiting on this
+            // exact response before it sends the next request.
+            output.flush()?;
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -447,5 +512,63 @@ mod tests {
         let resp = result.expect_err("must error");
         let err = resp.error.expect("must be an error");
         assert_eq!(err.code, errors::INVALID_REQUEST);
+    }
+
+    // ── Scenario 7: the stdio loop itself ───────────────────────────────────
+    //
+    // The dispatcher above was complete and tested for months while the
+    // transport around it did not exist, so these test the *framing* — the
+    // part whose absence made the agent unlaunchable.
+
+    fn run_lines(input: &str) -> Vec<serde_json::Value> {
+        let mut out = Vec::new();
+        run_stdio(std::io::BufReader::new(input.as_bytes()), &mut out).expect("loop must not fail");
+        String::from_utf8(out)
+            .expect("output must be utf-8")
+            .lines()
+            .map(|l| serde_json::from_str(l).expect("every output line must be one JSON object"))
+            .collect()
+    }
+
+    #[test]
+    fn stdio_loop_answers_initialize_and_frames_one_object_per_line() {
+        let replies = run_lines("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\"}\n");
+        assert_eq!(replies.len(), 1, "one request ⇒ exactly one line");
+        assert_eq!(replies[0]["jsonrpc"], "2.0");
+        assert_eq!(replies[0]["id"], 1);
+        assert_eq!(
+            replies[0]["result"]["protocolVersion"], ACP_PROTOCOL_VERSION,
+            "initialize must advertise the protocol version the editor negotiates against"
+        );
+    }
+
+    #[test]
+    fn stdio_loop_skips_blank_lines_and_survives_a_bad_one() {
+        // A single unparseable line must produce an error *response*, not a
+        // disconnect — the editor cannot recover a dropped agent except by
+        // relaunching it.
+        let replies = run_lines(concat!(
+            "\n",
+            "{not json\n",
+            "\n",
+            "{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"initialize\"}\n"
+        ));
+        assert_eq!(replies.len(), 2, "blank lines produce nothing; bad line + good line produce one each");
+        assert_eq!(replies[0]["error"]["code"], errors::PARSE_ERROR);
+        assert_eq!(
+            replies[1]["id"], 7,
+            "the session keeps serving after a malformed line"
+        );
+    }
+
+    #[test]
+    fn stdio_loop_writes_nothing_for_a_notification() {
+        // No `id` ⇒ notification ⇒ no reply. Emitting one would desynchronise
+        // the editor's request/response pairing.
+        let replies = run_lines("{\"jsonrpc\":\"2.0\",\"method\":\"initialize\"}\n");
+        assert!(
+            replies.is_empty(),
+            "a notification must produce no output, got: {replies:?}"
+        );
     }
 }

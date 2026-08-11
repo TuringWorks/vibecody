@@ -1,3 +1,9 @@
+---
+triggers: ["agent mode", "smart mode", "rush mode", "deep mode", "fast mode", "thinking mode", "auto route", "model selection"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: agent
+---
+
 # Agent Modes (Smart / Rush / Deep)
 
 Three-mode agent routing system that selects the optimal model and configuration based on task complexity.

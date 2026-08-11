@@ -286,6 +286,91 @@ mod tests {
         }
     }
 
+    /// Walk up from this crate to the repository root, or `None` when the crate
+    /// is vendored outside the monorepo.
+    fn repo_root() -> Option<std::path::PathBuf> {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .find(|dir| dir.join("vscode-extension").is_dir() && dir.join("vibecli").is_dir())
+            .map(std::path::Path::to_path_buf)
+    }
+
+    /// Every catalog provider must be selectable from the VS Code settings UI.
+    ///
+    /// `vibecli.provider` is a closed `enum` in the extension manifest, so a
+    /// provider missing from it cannot be chosen at all — the daemon supports it
+    /// and the user simply has no way to ask for it. `poolside` sat in exactly
+    /// that state: shipped, keyed, documented, unselectable.
+    ///
+    /// Cross-language lists cannot share a constant, so this reads the manifest
+    /// and fails when the two drift.
+    #[test]
+    fn vscode_settings_offer_every_catalog_provider() {
+        let Some(root) = repo_root() else {
+            return; // vendored outside the monorepo — nothing to check against
+        };
+        let manifest = root.join("vscode-extension/package.json");
+        let Ok(text) = std::fs::read_to_string(&manifest) else {
+            return;
+        };
+        let json: serde_json::Value =
+            serde_json::from_str(&text).expect("vscode-extension/package.json is valid JSON");
+
+        let offered: HashSet<&str> = json["contributes"]["configuration"]["properties"]
+            ["vibecli.provider"]["enum"]
+            .as_array()
+            .expect("vibecli.provider declares an enum")
+            .iter()
+            .filter_map(serde_json::Value::as_str)
+            .collect();
+
+        let missing: Vec<&str> = PROVIDER_MODELS
+            .iter()
+            .map(|(id, _)| *id)
+            .filter(|id| !offered.contains(id))
+            .collect();
+
+        assert!(
+            missing.is_empty(),
+            "these providers are in the catalog but absent from the \
+             `vibecli.provider` enum in vscode-extension/package.json, so VS Code \
+             users cannot select them: {missing:?}"
+        );
+    }
+
+    /// Every catalog provider must be offered by the JetBrains settings combo.
+    ///
+    /// That box listed five providers while the daemon supported twenty, so
+    /// most keys a user had configured could not be selected in the IDE. The
+    /// Kotlin can't be compiled on every machine (it needs a JDK 17 toolchain),
+    /// so this checks the source text for each id — enough to catch the
+    /// omission that actually happens.
+    #[test]
+    fn jetbrains_settings_offer_every_catalog_provider() {
+        let Some(root) = repo_root() else {
+            return;
+        };
+        let settings = root.join(
+            "jetbrains-plugin/src/main/kotlin/com/vibecody/vibecli/VibeCLISettingsConfigurable.kt",
+        );
+        let Ok(text) = std::fs::read_to_string(&settings) else {
+            return;
+        };
+
+        let missing: Vec<&str> = PROVIDER_MODELS
+            .iter()
+            .map(|(id, _)| *id)
+            .filter(|id| !text.contains(&format!("\"{id}\"")))
+            .collect();
+
+        assert!(
+            missing.is_empty(),
+            "these providers are in the catalog but absent from `PROVIDERS` in \
+             VibeCLISettingsConfigurable.kt, so JetBrains users cannot select \
+             them: {missing:?}"
+        );
+    }
+
     /// `*-cloud` models are datacenter-hosted and live in
     /// `providers::ollama::OLLAMA_CLOUD_MODELS`; the chat catalog is pull-able.
     #[test]

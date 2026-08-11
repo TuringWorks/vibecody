@@ -1,3 +1,9 @@
+---
+triggers: ["Windows sandbox", "ACL policy", "path isolation", "network isolation"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: security
+---
+
 # Windows Sandbox Policy
 Enforce Windows-style ACL path and network isolation using pure policy logic — no actual OS API calls.
 

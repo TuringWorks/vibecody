@@ -1,3 +1,9 @@
+---
+triggers: ["context budget", "token budget", "context pruning", "context window limit"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: performance
+---
+
 # Context Budget
 
 Token budget enforcement for context windows — soft warn at 80%, auto-prune at 90%, hard block at 100%. Automatically prunes OldToolResult → Attachment → History (never SystemPrompt). Matches GitHub Copilot Workspace v2's context bar.

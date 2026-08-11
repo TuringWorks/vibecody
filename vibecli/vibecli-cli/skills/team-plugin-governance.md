@@ -1,3 +1,9 @@
+---
+triggers: ["team governance", "plugin approval", "team marketplace", "plugin policy", "governance controls", "private plugins"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: governance
+---
+
 # Team Plugin Marketplace Governance
 
 Admin controls for sharing private plugins within teams with approval workflows and compliance checking.

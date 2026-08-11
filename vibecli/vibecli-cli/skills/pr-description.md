@@ -1,3 +1,9 @@
+---
+triggers: ["PR description", "pull request description", "PR title", "PR test plan"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: documentation
+---
+
 # PR Description Generator
 
 Diff-aware pull request title and body generation. Matches Claude Code 1.x, Cursor 4.0, Copilot Workspace v2, and Devin 2.0.

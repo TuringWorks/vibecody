@@ -1,3 +1,9 @@
+---
+triggers: ["explain depth", "explain code", "code explanation", "audience level"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: documentation
+---
+
 # explain-depth
 
 Code explanation at configurable depth levels for different audiences.

@@ -1,3 +1,9 @@
+---
+triggers: ["next task prediction", "what to do next", "suggest next task", "forgotten follow-up"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: productivity
+---
+
 # Next Task Prediction
 
 Workflow-level prediction that suggests what to do next based on your current context, recent actions, project state, and team patterns. Learns from your habits to surface the right task at the right time.

@@ -1,3 +1,9 @@
+---
+triggers: ["TUI images", "Kitty graphics protocol", "iTerm2 inline images", "terminal image rendering"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: terminal
+---
+
 # TUI Images
 
 Inline image rendering in terminal emulators — Kitty Graphics Protocol and iTerm2 inline images. Pi-mono gap bridge (Phase C1).

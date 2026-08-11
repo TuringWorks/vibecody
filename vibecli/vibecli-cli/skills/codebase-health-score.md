@@ -1,3 +1,9 @@
+---
+triggers: ["codebase health", "health score", "healthscore", "code quality score"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: code-intelligence
+---
+
 # Codebase Health Score
 
 Analyze and score codebase health across 12 dimensions. Use `/healthscore scan` to get a comprehensive health report with actionable remediations.

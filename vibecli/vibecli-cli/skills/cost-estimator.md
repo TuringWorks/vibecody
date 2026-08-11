@@ -1,3 +1,9 @@
+---
+triggers: ["cost estimator", "estimate cost", "token cost", "pre-execution cost"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: ai
+---
+
 # Cost Estimator
 
 Pre-execution token cost estimation — estimates input + output tokens and provider cost in USD before running an agent task. Matches Devin 2.0's pre-execution cost estimation feature.

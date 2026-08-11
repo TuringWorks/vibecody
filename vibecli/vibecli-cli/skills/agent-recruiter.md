@@ -1,3 +1,9 @@
+---
+triggers: ["agent recruiter", "task-to-agent assignment", "agent scoring", "agent recruitment"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: agent
+---
+
 # Agent Recruiter
 
 Dynamic task-to-agent assignment with scoring heuristic. Matches Devin 2.0's recruitment system.

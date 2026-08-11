@@ -1,3 +1,9 @@
+---
+triggers: ["cloud autofix", "autofix PR", "auto fix", "fix PR", "bugbot cloud", "cloud agent fix", "test and fix"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: devops
+---
+
 # Cloud Autofix Agent
 
 Cloud-based agents that test and propose fixes directly on pull requests.

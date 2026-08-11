@@ -1,3 +1,9 @@
+---
+triggers: ["agent trust", "trust score", "agent autonomy", "review threshold"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: agent
+---
+
 # Agent Trust
 
 Trust scoring system that tracks historical agent accuracy and adjusts review thresholds automatically. High-trust agents get more autonomy while low-trust agents require human review, creating a self-calibrating approval workflow.

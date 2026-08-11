@@ -1,3 +1,9 @@
+---
+triggers: ["agent skills standard", "skill format", "import skills", "export skills", "portable skill"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: agent
+---
+
 # Agent Skills Standard
 
 Cross-tool agent skill format for importing, exporting, and validating portable skill definitions. Enables skill sharing between VibeCody, Claude Code, Cursor, Windsurf, and other AI coding tools using a standardized schema.

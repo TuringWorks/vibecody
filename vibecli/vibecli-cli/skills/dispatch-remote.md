@@ -1,3 +1,9 @@
+---
+triggers: ["remote dispatch", "job queue", "dequeue job", "priority work queue", "mobile job dispatch"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: workflow
+---
+
 # Remote Dispatch Queue
 Queue agent jobs from mobile or web clients, track status, and dequeue for execution in priority order.
 

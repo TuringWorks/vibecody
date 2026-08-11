@@ -1,3 +1,9 @@
+---
+triggers: ["auto-approve", "tool approval", "risk score", "auto deny", "approval policy"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: security
+---
+
 # auto-approve
 
 Heuristic auto-approval scorer for tool calls. Assigns a risk score (0.0 = safe → 1.0 = dangerous) and emits `AutoApprove`, `AskUser`, or `AutoDeny` without an ML model — using signal-based heuristics.

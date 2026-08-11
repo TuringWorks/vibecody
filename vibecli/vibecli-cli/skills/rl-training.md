@@ -1,3 +1,9 @@
+---
+triggers: ["RL training", "PPO", "SAC", "DQN", "AutoRL", "curriculum learning", "MAPPO"]
+tools_allowed: ["read_file", "write_file", "bash"]
+category: ai
+---
+
 # RL Training
 
 Orchestrate reinforcement learning training with 30+ algorithms, distributed training, AutoRL hyperparameter search, curriculum learning, and multi-agent support.
