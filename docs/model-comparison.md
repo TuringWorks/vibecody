@@ -158,12 +158,13 @@ As of August 2026: the **GPT-5.6 line** (`-sol`, `-terra`, `-luna`, each with a 
 
 ### Google Gemini (`gemini`)
 
-Long context is the headline (1M+ on Pro). The Gemini 3 generation (released Q1 2026) is competitive with GPT-5-class models on most general tasks and remains best-in-class for long-context retrieval. The 2.5 line stays in the picker for cost-sensitive workloads. VibeCody's default is `gemini-3.5-pro`. The 2.0 line was dropped from the picker on 2026-08-05.
+Long context is the headline (1M+ across the line). The Gemini 3 generation (released Q1 2026) is competitive with GPT-5-class models on most general tasks and remains best-in-class for long-context retrieval. The 2.5 line stays in the picker for cost-sensitive workloads. VibeCody's default is `gemini-3.6-flash`. The 2.0 line was dropped from the picker on 2026-08-05.
+
+> **`gemini-3.5-pro` is not in the picker, because it has never shipped.** Google announced it at I/O on 2026-05-19 and it has slipped three times; as of August 2026 it remains a limited Vertex AI preview for selected enterprise customers, absent from the consumer Gemini app and AI Studio. This page previously listed it as the current flagship and as VibeCody's default — both were wrong, written from a projected release date. Corrected 2026-08-10.
 
 | Model | Ctx | Tools | Vision | Reasoning | Notes |
 |---|---|---|---|---|---|
-| gemini-3.5-pro | 2M | ✅ | ✅ | ✅ | Current flagship — default in VibeCody |
-| gemini-3.6-flash | 1M+ | ✅ | ✅ | ✅ | Newest flash tier |
+| gemini-3.6-flash | 1M+ | ✅ | ✅ | ✅ | Newest flash tier — **default in VibeCody** |
 | gemini-3.5-flash | 1M+ | ✅ | ✅ | ⚠️ | Cheap workhorse |
 | gemini-3.5-flash-lite | 1M+ | ✅ | ❌ | ❌ | Cheapest tier |
 | gemini-3.1-pro | 1M+ | ✅ | ✅ | ✅ | Previous flagship |
@@ -171,7 +172,7 @@ Long context is the headline (1M+ on Pro). The Gemini 3 generation (released Q1 
 | gemini-2.5-pro | 1M | ✅ | ✅ | ✅ | Previous-gen long-context flagship |
 | gemini-2.5-flash | 1M | ✅ | ✅ | ⚠️ | Previous-gen cheap workhorse |
 
-**gemini-3.5-pro** — Google's current flagship. Strongest model in the picker for genuine 1M+ token comprehension (not just acceptance), with native multimodal handling and adaptive reasoning. Tool calling caught up to Claude/GPT-5 with the 3.x line; argument-shape hallucinations on complex tools have largely cleared. Default in VibeCody for the Gemini provider.
+**gemini-3.6-flash** — the current default for the Gemini provider (shipped 2026-07-21). Google's workhorse tier: roughly 17% fewer output tokens than the model it replaced, with tools, vision, and reasoning across a 1M+ window. Tool calling caught up to Claude/GPT-5 with the 3.x line; argument-shape hallucinations on complex tools have largely cleared. For the deepest long-context work, `gemini-3.1-pro` remains the strongest *shipped* Pro-tier option in the picker.
 
 **gemini-2.5-pro** — Still a strong long-context option at lower cost than 3.1 Pro. Use when you need depth on a long input but don't need the latest reasoning quality.
 

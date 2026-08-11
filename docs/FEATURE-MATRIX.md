@@ -11,16 +11,16 @@
 
 | Provider | VibeCLI | VibeCoder | Notes (models current as of 2026-07-30) |
 |---|:---:|:---:|---|
-| Anthropic Claude | ✅ | ✅ | Opus 5, Sonnet 5 (1M ctx), Opus 4.8, Fable 5 ᴬ |
+| Anthropic Claude | ✅ | ✅ | Opus 5, Sonnet 5 (1M ctx), Opus 4.8, Fable 5 |
 | Claude Code (subscription auth) | ✅ | ✅ | Uses an existing Claude Code seat instead of an API key |
-| OpenAI | ✅ | ✅ | GPT-5.6 Sol / Terra / Luna ᴬ, GPT-5.5, GPT-5.3-Codex |
-| Google Gemini | ✅ | ✅ | Gemini 3.6 Flash ᴬ, 3.5 Flash / Flash-Lite ᴬ, 3.1 Pro |
+| OpenAI | ✅ | ✅ | GPT-5.6 Sol / Terra / Luna, GPT-5.5, GPT-5.3-Codex |
+| Google Gemini | ✅ | ✅ | Gemini 3.6 Flash, 3.5 Flash / Flash-Lite, 3.1 Pro |
 | Ollama (local + Cloud/Turbo) | ✅ | ✅ | Any Ollama-served model, auto-detect; Cloud models (`*-cloud`) via bearer token |
 | mistral.rs (in-process local) | ✅ | ✅ | GGUF / quantised local inference — no server required |
 | AWS Bedrock | ✅ | ✅ | Claude, Titan, Llama via Bedrock API + SigV4 |
 | Azure OpenAI | ✅ | ✅ | Custom deployment endpoint |
 | Groq | ✅ | ✅ | Ultra-fast inference |
-| Grok (xAI) | ✅ | ✅ | Grok 4.5 — 500K ctx, $2/$6 ᴬ |
+| Grok (xAI) | ✅ | ✅ | Grok 4.5 — 500K ctx, $2/$6 |
 | Mistral AI | ✅ | ✅ | Codestral for code |
 | DeepSeek | ✅ | ✅ | V4 / V4-Flash (MIT open weights) |
 | Moonshot (Kimi) | ⚙️ | ⚙️ | K3 (2.8T MoE, 1M ctx) / K2.7-Code — via OpenRouter today; native provider pending ᴬ |
