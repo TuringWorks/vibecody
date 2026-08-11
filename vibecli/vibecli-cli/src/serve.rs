@@ -12268,6 +12268,51 @@ mod tests {
 
         // ── Auth: unauthenticated requests to protected routes → 401 ──
 
+        // ── /v1/ghost/complete ─────────────────────────────────────────
+        //
+        // Stops short of a real model call — that needs a configured provider
+        // a test machine cannot assume. What is tested is everything the
+        // handler decides *before* dispatching: auth and empty-window
+        // rejection.
+
+        #[tokio::test]
+        async fn ghost_complete_without_auth_returns_401() {
+            let (app, _tmp) = test_app("secret-token");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/v1/ghost/complete")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"file_path":"a.rs","language":"rust","prefix":"fn f() {","suffix":"}"}"#,
+                ))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(
+                resp.status(),
+                StatusCode::UNAUTHORIZED,
+                "ghost completion is not in the public route list"
+            );
+        }
+
+        #[tokio::test]
+        async fn ghost_complete_rejects_an_empty_window() {
+            // Both sides blank means there is no cursor context at all; that is
+            // a client bug, and answering it would bill a model call for a
+            // prompt with nothing in it.
+            let (app, _tmp) = test_app("secret-token");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/v1/ghost/complete")
+                .header("authorization", "Bearer secret-token")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"file_path":"a.rs","language":"rust","prefix":"  ","suffix":""}"#,
+                ))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        }
+
         // ── /voice/transcribe + /voice/status ──────────────────────────
         //
         // These stop short of running a real engine: transcription needs either

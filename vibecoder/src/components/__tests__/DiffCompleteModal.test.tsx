@@ -296,6 +296,7 @@ describe('DiffCompleteModal — flow', () => {
     selectionStartLine: 0,
     selectionEndLine: 0,
     provider: "mock",
+    model: "mock-model",
     onApply: vi.fn(),
   };
 
@@ -337,6 +338,11 @@ describe('DiffCompleteModal — flow', () => {
         language: "rust",
         instruction: "rename line 2",
         provider: "mock",
+        // The model must ride along with the provider. Without it the backend
+        // fell back to re-pointing the shared chat engine, which dropped the
+        // host's model choice and switched the whole chat session's provider
+        // as a side effect of a single ⌘. press.
+        model: "mock-model",
       }));
     });
 
@@ -717,6 +723,7 @@ describe('DiffCompleteModal — D1.2 autosave hooks', () => {
     selectionStartLine: 2,
     selectionEndLine: 2,
     provider: "mock",
+    model: "mock-model",
     onApply: vi.fn(),
   };
 

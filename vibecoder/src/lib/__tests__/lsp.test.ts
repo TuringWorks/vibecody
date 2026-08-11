@@ -23,6 +23,7 @@ import {
   parentDirectory,
   parseInstallHint,
   toLspPosition,
+  toLspCompletionContext,
   toMonacoCompletionItem,
   toMonacoCompletionKind,
   toMonacoCompletionList,
@@ -1542,5 +1543,63 @@ describe("createLspBridge", () => {
 
     expect(providers.completion).toHaveLength(1);
     warn.mockRestore();
+  });
+});
+
+// ── Path B: LSP completion trigger context ────────────────────────────────
+// Monaco numbers these from 0, LSP from 1. The request used to be hardcoded
+// to `{ triggerKind: 1 }`, so every completion claimed to be a manual invoke.
+describe("toLspCompletionContext", () => {
+  // Monaco's real numbering.
+  const KINDS = {
+    Invoke: 0,
+    TriggerCharacter: 1,
+    TriggerForIncompleteCompletions: 2,
+  };
+
+  it("maps a manual invoke to LSP Invoked (1)", () => {
+    expect(toLspCompletionContext({ triggerKind: KINDS.Invoke }, KINDS)).toEqual({
+      triggerKind: 1,
+    });
+  });
+
+  it("maps a trigger character to LSP TriggerCharacter (2) and forwards it", () => {
+    expect(
+      toLspCompletionContext(
+        { triggerKind: KINDS.TriggerCharacter, triggerCharacter: "." },
+        KINDS,
+      ),
+    ).toEqual({ triggerKind: 2, triggerCharacter: "." });
+  });
+
+  it("maps an incomplete-refilter to LSP TriggerForIncompleteCompletions (3)", () => {
+    expect(
+      toLspCompletionContext(
+        { triggerKind: KINDS.TriggerForIncompleteCompletions },
+        KINDS,
+      ),
+    ).toEqual({ triggerKind: 3 });
+  });
+
+  it("omits triggerCharacter entirely when Monaco did not supply one", () => {
+    const ctx = toLspCompletionContext(
+      { triggerKind: KINDS.TriggerCharacter },
+      KINDS,
+    );
+    expect(ctx).toEqual({ triggerKind: 2 });
+    expect("triggerCharacter" in ctx).toBe(false);
+  });
+
+  it("falls back to Invoked when Monaco passes no context at all", () => {
+    expect(toLspCompletionContext(undefined, KINDS)).toEqual({ triggerKind: 1 });
+  });
+
+  it("never emits LSP's out-of-range 0", () => {
+    // Monaco's Invoke is 0 and LSP has no 0 — a naive pass-through would send
+    // it and some servers reject the request outright.
+    for (const kind of Object.values(KINDS)) {
+      expect(toLspCompletionContext({ triggerKind: kind }, KINDS).triggerKind)
+        .toBeGreaterThan(0);
+    }
   });
 });
