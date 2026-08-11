@@ -95,4 +95,48 @@ describe("model registry integrity", () => {
     expect(everywhere).not.toContain("gemini-3.5-pro");
     expect(Object.values(PROVIDER_DEFAULT_MODEL)).not.toContain("gemini-3.5-pro");
   });
+
+  /**
+   * The mirror of the phantom-model case: ids that were real and have since
+   * been retired. Selecting one fails at request time with a provider error
+   * the user can do nothing about (Ollama Cloud answers 410 Gone). Each was
+   * confirmed dead on 2026-08-05 — by a live `POST /api/show` for the Ollama
+   * tags, and by the provider's own deprecation notice for the rest.
+   *
+   * A structural check cannot derive this list; it only shrinks when a
+   * provider retires something, so it is maintained by hand.
+   */
+  const RETIRED_MODEL_IDS = [
+    // Ollama Cloud — 410 Gone, with the retirement date in the error body
+    "glm-4.6:cloud",
+    "kimi-k2:1t-cloud",
+    "minimax-m2:cloud",
+    "deepseek-v3.1:671b-cloud",
+    // Anthropic — retired 2025-10-28 / 2026-01-05 / 2026-02-19
+    "claude-3-5-sonnet-20241022",
+    "claude-3-opus-20240229",
+    "claude-3-7-sonnet-20250219",
+    "anthropic.claude-3-5-sonnet-20241022-v2:0",
+    "anthropic/claude-3.5-sonnet",
+    // Groq — deprecated 2026-06-17; mixtral long gone
+    "mixtral-8x7b-32768",
+    // Never an API id — the shipped DeepSeek pair is v4-pro / v4-flash
+    "deepseek-v4",
+  ];
+
+  it("no provider offers a retired model id", () => {
+    const offenders = Object.entries(STATIC_MODELS).flatMap(([provider, models]) =>
+      models.filter((id) => RETIRED_MODEL_IDS.includes(id)).map((id) => `${provider}: ${id}`),
+    );
+
+    expect(offenders, `Retired ids still on offer: ${offenders.join(", ")}`).toEqual([]);
+  });
+
+  it("no provider default points at a retired model id", () => {
+    const offenders = Object.entries(PROVIDER_DEFAULT_MODEL)
+      .filter(([, id]) => RETIRED_MODEL_IDS.includes(id))
+      .map(([provider, id]) => `${provider}: ${id}`);
+
+    expect(offenders, `Defaults pointing at retired ids: ${offenders.join(", ")}`).toEqual([]);
+  });
 });
