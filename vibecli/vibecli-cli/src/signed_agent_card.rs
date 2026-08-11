@@ -159,7 +159,7 @@ fn sort_value(v: serde_json::Value) -> serde_json::Value {
 
 /// Encode a P-256 verifying key as a JWK per RFC 7517 + RFC 7518.
 pub fn jwk_from_verifying_key(vk: &VerifyingKey) -> PublicKeyJwk {
-    let point = vk.to_encoded_point(false);
+    let point = vk.to_sec1_point(false);
     let x = point.x().expect("P-256 point has x coordinate");
     let y = point.y().expect("P-256 point has y coordinate");
     let engine = base64::engine::general_purpose::URL_SAFE_NO_PAD;
@@ -220,7 +220,7 @@ mod tests {
         // `OsRng` actually implements the `CryptoRngCore` bound `ecdsa`
         // expects. Workspace `rand` is on a newer `rand_core` and
         // doesn't satisfy that bound directly.
-        SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng)
+        SigningKey::random(&mut rand::rngs::SysRng)
     }
 
     #[test]
@@ -294,7 +294,7 @@ mod tests {
         let jwk = jwk_from_verifying_key(vk);
         let recovered = verifying_key_from_jwk(&jwk).unwrap();
 
-        let original = vk.to_encoded_point(false);
+        let original = vk.to_sec1_point(false);
         let recovered_pt = recovered.to_encoded_point(false);
         assert_eq!(original.as_bytes(), recovered_pt.as_bytes());
     }

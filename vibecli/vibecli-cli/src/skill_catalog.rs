@@ -739,7 +739,7 @@ Just markdown body.
         let store = WorkspaceStore::open_with(&db, [11u8; 32]).unwrap();
 
         // Build + sign a plugin bundle that ships one skill.
-        let key = SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
+        let key = SigningKey::random(&mut rand::rngs::SysRng);
         let manifest = PluginManifest {
             name: "demo".into(),
             version: "1.0.0".into(),
@@ -829,7 +829,7 @@ Just markdown body.
         std::fs::create_dir_all(db.parent().unwrap()).unwrap();
         let store = WorkspaceStore::open_with(&db, [22u8; 32]).unwrap();
 
-        let key = SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
+        let key = SigningKey::random(&mut rand::rngs::SysRng);
         let manifest = PluginManifest {
             name: "muted".into(),
             version: "1.0.0".into(),
@@ -912,7 +912,7 @@ Just markdown body.
         std::fs::create_dir_all(db.parent().unwrap()).unwrap();
         let store = WorkspaceStore::open_with(&db, [33u8; 32]).unwrap();
 
-        let key = SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
+        let key = SigningKey::random(&mut rand::rngs::SysRng);
         let manifest = PluginManifest {
             name: "clash".into(),
             version: "1.0.0".into(),

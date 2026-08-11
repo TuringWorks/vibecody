@@ -136,7 +136,7 @@ fn sort_value(v: serde_json::Value) -> serde_json::Value {
 /// user can verify the digest matches what the publisher advertised.
 pub fn manifest_digest_hex(manifest: &PluginManifest) -> Result<String> {
     let canonical = canonical_manifest_json(manifest)?;
-    Ok(format!("{:x}", Sha256::digest(canonical.as_bytes())))
+    Ok(hex::encode(Sha256::digest(canonical.as_bytes())))
 }
 
 /// Sign a manifest with the publisher's private key.
@@ -166,7 +166,7 @@ pub fn sign_manifest(
         kid: kid.to_string(),
         algorithm: "ES256".to_string(),
         value,
-        manifest_digest: format!("{:x}", digest),
+        manifest_digest: hex::encode(digest),
     })
 }
 
@@ -193,7 +193,7 @@ pub fn verify_manifest_signature(
     let canonical = canonical_manifest_json(manifest)
         .map_err(|e| SignatureError::Verify(format!("canonical: {e}")))?;
     let digest = Sha256::digest(canonical.as_bytes());
-    let actual_digest_hex = format!("{:x}", digest);
+    let actual_digest_hex = hex::encode(digest);
     if sig.manifest_digest != actual_digest_hex {
         return Err(SignatureError::Verify(format!(
             "manifest digest mismatch: sig claims {} but actual is {}",
@@ -263,7 +263,7 @@ mod tests {
         // Same pattern as signed_agent_card tests — `p256` re-exports
         // the `rand_core::OsRng` that satisfies the bound `ecdsa`
         // expects (workspace `rand` is on a newer rand_core).
-        SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng)
+        SigningKey::random(&mut rand::rngs::SysRng)
     }
 
     fn fixture_manifest_with(key: &SigningKey) -> PluginManifest {

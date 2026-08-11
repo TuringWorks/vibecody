@@ -143,7 +143,7 @@ pub fn compute_manifest_digest(bundle_path: &Path) -> Result<String> {
     let mut bytes = Vec::with_capacity(entry.size() as usize);
     entry.read_to_end(&mut bytes).context("read manifest")?;
     let digest = Sha256::digest(&bytes);
-    Ok(format!("{:x}", digest))
+    Ok(hex::encode(digest))
 }
 
 /// List entries in a bundle without extracting.

@@ -654,7 +654,7 @@ impl AwsCredential {
 
 // ── AWS SigV4 ────────────────────────────────────────────────────────────────
 
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use sha2::{Digest, Sha256};
 
 fn sha256_hex(data: &[u8]) -> String {

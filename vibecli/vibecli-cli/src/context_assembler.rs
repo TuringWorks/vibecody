@@ -984,7 +984,7 @@ mod tests {
         fs::create_dir_all(src.join("rules")).unwrap();
         fs::write(src.join("rules/r.md"), rule_body).unwrap();
 
-        let key = SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
+        let key = SigningKey::random(&mut rand::rngs::SysRng);
         let manifest = crate::plugin_manifest::PluginManifest {
             name: name.to_string(),
             version: "1.0.0".into(),

@@ -291,7 +291,7 @@ mod tests {
     }
 
     fn fixture_key() -> SigningKey {
-        SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng)
+        SigningKey::random(&mut rand::rngs::SysRng)
     }
 
     /// Build a signed MCPB bundle with all five component kinds, one

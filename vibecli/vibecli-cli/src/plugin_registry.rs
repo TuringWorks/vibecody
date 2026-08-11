@@ -175,7 +175,7 @@ impl PluginRegistry {
     pub fn verify_checksum(archive_path: &Path, expected: &str) -> anyhow::Result<bool> {
         use sha2::{Digest, Sha256};
         let data = std::fs::read(archive_path)?;
-        let hash = format!("{:x}", Sha256::digest(&data));
+        let hash = hex::encode(Sha256::digest(&data));
         Ok(hash == expected)
     }
 

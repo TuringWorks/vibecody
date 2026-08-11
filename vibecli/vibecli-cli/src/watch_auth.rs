@@ -17,7 +17,7 @@
 
 use anyhow::{bail, Result};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD as B64, Engine};
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
@@ -906,7 +906,7 @@ mod tests {
         use p256::ecdsa::{signature::Signer, SigningKey};
 
         // Generate a real P256 keypair
-        let signing_key = SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
+        let signing_key = SigningKey::random(&mut rand::rngs::SysRng);
         let verifying_key = signing_key.verifying_key();
 
         // Swift uses: SHA256.hash(data: msg) → sign the hash directly.
@@ -934,7 +934,7 @@ mod tests {
     fn verify_p256_wrong_message_rejected() {
         use p256::ecdsa::{signature::Signer, SigningKey};
 
-        let signing_key = SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
+        let signing_key = SigningKey::random(&mut rand::rngs::SysRng);
         let verifying_key = signing_key.verifying_key();
 
         let msg = b"correct message";
@@ -954,8 +954,8 @@ mod tests {
     fn verify_p256_wrong_key_rejected() {
         use p256::ecdsa::{signature::Signer, SigningKey};
 
-        let signing_key = SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
-        let wrong_key = SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
+        let signing_key = SigningKey::random(&mut rand::rngs::SysRng);
+        let wrong_key = SigningKey::random(&mut rand::rngs::SysRng);
         let wrong_verifying = wrong_key.verifying_key();
 
         let msg = b"some message";
@@ -980,7 +980,7 @@ mod tests {
         let ch = mgr.issue_challenge().unwrap();
 
         // Simulate what Swift does: generate key, build message, sign
-        let signing_key = SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
+        let signing_key = SigningKey::random(&mut rand::rngs::SysRng);
         let verifying_key = signing_key.verifying_key();
         let device_id = "deadbeef12345678deadbeef12345678";
 

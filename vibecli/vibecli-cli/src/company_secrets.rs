@@ -16,7 +16,7 @@
 //! Secrets are versioned — every update creates a new version record.
 
 use anyhow::{anyhow, Context, Result};
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use rand::RngExt;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};

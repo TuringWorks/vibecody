@@ -1167,7 +1167,7 @@ mod tests {
         use p256::ecdsa::SigningKey;
         use tempfile::tempdir;
 
-        let key = SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
+        let key = SigningKey::random(&mut rand::rngs::SysRng);
         let manifest = PluginManifest {
             name: plugin_name.into(),
             version: "1.0.0".into(),

@@ -203,7 +203,7 @@ mod tests {
     // version than the top-level `rand` crate). Importing `rand::rngs::OsRng`
     // here fails to satisfy `CryptoRngCore`; this is the same pattern the
     // rest of the crate uses (see watch_auth.rs, signed_agent_card.rs).
-    use p256::elliptic_curve::rand_core::OsRng;
+    use rand::rngs::SysRng;
 
     fn keypair() -> (Vec<u8>, Vec<u8>) {
         let sk = SigningKey::random(&mut OsRng);
