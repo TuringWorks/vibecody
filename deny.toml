@@ -33,6 +33,13 @@ ignore = [
     # `[review-by YYYY-MM-DD]` form so triage scripts and humans can
     # grep for stale suppressions. Default cadence is quarterly.
     #
+    # THIS LIST IS AUTHORITATIVE, and it is mirrored. cargo-audit cannot read
+    # deny.toml, so the same ids (without reasons) live in .cargo/audit.toml,
+    # which both CI workflows now rely on instead of inline `--ignore` flags.
+    # Add or remove here first, mirror there in the same commit; the
+    # `Suppression lists agree` step in security.yml fails the build if the
+    # two id sets differ. Keep one id per line — that step is line-shaped.
+    #
     # Triage baseline 2026-05-20 (commit 7b82e68b → this commit): the
     # Security workflow had been failing at the cargo-deny install step
     # for ~6+ commits prior to 6ab99683, so the advisories below all

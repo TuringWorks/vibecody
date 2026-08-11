@@ -39,12 +39,29 @@ jobs:
       - name: Install cargo-audit
         run: cargo install cargo-audit --locked
 
-      - name: Generate Cargo.lock (gitignored)
-        run: cargo generate-lockfile
+      # DO NOT regenerate Cargo.lock. It is committed (the old step name
+      # called it gitignored; it is not, and has not been), and
+      # `cargo generate-lockfile` re-resolves every dependency to the newest
+      # semver-compatible release — so this gate passed against versions that
+      # were never built, while the lock the release actually compiles from
+      # kept its unpatched ones. That is exactly how quinn-proto 0.11.14
+      # (RUSTSEC-2026-0222 et al.) sat in the lock behind a green audit.
+      # security.yml stopped doing this; the release gate had not, which made
+      # the stricter of the two audits the one that meant less.
+      - name: Verify Cargo.lock is committed and current
+        run: |
+          test -f Cargo.lock || { echo "::error::Cargo.lock is missing — it must be committed"; exit 1; }
+          cargo metadata --locked --format-version 1 >/dev/null
 
-      # No `|| true`. Suppressions go in deny.toml [advisories.ignore].
+      # No `|| true`. Suppressions come from .cargo/audit.toml, which
+      # cargo-audit reads automatically from the repo root — this used to be
+      # a 29-flag `--ignore` list copy-pasted from security.yml, and the two
+      # drifted: v0.5.8 failed here on RUSTSEC-2026-0215 because this copy
+      # was the one missing it. deny.toml stays authoritative (it is the only
+      # schema with a reason per entry); security.yml fails if the two
+      # disagree.
       - name: Run cargo audit
-        run: cargo audit --deny warnings --ignore RUSTSEC-2017-0008 --ignore RUSTSEC-2023-0071 --ignore RUSTSEC-2024-0320 --ignore RUSTSEC-2024-0370 --ignore RUSTSEC-2024-0384 --ignore RUSTSEC-2024-0388 --ignore RUSTSEC-2024-0411 --ignore RUSTSEC-2024-0412 --ignore RUSTSEC-2024-0413 --ignore RUSTSEC-2024-0414 --ignore RUSTSEC-2024-0415 --ignore RUSTSEC-2024-0416 --ignore RUSTSEC-2024-0417 --ignore RUSTSEC-2024-0418 --ignore RUSTSEC-2024-0419 --ignore RUSTSEC-2024-0420 --ignore RUSTSEC-2024-0429 --ignore RUSTSEC-2024-0436 --ignore RUSTSEC-2025-0057 --ignore RUSTSEC-2025-0075 --ignore RUSTSEC-2025-0080 --ignore RUSTSEC-2025-0081 --ignore RUSTSEC-2025-0098 --ignore RUSTSEC-2025-0100 --ignore RUSTSEC-2025-0119 --ignore RUSTSEC-2025-0134 --ignore RUSTSEC-2025-0141 --ignore RUSTSEC-2026-0002 --ignore RUSTSEC-2026-0215
+        run: cargo audit --deny warnings
 
   # ─── Software Bill of Materials (SBOM, CycloneDX) ─────────────────────
   # Per-release attestation of the dependency tree across all three
@@ -65,8 +82,16 @@ jobs:
       - name: Install cargo-sbom
         run: cargo install cargo-sbom --locked
 
-      - name: Generate Cargo.lock (gitignored)
-        run: cargo generate-lockfile
+      # Same reason as the audit job, and it bites harder here: an SBOM is an
+      # attestation of what this release contains. Built from a regenerated
+      # lockfile it describes a dependency set that was resolved on the runner
+      # and never compiled into any artifact — so an auditor cross-referencing
+      # it against a future advisory would clear (or blame) versions the
+      # release never shipped.
+      - name: Verify Cargo.lock is committed and current
+        run: |
+          test -f Cargo.lock || { echo "::error::Cargo.lock is missing — it must be committed"; exit 1; }
+          cargo metadata --locked --format-version 1 >/dev/null
 
       - name: Rust SBOM
         run: cargo sbom --output-format cyclone_dx_json_1_4 > vibecody-rust.cdx.json
@@ -185,10 +210,19 @@ jobs:
         with:
           key: cli-${{ matrix.target }}
 
+      # `--locked` closes the loop the audit job opens: that job now verifies
+      # the committed Cargo.lock, and this one refuses to build against
+      # anything else. Without it cargo silently *updates* the lock when it
+      # cannot satisfy Cargo.toml, and the shipped binary quietly stops
+      # matching the dependency set that was audited and published as the
+      # SBOM. `cargo metadata --locked` already passes, so this fails only
+      # when the lock is genuinely stale — which is when a release should
+      # stop.
       - name: Build release binary
         run: >
           ${{ matrix.use_cross && 'cross' || 'cargo' }} build
           --release
+          --locked
           --package vibecli
           --target ${{ matrix.target }}
 
@@ -213,7 +247,7 @@ jobs:
         env:
           CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
           CERT_P12_PASSWORD: ${{ secrets.APPLE_CERT_P12_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}   # optional — generated when unset
         run: |
           set -euo pipefail
           if [ -z "${CERT_P12_BASE64:-}" ]; then
@@ -221,6 +255,7 @@ jobs:
             echo "signed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          KEYCHAIN_PASSWORD="${KEYCHAIN_PASSWORD:-$(openssl rand -base64 24)}"
           CERT_PATH="$RUNNER_TEMP/cli-cert.p12"
           KEYCHAIN_PATH="$RUNNER_TEMP/cli-signing.keychain-db"
           echo -n "$CERT_P12_BASE64" | base64 --decode -o "$CERT_PATH"
@@ -251,6 +286,41 @@ jobs:
             exit 1
           fi
           codesign -dv --verbose=4 "$BINARY" 2>&1 | grep '^Authority=' | head -1
+
+      # Signing is not enough on its own: Gatekeeper wants a notarization
+      # ticket too. A bare Mach-O binary cannot be *stapled* (stapling only
+      # works for .app/.dmg/.pkg), so the ticket lives on Apple's servers and
+      # is fetched on first run. Submitting still matters — without a ticket at
+      # all, a quarantined vibecli is refused outright.
+      #
+      # Notarization is submitted on the zip of the binary; the ticket is bound
+      # to the code signature (cdhash), so the copy inside the tar.gz below is
+      # the one that was notarized.
+      - name: Notarize binary (macOS)
+        if: runner.os == 'macOS' && steps.cli-apple-cert.outputs.signed == 'true'
+        env:
+          NOTARY_APPLE_ID: ${{ secrets.APPLE_ID }}
+          NOTARY_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          NOTARY_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NOTARY_APPLE_ID:-}" ] || [ -z "${NOTARY_PASSWORD:-}" ] || [ -z "${NOTARY_TEAM_ID:-}" ]; then
+            echo "::notice::Notarization credentials not set — vibecli is Developer ID signed but not notarized. Users on a quarantined download will need: xattr -d com.apple.quarantine vibecli"
+            exit 0
+          fi
+          BINARY="target/${{ matrix.target }}/release/${{ matrix.artifact }}"
+          ZIP="$RUNNER_TEMP/${{ matrix.artifact }}-notarize.zip"
+          # ditto, not zip: it preserves the signature and extended attributes
+          # that notarytool needs to see.
+          /usr/bin/ditto -c -k --keepParent "$BINARY" "$ZIP"
+          xcrun notarytool submit "$ZIP" \
+            --apple-id "$NOTARY_APPLE_ID" \
+            --password "$NOTARY_PASSWORD" \
+            --team-id "$NOTARY_TEAM_ID" \
+            --wait --timeout 30m
+          # `--wait` returns 0 for "Accepted" only; anything else is a failure
+          # we want loud rather than a tarball that claims to be notarized.
+          echo "notarized: $BINARY"
 
       - name: Package (Unix tar.gz)
         if: runner.os != 'Windows'
@@ -341,21 +411,28 @@ jobs:
       # When the secret is absent, this step is a no-op and the build falls back
       # to the ad-hoc signing identity ("-") declared in tauri.conf.json — that
       # avoids the macOS "is damaged" Gatekeeper error but still shows the
-      # "unidentified developer" first-launch warning (right-click → Open).
+      # an ad-hoc build, which macOS kills on launch while quarantined until
+      # the user runs `xattr -dr com.apple.quarantine` (see docs/release.md).
       - name: Import Apple Developer ID certificate (macOS)
         id: vibecoder-apple-cert
         if: runner.os == 'macOS'
         env:
           CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
           CERT_P12_PASSWORD: ${{ secrets.APPLE_CERT_P12_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}   # optional — generated when unset
         run: |
           set -euo pipefail
           if [ -z "${CERT_P12_BASE64:-}" ]; then
-            echo "::notice::APPLE_CERT_P12_BASE64 not set — building with ad-hoc signature (users will see 'unidentified developer' on first launch and need to right-click → Open)"
+            echo "::notice::APPLE_CERT_P12_BASE64 not set — building ad-hoc. macOS KILLS an ad-hoc hardened-runtime app while quarantined (exit 137, shows as 'is damaged'); right-click → Open does NOT reliably fix it. Users must run: xattr -dr com.apple.quarantine /Applications/<App>.app"
             echo "signed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          # The keychain is created, used, and discarded inside this job, so
+          # its password protects nothing that outlives the runner. Generating
+          # one when the secret is unset removes a required secret — and with
+          # it the silent failure where an empty password makes `security`
+          # behave differently than intended.
+          KEYCHAIN_PASSWORD="${KEYCHAIN_PASSWORD:-$(openssl rand -base64 24)}"
           CERT_PATH="$RUNNER_TEMP/cert.p12"
           KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
           echo -n "$CERT_P12_BASE64" | base64 --decode -o "$CERT_PATH"
@@ -404,6 +481,28 @@ jobs:
         # block above is POSIX shell. Without this, Windows runners parse it
         # as a .ps1 and fail with ParserError before tauri ever runs.
         shell: bash
+
+      # A signed build that silently fell back to ad-hoc is the exact failure
+      # that shipped v0.5.7 and v0.5.8: the job goes green, the artifact
+      # uploads, and macOS kills it on every user's machine. build-cli has
+      # guarded against this since it was written; the app bundles did not.
+      # Only meaningful when a certificate was actually imported — without one
+      # ad-hoc is the intended outcome, not a regression.
+      - name: Verify the bundle is not ad-hoc signed (macOS)
+        if: runner.os == 'macOS' && steps.vibecoder-apple-cert.outputs.signed == 'true'
+        run: |
+          set -euo pipefail
+          APP_DIR=$(find vibecoder/src-tauri/target -name "*.app" -type d 2>/dev/null | head -1)
+          if [ -z "$APP_DIR" ]; then
+            echo "::error::no .app bundle found to verify"; exit 1
+          fi
+          echo "verifying $APP_DIR"
+          codesign --verify --deep --strict --verbose=2 "$APP_DIR"
+          if codesign -dv --verbose=4 "$APP_DIR" 2>&1 | grep -q 'Signature=adhoc'; then
+            echo "::error::$APP_DIR is ad-hoc signed despite a certificate being imported — refusing to publish"
+            exit 1
+          fi
+          codesign -dv --verbose=2 "$APP_DIR" 2>&1 | grep -E 'Authority|TeamIdentifier' || true
 
       - name: Collect artifacts
         run: |
@@ -498,14 +597,20 @@ jobs:
         env:
           CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
           CERT_P12_PASSWORD: ${{ secrets.APPLE_CERT_P12_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}   # optional — generated when unset
         run: |
           set -euo pipefail
           if [ -z "${CERT_P12_BASE64:-}" ]; then
-            echo "::notice::APPLE_CERT_P12_BASE64 not set — building with ad-hoc signature (users will see 'unidentified developer' on first launch and need to right-click → Open)"
+            echo "::notice::APPLE_CERT_P12_BASE64 not set — building ad-hoc. macOS KILLS an ad-hoc hardened-runtime app while quarantined (exit 137, shows as 'is damaged'); right-click → Open does NOT reliably fix it. Users must run: xattr -dr com.apple.quarantine /Applications/<App>.app"
             echo "signed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          # The keychain is created, used, and discarded inside this job, so
+          # its password protects nothing that outlives the runner. Generating
+          # one when the secret is unset removes a required secret — and with
+          # it the silent failure where an empty password makes `security`
+          # behave differently than intended.
+          KEYCHAIN_PASSWORD="${KEYCHAIN_PASSWORD:-$(openssl rand -base64 24)}"
           CERT_PATH="$RUNNER_TEMP/cert.p12"
           KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
           echo -n "$CERT_P12_BASE64" | base64 --decode -o "$CERT_PATH"
@@ -554,6 +659,28 @@ jobs:
         # block above is POSIX shell. Without this, Windows runners parse it
         # as a .ps1 and fail with ParserError before tauri ever runs.
         shell: bash
+
+      # A signed build that silently fell back to ad-hoc is the exact failure
+      # that shipped v0.5.7 and v0.5.8: the job goes green, the artifact
+      # uploads, and macOS kills it on every user's machine. build-cli has
+      # guarded against this since it was written; the app bundles did not.
+      # Only meaningful when a certificate was actually imported — without one
+      # ad-hoc is the intended outcome, not a regression.
+      - name: Verify the bundle is not ad-hoc signed (macOS)
+        if: runner.os == 'macOS' && steps.vibeaichat-apple-cert.outputs.signed == 'true'
+        run: |
+          set -euo pipefail
+          APP_DIR=$(find vibeaichat/src-tauri/target -name "*.app" -type d 2>/dev/null | head -1)
+          if [ -z "$APP_DIR" ]; then
+            echo "::error::no .app bundle found to verify"; exit 1
+          fi
+          echo "verifying $APP_DIR"
+          codesign --verify --deep --strict --verbose=2 "$APP_DIR"
+          if codesign -dv --verbose=4 "$APP_DIR" 2>&1 | grep -q 'Signature=adhoc'; then
+            echo "::error::$APP_DIR is ad-hoc signed despite a certificate being imported — refusing to publish"
+            exit 1
+          fi
+          codesign -dv --verbose=2 "$APP_DIR" 2>&1 | grep -E 'Authority|TeamIdentifier' || true
 
       - name: Collect artifacts
         run: |
@@ -649,14 +776,20 @@ jobs:
         env:
           CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
           CERT_P12_PASSWORD: ${{ secrets.APPLE_CERT_P12_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}   # optional — generated when unset
         run: |
           set -euo pipefail
           if [ -z "${CERT_P12_BASE64:-}" ]; then
-            echo "::notice::APPLE_CERT_P12_BASE64 not set — building with ad-hoc signature (users will see 'unidentified developer' on first launch and need to right-click → Open)"
+            echo "::notice::APPLE_CERT_P12_BASE64 not set — building ad-hoc. macOS KILLS an ad-hoc hardened-runtime app while quarantined (exit 137, shows as 'is damaged'); right-click → Open does NOT reliably fix it. Users must run: xattr -dr com.apple.quarantine /Applications/<App>.app"
             echo "signed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          # The keychain is created, used, and discarded inside this job, so
+          # its password protects nothing that outlives the runner. Generating
+          # one when the secret is unset removes a required secret — and with
+          # it the silent failure where an empty password makes `security`
+          # behave differently than intended.
+          KEYCHAIN_PASSWORD="${KEYCHAIN_PASSWORD:-$(openssl rand -base64 24)}"
           CERT_PATH="$RUNNER_TEMP/cert.p12"
           KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
           echo -n "$CERT_P12_BASE64" | base64 --decode -o "$CERT_PATH"
@@ -708,6 +841,28 @@ jobs:
         # block above is POSIX shell. Without this, Windows runners parse it
         # as a .ps1 and fail with ParserError before tauri ever runs.
         shell: bash
+
+      # A signed build that silently fell back to ad-hoc is the exact failure
+      # that shipped v0.5.7 and v0.5.8: the job goes green, the artifact
+      # uploads, and macOS kills it on every user's machine. build-cli has
+      # guarded against this since it was written; the app bundles did not.
+      # Only meaningful when a certificate was actually imported — without one
+      # ad-hoc is the intended outcome, not a regression.
+      - name: Verify the bundle is not ad-hoc signed (macOS)
+        if: runner.os == 'macOS' && steps.vibedesk-apple-cert.outputs.signed == 'true'
+        run: |
+          set -euo pipefail
+          APP_DIR=$(find vibedesk/src-tauri/target -name "*.app" -type d 2>/dev/null | head -1)
+          if [ -z "$APP_DIR" ]; then
+            echo "::error::no .app bundle found to verify"; exit 1
+          fi
+          echo "verifying $APP_DIR"
+          codesign --verify --deep --strict --verbose=2 "$APP_DIR"
+          if codesign -dv --verbose=4 "$APP_DIR" 2>&1 | grep -q 'Signature=adhoc'; then
+            echo "::error::$APP_DIR is ad-hoc signed despite a certificate being imported — refusing to publish"
+            exit 1
+          fi
+          codesign -dv --verbose=2 "$APP_DIR" 2>&1 | grep -E 'Authority|TeamIdentifier' || true
 
       - name: Collect artifacts
         run: |
@@ -808,18 +963,121 @@ jobs:
         working-directory: vibemobile/ios
         run: pod install --repo-update || true
 
+      # Signed iOS builds need an Apple Distribution certificate and a
+      # provisioning profile. Both absent is the normal open-source case, and
+      # the unsigned .ipa (sideloadable via AltStore/Sideloadly) still ships —
+      # so this gates rather than fails.
+      - name: Check iOS signing credentials
+        id: ios-secrets
+        env:
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          DIST_CERT: ${{ secrets.APPLE_DIST_CERT_P12_BASE64 }}
+          IOS_PROFILE: ${{ secrets.APPLE_IOS_PROFILE_BASE64 }}
+        run: |
+          set -euo pipefail
+          MISSING=""
+          [ -n "${TEAM_ID:-}"     ] || MISSING="$MISSING APPLE_TEAM_ID"
+          [ -n "${DIST_CERT:-}"   ] || MISSING="$MISSING APPLE_DIST_CERT_P12_BASE64"
+          [ -n "${IOS_PROFILE:-}" ] || MISSING="$MISSING APPLE_IOS_PROFILE_BASE64"
+          if [ -n "$MISSING" ]; then
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Building an UNSIGNED iOS .ipa — missing secret(s):$MISSING"
+          else
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Import Apple Distribution certificate (iOS)
+        if: steps.ios-secrets.outputs.signed == 'true'
+        env:
+          CERT_P12_BASE64: ${{ secrets.APPLE_DIST_CERT_P12_BASE64 }}
+          CERT_P12_PASSWORD: ${{ secrets.APPLE_DIST_CERT_P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}   # optional
+        run: |
+          set -euo pipefail
+          KEYCHAIN_PASSWORD="${KEYCHAIN_PASSWORD:-$(openssl rand -base64 24)}"
+          CERT_PATH="$RUNNER_TEMP/ios-cert.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/ios-signing.keychain-db"
+          echo -n "$CERT_P12_BASE64" | base64 --decode -o "$CERT_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$CERT_P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" >/dev/null
+          security list-keychain -d user -s "$KEYCHAIN_PATH" $(security list-keychain -d user | tr -d '"')
+
+      - name: Install iOS provisioning profile
+        if: steps.ios-secrets.outputs.signed == 'true'
+        env:
+          PROFILE_BASE64: ${{ secrets.APPLE_IOS_PROFILE_BASE64 }}
+        run: |
+          set -euo pipefail
+          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILE_DIR"
+          PROFILE_PATH="$PROFILE_DIR/VibeCodyMobile.mobileprovision"
+          echo -n "$PROFILE_BASE64" | base64 --decode -o "$PROFILE_PATH"
+          PLIST=$(security cms -D -i "$PROFILE_PATH")
+          UUID=$(printf '%s' "$PLIST" | plutil -extract UUID raw -)
+          NAME=$(printf '%s' "$PLIST" | plutil -extract Name raw -)
+          echo "IOS_PROFILE_UUID=$UUID" >> "$GITHUB_ENV"
+          echo "IOS_PROFILE_NAME=$NAME" >> "$GITHUB_ENV"
+          echo "installed profile '$NAME' ($UUID)"
+
+      - name: Build iOS (signed)
+        if: steps.ios-secrets.outputs.signed == 'true'
+        working-directory: vibemobile
+        env:
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/iosExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>${{ vars.IOS_EXPORT_METHOD || 'ad-hoc' }}</string>
+            <key>teamID</key><string>${TEAM_ID}</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>dev.vibecody.vibecodyMobile</key><string>${IOS_PROFILE_NAME}</string>
+            </dict>
+            <key>stripSwiftSymbols</key><true/>
+          </dict>
+          </plist>
+          EOF
+          flutter build ipa --release --no-tree-shake-icons \
+            --export-options-plist="$RUNNER_TEMP/iosExportOptions.plist"
+
       - name: Build iOS (no codesign — archive for distribution)
+        if: steps.ios-secrets.outputs.signed != 'true'
         working-directory: vibemobile
         run: |
           flutter build ios --release --no-codesign --no-tree-shake-icons
 
-      - name: Create unsigned IPA
+      - name: Package IPA
         run: |
+          set -euo pipefail
           TAG="${{ github.event.inputs.tag || github.ref_name }}"
-          mkdir -p dist Payload
-          cp -r vibemobile/build/ios/iphoneos/Runner.app Payload/
-          cd Payload && zip -r "../dist/VibeCody-Mobile-${TAG}-ios.ipa" Runner.app
-          cd .. && rm -rf Payload
+          mkdir -p dist
+          if [ "${{ steps.ios-secrets.outputs.signed }}" = "true" ]; then
+            IPA=$(ls vibemobile/build/ios/ipa/*.ipa 2>/dev/null | head -1)
+            [ -n "$IPA" ] || { echo "::error::signed build produced no .ipa"; exit 1; }
+            cp "$IPA" "dist/VibeCody-Mobile-${TAG}-ios.ipa"
+            # Verify rather than trust: an .ipa that silently came out unsigned
+            # is worse than one labelled unsigned.
+            unzip -q -o "dist/VibeCody-Mobile-${TAG}-ios.ipa" -d "$RUNNER_TEMP/ipacheck"
+            APP=$(ls -d "$RUNNER_TEMP/ipacheck/Payload/"*.app | head -1)
+            codesign -dv --verbose=2 "$APP" 2>&1 | grep -E 'Authority|TeamIdentifier' || true
+            if codesign -dv --verbose=4 "$APP" 2>&1 | grep -q 'Signature=adhoc'; then
+              echo "::error::iOS app is ad-hoc signed despite a certificate being imported"
+              exit 1
+            fi
+          else
+            mkdir -p Payload
+            cp -r vibemobile/build/ios/iphoneos/Runner.app Payload/
+            zip -qr "dist/VibeCody-Mobile-${TAG}-ios.ipa" Payload
+            rm -rf Payload
+          fi
           ls -lh dist/
 
       - name: Upload iOS artifact
@@ -951,16 +1209,37 @@ jobs:
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       EXPORT_METHOD: ${{ vars.WATCHOS_EXPORT_METHOD || 'app-store-connect' }}
     steps:
+      # Gate on every secret this job actually needs, not just the team ID.
+      # APPLE_TEAM_ID is shared with the desktop signing jobs, so checking it
+      # alone meant that configuring desktop signing silently armed this job
+      # too — it would then run and die at the provisioning-profile step on an
+      # empty secret. A red job on every release for a capability nobody asked
+      # for is worse than skipping.
+      #
+      # (The `if:` that used to sit on this step referenced this step's own
+      # output, which cannot exist yet. It always evaluated true — harmless
+      # here, but it was not doing what it looked like it was doing.)
       - name: Check Apple signing credentials
-        if: steps.apple-secrets.outputs.skip != 'true'
         id: apple-secrets
-        run: |
-          if [ -z "$APPLE_TEAM_ID" ]; then
-            echo "skip=true" >> $GITHUB_OUTPUT
-            echo "::notice::No APPLE_TEAM_ID secret — skipping watchOS signed build"
-          fi
         env:
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          CERT_P12: ${{ secrets.APPLE_DIST_CERT_P12_BASE64 }}
+          PROFILE: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          set -euo pipefail
+          # Apple Distribution, not Developer ID: Developer ID signs macOS
+          # apps distributed outside the App Store and cannot sign a watchOS
+          # bundle at all.
+          MISSING=""
+          [ -n "${TEAM_ID:-}"  ] || MISSING="$MISSING APPLE_TEAM_ID"
+          [ -n "${CERT_P12:-}" ] || MISSING="$MISSING APPLE_DIST_CERT_P12_BASE64"
+          [ -n "${PROFILE:-}"  ] || MISSING="$MISSING APPLE_PROVISIONING_PROFILE_BASE64"
+          if [ -n "$MISSING" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping the signed watchOS build — missing secret(s):$MISSING. The unsigned watchOS artifact still builds in the 'Watch · watchOS' job."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         if: steps.apple-secrets.outputs.skip != 'true'
@@ -974,11 +1253,18 @@ jobs:
       - name: Import signing certificate into temp keychain
         if: steps.apple-secrets.outputs.skip != 'true'
         env:
-          CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
-          CERT_P12_PASSWORD: ${{ secrets.APPLE_CERT_P12_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
+          # Apple Distribution — see the gate step above.
+          CERT_P12_BASE64: ${{ secrets.APPLE_DIST_CERT_P12_BASE64 }}
+          CERT_P12_PASSWORD: ${{ secrets.APPLE_DIST_CERT_P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}   # optional — generated when unset
         run: |
           set -euo pipefail
+          # The keychain is created, used, and discarded inside this job, so
+          # its password protects nothing that outlives the runner. Generating
+          # one when the secret is unset removes a required secret — and with
+          # it the silent failure where an empty password makes `security`
+          # behave differently than intended.
+          KEYCHAIN_PASSWORD="${KEYCHAIN_PASSWORD:-$(openssl rand -base64 24)}"
           CERT_PATH="$RUNNER_TEMP/cert.p12"
           KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
           echo -n "$CERT_P12_BASE64" | base64 --decode -o "$CERT_PATH"
@@ -1049,6 +1335,10 @@ jobs:
           cp vibewatch/build/ipa/*.ipa "dist/VibeCody-WatchOS-${TAG}-signed.ipa"
           ls -lh dist/
 
+      # Publishing to TestFlight is a different capability from producing a
+      # signed IPA, and a different set of credentials. Gate it separately so a
+      # signed artifact does not require App Store Connect API keys — and so
+      # nothing is pushed to testers unless that was explicitly configured.
       - name: Upload to TestFlight
         if: steps.apple-secrets.outputs.skip != 'true'
         env:
@@ -1057,6 +1347,10 @@ jobs:
           ASC_KEY_BASE64: ${{ secrets.APPLE_ASC_KEY_BASE64 }}
         run: |
           set -euo pipefail
+          if [ -z "${ASC_KEY_BASE64:-}" ] || [ -z "${ASC_KEY_ID:-}" ] || [ -z "${ASC_ISSUER_ID:-}" ]; then
+            echo "::notice::App Store Connect API key not configured — signed IPA built and uploaded as a workflow artifact, but not sent to TestFlight."
+            exit 0
+          fi
           KEY_DIR="$HOME/.appstoreconnect/private_keys"
           mkdir -p "$KEY_DIR"
           echo -n "$ASC_KEY_BASE64" | base64 --decode -o "$KEY_DIR/AuthKey_${ASC_KEY_ID}.p8"

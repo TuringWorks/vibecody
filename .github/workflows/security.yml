@@ -61,44 +61,39 @@ jobs:
           test -f Cargo.lock || { echo "::error::Cargo.lock is missing — it must be committed"; exit 1; }
           cargo metadata --locked --format-version 1 >/dev/null
 
-      # No `|| true` — this MUST fail the build on any unpatched advisory.
-      # Suppressions live in deny.toml [advisories.ignore] (authoritative
-      # with reason + expiration); cargo-audit's own config is just a
-      # flat ID list, so we mirror them here as `--ignore` flags. Keep
-      # this list in sync with deny.toml whenever an advisory is added,
-      # removed, or expires — same triage event for both files.
-      - name: Run cargo audit
+      # deny.toml is authoritative — it is the only schema that carries a
+      # reason and a review-by date per entry. cargo-deny cannot read
+      # .cargo/audit.toml and cargo-audit cannot read deny.toml, so the id
+      # sets have to be mirrored; this step is what stops them drifting,
+      # which is how v0.5.8's release audit failed on an advisory that only
+      # security.yml's copy carried.
+      #
+      # Extracts bare quoted ids from audit.toml's `ignore = [...]` array and
+      # `id = "…"` fields from deny.toml's — deliberately line-shaped rather
+      # than a TOML parse, so the step needs no toolchain. Both files keep one
+      # id per line for exactly this reason; a reflowed array will fail here
+      # rather than silently check nothing.
+      - name: Suppression lists agree (.cargo/audit.toml ↔ deny.toml)
         run: |
-          cargo audit --deny warnings \
-            --ignore RUSTSEC-2017-0008 \
-            --ignore RUSTSEC-2023-0071 \
-            --ignore RUSTSEC-2024-0320 \
-            --ignore RUSTSEC-2024-0370 \
-            --ignore RUSTSEC-2024-0384 \
-            --ignore RUSTSEC-2024-0388 \
-            --ignore RUSTSEC-2024-0411 \
-            --ignore RUSTSEC-2024-0412 \
-            --ignore RUSTSEC-2024-0413 \
-            --ignore RUSTSEC-2024-0414 \
-            --ignore RUSTSEC-2024-0415 \
-            --ignore RUSTSEC-2024-0416 \
-            --ignore RUSTSEC-2024-0417 \
-            --ignore RUSTSEC-2024-0418 \
-            --ignore RUSTSEC-2024-0419 \
-            --ignore RUSTSEC-2024-0420 \
-            --ignore RUSTSEC-2024-0429 \
-            --ignore RUSTSEC-2024-0436 \
-            --ignore RUSTSEC-2025-0057 \
-            --ignore RUSTSEC-2025-0075 \
-            --ignore RUSTSEC-2025-0080 \
-            --ignore RUSTSEC-2025-0081 \
-            --ignore RUSTSEC-2025-0098 \
-            --ignore RUSTSEC-2025-0100 \
-            --ignore RUSTSEC-2025-0119 \
-            --ignore RUSTSEC-2025-0134 \
-            --ignore RUSTSEC-2025-0141 \
-            --ignore RUSTSEC-2026-0002 \
-            --ignore RUSTSEC-2026-0215
+          set -euo pipefail
+          grep -oE '^\s*"RUSTSEC-[0-9]{4}-[0-9]{4}"' .cargo/audit.toml \
+            | grep -oE 'RUSTSEC-[0-9]{4}-[0-9]{4}' | sort -u > /tmp/audit-ids
+          grep -oE 'id = "RUSTSEC-[0-9]{4}-[0-9]{4}"' deny.toml \
+            | grep -oE 'RUSTSEC-[0-9]{4}-[0-9]{4}' | sort -u > /tmp/deny-ids
+          # An empty extraction means the format changed, not that the lists agree.
+          test -s /tmp/audit-ids || { echo "::error::extracted no ids from .cargo/audit.toml"; exit 1; }
+          test -s /tmp/deny-ids  || { echo "::error::extracted no ids from deny.toml"; exit 1; }
+          if ! diff -u /tmp/deny-ids /tmp/audit-ids; then
+            echo "::error::.cargo/audit.toml and deny.toml suppression lists disagree (- deny.toml, + audit.toml). Edit deny.toml first, then mirror the id into .cargo/audit.toml."
+            exit 1
+          fi
+          echo "suppression lists agree ($(wc -l < /tmp/deny-ids) advisories)"
+
+      # No `|| true` — this MUST fail the build on any unpatched advisory.
+      # Suppressions come from .cargo/audit.toml, which cargo-audit reads
+      # automatically from the repo root; the step above pins it to deny.toml.
+      - name: Run cargo audit
+        run: cargo audit --deny warnings
 
   # ─── Rust policy (licenses, sources, banned crates, duplicates) ────────────
   cargo-deny:

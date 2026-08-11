@@ -134,6 +134,7 @@ pub static COMMANDS: &[&str] = &[
     "/connect",
     "/analytics",
     "/trust",
+    "/trustdir",
     "/replay",
     "/speculate",
     "/explain",
@@ -166,6 +167,10 @@ static TEAM_SUBS: &[&str] = &["create", "status", "messages", "show", "knowledge
 
 /// Sub-commands for `/trace <sub>`
 static TRACE_SUBS: &[&str] = &["view"];
+
+/// Sub-commands for `/trustdir <sub>` — workspace trust (E4). Distinct from
+/// `/trust`, which scores *agents*; this one governs *directories*.
+static TRUSTDIR_SUBS: &[&str] = &["allow", "deny", "reset"];
 
 /// Sub-commands for `/mcp <sub>`
 static MCP_SUBS: &[&str] = &["list", "tools"];
@@ -641,6 +646,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/connect" => Some("[list|add|test|remove|webhook]  — native integration connectors"),
         "/analytics" => Some("[dashboard|export|roi|compare]  — enterprise agent analytics"),
         "/trust" => Some("[scores|history|config|explain]  — agent trust scoring"),
+        "/trustdir" => Some("[allow|deny|reset]  — workspace trust: permit or refuse agent runs rooted in this directory"),
         "/smartdeps" => Some("[resolve|compare|patch|audit|graph]  — agentic package manager"),
         "/rlcef" => Some("[train|eval|mistakes|patterns|reset|export]  — RLCEF training loop"),
         "/langgraph" => Some("[serve|connect|status|checkpoint]  — LangGraph pipeline bridge"),
@@ -777,6 +783,7 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 "/connect" => Some(CONNECT_SUBS),
                 "/analytics" => Some(ANALYTICS_SUBS),
                 "/trust" => Some(TRUST_SUBS),
+                "/trustdir" => Some(TRUSTDIR_SUBS),
                 "/smartdeps" => Some(SMARTDEPS_SUBS),
                 "/rlcef" => Some(RLCEF_SUBS),
                 "/langgraph" => Some(LANGGRAPH_SUBS),

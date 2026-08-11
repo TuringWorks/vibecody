@@ -147,7 +147,7 @@
 | `.vibecoder.md` workspace rules | ❌ | ✅ | Injected into every AI prompt |
 | Semantic index (fast search) | ✅ | ✅ | Trigram + LRU cache |
 | Code Graph (kodegraph) | ✅ | ✅ | tree-sitter → SQLite graph at `.vibecli/codegraph.db`; god-node/community summary replaces the dir-tree repo map in the agent system prompt; TUI seeds `## Relevant Symbols` via blast-radius. Background build on daemon startup; `/graph/*` + `/watch/graph/*` routes; `/semindex` CLI (`build/query/node/callers/callees/hierarchy/stats`) |
-| SkillForge (skill optimisation) | ✅ | ✅ | `skilllensai-rs` (analyse: trajectory → extract → score) + `skilloptai-rs` (train: rollout → bounded edit → strict held-out gate → epoch) wired through one daemon bridge `skillforge_index.rs`; `/v1/skilllens/*` + `/v1/skillopt/*` + `/watch/skilllens/*` routes; VibeCoder `SkillForgePanel` (Catalog / Lens / Optimize) in `AiMlComposite`; full surface in VS Code + Agent SDK, read-only catalog/status on Flutter + Watch + Wear. Provider-agnostic (toolbar `selectedProvider`/`selectedModel`); promote writes `*.opt.md` (shipped 711 skills untouched) |
+| SkillForge (skill optimisation) | ✅ | ✅ | `skilllensai-rs` (analyse: trajectory → extract → score) + `skilloptai-rs` (train: rollout → bounded edit → strict held-out gate → epoch) wired through one daemon bridge `skillforge_index.rs`; `/v1/skilllens/*` + `/v1/skillopt/*` + `/watch/skilllens/*` routes; VibeCoder `SkillForgePanel` (Catalog / Lens / Optimize) in `AiMlComposite`; full surface in VS Code + Agent SDK, read-only catalog/status on Flutter + Watch + Wear. Provider-agnostic (toolbar `selectedProvider`/`selectedModel`); promote writes `*.opt.md` (shipped 1,143 skills untouched) |
 | Hierarchical project memory | ✅ | ✅ | system → user → project → dir |
 | Session memory (auto-extracted) | ✅ | ✅ | Facts from assistant messages |
 | Pinned memory in system prompt | ❌ | ✅ | ChatMemoryPanel |
@@ -166,6 +166,14 @@
 | Mermaid diagram generation | ✅ | ✅ | |
 | PR summary generation | ✅ | ⚙️ | |
 | Post review to GitHub PR | ✅ | ❌ | `--post-github` |
+| **BugBot diff review** | ✅ | ❌ | `--bugbot` · static OWASP/CWE scan + LLM pass · exits 1 on error-severity |
+| BugBot on staged index | ✅ | ❌ | `--bugbot --staged` |
+| Full-diff coverage + reported caveats | ✅ | n/a | Per-file batching; skipped/truncated files are named, never silently dropped |
+| Multi-pass review (rotated file order) | ✅ | n/a | `--passes N` · deterministic rotation · findings deduped across passes |
+| **Committable fix suggestions** | ✅ | ❌ | `--propose-fixes` → GitHub ```` ```suggestion ```` blocks; anchors verified against the diff post-image, fixes **not** compiled or tested |
+| Apply proposed fixes locally | ✅ | ❌ | `--apply-fixes`; skips any file that moved since the diff |
+| GitHub App PR review (webhook) | ✅ | n/a | `POST /webhook/github` · inline comments + `vibecody/review` status · **webhook secret required** — unsigned requests are rejected |
+| GitHub App auto-fix suggestions | ✅ | n/a | `[github_app] auto_fix = true` · attaches suggestions, never pushes a commit |
 | Architecture spec (TOGAF, C4, ADR) | ✅ | ✅ | |
 | Dependency analysis | ✅ | ✅ | |
 | Self-review mode | ✅ | ✅ | |
@@ -522,6 +530,7 @@ exactly which of these is present.
 | **Automation** | `/recipe`, `/workflow`, `/schedule`, `/remind`, `/notebook` |
 | **Teams** | `/team`, `/agents`, `/a2a`, `/host`, `/dispatch` |
 | **Security** | `/redteam`, `/blueteam`, `/purpleteam`, `/vulnscan`, `/compliance` |
+| **Review** | `--bugbot` (diff review + committable fixes — see [BugBot](bugbot.md)), `--review`, `/review` |
 | **Infra** | `/sandbox`, `/docker`, `/container`, `/cloud`, `/vm` |
 | **Integrations** | `/linear`, `/mcp`, `/skills`, `/connect` |
 | **Advanced** | `/arena`, `/profiler`, `/bisect`, `/repair`, `/loop`, `/goal`, `/voice` |

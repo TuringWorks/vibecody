@@ -22,10 +22,15 @@
 //! and query it. Reload is just constructing a new `SkillCatalog`; this
 //! module does not cache or watch the filesystem.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, OnceLock, RwLock};
+use std::time::SystemTime;
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
+
+use crate::sync_ext::RwLockRecover;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SkillFrontmatter {
@@ -229,6 +234,128 @@ impl SkillCatalog {
         cs.dedup();
         cs
     }
+}
+
+// ── Cached built-in catalogue ────────────────────────────────────────────────
+//
+// `list_skills` / `get_skill` used to call `load_from_with_cwd_plugins` on
+// every MCP invocation: 1,143 file reads, ~990 YAML parses, and a
+// `WorkspaceStore::open` per call, to answer one question. The catalogue
+// changes about as often as a skill file is edited, so it is cached and
+// revalidated with a cheap directory fingerprint instead.
+
+/// Freshness fingerprint for a skills directory: how many `*.md` files it
+/// holds, their combined size, and the newest mtime among them.
+///
+/// One `stat` per entry — measured ~7 ms over 1,143 files, against ~60 ms+
+/// to re-read and re-parse them. The directory's own mtime would be a
+/// single `stat`, but it only moves when a file is added or removed, so an
+/// edited skill body would silently serve the stale copy — the exact
+/// failure mode this catalogue has already shipped once.
+///
+/// Size is carried alongside mtime so an edit that changes a file's length
+/// is caught even where the filesystem's mtime resolution is coarse.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct DirFingerprint {
+    count: usize,
+    bytes: u64,
+    newest: Option<SystemTime>,
+}
+
+fn fingerprint_dir(dir: &Path) -> Result<DirFingerprint> {
+    let entries =
+        std::fs::read_dir(dir).with_context(|| format!("read_dir {}", dir.display()))?;
+    let (count, bytes, newest) = entries
+        .flatten()
+        .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("md"))
+        .fold((0usize, 0u64, None), |(n, total, newest), e| {
+            let meta = e.metadata().ok();
+            let len = meta.as_ref().map(|m| m.len()).unwrap_or(0);
+            let mtime = meta.and_then(|m| m.modified().ok());
+            (n + 1, total + len, newest.max(mtime))
+        });
+    Ok(DirFingerprint {
+        count,
+        bytes,
+        newest,
+    })
+}
+
+type BuiltinCache = HashMap<PathBuf, (DirFingerprint, Arc<SkillCatalog>)>;
+
+static BUILTIN_CACHE: OnceLock<RwLock<BuiltinCache>> = OnceLock::new();
+
+fn builtin_cache() -> &'static RwLock<BuiltinCache> {
+    BUILTIN_CACHE.get_or_init(|| RwLock::new(HashMap::new()))
+}
+
+/// Load the built-in catalogue for `dir`, reusing the cached copy while the
+/// directory's fingerprint is unchanged. Keyed by directory so a test
+/// pointing `VIBECLI_SKILLS_DIR` at a tempdir never sees another's entry.
+pub fn load_builtin_cached(dir: &Path) -> Result<Arc<SkillCatalog>> {
+    let fingerprint = fingerprint_dir(dir)?;
+
+    if let Some((cached_fp, cat)) = builtin_cache().read_recover().get(dir) {
+        if *cached_fp == fingerprint {
+            return Ok(Arc::clone(cat));
+        }
+    }
+
+    let cat = Arc::new(SkillCatalog::load_from(dir)?);
+    builtin_cache()
+        .write_recover()
+        .insert(dir.to_path_buf(), (fingerprint, Arc::clone(&cat)));
+    Ok(cat)
+}
+
+/// Cached counterpart of [`SkillCatalog::load_from_with_cwd_plugins`] for
+/// call sites that only read the result.
+///
+/// Plugin contributions are *not* cached — they are a handful of files and
+/// their enablement can change at any time, so they are recomposed per
+/// call while the expensive built-in load is shared. When no plugin
+/// contributes a skill (the common case) the shared catalogue is returned
+/// as-is, with no copy of its ~5.8 MB of bodies.
+pub fn load_with_cwd_plugins_cached(builtin_dir: &Path) -> Result<Arc<SkillCatalog>> {
+    let base = load_builtin_cached(builtin_dir)?;
+
+    let Ok(workspace) = std::env::current_dir() else {
+        return Ok(base);
+    };
+    // Gate on the store already existing: `WorkspaceStore::open` creates
+    // the database, and this runs in whatever directory an MCP host
+    // happens to launch in — no workspace means no plugins anyway.
+    if !workspace.join(".vibecli").join("workspace.db").exists() {
+        return Ok(base);
+    }
+    let Ok(store) = crate::workspace_store::WorkspaceStore::open(&workspace) else {
+        return Ok(base);
+    };
+    let Ok(plugin_skills) = crate::plugin_runtime::enabled_skills(&workspace, &store) else {
+        return Ok(base);
+    };
+    if plugin_skills.is_empty() {
+        return Ok(base);
+    }
+
+    let mut cat = (*base).clone();
+    let existing: std::collections::HashSet<String> =
+        cat.skills.iter().map(|s| s.name.clone()).collect();
+    for c in plugin_skills {
+        if existing.contains(&c.spec.name) {
+            continue;
+        }
+        if let Ok(mut s) = parse_skill_file(&c.absolute_path) {
+            s.name = c.spec.name.clone();
+            if s.frontmatter.category.is_none() {
+                s.frontmatter.category = c.spec.category.clone();
+            }
+            s.source = SkillSource::Plugin(c.plugin_name.clone());
+            cat.skills.push(s);
+        }
+    }
+    cat.skills.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(Arc::new(cat))
 }
 
 fn skill_matches_query(s: &Skill, q_lower: &str) -> bool {
@@ -498,6 +625,85 @@ Just markdown body.
         let cat = SkillCatalog::load_from(dir.path()).unwrap();
         let cats = cat.categories();
         assert_eq!(cats, vec!["agent".to_string(), "design".to_string()]);
+    }
+
+    // ── cached built-in catalogue ────────────────────────────────────────────
+
+    #[test]
+    fn cached_load_returns_the_same_allocation_on_a_second_call() {
+        let dir = tempdir().unwrap();
+        write_skill(dir.path(), "design-cad", SAMPLE_DESIGN);
+
+        let a = load_builtin_cached(dir.path()).unwrap();
+        let b = load_builtin_cached(dir.path()).unwrap();
+        assert!(
+            Arc::ptr_eq(&a, &b),
+            "second call must reuse the cached catalogue, not re-read the directory"
+        );
+    }
+
+    /// The property that makes the cache safe to ship: authoring a skill
+    /// in-tree still takes effect. A directory-mtime-only fingerprint would
+    /// pass the "added a file" test below and silently fail this one.
+    #[test]
+    fn cache_is_invalidated_when_a_skill_body_changes() {
+        let dir = tempdir().unwrap();
+        let p = write_skill(dir.path(), "agent-loops", SAMPLE_AGENT);
+        let first = load_builtin_cached(dir.path()).unwrap();
+        assert!(first.get("agent-loops").unwrap().body.contains("Plan, act"));
+
+        // Deliberately a length-changing edit: that moves the `bytes` term
+        // of the fingerprint, so the test does not depend on the
+        // filesystem's mtime resolution to be meaningful.
+        fs::write(
+            &p,
+            SAMPLE_AGENT.replace("Plan, act, observe, repeat.", "Observe first, then act."),
+        )
+        .unwrap();
+
+        let second = load_builtin_cached(dir.path()).unwrap();
+        assert!(
+            second.get("agent-loops").unwrap().body.contains("Observe first"),
+            "an edited skill body must invalidate the cache"
+        );
+    }
+
+    #[test]
+    fn cache_is_invalidated_when_a_skill_is_added() {
+        let dir = tempdir().unwrap();
+        write_skill(dir.path(), "design-cad", SAMPLE_DESIGN);
+        assert_eq!(load_builtin_cached(dir.path()).unwrap().len(), 1);
+
+        write_skill(dir.path(), "agent-loops", SAMPLE_AGENT);
+        assert_eq!(
+            load_builtin_cached(dir.path()).unwrap().len(),
+            2,
+            "a new skill file must invalidate the cache"
+        );
+    }
+
+    /// Two directories must not share an entry — tests point
+    /// `VIBECLI_SKILLS_DIR` at their own tempdir.
+    #[test]
+    fn cache_is_keyed_by_directory() {
+        let a = tempdir().unwrap();
+        let b = tempdir().unwrap();
+        write_skill(a.path(), "design-cad", SAMPLE_DESIGN);
+        write_skill(b.path(), "agent-loops", SAMPLE_AGENT);
+
+        assert!(load_builtin_cached(a.path()).unwrap().get("design-cad").is_some());
+        assert!(load_builtin_cached(b.path()).unwrap().get("design-cad").is_none());
+        assert!(load_builtin_cached(b.path()).unwrap().get("agent-loops").is_some());
+    }
+
+    #[test]
+    fn cached_load_reports_a_missing_directory_rather_than_an_empty_catalogue() {
+        let dir = tempdir().unwrap();
+        let missing = dir.path().join("nope");
+        assert!(
+            load_builtin_cached(&missing).is_err(),
+            "a missing directory is an error, not a legitimately empty catalogue"
+        );
     }
 
     // ── B2.7: plugin-sourced skills ──────────────────────────────────────────

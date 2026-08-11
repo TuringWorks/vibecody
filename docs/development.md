@@ -37,7 +37,7 @@ vibecody/
 │   ├── src/branch_agent.rs       # Agent-per-branch workflow
 │   ├── src/spec_pipeline.rs      # EARS spec-driven development
 │   ├── src/vm_orchestrator.rs    # Parallel VM agent orchestration
-│   └── skills/                   # 599 skill files
+│   └── skills/                   # 1,143 skill files
 ├── vibecoder/
 │   ├── src/                      # React + TypeScript frontend
 │   │   ├── App.tsx               # Root component, keyboard shortcuts

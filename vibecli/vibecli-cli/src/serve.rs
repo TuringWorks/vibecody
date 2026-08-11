@@ -326,6 +326,33 @@ fn resolve_run_root(requested: Option<&str>, default_root: &std::path::Path) -> 
         .unwrap_or_else(|| default_root.to_path_buf())
 }
 
+/// Path of the workspace-trust policy store, written by the `/trustdir` REPL
+/// command. `None` when there is no home directory to anchor it to.
+pub fn trust_store_path() -> Option<std::path::PathBuf> {
+    dirs::home_dir().map(|h| h.join(".vibecli").join("trust.json"))
+}
+
+/// True when the user has explicitly denied agent runs under `root` (E4).
+///
+/// `trust_resolution::TrustResolver` shipped in the claw-code parity wave and
+/// had no caller until 2026-08-10; this is its enforcement point. Every agent
+/// run resolves its directory through `resolve_run_root`, so gating here covers
+/// the run path once instead of per-handler.
+///
+/// **Deny-only, deliberately.** The resolver's `default_policy` is
+/// `RequireApproval`, so honouring the full policy would make every existing
+/// workspace start prompting the moment this shipped — a Zero-Config First
+/// break for a store no user has yet. Only an explicit entry in `denied_paths`
+/// (or a parent of one) blocks a run; a missing, unreadable, or malformed store
+/// denies nothing. Absent stays absent.
+fn workspace_denied(root: &std::path::Path) -> bool {
+    use crate::trust_resolution::{TrustPolicy, TrustResolver};
+    trust_store_path()
+        .filter(|p| p.exists())
+        .and_then(|p| TrustResolver::load(&p).ok())
+        .is_some_and(|r| r.resolve(&root.to_string_lossy()) == TrustPolicy::Deny)
+}
+
 /// Map a VibeDesk reasoning-effort label to an extended-thinking token budget.
 /// `None` (or unknown) → no explicit budget (provider default). Mirrors the
 /// tiers in `reasoning_provider::token_budget_for_complexity`.
@@ -799,6 +826,26 @@ fn memory_health_block() -> serde_json::Value {
         "drawer_count": store.drawer_store().len(),
         "encryption_enabled": store.encryption_enabled(),
     })
+}
+
+/// `GET /.well-known/mcp.json` — stateless MCP capability advertisement (A3).
+///
+/// Lets a host discover the daemon's tool catalogue without opening a live SSE
+/// connection — the case HTTP-only inspectors and horizontally-scaled hosts
+/// need. `mcp_server::tool_defs()` stays the single source of truth; this route
+/// only reshapes it, so the descriptor cannot drift from `tools/list`.
+///
+/// **Public by design.** MCP hosts read a `.well-known` document before they
+/// hold a token, and the descriptor carries tool *names and descriptions* only
+/// — the same class of metadata `/models` already serves unauthenticated. It
+/// sits behind the public rate limiter alongside the A2A agent card.
+async fn well_known_mcp() -> impl IntoResponse {
+    let defs = crate::mcp_server::tool_defs();
+    Json(crate::mcp_well_known::build_well_known(
+        "vibecli",
+        env!("CARGO_PKG_VERSION"),
+        crate::mcp_well_known::tools_from_mcp_defs(&defs),
+    ))
 }
 
 async fn health(State(state): State<ServeState>) -> impl IntoResponse {
@@ -1801,6 +1848,18 @@ async fn start_agent(
     // absent/invalid path falls back to `state.workspace_root`, so every other
     // client is unaffected.
     let run_root = resolve_run_root(req.workspace_root.as_deref(), &state.workspace_root);
+
+    // E4: refuse a workspace the user has explicitly denied, before a job is
+    // created. Deny-only — see `workspace_denied`.
+    if workspace_denied(&run_root) {
+        return Err(json_error(
+            StatusCode::FORBIDDEN,
+            format!(
+                "workspace denied by trust policy: {}. Run `/trustdir allow` in that directory to permit agent runs.",
+                run_root.display()
+            ),
+        ));
+    }
 
     // VibeDesk resume: when the client passes `resume_session_id`, continue that
     // session — reuse its id so new events append to the same durable log —
@@ -3494,14 +3553,20 @@ async fn github_webhook(
     {
         Ok(Some(result)) => {
             eprintln!(
-                "[github-app] Reviewed PR #{} on {} → {} ({} findings)",
-                result.pr_number, result.repo, result.status, result.findings_count
+                "[github-app] Reviewed PR #{} on {} → {} ({} findings, {} committable fixes)",
+                result.pr_number,
+                result.repo,
+                result.status,
+                result.findings_count,
+                result.fixes_proposed
             );
             (
                 StatusCode::OK,
                 Json(serde_json::json!({
                     "status": result.status,
                     "findings": result.findings_count,
+                    "fixes_proposed": result.fixes_proposed,
+                    "coverage": result.coverage,
                     "summary": result.summary,
                 })),
             )
@@ -7994,6 +8059,7 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/v1/capabilities", get(v1_capabilities))
         .route("/ws/collab/{room_id}", get(ws_collab_handler))
         .route("/mobile/beacon", get(mobile_beacon))
+        .route("/.well-known/mcp.json", get(well_known_mcp))
         .route_layer(middleware::from_fn_with_state(public_limiter, rate_limit));
 
     // Watch routes (/watch/*) — separate state, no bearer auth required on challenge/register
@@ -12908,6 +12974,104 @@ mod tests {
         }
 
         // ── 404 for unknown routes ────────────────────────────────────
+
+        // ── E4 workspace trust gate ───────────────────────────────────
+        //
+        // The property that matters is the *negative* one: shipping this
+        // must not start denying workspaces that were fine yesterday. The
+        // resolver's default is `RequireApproval`, so only an explicit
+        // deny may block a run.
+
+        #[test]
+        fn workspace_denied_is_false_without_a_store() {
+            // No store on disk → nothing is denied. This is the upgrade path
+            // for every existing user.
+            let tmp = tempfile::tempdir().unwrap();
+            assert!(!workspace_denied(tmp.path()));
+        }
+
+        #[test]
+        fn trust_resolver_denies_only_explicit_paths() {
+            use crate::trust_resolution::{TrustPolicy, TrustResolver};
+            let tmp = tempfile::tempdir().unwrap();
+            let denied = tmp.path().join("blocked");
+            let other = tmp.path().join("fine");
+            std::fs::create_dir_all(&denied).unwrap();
+            std::fs::create_dir_all(&other).unwrap();
+
+            let mut r = TrustResolver::new(tmp.path().join("trust.json"));
+            r.add_denied(&denied.to_string_lossy());
+
+            assert_eq!(
+                r.resolve(&denied.to_string_lossy()),
+                TrustPolicy::Deny,
+                "an explicitly denied path must be denied"
+            );
+            assert_eq!(
+                r.resolve(&denied.join("sub").to_string_lossy()),
+                TrustPolicy::Deny,
+                "a child of a denied path must inherit the denial"
+            );
+            assert_ne!(
+                r.resolve(&other.to_string_lossy()),
+                TrustPolicy::Deny,
+                "an unlisted path must NOT be denied — that would break every existing workspace"
+            );
+        }
+
+        // ── /.well-known/mcp.json (A3) ────────────────────────────────
+        //
+        // The module shipped in Phase 53 and sat unrouted for four months
+        // while being counted as closed. These two tests are what makes it
+        // "wired" rather than "present": one proves the route answers
+        // without a token, the other proves the payload is derived from
+        // `mcp_server::tool_defs()` and cannot silently drift from
+        // `tools/list`.
+
+        #[tokio::test]
+        async fn well_known_mcp_is_public_and_has_tools() {
+            let (app, _tmp) = test_app("tok");
+            let req = Request::builder()
+                .uri("/.well-known/mcp.json")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            // No Authorization header — a discovery document a host reads
+            // before it holds a token.
+            assert_eq!(resp.status(), StatusCode::OK);
+            let body = body_string(resp.into_body()).await;
+            let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+            assert_eq!(json["name"], "vibecli");
+            assert_eq!(json["version"], env!("CARGO_PKG_VERSION"));
+            assert!(
+                json["transports"]
+                    .as_array()
+                    .is_some_and(|t| t.iter().any(|v| v == "stdio")),
+                "descriptor should advertise transports; got: {body}"
+            );
+            assert!(
+                json["tools"].as_array().is_some_and(|t| !t.is_empty()),
+                "descriptor should carry the tool catalogue; got: {body}"
+            );
+        }
+
+        #[tokio::test]
+        async fn well_known_mcp_matches_tool_defs() {
+            let (app, _tmp) = test_app("tok");
+            let req = Request::builder()
+                .uri("/.well-known/mcp.json")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            let body = body_string(resp.into_body()).await;
+            let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+            // Same source of truth as `tools/list`, so the two can't diverge.
+            assert_eq!(
+                json["tools"].as_array().map(Vec::len),
+                Some(crate::mcp_server::tool_defs().len()),
+                "well-known tool count must track mcp_server::tool_defs()"
+            );
+        }
 
         #[tokio::test]
         async fn unknown_route_returns_404() {

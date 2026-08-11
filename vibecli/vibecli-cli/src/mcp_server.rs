@@ -266,7 +266,7 @@ async fn dispatch(
 
 // ── Tool definitions ──────────────────────────────────────────────────────────
 
-fn tool_defs() -> Vec<Value> {
+pub fn tool_defs() -> Vec<Value> {
     vec![
         json!({
             "name": "read_file",
@@ -1303,10 +1303,12 @@ async fn call_tool(
         "list_skills" => {
             let category = args["category"].as_str();
             let query = args["query"].as_str();
-            let cat = crate::skill_catalog::SkillCatalog::load_from_with_cwd_plugins(
-                skills_dir_default(),
-            )
-            .map_err(|e| anyhow::anyhow!("list_skills: {e}"))?;
+            // Cached: this used to re-read and re-parse the whole catalogue
+            // (1,143 files) on every tool call. `load_with_cwd_plugins_cached`
+            // revalidates with a directory fingerprint, so an edited skill is
+            // still picked up without a restart.
+            let cat = crate::skill_catalog::load_with_cwd_plugins_cached(&skills_dir_default())
+                .map_err(|e| anyhow::anyhow!("list_skills: {e}"))?;
             let entries: Vec<serde_json::Value> = cat
                 .list(category, query)
                 .into_iter()
@@ -1337,10 +1339,8 @@ async fn call_tool(
             if skill_name.is_empty() {
                 return Err(anyhow::anyhow!("get_skill: name is required"));
             }
-            let cat = crate::skill_catalog::SkillCatalog::load_from_with_cwd_plugins(
-                skills_dir_default(),
-            )
-            .map_err(|e| anyhow::anyhow!("get_skill: {e}"))?;
+            let cat = crate::skill_catalog::load_with_cwd_plugins_cached(&skills_dir_default())
+                .map_err(|e| anyhow::anyhow!("get_skill: {e}"))?;
             let s = cat
                 .get(skill_name)
                 .ok_or_else(|| anyhow::anyhow!("get_skill: '{skill_name}' not found"))?;
@@ -1364,34 +1364,13 @@ async fn call_tool(
 
 /// Resolve the directory the skill catalog should load from.
 ///
-/// Precedence:
-///   1. `VIBECLI_SKILLS_DIR` env var — explicit override (used in tests
-///      and by operators who install bundled skills outside the binary).
-///   2. `${CARGO_MANIFEST_DIR}/skills` — works for `cargo run` /
-///      `cargo test` from the workspace.
-///   3. `${exe_dir}/../share/vibecli/skills` — convention for packaged
-///      installs (deb / homebrew / msi).
+/// Delegates to [`crate::skills_embedded::resolve_skills_dir`] — the single
+/// implementation of the fallback chain (env override → in-tree manifest
+/// dir → packaged `share/` tree → the catalogue embedded in the binary).
+/// This module used to carry its own copy that stopped at the manifest
+/// dir, which is a CI path on every release build; see `skills_embedded`.
 fn skills_dir_default() -> PathBuf {
-    if let Ok(p) = std::env::var("VIBECLI_SKILLS_DIR") {
-        if !p.is_empty() {
-            return PathBuf::from(p);
-        }
-    }
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("skills");
-    if manifest_dir.is_dir() {
-        return manifest_dir;
-    }
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(dir) = exe.parent() {
-            let candidate = dir.join("../share/vibecli/skills");
-            if candidate.is_dir() {
-                return candidate;
-            }
-        }
-    }
-    // Last resort — return the manifest path even if missing; the catalog
-    // load will surface a clear "directory does not exist" error.
-    manifest_dir
+    crate::skills_embedded::resolve_skills_dir()
 }
 
 // ── Agent runner ──────────────────────────────────────────────────────────────
@@ -1600,7 +1579,11 @@ mod tests {
     /// one test would repoint the skills dir while another was mid-dispatch —
     /// the failure moved around depending on the interleaving. Poison-tolerant
     /// so one panic doesn't cascade.
-    static SKILLS_DIR_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    ///
+    /// Lives in `skills_embedded` now that the env var is read there: a
+    /// second mutex here would not serialise against that module's tests,
+    /// which is the failure mode this lock exists to prevent.
+    use crate::skills_embedded::SKILLS_DIR_ENV_LOCK as SKILLS_DIR_LOCK;
 
     use super::*;
 

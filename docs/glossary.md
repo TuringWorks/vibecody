@@ -108,7 +108,7 @@ An alphabetical reference of terms used throughout VibeCody's documentation and 
 
 **Session** — A conversation between the user and the agent, including all messages, tool calls, and generated artifacts. Sessions are persisted in SQLite and can be resumed later.
 
-**Skill** — A Markdown-based capability definition that gives the agent domain-specific knowledge and instructions. VibeCody ships with 500+ built-in skills and supports custom user-defined skills.
+**Skill** — A Markdown-based capability definition that gives the agent domain-specific knowledge and instructions. VibeCody ships with 1,143 built-in skills and supports custom user-defined skills.
 
 **Soul.md** — A project philosophy document that captures high-level design principles, values, and architectural decisions. Used as persistent context for the agent across sessions.
 

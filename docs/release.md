@@ -45,77 +45,71 @@ brings **VibeDesk** in as a third desktop shell.
 
 | Platform | Download |
 |----------|----------|
-| macOS (Apple Silicon) | [vibecli-aarch64-apple-darwin.tar.gz](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/vibecli-aarch64-apple-darwin.tar.gz) |
-| macOS (Intel) | [vibecli-x86_64-apple-darwin.tar.gz](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/vibecli-x86_64-apple-darwin.tar.gz) |
-| Linux x86_64 (musl) | [vibecli-x86_64-linux.tar.gz](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/vibecli-x86_64-linux.tar.gz) |
-| Linux ARM64 (musl) | [vibecli-aarch64-linux.tar.gz](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/vibecli-aarch64-linux.tar.gz) |
-| Windows x64 | [vibecli-x86_64-windows.zip](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/vibecli-x86_64-windows.zip) |
-| Docker | [vibecli-docker-v0.5.8.tar.gz](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/vibecli-docker-v0.5.8.tar.gz) |
+| macOS (Apple Silicon) | [`vibecli-aarch64-apple-darwin.tar.gz`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/vibecli-aarch64-apple-darwin.tar.gz) |
+| Linux (arm64) | [`vibecli-aarch64-linux.tar.gz`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/vibecli-aarch64-linux.tar.gz) |
+| Docker image (tarball) | [`vibecli-docker-v0.5.8.tar.gz`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/vibecli-docker-v0.5.8.tar.gz) |
+| macOS (Intel) | [`vibecli-x86_64-apple-darwin.tar.gz`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/vibecli-x86_64-apple-darwin.tar.gz) |
+| Linux (x86_64) | [`vibecli-x86_64-linux.tar.gz`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/vibecli-x86_64-linux.tar.gz) |
+| Windows (x86_64) | [`vibecli-x86_64-windows.zip`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/vibecli-x86_64-windows.zip) |
 
 ### VibeCoder — Desktop Code Editor
 
 | Platform | Download |
 |----------|----------|
-| macOS (Apple Silicon) | [VibeCoder_0.5.8_aarch64.dmg](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCoder_0.5.8_aarch64.dmg) |
-| macOS (Intel) | [VibeCoder_0.5.8_x64.dmg](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCoder_0.5.8_x64.dmg) |
-| macOS (Apple Silicon, .app) | [VibeCoder-macOS-arm64.app.zip](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCoder-macOS-arm64.app.zip) |
-| macOS (Intel, .app) | [VibeCoder-macOS-x64.app.zip](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCoder-macOS-x64.app.zip) |
-| Linux x64 (.deb) | [VibeCoder_0.5.8_amd64.deb](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCoder_0.5.8_amd64.deb) |
-| Linux arm64 (.deb) | [VibeCoder_0.5.8_arm64.deb](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCoder_0.5.8_arm64.deb) |
-| Linux x64 (.AppImage) | [VibeCoder_0.5.8_amd64.AppImage](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCoder_0.5.8_amd64.AppImage) |
-| Linux arm64 (.AppImage) | [VibeCoder_0.5.8_aarch64.AppImage](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCoder_0.5.8_aarch64.AppImage) |
-| Windows x64 (.msi) | [VibeCoder_0.5.8_x64_en-US.msi](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCoder_0.5.8_x64_en-US.msi) |
-| Windows x64 (.exe) | [VibeCoder_0.5.8_x64-setup.exe](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCoder_0.5.8_x64-setup.exe) |
+| macOS (Apple Silicon, .app) | [`VibeCoder-macOS-arm64.app.zip`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCoder-macOS-arm64.app.zip) |
+| macOS (Intel, .app) | [`VibeCoder-macOS-x64.app.zip`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCoder-macOS-x64.app.zip) |
+| Linux (arm64, AppImage) | [`VibeCoder_0.5.8_aarch64.AppImage`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCoder_0.5.8_aarch64.AppImage) |
+| macOS (Apple Silicon) | [`VibeCoder_0.5.8_aarch64.dmg`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCoder_0.5.8_aarch64.dmg) |
+| Linux (x86_64, AppImage) | [`VibeCoder_0.5.8_amd64.AppImage`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCoder_0.5.8_amd64.AppImage) |
+| Linux (x86_64, deb) | [`VibeCoder_0.5.8_amd64.deb`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCoder_0.5.8_amd64.deb) |
+| Linux (arm64, deb) | [`VibeCoder_0.5.8_arm64.deb`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCoder_0.5.8_arm64.deb) |
+| Windows (installer) | [`VibeCoder_0.5.8_x64-setup.exe`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCoder_0.5.8_x64-setup.exe) |
+| macOS (Intel) | [`VibeCoder_0.5.8_x64.dmg`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCoder_0.5.8_x64.dmg) |
+| Windows (MSI) | [`VibeCoder_0.5.8_x64_en-US.msi`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCoder_0.5.8_x64_en-US.msi) |
 
 ### VibeAIChat — Desktop AI Assistant
 
-Tauri bundles ship as `VibeAIChat_*` (productName "VibeAIChat").
-
 | Platform | Download |
 |----------|----------|
-| macOS (Apple Silicon) | [VibeAIChat_0.5.8_aarch64.dmg](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeAIChat_0.5.8_aarch64.dmg) |
-| macOS (Intel) | [VibeAIChat_0.5.8_x64.dmg](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeAIChat_0.5.8_x64.dmg) |
-| Linux x64 (.deb) | [VibeAIChat_0.5.8_amd64.deb](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeAIChat_0.5.8_amd64.deb) |
-| Linux arm64 (.deb) | [VibeAIChat_0.5.8_arm64.deb](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeAIChat_0.5.8_arm64.deb) |
-| Linux x64 (.AppImage) | [VibeAIChat_0.5.8_amd64.AppImage](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeAIChat_0.5.8_amd64.AppImage) |
-| Linux arm64 (.AppImage) | [VibeAIChat_0.5.8_aarch64.AppImage](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeAIChat_0.5.8_aarch64.AppImage) |
-| Windows x64 (.msi) | [VibeAIChat_0.5.8_x64_en-US.msi](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeAIChat_0.5.8_x64_en-US.msi) |
-| Windows x64 (.exe) | [VibeAIChat_0.5.8_x64-setup.exe](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeAIChat_0.5.8_x64-setup.exe) |
+| Linux (arm64, AppImage) | [`VibeAIChat_0.5.8_aarch64.AppImage`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeAIChat_0.5.8_aarch64.AppImage) |
+| macOS (Apple Silicon) | [`VibeAIChat_0.5.8_aarch64.dmg`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeAIChat_0.5.8_aarch64.dmg) |
+| Linux (x86_64, AppImage) | [`VibeAIChat_0.5.8_amd64.AppImage`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeAIChat_0.5.8_amd64.AppImage) |
+| Linux (x86_64, deb) | [`VibeAIChat_0.5.8_amd64.deb`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeAIChat_0.5.8_amd64.deb) |
+| Linux (arm64, deb) | [`VibeAIChat_0.5.8_arm64.deb`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeAIChat_0.5.8_arm64.deb) |
+| Windows (installer) | [`VibeAIChat_0.5.8_x64-setup.exe`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeAIChat_0.5.8_x64-setup.exe) |
+| macOS (Intel) | [`VibeAIChat_0.5.8_x64.dmg`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeAIChat_0.5.8_x64.dmg) |
+| Windows (MSI) | [`VibeAIChat_0.5.8_x64_en-US.msi`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeAIChat_0.5.8_x64_en-US.msi) |
 
 ### VibeDesk — Desktop Task Shell
 
-New in this release.
-
 | Platform | Download |
 |----------|----------|
-| macOS (Apple Silicon) | [VibeDesk_0.5.8_aarch64.dmg](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeDesk_0.5.8_aarch64.dmg) |
-| macOS (Intel) | [VibeDesk_0.5.8_x64.dmg](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeDesk_0.5.8_x64.dmg) |
-| Linux x64 (.deb) | [VibeDesk_0.5.8_amd64.deb](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeDesk_0.5.8_amd64.deb) |
-| Linux arm64 (.deb) | [VibeDesk_0.5.8_arm64.deb](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeDesk_0.5.8_arm64.deb) |
-| Linux x64 (.AppImage) | [VibeDesk_0.5.8_amd64.AppImage](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeDesk_0.5.8_amd64.AppImage) |
-| Linux arm64 (.AppImage) | [VibeDesk_0.5.8_aarch64.AppImage](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeDesk_0.5.8_aarch64.AppImage) |
-| Windows x64 (.msi) | [VibeDesk_0.5.8_x64_en-US.msi](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeDesk_0.5.8_x64_en-US.msi) |
-| Windows x64 (.exe) | [VibeDesk_0.5.8_x64-setup.exe](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeDesk_0.5.8_x64-setup.exe) |
+| Linux (arm64, AppImage) | [`VibeDesk_0.5.8_aarch64.AppImage`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeDesk_0.5.8_aarch64.AppImage) |
+| macOS (Apple Silicon) | [`VibeDesk_0.5.8_aarch64.dmg`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeDesk_0.5.8_aarch64.dmg) |
+| Linux (x86_64, AppImage) | [`VibeDesk_0.5.8_amd64.AppImage`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeDesk_0.5.8_amd64.AppImage) |
+| Linux (x86_64, deb) | [`VibeDesk_0.5.8_amd64.deb`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeDesk_0.5.8_amd64.deb) |
+| Linux (arm64, deb) | [`VibeDesk_0.5.8_arm64.deb`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeDesk_0.5.8_arm64.deb) |
+| Windows (installer) | [`VibeDesk_0.5.8_x64-setup.exe`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeDesk_0.5.8_x64-setup.exe) |
+| macOS (Intel) | [`VibeDesk_0.5.8_x64.dmg`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeDesk_0.5.8_x64.dmg) |
+| Windows (MSI) | [`VibeDesk_0.5.8_x64_en-US.msi`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeDesk_0.5.8_x64_en-US.msi) |
 
 ### VibeMobile — Flutter Companion
 
 | Platform | Download |
 |----------|----------|
-| iOS (unsigned `.ipa` — sideload via AltStore/Sideloadly) | [VibeCody-Mobile-v0.5.8-ios.ipa](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCody-Mobile-v0.5.8-ios.ipa) |
-| Android (`.apk`) | [VibeCody-Mobile-v0.5.8-android.apk](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCody-Mobile-v0.5.8-android.apk) |
-| Android (`.aab`) | [VibeCody-Mobile-v0.5.8-android.aab](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCody-Mobile-v0.5.8-android.aab) |
+| Android (AAB) | [`VibeCody-Mobile-v0.5.8-android.aab`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCody-Mobile-v0.5.8-android.aab) |
+| Android (APK) | [`VibeCody-Mobile-v0.5.8-android.apk`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCody-Mobile-v0.5.8-android.apk) |
+| iOS (unsigned — sideload via AltStore / Sideloadly) | [`VibeCody-Mobile-v0.5.8-ios.ipa`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCody-Mobile-v0.5.8-ios.ipa) |
 
 ### VibeWatch — Apple Watch & Wear OS
 
 | Platform | Download |
 |----------|----------|
-| watchOS 10+ (unsigned `.app.zip` — sideload via Xcode) | [VibeCody-WatchOS-v0.5.8.app.zip](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCody-WatchOS-v0.5.8.app.zip) |
-| Wear OS 3+ (`.apk`) | [VibeCody-Wear-v0.5.8.apk](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCody-Wear-v0.5.8.apk) |
-| Wear OS 3+ (`.aab`) | [VibeCody-Wear-v0.5.8.aab](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCody-Wear-v0.5.8.aab) |
+| watchOS 10+ (unsigned — sideload via Xcode) | [`VibeCody-WatchOS-v0.5.8.app.zip`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCody-WatchOS-v0.5.8.app.zip) |
+| Wear OS 3+ (AAB) | [`VibeCody-Wear-v0.5.8.aab`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCody-Wear-v0.5.8.aab) |
+| Wear OS 3+ (APK) | [`VibeCody-Wear-v0.5.8.apk`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCody-Wear-v0.5.8.apk) |
 
-Install the companion desktop/phone app first — pair the watch from the **Watch Devices** panel in VibeCoder (`Governance → Watch Devices`) or the Machine detail screen in VibeMobile.
-
-[SHA256SUMS.txt](https://github.com/TuringWorks/vibecody/releases/download/v0.5.7/SHA256SUMS.txt)
+[SHA256SUMS.txt](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/SHA256SUMS.txt)
 
 ### Code signing
 
@@ -232,23 +226,114 @@ Shipped as **Vibe.App** — renamed to VibeAIChat after this release.
 
 Applies to every release; not specific to the version above.
 
-### macOS install: first-launch warning
+### macOS install: the app is killed on first launch
 
-From v0.5.8 the macOS desktop artifacts *can be* **Developer ID signed** (v0.5.7 and earlier were always ad-hoc) — see [Code signing](#code-signing) to check yours. Signing alone does not remove the first-launch prompt — that needs notarization as well, so an **"unidentified developer"** dialog on a signed-but-not-notarized build is expected. See [Code signing](#code-signing) to check which you have.
+**Symptom.** The app bounces once in the Dock and quits, or Finder says
+*"«App» is damaged and can't be opened. You should move it to the Trash."*
 
-Two options:
+**It is not damaged, and re-downloading will not help.** Every macOS artifact
+built by CI is **ad-hoc signed** with the hardened runtime enabled, because the
+release workflow has no Developer ID certificate (`APPLE_CERT_P12_BASE64` is
+unset — see [macOS code signing setup](#macos-code-signing-setup-for-maintainers)).
+macOS refuses to run that combination while the download-quarantine flag is set,
+and it does so by **killing the process** — verified: the binary exits with
+signal 9 (`exit=137`) while quarantined, and starts normally the moment the flag
+is removed.
 
-1. **Right-click → Open** (one-time): in Finder, right-click the app icon, choose **Open**, then click **Open** again in the dialog. The app launches and is whitelisted from then on.
-2. **Strip the quarantine xattr** from the terminal (one-time):
-   ```bash
-   xattr -dr com.apple.quarantine /Applications/VibeCoder.app
-   xattr -dr com.apple.quarantine "/Applications/VibeAIChat.app"
-   xattr -dr com.apple.quarantine /Applications/VibeDesk.app
-   ```
+**Fix — remove the quarantine flag:**
 
-If you see *"is damaged and can't be opened"* (not "from an unidentified developer"), the DMG download was corrupted — re-download and verify against [SHA256SUMS.txt](https://github.com/TuringWorks/vibecody/releases/download/v0.5.7/SHA256SUMS.txt).
+```bash
+xattr -dr com.apple.quarantine /Applications/VibeCoder.app
+xattr -dr com.apple.quarantine /Applications/VibeAIChat.app
+xattr -dr com.apple.quarantine /Applications/VibeDesk.app
+```
+
+Run it once per app, after moving it to `/Applications`. That is the whole fix;
+the app launches immediately afterwards.
+
+**Why not "right-click → Open"?** That is the standard advice for an
+*unidentified developer* prompt, and it is what this page used to recommend
+first. It does not reliably clear this state: the hardened runtime turns the
+Gatekeeper rejection into a kill rather than a prompt, so there is often no
+"Open anyway" dialog to click. Use the `xattr` command.
+
+`spctl` will still report `rejected` afterwards. That is expected — it means
+"not Developer ID signed", and it stops mattering once the quarantine flag is
+gone, because Gatekeeper only assesses quarantined files.
+
+**The real fix** is on the maintainer side: configure the signing secrets below
+so releases ship Developer ID signed and notarized, at which point none of this
+is necessary for anyone.
 
 ### macOS code signing setup (for maintainers)
+
+**One-shot setup:** run [`scripts/setup-apple-signing.sh`](https://github.com/TuringWorks/vibecody/blob/main/scripts/setup-apple-signing.sh)
+on a Mac that already has the Developer ID certificate installed. It picks the
+identity, derives the Team ID from it, verifies the exported `.p12` actually
+contains a private key, checks the notarization credentials against Apple
+*before* uploading anything, and then sets all six secrets with `gh`. Nothing
+leaves the machine except the encrypted secrets themselves.
+
+**Coverage.** These six secrets sign **and notarize** VibeCoder, VibeAIChat,
+VibeDesk *and* `vibecli`. A bare binary cannot carry a *stapled* ticket
+(stapling only works for `.app`/`.dmg`/`.pkg`), so `vibecli`'s ticket is fetched
+from Apple on first run — but it is notarized, which is what Gatekeeper checks.
+
+**iOS and watchOS are a separate, optional phase** — and they need a *different
+certificate*. Developer ID signs macOS apps distributed outside the App Store
+and **cannot sign an iOS or watchOS bundle at all**; those need **Apple
+Distribution**. The script uploads each to its own secret so every job imports
+the identity it can actually use:
+
+| Secret | Certificate | Used by |
+|---|---|---|
+| `APPLE_CERT_P12_BASE64` | Developer ID Application | VibeCoder, VibeAIChat, VibeDesk, vibecli |
+| `APPLE_DIST_CERT_P12_BASE64` | Apple Distribution | VibeMobile (iOS), VibeCodyWatch |
+
+On top of the certificate, each mobile target needs a distribution provisioning
+profile for its App ID:
+
+| Platform | App ID | Secret |
+|---|---|---|
+| iOS | `dev.vibecody.vibecodyMobile` | `APPLE_IOS_PROFILE_BASE64` |
+| watchOS | `com.turingworks.vibecody.watch` | `APPLE_PROVISIONING_PROFILE_BASE64` |
+
+Each is gated independently — missing secrets mean that platform ships unsigned
+(and still sideloadable), never a failed release:
+
+| Secrets present | Result |
+|---|---|
+| none | iOS/watchOS unsigned, as before |
+| + distribution cert + profile | signed artifact |
+| + `APPLE_ASC_*` | watchOS also pushed to TestFlight |
+
+Android ships unsigned by design, for sideloading.
+
+Each desktop job now verifies its own `.app` after building and **fails the
+release** if it is still ad-hoc — the check `vibecli` always had and the app
+bundles never did, which is why ad-hoc builds shipped unnoticed.
+
+`APPLE_KEYCHAIN_PASSWORD` is **not** required — the workflow generates a
+throwaway password per job for a keychain that never outlives it.
+
+The manual equivalent is below.
+
+**If Keychain Access greys out the `.p12` option,** you do not need it — the
+script exports via the `security` CLI, which only asks for your keychain
+password. The greying is usually one of:
+
+| Cause | Fix |
+|---|---|
+| Viewing the **Certificates** category | Switch to **My Certificates** — only that view shows identities (certificate *plus* private key) |
+| Selected the certificate, not the identity | Click the disclosure triangle so the certificate and its key are selected together |
+| Several items selected at once | Select exactly one |
+| Private key is **non-extractable** | Nothing can export it. Issue a new Developer ID certificate — generate the CSR from Keychain Access (*Certificate Assistant → Request a Certificate from a Certificate Authority*), which produces an extractable key |
+
+The script exports every identity, keeps only the one being used (matching the
+certificate to its private key by public modulus, since order is not
+guaranteed), and rebuilds a `.p12` with a single private key. Other
+certificates travel as chain material only — public data, no keys.
+
 
 To ship fully Apple-notarized builds (no first-launch warning at all), add the following repository secrets:
 
@@ -363,7 +448,7 @@ Other things worth checking:
 
 ```bash
 # Download the checksums file
-curl -LO https://github.com/TuringWorks/vibecody/releases/download/v0.5.7/SHA256SUMS.txt
+curl -LO https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/SHA256SUMS.txt
 
 # Verify
 sha256sum -c SHA256SUMS.txt

@@ -1,3 +1,6 @@
+// `ContentTrustResolver` (system 1 below) is still without a caller; the
+// workspace-policy half (system 2) is wired as of 2026-08-10 — see
+// `serve::workspace_denied` and the `/trust` REPL command.
 #![allow(dead_code)]
 //! Trust resolution for agent tool permissions and content sources.
 //!

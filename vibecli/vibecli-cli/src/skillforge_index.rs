@@ -167,30 +167,13 @@ struct SkillForgeState {
 static STATE: OnceLock<RwLock<SkillForgeState>> = OnceLock::new();
 static STATUS: OnceLock<RwLock<SkillForgeStatus>> = OnceLock::new();
 
-/// Resolve the bundled-skills directory the same way `mcp_server` does:
-/// `VIBECLI_SKILLS_DIR` → `CARGO_MANIFEST_DIR/skills` →
-/// `<exe>/../share/vibecli/skills`. Duplicated here (rather than importing
-/// `mcp_server::skills_dir_default`, which is private) so the bridge stays
-/// self-contained and testable in isolation.
+/// Resolve the bundled-skills directory. Both this bridge and `mcp_server`
+/// call the one implementation in [`crate::skills_embedded`]; the copy that
+/// used to live here stopped at `CARGO_MANIFEST_DIR/skills`, a compile-time
+/// CI path on every release build, so installed daemons loaded an empty
+/// catalogue.
 fn skills_dir_default() -> PathBuf {
-    if let Ok(p) = std::env::var("VIBECLI_SKILLS_DIR") {
-        if !p.is_empty() {
-            return PathBuf::from(p);
-        }
-    }
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("skills");
-    if manifest_dir.is_dir() {
-        return manifest_dir;
-    }
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(dir) = exe.parent() {
-            let candidate = dir.join("../share/vibecli/skills");
-            if candidate.is_dir() {
-                return candidate;
-            }
-        }
-    }
-    manifest_dir
+    crate::skills_embedded::resolve_skills_dir()
 }
 
 /// Resolve the per-workspace promoted-skill override dir — where promoted
@@ -258,10 +241,12 @@ fn scan_promoted_overrides() -> HashMap<String, PathBuf> {
 /// it off the serving thread for parity with `graph_index`).
 pub fn init_skillforge(skills_dir: Option<&Path>) -> SkillForgeStatus {
     let _ = STATUS.set(RwLock::new(SkillForgeStatus::Loading));
-    let dir = skills_dir
-        .map(Path::to_path_buf)
-        .unwrap_or_else(skills_dir_default);
+    let explicit = skills_dir.map(Path::to_path_buf);
     std::thread::spawn(move || {
+        // Resolved *inside* the thread: on a release binary the default
+        // path extracts the embedded catalogue (~960 files) on first call,
+        // and daemon startup is already the slowest thing we measure.
+        let dir = explicit.unwrap_or_else(skills_dir_default);
         let catalog = SkillCatalog::load_from_with_cwd_plugins(&dir).unwrap_or_default();
         let state = SkillForgeState {
             catalog,
@@ -379,7 +364,11 @@ pub fn list_skills_value() -> Value {
 /// `GET /skilllens/skills/:name` — one skill + its body + cached report.
 pub fn get_skill_value(name: &str) -> Option<Value> {
     let entry = with_state(|s| s.catalog.get(name).map(|e| e.clone()))??;
-    let body = std::fs::read_to_string(&entry.path).unwrap_or_default();
+    // Prefer the file (it carries the frontmatter the panel renders); fall
+    // back to the already-parsed body rather than `unwrap_or_default()`,
+    // which turned an unreadable skill into a convincing empty one.
+    let body =
+        std::fs::read_to_string(&entry.path).unwrap_or_else(|_| entry.body.clone());
     let (cached, promoted_override): (Option<SkillReport>, Option<String>) = with_state(|s| {
         (
             s.reports.get(name).cloned(),
