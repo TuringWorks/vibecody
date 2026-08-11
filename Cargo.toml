@@ -117,7 +117,7 @@ rusqlite = { version = "0.40", features = ["bundled"] }
 # Crypto (AWS SigV4 signing)
 sha2 = "0.10"
 hmac = "0.13"
-p256 = { version = "0.13", features = ["ecdsa"] }
+p256 = { version = "0.14", features = ["ecdsa"] }
 hex = "0.4"
 
 # Code knowledge graph (kodegraph) — incremental AST-based symbol/edge graphs
