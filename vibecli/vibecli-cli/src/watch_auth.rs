@@ -906,7 +906,7 @@ mod tests {
         use p256::ecdsa::{signature::Signer, SigningKey};
 
         // Generate a real P256 keypair
-        let signing_key = SigningKey::random(&mut rand::rngs::SysRng);
+        let signing_key = SigningKey::random(&mut rand::rng());
         let verifying_key = signing_key.verifying_key();
 
         // Swift uses: SHA256.hash(data: msg) → sign the hash directly.
@@ -919,7 +919,7 @@ mod tests {
         let sig: p256::ecdsa::Signature = signing_key.sign(msg);
 
         // Extract raw 64-byte x||y public key (Swift rawRepresentation format)
-        let pk_uncompressed = verifying_key.to_encoded_point(false);
+        let pk_uncompressed = verifying_key.to_sec1_point(false);
         let pk_bytes = &pk_uncompressed.as_bytes()[1..]; // strip 0x04 prefix
 
         let result = verify_p256_signature(pk_bytes, msg, &sig.to_bytes());
@@ -934,13 +934,13 @@ mod tests {
     fn verify_p256_wrong_message_rejected() {
         use p256::ecdsa::{signature::Signer, SigningKey};
 
-        let signing_key = SigningKey::random(&mut rand::rngs::SysRng);
+        let signing_key = SigningKey::random(&mut rand::rng());
         let verifying_key = signing_key.verifying_key();
 
         let msg = b"correct message";
         let sig: p256::ecdsa::Signature = signing_key.sign(msg);
 
-        let pk_uncompressed = verifying_key.to_encoded_point(false);
+        let pk_uncompressed = verifying_key.to_sec1_point(false);
         let pk_bytes = &pk_uncompressed.as_bytes()[1..];
 
         let result = verify_p256_signature(pk_bytes, b"tampered message", &sig.to_bytes());
@@ -954,14 +954,14 @@ mod tests {
     fn verify_p256_wrong_key_rejected() {
         use p256::ecdsa::{signature::Signer, SigningKey};
 
-        let signing_key = SigningKey::random(&mut rand::rngs::SysRng);
-        let wrong_key = SigningKey::random(&mut rand::rngs::SysRng);
+        let signing_key = SigningKey::random(&mut rand::rng());
+        let wrong_key = SigningKey::random(&mut rand::rng());
         let wrong_verifying = wrong_key.verifying_key();
 
         let msg = b"some message";
         let sig: p256::ecdsa::Signature = signing_key.sign(msg);
 
-        let wrong_pk = wrong_verifying.to_encoded_point(false);
+        let wrong_pk = wrong_verifying.to_sec1_point(false);
         let wrong_pk_bytes = &wrong_pk.as_bytes()[1..];
 
         let result = verify_p256_signature(wrong_pk_bytes, msg, &sig.to_bytes());
@@ -980,7 +980,7 @@ mod tests {
         let ch = mgr.issue_challenge().unwrap();
 
         // Simulate what Swift does: generate key, build message, sign
-        let signing_key = SigningKey::random(&mut rand::rngs::SysRng);
+        let signing_key = SigningKey::random(&mut rand::rng());
         let verifying_key = signing_key.verifying_key();
         let device_id = "deadbeef12345678deadbeef12345678";
 
@@ -989,7 +989,7 @@ mod tests {
         msg_bytes.extend_from_slice(&ch.issued_at.to_be_bytes());
 
         let sig: p256::ecdsa::Signature = signing_key.sign(&msg_bytes);
-        let pk_uncompressed = verifying_key.to_encoded_point(false);
+        let pk_uncompressed = verifying_key.to_sec1_point(false);
         let pk_bytes = &pk_uncompressed.as_bytes()[1..]; // 64-byte x||y
 
         let req = WatchRegisterRequest {

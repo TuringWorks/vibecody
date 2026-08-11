@@ -394,7 +394,7 @@ mod tests {
     }
 
     fn fixture_key() -> SigningKey {
-        SigningKey::random(&mut rand::rngs::SysRng)
+        SigningKey::random(&mut rand::rng())
     }
 
     fn fixture_manifest(name: &str, key: &SigningKey, policy: DefaultPolicy) -> PluginManifest {

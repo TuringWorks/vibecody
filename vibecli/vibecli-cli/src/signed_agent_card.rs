@@ -216,11 +216,13 @@ mod tests {
     }
 
     fn fixture_key() -> SigningKey {
-        // Match watch_auth.rs — `p256` re-exports the `rand_core` whose
-        // `OsRng` actually implements the `CryptoRngCore` bound `ecdsa`
-        // expects. Workspace `rand` is on a newer `rand_core` and
-        // doesn't satisfy that bound directly.
-        SigningKey::random(&mut rand::rngs::SysRng)
+        // `rand::rng()`, not the OS RNG: `ecdsa::SigningKey::random`
+        // binds `CryptoRng`, which rand_core 0.10 defines as the blanket
+        // impl over `TryCryptoRng<Error = Infallible>`. `SysRng` can fail
+        // (OS entropy), so it does not qualify; `ThreadRng`'s error is
+        // `Infallible`, so it does. p256 0.14 put elliptic-curve on the
+        // same rand_core generation as the workspace `rand`.
+        SigningKey::random(&mut rand::rng())
     }
 
     #[test]
@@ -295,7 +297,7 @@ mod tests {
         let recovered = verifying_key_from_jwk(&jwk).unwrap();
 
         let original = vk.to_sec1_point(false);
-        let recovered_pt = recovered.to_encoded_point(false);
+        let recovered_pt = recovered.to_sec1_point(false);
         assert_eq!(original.as_bytes(), recovered_pt.as_bytes());
     }
 

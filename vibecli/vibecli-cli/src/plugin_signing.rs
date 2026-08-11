@@ -260,10 +260,13 @@ mod tests {
     use tempfile::tempdir;
 
     fn fixture_key() -> SigningKey {
-        // Same pattern as signed_agent_card tests — `p256` re-exports
-        // the `rand_core::OsRng` that satisfies the bound `ecdsa`
-        // expects (workspace `rand` is on a newer rand_core).
-        SigningKey::random(&mut rand::rngs::SysRng)
+        // `rand::rng()`, not the OS RNG: `ecdsa::SigningKey::random`
+        // binds `CryptoRng`, which rand_core 0.10 defines as the blanket
+        // impl over `TryCryptoRng<Error = Infallible>`. `SysRng` can fail
+        // (OS entropy), so it does not qualify; `ThreadRng`'s error is
+        // `Infallible`, so it does. p256 0.14 put elliptic-curve on the
+        // same rand_core generation as the workspace `rand`.
+        SigningKey::random(&mut rand::rng())
     }
 
     fn fixture_manifest_with(key: &SigningKey) -> PluginManifest {
@@ -369,7 +372,7 @@ mod tests {
             kid: "evil".into(),
             algorithm: "ES256".into(),
             value: base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(sig_bytes.to_bytes()),
-            manifest_digest: format!("{:x}", digest),
+            manifest_digest: hex::encode(digest),
         };
 
         let res = verify_manifest_signature(&manifest, &evil);
