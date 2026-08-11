@@ -823,6 +823,7 @@ Just markdown body.
         use crate::signed_agent_card::jwk_from_verifying_key;
         use crate::workspace_store::WorkspaceStore;
         use p256::ecdsa::SigningKey;
+        use p256::elliptic_curve::Generate;
 
         let builtin = tempdir().unwrap();
         let ws = tempdir().unwrap();
@@ -904,6 +905,7 @@ Just markdown body.
         use crate::signed_agent_card::jwk_from_verifying_key;
         use crate::workspace_store::WorkspaceStore;
         use p256::ecdsa::SigningKey;
+        use p256::elliptic_curve::Generate;
 
         let builtin = tempdir().unwrap();
         write_skill(builtin.path(), "agent-loops", SAMPLE_AGENT);
