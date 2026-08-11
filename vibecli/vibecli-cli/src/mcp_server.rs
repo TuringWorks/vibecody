@@ -1303,10 +1303,12 @@ async fn call_tool(
         "list_skills" => {
             let category = args["category"].as_str();
             let query = args["query"].as_str();
-            let cat = crate::skill_catalog::SkillCatalog::load_from_with_cwd_plugins(
-                skills_dir_default(),
-            )
-            .map_err(|e| anyhow::anyhow!("list_skills: {e}"))?;
+            // Cached: this used to re-read and re-parse the whole catalogue
+            // (1,143 files) on every tool call. `load_with_cwd_plugins_cached`
+            // revalidates with a directory fingerprint, so an edited skill is
+            // still picked up without a restart.
+            let cat = crate::skill_catalog::load_with_cwd_plugins_cached(&skills_dir_default())
+                .map_err(|e| anyhow::anyhow!("list_skills: {e}"))?;
             let entries: Vec<serde_json::Value> = cat
                 .list(category, query)
                 .into_iter()
@@ -1337,10 +1339,8 @@ async fn call_tool(
             if skill_name.is_empty() {
                 return Err(anyhow::anyhow!("get_skill: name is required"));
             }
-            let cat = crate::skill_catalog::SkillCatalog::load_from_with_cwd_plugins(
-                skills_dir_default(),
-            )
-            .map_err(|e| anyhow::anyhow!("get_skill: {e}"))?;
+            let cat = crate::skill_catalog::load_with_cwd_plugins_cached(&skills_dir_default())
+                .map_err(|e| anyhow::anyhow!("get_skill: {e}"))?;
             let s = cat
                 .get(skill_name)
                 .ok_or_else(|| anyhow::anyhow!("get_skill: '{skill_name}' not found"))?;
