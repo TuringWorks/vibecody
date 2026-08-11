@@ -7,6 +7,7 @@ pub mod catalog;
 pub mod chat;
 pub mod config;
 pub mod diffcomplete;
+pub mod ghost;
 pub mod hooks;
 pub mod mcp;
 pub mod multi_agent;

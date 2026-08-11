@@ -125,7 +125,14 @@ impl AcpResponse {
 /// `prompt` slice.
 #[derive(Debug, Clone, Default)]
 pub struct AcpSession {
+    // Never read today: the session id is also the map key, and `mode` is
+    // written by `setSessionMode`, which is still `MethodNotImplemented`.
+    // Kept as targeted allows rather than a file-level one so genuinely new
+    // dead code still warns — the blanket allow on this module is exactly
+    // what let it sit unreachable for months.
+    #[allow(dead_code)]
     pub id: String,
+    #[allow(dead_code)]
     pub mode: String,
 }
 
@@ -150,6 +157,7 @@ impl AcpServer {
     }
 
     /// Convenience for tests: how many sessions are currently held.
+    #[allow(dead_code)]
     pub fn session_count(&self) -> usize {
         self.state.lock_recover().sessions.len()
     }

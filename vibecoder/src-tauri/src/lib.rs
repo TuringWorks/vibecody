@@ -510,6 +510,7 @@ pub fn run() {
             commands::get_sandbox_status,
             commands::set_sandbox_enabled,
             commands::diffcomplete_generate,
+            commands::ghost_complete,
             // Build System commands
             commands::list_workspace_subdirs,
             commands::detect_build_system,

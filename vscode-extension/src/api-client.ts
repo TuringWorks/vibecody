@@ -234,6 +234,24 @@ export interface IndexBuildResponse {
   path: string;
 }
 
+export interface GhostCompleteRequest {
+  filePath: string;
+  language: string;
+  /** Text before the cursor, already windowed by the caller. */
+  prefix: string;
+  /** Text after the cursor, already windowed by the caller. */
+  suffix: string;
+  provider?: string;
+  model?: string;
+}
+
+export interface GhostCompleteResponse {
+  completion: string;
+  model_name: string;
+  /** The daemon clipped the model's answer at its line cap. */
+  truncated: boolean;
+}
+
 export class VibeCLIClient {
   private baseUrl: string;
   private explicitToken?: string;
@@ -278,6 +296,31 @@ export class VibeCLIClient {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Explicit-trigger inline completion for the cursor position.
+   *
+   * Called only from `ghost-text.ts`, which gates on VS Code's *Invoke*
+   * trigger kind. There is no automatic caller — see that file's header.
+   */
+  async ghostComplete(req: GhostCompleteRequest): Promise<GhostCompleteResponse> {
+    const res = await this.authedFetch(`${this.baseUrl}/v1/ghost/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        file_path: req.filePath,
+        language: req.language,
+        prefix: req.prefix,
+        suffix: req.suffix,
+        provider: req.provider,
+        model: req.model,
+      }),
+    });
+    if (!res.ok) {
+      throw new Error(`Inline completion failed: ${res.status} ${await res.text()}`);
+    }
+    return await res.json() as GhostCompleteResponse;
   }
 
   /** Single-turn chat (non-streaming). */

@@ -19,6 +19,7 @@
       { "command": "vibecli.connectDaemon",  "title": "VibeCLI: Connect to Daemon" },
       { "command": "vibecli.startDaemon",    "title": "VibeCLI: Start Daemon" },
       { "command": "vibecli.inlineEdit",     "title": "VibeCLI: Inline Edit (selection)" },
+      { "command": "vibecli.ghostComplete",  "title": "VibeCLI: Inline Completion at Cursor" },
       { "command": "vibecli.viewJobs",       "title": "VibeCLI: View Background Jobs" },
       { "command": "vibecli.sendSelection",  "title": "VibeCLI: Send Selection to Agent" },
       { "command": "vibecli.dictate",        "title": "VibeCLI: Dictate (voice input)" },
@@ -66,6 +67,12 @@
         "key": "ctrl+shift+enter",
         "mac": "cmd+shift+enter",
         "when": "editorHasSelection"
+      },
+      {
+        "command": "vibecli.ghostComplete",
+        "key": "alt+\\",
+        "mac": "alt+\\",
+        "when": "editorTextFocus"
       }
     ],
     "configuration": {
@@ -103,6 +110,11 @@
             "vibecli-mistralrs"
           ],
           "description": "AI provider to use. Must be a provider the daemon can build (matches vibe-ai::catalog / create_provider). Set the provider's API key via the app or the daemon; ollama needs no key."
+        },
+        "vibecli.model": {
+          "type": "string",
+          "default": "",
+          "description": "Model id for vibecli.provider (e.g. \"claude-opus-5\", \"gpt-5\"). The daemon only honours the provider override when a model is set too — leave this empty to use whichever provider and model the daemon itself was started with."
         },
         "vibecli.approval": {
           "type": "string",

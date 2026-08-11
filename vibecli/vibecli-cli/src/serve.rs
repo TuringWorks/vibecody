@@ -6725,6 +6725,74 @@ async fn v1_resume_get(Path(handle): Path<String>) -> (StatusCode, Json<serde_js
     helper_outcome_to_response(out)
 }
 
+// ── Ghost text — /v1/ghost/complete ────────────────────────────────────────
+//
+// Explicit-trigger inline completion for editor clients that speak HTTP rather
+// than Tauri (the VS Code extension). One request per user gesture.
+//
+// The daemon cannot verify that a request was user-triggered — the gate lives
+// in each client's inline-completion provider, which returns early for the
+// editor's *automatic* trigger kind. This route deliberately has no session,
+// no edit-history accumulator, and no debounce state, so there is nothing here
+// that a keystroke loop could drive cheaply.
+
+#[derive(Debug, Deserialize)]
+struct GhostCompleteRequest {
+    file_path: String,
+    language: String,
+    /// Text before the cursor, already windowed by the client.
+    prefix: String,
+    /// Text after the cursor, already windowed by the client.
+    #[serde(default)]
+    suffix: String,
+    #[serde(default)]
+    provider: Option<String>,
+    #[serde(default)]
+    model: Option<String>,
+}
+
+async fn v1_ghost_complete_post(
+    State(state): State<ServeState>,
+    Json(req): Json<GhostCompleteRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    if req.prefix.trim().is_empty() && req.suffix.trim().is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "error": "prefix and suffix are both empty — nothing to complete"
+            })),
+        );
+    }
+
+    let provider = chat_provider_for(
+        &state.provider,
+        req.provider.as_deref(),
+        req.model.as_deref(),
+    );
+
+    let project_memory = crate::memory::ProjectMemory::load(&state.workspace_root).combined();
+
+    let request = vibe_ai::ghost::GhostRequest {
+        file_path: req.file_path,
+        language: req.language,
+        prefix: req.prefix,
+        suffix: req.suffix,
+        project_memory,
+    };
+
+    match vibe_ai::ghost::generate(provider, request).await {
+        Ok(res) => (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "completion": res.completion,
+                "model_name": res.model_name,
+                "truncated": res.truncated,
+            })),
+        ),
+        Err(e) => internal_error("ghost.generate", &e),
+    }
+}
+
 // ── Recap & Resume — D1.1 /v1/diffcomplete/chains autosave route ───────────
 //
 // Persistence is *append-on-event* only. The modal posts here when a
@@ -7972,6 +8040,8 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         // Writes happen only
         // on discrete user-driven events posted by the modal.
         .route("/v1/diffcomplete/chains", post(v1_diffcomplete_chains_post))
+        // Ghost text — explicit-trigger inline completion (VS Code extension).
+        .route("/v1/ghost/complete", post(v1_ghost_complete_post))
         // Mobile Gateway — machine registration & dispatch (iOS/Android remote management)
         .route("/mobile/machines", get(mobile_list_machines))
         .route("/mobile/machines", post(mobile_register_machine))
@@ -12197,6 +12267,51 @@ mod tests {
         }
 
         // ── Auth: unauthenticated requests to protected routes → 401 ──
+
+        // ── /v1/ghost/complete ─────────────────────────────────────────
+        //
+        // Stops short of a real model call — that needs a configured provider
+        // a test machine cannot assume. What is tested is everything the
+        // handler decides *before* dispatching: auth and empty-window
+        // rejection.
+
+        #[tokio::test]
+        async fn ghost_complete_without_auth_returns_401() {
+            let (app, _tmp) = test_app("secret-token");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/v1/ghost/complete")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"file_path":"a.rs","language":"rust","prefix":"fn f() {","suffix":"}"}"#,
+                ))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(
+                resp.status(),
+                StatusCode::UNAUTHORIZED,
+                "ghost completion is not in the public route list"
+            );
+        }
+
+        #[tokio::test]
+        async fn ghost_complete_rejects_an_empty_window() {
+            // Both sides blank means there is no cursor context at all; that is
+            // a client bug, and answering it would bill a model call for a
+            // prompt with nothing in it.
+            let (app, _tmp) = test_app("secret-token");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/v1/ghost/complete")
+                .header("authorization", "Bearer secret-token")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"file_path":"a.rs","language":"rust","prefix":"  ","suffix":""}"#,
+                ))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        }
 
         // ── /voice/transcribe + /voice/status ──────────────────────────
         //

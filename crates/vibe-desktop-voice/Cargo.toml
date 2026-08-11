@@ -10,7 +10,7 @@ description = "Voice-input Tauri commands shared by the VibeCody desktop shells 
 tauri = { version = "2" }
 serde_json = { workspace = true }
 reqwest = { workspace = true }
-base64 = "0.22"
+base64 = "0.23"
 
 [dev-dependencies]
 tokio = { workspace = true }

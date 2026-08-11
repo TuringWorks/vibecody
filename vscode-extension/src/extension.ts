@@ -16,6 +16,7 @@ import {
   type JobRecord,
 } from './api-client';
 import { GoalsTreeProvider, GoalTreeItem } from './goals-tree';
+import { registerGhostText } from './ghost-text';
 import { gatePromptSubmission } from './hook-executor';
 import { startRecording, type RecordingHandle } from './voice-capture';
 
@@ -41,6 +42,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // Try connecting to the daemon
   await tryConnect();
+
+  // Ghost text — explicit-trigger inline completion (alt+\). Registers its
+  // own command; the provider answers only VS Code's Invoke trigger kind, so
+  // typing never issues a request. See ghost-text.ts.
+  registerGhostText(context, {
+    client: () => (daemonConnected ? client : null),
+    getProvider: () => vscode.workspace.getConfiguration('vibecli').get<string>('provider', ''),
+    getModel: () => vscode.workspace.getConfiguration('vibecli').get<string>('model', ''),
+    showError: (message) => vscode.window.showWarningMessage(`VibeCLI: ${message}`),
+    showInfo: (message) => vscode.window.setStatusBarMessage(`VibeCLI: ${message}`, 5000),
+  });
 
   // Register commands
   context.subscriptions.push(
