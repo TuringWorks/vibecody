@@ -395,7 +395,7 @@ mod tests {
     }
 
     fn fixture_key() -> SigningKey {
-        SigningKey::generate_from_rng(&mut rand::rng())
+        SigningKey::try_generate_from_rng(&mut rand::rng()).expect("ThreadRng is Infallible")
     }
 
     fn fixture_manifest(name: &str, key: &SigningKey, policy: DefaultPolicy) -> PluginManifest {

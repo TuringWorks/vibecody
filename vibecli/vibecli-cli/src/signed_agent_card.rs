@@ -223,7 +223,7 @@ mod tests {
         // (OS entropy), so it does not qualify; `ThreadRng`'s error is
         // `Infallible`, so it does. p256 0.14 put elliptic-curve on the
         // same rand_core generation as the workspace `rand`.
-        SigningKey::generate_from_rng(&mut rand::rng())
+        SigningKey::try_generate_from_rng(&mut rand::rng()).expect("ThreadRng is Infallible")
     }
 
     #[test]

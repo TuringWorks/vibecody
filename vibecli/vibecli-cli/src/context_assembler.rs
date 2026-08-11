@@ -985,7 +985,7 @@ mod tests {
         fs::create_dir_all(src.join("rules")).unwrap();
         fs::write(src.join("rules/r.md"), rule_body).unwrap();
 
-        let key = SigningKey::generate_from_rng(&mut rand::rng());
+        let key = SigningKey::try_generate_from_rng(&mut rand::rng()).expect("ThreadRng is Infallible");
         let manifest = crate::plugin_manifest::PluginManifest {
             name: name.to_string(),
             version: "1.0.0".into(),

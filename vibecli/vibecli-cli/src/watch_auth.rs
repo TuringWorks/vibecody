@@ -907,7 +907,7 @@ mod tests {
         use p256::elliptic_curve::Generate;
 
         // Generate a real P256 keypair
-        let signing_key = SigningKey::generate_from_rng(&mut rand::rng());
+        let signing_key = SigningKey::try_generate_from_rng(&mut rand::rng()).expect("ThreadRng is Infallible");
         let verifying_key = signing_key.verifying_key();
 
         // Swift uses: SHA256.hash(data: msg) → sign the hash directly.
@@ -936,7 +936,7 @@ mod tests {
         use p256::ecdsa::{signature::Signer, SigningKey};
         use p256::elliptic_curve::Generate;
 
-        let signing_key = SigningKey::generate_from_rng(&mut rand::rng());
+        let signing_key = SigningKey::try_generate_from_rng(&mut rand::rng()).expect("ThreadRng is Infallible");
         let verifying_key = signing_key.verifying_key();
 
         let msg = b"correct message";
@@ -957,8 +957,8 @@ mod tests {
         use p256::ecdsa::{signature::Signer, SigningKey};
         use p256::elliptic_curve::Generate;
 
-        let signing_key = SigningKey::generate_from_rng(&mut rand::rng());
-        let wrong_key = SigningKey::generate_from_rng(&mut rand::rng());
+        let signing_key = SigningKey::try_generate_from_rng(&mut rand::rng()).expect("ThreadRng is Infallible");
+        let wrong_key = SigningKey::try_generate_from_rng(&mut rand::rng()).expect("ThreadRng is Infallible");
         let wrong_verifying = wrong_key.verifying_key();
 
         let msg = b"some message";
@@ -984,7 +984,7 @@ mod tests {
         let ch = mgr.issue_challenge().unwrap();
 
         // Simulate what Swift does: generate key, build message, sign
-        let signing_key = SigningKey::generate_from_rng(&mut rand::rng());
+        let signing_key = SigningKey::try_generate_from_rng(&mut rand::rng()).expect("ThreadRng is Infallible");
         let verifying_key = signing_key.verifying_key();
         let device_id = "deadbeef12345678deadbeef12345678";
 

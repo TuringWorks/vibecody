@@ -740,7 +740,7 @@ Just markdown body.
         let store = WorkspaceStore::open_with(&db, [11u8; 32]).unwrap();
 
         // Build + sign a plugin bundle that ships one skill.
-        let key = SigningKey::generate_from_rng(&mut rand::rng());
+        let key = SigningKey::try_generate_from_rng(&mut rand::rng()).expect("ThreadRng is Infallible");
         let manifest = PluginManifest {
             name: "demo".into(),
             version: "1.0.0".into(),
@@ -823,6 +823,7 @@ Just markdown body.
         use crate::signed_agent_card::jwk_from_verifying_key;
         use crate::workspace_store::WorkspaceStore;
         use p256::ecdsa::SigningKey;
+        use p256::elliptic_curve::Generate;
 
         let builtin = tempdir().unwrap();
         let ws = tempdir().unwrap();
@@ -830,7 +831,7 @@ Just markdown body.
         std::fs::create_dir_all(db.parent().unwrap()).unwrap();
         let store = WorkspaceStore::open_with(&db, [22u8; 32]).unwrap();
 
-        let key = SigningKey::generate_from_rng(&mut rand::rng());
+        let key = SigningKey::try_generate_from_rng(&mut rand::rng()).expect("ThreadRng is Infallible");
         let manifest = PluginManifest {
             name: "muted".into(),
             version: "1.0.0".into(),
@@ -904,6 +905,7 @@ Just markdown body.
         use crate::signed_agent_card::jwk_from_verifying_key;
         use crate::workspace_store::WorkspaceStore;
         use p256::ecdsa::SigningKey;
+        use p256::elliptic_curve::Generate;
 
         let builtin = tempdir().unwrap();
         write_skill(builtin.path(), "agent-loops", SAMPLE_AGENT);
@@ -913,7 +915,7 @@ Just markdown body.
         std::fs::create_dir_all(db.parent().unwrap()).unwrap();
         let store = WorkspaceStore::open_with(&db, [33u8; 32]).unwrap();
 
-        let key = SigningKey::generate_from_rng(&mut rand::rng());
+        let key = SigningKey::try_generate_from_rng(&mut rand::rng()).expect("ThreadRng is Infallible");
         let manifest = PluginManifest {
             name: "clash".into(),
             version: "1.0.0".into(),
