@@ -5,7 +5,7 @@ permalink: /providers/
 ---
 
 
-VibeCody supports 23 AI providers, covering cloud APIs, local models, inference platforms, and specialized services. This page provides a comparison and links to individual setup guides.
+VibeCody supports 22 AI providers, covering cloud APIs, local models, inference platforms, and specialized services, plus a failover wrapper that chains them. This page provides a comparison and links to individual setup guides.
 
 
 ## Quick Start
@@ -40,6 +40,8 @@ VibeCody supports 23 AI providers, covering cloud APIs, local models, inference 
 | [Together AI](together/) | Inference | `TOGETHER_API_KEY` | `meta-llama/Llama-3.1-70B-Instruct-Turbo` | Yes (limited) | Yes |
 | [Fireworks AI](fireworks/) | Inference | `FIREWORKS_API_KEY` | `llama-v3p1-70b-instruct` | Yes (limited) | Yes |
 | [SambaNova](sambanova/) | Inference | `SAMBANOVA_API_KEY` | `Meta-Llama-3.1-70B-Instruct` | Yes (limited) | Yes |
+| [Poolside](poolside/) | Cloud | `POOLSIDE_API_KEY` | `poolside/laguna-s-2.1` | No | Yes |
+| [VibeCLI mistral.rs](vibecli-mistralrs/) | Local | None (daemon token) | `Qwen/Qwen2.5-Coder-7B-Instruct` | Yes (fully free) | Yes |
 | LocalEdit | Local | None | Local model | Yes (fully free) | Yes |
 | [Failover](failover/) | Wrapper | N/A | N/A | N/A | Yes |
 
@@ -47,6 +49,10 @@ VibeCody supports 23 AI providers, covering cloud APIs, local models, inference 
 ## Choosing a Provider
 
 **For beginners:** Start with [Ollama](ollama/) -- it is free, runs locally, and requires no API key. Pull `qwen3-coder` or `llama3.2` and you are ready.
+
+**For local with nothing to install:** [VibeCLI mistral.rs](vibecli-mistralrs/) runs models inside the daemon you are already running -- no Ollama, no sidecar. On by default in macOS builds; a build-time feature elsewhere.
+
+**For code-specific models:** [Poolside](poolside/) trains its Laguna models for software engineering rather than adapting a general chat model.
 
 **For best quality:** [Claude](claude/) (Opus 4.6 or Sonnet 4.6) and [OpenAI](openai/) (GPT-4o) provide the highest-quality code generation and reasoning.
 
@@ -73,6 +79,9 @@ Every provider works with the same CLI interface. Here are copy-paste examples:
 # ── Local (free, private) ─────────────────────────────────────────
 ollama pull qwen3-coder
 vibecli --provider ollama "Explain the borrow checker"
+
+# In-process mistral.rs — no Ollama, no key (uses the daemon's own token)
+vibecli --provider vibecli-mistralrs "Explain the borrow checker"
 
 # ── Cloud APIs ────────────────────────────────────────────────────
 export ANTHROPIC_API_KEY="sk-ant-..."
@@ -105,6 +114,10 @@ vibecli --provider deepseek "Write comprehensive tests for src/db.rs"
 export PERPLEXITY_API_KEY="pplx-..."
 vibecli --provider perplexity "What breaking changes are in Tokio 1.40?"
 
+# ── Code-specific models ─────────────────────────────────────────
+export POOLSIDE_API_KEY="..."
+vibecli --provider poolside "Refactor src/auth.rs to use the newtype pattern"
+
 # ── Multi-model gateways ─────────────────────────────────────────
 export OPENROUTER_API_KEY="sk-or-..."
 vibecli --provider openrouter --model "meta-llama/llama-3.3-70b" "Hello"
@@ -135,7 +148,7 @@ vibecli --agent "Refactor to async/await" --provider openai --auto-edit
 # Full-auto (CI/scripts — no prompts)
 vibecli --exec "Run tests and fix any failures" --provider claude --full-auto
 
-# Resume a previous session
+# Resume a previous session (continues on its own)
 vibecli --resume 1711234567
 ```
 
