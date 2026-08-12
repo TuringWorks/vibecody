@@ -415,7 +415,7 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider }: Git
  </select>
  </div>
 
- <div style={{ marginBottom: '12px', display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+ <div style={{ flexShrink: 0, marginBottom: '12px', display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
  <button className="panel-btn btn-primary" onClick={handlePull} disabled={isLoading} style={{ fontSize: '12px', padding: '4px 8px' }}>
  Pull
  </button>
@@ -427,7 +427,24 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider }: Git
  </button>
  </div>
 
- <div style={{ flex: 1, overflowY: 'auto', marginBottom: '12px' }}>
+ {/* One scroll region for everything below the branch header.
+  *
+  * Every section used to be a direct flex child of `.panel-container`, and two
+  * of them (this one, plus whichever div landed last — see the
+  * `div:last-child` rule in App.css) claimed `flex: 1`. Open the Code Review
+  * section and the column ran out of room: the changes list, having
+  * `overflow-y: auto`, resolved its min-height to 0 and vanished, taking the
+  * file you were about to commit off the screen entirely. Sections now flow
+  * inside a single scroller, so an expanding one pushes rather than evicts.
+  *
+  * Block layout, deliberately: as a flex column its own children would shrink
+  * to fit instead of overflowing, and the scrollbar would never appear — the
+  * same squeeze in a new place. */}
+ <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+
+ {/* The list scrolls within a bounded height rather than growing without
+   * limit: a 200-file working tree must not push Commit off the panel. */}
+ <div style={{ maxHeight: '32vh', overflowY: 'auto', marginBottom: '12px' }}>
  {showHistory ? (
  <div>
  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
@@ -611,7 +628,12 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider }: Git
  <span>Code Review</span>
  </button>
  {showReview && (
- <div style={{ marginTop: 8, height: 420, borderRadius: "var(--radius-sm)", overflow: 'hidden', background: 'var(--bg-secondary)' }}>
+ /* Height is a floor, not a cap. The box used to be a fixed 420px with
+  * `overflow: hidden`, which clipped every review longer than it — the
+  * findings below the fold were unreachable, since the clip left nothing
+  * to scroll. Letting the content size the box hands the scrolling to the
+  * panel's one scroll region above. */
+ <div style={{ marginTop: 8, minHeight: 240, borderRadius: "var(--radius-sm)", background: 'var(--bg-secondary)' }}>
  <ReviewPanel
  workspacePath={workspacePath}
  selectedProvider={selectedProvider}
@@ -850,6 +872,8 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider }: Git
  )}
  </div>
  )}
+ </div>
+ {/* end of the scroll region */}
  </div>
 
  <Toaster toasts={toasts} onDismiss={dismiss} />
