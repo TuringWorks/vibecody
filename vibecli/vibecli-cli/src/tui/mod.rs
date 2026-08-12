@@ -430,7 +430,11 @@ where
                         KeyCode::Char('a')
                             if matches!(app.current_screen, CurrentScreen::Agent) =>
                         {
-                            // Approve-all: approve current and switch executor to FullAuto
+                            // Approve the current call *and* latch the flag, so
+                            // later calls auto-execute on arrival. Without the
+                            // latch this arm was a byte-for-byte copy of `y`
+                            // and re-prompted on every subsequent tool call.
+                            app.approve_all = true;
                             if let Some(PendingApproval { call, result_tx }) =
                                 app.pending_approval.take()
                             {
@@ -618,10 +622,29 @@ where
                 }
                 AppEvent::AgentToolCallPending { call, result_tx } => {
                     app.agent_view.streaming_text.clear();
-                    app.agent_view.pending_call = Some(call.clone());
-                    app.agent_view.status = AgentStatus::WaitingApproval;
-                    app.pending_approval = Some(PendingApproval { call, result_tx });
-                    app.current_screen = CurrentScreen::Agent;
+                    if app.approve_all {
+                        // Already answered for the session — run it instead of
+                        // parking the agent on a prompt nobody will be shown.
+                        app.agent_view.status = AgentStatus::Running;
+                        let executor = tool_executor.clone();
+                        let tx_clone = tx.clone();
+                        tokio::spawn(async move {
+                            let result = executor.execute(&call).await;
+                            let step = AgentStep {
+                                step_num: 0,
+                                tool_call: call,
+                                tool_result: result.clone(),
+                                approved: true,
+                            };
+                            let _ = result_tx.send(Some(result));
+                            let _ = tx_clone.send(AppEvent::AgentToolCallExecuted(step)).await;
+                        });
+                    } else {
+                        app.agent_view.pending_call = Some(call.clone());
+                        app.agent_view.status = AgentStatus::WaitingApproval;
+                        app.pending_approval = Some(PendingApproval { call, result_tx });
+                        app.current_screen = CurrentScreen::Agent;
+                    }
                 }
                 AppEvent::AgentToolCallExecuted(step) => {
                     app.agent_view.add_step(step);

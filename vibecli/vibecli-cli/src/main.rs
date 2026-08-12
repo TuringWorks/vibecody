@@ -18284,6 +18284,30 @@ fn history_tool_success_rate(completed_steps: &[(String, String, bool)]) -> f32 
     successes as f32 / total as f32
 }
 
+/// What the user's answer at the tool-approval prompt means.
+///
+/// A three-state enum rather than a `bool`, because "approve this one" and
+/// "approve everything from now on" are genuinely different answers — collapsing
+/// them is what made `a` behave identically to `y`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ApprovalAnswer {
+    Reject,
+    ApproveOnce,
+    ApproveAll,
+}
+
+/// Parse a raw line from the approval prompt.
+///
+/// Anything that is not `n` or `a` approves the single call — including a bare
+/// Enter. That is the long-standing default and is left as-is here.
+fn parse_approval_answer(input: &str) -> ApprovalAnswer {
+    match input.trim().to_lowercase().as_str() {
+        "n" => ApprovalAnswer::Reject,
+        "a" => ApprovalAnswer::ApproveAll,
+        _ => ApprovalAnswer::ApproveOnce,
+    }
+}
+
 async fn run_agent_repl_with_context(
     llm: Arc<dyn LLMProvider>,
     task: &str,
@@ -18628,6 +18652,11 @@ async fn run_agent_repl_with_context(
     });
 
     let mut step_start = std::time::Instant::now();
+    // "a" is a *session* answer, not a per-call one. Scoped to the run rather
+    // than the match arm: the arm is re-entered for every tool call, so a flag
+    // living inside it would reset each time and re-prompt — which is exactly
+    // what "approve-all" is asked for to stop.
+    let mut approve_all = false;
     let mut step_count: usize = 0;
     // Track all steps for change summary at the end
     let mut completed_steps: Vec<(String, String, bool)> = Vec::new();
@@ -18771,16 +18800,31 @@ async fn run_agent_repl_with_context(
                     "{}",
                     crate::syntax::format_tool_pending(call.name(), &description)
                 );
-                print!("   Approve? (y/n/a=approve-all): ");
-                io::stdout().flush()?;
+                // Once approve-all is on, do not ask again — but still say why
+                // the call ran unprompted, so the run does not look like it
+                // silently stopped honouring the gate.
+                let approved = if approve_all {
+                    println!("   ✓ auto-approved (approve-all active for this session)");
+                    true
+                } else {
+                    print!("   Approve? (y/n/a=approve-all): ");
+                    io::stdout().flush()?;
 
-                let mut input = String::new();
-                io::stdin().read_line(&mut input)?;
-                let answer = input.trim().to_lowercase();
+                    let mut input = String::new();
+                    io::stdin().read_line(&mut input)?;
+                    match parse_approval_answer(&input) {
+                        ApprovalAnswer::Reject => false,
+                        ApprovalAnswer::ApproveOnce => true,
+                        ApprovalAnswer::ApproveAll => {
+                            approve_all = true;
+                            true
+                        }
+                    }
+                };
                 let dur = step_start.elapsed().as_millis() as u64;
                 step_start = std::time::Instant::now();
 
-                if answer == "n" {
+                if !approved {
                     println!("   ❌ Rejected\n");
                     trace.record(
                         0,
@@ -21503,6 +21547,37 @@ async fn fetch_and_strip_url(url: &str, max_chars: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── Tool-approval prompt answers ────────────────────────────────────────
+
+    #[test]
+    fn approval_answer_rejects_only_on_n() {
+        assert_eq!(parse_approval_answer("n"), ApprovalAnswer::Reject);
+        assert_eq!(parse_approval_answer("N"), ApprovalAnswer::Reject);
+        assert_eq!(parse_approval_answer(" n \n"), ApprovalAnswer::Reject);
+    }
+
+    #[test]
+    fn approval_answer_distinguishes_approve_all_from_approve_once() {
+        // The bug this pins: `a` used to fall into the same branch as `y`, so
+        // "approve-all" approved exactly one call and prompted again.
+        assert_eq!(parse_approval_answer("a"), ApprovalAnswer::ApproveAll);
+        assert_eq!(parse_approval_answer("A"), ApprovalAnswer::ApproveAll);
+        assert_ne!(parse_approval_answer("a"), parse_approval_answer("y"));
+    }
+
+    #[test]
+    fn approval_answer_defaults_to_approving_one_call() {
+        // Pre-existing behaviour, deliberately preserved: a bare Enter (and
+        // anything unrecognised) approves the single call in front of you.
+        for raw in ["y", "", "\n", "yes", "wat"] {
+            assert_eq!(
+                parse_approval_answer(raw),
+                ApprovalAnswer::ApproveOnce,
+                "input {raw:?} should approve exactly one call"
+            );
+        }
+    }
 
     // ── Phase 7 quick-win: worker AgentContext builds with memory ───────────
 

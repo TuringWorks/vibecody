@@ -67,6 +67,9 @@ pub struct App {
     pub scroll_offset: u16,
     /// Pending approval for the current tool call (Suggest mode).
     pub pending_approval: Option<PendingApproval>,
+    /// Set by the `a` (approve-all) key. Once on, incoming tool calls execute
+    /// without parking in `WaitingApproval` for the rest of the session.
+    pub approve_all: bool,
     /// Active color theme.
     pub theme: Theme,
     /// Diagnostics pane (populated by /check command).
@@ -132,6 +135,7 @@ impl App {
             exit_pending: false,
             scroll_offset: 0,
             pending_approval: None,
+            approve_all: false,
             theme: get_theme(theme_name),
             diagnostics_panel: DiagnosticsComponent::new(),
             job_metrics: None,
