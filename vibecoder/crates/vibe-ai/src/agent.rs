@@ -20,6 +20,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::{mpsc, oneshot};
 use tracing::Instrument;
 
@@ -579,6 +580,14 @@ fn is_retryable_error(error: &str) -> bool {
     crate::resilient::is_retryable(error)
 }
 
+/// Default idle gap tolerated between streaming chunks before the stream is
+/// declared dead. See [`AgentLoop::stream_idle_timeout`].
+///
+/// Generous on purpose: a local model on a cold cache can take a long time to
+/// emit its *first* token, and cutting a healthy run short is worse than
+/// waiting. What this catches is the unbounded case — silence forever.
+pub const DEFAULT_STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(180);
+
 /// Marker that begins a `<tool_call>` block in the text tool protocol.
 const TOOL_CALL_MARKER: &str = "<tool_call";
 
@@ -707,6 +716,21 @@ pub struct AgentLoop {
     /// Middle messages are pruned when the estimate exceeds this value.
     /// `None` uses the default of 80 000 tokens.
     pub max_context_tokens: Option<usize>,
+    /// How long to wait for the next chunk of a streaming response before
+    /// treating the stream as dead.
+    ///
+    /// This is an *idle* timeout between chunks, not a ceiling on the whole
+    /// response, so a slow-but-alive local model is never cut off mid-answer.
+    ///
+    /// It exists because a provider's client-level timeout does not cover this:
+    /// `reqwest`'s `Client::timeout` guards `send()` and whole-body reads
+    /// (`.text()`, `.json()`), but once the body is taken as a raw
+    /// `bytes_stream()` the per-chunk reads are unguarded. A stream that simply
+    /// goes silent therefore parks the loop forever — observed against a
+    /// healthy Ollama that had already unloaded the model: 10+ minutes with
+    /// every thread parked, well past the provider's own 300 s timeout, which
+    /// never fired.
+    pub stream_idle_timeout: Duration,
     /// Enable circuit breaker for stall/spin/degradation detection.
     pub circuit_breaker_enabled: bool,
     /// Enable pre-completion double-check (re-read files, run build, run tests).
@@ -768,6 +792,7 @@ impl AgentLoop {
             hooks: None,
             policy: AdminPolicy::default(),
             max_context_tokens: None,
+            stream_idle_timeout: DEFAULT_STREAM_IDLE_TIMEOUT,
             circuit_breaker_enabled: true,
             double_check_enabled: false,
             atomic_commits: false,
@@ -1128,7 +1153,42 @@ impl AgentLoop {
                     // full text — only the StreamChunk feed is gated.
                     let mut streamed = 0usize;
                     let mut suppressing = false;
-                    while let Some(chunk) = stream.next().await {
+                    // Every chunk wait is bounded. Without this a stream that
+                    // goes silent never resolves and the whole run parks — the
+                    // provider's own timeout does not reach here (see
+                    // `stream_idle_timeout`).
+                    let idle_limit = self.stream_idle_timeout;
+                    loop {
+                        let next = match tokio::time::timeout(idle_limit, stream.next()).await {
+                            Ok(next) => next,
+                            Err(_) => {
+                                // Retried like any transient stream failure: the
+                                // usual cause is a provider that dropped the
+                                // response, and a fresh request normally works.
+                                let msg = format!(
+                                    "stream went silent for {}s — no data from the provider. \
+                                     The request may have been dropped; retrying.",
+                                    idle_limit.as_secs()
+                                );
+                                if attempt + 1 < retry.max_attempts {
+                                    tracing::warn!(
+                                        idle_secs = idle_limit.as_secs(),
+                                        attempt = attempt + 1,
+                                        "Streaming response stalled — retrying"
+                                    );
+                                    last_error = Some(anyhow::anyhow!(msg));
+                                    stream_failed = true;
+                                    break;
+                                }
+                                tracing::error!(
+                                    idle_secs = idle_limit.as_secs(),
+                                    "Streaming response stalled and retries are exhausted"
+                                );
+                                let _ = event_tx.send(AgentEvent::Error(msg.clone())).await;
+                                return Err(anyhow::anyhow!(msg));
+                            }
+                        };
+                        let Some(chunk) = next else { break };
                         match chunk {
                             Ok(text) => {
                                 accumulated.push_str(&text);
@@ -3879,6 +3939,137 @@ mod stream_gate_tests {
         let s = "résumé café naïve crème brûlée"; // many 2-byte chars
         let (end, _) = streamable_prose_end(s, 0);
         assert!(s.is_char_boundary(end));
+    }
+}
+
+#[cfg(test)]
+mod stream_stall_tests {
+    use super::*;
+    use crate::provider::{CodeContext, CompletionResponse, CompletionStream};
+    use std::sync::Arc;
+
+    struct NoOpExecutor;
+    #[async_trait::async_trait]
+    impl ToolExecutorTrait for NoOpExecutor {
+        async fn execute(&self, _call: &ToolCall) -> ToolResult {
+            ToolResult::ok("test", "ok")
+        }
+    }
+
+    /// Opens a stream and then never sends anything — a provider that accepted
+    /// the request and went quiet. This is the shape of the real failure: a
+    /// healthy Ollama that had already unloaded the model, leaving the socket
+    /// open and the response never arriving.
+    struct SilentStreamProvider;
+
+    #[async_trait::async_trait]
+    impl crate::provider::AIProvider for SilentStreamProvider {
+        fn name(&self) -> &str {
+            "silent"
+        }
+        async fn is_available(&self) -> bool {
+            true
+        }
+        async fn complete(&self, _c: &CodeContext) -> Result<CompletionResponse> {
+            anyhow::bail!("unused")
+        }
+        async fn stream_complete(&self, _c: &CodeContext) -> Result<CompletionStream> {
+            anyhow::bail!("unused")
+        }
+        async fn chat(&self, _m: &[Message], _c: Option<String>) -> Result<String> {
+            anyhow::bail!("unused")
+        }
+        async fn stream_chat(&self, _m: &[Message]) -> Result<CompletionStream> {
+            // Resolves never — exactly what `stream.next().await` used to await
+            // forever.
+            Ok(Box::pin(futures::stream::pending()))
+        }
+    }
+
+    /// The regression: before the idle timeout, this call never returned and
+    /// the whole run parked with every thread idle. The assertion that matters
+    /// is not the message but that it *finishes at all* — the test would hang
+    /// rather than fail without the fix, so it is wrapped in an outer timeout.
+    #[tokio::test]
+    async fn a_silent_stream_ends_the_run_instead_of_hanging() {
+        let provider: Arc<dyn crate::provider::AIProvider> = Arc::new(SilentStreamProvider);
+        let exec: Arc<dyn ToolExecutorTrait> = Arc::new(NoOpExecutor);
+        let mut agent = AgentLoop::new(provider, ApprovalPolicy::FullAuto, exec);
+        agent.stream_idle_timeout = Duration::from_millis(50);
+        agent.max_steps = 1;
+
+        let (tx, _rx) = mpsc::channel::<AgentEvent>(64);
+        let ctx = AgentContext::default();
+
+        let outcome =
+            tokio::time::timeout(Duration::from_secs(20), agent.run("do the thing", ctx, tx))
+                .await
+                .expect("run hung despite the idle timeout");
+
+        let err = outcome.expect_err("a stream that never yields cannot succeed");
+        assert!(
+            err.to_string().contains("went silent"),
+            "error should name the stall, got: {err}"
+        );
+    }
+
+    /// The timeout must be an idle gap between chunks, not a ceiling on the
+    /// whole response — otherwise a slow local model gets cut off mid-answer,
+    /// which is worse than the bug being fixed.
+    #[tokio::test]
+    async fn a_slow_but_alive_stream_is_not_cut_off() {
+        struct SlowProvider;
+        #[async_trait::async_trait]
+        impl crate::provider::AIProvider for SlowProvider {
+            fn name(&self) -> &str {
+                "slow"
+            }
+            async fn is_available(&self) -> bool {
+                true
+            }
+            async fn complete(&self, _c: &CodeContext) -> Result<CompletionResponse> {
+                anyhow::bail!("unused")
+            }
+            async fn stream_complete(&self, _c: &CodeContext) -> Result<CompletionStream> {
+                anyhow::bail!("unused")
+            }
+            async fn chat(&self, _m: &[Message], _c: Option<String>) -> Result<String> {
+                anyhow::bail!("unused")
+            }
+            async fn stream_chat(&self, _m: &[Message]) -> Result<CompletionStream> {
+                // Six chunks, each arriving well inside the idle window, but
+                // together taking far longer than it.
+                let s = futures::stream::iter(0..6).then(|i| async move {
+                    tokio::time::sleep(Duration::from_millis(60)).await;
+                    Ok(format!("token{i} "))
+                });
+                Ok(Box::pin(s))
+            }
+        }
+
+        let provider: Arc<dyn crate::provider::AIProvider> = Arc::new(SlowProvider);
+        let exec: Arc<dyn ToolExecutorTrait> = Arc::new(NoOpExecutor);
+        let mut agent = AgentLoop::new(provider, ApprovalPolicy::FullAuto, exec);
+        // Shorter than the total stream duration (~360ms), longer than any gap.
+        agent.stream_idle_timeout = Duration::from_millis(200);
+        agent.max_steps = 1;
+
+        let (tx, mut rx) = mpsc::channel::<AgentEvent>(64);
+        let ctx = AgentContext::default();
+        let _ = tokio::time::timeout(Duration::from_secs(20), agent.run("do the thing", ctx, tx))
+            .await
+            .expect("run hung");
+
+        let mut streamed = String::new();
+        while let Ok(e) = rx.try_recv() {
+            if let AgentEvent::StreamChunk(s) = e {
+                streamed.push_str(&s);
+            }
+        }
+        assert!(
+            streamed.contains("token5"),
+            "the last chunk should have survived a slow-but-alive stream, got: {streamed:?}"
+        );
     }
 }
 
