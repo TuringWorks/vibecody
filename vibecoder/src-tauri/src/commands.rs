@@ -10906,19 +10906,12 @@ Scores are 0–10 (10 = excellent). Only report real issues.
         .await
         .map_err(|e| format!("AI provider error: {e}"))?;
 
-    // Extract JSON from the response (strip markdown code fences if present)
+    // Reasoning models answer this prompt with their reasoning first; the JSON
+    // is found inside it, or after it, or (when the answer was cut short) not
+    // at all. `extract_json` handles the first two — this handles the third.
     let json_str = extract_json(&response);
-    let mut report: serde_json::Value = serde_json::from_str(&json_str).map_err(|e| {
-        let end = response
-            .char_indices()
-            .nth(500)
-            .map(|(i, _)| i)
-            .unwrap_or(response.len());
-        format!(
-            "Failed to parse review JSON: {e}\n\nRaw: {}",
-            &response[..end]
-        )
-    })?;
+    let mut report: serde_json::Value =
+        serde_json::from_str(&json_str).map_err(|e| review_parse_error(e, &response))?;
 
     // Inject refs for display
     report["base_ref"] = serde_json::Value::String(base_ref.unwrap_or_default());
@@ -10926,6 +10919,37 @@ Scores are 0–10 (10 = excellent). Only report real issues.
         serde_json::Value::String(target_ref.unwrap_or_else(|| "HEAD".to_string()));
 
     Ok(report)
+}
+
+/// Explain a failed review parse in terms of what the model did.
+///
+/// A serde column number is useless here: the user cannot see the string it
+/// indexes into, and the cause is never a malformed key — it is a model that
+/// spent its answer on reasoning, or one whose reply was cut off before the
+/// JSON closed. Name that, and quote the model so the claim is checkable.
+fn review_parse_error(err: serde_json::Error, response: &str) -> String {
+    let preview: String = response.chars().take(500).collect();
+    let elided = if response.chars().count() > 500 {
+        "…"
+    } else {
+        ""
+    };
+    // Reasoning-only is checked before "no JSON at all": both are true of a
+    // reply cut off mid-thought, and only the first tells the user what to do
+    // about it.
+    let cause = if response.trim().is_empty() {
+        "The model returned an empty response.".to_string()
+    } else if vibe_ai::tools::strip_thinking(response).trim().is_empty() {
+        "The model spent the whole reply on reasoning and never emitted the \
+         JSON — it was most likely cut off before finishing. Try a lower \
+         reasoning-effort tier, or a smaller diff."
+            .to_string()
+    } else if !response.contains('{') {
+        "The model replied in prose without any JSON object.".to_string()
+    } else {
+        format!("No complete JSON object could be read from the reply ({err}).")
+    };
+    format!("Code review failed. {cause}\n\nModel said:\n{preview}{elided}")
 }
 
 /// Open a URL in the system's default browser using the Tauri opener plugin.
@@ -16334,28 +16358,33 @@ pub async fn github_create_repo(
     Ok(html_url)
 }
 
+/// Extract the JSON object an LLM was asked for from whatever it actually sent.
+///
+/// Reasoning models answer a "reply with JSON" prompt with their reasoning
+/// first, and that prose is full of braces — `"Cargo.toml sets {version}"`,
+/// `unwrap_or_else(|| {…})` quoted from the diff. Slicing
+/// `find('{')..=rfind('}')` starts inside that prose and fails with a column
+/// number that tells the user nothing (`key must be a string at line 1
+/// column 3`). Scan for a *balanced span that parses* instead.
+///
+/// Reasoning is dropped first, then retried on the raw text: some models
+/// (minimax-m3 among them) put their entire answer inside one `<thinking>`
+/// block, so a JSON object found only there is still the answer.
+///
+/// Falls back to the trimmed input so the caller's parse error carries the
+/// model's own words.
 fn extract_json(text: &str) -> String {
-    // Strip ```json ... ``` fences if present
-    let trimmed = text.trim();
-    if let Some(inner) = trimmed
-        .strip_prefix("```json")
-        .and_then(|s| s.strip_suffix("```"))
-    {
-        return inner.trim().to_string();
-    }
-    if let Some(inner) = trimmed
-        .strip_prefix("```")
-        .and_then(|s| s.strip_suffix("```"))
-    {
-        return inner.trim().to_string();
-    }
-    // Find first { ... } block
-    if let Some(start) = trimmed.find('{') {
-        if let Some(end) = trimmed.rfind('}') {
-            return trimmed[start..=end].to_string();
-        }
-    }
-    trimmed.to_string()
+    let visible = vibe_ai::tools::strip_thinking(text);
+    extract_json_object(&visible)
+        .or_else(|| extract_json_object(text))
+        .map(str::to_string)
+        .unwrap_or_else(|| text.trim().to_string())
+}
+
+/// Extract the first *balanced, parseable* JSON object from an LLM response.
+/// See [`extract_json_array`] for why balance-scanning beats slicing.
+fn extract_json_object(text: &str) -> Option<&str> {
+    extract_balanced_json(text, b'{', b'}')
 }
 
 /// Extract the first *balanced, parseable* JSON array from an LLM response.
@@ -16363,13 +16392,23 @@ fn extract_json(text: &str) -> String {
 /// Models asked for a bare array routinely wrap it in prose or a markdown
 /// fence, and the prose often contains its own brackets ("Here's the analysis
 /// [see below]:"). Slicing `find('[')..=rfind(']')` starts at that prose and
-/// fails with `expected value at line 1 column 2`. Instead, scan for each `[`
-/// that closes at depth zero — tracking string literals and their escapes so
-/// brackets inside strings don't shift the depth — and return the first such
-/// span that actually parses. Returns `None` for a response with no array, or
-/// one truncated mid-array (unbalanced), so callers can report that distinctly
-/// rather than surfacing a column number.
+/// fails with `expected value at line 1 column 2`. Returns `None` for a
+/// response with no array, or one truncated mid-array (unbalanced), so callers
+/// can report that distinctly rather than surfacing a column number.
 fn extract_json_array(text: &str) -> Option<&str> {
+    extract_balanced_json(text, b'[', b']')
+}
+
+/// Scan for each `open` that closes at depth zero — tracking string literals
+/// and their escapes so delimiters inside strings don't shift the depth — and
+/// return the first such span that actually parses as JSON.
+///
+/// The parse check is what makes this robust against prose: a model's own
+/// braces and brackets are almost never balanced *and* valid JSON, so a
+/// candidate that fails simply advances the scan to the next one.
+///
+/// `open`/`close` must be ASCII, which keeps the byte offsets char boundaries.
+fn extract_balanced_json(text: &str, open: u8, close: u8) -> Option<&str> {
     let (mut start, mut depth, mut in_str, mut escaped) = (None, 0usize, false, false);
 
     for (i, b) in text.bytes().enumerate() {
@@ -16384,16 +16423,15 @@ fn extract_json_array(text: &str) -> Option<&str> {
         }
         match b {
             b'"' => in_str = true,
-            b'[' => {
+            _ if b == open => {
                 if depth == 0 {
                     start = Some(i);
                 }
                 depth += 1;
             }
-            b']' if depth > 0 => {
+            _ if b == close && depth > 0 => {
                 depth -= 1;
                 if depth == 0 {
-                    // `[` and `]` are ASCII, so these byte offsets are char boundaries.
                     let candidate = start.map(|s| &text[s..=i]);
                     match candidate {
                         Some(c) if serde_json::from_str::<serde_json::Value>(c).is_ok() => {
@@ -19908,6 +19946,52 @@ mod tests {
     fn extract_json_passthrough_plain_json() {
         let input = "{\"key\": \"value\"}";
         assert_eq!(extract_json(input), "{\"key\": \"value\"}");
+    }
+
+    /// The shape that broke Code Review: a reasoning model narrates first, and
+    /// its narration quotes code containing braces. `find('{')..=rfind('}')`
+    /// started inside the narration and failed with "key must be a string at
+    /// line 1 column 3" — a column number in a string the user cannot see.
+    #[test]
+    fn extract_json_skips_prose_braces_before_the_real_object() {
+        let input = "<thinking>The diff changes Cargo.toml, where {version} and \
+                     edition are hardcoded, and main.rs calls unwrap_or_else(|| {…}).\
+                     </thinking>\n{\"summary\": \"ok\", \"issues\": []}";
+        assert_eq!(extract_json(input), "{\"summary\": \"ok\", \"issues\": []}");
+    }
+
+    /// Some models put the entire answer inside one reasoning block. Stripping
+    /// reasoning leaves nothing, so the raw text is scanned as a fallback.
+    #[test]
+    fn extract_json_finds_an_object_that_only_exists_inside_reasoning() {
+        let input = "<think>Here it is: {\"summary\": \"ok\"}</think>";
+        assert_eq!(extract_json(input), "{\"summary\": \"ok\"}");
+    }
+
+    /// Nothing parseable: hand back the model's own words so the caller's error
+    /// quotes what actually arrived rather than a slice of prose.
+    #[test]
+    fn extract_json_returns_the_response_when_there_is_no_object() {
+        let input = "I could not review this diff.";
+        assert_eq!(extract_json(input), "I could not review this diff.");
+    }
+
+    // ── review_parse_error ──────────────────────────────────────────────────
+
+    #[test]
+    fn review_parse_error_names_a_truncated_reasoning_reply() {
+        let err = serde_json::from_str::<serde_json::Value>("nope").unwrap_err();
+        let msg = review_parse_error(err, "<thinking>We need to produce JSON follow");
+        assert!(msg.contains("reasoning"), "{msg}");
+        assert!(msg.contains("cut off"), "{msg}");
+    }
+
+    #[test]
+    fn review_parse_error_quotes_the_model() {
+        let err = serde_json::from_str::<serde_json::Value>("nope").unwrap_err();
+        let msg = review_parse_error(err, "Looks fine to me!");
+        assert!(msg.contains("Looks fine to me!"), "{msg}");
+        assert!(msg.contains("without any JSON"), "{msg}");
     }
 
     // ── extract_json_array ──────────────────────────────────────────────────
@@ -58661,41 +58745,6 @@ struct LLMQuestion {
     subsystem: Option<String>,
 }
 
-fn extract_json_object(s: &str) -> Option<String> {
-    let bytes = s.as_bytes();
-    let start = s.find('{')?;
-    let mut depth = 0i32;
-    let mut in_str = false;
-    let mut escape = false;
-    for i in start..bytes.len() {
-        let c = bytes[i] as char;
-        if escape {
-            escape = false;
-            continue;
-        }
-        if in_str {
-            if c == '\\' {
-                escape = true;
-            } else if c == '"' {
-                in_str = false;
-            }
-            continue;
-        }
-        match c {
-            '"' => in_str = true,
-            '{' => depth += 1,
-            '}' => {
-                depth -= 1;
-                if depth == 0 {
-                    return Some(s[start..=i].to_string());
-                }
-            }
-            _ => {}
-        }
-    }
-    None
-}
-
 fn fallback_decompose(desc: &str) -> (DecomposeResult, Vec<Assumption>, Vec<ClarifyingQuestion>) {
     let summary = format!(
         "Problem as stated: {}. No LLM provider is configured, so a generic scaffold was returned — wire up an API key (Settings → Keys) for a real decomposition.",
@@ -58786,15 +58835,19 @@ pub async fn hard_problem_decompose(description: String) -> Result<DecomposeResu
         return Ok(result);
     }
 
-    let json_str = match extract_json_object(&response.content) {
-        Some(s) => s,
-        None => {
-            return Err(format!(
-                "LLM returned no JSON object. Raw response (first 400 chars): {}",
-                response.content.chars().take(400).collect::<String>()
-            ));
-        }
-    };
+    // Reasoning first, answer second: drop the reasoning, then retry on the raw
+    // text for models that answer entirely inside it. See [`extract_json`].
+    let visible = vibe_ai::tools::strip_thinking(&response.content);
+    let json_str =
+        match extract_json_object(&visible).or_else(|| extract_json_object(&response.content)) {
+            Some(s) => s,
+            None => {
+                return Err(format!(
+                    "LLM returned no JSON object. Raw response (first 400 chars): {}",
+                    response.content.chars().take(400).collect::<String>()
+                ));
+            }
+        };
 
     let parsed: LLMDecompose = serde_json::from_str(&json_str).map_err(|e| {
         format!(

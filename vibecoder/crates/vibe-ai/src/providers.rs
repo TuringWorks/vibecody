@@ -124,7 +124,10 @@ mod display_name_tests {
     fn every_provider_display_name_round_trips() {
         let m = "test-model-id";
         let providers: Vec<(&str, Arc<dyn AIProvider>)> = vec![
-            ("azure_openai", Arc::new(AzureOpenAIProvider::new(config(m)))),
+            (
+                "azure_openai",
+                Arc::new(AzureOpenAIProvider::new(config(m))),
+            ),
             ("bedrock", Arc::new(BedrockProvider::new(config(m)))),
             ("cerebras", Arc::new(CerebrasProvider::new(config(m)))),
             ("claude", Arc::new(ClaudeProvider::new(config(m)))),
