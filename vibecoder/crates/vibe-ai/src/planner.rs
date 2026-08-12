@@ -62,13 +62,13 @@ impl ExecutionPlan {
             .max()
             .unwrap_or(1);
         for step in &self.steps {
-            let (icon, icon_color) = match step.status {
-                PlanStepStatus::Pending => ("⬜", DIM),
-                PlanStepStatus::InProgress => ("🔄", CYAN),
-                PlanStepStatus::Done => ("✅", GREEN),
-                PlanStepStatus::Failed => ("❌", YELLOW),
-                PlanStepStatus::Skipped => ("⏭", DIM),
+            let icon_color = match step.status {
+                PlanStepStatus::Pending | PlanStepStatus::Skipped => DIM,
+                PlanStepStatus::InProgress => CYAN,
+                PlanStepStatus::Done => GREEN,
+                PlanStepStatus::Failed => YELLOW,
             };
+            let icon = step.status.icon();
             let path = step
                 .estimated_path
                 .as_deref()
@@ -107,13 +107,7 @@ impl ExecutionPlan {
         out.push_str(&format!("## Goal\n{}\n\n", self.goal));
         out.push_str("## Steps\n");
         for step in &self.steps {
-            let icon = match step.status {
-                PlanStepStatus::Pending => "⬜",
-                PlanStepStatus::InProgress => "🔄",
-                PlanStepStatus::Done => "✅",
-                PlanStepStatus::Failed => "❌",
-                PlanStepStatus::Skipped => "⏭",
-            };
+            let icon = step.status.icon();
             let path = step
                 .estimated_path
                 .as_deref()
@@ -160,6 +154,29 @@ pub enum PlanStepStatus {
     Done,
     Failed,
     Skipped,
+}
+
+impl PlanStepStatus {
+    /// The glyph shown for this status, shared by every surface.
+    ///
+    /// These match `STEP_ICON` in `vibecoder/src/components/GoalPanel.tsx`, which
+    /// renders the same `PlanStep['status']` values in the desktop UI — the CLI
+    /// and the panel must not speak different vocabularies for one enum. The
+    /// circles read as a fill progression (empty → quarter → full).
+    ///
+    /// Plain Unicode rather than emoji, deliberately: emoji carry their own
+    /// baked-in colour, so the ANSI status colour in `display_colored` would have
+    /// no effect on them, and they render double-width, which shifts the ordinal
+    /// column that renderer right-aligns.
+    pub fn icon(&self) -> char {
+        match self {
+            PlanStepStatus::Pending => '◯',
+            PlanStepStatus::InProgress => '◔',
+            PlanStepStatus::Done => '●',
+            PlanStepStatus::Failed => '✕',
+            PlanStepStatus::Skipped => '–',
+        }
+    }
 }
 
 // ── PlannerAgent ──────────────────────────────────────────────────────────────
@@ -406,6 +423,62 @@ mod tests {
         // with the two-digit ones.
         assert!(colored.contains(" 1."), "1 should be padded to width 2");
         assert!(colored.contains("10."));
+    }
+
+    #[test]
+    fn step_icons_match_the_desktop_panel() {
+        // Pinned against STEP_ICON in vibecoder/src/components/GoalPanel.tsx.
+        // If you change one, change both — a step must not look like a different
+        // thing in the CLI than it does in the panel.
+        assert_eq!(PlanStepStatus::Pending.icon(), '◯');
+        assert_eq!(PlanStepStatus::InProgress.icon(), '◔');
+        assert_eq!(PlanStepStatus::Done.icon(), '●');
+        assert_eq!(PlanStepStatus::Failed.icon(), '✕');
+        assert_eq!(PlanStepStatus::Skipped.icon(), '–');
+    }
+
+    #[test]
+    fn both_renderers_use_the_same_glyphs() {
+        let statuses = [
+            (PlanStepStatus::Pending, '◯'),
+            (PlanStepStatus::InProgress, '◔'),
+            (PlanStepStatus::Done, '●'),
+            (PlanStepStatus::Failed, '✕'),
+            (PlanStepStatus::Skipped, '–'),
+        ];
+        let plan = ExecutionPlan {
+            goal: "G".into(),
+            steps: statuses
+                .iter()
+                .enumerate()
+                .map(|(i, (status, _))| PlanStep {
+                    id: i + 1,
+                    description: "d".into(),
+                    tool: "bash".into(),
+                    estimated_path: None,
+                    status: status.clone(),
+                })
+                .collect(),
+            estimated_files: vec![],
+            risks: vec![],
+        };
+        let colored = plan.display_colored();
+        let plain = plan.display();
+        for (_, glyph) in &statuses {
+            assert!(colored.contains(*glyph), "missing status glyph {glyph}");
+            // The plain form is what the loop engine feeds the model and what any
+            // future caller prints; it must not drift into a second vocabulary.
+            assert!(plain.contains(*glyph), "plain display lost glyph {glyph}");
+        }
+        // Emoji ignore the ANSI foreground colour and render double-width,
+        // which breaks the ordinal alignment — keep them out of both renderers.
+        for emoji in ['⬜', '🔄', '✅', '❌', '⏭'] {
+            assert!(!plain.contains(emoji), "emoji {emoji} leaked into display");
+            assert!(
+                !colored.contains(emoji),
+                "emoji {emoji} leaked back into display_colored"
+            );
+        }
     }
 
     #[test]
