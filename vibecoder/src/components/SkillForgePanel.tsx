@@ -15,9 +15,9 @@
  *
  * Design: `vibecoder/design-system/README.md` — uses `panel-*` classes + CSS vars.
  */
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { useModelRegistry, PROVIDER_DEFAULT_MODEL } from "../hooks/useModelRegistry";
+import { useModelRegistry, parseProviderSelection } from "../hooks/useModelRegistry";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -110,14 +110,27 @@ export function SkillForgePanel({ provider: providerProp }: SkillForgePanelProps
   const [tab, setTab] = useState<Tab>("catalog");
 
   // Provider/model — STRICT: every LLM call uses these, never a hard-coded default.
-  const [selectedProvider, setSelectedProvider] = useState<string>(providerProp || "");
-  const [selectedModel, setSelectedModel] = useState<string>("");
+  //
+  // The prop arrives as the toolbar's display name ("Ollama (devstral-2)"), while
+  // this panel's own dropdown is keyed by provider id. Held unparsed, the id
+  // matched no option, `PROVIDER_DEFAULT_MODEL` missed, and the panel showed
+  // "Select a provider and model…" over a toolbar that had both.
+  const propSelection = useMemo(
+    () => parseProviderSelection(providerProp ?? ""),
+    [providerProp],
+  );
+  const [selectedProvider, setSelectedProvider] = useState<string>(propSelection.provider);
+  const [selectedModel, setSelectedModel] = useState<string>(propSelection.model);
   useEffect(() => {
-    if (providerProp && providerProp !== selectedProvider) setSelectedProvider(providerProp);
-  }, [providerProp]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (propSelection.provider && propSelection.provider !== selectedProvider) {
+      setSelectedProvider(propSelection.provider);
+      // The toolbar picked this model; it outranks the registry default below.
+      setSelectedModel(propSelection.model);
+    }
+  }, [propSelection.provider, propSelection.model]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!selectedProvider) return;
-    const def = PROVIDER_DEFAULT_MODEL[selectedProvider];
+    const def = parseProviderSelection(selectedProvider).model;
     const first = modelsForProvider(selectedProvider)[0];
     setSelectedModel((cur) => cur || def || first || "");
   }, [selectedProvider]); // eslint-disable-line react-hooks/exhaustive-deps

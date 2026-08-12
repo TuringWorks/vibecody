@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { PROVIDER_DEFAULT_MODEL } from "../../hooks/useModelRegistry";
+import { parseProviderSelection } from "../../hooks/useModelRegistry";
 import {
   Bot,
   Calendar as CalendarIcon,
@@ -92,11 +92,12 @@ export function TodayTab({ onNavigate, provider }: Props) {
   const [planLoading, setPlanLoading] = useState(false);
   const [planErr, setPlanErr] = useState<string | null>(null);
 
-  const model = provider ? PROVIDER_DEFAULT_MODEL[provider] : undefined;
-  const canPlan = !!provider && !!model;
+  // Display name in, id + model out — see EmailComposer for the same split.
+  const { provider: providerId, model } = parseProviderSelection(provider ?? "");
+  const canPlan = !!providerId && !!model;
 
   async function planMyDay() {
-    if (!provider || !model) {
+    if (!providerId || !model) {
       setPlanErr("Pick a provider/model from the toolbar dropdown first.");
       return;
     }
@@ -104,7 +105,7 @@ export function TodayTab({ onNavigate, provider }: Props) {
     setPlanErr(null);
     try {
       const r = await invoke<PlanMyDayResult>("productivity_plan_my_day", {
-        provider,
+        provider: providerId,
         model,
       });
       setPlan(r);

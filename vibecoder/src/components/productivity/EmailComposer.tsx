@@ -2,7 +2,7 @@ import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Loader2, Send, Sparkles } from "lucide-react";
 import { ComposeModal } from "./ComposeModal";
-import { PROVIDER_DEFAULT_MODEL } from "../../hooks/useModelRegistry";
+import { parseProviderSelection } from "../../hooks/useModelRegistry";
 
 interface DraftReplyResult {
   draft: string;
@@ -43,12 +43,15 @@ export function EmailComposer({
   const [drafting, setDrafting] = useState(false);
   const [draftMeta, setDraftMeta] = useState<string | null>(null);
 
-  const draftModel = provider ? PROVIDER_DEFAULT_MODEL[provider] : undefined;
-  const canDraft = !!replyToId && !!provider && !!draftModel;
+  // The toolbar passes a display name ("Ollama (devstral-2)"); the command needs
+  // the id and model apart. Looked up directly, the display name missed and left
+  // `draftModel` undefined — which disabled the button that says to pick a model.
+  const { provider: providerId, model: draftModel } = parseProviderSelection(provider ?? "");
+  const canDraft = !!replyToId && !!providerId && !!draftModel;
 
   async function aiDraft() {
     if (!replyToId) return;
-    if (!provider || !draftModel) {
+    if (!providerId || !draftModel) {
       setErr("Pick a provider/model from the toolbar dropdown first.");
       return;
     }
@@ -58,7 +61,7 @@ export function EmailComposer({
       const r = await invoke<DraftReplyResult>("productivity_draft_reply", {
         emailId: replyToId,
         instructions: instructions.trim() || null,
-        provider,
+        provider: providerId,
         model: draftModel,
       });
       const quoted = initialBody.trim() ? `\n\n${initialBody}` : "";

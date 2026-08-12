@@ -9,9 +9,9 @@
  * user-invoked entry point; the daemon's opt-in file-watcher loop calls the same
  * backend for the always-on path.
  */
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { PROVIDER_DEFAULT_MODEL } from "../hooks/useModelRegistry";
+import { parseProviderSelection } from "../hooks/useModelRegistry";
 import { getSelectedEffort } from "../utils/effort";
 
 interface SecurityReviewPanelProps {
@@ -41,10 +41,16 @@ export function SecurityReviewPanel({ workspacePath, provider, onOpenFile }: Sec
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // The toolbar hands down a display name ("Ollama (devstral-2)"); the command
+  // needs the id and the model separately. Looking the prop up in
+  // `PROVIDER_DEFAULT_MODEL` directly missed, so this panel sent an empty model
+  // and the command refused it as "no model selected".
+  const selection = useMemo(() => parseProviderSelection(provider ?? ""), [provider]);
+
   const runReview = async () => {
     const path = filePath.trim();
     if (!path) return;
-    if (!provider) {
+    if (!selection.provider || !selection.model) {
       setError("Select a provider in the toolbar first.");
       return;
     }
@@ -54,8 +60,8 @@ export function SecurityReviewPanel({ workspacePath, provider, onOpenFile }: Sec
     try {
       const contents = await invoke<string>("read_file", { path });
       const result = await invoke<SecurityFinding[]>("security_review_file", {
-        provider,
-        model: PROVIDER_DEFAULT_MODEL[provider] ?? "",
+        provider: selection.provider,
+        model: selection.model,
         file: path,
         contents,
         effort: getSelectedEffort(),

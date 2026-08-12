@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { AlertCircle, AlertTriangle, Info, ChevronDown } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
-import { PROVIDER_DEFAULT_MODEL } from "../hooks/useModelRegistry";
+import { parseProviderSelection } from "../hooks/useModelRegistry";
 
 interface BugReport {
  id: string;
@@ -77,7 +77,10 @@ export function BugBotPanel({ workspacePath, provider, onOpenFile }: BugBotPanel
  const scope = scanScope === "file" && customFile.trim()
  ? `file:${customFile.trim()}`
  : "workspace";
- const model = provider ? (PROVIDER_DEFAULT_MODEL[provider] || "") : undefined;
+ // The backend matches a display name against its registered providers first
+ // and only falls back to building one from `provider` + `model`; send the
+ // parsed pair so that fallback has a model to work with.
+ const model = provider ? parseProviderSelection(provider).model : undefined;
  const result = await invoke<BugReport[]>("run_bugbot", {
  workspacePath,
  scanScope: scope,

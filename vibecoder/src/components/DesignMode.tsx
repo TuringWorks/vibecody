@@ -10,7 +10,7 @@ import { DrawioEditorPanel } from "./DrawioEditorPanel";
 import { PencilPanel } from "./PencilPanel";
 import { PenpotPanel } from "./PenpotPanel";
 import { DiagramGeneratorPanel } from "./DiagramGeneratorPanel";
-import { PROVIDER_DEFAULT_MODEL } from "../hooks/useModelRegistry";
+import { parseProviderSelection } from "../hooks/useModelRegistry";
 import { getSelectedEffort } from "../utils/effort";
 
 interface DesignModeProps {
@@ -296,7 +296,12 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
   // agent can only ever propose a source diff the user explicitly applies.
   const handleEmitDiff = async () => {
     if (!selectedElement || !diffInstruction.trim()) return;
-    if (!provider) {
+    // `design_emit_diff` builds the provider itself, so it needs the id and the
+    // model split out of the toolbar's display name. The sibling calls below
+    // stay on the display name: they go through `set_provider_by_name`, which
+    // matches on exactly that.
+    const selection = parseProviderSelection(provider);
+    if (!selection.provider || !selection.model) {
       setDiffError("Select a provider in the toolbar first.");
       return;
     }
@@ -307,8 +312,8 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
       const result = await invoke<{ source_file: string; unified_diff: string }>(
         "design_emit_diff",
         {
-          provider,
-          model: PROVIDER_DEFAULT_MODEL[provider] ?? "",
+          provider: selection.provider,
+          model: selection.model,
           selector: selectedElement.selector,
           // Best-effort source label: the React component name when known.
           sourceFile: selectedElement.reactComponent ?? selectedElement.selector,

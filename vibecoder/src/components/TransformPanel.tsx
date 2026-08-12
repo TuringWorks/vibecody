@@ -8,7 +8,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { errorMessage } from "../utils/errorMessage";
 import { listen } from "@tauri-apps/api/event";
-import { STATIC_MODELS, PROVIDER_DEFAULT_MODEL, ALL_PROVIDERS } from "../hooks/useModelRegistry";
+import { STATIC_MODELS, parseProviderSelection, ALL_PROVIDERS } from "../hooks/useModelRegistry";
 
 interface TransformPanelProps {
   provider: string;
@@ -137,8 +137,13 @@ export function TransformPanel({ provider }: TransformPanelProps) {
   const [localModel, setLocalModel] = useState("");
   const mountedRef = useRef(true);
 
-  const effectiveProvider = localProvider || provider || "";
-  const effectiveModel = localModel || PROVIDER_DEFAULT_MODEL[effectiveProvider] || "";
+  // `provider` is the toolbar's display name ("Ollama (devstral-2)"); the local
+  // override is a bare provider id. `parseProviderSelection` resolves both — and
+  // for the display name it yields the model the user actually picked, which a
+  // registry-default lookup could not.
+  const selection = parseProviderSelection(localProvider || provider || "");
+  const effectiveProvider = selection.provider;
+  const effectiveModel = localModel || selection.model;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -362,7 +367,7 @@ export function TransformPanel({ provider }: TransformPanelProps) {
             onChange={e => {
               const p = e.target.value;
               setLocalProvider(p);
-              setLocalModel(p ? (PROVIDER_DEFAULT_MODEL[p] || "") : "");
+              setLocalModel(p ? parseProviderSelection(p).model : "");
             }}
             style={{ fontSize: "var(--font-size-sm)", padding: "3px 8px", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer" }}
           >
