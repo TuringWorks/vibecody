@@ -1,0 +1,271 @@
+# Agentic behaviour: using tools well, finding things, holding a plan.
+#
+# These measure *how* the agent works rather than whether one function came out
+# right. Several assert over the transcript as well as the workspace, because
+# an agent that reaches the right file by reading every file in the repository
+# is not the same product as one that searches for it — and only the transcript
+# can tell them apart.
+
+id: agentic
+title: Tool use, retrieval and long-horizon work
+description: >
+  Multi-step work where sequencing, search and constraint-following are the
+  thing being measured.
+default_surfaces: [cli]
+defaults:
+  timeout_secs: 1200
+
+tasks:
+  - id: find-the-needle
+    title: Find one value buried in a wide tree
+    capability: retrieval
+    difficulty: easy
+    tags: [offline, search, read-only]
+    prompt: |
+      Somewhere in this project exactly one file defines a setting called
+      `MAX_UPLOAD_BYTES`. Find its value and report it.
+
+      Do not modify anything. Your final message must state the numeric value.
+    fixture:
+      files:
+        README.md: |
+          # Widget service
+          Configuration lives under config/.
+        config/app.yaml: |
+          service: widget
+          port: 8080
+          workers: 4
+        config/logging.yaml: |
+          level: info
+          format: json
+          retention_days: 30
+        config/limits.py: |
+          # Ceilings applied at the edge.
+          MAX_REQUESTS_PER_MINUTE = 600
+          MAX_UPLOAD_BYTES = 52428800
+          MAX_CONCURRENT_JOBS = 12
+        src/handlers/upload.py: |
+          def handle_upload(request):
+              """Accept a file. Size checks happen in middleware."""
+              return {"status": "accepted"}
+        src/handlers/download.py: |
+          def handle_download(request):
+              return {"status": "ok"}
+        src/middleware/limits.py: |
+          from config.limits import MAX_REQUESTS_PER_MINUTE
+
+          def rate_limit(request):
+              return MAX_REQUESTS_PER_MINUTE
+        docs/architecture.md: |
+          The upload path is bounded, but this document does not say by how
+          much — see the configuration for the actual number.
+    grader:
+      type: all
+      of:
+        - type: transcript
+          assertions:
+            - assert: final_contains
+              text: "52428800"
+        - type: files
+          assertions:
+            - assert: unchanged
+              path: config/limits.py
+
+  - id: run-read-fix-loop
+    title: Run something, read the error, fix it, run it again
+    capability: tool_use
+    difficulty: medium
+    requires: [python3]
+    tags: [python, offline]
+    prompt: |
+      `python3 app.py` crashes. Run it, read the failure, fix the cause, and
+      run it again to confirm it prints a total.
+
+      When it works it must print exactly `total: 42`.
+    fixture:
+      files:
+        app.py: |
+          from calc import add_all
+
+          if __name__ == "__main__":
+              print(f"total: {add_all([20, 20, 2])}")
+        calc.py: |
+          def add_all(values):
+              total = 0
+              for v in values:
+                  # `value` is not defined — the loop variable is `v`.
+                  total += value
+              return total
+    grader:
+      type: all
+      of:
+        - type: command
+          steps:
+            - cmd: python3
+              args: [app.py]
+              stdout_contains: "total: 42"
+              timeout_secs: 120
+        # The point of this task is the loop, not the one-line fix: an agent
+        # that guesses without ever executing anything has not demonstrated
+        # the behaviour being measured.
+        - type: transcript
+          assertions:
+            - assert: used_tool
+              tool: bash
+
+  - id: respect-the-do-not-touch
+    title: Do the work while leaving a forbidden file alone
+    capability: tool_use
+    difficulty: medium
+    requires: [python3]
+    tags: [python, offline, constraints]
+    prompt: |
+      Add a `slug` field to the records produced by `build_records()` in
+      `records.py`. The slug is the lowercase name with spaces replaced by
+      hyphens.
+
+      `vendor/frozen.py` is vendored third-party code. Do not modify it under
+      any circumstances, even if it looks like it needs changing.
+
+      `python3 tests.py` must pass. Do not modify tests.py.
+    fixture:
+      files:
+        records.py: |
+          from vendor.frozen import normalise
+
+
+          def build_records(names):
+              return [{"name": normalise(n)} for n in names]
+        vendor/__init__.py: ""
+        vendor/frozen.py: |
+          # Vendored — do not edit. Upstream: example.com/frozen v1.2.0
+          def normalise(text):
+              return " ".join(text.split())
+        tests.py: |
+          from records import build_records
+
+          def run():
+              out = build_records(["Hello  World", "Another Name"])
+              assert out[0]["name"] == "Hello World", out
+              assert out[0]["slug"] == "hello-world", out
+              assert out[1]["slug"] == "another-name", out
+              print("RECORDS_OK")
+
+          run()
+    grader:
+      type: all
+      of:
+        - type: files
+          assertions:
+            - assert: unchanged
+              path: vendor/frozen.py
+            - assert: unchanged
+              path: tests.py
+        - type: command
+          steps:
+            - cmd: python3
+              args: [tests.py]
+              stdout_contains: RECORDS_OK
+              timeout_secs: 120
+
+  - id: long-horizon-checklist
+    title: Complete a five-part task without dropping a step
+    capability: long_horizon
+    difficulty: hard
+    requires: [python3]
+    tags: [python, offline, planning]
+    prompt: |
+      Set up this small project. All five items must be done:
+
+      1. Create `src/greet.py` defining `greet(name)` returning
+         `"Hello, <name>!"`.
+      2. Create `src/__init__.py` (may be empty) so `src` is a package.
+      3. Create `tests/test_greet.py` with a `run()` function that imports
+         `greet` and asserts `greet("Ada") == "Hello, Ada!"`, then prints
+         `GREET_OK`.
+      4. Create `README.md` with a top-level heading `# Greeter` and a
+         `## Usage` section showing how to call greet.
+      5. Create `Makefile` with a `test` target that runs
+         `python3 -c "import sys; sys.path.insert(0,'.'); from tests.test_greet import run; run()"`.
+
+      `make test` must print GREET_OK when you are finished.
+    fixture:
+      git_init: true
+      files:
+        .gitignore: |
+          __pycache__/
+    grader:
+      type: all
+      of:
+        - type: files
+          assertions:
+            - assert: exists
+              path: src/greet.py
+            - assert: exists
+              path: src/__init__.py
+            - assert: exists
+              path: tests/test_greet.py
+            - assert: matches
+              path: README.md
+              regex: "(?m)^#\\s+Greeter"
+            - assert: matches
+              path: README.md
+              regex: "(?m)^##\\s+Usage"
+            - assert: exists
+              path: Makefile
+        - type: command
+          steps:
+            - cmd: make
+              args: [test]
+              stdout_contains: GREET_OK
+              timeout_secs: 180
+
+  - id: plan-before-acting
+    title: Produce a plan that matches the work actually needed
+    capability: planning
+    difficulty: medium
+    tags: [offline, planning]
+    prompt: |
+      Read this codebase and write `PLAN.md` describing, in order, the steps
+      needed to add rate limiting to the HTTP handlers.
+
+      The plan must be specific to this code: name the actual files that would
+      change and the actual function that would need a new call. Use a
+      numbered list. Do not implement anything — write the plan only.
+    fixture:
+      files:
+        server.py: |
+          from handlers import handle_request
+
+          def serve(request):
+              return handle_request(request)
+        handlers.py: |
+          def handle_request(request):
+              """Dispatch a request to its handler."""
+              return {"status": 200, "body": "ok"}
+        settings.py: |
+          DEBUG = False
+          TIMEOUT_SECONDS = 30
+    grader:
+      type: all
+      of:
+        - type: files
+          assertions:
+            - assert: exists
+              path: PLAN.md
+            # A plan naming this codebase's own symbols is the difference
+            # between reading the code and reciting a generic recipe.
+            - assert: matches
+              path: PLAN.md
+              regex: "handle_request"
+            - assert: matches
+              path: PLAN.md
+              regex: "handlers\\.py"
+            - assert: matches
+              path: PLAN.md
+              regex: "(?m)^\\s*1[.)]"
+            # "Write the plan only" is half the instruction.
+            - assert: unchanged
+              path: handlers.py
+            - assert: unchanged
+              path: server.py

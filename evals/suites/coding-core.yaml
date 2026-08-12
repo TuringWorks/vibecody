@@ -1,0 +1,329 @@
+# Core coding capability — writing code that works.
+#
+# Every task here is graded by running code, never by inspecting prose. The
+# tests are held out of the fixture on purpose: a workspace containing the
+# assertions it will be judged on measures transcription, not programming.
+#
+# Runs offline. Needs python3 and/or node, and skips rather than fails where
+# they are missing.
+
+id: coding-core
+title: Core coding capability
+description: >
+  Generation, comprehension and test authoring, graded by execution.
+default_surfaces: [cli]
+defaults:
+  timeout_secs: 900
+
+tasks:
+  # ── Generation ────────────────────────────────────────────────────────────
+  - id: py-log-parser
+    title: Implement a log-line parser to spec
+    capability: code_generation
+    difficulty: easy
+    requires: [python3]
+    tags: [python, offline]
+    prompt: |
+      Implement `parse_line(line)` in `parser.py`.
+
+      Input is a log line in exactly this format:
+
+          2026-08-12T09:31:04Z LEVEL component: message text
+
+      Return a dict with keys "timestamp", "level", "component", "message",
+      holding the four parts as strings. The timestamp keeps its full original
+      form including the trailing Z. The message is everything after the first
+      ": " that follows the component, with no leading or trailing whitespace.
+
+      If the line does not match this format, return None. Do not raise.
+
+      Do not create or modify any file other than parser.py.
+    fixture:
+      files:
+        parser.py: |
+          def parse_line(line):
+              """Parse one log line. See the task description."""
+              raise NotImplementedError
+    grader:
+      type: command
+      steps:
+        - cmd: python3
+          args:
+            - "-c"
+            - |
+              from parser import parse_line
+              ok = parse_line("2026-08-12T09:31:04Z INFO scheduler: started 3 workers")
+              assert ok == {
+                  "timestamp": "2026-08-12T09:31:04Z",
+                  "level": "INFO",
+                  "component": "scheduler",
+                  "message": "started 3 workers",
+              }, ok
+              # A message containing its own colon must not be split again.
+              colon = parse_line("2026-08-12T09:31:05Z WARN db: retry in 5s: timeout")
+              assert colon["message"] == "retry in 5s: timeout", colon
+              # Surrounding whitespace is stripped from the message only.
+              pad = parse_line("2026-08-12T09:31:06Z ERROR api:    boom   ")
+              assert pad["message"] == "boom", pad
+              # Malformed input returns None rather than raising.
+              assert parse_line("not a log line") is None
+              assert parse_line("") is None
+              print("PARSER_OK")
+          stdout_contains: PARSER_OK
+          timeout_secs: 120
+
+  - id: js-lru-cache
+    title: Implement an LRU cache in JavaScript
+    capability: code_generation
+    difficulty: medium
+    requires: [node]
+    tags: [javascript, offline]
+    prompt: |
+      Implement the `LRUCache` class in `lru.js` (CommonJS, already exported).
+
+      - `new LRUCache(capacity)` holds at most `capacity` entries.
+      - `get(key)` returns the value, or `undefined` if absent. A successful
+        get counts as a use.
+      - `put(key, value)` inserts or updates. Updating counts as a use.
+      - When inserting beyond capacity, evict the least recently used key.
+      - `size` is a getter returning the current entry count.
+
+      Both operations should be O(1) on average. Do not add dependencies.
+    fixture:
+      files:
+        lru.js: |
+          class LRUCache {
+            constructor(capacity) {
+              throw new Error('not implemented');
+            }
+          }
+          module.exports = { LRUCache };
+    grader:
+      type: command
+      steps:
+        - cmd: node
+          args:
+            - "-e"
+            - |
+              const assert = require('assert');
+              const { LRUCache } = require('./lru.js');
+              const c = new LRUCache(2);
+              c.put('a', 1); c.put('b', 2);
+              assert.strictEqual(c.get('a'), 1);
+              // 'b' is now least recently used, so it goes.
+              c.put('c', 3);
+              assert.strictEqual(c.get('b'), undefined);
+              assert.strictEqual(c.get('a'), 1);
+              assert.strictEqual(c.get('c'), 3);
+              assert.strictEqual(c.size, 2);
+              // Updating an existing key must not grow the cache.
+              c.put('a', 10);
+              assert.strictEqual(c.size, 2);
+              assert.strictEqual(c.get('a'), 10);
+              // A put counts as a use: 'c' is now the LRU.
+              c.put('d', 4);
+              assert.strictEqual(c.get('c'), undefined);
+              console.log('LRU_OK');
+          stdout_contains: LRU_OK
+          timeout_secs: 120
+
+  - id: py-cli-exit-codes
+    title: Build a CLI with correct exit codes and stderr
+    capability: code_generation
+    difficulty: medium
+    requires: [python3]
+    tags: [python, offline, cli]
+    prompt: |
+      Write `wordcount.py`, a command-line tool.
+
+      Usage: `python3 wordcount.py <file>`
+
+      - Prints the number of whitespace-separated words in the file to stdout,
+        as a bare integer followed by a newline. Exits 0.
+      - With no argument: prints `usage: wordcount.py <file>` to **stderr** and
+        exits 2. Nothing on stdout.
+      - With a file that does not exist: prints `no such file: <path>` to
+        **stderr** and exits 1. Nothing on stdout.
+
+      Getting the stream and the exit code right matters as much as the count.
+    fixture:
+      files:
+        sample.txt: |
+          the quick brown fox
+          jumps over the lazy dog
+    grader:
+      type: command
+      steps:
+        - cmd: python3
+          args:
+            - "-c"
+            - |
+              import subprocess, sys
+              def run(*args):
+                  return subprocess.run(
+                      [sys.executable, "wordcount.py", *args],
+                      capture_output=True, text=True)
+              ok = run("sample.txt")
+              assert ok.returncode == 0, ok
+              assert ok.stdout.strip() == "9", repr(ok.stdout)
+
+              missing = run("nope.txt")
+              assert missing.returncode == 1, missing
+              assert "no such file" in missing.stderr, repr(missing.stderr)
+              # The error must not go to stdout — a caller piping this would
+              # otherwise read the message as data.
+              assert missing.stdout.strip() == "", repr(missing.stdout)
+
+              usage = run()
+              assert usage.returncode == 2, usage
+              assert "usage:" in usage.stderr, repr(usage.stderr)
+              assert usage.stdout.strip() == "", repr(usage.stdout)
+              print("CLI_OK")
+          stdout_contains: CLI_OK
+          timeout_secs: 180
+
+  # ── Test authoring ────────────────────────────────────────────────────────
+  # Graded by mutation: the tests must pass against the correct implementation
+  # *and* fail against a deliberately broken one. Checking only the first half
+  # scores `assert True` full marks, which is how most test-authoring evals
+  # end up measuring nothing.
+  - id: py-tests-that-catch-a-bug
+    title: Write tests that actually catch a regression
+    capability: test_authoring
+    difficulty: hard
+    requires: [python3]
+    tags: [python, offline, mutation]
+    prompt: |
+      `discount.py` contains `apply_discount(price, percent)`. Read it.
+
+      Write `test_discount.py` containing a function `run_tests()` that
+      exercises it. `run_tests()` must raise AssertionError if the behaviour is
+      wrong and return None if everything is correct.
+
+      Cover the boundaries the implementation is easy to get wrong, not just
+      the happy path. Your tests will be run against the current
+      implementation and against a subtly broken variant of it; they should
+      pass on the first and fail on the second.
+
+      Do not modify discount.py.
+    fixture:
+      files:
+        discount.py: |
+          def apply_discount(price, percent):
+              """Apply a percentage discount, rounded to 2 decimal places.
+
+              percent must be in 0..=100; anything else is a ValueError.
+              The result is never negative and never more than price.
+              """
+              if percent < 0 or percent > 100:
+                  raise ValueError("percent out of range")
+              return round(price * (1 - percent / 100), 2)
+    grader:
+      type: all
+      of:
+        - type: files
+          assertions:
+            - assert: exists
+              path: test_discount.py
+            # The implementation is the specification here; editing it to suit
+            # the tests would invert the exercise.
+            - assert: unchanged
+              path: discount.py
+        - type: command
+          steps:
+            # Half one: the tests pass against correct code.
+            - cmd: python3
+              args:
+                - "-c"
+                - |
+                  from test_discount import run_tests
+                  run_tests()
+                  print("TESTS_PASS_ON_GOOD")
+              stdout_contains: TESTS_PASS_ON_GOOD
+              timeout_secs: 120
+            # Half two: the same tests fail against a mutant. The mutation
+            # drops the range check, which is exactly the kind of thing a
+            # happy-path-only test suite sails past.
+            - cmd: python3
+              args:
+                - "-c"
+                - |
+                  import pathlib, subprocess, sys, textwrap
+                  mutant = textwrap.dedent('''
+                      def apply_discount(price, percent):
+                          return round(price * (1 - percent / 100), 2)
+                  ''')
+                  pathlib.Path("discount.py").write_text(mutant)
+                  proc = subprocess.run(
+                      [sys.executable, "-c",
+                       "from test_discount import run_tests; run_tests()"],
+                      capture_output=True, text=True)
+                  if proc.returncode == 0:
+                      print("MUTANT_SURVIVED — the tests do not check the "
+                            "percent range, so they would not catch this "
+                            "regression")
+                      sys.exit(1)
+                  print("MUTANT_KILLED")
+              stdout_contains: MUTANT_KILLED
+              timeout_secs: 180
+
+  # ── Comprehension ─────────────────────────────────────────────────────────
+  # Read-only: the answer goes in the final message, and the workspace must be
+  # untouched. An agent that "answers" by editing the code has not read it.
+  - id: py-trace-the-bug
+    title: Explain which function produces a wrong value
+    capability: code_comprehension
+    difficulty: medium
+    requires: [python3]
+    tags: [python, offline, read-only]
+    prompt: |
+      The pipeline in this directory turns raw readings into a report, and the
+      report shows an average that is too low.
+
+      Find which single function is responsible and answer with its name.
+      Do not change any file — this is a read-only investigation. Your final
+      message must contain the function's name.
+    fixture:
+      files:
+        ingest.py: |
+          def load_readings(rows):
+              """Parse raw rows into floats, dropping blanks."""
+              out = []
+              for row in rows:
+                  if row.strip() == "":
+                      continue
+                  out.append(float(row))
+              return out
+        clean.py: |
+          def drop_outliers(values, ceiling=1000.0):
+              """Remove implausible spikes."""
+              return [v for v in values if v <= ceiling]
+        stats.py: |
+          def mean(values):
+              """Arithmetic mean of the readings."""
+              if not values:
+                  return 0.0
+              # Off by one: `len(values) + 1` inflates the denominator, so
+              # every average comes out lower than it should be.
+              return sum(values) / (len(values) + 1)
+        report.py: |
+          from ingest import load_readings
+          from clean import drop_outliers
+          from stats import mean
+
+          def build_report(rows):
+              values = drop_outliers(load_readings(rows))
+              return {"count": len(values), "average": mean(values)}
+    grader:
+      type: all
+      of:
+        - type: transcript
+          assertions:
+            - assert: final_matches
+              regex: "(?i)\\bmean\\b"
+        - type: files
+          assertions:
+            - assert: unchanged
+              path: stats.py
+            - assert: unchanged
+              path: report.py

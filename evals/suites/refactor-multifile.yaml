@@ -1,0 +1,305 @@
+# Refactoring and multi-file edits.
+#
+# Refactoring is behaviour-preserving by definition, so every task here pairs a
+# structural assertion ("the module was actually split") with a behavioural one
+# ("the tests still pass"). Either alone is gameable: tests-only rewards doing
+# nothing, structure-only rewards moving code and breaking it.
+
+id: refactor-multifile
+title: Refactoring and multi-file edits
+description: >
+  Coherent changes that span files, checked for structure and behaviour
+  together.
+default_surfaces: [cli]
+defaults:
+  timeout_secs: 900
+
+tasks:
+  - id: py-extract-module
+    title: Split a grab-bag module into two, keeping behaviour
+    capability: refactoring
+    difficulty: medium
+    requires: [python3]
+    tags: [python, offline]
+    prompt: |
+      `utils.py` has grown into two unrelated halves: string helpers and
+      geometry helpers.
+
+      Split it:
+        - `strings.py` gets `slugify` and `truncate`.
+        - `geometry.py` gets `area`, `perimeter` and `Point`.
+        - `utils.py` must keep working as it does today for existing callers —
+          `from utils import slugify, area` must still import successfully.
+
+      Behaviour must not change. `python3 tests.py` passes now and must still
+      pass. Do not modify tests.py.
+    fixture:
+      files:
+        utils.py: |
+          import math
+          import re
+
+
+          def slugify(text):
+              return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+
+
+          def truncate(text, limit):
+              if len(text) <= limit:
+                  return text
+              return text[: max(0, limit - 1)] + "…"
+
+
+          class Point:
+              def __init__(self, x, y):
+                  self.x = x
+                  self.y = y
+
+              def distance_to(self, other):
+                  return math.hypot(self.x - other.x, self.y - other.y)
+
+
+          def area(width, height):
+              return width * height
+
+
+          def perimeter(width, height):
+              return 2 * (width + height)
+        tests.py: |
+          from utils import slugify, truncate, area, perimeter, Point
+
+          def run():
+              assert slugify("Hello, World!") == "hello-world"
+              assert truncate("abcdefgh", 4) == "abc…"
+              assert truncate("ab", 4) == "ab"
+              assert area(3, 4) == 12
+              assert perimeter(3, 4) == 14
+              assert Point(0, 0).distance_to(Point(3, 4)) == 5.0
+              print("UTILS_OK")
+
+          run()
+    grader:
+      type: all
+      of:
+        # Structure: the split actually happened.
+        - type: files
+          assertions:
+            - assert: exists
+              path: strings.py
+            - assert: exists
+              path: geometry.py
+            - assert: unchanged
+              path: tests.py
+            - assert: matches
+              path: strings.py
+              regex: "def\\s+slugify"
+            - assert: matches
+              path: geometry.py
+              regex: "def\\s+area"
+            # The definitions moved rather than being copied.
+            - assert: not_matches
+              path: utils.py
+              regex: "(?m)^def\\s+slugify"
+        # Behaviour: old callers and new modules both work.
+        - type: command
+          steps:
+            - cmd: python3
+              args: [tests.py]
+              stdout_contains: UTILS_OK
+              timeout_secs: 120
+            - cmd: python3
+              args:
+                - "-c"
+                - |
+                  from strings import slugify, truncate
+                  from geometry import area, perimeter, Point
+                  assert slugify("A B") == "a-b"
+                  assert area(2, 5) == 10
+                  assert Point(0, 0).distance_to(Point(0, 2)) == 2.0
+                  print("SPLIT_OK")
+              stdout_contains: SPLIT_OK
+              timeout_secs: 120
+
+  - id: py-rename-across-files
+    title: Rename a symbol consistently across a package
+    capability: multi_file_edit
+    difficulty: medium
+    requires: [python3]
+    tags: [python, offline]
+    prompt: |
+      Rename `fetch_usr` to `fetch_user` everywhere in this project — its
+      definition and every call site, across all files. Keep behaviour
+      identical.
+
+      `python3 tests.py` must pass afterwards. Do not modify tests.py, which
+      already calls the new name.
+    fixture:
+      files:
+        api.py: |
+          def fetch_usr(user_id):
+              """Look a user up by id."""
+              return {"id": user_id, "name": f"user-{user_id}"}
+        service.py: |
+          from api import fetch_usr
+
+
+          def greet(user_id):
+              user = fetch_usr(user_id)
+              return f"hello {user['name']}"
+        batch.py: |
+          from api import fetch_usr
+
+
+          def load_many(ids):
+              return [fetch_usr(i) for i in ids]
+        cache.py: |
+          from api import fetch_usr
+
+          _CACHE = {}
+
+
+          def cached_fetch(user_id):
+              if user_id not in _CACHE:
+                  _CACHE[user_id] = fetch_usr(user_id)
+              return _CACHE[user_id]
+        tests.py: |
+          from api import fetch_user
+          from service import greet
+          from batch import load_many
+          from cache import cached_fetch
+
+          def run():
+              assert fetch_user(1) == {"id": 1, "name": "user-1"}
+              assert greet(2) == "hello user-2"
+              assert [u["id"] for u in load_many([3, 4])] == [3, 4]
+              assert cached_fetch(5)["name"] == "user-5"
+              print("RENAME_OK")
+
+          run()
+    grader:
+      type: all
+      of:
+        - type: files
+          assertions:
+            - assert: unchanged
+              path: tests.py
+            # A rename that misses one call site leaves a stale name behind,
+            # and Python only notices at import time — so each file is checked
+            # rather than trusting the test run to catch it.
+            - assert: not_contains
+              path: api.py
+              text: fetch_usr
+            - assert: not_contains
+              path: service.py
+              text: fetch_usr
+            - assert: not_contains
+              path: batch.py
+              text: fetch_usr
+            - assert: not_contains
+              path: cache.py
+              text: fetch_usr
+        - type: command
+          steps:
+            - cmd: python3
+              args: [tests.py]
+              stdout_contains: RENAME_OK
+              timeout_secs: 120
+
+  - id: py-dedupe-into-helper
+    title: Remove duplication without changing behaviour
+    capability: refactoring
+    difficulty: hard
+    requires: [python3]
+    tags: [python, offline]
+    prompt: |
+      The three report builders in `reports.py` repeat the same
+      validate-then-format logic.
+
+      Refactor so that logic lives in exactly one place, and the three public
+      functions delegate to it. Their signatures and their outputs must not
+      change.
+
+      `python3 tests.py` must still pass. Do not modify tests.py.
+    fixture:
+      files:
+        reports.py: |
+          def daily_report(rows, currency):
+              if not rows:
+                  raise ValueError("no rows")
+              if currency not in ("USD", "EUR", "GBP"):
+                  raise ValueError("bad currency")
+              total = sum(r["amount"] for r in rows)
+              return f"DAILY {currency} {total:.2f} ({len(rows)} rows)"
+
+
+          def weekly_report(rows, currency):
+              if not rows:
+                  raise ValueError("no rows")
+              if currency not in ("USD", "EUR", "GBP"):
+                  raise ValueError("bad currency")
+              total = sum(r["amount"] for r in rows)
+              return f"WEEKLY {currency} {total:.2f} ({len(rows)} rows)"
+
+
+          def monthly_report(rows, currency):
+              if not rows:
+                  raise ValueError("no rows")
+              if currency not in ("USD", "EUR", "GBP"):
+                  raise ValueError("bad currency")
+              total = sum(r["amount"] for r in rows)
+              return f"MONTHLY {currency} {total:.2f} ({len(rows)} rows)"
+        tests.py: |
+          from reports import daily_report, weekly_report, monthly_report
+
+          ROWS = [{"amount": 10.5}, {"amount": 4.5}]
+
+          def run():
+              assert daily_report(ROWS, "USD") == "DAILY USD 15.00 (2 rows)"
+              assert weekly_report(ROWS, "EUR") == "WEEKLY EUR 15.00 (2 rows)"
+              assert monthly_report(ROWS, "GBP") == "MONTHLY GBP 15.00 (2 rows)"
+              for fn in (daily_report, weekly_report, monthly_report):
+                  try:
+                      fn([], "USD")
+                  except ValueError:
+                      pass
+                  else:
+                      raise AssertionError(f"{fn.__name__} should reject empty rows")
+                  try:
+                      fn(ROWS, "JPY")
+                  except ValueError:
+                      pass
+                  else:
+                      raise AssertionError(f"{fn.__name__} should reject bad currency")
+              print("REPORTS_OK")
+
+          run()
+    grader:
+      type: all
+      of:
+        - type: files
+          assertions:
+            - assert: unchanged
+              path: tests.py
+        - type: command
+          steps:
+            - cmd: python3
+              args: [tests.py]
+              stdout_contains: REPORTS_OK
+              timeout_secs: 120
+            # Behaviour alone cannot tell a refactor from a no-op, so the
+            # duplication itself is measured: the currency tuple appearing
+            # three times means nothing was extracted.
+            - cmd: python3
+              args:
+                - "-c"
+                - |
+                  import pathlib, sys
+                  src = pathlib.Path("reports.py").read_text()
+                  occurrences = src.count('"USD"') + src.count("'USD'")
+                  if occurrences > 1:
+                      print(f"STILL_DUPLICATED: the currency check appears "
+                            f"{occurrences} times")
+                      sys.exit(1)
+                  print("DEDUPED_OK")
+              stdout_contains: DEDUPED_OK
+              timeout_secs: 120

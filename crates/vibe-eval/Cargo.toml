@@ -1,0 +1,32 @@
+[package]
+name = "vibe-eval"
+version.workspace = true
+description = "Evaluation harness for VibeCody — capability suites, surface adapters, execution-based graders, and regression gating"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+# Suite files are YAML: eval tasks carry multi-line source fixtures and nested
+# grader trees, both of which JSON escapes into unreadability and TOML cannot
+# nest cleanly. `serde_yaml` is already in this workspace's lock file via
+# vibecli, and deny.toml names it the sanctioned replacement for yaml-rust, so
+# this adds no new supply-chain surface.
+serde_yaml = "0.9.34"
+thiserror.workspace = true
+async-trait.workspace = true
+tracing.workspace = true
+tokio = { workspace = true }
+futures.workspace = true
+walkdir.workspace = true
+regex.workspace = true
+sha2.workspace = true
+hex.workspace = true
+tempfile = "3"
+reqwest = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }
+tempfile = "3"

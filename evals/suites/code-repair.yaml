@@ -1,0 +1,305 @@
+# Repair and debugging — the SWE-bench shape, but offline and deterministic.
+#
+# Each task ships a failing test the agent can see, because that is what real
+# repair looks like. Every task also asserts the test file is unchanged: the
+# fastest way to make a red suite green is to delete the assertion, and a
+# grader that only runs the tests afterwards rewards exactly that.
+
+id: code-repair
+title: Bug repair and debugging
+description: >
+  Fix failing behaviour without editing the tests and without breaking what
+  already worked.
+default_surfaces: [cli]
+defaults:
+  timeout_secs: 900
+
+tasks:
+  - id: py-pagination-off-by-one
+    title: Fix an off-by-one in pagination
+    capability: code_repair
+    difficulty: easy
+    requires: [python3]
+    tags: [python, offline]
+    prompt: |
+      `python3 tests.py` fails. Fix the bug in `paginate.py` so it passes.
+
+      Do not modify tests.py.
+    fixture:
+      files:
+        paginate.py: |
+          def page_count(total_items, per_page):
+              """How many pages are needed to show `total_items`."""
+              if per_page <= 0:
+                  raise ValueError("per_page must be positive")
+              # Integer division truncates, so any partial final page is lost.
+              return total_items // per_page
+
+          def page_slice(items, page, per_page):
+              """The items on 1-indexed `page`."""
+              start = (page - 1) * per_page
+              return items[start:start + per_page]
+        tests.py: |
+          from paginate import page_count, page_slice
+
+          def run():
+              assert page_count(0, 10) == 0
+              assert page_count(10, 10) == 1
+              # A partial last page still counts as a page.
+              assert page_count(11, 10) == 2
+              assert page_count(1, 10) == 1
+              assert page_count(99, 10) == 10
+
+              items = list(range(1, 12))
+              assert page_slice(items, 1, 10) == list(range(1, 11))
+              assert page_slice(items, 2, 10) == [11]
+
+              try:
+                  page_count(5, 0)
+              except ValueError:
+                  pass
+              else:
+                  raise AssertionError("per_page=0 should raise ValueError")
+              print("PAGINATE_OK")
+
+          run()
+    grader:
+      type: all
+      of:
+        - type: files
+          assertions:
+            - assert: unchanged
+              path: tests.py
+        - type: command
+          steps:
+            - cmd: python3
+              args: [tests.py]
+              stdout_contains: PAGINATE_OK
+              timeout_secs: 120
+
+  - id: py-regression-guard
+    title: Fix a bug without breaking the neighbouring behaviour
+    capability: code_repair
+    difficulty: medium
+    requires: [python3]
+    tags: [python, offline, regression]
+    prompt: |
+      `python3 tests_bug.py` fails: `normalise_phone` mangles numbers that
+      already carry a country code.
+
+      Fix it. `python3 tests_existing.py` currently passes and must keep
+      passing. Do not modify either test file.
+    fixture:
+      files:
+        phone.py: |
+          def normalise_phone(raw, default_country="1"):
+              """Return digits only, prefixed with a country code.
+
+              Numbers already in international form (leading +) keep their own
+              country code; bare numbers get the default one.
+              """
+              digits = "".join(ch for ch in raw if ch.isdigit())
+              # The leading + is stripped by the filter above, so an already
+              # international number gets the default country code stuck on
+              # the front a second time.
+              return default_country + digits
+        tests_existing.py: |
+          from phone import normalise_phone
+
+          def run():
+              assert normalise_phone("(555) 123-4567") == "15551234567"
+              assert normalise_phone("555.123.4567") == "15551234567"
+              assert normalise_phone("5551234567") == "15551234567"
+              assert normalise_phone("555 123 4567", default_country="44") == "445551234567"
+              print("EXISTING_OK")
+
+          run()
+        tests_bug.py: |
+          from phone import normalise_phone
+
+          def run():
+              # Already international: the country code must not be doubled.
+              assert normalise_phone("+44 20 7946 0958") == "442079460958"
+              assert normalise_phone("+1 (555) 123-4567") == "15551234567"
+              assert normalise_phone("+81 3 1234 5678") == "81312345678"
+              print("BUG_FIXED")
+
+          run()
+    grader:
+      type: all
+      of:
+        - type: files
+          assertions:
+            - assert: unchanged
+              path: tests_bug.py
+            - assert: unchanged
+              path: tests_existing.py
+        - type: command
+          steps:
+            - cmd: python3
+              args: [tests_bug.py]
+              stdout_contains: BUG_FIXED
+              timeout_secs: 120
+            # The half that separates a fix from a patch-over.
+            - cmd: python3
+              args: [tests_existing.py]
+              stdout_contains: EXISTING_OK
+              timeout_secs: 120
+
+  - id: js-async-error-swallow
+    title: Stop an async helper from swallowing errors
+    capability: debugging
+    difficulty: medium
+    requires: [node]
+    tags: [javascript, offline, async]
+    prompt: |
+      `node tests.js` fails. `retry()` in `retry.js` is meant to retry a failing
+      operation and, once attempts are exhausted, reject with the last error.
+      Instead the failure disappears and callers hang or get undefined.
+
+      Fix retry.js. Do not modify tests.js.
+    fixture:
+      files:
+        retry.js: |
+          async function retry(fn, attempts = 3, delayMs = 1) {
+            let lastError;
+            for (let i = 0; i < attempts; i++) {
+              try {
+                return await fn(i);
+              } catch (err) {
+                lastError = err;
+                await new Promise((r) => setTimeout(r, delayMs));
+              }
+            }
+            // The last error is captured and then dropped on the floor:
+            // the caller sees a resolved promise with no value.
+          }
+          module.exports = { retry };
+        tests.js: |
+          const assert = require('assert');
+          const { retry } = require('./retry.js');
+
+          (async () => {
+            let calls = 0;
+            const ok = await retry(async (i) => {
+              calls++;
+              if (i < 2) throw new Error('transient');
+              return 'done';
+            });
+            assert.strictEqual(ok, 'done');
+            assert.strictEqual(calls, 3);
+
+            // Exhausted attempts must reject with the final error.
+            let rejected = null;
+            try {
+              await retry(async () => { throw new Error('always fails'); }, 2);
+            } catch (err) {
+              rejected = err;
+            }
+            assert.ok(rejected instanceof Error, 'should reject with an Error');
+            assert.strictEqual(rejected.message, 'always fails');
+
+            // And it must stop at the attempt limit rather than loop forever.
+            let attempts = 0;
+            try {
+              await retry(async () => { attempts++; throw new Error('x'); }, 4);
+            } catch (_) {}
+            assert.strictEqual(attempts, 4);
+
+            console.log('RETRY_OK');
+          })();
+    grader:
+      type: all
+      of:
+        - type: files
+          assertions:
+            - assert: unchanged
+              path: tests.js
+        - type: command
+          steps:
+            - cmd: node
+              args: [tests.js]
+              stdout_contains: RETRY_OK
+              timeout_secs: 120
+
+  - id: py-diagnose-from-traceback
+    title: Localise a fault from a stack trace alone
+    capability: debugging
+    difficulty: hard
+    requires: [python3]
+    tags: [python, offline]
+    prompt: |
+      Running `python3 main.py` crashes with:
+
+          Traceback (most recent call last):
+            File "main.py", line 9, in <module>
+              print(summarise(load("data.csv")))
+            File "summary.py", line 12, in summarise
+              return {"total": total, "mean": total / len(rows)}
+          ZeroDivisionError: division by zero
+
+      The data file is not empty. Find the real cause and fix it so
+      `python3 main.py` prints a correct summary.
+
+      Do not change main.py, and do not special-case the crash by guarding the
+      division — fix whatever is actually wrong.
+    fixture:
+      files:
+        data.csv: |
+          name,amount
+          alpha,10
+          beta,20
+          gamma,30
+        loader.py: |
+          import csv
+
+          def load(path):
+              with open(path, newline="") as fh:
+                  reader = csv.DictReader(fh)
+                  rows = []
+                  for row in reader:
+                      rows.append({"name": row["name"], "amount": int(row["amount"])})
+                  # The rows are collected and then thrown away: the caller
+                  # gets an empty list, and the division downstream is the
+                  # first place anyone notices.
+                  return []
+        summary.py: |
+          def summarise(rows):
+              total = sum(r["amount"] for r in rows)
+              return {"total": total, "mean": total / len(rows)}
+        main.py: |
+          from loader import load
+          from summary import summarise
+
+          if __name__ == "__main__":
+              result = summarise(load("data.csv"))
+              print(f"total={result['total']} mean={result['mean']}")
+    grader:
+      type: all
+      of:
+        - type: files
+          assertions:
+            - assert: unchanged
+              path: main.py
+            - assert: unchanged
+              path: data.csv
+        - type: command
+          steps:
+            - cmd: python3
+              args: [main.py]
+              stdout_contains: "total=60 mean=20.0"
+              timeout_secs: 120
+            # Guarding the division would make main.py run while leaving the
+            # loader broken, so the loader is checked directly.
+            - cmd: python3
+              args:
+                - "-c"
+                - |
+                  from loader import load
+                  rows = load("data.csv")
+                  assert len(rows) == 3, f"loader returned {len(rows)} rows"
+                  assert rows[0]["name"] == "alpha"
+                  assert rows[2]["amount"] == 30
+                  print("LOADER_OK")
+              stdout_contains: LOADER_OK
+              timeout_secs: 120

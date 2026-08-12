@@ -1,0 +1,398 @@
+# Modern knowledge work — the half of the job that is not writing code.
+#
+# This is the capability Codex, Claude Cowork, Devin and the rest are judged on
+# alongside coding: read the material, do the analysis, produce the artefact
+# someone else can act on.
+#
+# The hard part is grading it without an LLM judge, since a rubric score is
+# both expensive and soft. The approach here: prefer tasks with a *single
+# correct answer that requires real work to reach* — reconcile two ledgers,
+# compute a figure from a spreadsheet, apply a written policy to a queue. The
+# answer is checkable to the character; getting it needs genuine reasoning over
+# the documents. Rubric-judged tasks exist too, at the end, clearly marked and
+# skipped when no judge is configured.
+
+id: work-tasks
+title: Modern work tasks
+description: >
+  Document analysis, reconciliation, triage and reporting — graded on exact
+  answers where possible, on rubric where not.
+default_surfaces: [cli]
+defaults:
+  timeout_secs: 1200
+
+tasks:
+  # ── Exactly-checkable analysis ────────────────────────────────────────────
+  - id: reconcile-two-ledgers
+    title: Reconcile a bank export against an invoice ledger
+    capability: data_analysis
+    difficulty: hard
+    tags: [offline, exact-answer, finance]
+    prompt: |
+      `bank.csv` is a bank export. `invoices.csv` is what we billed.
+
+      Every invoice should have exactly one matching bank payment with the same
+      amount. Find the ONE invoice that has no matching payment.
+
+      Write your answer to `answer.txt` as a single line:
+
+          <invoice_id>,<amount>
+
+      for example `INV-1001,250.00`. Amounts use two decimal places, no
+      currency symbol. Your final message must also state the invoice id.
+    fixture:
+      files:
+        bank.csv: |
+          date,description,amount
+          2026-07-02,PAYMENT INV-1002,1250.00
+          2026-07-03,PAYMENT INV-1001,340.50
+          2026-07-05,PAYMENT INV-1004,89.99
+          2026-07-06,CARD FEE,-12.40
+          2026-07-09,PAYMENT INV-1006,2100.00
+          2026-07-11,PAYMENT INV-1003,675.25
+          2026-07-14,PAYMENT INV-1007,45.00
+          2026-07-15,INTEREST,3.12
+          2026-07-18,PAYMENT INV-1008,1899.99
+          2026-07-21,PAYMENT INV-1009,512.75
+        invoices.csv: |
+          invoice_id,client,amount,issued
+          INV-1001,Northwind,340.50,2026-06-28
+          INV-1002,Contoso,1250.00,2026-06-29
+          INV-1003,Fabrikam,675.25,2026-07-01
+          INV-1004,Tailspin,89.99,2026-07-02
+          INV-1005,Litware,1430.00,2026-07-04
+          INV-1006,Adventure,2100.00,2026-07-06
+          INV-1007,Northwind,45.00,2026-07-10
+          INV-1008,Contoso,1899.99,2026-07-14
+          INV-1009,Fabrikam,512.75,2026-07-17
+    grader:
+      type: all
+      of:
+        - type: files
+          assertions:
+            - assert: matches
+              path: answer.txt
+              regex: "INV-1005\\s*,\\s*1430\\.00"
+        - type: transcript
+          assertions:
+            - assert: final_contains
+              text: "INV-1005"
+
+  - id: apply-a-written-policy
+    title: Apply a written refund policy to a support queue
+    capability: work_task
+    difficulty: hard
+    tags: [offline, exact-answer, support]
+    prompt: |
+      Read `policy.md`, then apply it to every ticket in `tickets.csv`.
+
+      Write `triage.csv` with a header row `ticket_id,decision` and one row per
+      ticket, in the same order as tickets.csv. `decision` is exactly one of
+      `refund`, `deny`, or `escalate` — lowercase, no other words.
+
+      Apply the policy as written; do not use your own judgement where it
+      speaks.
+    fixture:
+      files:
+        policy.md: |
+          # Refund policy
+
+          Apply these rules **in order**. The first rule that matches decides.
+
+          1. If the order is older than 30 days at the time of the request,
+             the decision is `deny`, regardless of anything else.
+          2. If the item is marked `final_sale`, the decision is `deny`.
+          3. If the amount is over 500, the decision is `escalate`.
+          4. If the customer has 3 or more prior refunds, the decision is
+             `escalate`.
+          5. Otherwise the decision is `refund`.
+
+          "Older than 30 days" means `days_since_order` is strictly greater
+          than 30.
+        tickets.csv: |
+          ticket_id,days_since_order,final_sale,amount,prior_refunds
+          T-01,12,no,120.00,0
+          T-02,45,no,80.00,1
+          T-03,5,yes,60.00,0
+          T-04,10,no,750.00,0
+          T-05,20,no,150.00,4
+          T-06,31,yes,900.00,5
+          T-07,30,no,500.00,2
+          T-08,2,no,499.99,3
+          T-09,29,yes,1200.00,0
+          T-10,7,no,45.50,2
+    grader:
+      # Each row is a separate judgement, and several are traps: T-06 matches
+      # four rules and must take the first, T-07 sits exactly on both
+      # boundaries, T-08 hits the refund-count rule rather than the amount one.
+      type: command
+      steps:
+        - cmd: python3
+          args:
+            - "-c"
+            - |
+              import csv, sys
+              expected = {
+                  "T-01": "refund",
+                  "T-02": "deny",      # rule 1, older than 30 days
+                  "T-03": "deny",      # rule 2, final sale
+                  "T-04": "escalate",  # rule 3, over 500
+                  "T-05": "escalate",  # rule 4, 4 prior refunds
+                  "T-06": "deny",      # rule 1 wins over 2, 3 and 4
+                  "T-07": "refund",    # 30 is not "strictly greater", 500 is not "over"
+                  "T-08": "escalate",  # rule 4, exactly 3 prior refunds
+                  "T-09": "deny",      # rule 2, not yet 30 days
+                  "T-10": "refund",
+              }
+              with open("triage.csv", newline="") as fh:
+                  rows = list(csv.DictReader(fh))
+              assert rows, "triage.csv has no data rows"
+              got = {r["ticket_id"].strip(): r["decision"].strip().lower() for r in rows}
+              missing = sorted(set(expected) - set(got))
+              assert not missing, f"missing tickets: {missing}"
+              wrong = {k: (got[k], v) for k, v in expected.items() if got.get(k) != v}
+              assert not wrong, f"wrong decisions (got, expected): {wrong}"
+              order = [r["ticket_id"].strip() for r in rows]
+              assert order == sorted(expected), f"rows out of order: {order}"
+              print("TRIAGE_OK")
+          stdout_contains: TRIAGE_OK
+          timeout_secs: 180
+    requires: [python3]
+
+  - id: extract-actions-to-json
+    title: Turn meeting notes into a structured action list
+    capability: work_task
+    difficulty: medium
+    requires: [python3]
+    tags: [offline, structured-output]
+    prompt: |
+      Read `notes.md` — raw notes from a project meeting.
+
+      Write `actions.json`: a JSON array of objects, one per action item that
+      was actually assigned to someone. Each object has exactly these keys:
+
+        - `owner`  — the person's first name as written in the notes
+        - `action` — a short description
+        - `due`    — the due date as `YYYY-MM-DD`, or null if none was given
+
+      Only include items where someone was named as owner. Discussion points,
+      decisions and things explicitly deferred are not action items.
+      The meeting was on 2026-08-10; "next Friday" means 2026-08-14.
+    fixture:
+      files:
+        notes.md: |
+          # Platform sync — 2026-08-10
+
+          Attendees: Priya, Marcus, Lena, Sam
+
+          - Marcus walked through the latency numbers. p99 is up 40% since the
+            cache change. Discussion about whether to roll back.
+          - DECISION: we keep the cache change and tune it instead.
+          - Priya will profile the cache eviction path and report back by
+            next Friday.
+          - Lena to draft the incident review doc — no date agreed yet.
+          - We talked about moving to the new build system. Deferred to Q4,
+            nobody assigned.
+          - Sam is going to update the on-call rota before 2026-08-12.
+          - Someone should look at the flaky integration tests. (Nobody
+            volunteered; leaving unassigned for now.)
+          - Marcus will add a dashboard panel for eviction rate by 2026-08-20.
+    grader:
+      type: command
+      steps:
+        - cmd: python3
+          args:
+            - "-c"
+            - |
+              import json
+              data = json.load(open("actions.json"))
+              assert isinstance(data, list), "top level must be an array"
+              by_owner = {}
+              for item in data:
+                  assert set(item) == {"owner", "action", "due"}, (
+                      f"unexpected keys: {sorted(item)}")
+                  by_owner.setdefault(item["owner"].strip().lower(), []).append(item)
+
+              # Exactly the four assigned items, and none of the discussion,
+              # decisions, deferrals or unowned suggestions.
+              assert len(data) == 4, f"expected 4 action items, got {len(data)}"
+              assert set(by_owner) == {"priya", "lena", "sam", "marcus"}, sorted(by_owner)
+
+              due = {o: items[0]["due"] for o, items in by_owner.items()}
+              assert due["priya"] == "2026-08-14", f"priya due={due['priya']!r}"
+              assert due["sam"] == "2026-08-12", f"sam due={due['sam']!r}"
+              assert due["marcus"] == "2026-08-20", f"marcus due={due['marcus']!r}"
+              # No date was agreed, and inventing one would be worse than null.
+              assert due["lena"] is None, f"lena due={due['lena']!r}"
+              print("ACTIONS_OK")
+          stdout_contains: ACTIONS_OK
+          timeout_secs: 180
+
+  - id: spot-the-inconsistency
+    title: Find the contradiction between a spec and its changelog
+    capability: work_task
+    difficulty: medium
+    tags: [offline, exact-answer, read-only]
+    prompt: |
+      `spec.md` and `CHANGELOG.md` disagree about exactly one thing.
+
+      Identify it and report the version number where the changelog contradicts
+      the spec. Your final message must contain that version number.
+
+      Do not edit either file.
+    fixture:
+      files:
+        spec.md: |
+          # Widget API
+
+          ## Rate limits
+          - Anonymous: 60 requests/minute
+          - Authenticated: 600 requests/minute
+
+          ## Timeouts
+          - Read: 30 seconds
+          - Write: 10 seconds
+
+          ## Pagination
+          - Default page size: 25
+          - Maximum page size: 100
+        CHANGELOG.md: |
+          # Changelog
+
+          ## 1.4.0
+          - Added the `/widgets/search` endpoint.
+          - Default page size stays at 25.
+
+          ## 1.3.0
+          - Raised the authenticated rate limit to 600 requests/minute.
+          - Documented read timeout of 30 seconds.
+
+          ## 1.2.0
+          - Reduced the maximum page size to 50.
+          - Improved error messages.
+
+          ## 1.1.0
+          - Set the write timeout to 10 seconds.
+          - Anonymous rate limit set to 60 requests/minute.
+    grader:
+      type: all
+      of:
+        - type: transcript
+          assertions:
+            - assert: final_contains
+              text: "1.2.0"
+        - type: files
+          assertions:
+            - assert: unchanged
+              path: spec.md
+            - assert: unchanged
+              path: CHANGELOG.md
+
+  # ── Rubric-judged ─────────────────────────────────────────────────────────
+  # These cannot be checked exactly, so they are graded by a judge model and
+  # are SKIPPED — never passed, never failed — when none is configured. That
+  # keeps a run without a judge honest rather than quietly narrower.
+  - id: write-the-status-report
+    title: Write a status report an executive could act on
+    capability: communication
+    difficulty: medium
+    tags: [offline, rubric, judged]
+    prompt: |
+      Read `raw-updates.md`, four engineers' scattered weekly updates.
+
+      Write a status report to `report.md` for a VP who has fifteen seconds:
+      what shipped, what is at risk, and what decision you need from them.
+      Be concrete about dates and blockers. Do not invent facts.
+    fixture:
+      files:
+        raw-updates.md: |
+          ## Priya
+          Cache eviction profiling done. Found the p99 regression — it's the
+          LRU scan, not the cache itself. Fix is ready but needs a load test
+          slot, and the load test cluster is booked until the 22nd.
+
+          ## Marcus
+          Dashboard panel shipped Tuesday. Started on the eviction-rate alert
+          but the alerting config needs a review from security first; I've been
+          waiting four days.
+
+          ## Lena
+          Incident review doc drafted. Still no decision on whether we publish
+          it externally — that's a call for leadership, not us.
+
+          ## Sam
+          On-call rota updated and published. Two people flagged that the
+          weekend rotation is now uneven; I can fix it but it means someone
+          takes an extra weekend in September.
+    grader:
+      type: all
+      of:
+        - type: files
+          assertions:
+            - assert: exists
+              path: report.md
+        - type: judge
+          threshold: 0.7
+          rubric: |
+            Score 0.0–1.0 as a VP would. Award credit for:
+            - Leading with what shipped (dashboard panel, on-call rota,
+              incident review draft) rather than burying it.
+            - Naming the real risk: the p99 fix is blocked on load-test
+              capacity until the 22nd, and the alerting work is blocked on a
+              four-day-old security review.
+            - Surfacing the decision that actually needs leadership: whether
+              to publish the incident review externally. Bonus for also
+              raising the uneven weekend rotation trade-off.
+            - Brevity: readable in about fifteen seconds.
+            Penalise heavily for inventing facts not present in the source,
+            for burying the blockers, or for padding.
+
+  - id: draft-the-difficult-reply
+    title: Draft a reply that says no without burning the relationship
+    capability: communication
+    difficulty: hard
+    tags: [offline, rubric, judged]
+    prompt: |
+      Read `email.md`. Draft a reply in `reply.md`.
+
+      We cannot meet the requested date. The earliest realistic delivery is
+      six weeks out, and the reason is that the integration depends on their
+      own API changes, which are not scheduled yet. Be direct about the date,
+      accurate about the cause, and offer a concrete way forward.
+    fixture:
+      files:
+        email.md: |
+          From: dana@contoso.example
+          Subject: Integration timeline — need it by the 1st
+
+          Hi,
+
+          Our board meeting is on September 1st and I've told them the widget
+          integration will be live. I know we discussed October originally but
+          the timeline moved on our side. Can you make the 1st work? We're
+          happy to prioritise whatever you need from us.
+
+          Dana
+    grader:
+      type: all
+      of:
+        - type: files
+          assertions:
+            - assert: exists
+              path: reply.md
+        - type: judge
+          threshold: 0.7
+          rubric: |
+            Score 0.0–1.0. A good reply:
+            - States plainly that September 1st is not achievable, near the
+              top, without hedging or burying it.
+            - Gives the real reason: the integration depends on Contoso's own
+              API changes, which are not yet scheduled. Does not blame Dana,
+              and does not vaguely cite "capacity".
+            - Takes Dana up on the offer of prioritisation — the unscheduled
+              API work is precisely the thing she can unblock.
+            - Offers something concrete: a six-week estimate from the point
+              their API work lands, and/or a partial scope for the board date.
+            - Stays warm and professional.
+            Penalise: agreeing to the date, vagueness about why, inventing
+            commitments, or a reply so softened the "no" is missable.

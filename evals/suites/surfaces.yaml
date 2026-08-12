@@ -1,0 +1,363 @@
+# Surface conformance — is the capability actually reachable?
+#
+# VibeCody is one daemon behind fourteen clients. A capability score measured
+# through the CLI says nothing about whether the watch can reach it, and the
+# failures that break a client are almost never model failures: a missing
+# bearer header, a route that moved, three tauri.conf.json files that drifted
+# apart. None of that shows up in a pass rate over coding tasks.
+#
+# So these tasks have no agent turn at all. They assert over the shipped source
+# (`workspace: repo_root`, read-only) and over a live daemon (`http` probes,
+# skipped when none is running). They are regression guards: most should pass
+# today, and the day one stops is the day a client silently lost its reach.
+
+id: surfaces
+title: Surface conformance
+description: >
+  Transport contracts for every VibeCody client — auth headers, daemon
+  identity, route reachability, and the cross-file invariants that keep the
+  fourteen surfaces in step.
+defaults:
+  timeout_secs: 300
+
+tasks:
+  # ── Live daemon ───────────────────────────────────────────────────────────
+  - id: daemon-health-declares-identity
+    title: /health identifies itself as vibecli
+    capability: surface_conformance
+    difficulty: easy
+    surfaces: [daemon]
+    tags: [live, daemon]
+    grader:
+      type: http
+      probes:
+        # Identity, not liveness. Any process holding 7878 answers a TCP
+        # connect; only this field distinguishes our daemon from a port
+        # conflict, and every client's bootstrap depends on the distinction.
+        - url: "{daemon}/health"
+          authenticated: false
+          expect_status: [200]
+          json_pointer: /service
+          json_value: vibecli
+
+  - id: daemon-protected-routes-require-a-token
+    title: Protected routes reject an anonymous caller
+    capability: surface_conformance
+    difficulty: easy
+    surfaces: [daemon]
+    tags: [live, daemon, security]
+    grader:
+      type: http
+      probes:
+        # A protected route answering without a token is a hole; no capability
+        # eval would ever reveal it.
+        - url: "{daemon}/sessions"
+          authenticated: false
+          expect_status: [401]
+        - url: "{daemon}/jobs"
+          authenticated: false
+          expect_status: [401]
+        - method: POST
+          url: "{daemon}/agent"
+          authenticated: false
+          body: { task: "conformance probe — must never execute" }
+          expect_status: [401]
+
+  - id: daemon-public-routes-need-no-token
+    title: Public routes stay reachable without credentials
+    capability: surface_conformance
+    difficulty: easy
+    surfaces: [daemon]
+    tags: [live, daemon]
+    grader:
+      type: http
+      probes:
+        # The mirror image, and just as important: mobile and watch clients
+        # hit these before they have a token at all. A route that quietly
+        # became protected makes the app unpairable.
+        - url: "{daemon}/health"
+          authenticated: false
+          expect_status: [200]
+        - url: "{daemon}/models"
+          authenticated: false
+          reject_status: [401, 403]
+        - url: "{daemon}/v1/capabilities"
+          authenticated: false
+          reject_status: [401, 403]
+
+  - id: daemon-authenticated-routes-answer
+    title: A token actually opens the protected routes
+    capability: surface_conformance
+    difficulty: easy
+    surfaces: [daemon]
+    tags: [live, daemon]
+    grader:
+      type: http
+      probes:
+        # Rejecting the 401 rather than pinning a success code: the body of
+        # these routes changes, the fact that a valid token is accepted must
+        # not.
+        - url: "{daemon}/sessions"
+          authenticated: true
+          reject_status: [401, 403]
+        - url: "{daemon}/jobs"
+          authenticated: true
+          reject_status: [401, 403]
+
+  # ── Client transports (static, read-only over the repo) ───────────────────
+  - id: vscode-sends-the-bearer-token
+    title: VS Code extension authenticates its daemon calls
+    capability: surface_conformance
+    difficulty: easy
+    surfaces: [vscode]
+    workspace: repo_root
+    tags: [static, auth]
+    grader:
+      type: files
+      assertions:
+        - assert: contains
+          path: vscode-extension/src/api-client.ts
+          text: "authedFetch"
+        - assert: matches
+          path: vscode-extension/src/api-client.ts
+          regex: "Authorization.{0,40}Bearer"
+
+  - id: agent-sdk-sends-the-bearer-token
+    title: Agent SDK authenticates its daemon calls
+    capability: surface_conformance
+    difficulty: easy
+    surfaces: [sdk]
+    workspace: repo_root
+    tags: [static, auth]
+    grader:
+      type: files
+      assertions:
+        - assert: contains
+          path: packages/agent-sdk/src/index.ts
+          text: "authedFetch"
+        - assert: matches
+          path: packages/agent-sdk/src/index.ts
+          regex: "Authorization.{0,40}Bearer"
+
+  - id: jetbrains-sends-the-bearer-token
+    title: JetBrains plugin authenticates its daemon calls
+    capability: surface_conformance
+    difficulty: easy
+    surfaces: [jetbrains]
+    workspace: repo_root
+    tags: [static, auth]
+    grader:
+      type: files
+      assertions:
+        - assert: matches
+          path: jetbrains-plugin/src/main/kotlin/com/vibecody/vibecli/VibeCLIService.kt
+          regex: "Authorization.{0,40}Bearer"
+
+  - id: mobile-sends-the-bearer-token
+    title: Flutter client authenticates its daemon calls
+    capability: surface_conformance
+    difficulty: easy
+    surfaces: [mobile]
+    workspace: repo_root
+    tags: [static, auth]
+    grader:
+      type: files
+      assertions:
+        - assert: matches
+          path: vibemobile/lib/services/api_client.dart
+          regex: "Authorization.{0,40}Bearer"
+
+  - id: watch-uses-its-own-scheme
+    title: watchOS client sends its Watch-Token credential
+    capability: surface_conformance
+    difficulty: easy
+    surfaces: [watch]
+    workspace: repo_root
+    tags: [static, auth]
+    grader:
+      type: files
+      assertions:
+        - assert: matches
+          path: "vibewatch/VibeCodyWatch Watch App/WatchNetworkManager.swift"
+          regex: "Authorization"
+        - assert: contains
+          path: "vibewatch/VibeCodyWatch Watch App/WatchNetworkManager.swift"
+          text: "Watch-Token"
+
+  - id: tauri-shells-use-the-shared-daemon-fetch
+    title: Desktop shells route daemon calls through daemonFetch
+    capability: surface_conformance
+    difficulty: easy
+    surfaces: [vibecoder]
+    workspace: repo_root
+    tags: [static, auth]
+    grader:
+      type: files
+      assertions:
+        - assert: exists
+          path: vibecoder/src/lib/daemonFetch.ts
+        # The token rotates on every daemon start and VibeCoder restarts the
+        # daemon itself, so a token captured at mount is stale by first use.
+        # The re-read on 401 is the property that matters.
+        - assert: matches
+          path: vibecoder/src/lib/daemonFetch.ts
+          regex: "401"
+
+  - id: device-keys-stay-on-p256
+    title: Watch device keys are P-256, never Ed25519
+    capability: surface_conformance
+    difficulty: medium
+    surfaces: [watch]
+    workspace: repo_root
+    requires: [python3]
+    tags: [static, crypto]
+    grader:
+      # Apple's Secure Enclave supports no algorithm but P-256 ECDSA, so an
+      # Ed25519 device key is not a preference but an impossibility. The
+      # verification path is checked directly; the field documentation is
+      # checked too, because a comment naming the wrong algorithm is how the
+      # next person reintroduces it.
+      type: all
+      of:
+        - type: files
+          assertions:
+            - assert: contains
+              path: vibecli/vibecli-cli/src/watch_auth.rs
+              text: "verify_p256_signature"
+        - type: command
+          steps:
+            - cmd: python3
+              args:
+                - "-c"
+                - |
+                  import pathlib, re, sys
+                  src = pathlib.Path(
+                      "vibecli/vibecli-cli/src/watch_auth.rs").read_text()
+                  # Mentions that explain the constraint are fine; mentions
+                  # that label a field as holding an Ed25519 key are not.
+                  offenders = [
+                      line.strip()
+                      for line in src.splitlines()
+                      if re.search(r"[Ee]d25519", line)
+                      and not re.search(r"not Ed25519|never Ed25519", line)
+                  ]
+                  if offenders:
+                      print("ED25519_REFERENCES_FOUND")
+                      for line in offenders:
+                          print("  " + line)
+                      sys.exit(1)
+                  print("P256_ONLY_OK")
+              stdout_contains: P256_ONLY_OK
+              timeout_secs: 60
+
+  - id: one-daemon-bootstrap-implementation
+    title: Daemon autostart has exactly one implementation
+    capability: surface_conformance
+    difficulty: medium
+    surfaces: [cli]
+    workspace: repo_root
+    tags: [static, bootstrap]
+    grader:
+      type: files
+      assertions:
+        - assert: exists
+          path: vibecli/vibecli-cli/src/daemon_bootstrap.rs
+        # Poll to a deadline: a cold daemon has been measured taking ~16s to
+        # answer /health, and the autostart that slept two seconds and checked
+        # once reported every healthy launch as broken.
+        - assert: matches
+          path: vibecli/vibecli-cli/src/daemon_bootstrap.rs
+          regex: "(?i)deadline|elapsed|timeout"
+        # Each failure is its own state; "is vibecli on your PATH?" is wrong
+        # advice for three of the four.
+        - assert: contains
+          path: vibecli/vibecli-cli/src/daemon_bootstrap.rs
+          text: "PortTakenByOther"
+        - assert: contains
+          path: vibecli/vibecli-cli/src/daemon_bootstrap.rs
+          text: "BinaryNotFound"
+
+  - id: desktop-shells-agree-on-the-macos-floor
+    title: All three Tauri shells declare the same macOS minimum
+    capability: surface_conformance
+    difficulty: medium
+    surfaces: [vibecoder, vibedesk, vibeaichat]
+    workspace: repo_root
+    requires: [python3]
+    tags: [static, packaging]
+    grader:
+      # Three files, one platform floor. They drift silently because nothing
+      # builds all three shells on the same machine, and the symptom is a
+      # store rejection rather than a failing test.
+      type: command
+      steps:
+        - cmd: python3
+          args:
+            - "-c"
+            - |
+              import json, sys
+              paths = [
+                  "vibecoder/src-tauri/tauri.conf.json",
+                  "vibedesk/src-tauri/tauri.conf.json",
+                  "vibeaichat/src-tauri/tauri.conf.json",
+              ]
+              found = {}
+              for p in paths:
+                  conf = json.load(open(p))
+                  macos = conf.get("bundle", {}).get("macOS", {})
+                  found[p] = macos.get("minimumSystemVersion")
+              if None in found.values():
+                  print("MISSING_MINIMUM_SYSTEM_VERSION", found)
+                  sys.exit(1)
+              if len(set(found.values())) != 1:
+                  print("TAURI_FLOORS_DISAGREE", found)
+                  sys.exit(1)
+              print(f"TAURI_FLOORS_AGREE at {next(iter(found.values()))}")
+          stdout_contains: TAURI_FLOORS_AGREE
+          timeout_secs: 60
+
+  - id: every-client-surface-is-present
+    title: Every declared client surface still exists in the tree
+    capability: surface_conformance
+    difficulty: easy
+    surfaces: [cli]
+    workspace: repo_root
+    requires: [python3]
+    tags: [static, inventory]
+    grader:
+      # The product matrix is a claim about what ships. A surface that has
+      # quietly disappeared should fail here rather than be discovered by a
+      # user following the README.
+      type: command
+      steps:
+        - cmd: python3
+          args:
+            - "-c"
+            - |
+              import pathlib, sys
+              expected = {
+                  "cli": "vibecli/vibecli-cli/src/main.rs",
+                  "daemon": "vibecli/vibecli-cli/src/serve.rs",
+                  "acp": "vibecli/vibecli-cli/src/acp_stdio.rs",
+                  "mcp": "vibecli/vibecli-cli/src/mcp_server.rs",
+                  "sdk": "packages/agent-sdk/src/index.ts",
+                  "vscode": "vscode-extension/src/api-client.ts",
+                  "jetbrains": "jetbrains-plugin/src/main/kotlin/com/vibecody/vibecli/VibeCLIService.kt",
+                  "neovim": "neovim-plugin/lua/vibecli/init.lua",
+                  "vibecoder": "vibecoder/src-tauri/tauri.conf.json",
+                  "vibedesk": "vibedesk/src-tauri/tauri.conf.json",
+                  "vibeaichat": "vibeaichat/src-tauri/tauri.conf.json",
+                  "mobile": "vibemobile/lib/services/api_client.dart",
+                  "watch": "vibewatch/VibeCodyWatch Watch App/WatchNetworkManager.swift",
+                  "github_action": "vibecody-action/action.yml",
+              }
+              missing = {k: v for k, v in expected.items()
+                         if not pathlib.Path(v).exists()}
+              if missing:
+                  print("SURFACES_MISSING")
+                  for k, v in sorted(missing.items()):
+                      print(f"  {k}: {v}")
+                  sys.exit(1)
+              print(f"ALL_{len(expected)}_SURFACES_PRESENT")
+          stdout_contains: SURFACES_PRESENT
+          timeout_secs: 60
