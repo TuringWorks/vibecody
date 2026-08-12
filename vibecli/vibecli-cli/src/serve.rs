@@ -2183,15 +2183,34 @@ async fn start_agent(
         });
 
         let mut completed = false;
+        // Every SSE consumer — VibeCoder, mobile, watch, the SDK — was being
+        // sent raw `<thinking>` and `<tool_call>` markup. Filter once here,
+        // at the wire edge, rather than asking six clients to each strip it.
+        let mut stream_filter = crate::agent_stream_filter::StreamFilter::new();
         while let Some(event) = event_rx.recv().await {
             let payload = match event {
-                AgentEvent::StreamChunk(text) => AgentEventPayload::chunk(text),
+                AgentEvent::StreamChunk(text) => {
+                    let visible = stream_filter.push(&text);
+                    // A chunk that was entirely markup produces no event.
+                    if visible.is_empty() {
+                        continue;
+                    }
+                    AgentEventPayload::chunk(visible)
+                }
                 AgentEvent::ToolCallExecuted(step) => AgentEventPayload::step(
                     step.step_num,
                     step.tool_call.name(),
                     step.tool_result.success,
                 ),
                 AgentEvent::Complete(summary) => {
+                    // Release anything the filter held back before the stream
+                    // closes, or a trailing partial tag is lost to the client.
+                    let tail = stream_filter.finish();
+                    if !tail.is_empty() {
+                        let _ = job_manager
+                            .publish_event(&sid, AgentEventPayload::chunk(tail))
+                            .await;
+                    }
                     let p = AgentEventPayload::complete(summary.clone());
                     let _ = job_manager.publish_event(&sid, p).await;
                     let _ = job_manager

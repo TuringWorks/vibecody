@@ -122,6 +122,13 @@ pub struct CircuitBreaker {
     pub last_state_change: Option<std::time::Instant>,
     /// Half-open recovery policy for automatic recovery probing.
     pub recovery: crate::resilience::RecoveryPolicy,
+    /// How many times the loop has auto-compacted context for this run.
+    /// Bounded by `max_auto_compactions`: shrinking history is lossy, and a
+    /// model that keeps degrading for reasons unrelated to context length
+    /// would otherwise be compacted down to nothing.
+    pub auto_compactions: u32,
+    /// Ceiling on `auto_compactions`.
+    pub max_auto_compactions: u32,
 }
 
 impl Default for CircuitBreaker {
@@ -138,6 +145,8 @@ impl Default for CircuitBreaker {
             max_rotations: 6,
             last_state_change: None,
             recovery: crate::resilience::RecoveryPolicy::default(),
+            auto_compactions: 0,
+            max_auto_compactions: 3,
         }
     }
 }
@@ -299,6 +308,32 @@ impl CircuitBreaker {
         AgentHealthState::Progress
     }
 
+    /// Whether the loop should compact context in response to the current
+    /// state, rather than merely advising the model to do so.
+    ///
+    /// `Degraded` means responses are shrinking, and the usual cause is a
+    /// history the model can no longer hold. "Consider starting fresh" is
+    /// advice the *model* cannot act on — it does not control its own context
+    /// window. Only the harness can, so the harness does it.
+    pub fn wants_context_compaction(&self) -> bool {
+        self.state == AgentHealthState::Degraded
+            && self.auto_compactions < self.max_auto_compactions
+    }
+
+    /// Record that the loop compacted context, and re-arm detection.
+    ///
+    /// Clearing `output_volumes` matters: the declining window is what put the
+    /// breaker in `Degraded`, and leaving it in place means the next
+    /// evaluation sees the same old decline and never returns to `Progress` —
+    /// so remediation could never be judged to have worked. A cleared window
+    /// makes the next few steps a fresh measurement of whether it did.
+    pub fn note_context_compacted(&mut self) {
+        self.auto_compactions += 1;
+        self.output_volumes.clear();
+        self.state = AgentHealthState::Progress;
+        self.last_state_change = None;
+    }
+
     /// Generate a rotation hint message for the agent.
     pub fn rotation_hint(&self) -> String {
         match &self.state {
@@ -319,9 +354,25 @@ impl CircuitBreaker {
                 )
             }
             AgentHealthState::Degraded => {
-                "⚠️ CIRCUIT BREAKER: Agent output DEGRADING — responses getting shorter. \
-                 Context may be rotting. Consider completing the current sub-task and starting fresh."
-                    .to_string()
+                // Says what the harness is doing, not what the model should
+                // wish for. The compaction happens in the run loop.
+                if self.auto_compactions < self.max_auto_compactions {
+                    format!(
+                        "⚠️ CIRCUIT BREAKER: output DEGRADING — responses getting shorter. \
+                         Compacting context automatically (compaction {}/{}); older turns are \
+                         replaced by a summary. Continue from the summary and the recent turns; \
+                         re-read any file you need rather than relying on memory of it.",
+                        self.auto_compactions + 1,
+                        self.max_auto_compactions,
+                    )
+                } else {
+                    format!(
+                        "⚠️ CIRCUIT BREAKER: output still DEGRADING after {} automatic \
+                         compactions, so context length is not the cause. Finish the current \
+                         sub-task and report what is done and what remains.",
+                        self.max_auto_compactions,
+                    )
+                }
             }
             AgentHealthState::Blocked => {
                 "🛑 CIRCUIT BREAKER: Agent is BLOCKED after multiple approach rotations. \
@@ -1155,19 +1206,24 @@ impl AgentLoop {
                         attempted_tool = %attempted,
                         "Model called an unknown or malformed tool — re-prompting with the valid list",
                     );
+                    // Cloned before `accumulated` is moved into the message —
+                    // the rejection text is derived from the same raw turn.
+                    let accumulated_for_reason = accumulated.clone();
                     messages.push(Message {
                         role: MessageRole::Assistant,
                         content: accumulated,
                     });
                     messages.push(Message {
                         role: MessageRole::User,
-                        content: format!(
-                            "Tool call rejected: `{}` is not an available tool, or the block was malformed. \
-                             You have exactly these tools: {}. \
-                             Retry now with one of them, using the documented parameter tags.",
-                            attempted,
-                            AVAILABLE_TOOL_NAMES.join(", "),
-                        ),
+                        content: crate::tools::tool_call_rejection_reason(&accumulated_for_reason)
+                            .unwrap_or_else(|| {
+                                format!(
+                                    "Tool call rejected: `{}` could not be used. You have exactly \
+                                     these tools: {}. Retry now with one of them.",
+                                    attempted,
+                                    AVAILABLE_TOOL_NAMES.join(", "),
+                                )
+                            }),
                     });
                     continue;
                 }
@@ -2150,6 +2206,58 @@ impl AgentLoop {
                         })
                         .await;
 
+                    // Detecting degradation and only *reporting* it left the
+                    // run to rot: the advice ("start fresh") names something
+                    // the model cannot do to itself. Compact here instead.
+                    //
+                    // The budget is derived from the history's current size,
+                    // not from `max_context_tokens` — the whole point is that
+                    // we are already under that ceiling and still degrading,
+                    // so pruning to it would be a no-op.
+                    if cb.wants_context_compaction() {
+                        let before = estimate_tokens(&messages);
+                        // Halve, with a floor so a short history is not
+                        // pulverised into a summary of nothing.
+                        let target = (before / 2).max(MIN_COMPACTION_BUDGET_TOKENS);
+                        prune_messages(&mut messages, target);
+                        let after = estimate_tokens(&messages);
+
+                        if after < before {
+                            cb.note_context_compacted();
+                            tracing::info!(
+                                before_tokens = before,
+                                after_tokens = after,
+                                compaction = cb.auto_compactions,
+                                "Circuit breaker: auto-compacted context after degradation",
+                            );
+                            let _ = event_tx
+                                .send(AgentEvent::CircuitBreak {
+                                    state: AgentHealthState::Progress,
+                                    reason: format!(
+                                        "🧹 Context compacted automatically: ~{before} → ~{after} tokens. Continuing."
+                                    ),
+                                })
+                                .await;
+                        } else {
+                            // Nothing could be dropped — the history is
+                            // already minimal, so degradation is not about
+                            // length. Say so rather than claim a fix.
+                            tracing::warn!(
+                                tokens = before,
+                                "Circuit breaker: degradation detected but context is already minimal — not compacting",
+                            );
+                            let _ = event_tx
+                                .send(AgentEvent::CircuitBreak {
+                                    state: new_state.clone(),
+                                    reason:
+                                        "Context is already minimal, so shortening responses are \
+                                         not caused by context length. Leaving history intact."
+                                            .to_string(),
+                                })
+                                .await;
+                        }
+                    }
+
                     if new_state == AgentHealthState::Blocked {
                         tracing::warn!(
                             "Circuit breaker: agent BLOCKED after {} rotations",
@@ -2315,6 +2423,10 @@ pub fn estimate_tokens(messages: &[Message]) -> usize {
 /// Middle messages are removed and replaced with a single placeholder. If that
 /// is not enough — because the oversize lives in a message that must be kept —
 /// individual messages are clipped so the request actually fits.
+/// Floor for degradation-triggered compaction, so halving a already-small
+/// history cannot collapse it to a summary with no working context left.
+pub const MIN_COMPACTION_BUDGET_TOKENS: usize = 8_000;
+
 pub fn prune_messages(messages: &mut Vec<Message>, budget: usize) {
     if estimate_tokens(messages) <= budget {
         return;
@@ -3377,6 +3489,110 @@ mod circuit_breaker_tests {
         let hint = cb.rotation_hint();
         assert!(hint.contains("STALLED"));
         assert!(hint.contains("Rotation"));
+    }
+
+    // ── Degradation is remediated, not just announced ───────────────────────
+
+    /// Drive a breaker into `Degraded` by feeding a collapsing output volume.
+    fn degraded_breaker() -> CircuitBreaker {
+        let mut cb = CircuitBreaker {
+            stall_threshold: 1_000,
+            spin_threshold: 1_000,
+            ..Default::default()
+        };
+        let think = ToolCall::Think {
+            thought: "t".into(),
+        };
+        for vol in [1000, 1000, 1000, 10, 10, 10] {
+            cb.record_step(&think, &ok_result("think"), vol);
+        }
+        assert_eq!(cb.state, AgentHealthState::Degraded, "setup should degrade");
+        cb
+    }
+
+    #[test]
+    fn degradation_asks_for_compaction_rather_than_only_advising() {
+        assert!(degraded_breaker().wants_context_compaction());
+    }
+
+    #[test]
+    fn compaction_rearms_detection_so_recovery_is_observable() {
+        let mut cb = degraded_breaker();
+        cb.note_context_compacted();
+        // Leaving the declining window in place would pin the breaker in
+        // Degraded forever, so remediation could never be judged to work.
+        assert_eq!(cb.state, AgentHealthState::Progress);
+        assert!(cb.output_volumes.is_empty());
+        assert_eq!(cb.auto_compactions, 1);
+    }
+
+    #[test]
+    fn auto_compaction_is_bounded() {
+        let mut cb = degraded_breaker();
+        for _ in 0..cb.max_auto_compactions {
+            cb.note_context_compacted();
+            cb.state = AgentHealthState::Degraded; // degrade again
+        }
+        assert!(
+            !cb.wants_context_compaction(),
+            "must stop compacting once the ceiling is reached — shrinking history is lossy"
+        );
+    }
+
+    #[test]
+    fn hint_changes_once_compaction_is_exhausted() {
+        let mut cb = degraded_breaker();
+        assert!(
+            cb.rotation_hint().contains("Compacting context automatically"),
+            "should announce the action it is taking"
+        );
+        cb.auto_compactions = cb.max_auto_compactions;
+        cb.state = AgentHealthState::Degraded;
+        let hint = cb.rotation_hint();
+        assert!(
+            hint.contains("not the cause"),
+            "after N compactions it must stop blaming context length: {hint}"
+        );
+    }
+
+    #[test]
+    fn halving_a_long_history_actually_drops_messages() {
+        // The remediation is only real if pruning to half the current size
+        // removes something. `max_context_tokens` cannot do this — we are
+        // already under it.
+        let mut msgs = vec![
+            Message { role: MessageRole::System, content: "sys".into() },
+            Message { role: MessageRole::User, content: "task".into() },
+        ];
+        for i in 0..40 {
+            msgs.push(Message {
+                role: MessageRole::Assistant,
+                content: format!("step {i}: {}", "x".repeat(2_000)),
+            });
+        }
+        let before = estimate_tokens(&msgs);
+        let target = (before / 2).max(MIN_COMPACTION_BUDGET_TOKENS);
+        prune_messages(&mut msgs, target);
+        let after = estimate_tokens(&msgs);
+        assert!(after < before, "compaction must shrink: {before} → {after}");
+        assert!(
+            msgs.iter().any(|m| m.content.contains("Context compacted")),
+            "the dropped middle must leave a summary behind"
+        );
+    }
+
+    #[test]
+    fn compacting_a_short_history_is_a_no_op() {
+        // Guards the "claimed a fix that did nothing" path: with nothing to
+        // drop, the loop must report that instead of counting a compaction.
+        let mut msgs = vec![
+            Message { role: MessageRole::System, content: "sys".into() },
+            Message { role: MessageRole::User, content: "task".into() },
+            Message { role: MessageRole::Assistant, content: "short".into() },
+        ];
+        let before = estimate_tokens(&msgs);
+        prune_messages(&mut msgs, (before / 2).max(MIN_COMPACTION_BUDGET_TOKENS));
+        assert_eq!(estimate_tokens(&msgs), before);
     }
 
     #[test]

@@ -628,6 +628,9 @@ where
                     app.agent_view.status = AgentStatus::Running;
                 }
                 AppEvent::AgentComplete(summary) => {
+                    // Ends the turn and clears filter state, so a run that
+                    // stopped inside a reasoning block cannot mute the next.
+                    app.agent_view.finish_stream();
                     app.agent_view.streaming_text.clear();
                     app.agent_view.status = AgentStatus::Complete(summary.clone());
                     app.messages.push(TuiMessage::System(format!(
@@ -644,6 +647,7 @@ where
                     )));
                 }
                 AppEvent::AgentError(e) => {
+                    app.agent_view.finish_stream();
                     app.agent_view.status = AgentStatus::Error(e.clone());
                     app.messages
                         .push(TuiMessage::Error(format!("Agent: {}", e)));

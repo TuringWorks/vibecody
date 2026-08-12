@@ -70,6 +70,68 @@ fn handle_recap_job_repl(arg: &str) {
 /// instruction for a fresh agent run. Returns `None` if no job
 /// matched (the caller should not start a run). Display-only side
 /// effect prints what's about to be re-run.
+/// Work out what `vibecli --resume <id>` should actually *do* when the user
+/// gave no `--agent` task.
+///
+/// Requiring `--agent` to resume was a usability bug: the tool printed
+/// "Resume with: vibecli --resume <id>", and running exactly that printed
+/// another instruction instead of resuming. Resuming is the whole point of the
+/// flag, so it now derives the next task the same way `/resume job` does —
+/// prefer the recap's first `next_action`, fall back to continuing the original
+/// task — and returns `None` only when there is genuinely nothing to go on.
+///
+/// `full_id` must be the resolved session id, not a prefix.
+fn derive_resume_task(full_id: &str) -> Option<String> {
+    let store = SessionStore::open_default().ok()?;
+
+    // 1. A recap's next action is an explicit, human-meaningful continuation.
+    let next_action = store
+        .list_recaps_for_subject(full_id, 1)
+        .ok()
+        .and_then(|rows| rows.into_iter().next())
+        .and_then(|r| r.next_actions.into_iter().next());
+    if let Some(action) = next_action.filter(|a| !a.trim().is_empty()) {
+        println!("   Continuing with the recap's next action:\n   {action}\n");
+        return Some(action);
+    }
+
+    // 2. Otherwise carry on with what the session set out to do. Phrased as a
+    //    continuation so the model treats the restored history as work already
+    //    done rather than starting the task over.
+    //
+    //    Read the original task from the first *user message*, not from
+    //    `sessions.task`: that column is populated with `auto_name_session()`,
+    //    a display label truncated to 60 chars with an ellipsis, so resuming
+    //    from it would hand the model a task cut off mid-word. The messages
+    //    table holds the verbatim text.
+    let first_user_msg = store
+        .get_messages(full_id)
+        .ok()
+        .and_then(|rows| {
+            rows.into_iter()
+                .find(|r| r.role == "user")
+                .map(|r| r.content)
+        })
+        .filter(|c| !c.trim().is_empty());
+
+    let original_owned = match first_user_msg {
+        Some(c) => c,
+        // Fall back to the label only when there is no message at all — a
+        // truncated task still beats refusing to resume.
+        None => store.get_session(full_id).ok().flatten()?.task,
+    };
+    let original = original_owned.trim();
+    if original.is_empty() {
+        return None;
+    }
+    println!("   Continuing the original task:\n   {original}\n");
+    Some(format!(
+        "Continue the previous session. The original task was: {original}\n\n\
+         Review what has already been done in the conversation above, then carry \
+         on from there. Do not redo completed work."
+    ))
+}
+
 fn handle_resume_job_repl(arg: &str) -> Option<String> {
     use crate::job_manager::{default_db_path, JobsDb};
     if arg.is_empty() {
@@ -3185,7 +3247,9 @@ mod file_watcher;
 // FIT-GAP v10 — Phase 42: Reliability (P1)
 // FIT-GAP v10 — Phase 43: Developer Experience (P2)
 // FIT-GAP v10 — Phase 44: P3 Gaps (closed)
+mod agent_render;
 mod agent_replay;
+mod agent_stream_filter;
 // MemPalace techniques — LongMemEval benchmark
 mod mem_benchmark;
 // FIT-GAP v11 — Phase 45: Agent-OS (P0)
@@ -5179,8 +5243,30 @@ async fn main() -> Result<()> {
         .await;
     }
 
-    // Non-TUI agent mode: --agent "task description"
-    if let Some(task) = cli.agent {
+    // `--resume <id>` with no `--agent` resumes on its own: resolve the id,
+    // derive the next task, and fall into the agent path below. Only if
+    // nothing can be derived does it drop through to the informational branch
+    // further down, which now explains why rather than issuing an order.
+    let resumed_task: Option<String> = match (&cli.agent, &cli.resume) {
+        (None, Some(sid)) => {
+            let trace_dir = dirs::home_dir()
+                .unwrap_or_else(|| std::path::PathBuf::from("."))
+                .join(".vibecli")
+                .join("traces");
+            list_traces(&trace_dir)
+                .iter()
+                .find(|s| s.session_id.starts_with(sid.as_str()))
+                .map(|s| s.session_id.clone())
+                .and_then(|full_id| {
+                    println!("▶️  Resuming session {full_id}");
+                    derive_resume_task(&full_id)
+                })
+        }
+        _ => None,
+    };
+
+    // Non-TUI agent mode: --agent "task description", or a resumed session.
+    if let Some(task) = cli.agent.clone().or(resumed_task) {
         // ── opusplan routing ─────────────────────────────────────────────────
         // If [routing] is configured, use separate providers for planning vs execution.
         let config_for_routing = Config::load().unwrap_or_default();
@@ -5282,7 +5368,9 @@ async fn main() -> Result<()> {
         .await;
     }
 
-    // --resume without --agent: list sessions or show usage
+    // Only reached when `--resume` could not derive a task above — i.e. the
+    // session has no recap next-action and no recorded original task. Say what
+    // is missing and offer the explicit form; do not pretend this is normal.
     if let Some(sid) = &cli.resume {
         let cwd = std::env::current_dir()?;
         let trace_dir = dirs::home_dir()
@@ -5298,10 +5386,30 @@ async fn main() -> Result<()> {
                 "Session {} found ({} trace steps)",
                 &session.session_id, session.step_count
             );
+            // Print the *full* id: these are unix seconds, so an 8-char
+            // truncation of a 10-digit id is a prefix shared by every session
+            // from the same ~2-hour window. Prefix matching then resolves to
+            // whichever one `list_traces` happens to return first.
+            let saved = session
+                .path
+                .parent()
+                .map(|d| d.join(format!("{}-messages.json", session.session_id)))
+                .is_some_and(|p| p.exists());
             println!(
-                "Use: vibecli --agent \"<task to continue>\" --resume {}",
-                &session.session_id[..session.session_id.len().min(8)]
+                "Could not work out what to continue: this session has no recap\n\
+                 next-action and no recorded task, so there is nothing to infer\n\
+                 a follow-up from. Say what to do next:\n\n  \
+                 vibecli --agent \"<what to do next>\" --resume {}",
+                session.session_id
             );
+            if !saved {
+                // Be explicit rather than let the user discover it mid-run.
+                println!(
+                    "\nNote: this session has no saved message history either, so only\n\
+                     its task and final summary can be restored. Sessions recorded\n\
+                     from now on save a full transcript."
+                );
+            }
         } else {
             eprintln!("❌ No session found with ID prefix: {}", sid);
         }
@@ -18442,6 +18550,11 @@ async fn run_agent_repl_with_context(
         project_summary,
         task_context_files,
         memory_context,
+        // Without this the `--resume` path loaded the prior conversation,
+        // printed "Resuming N prior messages", and then dropped it on the
+        // floor: `..Default::default()` left `prior_messages` empty, so every
+        // resumed run started from nothing while claiming otherwise.
+        prior_messages: resumed_messages.clone(),
         ..Default::default()
     };
 
@@ -18474,8 +18587,24 @@ async fn run_agent_repl_with_context(
         crate::workspace_detect::print_extension_hints(&cwd);
     }
 
-    // Save messages on completion for future resume
+    // Save messages on completion for future resume.
     let trace_for_save = TraceWriter::new(trace_dir);
+
+    // The resumable transcript. `save_messages` had exactly one caller in the
+    // tree (`/fork`), so a normal agent run never wrote its `-messages.json`
+    // sidecar and `--resume` always fell through to SQLite — which holds only
+    // the opening task and the closing summary. A 26-step session resumed as
+    // two messages.
+    //
+    // The agent's own message list lives inside `AgentLoop` and is not
+    // returned, so this mirrors it from the events instead: user turn, then an
+    // assistant/user pair per tool step, exactly the shape `run_inner` feeds
+    // back to the model. Tool *output* here is the same text the model saw.
+    let mut transcript: Vec<Message> = resumed_messages.clone();
+    transcript.push(Message {
+        role: MessageRole::User,
+        content: task.to_string(),
+    });
 
     let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<AgentEvent>(50);
     let task_str = task.to_string();
@@ -18488,6 +18617,21 @@ async fn run_agent_repl_with_context(
     let mut step_count: usize = 0;
     // Track all steps for change summary at the end
     let mut completed_steps: Vec<(String, String, bool)> = Vec::new();
+
+    // Reasoning and tool-call markup arrive inline in the stream and straddle
+    // chunk boundaries, so the filter has to persist across the whole turn.
+    let mut stream_filter = crate::agent_stream_filter::StreamFilter::new();
+    let mut render = crate::agent_render::Renderer::new();
+    let workspace_for_render = workspace.clone();
+
+    // The model narrates between tool calls ("Now the commands module…"). That
+    // is the agent talking to itself; the structured blocks below say the same
+    // thing more precisely, and `Complete` carries the real answer. Set
+    // VIBECLI_VERBOSE_AGENT=1 to restore the running commentary — worth having
+    // when a model puts substance only in its prose and leaves a thin summary.
+    let verbose_narration = std::env::var("VIBECLI_VERBOSE_AGENT")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
 
     while let Some(event) = event_rx.recv().await {
         // In --json mode, emit a JSON line for each event and skip pretty printing.
@@ -18557,11 +18701,55 @@ async fn run_agent_repl_with_context(
             continue;
         }
 
+        // A terminal event ends the prose turn. Flush whatever the filter is
+        // still holding (a trailing `<` that never became a tag) before the
+        // summary prints, so held text is never lost and never lands after it.
+        if matches!(
+            event,
+            AgentEvent::Complete(_) | AgentEvent::Error(_) | AgentEvent::Partial { .. }
+        ) {
+            let tail = stream_filter.finish();
+            if verbose_narration && !tail.is_empty() {
+                print!("{}", tail);
+                io::stdout().flush()?;
+            }
+            // Persist on *every* terminal state, not just Complete. A run that
+            // errored or stopped early is precisely the one worth resuming, and
+            // saving only on success is why an abandoned session had nothing to
+            // come back to.
+            if let Some(final_text) = match &event {
+                AgentEvent::Complete(s) => Some(s.clone()),
+                AgentEvent::Partial { summary, .. } => Some(summary.clone()),
+                AgentEvent::Error(e) => Some(format!("(run ended with error: {e})")),
+                _ => None,
+            } {
+                transcript.push(Message {
+                    role: MessageRole::Assistant,
+                    content: final_text,
+                });
+            }
+            if let Err(e) = trace_for_save.save_messages(&transcript) {
+                // Non-fatal, but say so — a silent failure here is discovered
+                // only later, as a resume that restores nothing.
+                eprintln!("⚠️  Could not save session messages for resume: {e}");
+            }
+            // Reads since the last edit have not been printed yet. Without
+            // this the final steps of a run vanish from the transcript.
+            for block in render.flush() {
+                println!("{}", block.to_plain());
+            }
+            io::stdout().flush()?;
+        }
+
         match event {
             AgentEvent::StreamChunk(text) => {
-                // Buffer chunks and render markdown when we get a complete line
-                print!("{}", text);
-                io::stdout().flush()?;
+                // Always fed, even when not printed: the filter is a state
+                // machine, and skipping chunks would strand it mid-tag.
+                let visible = stream_filter.push(&text);
+                if verbose_narration && !visible.is_empty() {
+                    print!("{}", visible);
+                    io::stdout().flush()?;
+                }
             }
             AgentEvent::ToolCallPending { call, result_tx } => {
                 let description = crate::syntax::describe_tool_action(call.name(), &call.summary());
@@ -18591,12 +18779,19 @@ async fn run_agent_repl_with_context(
                     );
                     let _ = result_tx.send(None);
                 } else {
-                    // Execute the tool and show output
                     let result = executor.execute(&call).await;
-                    if !result.output.trim().is_empty() {
+                    for block in render.record(
+                        &call,
+                        result.success,
+                        Some(workspace_for_render.as_path()),
+                    ) {
+                        println!("{}", block.to_plain());
+                    }
+                    // As above: only a failure still needs its raw output.
+                    if !result.success && !result.output.trim().is_empty() {
                         println!(
                             "{}",
-                            crate::syntax::format_tool_output(&result.output, result.success)
+                            crate::syntax::format_tool_output(&result.output, false)
                         );
                     }
                     trace.record(
@@ -18615,32 +18810,42 @@ async fn run_agent_repl_with_context(
                 let dur = step_start.elapsed().as_millis() as u64;
                 step_start = std::time::Instant::now();
                 step_count += 1;
-                // Use human-readable description instead of raw tool call summary
-                let description = crate::syntax::describe_tool_action(
-                    step.tool_call.name(),
-                    &step.tool_call.summary(),
-                );
-                println!(
-                    "{}",
-                    crate::syntax::format_step_result(
-                        step.step_num + 1,
-                        &description,
-                        step.tool_result.success
-                    )
-                );
+                for block in render.record(
+                    &step.tool_call,
+                    step.tool_result.success,
+                    Some(workspace_for_render.as_path()),
+                ) {
+                    println!("{}", block.to_plain());
+                }
                 completed_steps.push((
                     step.tool_call.name().to_string(),
                     step.tool_call.summary(),
                     step.tool_result.success,
                 ));
-                // Show tool output
-                if !step.tool_result.output.trim().is_empty() {
+                // Mirror the turn the agent itself recorded, so a resume picks
+                // up mid-task rather than re-deriving what was already done.
+                transcript.push(Message {
+                    role: MessageRole::Assistant,
+                    content: format!(
+                        "{} {}",
+                        step.tool_call.name(),
+                        step.tool_call.summary()
+                    ),
+                });
+                transcript.push(Message {
+                    role: MessageRole::User,
+                    content: vibe_ai::tools::format_tool_result(
+                        &step.tool_call,
+                        &step.tool_result,
+                    ),
+                });
+                // Successful output is folded into the activity line above. A
+                // failure is the one case where the text is the whole point —
+                // swallowing it leaves the user with an unexplained ✗.
+                if !step.tool_result.success && !step.tool_result.output.trim().is_empty() {
                     println!(
                         "{}",
-                        crate::syntax::format_tool_output(
-                            &step.tool_result.output,
-                            step.tool_result.success
-                        )
+                        crate::syntax::format_tool_output(&step.tool_result.output, false)
                     );
                 }
                 trace.record(
