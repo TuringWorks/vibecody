@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -21,10 +23,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
-    }
-
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "dev.vibecody.vibecody_mobile"
@@ -42,6 +40,17 @@ android {
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
         }
+    }
+}
+
+// Outside `android { }` on purpose. AGP 9 deprecates `kotlinOptions` at ERROR
+// level, and because that block only exists on the legacy BaseAppModuleExtension,
+// leaving it in also pins `android { }` to the deprecated overload — which is why
+// one stale block produced three "script compilation errors" here. The
+// compilerOptions DSL is the AGP 9 replacement.
+kotlin {
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_11
     }
 }
 
