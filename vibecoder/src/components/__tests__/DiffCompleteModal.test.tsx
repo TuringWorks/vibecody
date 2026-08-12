@@ -127,6 +127,39 @@ describe('trapFocusInside', () => {
 });
 
 describe('applyUnifiedDiff', () => {
+  // Models routinely emit a blank context line as "" rather than " " — the
+  // leading space is invisible and trivially dropped. The applier skipped
+  // zero-length lines outright, so that blank vanished from the expected
+  // context and the hunk could never match a file that has it, producing
+  // "Model returned a diff that could not be applied cleanly."
+  it('applies a hunk whose blank context line lost its leading space', () => {
+    const original = "line1\n\nline2\n";
+    const diff = [
+      "@@ -1,3 +1,3 @@",
+      " line1",
+      "",
+      "-line2",
+      "+line2changed",
+      "",
+    ].join("\n");
+    expect(applyUnifiedDiff(original, diff)).toBe("line1\n\nline2changed\n");
+  });
+
+  // Guards the trailing-blank strip: a diff ending with a newline leaves a
+  // final "" that must not be read as context the file has to contain,
+  // otherwise any hunk touching the last line stops applying.
+  it('applies a hunk that changes the final line', () => {
+    const original = "a\nb\nlast\n";
+    const diff = "@@ -2,2 +2,2 @@\n b\n-last\n+LAST\n";
+    expect(applyUnifiedDiff(original, diff)).toBe("a\nb\nLAST\n");
+  });
+
+  it('still applies when the blank context line keeps its leading space', () => {
+    const original = "line1\n\nline2\n";
+    const diff = "@@ -1,3 +1,3 @@\n line1\n \n-line2\n+line2changed\n";
+    expect(applyUnifiedDiff(original, diff)).toBe("line1\n\nline2changed\n");
+  });
+
   it('applies a simple one-line change', () => {
     const original = "line 1\nline 2\nline 3\n";
     const diff = [

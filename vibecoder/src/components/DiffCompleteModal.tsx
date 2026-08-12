@@ -787,7 +787,18 @@ export function applyUnifiedDiff(original: string, unifiedDiff: string): string 
     const before: string[] = [];
     const ops: Op[] = [];
     for (const line of hunk.lines) {
-      if (line.length === 0) continue;
+      if (line.length === 0) {
+        // A blank line inside a hunk is a context line whose leading space was
+        // dropped — the space is invisible, and models omit it constantly.
+        // Skipping it instead removed a line from the expected context, so the
+        // hunk could never match a file that does have that blank line, and the
+        // whole edit failed with "could not be applied cleanly". Trailing
+        // blanks are stripped in `parseHunks`, so this only ever sees interior
+        // ones.
+        before.push("");
+        ops.push({ kind: "ctx", body: "" });
+        continue;
+      }
       const marker = line[0];
       const body = line.slice(1);
       if (marker === " ") {
@@ -887,6 +898,12 @@ function parseHunks(diff: string): Hunk[] {
       body.push(lines[i]);
       i++;
     }
+    // Drop trailing blanks. A diff that ends with a newline yields a final ""
+    // here, and since the applier now reads an empty line as a blank context
+    // line, keeping it would append context the file need not have — failing
+    // any hunk that reaches the end of the file. Interior blanks are real
+    // context and are preserved.
+    while (body.length > 0 && body[body.length - 1].length === 0) body.pop();
     hunks.push({ oldStart, oldCount, lines: body });
   }
   return hunks;
