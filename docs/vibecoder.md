@@ -1252,20 +1252,36 @@ Self-contained single-page web client for zero-install access (similar to Bolt.n
 
 ## Keyboard Shortcuts
 
+Source of truth: `vibecoder/src/constants/shortcuts.ts`, which the welcome
+screen renders from and `shortcuts.test.ts` checks against the handlers in
+`App.tsx`. Update that file first, then this table.
+
+Global — a window listener, so these work anywhere in the app:
+
 | Shortcut | Action |
 |----------|--------|
 | `Cmd/Ctrl + S` | Save file |
-| `Cmd/Ctrl + P` | Command palette |
+| `Cmd/Ctrl + O` | Open folder |
 | `Cmd/Ctrl + K` | Command palette |
+| `Cmd/Ctrl + P` | Command palette |
 | `Cmd/Ctrl + Shift + P` | Command palette (VS Code alias) |
 | `Cmd/Ctrl + B` | Toggle sidebar |
 | `Cmd/Ctrl + J` | Toggle AI panel |
 | `Cmd/Ctrl + `` ` `` | Toggle terminal |
-| `Cmd/Ctrl + 1`–`9` | Switch AI panel tab (Chat=1, Agent=2, Memory=3, …) |
+| `Cmd/Ctrl + 1`–`9` | Switch panel tab, in `ALL_TABS` order: 1 chat · 2 agent-os · 3 ai-teams · 4 ai-playground · 5 ai-context · 6 ai-generation · 7 marketplace · 8 project-hub · 9 planning |
 | `Cmd/Ctrl + Shift + E` | Focus explorer sidebar |
 | `Cmd/Ctrl + Shift + G` | Focus git sidebar |
-| `Cmd/Ctrl + Option/Alt + I` | Open DevTools |
-| `Tab` | Indent selection (in editor) |
+| `Cmd/Ctrl + Shift + M` | Maximize panels (`Esc` restores) |
+
+In the editor — Monaco commands, so they need a file open **and** the editor
+focused. They do not fire from the welcome screen, the AI panel, the terminal,
+or the sidebar:
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd/Ctrl + .` | AI Edit (DiffComplete) on the selection, or the whole file |
+| `Option/Alt + \` | AI inline completion |
+| `Tab` | Indent selection |
 
 ## Accessibility (WCAG 2.1 AA)
 

@@ -45,6 +45,7 @@ import { useEditorTheme } from "./hooks/useEditorTheme";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { TaintedConfirmationModal } from "./components/TaintedConfirmationModal";
 import { ALL_TABS } from "./constants/tabGroups";
+import { globalShortcuts, editorShortcuts, renderShortcut } from "./constants/shortcuts";
 import { TAB_META, DEFAULT_TAB_META } from "./constants/tabMeta";
 
 interface FileEntry {
@@ -81,6 +82,10 @@ interface OpenFile {
   /** Base64-encoded binary data for images and documents */
   base64Data?: string;
 }
+
+/** Drives ⌘ vs Ctrl in the shortcut labels. Module scope: it cannot change
+ *  during a session, so recomputing it per render bought nothing. */
+const isMacPlatform = /Mac/.test(navigator.userAgent);
 
 function App() {
   const { toasts, toast, dismiss } = useToast();
@@ -311,6 +316,13 @@ function App() {
       }
       // Cmd+Shift+P — command palette (VS Code alias)
       if (mod && e.shiftKey && e.key === 'P') {
+        e.preventDefault();
+        setShowCommandPalette(true);
+      }
+      // Cmd+P — command palette. Both the docs site and this app's README have
+      // advertised this since before it existed, so to anyone following either
+      // it read as a shortcut that broke rather than one never implemented.
+      if (mod && !e.shiftKey && e.key === 'p') {
         e.preventDefault();
         setShowCommandPalette(true);
       }
@@ -2210,28 +2222,21 @@ function App() {
                     </div>
                     <div className="features">
                       <h3>Keyboard Shortcuts</h3>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px', textAlign: 'left', marginBottom: '16px' }}>
+                        {globalShortcuts().map(s => (
+                          <div key={renderShortcut(s, isMacPlatform) + s.description} style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                            <kbd>{renderShortcut(s, isMacPlatform)}</kbd> {s.description}
+                          </div>
+                        ))}
+                      </div>
+                      {/* Monaco is not mounted on this screen — it is the else-branch
+                          of "is a file open" — so these cannot fire here. Listing them
+                          flat alongside the working ones is what made them look broken. */}
+                      <h3 style={{ fontSize: '13px', opacity: 0.75 }}>With a file open, in the editor</h3>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px', textAlign: 'left', marginBottom: '24px' }}>
-                        {(() => {
-                          const isMac = /Mac/.test(navigator.userAgent);
-                          const mod = isMac ? '⌘' : 'Ctrl+';
-                          const shift = isMac ? '⇧' : 'Shift+';
-                          return [
-                            [`${mod}.`, 'AI Edit (DiffComplete)'],
-                            [isMac ? '⌥\\' : 'Alt+\\', 'AI Inline Completion'],
-                            [`${mod}K`, 'Command Palette'],
-                            [`${mod}${shift}P`, 'Command Palette'],
-                            [`${mod}J`, 'Toggle AI Panel'],
-                            [`${mod}B`, 'Toggle Sidebar'],
-                            [`${mod}\``, 'Toggle Terminal'],
-                            [`${mod}${shift}E`, 'Explorer'],
-                            [`${mod}${shift}G`, 'Source Control'],
-                            [`${mod}S`, 'Save File'],
-                            [`${mod}O`, 'Open Folder'],
-                            [`${mod}1-9`, 'Switch AI Tab'],
-                          ];
-                        })().map(([key, desc]) => (
-                          <div key={key} style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                            <kbd>{key}</kbd> {desc}
+                        {editorShortcuts().map(s => (
+                          <div key={renderShortcut(s, isMacPlatform) + s.description} style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                            <kbd>{renderShortcut(s, isMacPlatform)}</kbd> {s.description}
                           </div>
                         ))}
                       </div>

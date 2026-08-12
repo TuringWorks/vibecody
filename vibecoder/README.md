@@ -191,12 +191,30 @@ thinking_budget_tokens = 10000
 
 ## Keyboard Shortcuts
 
+Defined in [`src/constants/shortcuts.ts`](src/constants/shortcuts.ts) — the
+welcome screen renders from it and `shortcuts.test.ts` checks it against the
+handlers, so edit that file rather than this table alone.
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd/Ctrl+K` / `Cmd/Ctrl+P` / `Cmd/Ctrl+Shift+P` | Command Palette |
+| `Cmd/Ctrl+S` | Save file |
+| `Cmd/Ctrl+O` | Open folder |
+| `Cmd/Ctrl+B` | Toggle sidebar |
+| `Cmd/Ctrl+J` | Toggle AI panel |
+| ``Cmd/Ctrl+` `` | Toggle terminal |
+| `Cmd/Ctrl+Shift+E` | Focus explorer |
+| `Cmd/Ctrl+Shift+G` | Focus source control |
+| `Cmd/Ctrl+Shift+M` | Maximize panels (`Esc` restores) |
+| `Cmd/Ctrl+1`–`9` | Switch panel tab (1 chat … 7 marketplace, 8 project-hub, 9 planning) |
+| `Esc` | Close any modal |
+
+With a file open, in the editor (Monaco commands — they need editor focus):
+
 | Shortcut | Action |
 |----------|--------|
 | `Cmd/Ctrl+.` | Open DiffComplete on selected code (or whole file) |
-| `Cmd/Ctrl+B` | Toggle sidebar |
-| `Cmd/Ctrl+P` / `Cmd/Ctrl+Shift+P` | Command Palette |
-| `Esc` | Close any modal |
+| `Option/Alt+\` | AI inline completion |
 
 ---
 
