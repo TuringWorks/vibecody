@@ -8573,11 +8573,16 @@ async fn resolve_editing_provider(
     provider: &str,
     model: Option<&str>,
 ) -> Result<Arc<dyn vibe_ai::provider::AIProvider>, String> {
-    if !provider.is_empty() {
-        if let Some(model) = model.map(str::trim).filter(|m| !m.is_empty()) {
-            return build_temp_provider(provider, model)
-                .ok_or_else(|| format!("No API key configured for provider '{provider}'"));
-        }
+    // A model can come from the caller or from the selection itself, since the
+    // toolbar's display names embed one ("Ollama (devstral-2)"). Either is a
+    // real choice by the user; only when neither exists do we fall through.
+    let model = model.map(str::trim).filter(|m| !m.is_empty());
+    let has_model = model.is_some()
+        || vibe_ai::providers::parse_display_name(provider)
+            .is_some_and(|(_, embedded)| !embedded.is_empty());
+    if !provider.is_empty() && has_model {
+        return build_temp_provider(provider, model.unwrap_or_default())
+            .ok_or_else(|| format!("No API key configured for provider '{provider}'"));
     }
 
     let chat_engine = state.chat_engine.lock().await;
@@ -17689,6 +17694,20 @@ fn build_temp_provider_with_effort(
     use vibe_ai::provider::ProviderConfig;
     use vibe_ai::providers;
 
+    // Callers hold whatever the toolbar dropdown offered them, and that list is
+    // `ChatEngine::get_provider_names()` — display names like
+    // "Ollama (gpt-oss:120b-cloud)", not the `provider_type` this function
+    // matches on. Unparsed, every one of them fell through to `_ => None` and
+    // came back as "not configured", which no API key could fix. The embedded
+    // model wins only when the caller sent none of its own.
+    let (provider_type, model) = match providers::parse_display_name(provider_type) {
+        Some((parsed_type, embedded_model)) if model.trim().is_empty() => {
+            (parsed_type, embedded_model)
+        }
+        Some((parsed_type, _)) => (parsed_type, model),
+        None => (provider_type, model),
+    };
+
     // Try env var first
     let api_key_from_env = match provider_type {
         "claude" | "anthropic" => std::env::var("ANTHROPIC_API_KEY").ok(),
@@ -19553,6 +19572,28 @@ mod tests {
     fn build_temp_provider_unknown_returns_none() {
         let p = build_temp_provider("nonexistent-provider", "model");
         assert!(p.is_none());
+    }
+
+    /// The toolbar dropdown is filled from `ChatEngine::get_provider_names()`,
+    /// so panels routinely send a display name as `provider`. Before it was
+    /// parsed here, every one of them fell off the end of the dispatch match.
+    #[test]
+    fn build_temp_provider_accepts_a_toolbar_display_name() {
+        assert!(build_temp_provider("Ollama (gpt-oss:120b-cloud)", "").is_some());
+        assert!(build_temp_provider("Ollama (devstral-2)", "devstral-2").is_some());
+    }
+
+    /// A display name carries the model the user picked, and it is only a
+    /// stand-in — an explicit model from the caller stays authoritative.
+    #[test]
+    fn display_name_model_is_used_only_when_the_caller_sent_none() {
+        let embedded = build_temp_provider("Ollama (gpt-oss:120b-cloud)", "")
+            .expect("ollama needs no API key");
+        assert_eq!(embedded.name(), "Ollama (gpt-oss:120b-cloud)");
+
+        let explicit = build_temp_provider("Ollama (gpt-oss:120b-cloud)", "devstral-2")
+            .expect("ollama needs no API key");
+        assert_eq!(explicit.name(), "Ollama (devstral-2)");
     }
 
     /// Every provider the toolbar can offer must have a dispatch arm here.

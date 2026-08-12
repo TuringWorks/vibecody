@@ -214,6 +214,78 @@ export const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
   poolside:     "poolside/laguna-s-2.1",
 };
 
+/**
+ * Chat-engine display label → the provider id this registry (and the backend's
+ * `build_temp_provider`) is keyed by.
+ *
+ * The toolbar dropdown is filled from `get_available_ai_providers`, which
+ * returns `ChatEngine::get_provider_names()` — every provider builds its name
+ * as `"<Label> (<model>)"`, so the toolbar's value is a *display name*, never a
+ * provider id. Looking one up in `PROVIDER_DEFAULT_MODEL` misses, and the miss
+ * is silent: it reads as "no model selected".
+ *
+ * Keep in sync with `DISPLAY_LABELS` in `vibe-ai/src/providers.rs`, which does
+ * the same job for callers that reach the backend with a display name.
+ */
+const DISPLAY_LABEL_TO_PROVIDER: Record<string, string> = {
+  "azureopenai": "azure_openai",
+  "bedrock": "bedrock",
+  "cerebras": "cerebras",
+  "claude": "claude",
+  "copilot": "copilot",
+  "deepseek": "deepseek",
+  "fireworks ai": "fireworks",
+  "gemini": "gemini",
+  "grok": "grok",
+  "groq": "groq",
+  "minimax": "minimax",
+  "mistral": "mistral",
+  "ollama": "ollama",
+  "openai": "openai",
+  "openrouter": "openrouter",
+  "perplexity": "perplexity",
+  "poolside": "poolside",
+  "sambanova": "sambanova",
+  "together ai": "together",
+  "vercelai": "vercel_ai",
+  "vibecli mistralrs": "vibecli-mistralrs",
+  "zhipu": "zhipu",
+};
+
+/** A toolbar selection resolved to what an LLM request actually needs. */
+export interface ProviderSelection {
+  /** Provider id — the key `build_temp_provider` matches on. Empty if unset. */
+  provider: string;
+  /** Concrete model id. Empty when no model can be determined. */
+  model: string;
+}
+
+/**
+ * Resolve a toolbar selection into `{ provider, model }`.
+ *
+ * Accepts either shape a caller may hold: the chat engine's display name
+ * (`"Ollama (gpt-oss:120b-cloud)"` → the model the *user picked*) or a bare
+ * provider id (`"ollama"` → this registry's default model). Anything it cannot
+ * resolve comes back as-is with an empty model, so a caller's own empty-state
+ * check still fires rather than a wrong provider being guessed.
+ */
+export function parseProviderSelection(selection: string): ProviderSelection {
+  const trimmed = (selection ?? "").trim();
+  if (!trimmed) return { provider: "", model: "" };
+
+  const open = trimmed.lastIndexOf(" (");
+  if (open > 0 && trimmed.endsWith(")")) {
+    const label = trimmed.slice(0, open);
+    const model = trimmed.slice(open + 2, -1).trim();
+    const provider = DISPLAY_LABEL_TO_PROVIDER[label.toLowerCase()];
+    if (provider) {
+      return { provider, model: model || PROVIDER_DEFAULT_MODEL[provider] || "" };
+    }
+  }
+
+  return { provider: trimmed, model: PROVIDER_DEFAULT_MODEL[trimmed] ?? "" };
+}
+
 export interface ModelInfo {
   id: string;
   name: string;

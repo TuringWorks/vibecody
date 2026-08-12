@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useToast } from "./hooks/useToast";
 import { useNotifications } from "./hooks/useNotifications";
 import { useApiKeyMonitor } from "./hooks/useApiKeyMonitor";
 import { useDaemonMonitor } from "./hooks/useDaemonMonitor";
-import { probeAndCacheDefaultProvider, PROVIDER_DEFAULT_MODEL } from "./hooks/useModelRegistry";
+import { probeAndCacheDefaultProvider, parseProviderSelection } from "./hooks/useModelRegistry";
 import { registerGhostText, type GhostTextHandle } from "./lib/ghostText";
 import { Toaster } from "./components/Toaster";
 import { NotificationCenter } from "./components/NotificationCenter";
@@ -185,17 +185,23 @@ function App() {
   // Extension Manager
   const extensionManagerRef = useRef<ExtensionManager | null>(null);
 
-  // Ref so editor-mount callbacks always see the current provider
-  const selectedProviderRef = useRef<string>(selectedProvider);
-  useEffect(() => {
-    selectedProviderRef.current = selectedProvider;
-  }, [selectedProvider]);
-
-  // The toolbar selects a provider; the model is that provider's registry
-  // default, the same resolution every other panel uses. Sent explicitly with
-  // each AI-editing request so the backend never has to guess one — and never
-  // re-points the shared chat engine to find out.
-  const selectedModel = PROVIDER_DEFAULT_MODEL[selectedProvider] ?? "";
+  // The toolbar lists the chat engine's *display names* ("Ollama (devstral-2)"),
+  // so the selection carries both halves of what an AI request needs. Split it
+  // once here: the id is what `build_temp_provider` matches on, and the model is
+  // the one the user actually picked — not a registry default standing in for it.
+  //
+  // Reading `PROVIDER_DEFAULT_MODEL[selectedProvider]` directly used to miss on
+  // every display name, and the miss was indistinguishable from "nothing
+  // selected": ghost text refused with "Select a provider and model in the
+  // toolbar first" while the toolbar plainly showed one.
+  const { provider: selectedProviderId, model: selectedModel } = useMemo(
+    () => parseProviderSelection(selectedProvider),
+    [selectedProvider],
+  );
+  // Refs so editor-mount callbacks, which close over the first render, always
+  // see the current selection.
+  const selectedProviderIdRef = useRef<string>(selectedProviderId);
+  selectedProviderIdRef.current = selectedProviderId;
   const selectedModelRef = useRef<string>(selectedModel);
   selectedModelRef.current = selectedModel;
 
@@ -767,7 +773,7 @@ function App() {
     const ghost = registerGhostText(monaco, {
       invoke: <T,>(command: string, args?: Record<string, unknown>) =>
         invoke<T>(command, args),
-      getProvider: () => selectedProviderRef.current,
+      getProvider: () => selectedProviderIdRef.current,
       getModel: () => selectedModelRef.current,
       getFilePath: () => activeFilePathRef.current ?? "",
       onError: (message) => toast.warn(message),
@@ -2485,7 +2491,7 @@ function App() {
           selectionText={diffComplete.selectionText}
           selectionStartLine={diffComplete.selectionStartLine}
           selectionEndLine={diffComplete.selectionEndLine}
-          provider={selectedProvider}
+          provider={selectedProviderId}
           model={selectedModel}
           onApply={(modified) => {
             if (modified === null) return;
