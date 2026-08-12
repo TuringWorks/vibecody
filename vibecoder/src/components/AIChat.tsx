@@ -2315,6 +2315,31 @@ export function AIChat({
     return { cleaned, thinking };
   }, [streamingText]);
 
+  /**
+   * True when the live stream is showing prose that has already been committed
+   * as a message.
+   *
+   * The finalized reply lands in `messages` while `streamingText` may still
+   * hold the same text: in controlled mode the stream is not cleared until the
+   * new `messages` prop propagates back from the parent, and anything that
+   * stops that from arriving — or repopulates the stream afterwards — leaves
+   * both on screen. The user then sees the identical answer twice, once with a
+   * timestamp and once without.
+   *
+   * Rather than chase each way the two can desynchronise, the live bubble
+   * yields to the committed message whenever they say the same thing. Exact
+   * match only, so a partial response mid-stream (which never equals the
+   * finished text) is unaffected.
+   */
+  const streamingAlreadyCommitted = useMemo(() => {
+    const live = (streamingParts ? streamingParts.cleaned : streamingText).trim();
+    if (!live) return false;
+    const lastAssistant = [...messages]
+      .reverse()
+      .find((m) => m.role === "assistant" && !m.isToolOutput);
+    return !!lastAssistant && lastAssistant.content.trim() === live;
+  }, [messages, streamingParts, streamingText]);
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -2675,7 +2700,7 @@ export function AIChat({
           <div className="message message-assistant">
             <div className="message-icon"><span className="assistant-icon">AI</span></div>
             <div className="message-content">
-              {streamingText ? (
+              {streamingText && !streamingAlreadyCommitted ? (
                 <>
                   {/* Streaming thinking block — collapsed so in-progress
                       reasoning doesn't crowd the streaming response. */}

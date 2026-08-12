@@ -496,6 +496,62 @@ describe('AIChat — response does not disappear (controlled mode)', () => {
     expect(screen.queryAllByText(/The answer is 42/).length).toBeGreaterThanOrEqual(1);
   });
 
+  // The finalized message and the live streaming bubble rendered the same text
+  // at once: one committed bubble with a timestamp, one streaming bubble
+  // without. Any chunk arriving after chat:complete re-populated streamingText
+  // after the deferred clear had already run, and nothing clears it again.
+  // Reproduces the reported screen state directly: the finalized reply is in
+  // `messages` (rendered with a timestamp) while the live streaming bubble is
+  // still showing the same prose (rendered without one). Whatever leaves the
+  // stream un-cleared — a deferred clear that never lands, a late chunk, a
+  // second listener — the user must never be shown the same answer twice.
+  it('does not show the streaming bubble once the same text is already committed', async () => {
+    const text = 'Vibe Agent at your service! How can I assist you today?';
+    render(
+      <AIChat
+        provider="test-provider"
+        messages={[{ role: 'assistant', content: text, timestamp: 1 }]}
+        onMessagesChange={vi.fn()}
+      />,
+    );
+    await flushAll();
+
+    // Put the component into a streaming state carrying that same text.
+    await sendUserMessage('hi');
+    act(() => { emitTauriEvent('chat:chunk', text); });
+    await flushAll();
+
+    const shown = screen.getAllByText(new RegExp('Vibe Agent at your service'));
+    expect(
+      shown.length,
+      `expected the response once, found ${shown.length} copies on screen`,
+    ).toBe(1);
+  });
+
+  it('a chunk arriving after chat:complete does not duplicate the response', async () => {
+    render(<ControlledAIChat />);
+    await flushAll();
+    await sendUserMessage('hi');
+
+    act(() => { emitTauriEvent('chat:chunk', 'Vibe Agent at your service!'); });
+    await flushAll();
+
+    act(() => {
+      emitTauriEvent('chat:complete', { message: 'Vibe Agent at your service!' });
+    });
+    await flushAll();
+
+    // A late chunk from the same turn — the backend has already said it is done.
+    act(() => { emitTauriEvent('chat:chunk', 'Vibe Agent at your service!'); });
+    await flushAll();
+
+    const shown = screen.getAllByText(/Vibe Agent at your service!/);
+    expect(
+      shown.length,
+      `expected the response once, found ${shown.length} copies on screen`,
+    ).toBe(1);
+  });
+
   it('error response remains visible after chat:error', async () => {
     render(<ControlledAIChat />);
     await flushAll();
