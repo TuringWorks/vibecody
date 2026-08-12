@@ -276,19 +276,51 @@ impl MultiAgentOrchestrator {
                         tracing::info!("Created worktree {} at {}", branch, wt_path.display());
                     }
                     Err(e) => {
-                        tracing::warn!("Failed to create worktree for task {}: {}", task.id, e);
-                        // Use main repo as fallback
+                        // Falls back to the main workspace, which is safe only
+                        // because unisolated agents are serialised on
+                        // `shared_workspace` below. Before that lock existed
+                        // this line quietly turned an isolation failure into
+                        // concurrent writes on one tree.
+                        tracing::warn!(
+                            task = task.id,
+                            error = %e,
+                            "Could not create a worktree; this agent will run serially in the \
+                             main workspace instead of in parallel",
+                        );
                         worktree_paths.push(repo_path.clone());
                     }
                 }
             } else {
-                // No worktree manager — all agents share the same directory
+                // No worktree manager — every agent shares one directory, so
+                // the fan-out is serial. Correct, but no faster than running
+                // the tasks one after another; supply a WorktreeManager to get
+                // actual parallelism.
                 tracing::warn!(
-                    "No WorktreeManager provided; task {} will run in main repo",
-                    task.id
+                    task = task.id,
+                    "No WorktreeManager provided; task will run serially in the main workspace",
                 );
                 worktree_paths.push(repo_path.clone());
             }
+        }
+
+        // Agents that could not get their own worktree share the main
+        // workspace, and concurrent writes there would clobber each other —
+        // the exact hazard worktrees exist to remove. They take this lock for
+        // the duration of their run, so they proceed one at a time while the
+        // properly isolated agents continue in parallel around them.
+        //
+        // A whole-run lock rather than per-file leases: an agent's writes are
+        // only safe relative to the tree it read, so releasing between files
+        // would still let a second agent edit a file the first is mid-way
+        // through reasoning about. Coarse and correct beats fine and racy.
+        let shared_workspace = Arc::new(tokio::sync::Mutex::new(()));
+        let shared_count = worktree_paths.iter().filter(|p| *p == repo_path).count();
+        if shared_count > 1 {
+            tracing::warn!(
+                agents = shared_count,
+                "{shared_count} agents lack an isolated worktree and will run serially in the \
+                 main workspace; fan-out is reduced to that extent",
+            );
         }
 
         // Spawn all agents concurrently
@@ -301,8 +333,16 @@ impl MultiAgentOrchestrator {
             let wt_path_clone = wt_path.clone();
             let tx = event_tx.clone();
             let hooks = self.hooks.clone();
+            // Only unisolated agents contend; an agent in its own worktree
+            // takes nothing and is never delayed by one that is not.
+            let lock = (*wt_path == *repo_path).then(|| Arc::clone(&shared_workspace));
 
             let handle = tokio::spawn(async move {
+                // Held for the whole run, released when this guard drops.
+                let _guard = match lock {
+                    Some(l) => Some(l.lock_owned().await),
+                    None => None,
+                };
                 run_single_agent(
                     task_clone,
                     provider,
@@ -1190,5 +1230,127 @@ mod reconcile_tests {
             "agent 2 was independent"
         );
         assert!(main.path().join("elsewhere.txt").exists());
+    }
+}
+
+// ── Shared-workspace serialisation ────────────────────────────────────────────
+
+#[cfg(test)]
+mod shared_workspace_tests {
+    use super::*;
+    use crate::provider::{CodeContext, CompletionResponse, CompletionStream, Message};
+    use crate::tools::{ToolCall, ToolResult};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    /// Records the high-water mark of agents running at the same time.
+    #[derive(Default)]
+    struct Concurrency {
+        current: AtomicUsize,
+        peak: AtomicUsize,
+    }
+
+    struct NoopExecutor;
+    #[async_trait::async_trait]
+    impl ToolExecutorTrait for NoopExecutor {
+        async fn execute(&self, _call: &ToolCall) -> ToolResult {
+            ToolResult::ok("test", "ok")
+        }
+    }
+
+    struct NoopFactory;
+    impl ExecutorFactory for NoopFactory {
+        fn create(&self, _workspace_root: PathBuf) -> Arc<dyn ToolExecutorTrait> {
+            Arc::new(NoopExecutor)
+        }
+    }
+
+    /// The probe. Every agent calls the provider exactly once here (the reply
+    /// has no tool call, so the loop treats it as the final answer), and the
+    /// call is held open long enough that any two overlapping agents would be
+    /// seen. Counting here rather than in the executor keeps the test
+    /// independent of the tool-call wire format.
+    struct CountingProvider(Arc<Concurrency>);
+
+    #[async_trait::async_trait]
+    impl AIProvider for CountingProvider {
+        fn name(&self) -> &str {
+            "counting"
+        }
+        async fn is_available(&self) -> bool {
+            true
+        }
+        async fn complete(&self, _c: &CodeContext) -> Result<CompletionResponse> {
+            anyhow::bail!("unused")
+        }
+        async fn stream_complete(&self, _c: &CodeContext) -> Result<CompletionStream> {
+            anyhow::bail!("unused")
+        }
+        async fn chat(&self, _m: &[Message], _c: Option<String>) -> Result<String> {
+            anyhow::bail!("unused")
+        }
+        async fn stream_chat(&self, _m: &[Message]) -> Result<CompletionStream> {
+            let now = self.0.current.fetch_add(1, Ordering::SeqCst) + 1;
+            self.0.peak.fetch_max(now, Ordering::SeqCst);
+            tokio::time::sleep(std::time::Duration::from_millis(80)).await;
+            self.0.current.fetch_sub(1, Ordering::SeqCst);
+            Ok(Box::pin(futures::stream::once(async {
+                Ok("all done".to_string())
+            })))
+        }
+    }
+
+    fn orchestrator(counter: &Arc<Concurrency>) -> MultiAgentOrchestrator {
+        MultiAgentOrchestrator::new(
+            Arc::new(CountingProvider(Arc::clone(counter))),
+            ApprovalPolicy::FullAuto,
+            Arc::new(NoopFactory),
+        )
+    }
+
+    async fn peak_concurrency_over(tasks: usize) -> usize {
+        let counter = Arc::new(Concurrency::default());
+        let orch = orchestrator(&counter);
+        // No WorktreeManager, so every agent falls back to the main workspace.
+        let (tx, _rx) = mpsc::channel(256);
+        let list: Vec<AgentTask> = (0..tasks).map(|i| AgentTask::new(i, "do it")).collect();
+        let results = tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            orch.run_tasks(&PathBuf::from("."), list, tx),
+        )
+        .await
+        .expect("run_tasks hung")
+        .expect("run_tasks failed");
+        assert_eq!(results.len(), tasks, "every task should produce a result");
+        counter.peak.load(Ordering::SeqCst)
+    }
+
+    /// Agents with no worktree share one directory. Before the lock they ran at
+    /// once and wrote the same tree concurrently — the clobbering that worktree
+    /// isolation exists to prevent, reached by silently falling back to it.
+    #[tokio::test]
+    async fn agents_without_a_worktree_do_not_run_concurrently() {
+        let peak = peak_concurrency_over(4).await;
+        assert_eq!(
+            peak, 1,
+            "unisolated agents must be serialised; a peak of {peak} means that many were \
+             working in the same tree at the same time"
+        );
+    }
+
+    /// Serialised, not dropped: sharing a workspace slows the fan-out down, it
+    /// must not silently reduce how much work gets done.
+    #[tokio::test]
+    async fn serialisation_does_not_lose_tasks() {
+        let counter = Arc::new(Concurrency::default());
+        let orch = orchestrator(&counter);
+        let (tx, _rx) = mpsc::channel(256);
+        let list: Vec<AgentTask> = (0..3).map(|i| AgentTask::new(i, "do it")).collect();
+        let results = orch
+            .run_tasks(&PathBuf::from("."), list, tx)
+            .await
+            .expect("run_tasks failed");
+        let mut ids: Vec<usize> = results.iter().map(|r| r.id).collect();
+        ids.sort_unstable();
+        assert_eq!(ids, vec![0, 1, 2], "each task must still report a result");
     }
 }
