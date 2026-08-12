@@ -130,6 +130,12 @@ pub struct CircuitBreaker {
     pub auto_compactions: u32,
     /// Ceiling on `auto_compactions`.
     pub max_auto_compactions: u32,
+    /// How many times the work has been handed to a fresh agent.
+    pub handoffs: u32,
+    /// Ceiling on `handoffs`. A task that degrades a third successor is not
+    /// suffering from context rot, so spawning more would burn tokens to reach
+    /// the same place.
+    pub max_handoffs: u32,
 }
 
 impl Default for CircuitBreaker {
@@ -148,6 +154,8 @@ impl Default for CircuitBreaker {
             recovery: crate::resilience::RecoveryPolicy::default(),
             auto_compactions: 0,
             max_auto_compactions: 3,
+            handoffs: 0,
+            max_handoffs: 2,
         }
     }
 }
@@ -330,6 +338,33 @@ impl CircuitBreaker {
     /// makes the next few steps a fresh measurement of whether it did.
     pub fn note_context_compacted(&mut self) {
         self.auto_compactions += 1;
+        self.output_volumes.clear();
+        self.state = AgentHealthState::Progress;
+        self.last_state_change = None;
+    }
+
+    /// Whether the loop should retire this agent and hand the work to a fresh
+    /// one.
+    ///
+    /// Reached only after compaction has been spent and output is *still*
+    /// shrinking. At that point trimming history has been shown not to help, so
+    /// the remaining lever is to stop asking this context to continue at all.
+    /// Bounded by `max_handoffs` so a genuinely impossible task cannot spawn
+    /// successors forever.
+    pub fn wants_handoff(&self) -> bool {
+        self.state == AgentHealthState::Degraded
+            && self.auto_compactions >= self.max_auto_compactions
+            && self.handoffs < self.max_handoffs
+    }
+
+    /// Record that the work was handed to a successor, and re-arm detection.
+    ///
+    /// Resets the same window as [`Self::note_context_compacted`] and for the
+    /// same reason: the successor must be judged on its own output, not on the
+    /// decline that retired its predecessor.
+    pub fn note_handoff(&mut self) {
+        self.handoffs += 1;
+        self.auto_compactions = 0;
         self.output_volumes.clear();
         self.state = AgentHealthState::Progress;
         self.last_state_change = None;
@@ -587,6 +622,62 @@ fn is_retryable_error(error: &str) -> bool {
 /// emit its *first* token, and cutting a healthy run short is worse than
 /// waiting. What this catches is the unbounded case — silence forever.
 pub const DEFAULT_STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(180);
+
+/// Build the brief handed to a successor agent when a degrading one is retired.
+///
+/// Deliberately thin. Everything here is read off the run that actually
+/// happened — the original goal, and the tail of the transcript — because the
+/// successor's whole advantage is that it is *not* carrying the predecessor's
+/// context. Summarising harder would mean asking the degraded model to describe
+/// its own work, which is the capability that just failed.
+///
+/// The instruction to re-read files is the load-bearing part: the successor
+/// inherits no memory of file contents, and a confident guess about a file it
+/// has never read is the most likely way a hand-off goes wrong.
+fn handoff_brief(task: &str, messages: &[Message]) -> String {
+    // The last few turns are the only ones whose detail still matters; earlier
+    // ones have already been through compaction and are represented by whatever
+    // summary that left behind.
+    const TAIL_TURNS: usize = 6;
+    const TAIL_CHARS: usize = 4_000;
+
+    let tail: Vec<&Message> = messages
+        .iter()
+        .filter(|m| m.role != MessageRole::System)
+        .rev()
+        .take(TAIL_TURNS)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect();
+
+    let mut recent = String::new();
+    for m in tail {
+        let role = match m.role {
+            MessageRole::User => "user",
+            MessageRole::Assistant => "assistant",
+            _ => "other",
+        };
+        let body = m.content.trim();
+        // Truncate on a char boundary — tool output can be long and arbitrary.
+        let clipped: String = body.chars().take(TAIL_CHARS / 2).collect();
+        recent.push_str(&format!("[{role}] {clipped}\n"));
+    }
+
+    format!(
+        "You are taking over an in-progress task from an earlier agent that was retired: its \
+         responses were getting shorter and compacting its context did not restore them.\n\n\
+         ## Goal\n{task}\n\n\
+         ## Recent turns from the retired agent\n{recent}\n\
+         ## How to proceed\n\
+         - Re-read any file before changing it. You have inherited no memory of file contents, \
+         and the summary above may be incomplete or stale.\n\
+         - Check what already exists on disk before creating it; earlier steps may have \
+         completed work not described above.\n\
+         - Continue toward the goal from the current state of the workspace, not from a plan you \
+         assume was followed.\n"
+    )
+}
 
 /// Marker that begins a `<tool_call>` block in the text tool protocol.
 const TOOL_CALL_MARKER: &str = "<tool_call";
@@ -2316,6 +2407,55 @@ impl AgentLoop {
                                 })
                                 .await;
                         }
+                    } else if cb.wants_handoff() {
+                        // Compaction is spent and output is still shrinking, so
+                        // trimming this history has been shown not to help. The
+                        // remaining lever is to stop asking this context to
+                        // continue: retire it and seed a successor.
+                        //
+                        // The harness decides rather than the model. Asking a
+                        // degrading model to judge its own degradation is the
+                        // same mistake as advising it to "start fresh" — it
+                        // cannot act on either.
+                        let brief = handoff_brief(task, &messages);
+                        let retired_tokens = estimate_tokens(&messages);
+
+                        // A successor is a genuinely fresh context: the system
+                        // prompt and the brief, nothing else. Carrying any of
+                        // the old turns would carry the rot that retired it.
+                        let system = messages
+                            .first()
+                            .filter(|m| m.role == MessageRole::System)
+                            .cloned();
+                        messages.clear();
+                        if let Some(sys) = system {
+                            messages.push(sys);
+                        }
+                        messages.push(Message {
+                            role: MessageRole::User,
+                            content: brief,
+                        });
+
+                        cb.note_handoff();
+                        tracing::info!(
+                            handoff = cb.handoffs,
+                            retired_tokens,
+                            fresh_tokens = estimate_tokens(&messages),
+                            "Circuit breaker: retired the degrading agent and handed off to a successor",
+                        );
+                        let _ = event_tx
+                            .send(AgentEvent::CircuitBreak {
+                                state: AgentHealthState::Progress,
+                                reason: format!(
+                                    "🔁 Handing off to a fresh agent (hand-off {}/{}): compaction \
+                                     did not restore output, so the degraded context is being \
+                                     retired rather than trimmed again. The successor starts from \
+                                     a brief of the goal and the work so far, and re-reads files \
+                                     rather than trusting inherited memory.",
+                                    cb.handoffs, cb.max_handoffs,
+                                ),
+                            })
+                            .await;
                     }
 
                     if new_state == AgentHealthState::Blocked {
@@ -3939,6 +4079,99 @@ mod stream_gate_tests {
         let s = "résumé café naïve crème brûlée"; // many 2-byte chars
         let (end, _) = streamable_prose_end(s, 0);
         assert!(s.is_char_boundary(end));
+    }
+}
+
+#[cfg(test)]
+mod handoff_tests {
+    use super::*;
+
+    fn degraded_breaker() -> CircuitBreaker {
+        let mut cb = CircuitBreaker::default();
+        cb.state = AgentHealthState::Degraded;
+        cb
+    }
+
+    #[test]
+    fn compaction_is_tried_before_any_handoff() {
+        let cb = degraded_breaker();
+        assert!(cb.wants_context_compaction());
+        assert!(
+            !cb.wants_handoff(),
+            "retiring an agent before spending compaction throws away a cheaper fix"
+        );
+    }
+
+    #[test]
+    fn handoff_takes_over_once_compaction_is_spent() {
+        let mut cb = degraded_breaker();
+        cb.auto_compactions = cb.max_auto_compactions;
+        assert!(!cb.wants_context_compaction());
+        assert!(cb.wants_handoff());
+    }
+
+    #[test]
+    fn handoffs_are_bounded() {
+        let mut cb = degraded_breaker();
+        cb.auto_compactions = cb.max_auto_compactions;
+        for _ in 0..cb.max_handoffs {
+            assert!(cb.wants_handoff());
+            cb.note_handoff();
+            // Each successor gets its own compaction budget back.
+            assert_eq!(cb.auto_compactions, 0);
+            cb.state = AgentHealthState::Degraded;
+            cb.auto_compactions = cb.max_auto_compactions;
+        }
+        assert!(
+            !cb.wants_handoff(),
+            "a task that degrades every successor is not suffering from context rot"
+        );
+    }
+
+    #[test]
+    fn a_handoff_rearms_degradation_detection() {
+        let mut cb = degraded_breaker();
+        cb.auto_compactions = cb.max_auto_compactions;
+        cb.output_volumes = vec![900, 400, 120];
+        cb.note_handoff();
+        assert_eq!(cb.state, AgentHealthState::Progress);
+        assert!(
+            cb.output_volumes.is_empty(),
+            "leaving the old decline in place would re-trip the breaker on the successor's \
+             first steps, before it has produced enough output to judge"
+        );
+    }
+
+    #[test]
+    fn the_brief_carries_the_goal_and_orders_a_re_read() {
+        let messages = vec![
+            Message {
+                role: MessageRole::System,
+                content: "system prompt".into(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: "build the thing".into(),
+            },
+            Message {
+                role: MessageRole::Assistant,
+                content: "wrote src/models.rs".into(),
+            },
+        ];
+        let brief = handoff_brief("build the thing", &messages);
+        assert!(brief.contains("build the thing"), "goal must survive");
+        assert!(
+            brief.contains("wrote src/models.rs"),
+            "recent work must survive"
+        );
+        assert!(
+            brief.to_lowercase().contains("re-read"),
+            "the successor inherits no file memory; guessing is the main hand-off failure"
+        );
+        assert!(
+            !brief.contains("system prompt"),
+            "the system prompt is re-supplied separately, not pasted into the brief"
+        );
     }
 }
 
