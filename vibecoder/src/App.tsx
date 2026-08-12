@@ -33,7 +33,6 @@ import "./ActivityBar.css";
 import { ExtensionManager } from "./extensions/ExtensionManager";
 // Import worker using Vite's syntax
 import ExtensionHostWorker from "./extensions/ExtensionHost?worker";
-import { DiffReviewPanel, DiffReviewErrorBoundary } from "./components/DiffReviewPanel";
 import { useCollab } from "./hooks/useCollab";
 import { flowContext } from "./utils/FlowContext";
 import { OnboardingTour } from "./components/OnboardingTour";
@@ -147,12 +146,7 @@ function App() {
     onConfirm: (value: string) => void;
   }>({ title: '', placeholder: '', onConfirm: () => { } });
   const [currentDirectory, setCurrentDirectory] = useState<string | null>(null);
-  const [pendingDiff, setPendingDiff] = useState<{ path: string; original: string; modified: string } | null>(null);
-  // Ref mirror of pendingDiff so the DiffReviewPanel onApply callback always
-  // sees the current value rather than a stale closure capture.
-  const pendingDiffRef = useRef(pendingDiff);
-  pendingDiffRef.current = pendingDiff;
-  // Undo strip — shown after Apply for up to 30 s so the user can revert.
+  // Undo strip — shown after an AI write for up to 30 s so the user can revert.
   const [lastApply, setLastApply] = useState<{
     path: string; filename: string; original: string; written: string;
   } | null>(null);
@@ -847,22 +841,58 @@ function App() {
       return;
     }
 
+    // AI writes land on disk directly. The accept/reject overlay that used to
+    // gate every write is gone: the same information is already in the Source
+    // Control diff, and the gate had to be dismissed even when the model
+    // proposed content identical to the file, which showed an empty panel over
+    // "0/0 hunks" that could do nothing but be cancelled.
+    //
+    // The undo strip below is the safety net — one click restores `original`.
     try {
-      // Read current file content for diff
+      // Read the pre-write content first: once the file is overwritten there is
+      // nothing left to undo *to*.
       let original = "";
       try {
         original = await invoke<string>("read_file", { path });
       } catch (_e) {
-        // File might not exist yet — treat as new file
+        // File might not exist yet — a new file, so undo restores emptiness.
       }
 
-      setPendingDiff({
+      await invoke("write_file", { path, content });
+
+      const dir = currentDirectoryRef.current;
+      if (dir) loadDirectory(dir);
+
+      if (lastApplyTimerRef.current) clearTimeout(lastApplyTimerRef.current);
+      setLastApply({
         path,
+        filename: path.split("/").pop() ?? path,
         original,
-        modified: content
+        written: content,
       });
+      lastApplyTimerRef.current = setTimeout(() => setLastApply(null), 30_000);
+
+      // Keep the open buffer and the language server in step with disk. An
+      // AI-applied edit is still an edit: without this, completion, hover and
+      // diagnostics keep answering from the pre-write text.
+      const language = detectLanguage(path);
+      setOpenFiles((prev) => {
+        const exists = prev.some((f) => f.path === path);
+        if (exists) {
+          return prev.map((f) =>
+            f.path === path ? { ...f, content, isDirty: false } : f
+          );
+        }
+        return [...prev, { path, content, language, isDirty: false }];
+      });
+      setActiveFilePath(path);
+      lspBridgeRef.current?.openDocument(path, language, content);
     } catch (error) {
-      console.error("Failed to prepare diff:", error);
+      console.error("Failed to write AI edit:", error);
+    } finally {
+      // AIChat waits on this to release the next queued file — it must fire on
+      // every path, including failure, or a failed write stalls the queue.
+      window.dispatchEvent(new Event("vibecoder:diff-resolved"));
     }
   };
 
@@ -2058,95 +2088,9 @@ function App() {
                   </button>
                 </div>
               )}
-              {/* Editor area — both editor and DiffReviewPanel live in this container.
-                  DiffReviewPanel overlays the editor with absolute positioning so Monaco
-                  is NEVER unmounted or hidden. This prevents all Apply-related crashes. */}
+              {/* Editor area. AI writes go straight to disk and are reviewed in
+                  Source Control, so nothing overlays Monaco here any more. */}
               <div style={{ height: 'calc(100% - 35px)', position: 'relative' }}>
-                {/* DiffReviewPanel — absolutely positioned overlay */}
-                {pendingDiff && (
-                  <div style={{ position: 'absolute', inset: 0, zIndex: 50, background: 'var(--bg-primary)' }}>
-                    <DiffReviewErrorBoundary onDismiss={() => {
-                      setPendingDiff(null);
-                      window.dispatchEvent(new Event("vibecoder:diff-resolved"));
-                    }}>
-                    <DiffReviewPanel
-                      key={pendingDiff.path}
-                      original={pendingDiff.original}
-                      modified={pendingDiff.modified}
-                      filePath={pendingDiff.path}
-                      onApply={(result) => {
-                        const snap = pendingDiffRef.current;
-                        const diffPath = snap?.path;
-                        const applyFilename = diffPath?.split("/").pop() ?? diffPath ?? "";
-                        const originalContent = snap?.original ?? "";
-
-                        // FRAME 0 — close overlay only. ONE state change so React makes a
-                        // single, minimal commit with no layout side-effects on Monaco.
-                        setPendingDiff(null);
-                        window.dispatchEvent(new Event("vibecoder:diff-resolved"));
-
-                        if (result === null || !diffPath) return; // cancel
-
-                        // Start I/O immediately — no need to defer disk writes.
-                        invoke("write_file", { path: diffPath, content: result })
-                          .then(() => {
-                            const dir = currentDirectoryRef.current;
-                            if (dir) loadDirectory(dir);
-                          })
-                          .catch((err) => console.error("Failed to write file:", err));
-
-                        // Clear any pending undo-dismiss timer before rescheduling.
-                        if (lastApplyTimerRef.current) clearTimeout(lastApplyTimerRef.current);
-
-                        // FRAME 1 — first paint after overlay removal. Monaco's ResizeObserver
-                        // has had one frame to settle. Now safe to add the undo strip.
-                        requestAnimationFrame(() => {
-                          setLastApply({ path: diffPath, filename: applyFilename, original: originalContent, written: result });
-                          lastApplyTimerRef.current = setTimeout(() => setLastApply(null), 30_000);
-
-                          // FRAME 2 — second paint. Undo strip layout is committed, Monaco is
-                          // fully idle. Now safe to update the editor content via React state.
-                          requestAnimationFrame(() => {
-                            try {
-                              const language = detectLanguage(diffPath);
-                              const isImage = isImageFile(diffPath);
-                              setOpenFiles((prev) => {
-                                const exists = prev.some((f) => f.path === diffPath);
-                                if (exists) return prev.map((f) =>
-                                  f.path === diffPath ? { 
-                                    ...f, 
-                                    content: result, 
-                                    isDirty: false,
-                                    ...(isImage ? { base64Data: result } : {})
-                                  } : f
-                                );
-                                return [...prev, {
-                                  path: diffPath,
-                                  content: result,
-                                  language,
-                                  isDirty: false,
-                                  isImage,
-                                  ...(isImage ? { base64Data: result } : {})
-                                }];
-                              });
-                              setActiveFilePath(diffPath);
-                              // An AI-applied edit is still an edit: push it to
-                              // the language server so completion, hover and
-                              // diagnostics reflect the new text.
-                              if (!isImage) {
-                                lspBridgeRef.current?.openDocument(diffPath, language, result);
-                              }
-                            } catch (err) {
-                              console.error("Post-apply Monaco sync failed:", err);
-                            }
-                          });
-                        });
-                      }}
-                    />
-                    </DiffReviewErrorBoundary>
-                  </div>
-                )}
-
                 {/* Editor — always mounted, never hidden */}
                 <div style={{ height: '100%' }}>
                 {activeFile ? (
