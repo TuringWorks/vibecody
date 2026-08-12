@@ -452,15 +452,22 @@
     gap: 6px;
     background: none;
     border: none;
-    color: var(--text-secondary);
+    /* Reasoning is scaffolding, not the answer. Held a step below body text so
+       the eye lands on the response first; `--text-tertiary` where the theme
+       defines one, otherwise a dimmed secondary. */
+    color: var(--text-tertiary, var(--text-secondary));
+    opacity: 0.72;
     cursor: pointer;
     font-size: 12px;
     padding: 2px 0;
-    transition: color 0.15s;
+    transition: color 0.15s, opacity 0.15s;
 }
 
-.work-toggle:hover {
+/* Never dim it past the WCAG floor on hover/focus — it is a real control. */
+.work-toggle:hover,
+.work-toggle:focus-visible {
     color: var(--text-primary);
+    opacity: 1;
 }
 
 .work-chevron {

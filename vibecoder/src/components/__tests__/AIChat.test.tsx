@@ -193,6 +193,39 @@ describe('AIChat', () => {
     expect(screen.getByText('rust')).toBeInTheDocument();
   });
 
+  // Messages restored from a saved session (or pushed in by the watch bridge)
+  // arrive as raw model output — never parsed by the `chat:complete` path.
+  // Before this was normalised at render, the tags showed up verbatim on screen.
+  it('collapses a reasoning block that arrives unparsed in message content', () => {
+    const msgs: Message[] = [
+      {
+        role: 'assistant',
+        content: '<thinking>The user just says "hi". Respond briefly.</thinking> Hello! How can I help?',
+      },
+    ];
+    render(<AIChat provider="ollama" messages={msgs} onMessagesChange={vi.fn()} />);
+
+    expect(screen.getByText(/Hello! How can I help\?/)).toBeInTheDocument();
+    // The reasoning is behind the collapsed disclosure, not inline.
+    expect(screen.queryByText(/The user just says/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Work · thinking/ })).toBeInTheDocument();
+  });
+
+  it('leaves tags inside a code block alone', () => {
+    const msgs: Message[] = [
+      {
+        role: 'assistant',
+        content: 'Models emit this:\n```xml\n<thinking>reasoning goes here</thinking>\n```',
+        timestamp: Date.now(),
+      },
+    ];
+    render(<AIChat provider="ollama" messages={msgs} onMessagesChange={vi.fn()} />);
+
+    // The sample is the answer — stripping it would leave an empty fence.
+    expect(screen.getByText(/reasoning goes here/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Work · thinking/ })).not.toBeInTheDocument();
+  });
+
   it('error messages render with error styling', () => {
     const msgs: Message[] = [
       { role: 'assistant', content: 'Connection failed', timestamp: Date.now(), isError: true },

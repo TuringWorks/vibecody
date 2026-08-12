@@ -305,25 +305,90 @@ function extractThinking(content: string): [string, string] {
   // put `</mm:think>` on screen mid-sentence.
   const NS = String.raw`(?:[A-Za-z][\w.-]*:)?`;
   const blockRegex = new RegExp(`<${NS}think(?:ing)?>([\\s\\S]*?)</${NS}think(?:ing)?>`, "g");
-  let match: RegExpExecArray | null;
-  while ((match = blockRegex.exec(content)) !== null) {
-    parts.push(match[1].trim());
-  }
-  let cleaned = content.replace(blockRegex, "");
 
-  const orphanClose = cleaned.match(new RegExp(`^([\\s\\S]*?)</${NS}think(?:ing)?>`));
-  if (orphanClose) {
-    parts.push(orphanClose[1].trim());
-    cleaned = cleaned.slice(orphanClose[0].length);
+  // Only prose is scanned. A fenced or inline code span is content the user
+  // asked to see — an answer *about* `<thinking>` tags, or any HTML/XML
+  // sample, must survive verbatim. Stripping there silently ate the payload.
+  const segments = splitOnCode(content);
+  const proseIdx = segments.flatMap((s, i) => (s.isCode ? [] : [i]));
+
+  const cleanedSegments = segments.map((seg) => {
+    if (seg.isCode) return seg.text;
+    let match: RegExpExecArray | null;
+    blockRegex.lastIndex = 0;
+    while ((match = blockRegex.exec(seg.text)) !== null) {
+      parts.push(match[1].trim());
+    }
+    return seg.text.replace(blockRegex, "");
+  });
+
+  // Unbalanced tags are anchored to the message, not to a segment, so they are
+  // resolved against the first/last prose run only. Anchoring them to the whole
+  // string would let an orphan `</think>` swallow a code block that precedes it.
+  const first = proseIdx[0];
+  if (first !== undefined) {
+    const orphanClose = cleanedSegments[first].match(
+      new RegExp(`^([\\s\\S]*?)</${NS}think(?:ing)?>`),
+    );
+    if (orphanClose) {
+      parts.push(orphanClose[1].trim());
+      cleanedSegments[first] = cleanedSegments[first].slice(orphanClose[0].length);
+    }
   }
 
-  const orphanOpen = cleaned.match(new RegExp(`<${NS}think(?:ing)?>([\\s\\S]*)$`));
-  if (orphanOpen) {
-    parts.push(orphanOpen[1].trim());
-    cleaned = cleaned.slice(0, cleaned.length - orphanOpen[0].length);
+  const last = proseIdx[proseIdx.length - 1];
+  if (last !== undefined) {
+    const orphanOpen = cleanedSegments[last].match(
+      new RegExp(`<${NS}think(?:ing)?>([\\s\\S]*)$`),
+    );
+    if (orphanOpen) {
+      parts.push(orphanOpen[1].trim());
+      cleanedSegments[last] = cleanedSegments[last].slice(
+        0,
+        cleanedSegments[last].length - orphanOpen[0].length,
+      );
+    }
   }
 
-  return [cleaned.trim(), parts.filter(Boolean).join("\n")];
+  return [cleanedSegments.join("").trim(), parts.filter(Boolean).join("\n")];
+}
+
+/**
+ * Split content into alternating prose and code runs.
+ *
+ * An unterminated fence (the normal state mid-stream) counts as code through to
+ * the end — otherwise a half-written block flickers as prose while it streams.
+ */
+function splitOnCode(content: string): { text: string; isCode: boolean }[] {
+  const re = /(```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`|```[\s\S]*$|~~~[\s\S]*$)/g;
+  const segments: { text: string; isCode: boolean }[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(content)) !== null) {
+    if (m.index > last) segments.push({ text: content.slice(last, m.index), isCode: false });
+    segments.push({ text: m[0], isCode: true });
+    last = m.index + m[0].length;
+  }
+  if (last < content.length) segments.push({ text: content.slice(last), isCode: false });
+  return segments;
+}
+
+/**
+ * Return `msg` with any reasoning block moved out of `content` and into
+ * `thinking`, so it renders as the collapsed grey disclosure rather than inline.
+ *
+ * A no-op for the common case (already parsed on `chat:complete`, or no tags at
+ * all) — the original object is returned, so React's identity checks still hold.
+ * Tool-output bubbles are left alone: their content is a verbatim code block.
+ */
+function withExtractedThinking(msg: Message): Message {
+  if (msg.thinking || msg.isToolOutput || !msg.content) return msg;
+  if (!/<(?:[A-Za-z][\w.-]*:)?think(?:ing)?>|<\/(?:[A-Za-z][\w.-]*:)?think(?:ing)?>/.test(msg.content)) {
+    return msg;
+  }
+  const [cleaned, thinking] = extractThinking(msg.content);
+  if (!thinking) return msg;
+  return { ...msg, content: cleaned, thinking };
 }
 
 /** Parse tool XML tags from content into ToolCallInfo[], return cleaned content. */
@@ -2368,7 +2433,14 @@ export function AIChat({
             </div>
           </div>
         ) : (
-          messages.map((msg, idx) => (
+          messages.map((rawMsg, idx) => {
+            // Normalise at the point of render, not at each append site. Raw
+            // model output reaches `messages` from several paths that never
+            // parsed it — session restore, the watch bridge, any future
+            // injector — and each one that forgets put `<thinking>` on screen.
+            // One choke point here means no path can leak it.
+            const msg = withExtractedThinking(rawMsg);
+            return (
             <div key={idx}>
             {msg.isSummary && (
               <div className="compaction-divider">
@@ -2498,7 +2570,8 @@ export function AIChat({
               </div>
             </div>
             </div>
-          ))
+          );
+          })
         )}
 
         {/* Agent steps — completed tool executions in the current run.
