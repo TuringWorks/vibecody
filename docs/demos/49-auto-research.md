@@ -22,13 +22,13 @@ VibeCody's AutoResearch module is an autonomous iterative research agent that sy
 
 AutoResearch offers 5 strategies for exploring the experiment space:
 
-| Strategy        | Best For                                    | How It Works                                            |
-|-----------------|---------------------------------------------|---------------------------------------------------------|
-| **Greedy**      | Quick wins, single-variable tuning          | Always picks the next experiment that improves the best known score |
-| **BeamSearch**  | Moderate exploration with pruning           | Maintains top-K candidates, expands each, prunes worst  |
-| **Genetic**     | Large parameter spaces                      | Mutation and crossover of top-performing configurations  |
-| **Combinatorial** | Exhaustive small spaces                  | Tries every combination of parameters                   |
-| **Bayesian**    | Expensive evaluations, sample-efficient     | Builds a surrogate model, picks points with highest expected improvement |
+| Strategy          | Best For                                    | How It Works                                            |
+|-------------------|---------------------------------------------|---------------------------------------------------------|
+| **Greedy**        | Quick wins, single-variable tuning          | Always picks the next experiment that improves the best known score |
+| **BeamSearch**    | Moderate exploration with pruning           | Maintains top-K candidates, expands each, prunes worst  |
+| **Genetic**       | Large parameter spaces                      | Mutation and crossover of top-performing configurations  |
+| **Combinatorial** | Exhaustive small spaces                     | Tries every combination of parameters                   |
+| **Bayesian**      | Expensive evaluations, sample-efficient     | Builds a surrogate model, picks points with highest expected improvement |
 
 ## Step-by-Step Walkthrough
 

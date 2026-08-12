@@ -8,15 +8,15 @@ permalink: /vibecli/
 
 VibeCLI provides two interaction modes: a rich **Terminal UI (TUI)** powered by Ratatui, and a **REPL** mode for quick, scriptable use. It also runs as an HTTP daemon (`--serve`) that powers VibeCoder, VibeMobile, and the new native VibeWatch clients.
 
-### What's new in 0.5.5
+### What's new in 0.5.8
 
-- **Native watch clients** — Apple Watch (SwiftUI) and Wear OS (Compose) pair against `/watch/*` routes. See [watchOS](/vibecody/watchos/) and [Wear OS](/vibecody/wearos/) guides.
-- **Zero-config connectivity** — when `--serve` is running, VibeCLI advertises `_vibecli._tcp.local.` via mDNS, detects a Tailscale Funnel, and can auto-start an ngrok tunnel. See [Connectivity](/vibecody/connectivity/).
-- **URL-only pairing** — `/pair --url-only` and `/pair --show-bearer` remove the QR dependency; works against simulators.
-- **P-256 ECDSA device pairing** — Ed25519 is deprecated in favor of secp256r1 for Apple Secure Enclave compatibility. All clients (VibeMobile, VibeWatch) use P-256.
-- **Google-Docs-style transcript sync** — ID-based message reconciliation eliminates the prior 80/512-char truncation cap.
-- **Apple-Handoff-style continuity** — `/watch handoff` advertises active sessions to paired devices in real time.
-- **CI produces watch artifacts** — `VibeCodyWatch-watchOS.app.zip`, `VibeCodyWear-wearos.apk`, `VibeCodyWear-wearos.aab` alongside the usual binaries.
+- **Voice on every client, not just the REPL** — `POST /voice/transcribe` (bearer auth, 16 MB body limit) and `GET /voice/status` expose the `VoiceDispatcher` stack — Groq Whisper with a local whisper.cpp fallback — that was previously reachable only from the REPL. `voice_status` reports what the machine can actually do, including a `can_transcribe` that accounts for a downloaded model with no runtime to run it.
+- **Provider-agnostic embeddings — `crates/vibe-embed`** — one trait and one model catalog across six providers, replacing a two-variant enum with a hard-coded Ollama address. Dimension is measured from a vector the model actually returned rather than assumed, indexes are per-model and coexist, and `[index]` config (`embedding_provider` / `embedding_model`) is finally wired — an unrecognised provider errors instead of silently falling back to Ollama. Routes: `/embeddings/models`, `/embeddings/embed`, `/index/status`, `/index/build`; `/index-status` in the REPL.
+- **Goal-driven loops — `/loop goal <id-prefix>`** — joins `/goal`'s durable intent to `/loop`'s run-until-done engine. The stop condition is the goal's success criteria checked by a separate validator turn, not the worker model's own opinion, and **only confirmed success writes back** — an exhausted iteration budget leaves the goal's status untouched. Bounded by `--max-iter` / `--max-duration`; a mistyped bound errors rather than silently defaulting.
+- **SkillForge — `/v1/skilllens/*` + `/v1/skillopt/*`** — analyse and train agent-skill docs. SkillOpt treats a skill markdown doc as the trainable state of a frozen agent and accepts an edit **only when a held-out validation score strictly improves**. Ten routes plus an SSE training stream; see [SkillForge](/vibecody/skillforge/).
+- **Signed macOS binaries** — `vibecli` previously shipped with no signature at all. Signing is not notarization; see [Release notes](/vibecody/release/) § Code signing for the one-line check.
+
+**Fixed:** the code index used to persist cloud API keys in plaintext (`.vibecli/index.json` contained the key; v1 indexes now migrate and drop it), changing embedding model silently returned nonsense instead of failing, and the JetBrains and Neovim plugins sent no bearer token — a silent 100% 401 on every route.
 
 
 ## Installation
@@ -1107,7 +1107,19 @@ Resume a previous agent session:
 vibecli --resume 1740000000
 ```
 
-Restores the full message history, context, and trace from the JSONL log.
+Restores the saved message history, context, and trace from the JSONL log, then
+continues on its own: it picks up the recap's first `next_action` when the
+session has one, and otherwise carries on with the original task, instructed not
+to redo completed work.
+
+To steer it somewhere else instead, give the next task explicitly:
+
+```bash
+vibecli --agent "Now add integration tests" --resume 1740000000
+```
+
+Sessions recorded before the transcript sidecar existed restore only their
+opening task and final summary; `--resume` says so when that is the case.
 
 ## Admin Policy
 

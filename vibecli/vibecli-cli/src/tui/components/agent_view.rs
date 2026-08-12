@@ -20,6 +20,10 @@ pub struct AgentViewComponent {
     pub pending_call: Option<ToolCall>,
     pub status: AgentStatus,
     pub scroll: u16,
+    /// Carries partial-tag state between chunks so reasoning markup split
+    /// across a boundary is still suppressed. Not `pub`: callers must go
+    /// through [`AgentViewComponent::append_stream`].
+    stream_filter: crate::agent_stream_filter::StreamFilter,
 }
 
 impl Default for AgentViewComponent {
@@ -36,6 +40,7 @@ impl AgentViewComponent {
             pending_call: None,
             status: AgentStatus::Running,
             scroll: 0,
+            stream_filter: crate::agent_stream_filter::StreamFilter::new(),
         }
     }
 
@@ -44,8 +49,20 @@ impl AgentViewComponent {
         self.streaming_text.clear();
     }
 
+    /// Append a streamed chunk, dropping reasoning and tool-call markup.
+    ///
+    /// The filter is stateful because a tag routinely straddles a chunk
+    /// boundary; keeping it on the component means it survives across the
+    /// whole turn and is reset by [`Self::reset`] with everything else.
     pub fn append_stream(&mut self, text: &str) {
-        self.streaming_text.push_str(text);
+        let visible = self.stream_filter.push(text);
+        self.streaming_text.push_str(&visible);
+    }
+
+    /// End of turn — release any text the filter was holding back.
+    pub fn finish_stream(&mut self) {
+        let tail = self.stream_filter.finish();
+        self.streaming_text.push_str(&tail);
     }
 
     pub fn scroll_up(&mut self) {
@@ -117,6 +134,26 @@ mod tests {
         av.append_stream("Hello ");
         av.append_stream("world");
         assert_eq!(av.streaming_text, "Hello world");
+    }
+
+    #[test]
+    fn append_stream_drops_reasoning_markup() {
+        // The TUI showed raw `<thinking>` in the agent pane; the filter runs
+        // here too, not just in the REPL.
+        let mut av = AgentViewComponent::new();
+        av.append_stream("Plan: <thinking>internal</thinking>ship it");
+        av.finish_stream();
+        assert_eq!(av.streaming_text, "Plan: ship it");
+    }
+
+    #[test]
+    fn append_stream_filters_across_chunk_boundaries() {
+        let mut av = AgentViewComponent::new();
+        av.append_stream("a<think");
+        av.append_stream("ing>hidden</think");
+        av.append_stream("ing>b");
+        av.finish_stream();
+        assert_eq!(av.streaming_text, "ab");
     }
 
     #[test]

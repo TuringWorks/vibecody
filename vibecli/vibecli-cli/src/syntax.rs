@@ -342,6 +342,79 @@ fn render_markdown_line(line: &str) -> String {
 /// Extract and highlight code blocks from markdown-style text,
 /// and render markdown prose with ANSI colors (headers, bold, italic,
 /// inline code, lists, blockquotes, links, horizontal rules).
+/// Reasoning tags a model may wrap its private deliberation in. Matched on the
+/// local name, so a namespaced `<mm:think>` counts too.
+///
+/// Longest alternative first: `(think|thinking)` would try `think` against
+/// `thinking>` and fail the word boundary.
+fn reasoning_open_re() -> &'static regex::Regex {
+    static R: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    R.get_or_init(|| {
+        regex::Regex::new(r"(?is)<\s*(?:[a-z][\w.-]*:)?(thinking|think)\b[^>]*>")
+            .expect("hardcoded regex is valid")
+    })
+}
+
+/// Byte index just past the closing tag for `name` in `haystack`, if present.
+/// Namespace- and case-tolerant, mirroring the opening matcher.
+fn reasoning_close_end(haystack: &str, name: &str) -> Option<usize> {
+    let lower = haystack.to_ascii_lowercase();
+    let name = name.to_ascii_lowercase();
+    let mut from = 0usize;
+    while let Some(rel) = lower[from..].find("</") {
+        let open = from + rel;
+        let close = lower[open..].find('>').map(|i| open + i)?;
+        let inner = lower[open + 2..close].trim();
+        // Strip a namespace prefix, then compare the local name.
+        let local = inner.rsplit(':').next().unwrap_or(inner).trim();
+        if local == name {
+            return Some(close + 1);
+        }
+        from = close + 1;
+    }
+    None
+}
+
+/// Dim `<thinking>…</thinking>` spans — the tags and everything between them.
+///
+/// A model's private deliberation used to print at the same weight as its
+/// answer, so there was no way to skip it by eye. Dimming rather than
+/// stripping keeps it auditable: you can still read why the model answered as
+/// it did, but the answer is what stands out.
+///
+/// Runs *after* syntax highlighting, so a span can already contain ANSI. A
+/// plain `DIM … RESET` wrapper would stop dimming at the span's first interior
+/// `RESET`, so each one re-asserts `DIM`.
+///
+/// An unclosed block dims to end of text — it is still reasoning, and the
+/// alternative is leaving a stray `<thinking>` at full weight.
+pub fn dim_reasoning_blocks(text: &str) -> String {
+    let re = reasoning_open_re();
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+
+    while let Some(caps) = re.captures(rest) {
+        let whole = caps.get(0).expect("group 0 always present");
+        let name = caps.get(1).expect("group 1 is in the pattern").as_str();
+
+        out.push_str(&rest[..whole.start()]);
+        let from_open = &rest[whole.start()..];
+
+        let (span, tail) = match reasoning_close_end(&from_open[whole.len()..], name) {
+            Some(end) => from_open.split_at(whole.len() + end),
+            None => (from_open, ""),
+        };
+
+        out.push_str(DIM);
+        out.push_str(&span.replace(RESET, &format!("{}{}", RESET, DIM)));
+        out.push_str(RESET);
+        rest = tail;
+    }
+
+    out.push_str(rest);
+    out
+}
+
 pub fn highlight_code_blocks(text: &str) -> String {
     let highlighter = SyntaxHighlighter::new();
     let mut result = String::new();
@@ -409,11 +482,14 @@ pub fn highlight_code_blocks(text: &str) -> String {
         result.push_str(RESET);
     }
 
-    result
+    // Last, so it sees the ANSI the markdown/code passes emitted and can keep
+    // a reasoning span dim across it. Every caller here renders model output.
+    dim_reasoning_blocks(&result)
 }
 
 // ── Dark background box for tool calls (Claude Code style) ──────────────────
 const BG_DARK: &str = "\x1b[48;5;235m"; // dark background for tool call boxes
+#[allow(dead_code)] // only referenced by `format_step_result` — see its note
 const FG_GREEN_CHECK: &str = "\x1b[38;5;114m"; // muted green for checkmarks
 const FG_RED_CROSS: &str = "\x1b[38;5;167m"; // muted red for failures
 
@@ -458,6 +534,12 @@ pub fn format_tool_pending(tool_name: &str, summary: &str) -> String {
 }
 
 /// Format a completed step result in a dark background box with checkmark/cross.
+///
+/// Superseded in the REPL by [`crate::agent_render`], which folds consecutive
+/// tool calls into one line instead of printing a box per step. Kept as public
+/// API — still the right renderer for a one-step-per-line surface — so this is
+/// dead only from the binary's private view of this module.
+#[allow(dead_code)]
 pub fn format_step_result(_step_num: usize, tool_summary: &str, success: bool) -> String {
     let width = terminal_width();
     let icon = if success { "\u{2713}" } else { "\u{2717}" }; // ✓ or ✗
@@ -671,6 +753,82 @@ pub fn format_tool_output_preview(output: &str, success: bool) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── dim_reasoning_blocks ─────────────────────────────────────────────────
+
+    #[test]
+    fn dims_the_tags_and_the_text_between_them() {
+        let out = dim_reasoning_blocks("<thinking>deliberating</thinking>Answer.");
+        assert_eq!(
+            out,
+            format!("{}<thinking>deliberating</thinking>{}Answer.", DIM, RESET)
+        );
+    }
+
+    #[test]
+    fn leaves_text_without_reasoning_untouched() {
+        let plain = "Here's a quick Python program.";
+        assert_eq!(dim_reasoning_blocks(plain), plain);
+    }
+
+    #[test]
+    fn dims_short_and_namespaced_tag_names() {
+        for (open, close) in [
+            ("<think>", "</think>"),
+            ("<mm:think>", "</mm:think>"),
+            ("<THINKING>", "</THINKING>"),
+        ] {
+            let out = dim_reasoning_blocks(&format!("{open}x{close}after"));
+            assert!(out.starts_with(DIM), "{open} should start a dim span");
+            assert!(out.ends_with("after"), "{open} should not dim the tail");
+        }
+    }
+
+    #[test]
+    fn reasserts_dim_after_interior_reset() {
+        // The highlighter emits RESET inside prose (inline code, emphasis). A
+        // bare DIM…RESET wrapper would stop dimming at the first one.
+        let highlighted = format!("<thinking>see {}{}numpy{}{}</thinking>tail", CYAN, "`", RESET, "");
+        let out = dim_reasoning_blocks(&highlighted);
+        let span_end = out.find("</thinking>").expect("closing tag survives");
+        let span = &out[..span_end];
+        let resets = span.matches(RESET).count();
+        let dims = span.matches(DIM).count();
+        assert_eq!(
+            dims,
+            resets + 1,
+            "every interior RESET must be followed by a DIM, plus the opening one: {span:?}"
+        );
+    }
+
+    #[test]
+    fn unclosed_block_dims_to_end_of_text() {
+        let out = dim_reasoning_blocks("<thinking>never closed");
+        assert!(out.starts_with(DIM));
+        assert!(out.ends_with(RESET));
+        assert!(out.contains("never closed"));
+    }
+
+    #[test]
+    fn dims_each_of_several_blocks_independently() {
+        let out = dim_reasoning_blocks("<think>a</think>mid<think>b</think>end");
+        assert!(out.contains(&format!("{}mid", RESET)), "mid stays undimmed");
+        assert!(out.ends_with("end"), "tail stays undimmed: {out:?}");
+        assert_eq!(out.matches(DIM).count(), 2, "one DIM per block");
+    }
+
+    #[test]
+    fn a_lone_angle_bracket_is_not_a_tag() {
+        let prose = "if a < b and c > d, return";
+        assert_eq!(dim_reasoning_blocks(prose), prose);
+    }
+
+    #[test]
+    fn highlight_code_blocks_dims_reasoning_in_prose() {
+        let out = highlight_code_blocks("<thinking>plan</thinking>\nAnswer.\n");
+        assert!(out.contains(DIM), "reasoning should be dimmed end to end");
+        assert!(out.contains("plan"), "reasoning text is kept, not stripped");
+    }
 
     // ── detect_language ──────────────────────────────────────────────────────
 

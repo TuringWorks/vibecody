@@ -30,6 +30,13 @@ To use a tool, output ONLY a single `<tool_call>` block with NO other text in th
 After each tool result is shown to you, call the next tool. Never call more than
 one tool per response. When the task is fully complete, call `task_complete`.
 
+### Escaping parameter values
+
+Parameter values are XML text nodes. Inside them, escape `&` as `&amp;`, `<` as
+`&lt;` and `>` as `&gt;`. Quotes, backslashes and newlines are literal — do not
+escape them. To write a literal entity into a file (an HTML `&amp;`, say), emit
+`&amp;amp;`.
+
 **Wrong** (DO NOT do this):
 ```
 I'll start by exploring the repository...
@@ -863,6 +870,50 @@ pub fn tool_definitions() -> Vec<serde_json::Value> {
 /// Returns `None` when the text has no tool-call markup at all (genuine prose)
 /// or when every block parsed successfully. Reasoning is ignored, as in
 /// [`parse_tool_calls`].
+/// A precise, actionable rejection message for a tool call that failed to
+/// parse — the text fed back to the model so it can retry.
+///
+/// The distinction matters. When a model emits `<command>pwd</arg_value>` the
+/// tool `bash` is perfectly valid and only the closing tag is wrong; telling it
+/// "`bash` is not an available tool" is false, and a model that believes it
+/// stops reaching for the tool it actually needed. Naming the real fault —
+/// unknown tool vs. malformed parameter tags — is what makes the retry work.
+pub fn tool_call_rejection_reason(text: &str) -> Option<String> {
+    let name = unparsed_tool_call_name(text)?;
+
+    if !AVAILABLE_TOOL_NAMES.contains(&name.as_str()) {
+        return Some(format!(
+            "Tool call rejected: `{}` is not an available tool. You have exactly \
+             these tools: {}. Retry now with one of them.",
+            name,
+            AVAILABLE_TOOL_NAMES.join(", "),
+        ));
+    }
+
+    // Known tool, so the block itself is at fault. Quote the exact tags it
+    // needs — the common failure is an opening tag closed by a different name.
+    let required: Vec<String> = tool_definitions()
+        .into_iter()
+        .find(|d| d["function"]["name"] == name.as_str())
+        .and_then(|d| d["function"]["parameters"]["required"].as_array().cloned())
+        .unwrap_or_default()
+        .iter()
+        .filter_map(|v| v.as_str().map(|s| format!("<{s}>…</{s}>")))
+        .collect();
+
+    Some(format!(
+        "Tool call rejected: the `{}` block was malformed and could not be parsed. \
+         Every parameter must be wrapped in a matching pair of tags — the closing \
+         tag must repeat the opening tag's name exactly.{} \
+         Retry now, emitting the whole block again.",
+        name,
+        match required.is_empty() {
+            true => String::new(),
+            false => format!(" `{}` requires: {}.", name, required.join(", ")),
+        },
+    ))
+}
+
 pub fn unparsed_tool_call_name(text: &str) -> Option<String> {
     let visible = strip_thinking(text);
     let re = Regex::new(r#"(?s)<tool_call\s+name="([^"]+)">(.*?)</tool_call>"#)
@@ -898,7 +949,11 @@ pub fn render_tool_call(name: &str, args: Option<&serde_json::Value>) -> String 
                         serde_json::Value::String(s) => s.clone(),
                         other => other.to_string(),
                     };
-                    format!("<{k}>{v}</{k}>", k = key, v = rendered)
+                    // Escaped because the parser decodes (`extract_tag`). A
+                    // native tool call carrying `&` or `<` — any Rust or HTML
+                    // file body — otherwise fails to survive the transcription
+                    // round-trip that providers like Ollama route through.
+                    format!("<{k}>{v}</{k}>", k = key, v = escape_xml_text(&rendered))
                 })
                 .collect::<String>()
         })
@@ -1217,13 +1272,78 @@ fn parse_single_tool(name: &str, body: &str) -> Option<ToolCall> {
     }
 }
 
-/// Extract content from `<tag>...</tag>` in a body string.
+/// The five XML predefined entities, plus the numeric apostrophe models emit
+/// interchangeably with `&apos;`. Longest-prefix order is irrelevant here
+/// because every key is unambiguous after the leading `&`.
+const XML_ENTITIES: &[(&str, char)] = &[
+    ("&amp;", '&'),
+    ("&lt;", '<'),
+    ("&gt;", '>'),
+    ("&quot;", '"'),
+    ("&apos;", '\''),
+    ("&#39;", '\''),
+];
+
+/// Decode XML entities in a tool-call parameter.
+///
+/// The tool protocol is XML-shaped, so models escape `&`, `<` and `>` inside
+/// `<content>` — that is what XML *requires* of a text node, and it happens
+/// whether or not [`TOOL_SYSTEM_PROMPT`] asks for it. Without this decode the
+/// entities are written to disk verbatim and the generated file is not valid
+/// source: `&self` arrives as `&amp;self`, `-> Result<T, E>` as
+/// `-&gt; Result&lt;T, E&gt;`.
+///
+/// Single-pass by construction. Sequential `replace` calls would decode
+/// `&amp;lt;` — a literal `&lt;` the model escaped correctly — twice, into `<`.
+/// Here the scanner consumes `&amp;` and resumes *after* it, so the remaining
+/// `lt;` is copied as text and the result is the intended `&lt;`.
+///
+/// An `&` that starts no known entity (`cargo test 2>&1`) is passed through.
+fn decode_xml_entities(s: &str) -> String {
+    if !s.contains('&') {
+        return s.to_string();
+    }
+    let mut out = String::with_capacity(s.len());
+    let mut rest = s;
+    while let Some(amp) = rest.find('&') {
+        out.push_str(&rest[..amp]);
+        let tail = &rest[amp..];
+        match XML_ENTITIES
+            .iter()
+            .find_map(|(entity, ch)| tail.strip_prefix(entity).map(|r| (*ch, r)))
+        {
+            Some((ch, remainder)) => {
+                out.push(ch);
+                rest = remainder;
+            }
+            // Not an entity — emit the bare `&` and continue past it.
+            None => {
+                out.push('&');
+                rest = &tail[1..];
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Escape a value for an XML text node. Inverse of [`decode_xml_entities`].
+///
+/// `&` must go first or the later replacements are re-escaped.
+fn escape_xml_text(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+}
+
+/// Extract content from `<tag>...</tag>` in a body string, decoding any XML
+/// entities the model escaped (see [`decode_xml_entities`]).
 fn extract_tag(body: &str, tag: &str) -> Option<String> {
     let pattern = format!(r"(?s)<{tag}>(.*?)</{tag}>", tag = regex::escape(tag));
     let re = Regex::new(&pattern).ok()?;
     re.captures(body)
         .and_then(|c| c.get(1))
-        .map(|m| m.as_str().trim().to_string())
+        .map(|m| decode_xml_entities(m.as_str().trim()))
         .filter(|s| !s.is_empty())
 }
 
@@ -1910,10 +2030,15 @@ mod thinking_tests {
                 .iter()
                 .map(|r| {
                     let ty = props[*r]["type"].as_str().unwrap_or("string");
+                    // Deliberately carries the three XML metacharacters, to pin
+                    // `render_tool_call` and `extract_tag` as inverses. With a
+                    // bare `"x"` the pair could drift out of symmetry — escape
+                    // without decode, or decode without escape — and every
+                    // native tool call carrying a `&` or `<` would be mangled.
                     let v = if ty == "integer" {
                         serde_json::json!(3)
                     } else {
-                        serde_json::json!("x")
+                        serde_json::json!("fn f(x: &T) -> Result<U, E> { x < 1 }")
                     };
                     ((*r).to_string(), v)
                 })
@@ -1926,7 +2051,124 @@ mod thinking_tests {
                 1,
                 "{name}: native call did not round-trip through the parser: {xml}"
             );
+
+            // Call count alone would not notice a value being mangled on the
+            // way through, so check the payload of the one tool that carries a
+            // whole file body — that is where the corruption actually landed.
+            if let [ToolCall::WriteFile { content, .. }] = parsed.as_slice() {
+                assert_eq!(
+                    content, "fn f(x: &T) -> Result<U, E> { x < 1 }",
+                    "write_file content did not survive render → parse"
+                );
+            }
         }
+    }
+
+    // ── XML entity handling in tool parameters ──────────────────────────────
+    //
+    // Regression cover for escaped `&`/`<`/`>` reaching disk verbatim, which
+    // made every generated Rust file with a reference or a generic invalid.
+
+    #[test]
+    fn write_file_content_decodes_xml_entities() {
+        let text = "<tool_call name=\"write_file\">\
+                    <path>src/db.rs</path>\
+                    <content>pub fn pool(&amp;self) -&gt; &amp;Pool { &amp;self.pool }</content>\
+                    </tool_call>";
+        let calls = parse_tool_calls(text);
+        match calls.as_slice() {
+            [ToolCall::WriteFile { path, content }] => {
+                assert_eq!(path, "src/db.rs");
+                assert_eq!(content, "pub fn pool(&self) -> &Pool { &self.pool }");
+            }
+            other => panic!("expected one write_file, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn generic_type_params_survive_decoding() {
+        let text = "<tool_call name=\"write_file\">\
+                    <path>a.rs</path>\
+                    <content>async fn new() -&gt; Result&lt;Self, sqlx::Error&gt; {}</content>\
+                    </tool_call>";
+        match parse_tool_calls(text).as_slice() {
+            [ToolCall::WriteFile { content, .. }] => {
+                assert_eq!(content, "async fn new() -> Result<Self, sqlx::Error> {}");
+            }
+            other => panic!("expected one write_file, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn double_escaped_entity_decodes_once() {
+        // A model correctly escaping a literal `&lt;` for an HTML file sends
+        // `&amp;lt;`. Sequential string replaces would yield `<`.
+        assert_eq!(decode_xml_entities("&amp;lt;p&amp;gt;"), "&lt;p&gt;");
+    }
+
+    #[test]
+    fn bare_ampersand_is_not_mangled() {
+        // `2>&1` is not an entity — the shell redirect must survive intact.
+        assert_eq!(
+            decode_xml_entities("cargo test 2>&1 | head -50"),
+            "cargo test 2>&1 | head -50"
+        );
+        assert_eq!(decode_xml_entities("a && b"), "a && b");
+    }
+
+    #[test]
+    fn quotes_and_backslashes_are_left_alone() {
+        // Only `&`, `<`, `>` are escaped by the contract; a raw-string literal
+        // and a single-quoted SQL default must round-trip untouched.
+        let s = "r#\"DEFAULT 'draft'\"# \\n";
+        assert_eq!(decode_xml_entities(s), s);
+    }
+
+    #[test]
+    fn escape_decode_round_trips() {
+        let original = "impl<T> Foo<T> { fn f(&self) -> &T { &self.0 } } // a & b";
+        assert_eq!(decode_xml_entities(&escape_xml_text(original)), original);
+    }
+
+    // ── Rejection messages ──────────────────────────────────────────────────
+
+    #[test]
+    fn a_malformed_known_tool_is_not_called_unavailable() {
+        // The observed failure: `<command>pwd</arg_value>`. `bash` is real; the
+        // closing tag is not. The old message claimed bash was unavailable.
+        let text = "<tool_call name=\"bash\"><command>pwd</arg_value></tool_call>";
+        let reason = tool_call_rejection_reason(text).expect("should reject");
+        assert!(
+            reason.contains("malformed"),
+            "should name the real fault: {reason}"
+        );
+        assert!(
+            !reason.contains("is not an available tool"),
+            "must not tell the model a valid tool does not exist: {reason}"
+        );
+        assert!(
+            reason.contains("<command>…</command>"),
+            "should quote the tags bash needs: {reason}"
+        );
+    }
+
+    #[test]
+    fn an_unknown_tool_is_still_reported_as_unknown() {
+        let text = "<tool_call name=\"container.exec\"><cmd>ls</cmd></tool_call>";
+        let reason = tool_call_rejection_reason(text).expect("should reject");
+        assert!(reason.contains("is not an available tool"), "{reason}");
+        assert!(reason.contains("bash"), "should list the real tools: {reason}");
+    }
+
+    #[test]
+    fn a_well_formed_call_is_not_rejected() {
+        let text = "<tool_call name=\"bash\"><command>pwd</command></tool_call>";
+        assert_eq!(tool_call_rejection_reason(text), None);
+    }
+
+    #[test]
+    fn plain_prose_is_not_rejected() {
+        assert_eq!(tool_call_rejection_reason("Just explaining the plan."), None);
     }
 
     #[test]

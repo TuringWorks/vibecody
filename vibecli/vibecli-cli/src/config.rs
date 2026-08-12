@@ -152,10 +152,16 @@ pub struct Config {
     /// ```toml
     /// [poolside]
     /// enabled = true
-    /// model = "malibu"      # or "point", "malibu-code", "point-code"
-    /// api_url = "https://api.poolside.ai/v1"   # optional, default shown
-    /// api_key = "ps_..."                       # or POOLSIDE_API_KEY env
+    /// model = "poolside/laguna-s-2.1"   # or laguna-xs-2.1, laguna-m-1
+    /// api_url = "https://inference.poolside.ai/v1"   # optional, default shown
     /// ```
+    ///
+    /// The key belongs in the encrypted ProfileStore (`vibecli set-key
+    /// poolside <key>`) or `POOLSIDE_API_KEY` — not in this file.
+    ///
+    /// This example previously named `malibu` / `point` models at
+    /// `api.poolside.ai`; both were wrong against `PoolsideProvider`, which
+    /// has always pointed at `inference.poolside.ai/v1` and shipped Laguna.
     pub poolside: Option<ProviderConfig>,
 
     /// Provider failover chain — try providers in order.

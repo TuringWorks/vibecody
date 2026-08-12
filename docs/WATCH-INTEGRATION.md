@@ -20,27 +20,27 @@ VibeCody extends its AI coding assistant to wrist-worn devices, giving developer
 │  │  P-256 ECDSA reg│  │ OLED-optimised   │  │ SSE streaming │   │
 │  └────────┬────────┘  └────────┬─────────┘  └──────┬────────┘   │
 │           │                    │                   │            │
-└───────────┼────────────────────┼───────────────────┼─-──────────┘
+└───────────┼────────────────────┼───────────────────┼────────────┘
             │                    │                   │
      ┌──────▼──────┐      ┌──────▼──────┐      ┌─────▼──────┐
      │  LAN / TLS  │      │  LAN / TLS  │      │  SSE feed  │
      └──────┬──────┘      └──────┬──────┘      └─────┬──────┘
             │                    │                   │
-   ┌────────▼────────────────────▼───────────────────▼──---────┐
+   ┌────────▼────────────────────▼───────────────────▼─────────┐
    │          Transport fallback chain                         │
    │  1. Direct LAN (Wi-Fi, same subnet)                       │
    │  2. Tailscale mesh (cross-network)                        │
    │  3. Phone relay (WatchConnectivity on iOS /               │
    │     Wearable Data Layer on Android)                       │
-   └──────────┬──────────────────────────────┬─────────────-───┘
+   └──────────┬──────────────────────────────┬─────────────────┘
               │                              │
-   ┌──────────▼──────────┐      ┌────────────▼─────────────-─┐
+   ┌──────────▼──────────┐      ┌────────────▼───────────────┐
    │  Apple Watch        │      │  Android Wear OS           │
    │  WatchOS 9+         │      │  Wear OS 3+                │
    │  VibeCody watchApp  │      │  VibeCodyWear app          │
    │  WatchConnectivity  │      │  Wearable Data Layer API   │
    │  Secure Enclave key │      │  Android Keystore P-256    │
-   └─────────────────────┘      └──────────────────────────-─┘
+   └─────────────────────┘      └────────────────────────────┘
 ```
 
 ---

@@ -171,7 +171,9 @@ pub mod context_budget;
 pub mod parallel_tool_scheduler;
 pub mod smart_diff;
 // FIT-GAP v10 — Phase 41: Agent Intelligence (P1)
+pub mod agent_render;
 pub mod agent_state_machine;
+pub mod agent_stream_filter;
 pub mod cost_estimator;
 pub mod file_watcher;
 // FIT-GAP v10 — Phase 42: Reliability (P1)

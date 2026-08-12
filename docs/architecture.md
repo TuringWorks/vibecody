@@ -49,11 +49,11 @@ vibecody/                          ← Cargo workspace root
 ### Dependency Graph
 
 ```text
-vibecli-cli ──────────────-────┐
+vibecli-cli ───────────────────┐
                                ▼
                          vibe-ai  ──── reqwest, async-trait, futures
                                │
-vibe-coder (Tauri) ───────-───────┤
+vibecoder (Tauri) ─────────────┤
                                ▼
                          vibe-core ── ropey, git2, notify, walkdir,
                                │      portable-pty, similar, regex

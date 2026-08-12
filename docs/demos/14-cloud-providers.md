@@ -288,7 +288,7 @@ API Gateway          500K requests           $1.75
 ECR                  5 GB images             $0.50
 ECS (Fargate)        2 tasks, 0.5vCPU/1GB    $29.40
 RDS (db.t3.micro)    PostgreSQL, 20GB        $15.50
-CloudFront           100 GB transfer          $8.50
+CloudFront           100 GB transfer         $8.50
 
 AWS Subtotal:                                $101.25
 

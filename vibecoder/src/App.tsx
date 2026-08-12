@@ -351,10 +351,14 @@ function App() {
    * (openFolder) and the recents list. Returns true on success. */
   const openWorkspacePath = async (path: string): Promise<boolean> => {
     try {
-      await invoke("add_workspace_folder", { path });
+      await invoke("set_workspace_folder", { path });
       setWorkspaceFolders([path]);
       setOpenFiles([]);
       setActiveFilePath(null);
+      // Results are paths inside the folder we just left — clicking one would
+      // reopen a file that is no longer in scope.
+      setSearchQuery("");
+      setSearchResults([]);
       loadDirectory(path);
       localStorage.setItem("vibecoder_workspace", path);
       window.dispatchEvent(new CustomEvent("vibecoder:workspace-changed", { detail: path }));

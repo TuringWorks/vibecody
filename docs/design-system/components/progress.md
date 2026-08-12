@@ -13,7 +13,7 @@ Progress bars communicate completion, score, quality, and acceptance rates. All 
 
 ```
 ┌──────────────────────────────────────────────────────┐  ← .progress-bar (track)
-│▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░░░░░░░  │  ← .progress-bar-fill + .progress-bar-{color}
+│▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░░░░░░░    │  ← .progress-bar-fill + .progress-bar-{color}
 └──────────────────────────────────────────────────────┘
 ```
 

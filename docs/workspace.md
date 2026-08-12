@@ -6,7 +6,7 @@ permalink: /workspace/
 
 The Workspace is the folder VibeCody operates inside — every file read, every git operation, every agent task is rooted at the active workspace path. Picking a workspace is the first thing you do after launching VibeCoder/VibeAIChat; it's the one input that dominates everything downstream.
 
-This page documents the desktop workspace switcher. The daemon side (`add_workspace_folder`, `get_workspace_folders`) is shared across clients — but mobile / watch clients don't pick a workspace today; they consume sessions from whichever workspace the daemon was launched in.
+This page documents the desktop workspace switcher. The daemon side (`set_workspace_folder`, `get_workspace_folders`) is shared across clients — but mobile / watch clients don't pick a workspace today; they consume sessions from whichever workspace the daemon was launched in.
 
 ---
 
@@ -18,15 +18,17 @@ Three entry points:
 |---|---|
 | **System folder picker** | "Open Folder" button in the sidebar empty-state, or `⌘O` / `Ctrl+O` |
 | **Recents click** | Click any entry in the "Recent" list shown below the Open Folder button |
-| **Programmatic** | A Tauri / SDK client invokes `add_workspace_folder` directly |
+| **Programmatic** | A Tauri / SDK client invokes `set_workspace_folder` directly |
 
-All three converge on the same backend path: `add_workspace_folder(path)` validates the path, sets it as the active workspace, and updates the LRU recents.
+All three converge on the same backend path: `set_workspace_folder(path)` validates the path, sets it as the active workspace, and updates the LRU recents.
+
+**Switching replaces, it doesn't accumulate.** The opened folder becomes the workspace's *only* root: the previous root's file watches and open buffers are dropped with it. This is what every consumer of "the current project" reads — sidebar search, the `@` context picker, `git status`, workspace-relative path resolution, and the agent's workspace root all resolve against the first (and only) workspace folder. Through v0.5.8 the backend appended instead, so the folder opened first in a session stayed at index 0 and search kept scanning it while the file tree showed the new one.
 
 ---
 
 ## Validation
 
-`add_workspace_folder` rejects bad input with an explicit error rather than mutating state into a broken configuration:
+`set_workspace_folder` rejects bad input with an explicit error rather than mutating state into a broken configuration:
 
 | Input | Behavior |
 |---|---|
@@ -120,7 +122,7 @@ Workspace **paths are logged** because they're already operator-facing (visible 
 | **VibeCoder / VibeAIChat** | Full picker + recents |
 | **VibeMobile** | Inherits the daemon's active workspace; can't change it |
 | **VibeWatch** | Same — read-only inheritance |
-| **IDE plugins** | Use the IDE's own workspace; tell the daemon via `add_workspace_folder` on workspace open |
+| **IDE plugins** | Use the IDE's own workspace; tell the daemon via `set_workspace_folder` on workspace open |
 
 The daemon stores at most one active workspace at a time today. Multi-workspace is a future feature — the `workspace.folders()` API returns a Vec but the desktop UI currently only renders the first entry.
 
@@ -153,7 +155,7 @@ The keyboard shortcut binding requires focus to be in the main app shell. If you
 ## Related
 
 - **Source:**
-  - `vibecoder/src-tauri/src/commands.rs` — `add_workspace_folder`, `get_workspace_folders`, `list_recent_workspaces`, `remove_recent_workspace`
+  - `vibecoder/src-tauri/src/commands.rs` — `set_workspace_folder`, `get_workspace_folders`, `list_recent_workspaces`, `remove_recent_workspace`
   - `vibecoder/src/App.tsx` — the picker UI + recents rendering
 - **Sessions:** [`docs/sessions`]({{ site.baseurl }}/sessions/) — session list reads from `<workspace>/.vibecli/traces/`
 - **Agent Panel:** [`docs/agent-panel`]({{ site.baseurl }}/agent-panel/) — agent runs are rooted at the active workspace

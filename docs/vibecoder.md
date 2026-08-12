@@ -6,14 +6,16 @@ permalink: /vibecoder/
 
 **AI-powered desktop code editor built with Tauri 2 and Monaco.** VibeCoder provides a VS Code-like editing experience with a native Rust backend, Monaco Editor frontend, integrated AI chat, autonomous agent mode, explicit-chord diff-mode AI editing (⌘.), terminal, Git panel, code review, and a WASM extension system.
 
-### What's new in 0.5.5
+### What's new in 0.5.8
 
-- **Watch Devices panel** — `Governance → Watch Devices` lets you approve, rename, or revoke paired Apple Watches and Wear OS devices.
-- **Handoff banner** — surfaces live sessions from paired phones and watches. Click to pull the stream onto the desktop.
-- **Sandbox auto-focus** — when a paired watch opens a sandbox session, VibeCoder auto-switches to the Sandbox tab so you can observe the container output.
-- **Pairing panel refresh** — URL-only and URL + Bearer flows added alongside the existing QR code; emulator-friendly.
-- **293 panels + 42 composites** registered in the panel host (up from 187 in 0.5.4).
-- **Google-Docs-style sync** for chat and agent sessions — ID-based reconciliation with no 80/512-char truncation.
+- **Voice input in chat** — mic button backed by the shared `@vibe/shared` voice hook and `crates/vibe-desktop-voice`, so VibeCoder, VibeDesk and VibeAIChat all bridge to the same daemon route. Web Speech API first, `MediaRecorder` + local whisper.cpp or Groq Whisper as fallback. Every failure path now produces a message — a denied mic, a missing key and an unsupported webview used to be indistinguishable from a dead button.
+- **Selectable embedding models** — `Settings → Embeddings` picks the provider behind semantic search, `@codebase:` and memory recall, from six (Ollama, OpenAI + any base-URL-compatible endpoint, Voyage, Cohere, Gemini, in-process candle), each labelled *local* or *cloud* before you choose. Indexes are per-model and coexist, so switching back never re-embeds.
+- **SkillForge panel** — Catalog / Lens / Optimize tabs in the AI/ML composite: score a skill doc against the toolbar-selected model, run a training job with a live validation curve, and promote the winner as a workspace override.
+- **Chat renders markdown properly** — tables arrived as walls of `| --- |` and emphasis as literal asterisks; `remark-gfm` was missing outright. Chat now goes through the same shared `Markdown` component the other two shells use.
+- **Two phantom design tokens fixed** — `var(--accent)` (22 uses) and `var(--border)` (74 uses) were defined nowhere, and CSS drops an undefined `var()` silently, so those borders were simply absent. `.panel-btn` also declared no background or color, leaving 43 buttons on the browser's native grey — which is what made `Configuration → Keys` look unthemed.
+- **Signed macOS builds** — Developer ID signing across the whole macOS surface. Signing is not notarization: a signed-but-un-notarized app still prompts on first launch.
+
+Earlier releases: 0.5.7 was a release-engineering patch; 0.5.6 brought `/goal` durable execution intent, plugin governance, and Linux arm64 builds. See the [changelog](/vibecody/changelog/) and [release notes](/vibecody/release/).
 
 ## Architecture Overview
 
@@ -31,7 +33,7 @@ permalink: /vibecoder/
 │  commands.rs    — 1,045+ Tauri commands (files, git, AI, agent …)│
 │  agent_executor — ToolExecutorTrait for agent tool calls         │
 │  flow.rs        — Flow Awareness Engine (activity tracking)      │
-│  memory.rs      — Workspace + global AI rules (.vibecoder.md)       │
+│  memory.rs      — Workspace + global AI rules (.vibecoder.md)    │
 └──────────────────────────┬───────────────────────────────────────┘
                            │
          ┌─────────────────┴──────────────────────┐
@@ -599,7 +601,7 @@ The React frontend communicates with the Rust backend using Tauri's `invoke()` I
 
 | Command | Description |
 |---------|-------------|
-| `add_workspace_folder(path)` | Add folder to workspace |
+| `set_workspace_folder(path)` | Make `path` the single workspace root (replaces the previous one) |
 | `get_workspace_folders()` | List workspace folders |
 | `open_file_in_workspace(path)` | Open file within workspace |
 

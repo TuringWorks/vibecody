@@ -70,6 +70,22 @@ impl Workspace {
         self.config.folders.retain(|p| p != path);
     }
 
+    /// Make `path` the workspace's single root — what "open folder" means.
+    ///
+    /// `add_folder` appends, which is correct for building a multi-root
+    /// workspace but wrong for switching projects: the folder opened first
+    /// stayed at index 0, so every consumer of `folders().first()` — search,
+    /// the `@` context picker, git status, workspace-relative path resolution
+    /// — kept resolving against the folder the user had left. Replacing drops
+    /// the old root's file watches and open buffers along with it, so nothing
+    /// from the previous project stays in scope.
+    pub fn set_root_folder(&mut self, path: PathBuf) -> Result<()> {
+        self.file_system.unwatch_all();
+        self.config.folders.clear();
+        self.open_buffers.clear();
+        self.add_folder(path)
+    }
+
     /// Get a setting value
     pub fn get_setting(&self, key: &str) -> Option<&serde_json::Value> {
         self.config.settings.get(key)
@@ -305,6 +321,32 @@ mod tests {
             1,
             "removing absent folder should not change list"
         );
+    }
+
+    #[test]
+    fn set_root_folder_replaces_rather_than_appends() {
+        // The folder-switch bug: opening B after A left A at index 0, and
+        // every `folders().first()` consumer kept searching A.
+        let mut ws = Workspace::new("Test".to_string());
+        ws.add_folder(PathBuf::from("/project-a")).ok();
+        ws.set_root_folder(PathBuf::from("/project-b")).ok();
+        assert_eq!(ws.folders(), &[PathBuf::from("/project-b")]);
+        assert_eq!(ws.folders().first(), Some(&PathBuf::from("/project-b")));
+    }
+
+    #[test]
+    fn set_root_folder_on_empty_workspace_sets_the_root() {
+        let mut ws = Workspace::new("Test".to_string());
+        ws.set_root_folder(PathBuf::from("/only")).ok();
+        assert_eq!(ws.folders(), &[PathBuf::from("/only")]);
+    }
+
+    #[test]
+    fn set_root_folder_is_idempotent_for_the_same_path() {
+        let mut ws = Workspace::new("Test".to_string());
+        ws.set_root_folder(PathBuf::from("/same")).ok();
+        ws.set_root_folder(PathBuf::from("/same")).ok();
+        assert_eq!(ws.folders(), &[PathBuf::from("/same")]);
     }
 
     #[test]

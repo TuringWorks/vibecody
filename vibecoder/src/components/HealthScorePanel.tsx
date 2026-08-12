@@ -4,7 +4,7 @@
  * Scan a project to get health scores across 12 dimensions (test coverage,
  * complexity, security, docs, etc.), view trends, and get remediation suggestions.
  */
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { X } from "lucide-react";
 
@@ -48,6 +48,23 @@ export default function HealthScorePanel() {
   const [remediations, setRemediations] = useState<RemediationItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // The initializer above runs once per mount, so opening a different folder
+  // would otherwise leave this panel scanning the folder that was open when it
+  // first rendered. Follow the workspace instead — and drop results scoped to
+  // the folder we just left rather than showing them under the new one.
+  useEffect(() => {
+    const onWorkspaceChanged = (e: Event) => {
+      const next = (e as CustomEvent<string>).detail;
+      if (typeof next !== "string" || !next) return;
+      setPath(next);
+      setScan(null);
+      setRemediations([]);
+      setError("");
+    };
+    window.addEventListener("vibecoder:workspace-changed", onWorkspaceChanged);
+    return () => window.removeEventListener("vibecoder:workspace-changed", onWorkspaceChanged);
+  }, []);
 
   const doScan = useCallback(async () => {
     setLoading(true);

@@ -42,6 +42,19 @@ A provider absent from a closed list is not "unstyled" — it is **unselectable*
 
 **No edit needed:** VibeDesk (reads `/models` from the daemon), Neovim (`provider` is a free-form string), VibeMobile and the watch clients (no provider selection — the daemon chooses).
 
+## Then the docs — a provider nobody can find is a provider nobody uses
+
+Nothing in the build fails when these are skipped, which is exactly why `poolside` and `vibecli-mistralrs` both shipped fully working and completely undocumented.
+
+| Surface | What to edit |
+|---|---|
+| Provider page | `docs/providers/{name}.md` — front matter (`layout: page`, `title: "Provider: X"`, `permalink: /providers/{name}/`), how to get a key, all three config routes, model table with the default marked, verify command, troubleshooting. Copy `docs/providers/sambanova.md` for a cloud API or `docs/providers/vibecli-mistralrs.md` for a local one |
+| Comparison table | `docs/providers/index.md` — a row (provider, type, env var, default model, free tier, streaming), **the provider count in the opening line**, a "Choosing a provider" line if it is the best pick for something, and a `Quick Examples` snippet |
+
+Sidebar nav (`docs/_config.yml`) lists only a curated handful of providers, so a new page does not need an entry there.
+
+**Write the docs from the implementation, not from the vendor's marketing page.** Four surfaces name the model ids and base URL — the provider module, `catalog.rs`, `useModelRegistry.ts`, and the `commands.rs` engine wiring — and they can disagree. `poolside` ships `laguna-s-2.1` in the catalog and `poolside/laguna-s-2.1` in the other three; `config.rs` documented `malibu` at `api.poolside.ai`, which was never any of them. Reconcile before writing, and say so in the page when you cannot.
+
 ## Constraints that still apply
 
 - API keys go in the encrypted `ProfileStore` — never a `*.toml`/`*.json` plaintext file. See the key storage rules in [CLAUDE.md](../../../CLAUDE.md).

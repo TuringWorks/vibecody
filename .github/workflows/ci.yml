@@ -273,11 +273,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        check: [lint]
+        check: [lint, version]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # Docs advertised 0.5.5 three releases after it shipped, and the mobile /
+      # watch download tables pointed at v0.5.7 assets after v0.5.8 was tagged.
+      # A stale version renders perfectly, so only a check catches it.
+      - name: Check docs reference the current release
+        if: matrix.check == 'version'
+        run: ./scripts/check-docs-version.sh
+
       - name: Setup Node
+        if: matrix.check == 'lint'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -290,6 +298,7 @@ jobs:
       # `remark-lint-maximum-line-length@6` (no such major; 4.x is latest).
       # Plugins now come from the preset, so only two packages are needed.
       - name: Install remark and plugins
+        if: matrix.check == 'lint'
         run: npm install remark-cli@12 remark-preset-lint-recommended@7
 
       - name: Lint Markdown files

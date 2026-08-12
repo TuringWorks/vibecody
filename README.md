@@ -70,9 +70,9 @@ Every surface has a consistent `build-<surface>` / `test-<surface>` pair:
 # Surface            Dev            Build                Test
 # ─────────────────  ─────────────  ───────────────────  ──────────────────
 # VibeCLI (Rust)     make cli-run   make build-cli       make test-cli
-# VibeCoder  (Tauri)    make ui        make build-ui        make test-ui
-# VibeAIChat (Tauri)    make aichat       make build-aichat       make test-aichat
-# VibeDesk   (Tauri)    make vibedesk     make build-vibedesk     make test-vibedesk
+# VibeCoder  (Tauri) make ui        make build-ui        make test-ui
+# VibeAIChat (Tauri) make aichat    make build-aichat    make test-aichat
+# VibeDesk   (Tauri) make vibedesk  make build-vibedesk  make test-vibedesk
 # Agent SDK (TS)     —              make build-sdk       make test-sdk
 # vibe-indexer       —              make build-indexer   make test-indexer
 # vibe-memory        —              make build-memory    make test-memory
@@ -125,7 +125,7 @@ make test-watch         Wear OS unit tests (gradle test)
 
 ## Workspace Structure
 
-```bash
+```txt
 vibecody/
 ├── Cargo.toml                  # Workspace root (9 members)
 ├── Dockerfile                  # Multi-stage musl build (Alpine runtime)

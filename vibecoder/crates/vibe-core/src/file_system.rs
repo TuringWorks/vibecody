@@ -161,6 +161,17 @@ impl FileSystem {
         Ok(())
     }
 
+    /// Stop watching every directory currently watched.
+    ///
+    /// Dropping a `RecommendedWatcher` unregisters its OS watch and drops the
+    /// sender its forwarding task is blocked on, so the task ends too. Called
+    /// when the workspace root is replaced — otherwise the watches (and their
+    /// tasks) for every previously opened folder accumulate for the life of
+    /// the process and keep emitting change events for folders the user left.
+    pub fn unwatch_all(&mut self) {
+        self.watchers.clear();
+    }
+
     /// Check if a path exists
     pub async fn exists(&self, path: &Path) -> bool {
         tokio::fs::try_exists(path).await.unwrap_or(false)

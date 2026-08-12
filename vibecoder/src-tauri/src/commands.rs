@@ -2265,8 +2265,15 @@ fn save_recent_workspaces(list: &[String]) -> Result<(), String> {
     std::fs::write(&path, json).map_err(|e| e.to_string())
 }
 
+/// Switch the active workspace to `path` — the folder the user just opened in
+/// the file explorer becomes *the* scope, replacing whatever was open before.
+///
+/// This used to append (`add_folder`), which left the first folder opened in
+/// the session at `folders().first()` forever: the tree showed the new folder
+/// while search, the `@` picker and every other `folders().first()` consumer
+/// kept resolving against the old one.
 #[tauri::command]
-pub async fn add_workspace_folder(
+pub async fn set_workspace_folder(
     path: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
@@ -2300,7 +2307,7 @@ pub async fn add_workspace_folder(
     {
         let mut workspace = state.workspace.lock().await;
         workspace
-            .add_folder(pb.clone())
+            .set_root_folder(pb.clone())
             .map_err(|e| e.to_string())?;
     }
 
