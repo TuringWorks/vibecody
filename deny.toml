@@ -133,6 +133,7 @@ allow = [
     "BSL-1.0",               # Boost Software License; permissive (clipboard-win, error-code)
     "CDLA-Permissive-2.0",   # Permissive; used by webpki-roots
     "Unlicense",             # Public-domain dedication; more permissive than MIT/Apache (whisper-rs, whisper-rs-sys)
+    "bzip2-1.0.6",           # BSD-style permissive, no advertising clause; libbz2-rs-sys via zip 8.6 -> bzip2 0.6
 ]
 confidence-threshold = 0.93
 # Crates with non-SPDX or hand-rolled license text — review and pin explicitly.

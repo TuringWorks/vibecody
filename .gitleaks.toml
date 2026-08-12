@@ -84,6 +84,14 @@ regexes = [
     # used with ProfileStore::open_with / WorkspaceStore::open_with per CLAUDE.md.
     '''\[42u8;\s*32\]''',
     '''\[0u8;\s*32\]''',
+    # Job-board name in skills prose, not a credential. Upstream's
+    # linkedin-client-id rule matches a 14-char alphanumeric token near the word
+    # "LinkedIn", and the sentence "AgCareers.com, Indeed, LinkedIn,
+    # GovernmentJobs (USDA/extension), Snagajob…" appears in 35 agriculture
+    # skill files — all 35 findings on main were this one string. Allowlisting
+    # the literal keeps the rule live everywhere else; exempting the skills/
+    # tree by path would blind the scanner to real keys in 500+ files.
+    '''GovernmentJobs''',
 ]
 
 # Per-rule commit allowlists (for false positives we've reviewed). Add with care.
