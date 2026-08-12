@@ -313,7 +313,10 @@ pub fn handle_goal_show(args: &str) {
         }
     }
     if let Some(plan) = &goal.current_plan {
-        println!("\n## Current plan\n{}", plan.display());
+        println!(
+            "\n\x1b[1m\x1b[36mCurrent plan\x1b[0m\n{}",
+            plan.display_colored()
+        );
     } else {
         println!(
             "\n## Plan\n  (none yet — run /goal plan {} via daemon to generate)",

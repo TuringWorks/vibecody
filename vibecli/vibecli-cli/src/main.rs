@@ -18346,7 +18346,9 @@ async fn run_agent_repl_with_context(
         };
         match planner.plan(task, &ctx).await {
             Ok(plan) => {
-                println!("{}", plan.display());
+                // Coloured for the terminal; the `plan.display()` below stays
+                // plain because it is injected into the agent's context.
+                println!("{}", plan.display_colored());
                 print!("Execute this plan? (y/N/edit): ");
                 io::stdout().flush()?;
                 let mut confirm = String::new();

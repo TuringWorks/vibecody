@@ -26,7 +26,81 @@ pub struct ExecutionPlan {
     pub risks: Vec<String>,
 }
 
+// ── ANSI palette ──────────────────────────────────────────────────────────────
+// Mirrors the values in vibecli's `syntax.rs`. Redeclared rather than imported:
+// `vibe-ai` sits below the CLI crate in the dependency graph, so it cannot
+// reference it.
+const RESET: &str = "\x1b[0m";
+const BOLD: &str = "\x1b[1m";
+const DIM: &str = "\x1b[2m";
+const CYAN: &str = "\x1b[36m";
+const GREEN: &str = "\x1b[32m";
+const YELLOW: &str = "\x1b[33m";
+const MAGENTA: &str = "\x1b[35m";
+
 impl ExecutionPlan {
+    /// Format the plan with ANSI colour, for printing to an interactive terminal.
+    ///
+    /// Deliberately separate from [`ExecutionPlan::display`]: that string is not
+    /// only shown to the user, it is also handed back to the model as the
+    /// approved-plan context and persisted by the loop engine. Colouring it in
+    /// place would send escape codes to the provider and into stored state, so
+    /// the plain form stays the data path and this one is display-only.
+    pub fn display_colored(&self) -> String {
+        let mut out = String::new();
+
+        out.push_str(&format!("{BOLD}{CYAN}Goal{RESET}\n"));
+        out.push_str(&format!("  {}\n\n", self.goal));
+
+        out.push_str(&format!("{BOLD}{CYAN}Steps{RESET}\n"));
+        // Right-align the ordinal so two-digit steps do not ragged the column —
+        // the uncoloured form prints "1." and "10." flush left against the icon.
+        let width = self
+            .steps
+            .iter()
+            .map(|s| s.id.to_string().len())
+            .max()
+            .unwrap_or(1);
+        for step in &self.steps {
+            let (icon, icon_color) = match step.status {
+                PlanStepStatus::Pending => ("⬜", DIM),
+                PlanStepStatus::InProgress => ("🔄", CYAN),
+                PlanStepStatus::Done => ("✅", GREEN),
+                PlanStepStatus::Failed => ("❌", YELLOW),
+                PlanStepStatus::Skipped => ("⏭", DIM),
+            };
+            let path = step
+                .estimated_path
+                .as_deref()
+                .map(|p| format!(" {DIM}({p}){RESET}"))
+                .unwrap_or_default();
+            out.push_str(&format!(
+                "{icon_color}{icon}{RESET} {DIM}{:>width$}.{RESET} {MAGENTA}[{}]{RESET} {}{}\n",
+                step.id,
+                step.tool,
+                step.description,
+                path,
+                width = width,
+            ));
+        }
+
+        if !self.estimated_files.is_empty() {
+            out.push_str(&format!("\n{BOLD}{CYAN}Files{RESET}\n"));
+            for f in &self.estimated_files {
+                out.push_str(&format!("  {DIM}-{RESET} {CYAN}{f}{RESET}\n"));
+            }
+        }
+
+        if !self.risks.is_empty() {
+            out.push_str(&format!("\n{BOLD}{YELLOW}Risks{RESET}\n"));
+            for r in &self.risks {
+                out.push_str(&format!("  {YELLOW}⚠{RESET}  {r}\n"));
+            }
+        }
+
+        out
+    }
+
     /// Format the plan as human-readable text for display in TUI/REPL.
     pub fn display(&self) -> String {
         let mut out = String::new();
@@ -277,6 +351,74 @@ mod tests {
     #[test]
     fn parse_fails_on_garbage() {
         assert!(parse_plan_from_response("not json at all").is_err());
+    }
+
+    // ── display_colored ──────────────────────────────────────────────────
+
+    #[test]
+    fn colored_display_carries_the_same_content() {
+        let plan = parse_plan_from_response(sample_plan_json()).unwrap();
+        let colored = plan.display_colored();
+        assert!(colored.contains("Add error handling to main.rs"));
+        assert!(colored.contains("read_file"));
+        assert!(colored.contains("\x1b["), "should emit ANSI");
+    }
+
+    #[test]
+    fn plain_display_stays_free_of_escape_codes() {
+        // display() is injected into the agent's context and persisted by the
+        // loop engine — escape codes there would reach the provider.
+        let plan = ExecutionPlan {
+            goal: "Goal".into(),
+            steps: vec![PlanStep {
+                id: 1,
+                description: "step".into(),
+                tool: "bash".into(),
+                estimated_path: Some("a.rs".into()),
+                status: PlanStepStatus::Pending,
+            }],
+            estimated_files: vec!["src/lib.rs".into()],
+            risks: vec!["risky".into()],
+        };
+        assert!(!plan.display().contains('\x1b'));
+        assert!(plan.display_colored().contains('\x1b'));
+    }
+
+    #[test]
+    fn colored_display_right_aligns_step_ordinals() {
+        let steps: Vec<PlanStep> = (1..=10)
+            .map(|id| PlanStep {
+                id,
+                description: format!("step {id}"),
+                tool: "bash".into(),
+                estimated_path: None,
+                status: PlanStepStatus::Pending,
+            })
+            .collect();
+        let plan = ExecutionPlan {
+            goal: "G".into(),
+            steps,
+            estimated_files: vec![],
+            risks: vec![],
+        };
+        let colored = plan.display_colored();
+        // Single-digit ordinals gain a leading space so the "." column lines up
+        // with the two-digit ones.
+        assert!(colored.contains(" 1."), "1 should be padded to width 2");
+        assert!(colored.contains("10."));
+    }
+
+    #[test]
+    fn colored_display_omits_empty_sections() {
+        let plan = ExecutionPlan {
+            goal: "Minimal".into(),
+            steps: vec![],
+            estimated_files: vec![],
+            risks: vec![],
+        };
+        let colored = plan.display_colored();
+        assert!(!colored.contains("Files"));
+        assert!(!colored.contains("Risks"));
     }
 
     // ── strip_json_fences ────────────────────────────────────────────────
