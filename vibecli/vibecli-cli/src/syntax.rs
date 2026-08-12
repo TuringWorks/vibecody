@@ -754,6 +754,82 @@ pub fn format_tool_output_preview(output: &str, success: bool) -> String {
 mod tests {
     use super::*;
 
+    // ── dim_reasoning_blocks ─────────────────────────────────────────────────
+
+    #[test]
+    fn dims_the_tags_and_the_text_between_them() {
+        let out = dim_reasoning_blocks("<thinking>deliberating</thinking>Answer.");
+        assert_eq!(
+            out,
+            format!("{}<thinking>deliberating</thinking>{}Answer.", DIM, RESET)
+        );
+    }
+
+    #[test]
+    fn leaves_text_without_reasoning_untouched() {
+        let plain = "Here's a quick Python program.";
+        assert_eq!(dim_reasoning_blocks(plain), plain);
+    }
+
+    #[test]
+    fn dims_short_and_namespaced_tag_names() {
+        for (open, close) in [
+            ("<think>", "</think>"),
+            ("<mm:think>", "</mm:think>"),
+            ("<THINKING>", "</THINKING>"),
+        ] {
+            let out = dim_reasoning_blocks(&format!("{open}x{close}after"));
+            assert!(out.starts_with(DIM), "{open} should start a dim span");
+            assert!(out.ends_with("after"), "{open} should not dim the tail");
+        }
+    }
+
+    #[test]
+    fn reasserts_dim_after_interior_reset() {
+        // The highlighter emits RESET inside prose (inline code, emphasis). A
+        // bare DIM…RESET wrapper would stop dimming at the first one.
+        let highlighted = format!("<thinking>see {}{}numpy{}{}</thinking>tail", CYAN, "`", RESET, "");
+        let out = dim_reasoning_blocks(&highlighted);
+        let span_end = out.find("</thinking>").expect("closing tag survives");
+        let span = &out[..span_end];
+        let resets = span.matches(RESET).count();
+        let dims = span.matches(DIM).count();
+        assert_eq!(
+            dims,
+            resets + 1,
+            "every interior RESET must be followed by a DIM, plus the opening one: {span:?}"
+        );
+    }
+
+    #[test]
+    fn unclosed_block_dims_to_end_of_text() {
+        let out = dim_reasoning_blocks("<thinking>never closed");
+        assert!(out.starts_with(DIM));
+        assert!(out.ends_with(RESET));
+        assert!(out.contains("never closed"));
+    }
+
+    #[test]
+    fn dims_each_of_several_blocks_independently() {
+        let out = dim_reasoning_blocks("<think>a</think>mid<think>b</think>end");
+        assert!(out.contains(&format!("{}mid", RESET)), "mid stays undimmed");
+        assert!(out.ends_with("end"), "tail stays undimmed: {out:?}");
+        assert_eq!(out.matches(DIM).count(), 2, "one DIM per block");
+    }
+
+    #[test]
+    fn a_lone_angle_bracket_is_not_a_tag() {
+        let prose = "if a < b and c > d, return";
+        assert_eq!(dim_reasoning_blocks(prose), prose);
+    }
+
+    #[test]
+    fn highlight_code_blocks_dims_reasoning_in_prose() {
+        let out = highlight_code_blocks("<thinking>plan</thinking>\nAnswer.\n");
+        assert!(out.contains(DIM), "reasoning should be dimmed end to end");
+        assert!(out.contains("plan"), "reasoning text is kept, not stripped");
+    }
+
     // ── detect_language ──────────────────────────────────────────────────────
 
     #[test]
