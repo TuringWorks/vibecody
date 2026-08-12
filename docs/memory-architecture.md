@@ -494,8 +494,8 @@ pub struct Recap {
 }
 
 pub struct ResumeHint {
-    pub target: ResumeTarget,               // Session(id) | Job(id) | DiffChain(id)
-    pub from_message: Option<MessageId>,    // session resume cursor
+    pub target: ResumeTarget,             // Session(id) | Job(id) | DiffChain(id)
+    pub from_message: Option<MessageId>,  // session resume cursor
     pub from_step: Option<u32>,           // job step cursor
     pub from_diff_index: Option<u32>,     // diff-chain cursor
     pub seed_instruction: Option<String>, // pre-fill next prompt
@@ -514,7 +514,7 @@ pub struct ResumeHint {
 │   │                                                                     │   │
 │   │   ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐    │   │
 │   │   │ Agent task │  │User /recap │  │ Tab close  │  │Idle 30min  │    │   │
-│   │   │ completes  │  │ command    │  │ (vibecoder)   │  │(optional)  │    │   │
+│   │   │ completes  │  │ command    │  │ (vibecoder)│  │(optional)  │    │   │
 │   │   └──────┬─────┘  └──────┬─────┘  └──────┬─────┘  └──────┬─────┘    │   │
 │   │          │               │               │               │          │   │
 │   │          └───────────────┴───────────────┴───────────────┘          │   │
@@ -544,8 +544,8 @@ pub struct ResumeHint {
 │   │   │   DiffChain -> workspace.db/diff_chain_recaps (ChaCha20)      │ │   │
 │   │   │                                                               │ │   │
 │   │   └───────────────────────────────────────────────────────────────┘ │   │
-│   │                            │                                        │   │
-│   └────────────────────────────┴────────────────────────────────────────┘   │
+│   │                                                                     │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
 │                                  │                                          │
 │                                  ▼                                          │
 │   ┌─────────────────────────────────────────────────────────────────────┐   │
@@ -553,8 +553,8 @@ pub struct ResumeHint {
 │   │                                                                     │   │
 │   │   Client POST /v1/resume { from_recap_id, overrides... }            │   │
 │   │                                                                     │   │
-│   │                    │                                                │   │
-│   │                    ▼                                                │   │
+│   │                              │                                      │   │
+│   │                              ▼                                      │   │
 │   │   ┌────────────────────────────────────────────────────────────┐    │   │
 │   │   │  Daemon:                                                   │    │   │
 │   │   │  1. Load recap by ID                                       │    │   │
@@ -581,8 +581,8 @@ pub struct ResumeHint {
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │   ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────────────┐        │
-│   │  vibecli  │  │  vibecoder   │  │ vibemobile│  │ vibewatch         │        │
-│   │  REPL/TUI │  │  (Tauri)  │  │ (Flutter) │  │ (SwiftUI/Compose) │        │
+│   │  vibecli  │  │ vibecoder │  │ vibemobile│  │ vibewatch         │        │
+│   │  REPL/TUI │  │ (Tauri)   │  │ (Flutter) │  │ (SwiftUI/Compose) │        │
 │   └─────┬─────┘  └─────┬─────┘  └─────┬─────┘  └────────┬──────────┘        │
 │         │              │              │                 │                   │
 │         ▼              ▼              ▼                 ▼                   │
@@ -597,7 +597,7 @@ pub struct ResumeHint {
 │                                                                             │
 │   Per-client UX:                                                            │
 │   - vibecli: /recap command, --resume flag, end-of-agent print              │
-│   - vibecoder: Recap card at top of restored tab, History panel                │
+│   - vibecoder: Recap card at top of restored tab, History panel             │
 │   - vibemobile: ChatScreen header with recap card before transcript         │
 │   - vibewatch: RecapView (3 bullets max), "Continue on phone" button        │
 │                                                                             │
@@ -617,18 +617,18 @@ pub struct ResumeHint {
 │                  COMPLETE REQUEST FLOW: Chat Message                        │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│   User types message in vibecoder                                              │
+│   User types message in vibecoder                                           │
 │          │                                                                  │
 │          ▼                                                                  │
 │   ┌─────────────────────────────────────────────────────────────────────┐   │
-│   │  vibecoder: AIChat.tsx                                                 │   │ 
+│   │  vibecoder: AIChat.tsx                                              │   │ 
 │   │  - Read selectedProvider, selectedModel from toolbar                │   │
 │   │  - invoke("ai_chat", { provider, model, messages })                 │   │
 │   └─────────────────────────────────────────────────────────────────────┘   │
 │          │                                                                  │
 │          ▼                                                                  │
 │   ┌─────────────────────────────────────────────────────────────────────┐   │
-│   │  vibecoder Tauri: commands.rs                                          │   │
+│   │  vibecoder Tauri: commands.rs                                       │   │
 │   │  - build_temp_provider(provider, model)                             │   │
 │   │  - Call Context Assembler for project_memory                        │   │
 │   └────────────────────────────────────────────────────┬────────────────┘   │
@@ -686,7 +686,7 @@ pub struct ResumeHint {
 │                  BACKGROUND JOB AGENT FLOW                                  │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│   User submits background job via vibecoder BackgroundJobsPanel                │
+│   User submits background job via vibecoder BackgroundJobsPanel             │
 │          │                                                                  │
 │          ▼                                                                  │
 │   ┌─────────────────────────────────────────────────────────────────────┐   │

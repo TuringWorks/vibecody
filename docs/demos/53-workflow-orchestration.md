@@ -114,7 +114,7 @@ Todo added:
 Todo List (tasks/todo.md):
 
   ID       Status    Complexity  Task
-  ─────────────────────────────────────────────────────────────────
+  ─────────────────────────────────────────────────────────────────────────
   todo_1   Pending   Medium      Implement pagination for the inventory API
   todo_2   Pending   High        Migrate database from SQLite to PostgreSQL
   todo_3   Pending   Low         Update README with API examples

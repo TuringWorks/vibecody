@@ -62,8 +62,8 @@ NAME                        READY   STATUS    RESTARTS   AGE     NODE
 api-server-7d8f9b6c4-x2k9l  1/1    Running   0          2d3h    node-1
 api-server-7d8f9b6c4-m4p7n  1/1    Running   0          2d3h    node-2
 worker-5c8d7e9f1-q3r8s      1/1    Running   2          5d12h   node-1
-redis-0                      1/1    Running   0          7d      node-3
-postgres-0                   1/1    Running   0          7d      node-3
+redis-0                     1/1    Running   0          7d      node-3
+postgres-0                  1/1    Running   0          7d      node-3
 ```
 
 **REPL:**

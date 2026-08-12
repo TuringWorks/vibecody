@@ -33,7 +33,7 @@ Earlier releases: 0.5.7 was a release-engineering patch; 0.5.6 brought `/goal` d
 │  commands.rs    — 1,045+ Tauri commands (files, git, AI, agent …)│
 │  agent_executor — ToolExecutorTrait for agent tool calls         │
 │  flow.rs        — Flow Awareness Engine (activity tracking)      │
-│  memory.rs      — Workspace + global AI rules (.vibecoder.md)       │
+│  memory.rs      — Workspace + global AI rules (.vibecoder.md)    │
 └──────────────────────────┬───────────────────────────────────────┘
                            │
          ┌─────────────────┴──────────────────────┐

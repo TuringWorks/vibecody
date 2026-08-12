@@ -31,7 +31,7 @@ vibecli --setup
 Expected output:
 
 ```
-┌─ VibeCody Setup Wizard ─────────────────────────────────┐
+┌─ VibeCody Setup Wizard ──────────────────────────────────┐
 │                                                          │
 │  ✓ Platform:  macOS (aarch64)                            │
 │  ✓ Memory:    36.0 GB                                    │
@@ -69,9 +69,9 @@ Enter choice (1-6, default 1): 1
 │  ✓ Always-on: http://localhost:7878                     │
 │                                                         │
 │  Next steps:                                            │
-│    vibecli                    # Start chatting           │
+│    vibecli                    # Start chatting          │
 │    vibecli --agent "fix bugs" # Run an agent            │
-│    vibecli --review           # Review code              │
+│    vibecli --review           # Review code             │
 │                                                         │
 └─────────────────────────────────────────────────────────┘
 ```

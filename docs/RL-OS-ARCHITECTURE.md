@@ -68,7 +68,7 @@ A single platform that:
 │                                                                     │        
 ├────────────────────────────────────────────────────────-------──────┤  
 │                   VibeCody Integration Layer                        │        
-│  18 AI Providers │ Agent Framework │ Sandbox │ VibeCoder │ REPL        │ 
+│  18 AI Providers │ Agent Framework │ Sandbox │ VibeCoder │ REPL     │ 
 └─────────────────────────────────────────────────────────────────────┘
 
                               ↕

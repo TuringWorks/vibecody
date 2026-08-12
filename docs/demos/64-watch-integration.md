@@ -38,7 +38,7 @@ vibecli --watch status
 The watchOS companion (VibeCody Watch) communicates over WatchConnectivity / HTTP/2:
 
 ```
-┌────────────────────┐        HMAC-SHA256 JWT        ┌──────────────────────┐
+┌────────────────────┐        HMAC-SHA256 JWT         ┌──────────────────────┐
 │  Apple Watch       │ ─────────────────────────────► │  VibeCLI Daemon      │
 │  watchOS companion │ ◄───────────────────────────── │  /watch/* endpoints  │
 │  (SwiftUI)         │        SSE event stream        │  port 7860           │
