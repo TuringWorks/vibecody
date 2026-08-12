@@ -492,7 +492,13 @@ jobs:
         if: runner.os == 'macOS' && steps.vibecoder-apple-cert.outputs.signed == 'true'
         run: |
           set -euo pipefail
-          APP_DIR=$(find vibecoder/src-tauri/target -name "*.app" -type d 2>/dev/null | head -1)
+          # Workspace-root target/, not vibecoder/src-tauri/target: every
+          # src-tauri crate is a member of the root Cargo workspace, so bundles
+          # land in <repo>/target/ — which is why "Collect artifacts" below has
+          # always searched `target`. `|| true` keeps an empty result reportable:
+          # under `set -euo pipefail` the failing find aborted the step before
+          # its own error message, so the job failed with an empty log.
+          APP_DIR=$(find target -name "*.app" -type d 2>/dev/null | head -1 || true)
           if [ -z "$APP_DIR" ]; then
             echo "::error::no .app bundle found to verify"; exit 1
           fi
@@ -670,7 +676,8 @@ jobs:
         if: runner.os == 'macOS' && steps.vibeaichat-apple-cert.outputs.signed == 'true'
         run: |
           set -euo pipefail
-          APP_DIR=$(find vibeaichat/src-tauri/target -name "*.app" -type d 2>/dev/null | head -1)
+          # Workspace-root target/ — see build-vibecoder for the full rationale.
+          APP_DIR=$(find target -name "*.app" -type d 2>/dev/null | head -1 || true)
           if [ -z "$APP_DIR" ]; then
             echo "::error::no .app bundle found to verify"; exit 1
           fi
@@ -852,7 +859,8 @@ jobs:
         if: runner.os == 'macOS' && steps.vibedesk-apple-cert.outputs.signed == 'true'
         run: |
           set -euo pipefail
-          APP_DIR=$(find vibedesk/src-tauri/target -name "*.app" -type d 2>/dev/null | head -1)
+          # Workspace-root target/ — see build-vibecoder for the full rationale.
+          APP_DIR=$(find target -name "*.app" -type d 2>/dev/null | head -1 || true)
           if [ -z "$APP_DIR" ]; then
             echo "::error::no .app bundle found to verify"; exit 1
           fi
