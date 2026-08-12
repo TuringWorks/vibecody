@@ -236,6 +236,21 @@ Follow the 8-file dance in **"Adding / Updating Providers and Models"** below, t
 
 `Cargo.toml` (`[workspace.package].version`) → `vibecoder/package.json` → `vibedesk/package.json` → `vibeaichat/package.json` → `vibecoder/src-tauri/tauri.conf.json` → `vibedesk/src-tauri/tauri.conf.json` → `vibeaichat/src-tauri/tauri.conf.json` → `vibemobile/pubspec.yaml` (`version:`) → `docs/release.md` + `docs/CHANGELOG.md` + `RELEASE.md`. Watch apps inherit version from their project files (`vibewatch/project.yml`, `vibewatch/VibeCodyWear/app/build.gradle.kts` `versionName`). Keep them in lockstep.
 
+**Then the published site.** The manifests above are only half of it — the Jekyll pages under `docs/` state the current release in prose, in sample output, and in download tables, and none of that is generated. This list used to stop at `RELEASE.md`, which is exactly why turingworks.github.io/vibecody/vibecoder/ still said "What's new in 0.5.5" three releases later, and why the VibeMobile / watchOS / Wear OS install commands pointed at v0.5.7 assets after v0.5.8 shipped:
+
+- **What's-new headings** — `docs/vibecoder.md`, `docs/vibecli.md`, `docs/vibemobile.md`. Rewrite the body, don't just bump the number; demote the previous release's bullets to a one-line "added in X" note.
+- **Download tables** — `docs/vibemobile.md`, `docs/watchos.md`, `docs/wearos.md` (and the `curl -LO` lines inside their fenced blocks). Verify the assets actually exist for the tag first — `gh release view v<version> --json assets --jq '.assets[].name'`. If a platform's artifact didn't build, leaving the older link is correct; bumping it fabricates a 404.
+- **Sample output** — `docs/quickstart.md` (startup banner), `docs/api-reference.md` (`/health` response), `docs/connectivity.md` (beacon payload).
+- **`docs/release.md`** — add a new `## v<version> — Latest` section and demote the old one to a plain `## v<previous>` heading; its download links stay pointed at its own tag.
+
+**Leave these alone.** They name an old version on purpose, and bumping them makes the docs wrong:
+- Minimum-version claims — `vibecli --version returns 0.5.1+` across `docs/demos/*`.
+- Historical notes — "introduced in v0.5.5", "deployment target raised from 12.0 in v0.5.5", "`compileSdk = 37` from v0.5.8".
+- `docs/CHANGELOG.md` past entries, and `docs/release.md`'s archived release sections.
+- **As-of audit stamps** — `docs/security/threat-model.md` ("Inventory current as of `vX.Y.Z`"). Bumping that asserts a re-audit happened. Re-audit, then stamp.
+
+`scripts/check-docs-version.sh` enforces the mechanical half (CI: `docs-check (version)`). It reads the version from `Cargo.toml` and is deliberately narrow — it checks named headings and download links only, so the three "leave alone" categories never trip it. Add a row to its `checks` array when a page starts advertising the current release.
+
 ---
 
 ## Secure Settings Storage

@@ -12,16 +12,17 @@ As of **v0.5.5** VibeMobile gained URL-only pairing, zero-config mDNS / Tailscal
 
 ---
 
-## What's new in 0.5.5
+## What's new in 0.5.8
 
 | Area | Improvement |
 |------|-------------|
-| Pairing | **URL-only / URL + Bearer** pairing — no QR code or JSON copy required; works on emulators |
-| Auth | **P-256 ECDSA** (Keystore / StrongBox / Secure Enclave) replaces Ed25519 |
-| Discovery | **mDNS LAN** (`_vibecli._tcp.local.`), **Tailscale Funnel**, **ngrok** auto-detect — client races all reachable paths |
-| Continuity | **Handoff banner** auto-appears when desktop or watch opens a session |
-| Sync | **Google-Docs-style** full-content reconciliation with ID-based dedup — no truncation |
-| Session tree | Sandbox tab auto-surfaces when a paired watch starts a sandbox session |
+| Voice | **Mic in the chat and watch-chat composers** — on-device `speech_to_text` recogniser first, `record` + upload to the daemon's `/voice/transcribe` as fallback. Needs `NSMicrophoneUsageDescription` + `NSSpeechRecognitionUsageDescription` on iOS, `RECORD_AUDIO` plus the Android 11+ `RecognitionService` `<queries>` entry — without which the recogniser is invisible on every device |
+| SkillForge | Read-only skill catalogue and training-job status (`skilllensSkills`, `skilllensSkill`, `skilloptStatus`) |
+| Build | `compileSdk` raised to **37** (see the note under Platform requirements) — `minSdk` (API 24) unchanged |
+
+Added in **0.5.6**: the **+ New Goal** flow (AppBar action and empty-state button, machine picker when ≥ 2 are paired, 409-aware "already exists" handling) plus `getGoalTree` / `getCurrentGoal` / `pinGoal` / `unpinGoal` on `ApiClient`.
+
+Added in **0.5.5**: URL-only / URL + Bearer pairing (works on emulators), P-256 ECDSA device keys replacing Ed25519, mDNS / Tailscale Funnel / ngrok discovery raced in parallel, the Handoff banner, and Google-Docs-style full-content sync.
 
 ---
 
@@ -49,13 +50,13 @@ As of **v0.5.5** VibeMobile gained URL-only pairing, zero-config mDNS / Tailscal
 
 ### From release artifacts (fastest)
 
-See the [Releases page](/vibecody/release/) for the current build. For v0.5.5:
+See the [Releases page](/vibecody/release/) for the current build. For v0.5.8:
 
 | Platform | Artifact |
 |----------|----------|
-| iOS | [`VibeCody-Mobile-v0.5.7-ios.ipa`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.7/VibeCody-Mobile-v0.5.7-ios.ipa) (unsigned — sideload via AltStore / Sideloadly) |
-| Android APK | [`VibeCody-Mobile-v0.5.7-android.apk`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.7/VibeCody-Mobile-v0.5.7-android.apk) |
-| Android AAB | [`VibeCody-Mobile-v0.5.7-android.aab`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.7/VibeCody-Mobile-v0.5.7-android.aab) |
+| iOS | [`VibeCody-Mobile-v0.5.8-ios.ipa`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCody-Mobile-v0.5.8-ios.ipa) (unsigned — sideload via AltStore / Sideloadly) |
+| Android APK | [`VibeCody-Mobile-v0.5.8-android.apk`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCody-Mobile-v0.5.8-android.apk) |
+| Android AAB | [`VibeCody-Mobile-v0.5.8-android.aab`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.8/VibeCody-Mobile-v0.5.8-android.aab) |
 
 ### From source
 
