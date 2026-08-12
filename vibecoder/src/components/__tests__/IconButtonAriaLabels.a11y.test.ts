@@ -19,10 +19,10 @@ type Target = { file: string; line: number; desc: string };
 
 const TARGETS: Target[] = [
   { file: "AdminPanel.tsx", line: 144, desc: "close error message" },
-  { file: "AgilePanel.tsx", line: 2691, desc: "delete epic" },
+  { file: "AgilePanel.tsx", line: 2692, desc: "delete epic" },
   { file: "AppBuilderPanel.tsx", line: 424, desc: "close error message" },
-  { file: "ArchitectureSpecPanel.tsx", line: 605, desc: "close report" },
-  { file: "ArchitectureSpecPanel.tsx", line: 768, desc: "close cell editing" },
+  { file: "ArchitectureSpecPanel.tsx", line: 612, desc: "close report" },
+  { file: "ArchitectureSpecPanel.tsx", line: 775, desc: "close cell editing" },
   // Line numbers here shift whenever the file above the target changes; when a
   // case starts failing, check whether the line still points at the intended
   // button before assuming a real regression.
@@ -39,9 +39,9 @@ const TARGETS: Target[] = [
   { file: "CompanySecretsPanel.tsx", line: 108, desc: "clear command result" },
   { file: "DataGenPanel.tsx", line: 312, desc: "delete field" },
   { file: "EditPredictionPanel.tsx", line: 141, desc: "close error message" },
-  { file: "HealthScorePanel.tsx", line: 117, desc: "close error message" },
+  { file: "HealthScorePanel.tsx", line: 134, desc: "close error message" },
   { file: "ReviewProtocolPanel.tsx", line: 96, desc: "close error message" },
-  { file: "SettingsPanel.tsx", line: 1881, desc: "close settings panel" },
+  { file: "SettingsPanel.tsx", line: 1894, desc: "close settings panel" },
 ];
 
 // Locate a `<button` opening tag at or after `line` and return [startLine, endLine].
