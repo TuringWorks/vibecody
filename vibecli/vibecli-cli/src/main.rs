@@ -7407,7 +7407,9 @@ async fn main() -> Result<()> {
                             let store = match crate::serve::trust_store_path() {
                                 Some(p) => p,
                                 None => {
-                                    println!("No home directory — cannot locate the trust store.\n");
+                                    println!(
+                                        "No home directory — cannot locate the trust store.\n"
+                                    );
                                     continue;
                                 }
                             };
@@ -7457,7 +7459,8 @@ async fn main() -> Result<()> {
                                     println!(
                                         "   Enforced: {}",
                                         match policy {
-                                            TrustPolicy::Deny => "yes — agent runs here are refused",
+                                            TrustPolicy::Deny =>
+                                                "yes — agent runs here are refused",
                                             _ => "no — agent runs here are permitted",
                                         }
                                     );
@@ -10062,7 +10065,10 @@ async fn main() -> Result<()> {
                             // credential as a flag (deploy CLIs take --token=/--auth=), and
                             // until 2026-08-10 only the command *output* was redacted — the
                             // command itself went to the terminal and the log verbatim.
-                            println!("Running: {}\n", warp_features::SecretRedactor::new().redact(&cmd));
+                            println!(
+                                "Running: {}\n",
+                                warp_features::SecretRedactor::new().redact(&cmd)
+                            );
                             let (prog, cmd_args) = if cmd.starts_with("cargo") {
                                 ("cargo", vec!["test"])
                             } else if cmd.starts_with("npm") {
@@ -10209,7 +10215,10 @@ async fn main() -> Result<()> {
                                     // credential as a flag (deploy CLIs take --token=/--auth=), and
                                     // until 2026-08-10 only the command *output* was redacted — the
                                     // command itself went to the terminal and the log verbatim.
-                                    println!("Running: {}\n", warp_features::SecretRedactor::new().redact(&cmd));
+                                    println!(
+                                        "Running: {}\n",
+                                        warp_features::SecretRedactor::new().redact(&cmd)
+                                    );
                                     let status = std::process::Command::new("sh")
                                         .args(["-c", cmd])
                                         .current_dir(&cwd)
@@ -10270,7 +10279,10 @@ async fn main() -> Result<()> {
                             // credential as a flag (deploy CLIs take --token=/--auth=), and
                             // until 2026-08-10 only the command *output* was redacted — the
                             // command itself went to the terminal and the log verbatim.
-                            println!("Running: {}\n", warp_features::SecretRedactor::new().redact(&fw));
+                            println!(
+                                "Running: {}\n",
+                                warp_features::SecretRedactor::new().redact(&fw)
+                            );
                             let status = std::process::Command::new("sh")
                                 .args(["-c", fw])
                                 .current_dir(&cwd)
@@ -18780,11 +18792,9 @@ async fn run_agent_repl_with_context(
                     let _ = result_tx.send(None);
                 } else {
                     let result = executor.execute(&call).await;
-                    for block in render.record(
-                        &call,
-                        result.success,
-                        Some(workspace_for_render.as_path()),
-                    ) {
+                    for block in
+                        render.record(&call, result.success, Some(workspace_for_render.as_path()))
+                    {
                         println!("{}", block.to_plain());
                     }
                     // As above: only a failure still needs its raw output.
@@ -18826,18 +18836,11 @@ async fn run_agent_repl_with_context(
                 // up mid-task rather than re-deriving what was already done.
                 transcript.push(Message {
                     role: MessageRole::Assistant,
-                    content: format!(
-                        "{} {}",
-                        step.tool_call.name(),
-                        step.tool_call.summary()
-                    ),
+                    content: format!("{} {}", step.tool_call.name(), step.tool_call.summary()),
                 });
                 transcript.push(Message {
                     role: MessageRole::User,
-                    content: vibe_ai::tools::format_tool_result(
-                        &step.tool_call,
-                        &step.tool_result,
-                    ),
+                    content: vibe_ai::tools::format_tool_result(&step.tool_call, &step.tool_result),
                 });
                 // Successful output is folded into the activity line above. A
                 // failure is the one case where the text is the whole point —
@@ -20180,7 +20183,11 @@ struct BugbotRunOptions {
 enum BugbotTarget {
     WorkingTree,
     StagedIndex,
-    PullRequest { owner: String, repo: String, number: u32 },
+    PullRequest {
+        owner: String,
+        repo: String,
+        number: u32,
+    },
 }
 
 impl BugbotTarget {
@@ -20188,7 +20195,11 @@ impl BugbotTarget {
         match self {
             BugbotTarget::WorkingTree => "uncommitted changes".to_string(),
             BugbotTarget::StagedIndex => "staged changes".to_string(),
-            BugbotTarget::PullRequest { owner, repo, number } => {
+            BugbotTarget::PullRequest {
+                owner,
+                repo,
+                number,
+            } => {
                 format!("{}/{} PR #{}", owner, repo, number)
             }
         }
@@ -20211,7 +20222,11 @@ async fn run_bugbot(llm: Arc<dyn LLMProvider>, opts: BugbotRunOptions) -> Result
                      a github.com URL"
                 )
             })?;
-            BugbotTarget::PullRequest { owner, repo, number }
+            BugbotTarget::PullRequest {
+                owner,
+                repo,
+                number,
+            }
         }
         None if opts.staged => BugbotTarget::StagedIndex,
         None => BugbotTarget::WorkingTree,
@@ -20224,9 +20239,11 @@ async fn run_bugbot(llm: Arc<dyn LLMProvider>, opts: BugbotRunOptions) -> Result
     let diff = match &target {
         BugbotTarget::WorkingTree => BugBot::get_working_diff(&cwd)?,
         BugbotTarget::StagedIndex => BugBot::get_staged_diff(&cwd)?,
-        BugbotTarget::PullRequest { owner, repo, number } => {
-            bot.fetch_pr_diff(owner, repo, u64::from(*number)).await?
-        }
+        BugbotTarget::PullRequest {
+            owner,
+            repo,
+            number,
+        } => bot.fetch_pr_diff(owner, repo, u64::from(*number)).await?,
     };
 
     if diff.trim().is_empty() {
@@ -20314,7 +20331,15 @@ async fn run_bugbot(llm: Arc<dyn LLMProvider>, opts: BugbotRunOptions) -> Result
     }
 
     // ── Delivery ─────────────────────────────────────────────────────────────
-    if let (BugbotTarget::PullRequest { owner, repo, number }, true) = (&target, opts.post_github) {
+    if let (
+        BugbotTarget::PullRequest {
+            owner,
+            repo,
+            number,
+        },
+        true,
+    ) = (&target, opts.post_github)
+    {
         // Anchor to the PR's own head commit. Local HEAD is a different commit
         // unless the PR branch happens to be checked out and current.
         let head_sha = github_app::fetch_pr_head_sha(

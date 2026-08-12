@@ -2157,7 +2157,10 @@ mod thinking_tests {
         let text = "<tool_call name=\"container.exec\"><cmd>ls</cmd></tool_call>";
         let reason = tool_call_rejection_reason(text).expect("should reject");
         assert!(reason.contains("is not an available tool"), "{reason}");
-        assert!(reason.contains("bash"), "should list the real tools: {reason}");
+        assert!(
+            reason.contains("bash"),
+            "should list the real tools: {reason}"
+        );
     }
 
     #[test]
@@ -2168,7 +2171,10 @@ mod thinking_tests {
 
     #[test]
     fn plain_prose_is_not_rejected() {
-        assert_eq!(tool_call_rejection_reason("Just explaining the plan."), None);
+        assert_eq!(
+            tool_call_rejection_reason("Just explaining the plan."),
+            None
+        );
     }
 
     #[test]

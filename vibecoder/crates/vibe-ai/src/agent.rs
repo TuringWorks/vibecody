@@ -3543,7 +3543,8 @@ mod circuit_breaker_tests {
     fn hint_changes_once_compaction_is_exhausted() {
         let mut cb = degraded_breaker();
         assert!(
-            cb.rotation_hint().contains("Compacting context automatically"),
+            cb.rotation_hint()
+                .contains("Compacting context automatically"),
             "should announce the action it is taking"
         );
         cb.auto_compactions = cb.max_auto_compactions;
@@ -3561,8 +3562,14 @@ mod circuit_breaker_tests {
         // removes something. `max_context_tokens` cannot do this — we are
         // already under it.
         let mut msgs = vec![
-            Message { role: MessageRole::System, content: "sys".into() },
-            Message { role: MessageRole::User, content: "task".into() },
+            Message {
+                role: MessageRole::System,
+                content: "sys".into(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: "task".into(),
+            },
         ];
         for i in 0..40 {
             msgs.push(Message {
@@ -3586,9 +3593,18 @@ mod circuit_breaker_tests {
         // Guards the "claimed a fix that did nothing" path: with nothing to
         // drop, the loop must report that instead of counting a compaction.
         let mut msgs = vec![
-            Message { role: MessageRole::System, content: "sys".into() },
-            Message { role: MessageRole::User, content: "task".into() },
-            Message { role: MessageRole::Assistant, content: "short".into() },
+            Message {
+                role: MessageRole::System,
+                content: "sys".into(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: "task".into(),
+            },
+            Message {
+                role: MessageRole::Assistant,
+                content: "short".into(),
+            },
         ];
         let before = estimate_tokens(&msgs);
         prune_messages(&mut msgs, (before / 2).max(MIN_COMPACTION_BUDGET_TOKENS));

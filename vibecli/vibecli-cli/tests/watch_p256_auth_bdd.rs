@@ -54,9 +54,8 @@ fn a_fresh_manager(world: &mut P256World) {
 
 #[given("a P256 signing key is generated")]
 fn generate_p256_key(world: &mut P256World) {
-    world.signing_key = Some(
-        SigningKey::try_generate_from_rng(&mut rand::rng()).expect("ThreadRng is Infallible"),
-    );
+    world.signing_key =
+        Some(SigningKey::try_generate_from_rng(&mut rand::rng()).expect("ThreadRng is Infallible"));
 }
 
 #[given("a registration challenge is issued")]

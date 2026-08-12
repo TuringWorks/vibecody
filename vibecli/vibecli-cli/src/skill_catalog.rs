@@ -263,8 +263,7 @@ struct DirFingerprint {
 }
 
 fn fingerprint_dir(dir: &Path) -> Result<DirFingerprint> {
-    let entries =
-        std::fs::read_dir(dir).with_context(|| format!("read_dir {}", dir.display()))?;
+    let entries = std::fs::read_dir(dir).with_context(|| format!("read_dir {}", dir.display()))?;
     let (count, bytes, newest) = entries
         .flatten()
         .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("md"))
@@ -663,7 +662,11 @@ Just markdown body.
 
         let second = load_builtin_cached(dir.path()).unwrap();
         assert!(
-            second.get("agent-loops").unwrap().body.contains("Observe first"),
+            second
+                .get("agent-loops")
+                .unwrap()
+                .body
+                .contains("Observe first"),
             "an edited skill body must invalidate the cache"
         );
     }
@@ -691,9 +694,18 @@ Just markdown body.
         write_skill(a.path(), "design-cad", SAMPLE_DESIGN);
         write_skill(b.path(), "agent-loops", SAMPLE_AGENT);
 
-        assert!(load_builtin_cached(a.path()).unwrap().get("design-cad").is_some());
-        assert!(load_builtin_cached(b.path()).unwrap().get("design-cad").is_none());
-        assert!(load_builtin_cached(b.path()).unwrap().get("agent-loops").is_some());
+        assert!(load_builtin_cached(a.path())
+            .unwrap()
+            .get("design-cad")
+            .is_some());
+        assert!(load_builtin_cached(b.path())
+            .unwrap()
+            .get("design-cad")
+            .is_none());
+        assert!(load_builtin_cached(b.path())
+            .unwrap()
+            .get("agent-loops")
+            .is_some());
     }
 
     #[test]
@@ -727,7 +739,7 @@ Just markdown body.
         use crate::signed_agent_card::jwk_from_verifying_key;
         use crate::workspace_store::WorkspaceStore;
         use p256::ecdsa::SigningKey;
-    use p256::elliptic_curve::Generate;
+        use p256::elliptic_curve::Generate;
 
         // Built-in catalog has one skill.
         let builtin = tempdir().unwrap();
@@ -740,7 +752,8 @@ Just markdown body.
         let store = WorkspaceStore::open_with(&db, [11u8; 32]).unwrap();
 
         // Build + sign a plugin bundle that ships one skill.
-        let key = SigningKey::try_generate_from_rng(&mut rand::rng()).expect("ThreadRng is Infallible");
+        let key =
+            SigningKey::try_generate_from_rng(&mut rand::rng()).expect("ThreadRng is Infallible");
         let manifest = PluginManifest {
             name: "demo".into(),
             version: "1.0.0".into(),
@@ -831,7 +844,8 @@ Just markdown body.
         std::fs::create_dir_all(db.parent().unwrap()).unwrap();
         let store = WorkspaceStore::open_with(&db, [22u8; 32]).unwrap();
 
-        let key = SigningKey::try_generate_from_rng(&mut rand::rng()).expect("ThreadRng is Infallible");
+        let key =
+            SigningKey::try_generate_from_rng(&mut rand::rng()).expect("ThreadRng is Infallible");
         let manifest = PluginManifest {
             name: "muted".into(),
             version: "1.0.0".into(),
@@ -915,7 +929,8 @@ Just markdown body.
         std::fs::create_dir_all(db.parent().unwrap()).unwrap();
         let store = WorkspaceStore::open_with(&db, [33u8; 32]).unwrap();
 
-        let key = SigningKey::try_generate_from_rng(&mut rand::rng()).expect("ThreadRng is Infallible");
+        let key =
+            SigningKey::try_generate_from_rng(&mut rand::rng()).expect("ThreadRng is Infallible");
         let manifest = PluginManifest {
             name: "clash".into(),
             version: "1.0.0".into(),

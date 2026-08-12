@@ -391,7 +391,10 @@ pub fn split_diff_by_file(diff: &str) -> Vec<DiffSection> {
 ///
 /// Returns the batches and the paths of files whose own section exceeded the
 /// budget and had to be cut — named, so the caller can say so.
-fn pack_into_batches(sections: &[DiffSection], budget: usize) -> (Vec<Vec<DiffSection>>, Vec<String>) {
+fn pack_into_batches(
+    sections: &[DiffSection],
+    budget: usize,
+) -> (Vec<Vec<DiffSection>>, Vec<String>) {
     let mut batches: Vec<Vec<DiffSection>> = Vec::new();
     let mut current: Vec<DiffSection> = Vec::new();
     let mut used = 0usize;
@@ -427,7 +430,10 @@ fn truncate_on_char_boundary(text: &str, max: usize) -> String {
     if text.len() <= max {
         return text.to_string();
     }
-    let end = (0..=max).rev().find(|i| text.is_char_boundary(*i)).unwrap_or(0);
+    let end = (0..=max)
+        .rev()
+        .find(|i| text.is_char_boundary(*i))
+        .unwrap_or(0);
     text[..end].to_string()
 }
 
@@ -582,7 +588,9 @@ impl BugBot {
         if diff.trim().is_empty() {
             return vec![];
         }
-        self.review_diff_planned(diff, ReviewPlan::default()).await.0
+        self.review_diff_planned(diff, ReviewPlan::default())
+            .await
+            .0
     }
 
     /// Review a diff with full file coverage and optional repeated passes.
@@ -652,7 +660,8 @@ impl BugBot {
         }
 
         let paths_of = |batch: usize| batches[batch].iter().map(|f| f.path.clone());
-        let files_skipped: Vec<String> = skipped_batches.iter().copied().flat_map(paths_of).collect();
+        let files_skipped: Vec<String> =
+            skipped_batches.iter().copied().flat_map(paths_of).collect();
         let files_provider_failed: Vec<String> = (0..batches.len())
             .filter(|b| !succeeded.contains(b) && !skipped_batches.contains(b))
             .flat_map(paths_of)
@@ -921,7 +930,10 @@ mod tests {
     use super::*;
 
     fn section(path: &str, body: &str) -> String {
-        format!("diff --git a/{p} b/{p}\n--- a/{p}\n+++ b/{p}\n@@ -1,1 +1,1 @@\n+{body}\n", p = path)
+        format!(
+            "diff --git a/{p} b/{p}\n--- a/{p}\n+++ b/{p}\n@@ -1,1 +1,1 @@\n+{body}\n",
+            p = path
+        )
     }
 
     fn finding(file: &str, line: u32, severity: Severity, message: &str) -> BugReport {
@@ -1008,7 +1020,8 @@ mod tests {
 
     #[test]
     fn one_batch_when_everything_fits() {
-        let sections = split_diff_by_file(&format!("{}{}", section("a.rs", "1"), section("b.rs", "2")));
+        let sections =
+            split_diff_by_file(&format!("{}{}", section("a.rs", "1"), section("b.rs", "2")));
         let (batches, _) = pack_into_batches(&sections, 100_000);
         assert_eq!(batches.len(), 1);
         assert_eq!(batches[0].len(), 2);
@@ -1032,16 +1045,24 @@ mod tests {
 
     #[test]
     fn rotation_preserves_every_file() {
-        let sections = split_diff_by_file(&format!("{}{}", section("a.rs", "1"), section("b.rs", "2")));
+        let sections =
+            split_diff_by_file(&format!("{}{}", section("a.rs", "1"), section("b.rs", "2")));
         let rotated = rotate(&sections, 1);
         assert_eq!(rotated.len(), 2);
     }
 
     #[test]
     fn rotation_is_deterministic_across_calls() {
-        let sections = split_diff_by_file(&format!("{}{}", section("a.rs", "1"), section("b.rs", "2")));
-        let first: Vec<&str> = rotate(&sections, 7).iter().map(|s| s.path.as_str()).collect();
-        let second: Vec<&str> = rotate(&sections, 7).iter().map(|s| s.path.as_str()).collect();
+        let sections =
+            split_diff_by_file(&format!("{}{}", section("a.rs", "1"), section("b.rs", "2")));
+        let first: Vec<&str> = rotate(&sections, 7)
+            .iter()
+            .map(|s| s.path.as_str())
+            .collect();
+        let second: Vec<&str> = rotate(&sections, 7)
+            .iter()
+            .map(|s| s.path.as_str())
+            .collect();
         assert_eq!(first, second);
     }
 
@@ -1055,8 +1076,18 @@ mod tests {
     #[test]
     fn collapses_the_same_finding_reported_by_two_passes() {
         let reports = vec![
-            finding("a.rs", 10, Severity::Warning, "Off-by-one in the loop bound"),
-            finding("a.rs", 10, Severity::Warning, "off by one in the loop bound!"),
+            finding(
+                "a.rs",
+                10,
+                Severity::Warning,
+                "Off-by-one in the loop bound",
+            ),
+            finding(
+                "a.rs",
+                10,
+                Severity::Warning,
+                "off by one in the loop bound!",
+            ),
         ];
         assert_eq!(dedupe_reports(reports).len(), 1);
     }
@@ -1076,7 +1107,12 @@ mod tests {
     fn distinct_findings_at_the_same_line_both_survive() {
         let reports = vec![
             finding("a.rs", 10, Severity::Error, "Division by zero"),
-            finding("a.rs", 10, Severity::Error, "Unvalidated user input reaches the query"),
+            finding(
+                "a.rs",
+                10,
+                Severity::Error,
+                "Unvalidated user input reaches the query",
+            ),
         ];
         assert_eq!(dedupe_reports(reports).len(), 2);
     }
@@ -1185,10 +1221,7 @@ mod tests {
         async fn chat(&self, _m: &[Message], _c: Option<String>) -> Result<String> {
             anyhow::bail!("provider is down")
         }
-        async fn stream_chat(
-            &self,
-            _m: &[Message],
-        ) -> Result<vibe_ai::provider::CompletionStream> {
+        async fn stream_chat(&self, _m: &[Message]) -> Result<vibe_ai::provider::CompletionStream> {
             anyhow::bail!("provider is down")
         }
     }
@@ -1208,7 +1241,10 @@ mod tests {
         assert_eq!(coverage.files_reviewed, 0);
         assert_eq!(coverage.llm_calls, 1);
         assert_eq!(coverage.llm_calls_failed, 1);
-        assert_eq!(coverage.files_provider_failed, vec!["src/math.py".to_string()]);
+        assert_eq!(
+            coverage.files_provider_failed,
+            vec!["src/math.py".to_string()]
+        );
         assert!(!coverage.is_complete());
     }
 
@@ -1218,14 +1254,20 @@ mod tests {
             llm: Arc::new(FailingProvider),
             gh_token: None,
         };
-        let diff = section("app.py", "API_KEY = \"sk-live-abcdef0123456789abcdef0123456789\"");
+        let diff = section(
+            "app.py",
+            "API_KEY = \"sk-live-abcdef0123456789abcdef0123456789\"",
+        );
         let (reports, coverage) = bot.review_diff_planned(&diff, ReviewPlan::default()).await;
 
         assert!(
             !reports.is_empty(),
             "the deterministic scan does not depend on the provider"
         );
-        assert!(!coverage.is_complete(), "but the review is still not complete");
+        assert!(
+            !coverage.is_complete(),
+            "but the review is still not complete"
+        );
     }
 
     #[tokio::test]
@@ -1265,7 +1307,11 @@ mod tests {
 
     #[test]
     fn the_prompt_contains_every_file_in_the_batch() {
-        let sections = split_diff_by_file(&format!("{}{}", section("a.rs", "one"), section("b.rs", "two")));
+        let sections = split_diff_by_file(&format!(
+            "{}{}",
+            section("a.rs", "one"),
+            section("b.rs", "two")
+        ));
         let prompt = review_prompt(&rotate(&sections, 0));
         assert!(prompt.contains("+one"));
         assert!(prompt.contains("+two"));

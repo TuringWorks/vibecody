@@ -972,7 +972,7 @@ mod tests {
         use crate::plugin_signing::{sign_manifest, MANIFEST_FILENAME, SIGNATURE_FILENAME};
         use crate::signed_agent_card::jwk_from_verifying_key;
         use p256::ecdsa::SigningKey;
-    use p256::elliptic_curve::Generate;
+        use p256::elliptic_curve::Generate;
 
         // Use the workspace's per-path-derived key (the production
         // path) so the freshly-opened WorkspaceStore inside
@@ -985,7 +985,8 @@ mod tests {
         fs::create_dir_all(src.join("rules")).unwrap();
         fs::write(src.join("rules/r.md"), rule_body).unwrap();
 
-        let key = SigningKey::try_generate_from_rng(&mut rand::rng()).expect("ThreadRng is Infallible");
+        let key =
+            SigningKey::try_generate_from_rng(&mut rand::rng()).expect("ThreadRng is Infallible");
         let manifest = crate::plugin_manifest::PluginManifest {
             name: name.to_string(),
             version: "1.0.0".into(),

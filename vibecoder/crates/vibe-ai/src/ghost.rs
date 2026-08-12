@@ -189,7 +189,10 @@ fn strip_code_fence(raw: &str) -> &str {
 /// hosts do that by gating on the editor's explicit trigger kind. Nothing in
 /// this function can tell an explicit request from an automatic one, so the
 /// gate belongs at the edge and must not be relaxed there.
-pub async fn generate(provider: Arc<dyn AIProvider>, request: GhostRequest) -> Result<GhostResponse> {
+pub async fn generate(
+    provider: Arc<dyn AIProvider>,
+    request: GhostRequest,
+) -> Result<GhostResponse> {
     let provider_name = provider.name().to_string();
 
     tracing::debug!(
@@ -293,7 +296,9 @@ mod tests {
     #[test]
     fn user_prompt_splits_at_the_cursor() {
         let prompt = build_user_prompt(&request_stub());
-        let cursor = prompt.find("=== CURSOR ===").expect("cursor marker present");
+        let cursor = prompt
+            .find("=== CURSOR ===")
+            .expect("cursor marker present");
         let prefix_at = prompt.find("fn add(a: i32").expect("prefix present");
         let suffix_at = prompt.rfind("\n}\n").expect("suffix present");
         assert!(prefix_at < cursor, "prefix must precede the cursor marker");
@@ -342,7 +347,10 @@ mod tests {
     #[test]
     fn declining_to_complete_yields_empty_not_error() {
         let (out, truncated) = sanitize_completion("   \n\n  ");
-        assert!(out.is_empty(), "an empty answer is a valid 'nothing fits here'");
+        assert!(
+            out.is_empty(),
+            "an empty answer is a valid 'nothing fits here'"
+        );
         assert!(!truncated);
     }
 

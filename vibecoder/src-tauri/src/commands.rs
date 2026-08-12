@@ -8575,9 +8575,8 @@ async fn resolve_editing_provider(
 ) -> Result<Arc<dyn vibe_ai::provider::AIProvider>, String> {
     if !provider.is_empty() {
         if let Some(model) = model.map(str::trim).filter(|m| !m.is_empty()) {
-            return build_temp_provider(provider, model).ok_or_else(|| {
-                format!("No API key configured for provider '{provider}'")
-            });
+            return build_temp_provider(provider, model)
+                .ok_or_else(|| format!("No API key configured for provider '{provider}'"));
         }
     }
 

@@ -561,7 +561,11 @@ mod tests {
             "\n",
             "{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"initialize\"}\n"
         ));
-        assert_eq!(replies.len(), 2, "blank lines produce nothing; bad line + good line produce one each");
+        assert_eq!(
+            replies.len(),
+            2,
+            "blank lines produce nothing; bad line + good line produce one each"
+        );
         assert_eq!(replies[0]["error"]["code"], errors::PARSE_ERROR);
         assert_eq!(
             replies[1]["id"], 7,

@@ -367,8 +367,7 @@ pub fn get_skill_value(name: &str) -> Option<Value> {
     // Prefer the file (it carries the frontmatter the panel renders); fall
     // back to the already-parsed body rather than `unwrap_or_default()`,
     // which turned an unreadable skill into a convincing empty one.
-    let body =
-        std::fs::read_to_string(&entry.path).unwrap_or_else(|_| entry.body.clone());
+    let body = std::fs::read_to_string(&entry.path).unwrap_or_else(|_| entry.body.clone());
     let (cached, promoted_override): (Option<SkillReport>, Option<String>) = with_state(|s| {
         (
             s.reports.get(name).cloned(),

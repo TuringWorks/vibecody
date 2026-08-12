@@ -927,7 +927,12 @@ mod tests {
         ] {
             let out = r.redact(cmd);
             assert!(out.contains("****"), "no redaction applied to: {cmd}");
-            for leaked in ["abc123secret", "nfp_liveSecretValue", "k_live_9999", "AKIAV3RYS3CR3T"] {
+            for leaked in [
+                "abc123secret",
+                "nfp_liveSecretValue",
+                "k_live_9999",
+                "AKIAV3RYS3CR3T",
+            ] {
                 assert!(!out.contains(leaked), "leaked {leaked} in {out}");
             }
         }

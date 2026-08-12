@@ -979,7 +979,10 @@ mod tests {
     fn rejects_malformed_slugs() {
         assert_eq!(parse_github_slug(""), None);
         assert_eq!(parse_github_slug("https://github.com/owner"), None);
-        assert_eq!(parse_github_slug("https://github.com/owner/repo/extra"), None);
+        assert_eq!(
+            parse_github_slug("https://github.com/owner/repo/extra"),
+            None
+        );
         assert_eq!(parse_github_slug("https://github.com//repo"), None);
     }
 

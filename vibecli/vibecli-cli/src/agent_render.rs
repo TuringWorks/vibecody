@@ -34,7 +34,11 @@ pub enum Block {
     /// Folded read-only activity, e.g. `Read 2 files, ran 1 shell command`.
     Activity(String),
     /// A file-modifying call.
-    Edit { verb: String, path: String, detail: String },
+    Edit {
+        verb: String,
+        path: String,
+        detail: String,
+    },
 }
 
 impl Block {
@@ -98,14 +102,42 @@ impl Activity {
     /// `Searched for 1 pattern, read 4 files, ran 6 shell commands`
     fn render(&self) -> Option<String> {
         let parts: Vec<String> = [
-            (self.searched, plural(self.searched, "pattern", "patterns"), "searched for "),
+            (
+                self.searched,
+                plural(self.searched, "pattern", "patterns"),
+                "searched for ",
+            ),
             (self.read, plural(self.read, "file", "files"), "read "),
-            (self.listed, plural(self.listed, "directory", "directories"), "listed "),
-            (self.ran, plural(self.ran, "shell command", "shell commands"), "ran "),
-            (self.fetched, plural(self.fetched, "URL", "URLs"), "fetched "),
-            (self.web_searched, plural(self.web_searched, "web search", "web searches"), "ran "),
-            (self.spawned, plural(self.spawned, "agent", "agents"), "spawned "),
-            (self.other, plural(self.other, "other tool", "other tools"), "used "),
+            (
+                self.listed,
+                plural(self.listed, "directory", "directories"),
+                "listed ",
+            ),
+            (
+                self.ran,
+                plural(self.ran, "shell command", "shell commands"),
+                "ran ",
+            ),
+            (
+                self.fetched,
+                plural(self.fetched, "URL", "URLs"),
+                "fetched ",
+            ),
+            (
+                self.web_searched,
+                plural(self.web_searched, "web search", "web searches"),
+                "ran ",
+            ),
+            (
+                self.spawned,
+                plural(self.spawned, "agent", "agents"),
+                "spawned ",
+            ),
+            (
+                self.other,
+                plural(self.other, "other tool", "other tools"),
+                "used ",
+            ),
         ]
         .into_iter()
         .filter(|(n, _, _)| *n > 0)
@@ -169,7 +201,11 @@ impl Renderer {
         match Self::edit_block(call, success, workspace) {
             // An edit ends the current activity run, so the reads that led to
             // it print above it rather than after.
-            Some(edit) => self.flush().into_iter().chain(std::iter::once(edit)).collect(),
+            Some(edit) => self
+                .flush()
+                .into_iter()
+                .chain(std::iter::once(edit))
+                .collect(),
             None => {
                 self.pending.record(call);
                 Vec::new()
@@ -225,13 +261,20 @@ mod tests {
     use super::*;
 
     fn read(p: &str) -> ToolCall {
-        ToolCall::ReadFile { path: p.to_string() }
+        ToolCall::ReadFile {
+            path: p.to_string(),
+        }
     }
     fn bash(c: &str) -> ToolCall {
-        ToolCall::Bash { command: c.to_string() }
+        ToolCall::Bash {
+            command: c.to_string(),
+        }
     }
     fn write(p: &str, c: &str) -> ToolCall {
-        ToolCall::WriteFile { path: p.to_string(), content: c.to_string() }
+        ToolCall::WriteFile {
+            path: p.to_string(),
+            content: c.to_string(),
+        }
     }
 
     #[test]
@@ -290,7 +333,8 @@ mod tests {
 
     #[test]
     fn patch_counts_exclude_file_headers() {
-        let patch = "--- a/x.rs\n+++ b/x.rs\n@@ -1,2 +1,3 @@\n context\n-old line\n+new line\n+extra";
+        let patch =
+            "--- a/x.rs\n+++ b/x.rs\n@@ -1,2 +1,3 @@\n context\n-old line\n+new line\n+extra";
         assert_eq!(patch_line_delta(patch), (2, 1));
     }
 
@@ -331,7 +375,13 @@ mod tests {
         // A tool with no verb must still appear, or the summary quietly
         // under-reports what the agent did.
         let mut r = Renderer::new();
-        r.record(&ToolCall::TaskComplete { summary: "done".into() }, true, None);
+        r.record(
+            &ToolCall::TaskComplete {
+                summary: "done".into(),
+            },
+            true,
+            None,
+        );
         assert_eq!(r.flush(), vec![Block::Activity("Used 1 other tool".into())]);
     }
 

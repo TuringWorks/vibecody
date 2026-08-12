@@ -145,14 +145,8 @@ impl StreamFilter {
 
     /// Byte offset just past `</tag>` (namespace-tolerant), if present.
     fn find_close(&self, tag: &str) -> Option<usize> {
-        let pattern = format!(
-            r"(?s)</(?:[A-Za-z][\w.-]*:)?{}\s*>",
-            regex::escape(tag)
-        );
-        Regex::new(&pattern)
-            .ok()?
-            .find(&self.buf)
-            .map(|m| m.end())
+        let pattern = format!(r"(?s)</(?:[A-Za-z][\w.-]*:)?{}\s*>", regex::escape(tag));
+        Regex::new(&pattern).ok()?.find(&self.buf).map(|m| m.end())
     }
 }
 
@@ -181,7 +175,11 @@ mod tests {
         // The exact failure of a per-chunk strip.
         let mut f = StreamFilter::new();
         let mut out = String::new();
-        for chunk in ["Now the db module.<thin", "king>secret plan</thin", "king>Next."] {
+        for chunk in [
+            "Now the db module.<thin",
+            "king>secret plan</thin",
+            "king>Next.",
+        ] {
             out.push_str(&f.push(chunk));
         }
         out.push_str(&f.finish());
@@ -221,7 +219,10 @@ mod tests {
 
     #[test]
     fn html_in_prose_survives() {
-        assert_eq!(push_bytewise("use <div> for layout"), "use <div> for layout");
+        assert_eq!(
+            push_bytewise("use <div> for layout"),
+            "use <div> for layout"
+        );
     }
 
     #[test]
@@ -254,6 +255,9 @@ mod tests {
 
     #[test]
     fn back_to_back_blocks_are_both_removed() {
-        assert_eq!(push_bytewise("<think>a</think>X<thinking>b</thinking>Y"), "XY");
+        assert_eq!(
+            push_bytewise("<think>a</think>X<thinking>b</thinking>Y"),
+            "XY"
+        );
     }
 }

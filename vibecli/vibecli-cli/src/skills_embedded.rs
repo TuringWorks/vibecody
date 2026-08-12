@@ -217,7 +217,9 @@ pub(crate) static SKILLS_DIR_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::
 /// must not cascade into every other skills test.
 #[cfg(test)]
 pub(crate) fn skills_dir_env_lock() -> std::sync::MutexGuard<'static, ()> {
-    SKILLS_DIR_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner())
+    SKILLS_DIR_ENV_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
 }
 
 #[cfg(test)]
@@ -265,7 +267,12 @@ mod tests {
                 skill.name
             );
 
-            for trigger in skill.frontmatter.triggers.iter().filter(|t| !t.trim().is_empty()) {
+            for trigger in skill
+                .frontmatter
+                .triggers
+                .iter()
+                .filter(|t| !t.trim().is_empty())
+            {
                 let by_trigger = cat.list(None, Some(trigger));
                 assert!(
                     by_trigger.iter().any(|s| s.name == skill.name),

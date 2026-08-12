@@ -77,8 +77,7 @@ impl PostImage {
                 new_line = 0;
                 continue;
             }
-            if raw.starts_with("--- ")
-                && lines.peek().is_some_and(|next| next.starts_with("+++ "))
+            if raw.starts_with("--- ") && lines.peek().is_some_and(|next| next.starts_with("+++ "))
             {
                 let header = lines.next().unwrap_or_default();
                 // `+++ /dev/null` is a deletion — nothing to anchor to.
@@ -624,7 +623,10 @@ index 1111111..2222222 100644
     #[test]
     fn indexes_context_and_added_lines_by_new_line_number() {
         let post = PostImage::from_diff(DIFF);
-        assert_eq!(post.line("src/math.rs", 1), Some("fn divide(a: i32, b: i32) -> i32 {"));
+        assert_eq!(
+            post.line("src/math.rs", 1),
+            Some("fn divide(a: i32, b: i32) -> i32 {")
+        );
         assert_eq!(post.line("src/math.rs", 2), Some("    let q = a / b;"));
         assert_eq!(post.line("src/math.rs", 3), Some("    q"));
         assert_eq!(post.line("src/math.rs", 4), Some("}"));
@@ -697,7 +699,8 @@ diff --git a/a.rs b/a.rs
 
     #[test]
     fn deleted_file_contributes_no_anchors() {
-        let del = "diff --git a/gone.rs b/gone.rs\n--- a/gone.rs\n+++ /dev/null\n@@ -1,1 +0,0 @@\n-bye\n";
+        let del =
+            "diff --git a/gone.rs b/gone.rs\n--- a/gone.rs\n+++ /dev/null\n@@ -1,1 +0,0 @@\n-bye\n";
         let post = PostImage::from_diff(del);
         assert_eq!(post.paths().count(), 0);
     }
@@ -714,8 +717,16 @@ diff --git a/a.rs b/a.rs
     #[test]
     fn builds_a_single_line_proposal() {
         let post = PostImage::from_diff(DIFF);
-        let p = build_proposal(&post, 0, "src/math.rs", 2, 2, "    let q = checked(a, b)?;", "guard b")
-            .expect("anchor is present");
+        let p = build_proposal(
+            &post,
+            0,
+            "src/math.rs",
+            2,
+            2,
+            "    let q = checked(a, b)?;",
+            "guard b",
+        )
+        .expect("anchor is present");
         assert_eq!(p.start_line, 2);
         assert_eq!(p.end_line, 2);
         assert_eq!(p.original, vec!["    let q = a / b;"]);
@@ -727,8 +738,16 @@ diff --git a/a.rs b/a.rs
     #[test]
     fn builds_a_multiline_proposal() {
         let post = PostImage::from_diff(DIFF);
-        let p = build_proposal(&post, 0, "src/math.rs", 2, 3, "    let q = a / b;\n    q + 1", "")
-            .expect("anchor is present");
+        let p = build_proposal(
+            &post,
+            0,
+            "src/math.rs",
+            2,
+            3,
+            "    let q = a / b;\n    q + 1",
+            "",
+        )
+        .expect("anchor is present");
         assert!(p.is_multiline());
         assert_eq!(p.original.len(), 2);
         assert_eq!(p.replacement.len(), 2);
@@ -764,8 +783,14 @@ diff --git a/a.rs b/a.rs
     #[test]
     fn rejects_a_span_over_the_limit_before_touching_the_index() {
         let post = PostImage::from_diff(DIFF);
-        let err = build_proposal(&post, 0, "src/math.rs", 1, 1 + MAX_SPAN_LINES, "x", "").unwrap_err();
-        assert_eq!(err, Rejection::SpanTooLarge { lines: MAX_SPAN_LINES + 1 });
+        let err =
+            build_proposal(&post, 0, "src/math.rs", 1, 1 + MAX_SPAN_LINES, "x", "").unwrap_err();
+        assert_eq!(
+            err,
+            Rejection::SpanTooLarge {
+                lines: MAX_SPAN_LINES + 1
+            }
+        );
     }
 
     #[test]
@@ -798,8 +823,16 @@ diff --git a/a.rs b/a.rs
     #[test]
     fn strips_a_wrapping_fence_the_model_added() {
         let post = PostImage::from_diff(DIFF);
-        let p = build_proposal(&post, 0, "src/math.rs", 2, 2, "```rust\n    let q = 1;\n```", "")
-            .expect("fence is stripped, not rejected");
+        let p = build_proposal(
+            &post,
+            0,
+            "src/math.rs",
+            2,
+            2,
+            "```rust\n    let q = 1;\n```",
+            "",
+        )
+        .expect("fence is stripped, not rejected");
         assert_eq!(p.replacement, vec!["    let q = 1;"]);
     }
 
@@ -850,7 +883,10 @@ diff --git a/a.rs b/a.rs
         let p = build_proposal(&post, 0, "src/math.rs", 2, 2, "    let q = 0;", "").unwrap();
         let content = "fn divide(a: i32, b: i32) -> i32 {\n    let q = a / b;\n    q\n}\n";
         let out = apply_to_content(content, &p).expect("original matches");
-        assert_eq!(out, "fn divide(a: i32, b: i32) -> i32 {\n    let q = 0;\n    q\n}\n");
+        assert_eq!(
+            out,
+            "fn divide(a: i32, b: i32) -> i32 {\n    let q = 0;\n    q\n}\n"
+        );
     }
 
     #[test]

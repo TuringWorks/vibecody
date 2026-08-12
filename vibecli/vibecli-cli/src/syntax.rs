@@ -788,7 +788,10 @@ mod tests {
     fn reasserts_dim_after_interior_reset() {
         // The highlighter emits RESET inside prose (inline code, emphasis). A
         // bare DIM…RESET wrapper would stop dimming at the first one.
-        let highlighted = format!("<thinking>see {}{}numpy{}{}</thinking>tail", CYAN, "`", RESET, "");
+        let highlighted = format!(
+            "<thinking>see {}{}numpy{}{}</thinking>tail",
+            CYAN, "`", RESET, ""
+        );
         let out = dim_reasoning_blocks(&highlighted);
         let span_end = out.find("</thinking>").expect("closing tag survives");
         let span = &out[..span_end];
