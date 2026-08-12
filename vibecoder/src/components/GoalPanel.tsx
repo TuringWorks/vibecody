@@ -90,6 +90,30 @@ const STATUS_LABEL: Record<GoalStatus, string> = {
   abandoned: 'Abandoned',
 };
 
+/** One line in the goal's activity log. */
+interface ActivityEntry {
+  at: number;
+  kind: 'pending' | 'ok' | 'error';
+  message: string;
+  /** Raw daemon error or payload detail, shown verbatim under the message. */
+  detail?: string;
+}
+
+/** Kept short — this is a live tail, not a history; the daemon owns the record. */
+const ACTIVITY_LIMIT = 50;
+
+const ACTIVITY_ICON: Record<ActivityEntry['kind'], string> = {
+  pending: '◔',
+  ok: '●',
+  error: '✕',
+};
+
+const ACTIVITY_COLOR: Record<ActivityEntry['kind'], string> = {
+  pending: 'var(--text-secondary)',
+  ok: 'var(--success-color)',
+  error: 'var(--error-color)',
+};
+
 const STEP_ICON: Record<PlanStep['status'], string> = {
   pending: '◯',
   in_progress: '◔',
@@ -135,6 +159,29 @@ export function GoalPanel({
   const [listError, setListError] = useState<string | null>(null);
   const [planning, setPlanning] = useState(false);
   const [starting, setStarting] = useState(false);
+  // Running log of what this panel has done to the selected goal.
+  //
+  // Every action here goes to the daemon and can take seconds or fail, and a
+  // toast is gone before it can be read — so a failed plan left the panel
+  // looking untouched, indistinguishable from never having clicked. This keeps
+  // the outcome, including the daemon's actual error text, on screen.
+  const [activity, setActivity] = useState<ActivityEntry[]>([]);
+  const logActivity = useCallback(
+    (kind: ActivityEntry['kind'], message: string, detailText?: string) => {
+      setActivity((prev) =>
+        [
+          {
+            at: Date.now(),
+            kind,
+            message,
+            detail: detailText,
+          },
+          ...prev,
+        ].slice(0, ACTIVITY_LIMIT),
+      );
+    },
+    [],
+  );
   const [showNewModal, setShowNewModal] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newStatement, setNewStatement] = useState('');
@@ -240,6 +287,9 @@ export function GoalPanel({
   useEffect(() => { refreshPin(); }, [refreshPin]);
 
   useEffect(() => {
+    // Reset the log with the selection: entries describe one goal, and carrying
+    // them across would attribute a failed plan to whichever goal is on screen.
+    setActivity([]);
     if (selectedId) {
       refreshDetail(selectedId);
     } else {
@@ -302,6 +352,10 @@ export function GoalPanel({
       return;
     }
     setPlanning(true);
+    logActivity(
+      'pending',
+      `Generating plan via ${selectedProvider}${selectedModel ? ` · ${selectedModel}` : ''}…`,
+    );
     try {
       const updated = (await invoke('exec_goal_plan', {
         id: detail.goal.id,
@@ -309,8 +363,14 @@ export function GoalPanel({
         model: selectedModel ?? null,
       })) as Goal;
       setDetail({ goal: updated, links: detail.links });
+      const steps = updated.current_plan?.steps?.length ?? 0;
+      logActivity('ok', `Plan generated — ${steps} step${steps === 1 ? '' : 's'}.`);
       toast.success('Plan generated');
     } catch (e) {
+      // Logged as well as toasted. The toast disappears; this is what the user
+      // still has to look at afterwards, and it carries the daemon's own words
+      // rather than a generic failure.
+      logActivity('error', 'Plan generation failed.', String(e));
       toast.error('Plan generation failed: ' + String(e));
     } finally {
       setPlanning(false);
@@ -320,15 +380,18 @@ export function GoalPanel({
   const startSession = async () => {
     if (!detail) return;
     setStarting(true);
+    logActivity('pending', 'Starting a session bound to this goal…');
     try {
       const resp = (await invoke('exec_goal_start', {
         id: detail.goal.id,
         provider: selectedProvider || null,
         model: selectedModel || null,
       })) as { session_id: string; link_id: string };
+      logActivity('ok', `Session ${short(resp.session_id)} started and linked.`);
       toast.success(`Session ${short(resp.session_id)} linked to goal`);
       await refreshDetail(detail.goal.id);
     } catch (e) {
+      logActivity('error', 'Could not start a session.', String(e));
       toast.error('Failed to start session: ' + String(e));
     } finally {
       setStarting(false);
@@ -763,7 +826,19 @@ export function GoalPanel({
               </div>
               {!detail.goal.current_plan ? (
                 <div className="panel-empty">
-                  No plan yet. Click <strong>Generate plan</strong> (uses the provider/model selected in the toolbar).
+                  {activity.some((a) => a.kind === 'error') ? (
+                    <>
+                      Still no plan — the last attempt failed. See <strong>Activity</strong> below
+                      for what the daemon said.
+                    </>
+                  ) : planning ? (
+                    <>Generating a plan… this routes through the daemon and can take a while.</>
+                  ) : (
+                    <>
+                      No plan yet. Click <strong>Generate plan</strong> (uses the provider/model
+                      selected in the toolbar).
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="panel-card" style={{ padding: 12 }}>
@@ -797,6 +872,84 @@ export function GoalPanel({
                       Risks: {detail.goal.current_plan.risks.join('; ')}
                     </p>
                   )}
+                </div>
+              )}
+            </section>
+
+            {/* Activity — a live tail of what this panel has asked the daemon to
+                do for this goal, and what came back. Every action here is a
+                network round-trip that can take seconds or fail, and toasts are
+                gone before they can be read; without this a failed plan left the
+                panel identical to never having clicked. */}
+            <section style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <h3 style={{ margin: 0 }}>Activity</h3>
+                {activity.length > 0 && (
+                  <button
+                    type="button"
+                    className="panel-btn"
+                    style={{ marginLeft: 'auto' }}
+                    onClick={() => setActivity([])}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              {activity.length === 0 ? (
+                <div className="panel-empty">
+                  Nothing yet this session. Actions on this goal — generating a plan, starting a
+                  session — are logged here with whatever the daemon replies.
+                </div>
+              ) : (
+                <div
+                  className="panel-card"
+                  style={{ padding: 8, maxHeight: 220, overflowY: 'auto' }}
+                  role="log"
+                  aria-label="Goal activity"
+                >
+                  {activity.map((entry) => (
+                    <div
+                      key={`${entry.at}-${entry.message}`}
+                      style={{
+                        display: 'flex',
+                        gap: 8,
+                        padding: '4px 4px',
+                        fontSize: 'var(--font-size-sm)',
+                        alignItems: 'baseline',
+                      }}
+                    >
+                      <span style={{ color: ACTIVITY_COLOR[entry.kind] }}>
+                        {ACTIVITY_ICON[entry.kind]}
+                      </span>
+                      <span
+                        style={{
+                          color: 'var(--text-secondary)',
+                          fontVariantNumeric: 'tabular-nums',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {new Date(entry.at).toLocaleTimeString()}
+                      </span>
+                      <span style={{ minWidth: 0 }}>
+                        <div>{entry.message}</div>
+                        {entry.detail && (
+                          // Verbatim, not summarised: the daemon's own words are
+                          // the only thing that says why it failed.
+                          <pre
+                            style={{
+                              margin: '2px 0 0',
+                              whiteSpace: 'pre-wrap',
+                              wordBreak: 'break-word',
+                              color: 'var(--error-color)',
+                              fontSize: 'var(--font-size-xs)',
+                            }}
+                          >
+                            {entry.detail}
+                          </pre>
+                        )}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               )}
             </section>
