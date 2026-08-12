@@ -24,12 +24,6 @@ make watch-wear                # Wear OS APK (gradlew)
 make build-all                 # what CI builds — Rust + Tauri + Mobile + Watch
 ```
 
-### Module declaration pattern
-
-In `vibecli/vibecli-cli/src/`, both `lib.rs` (`pub mod foo;`) and `main.rs` (`mod foo;`) must declare a module before it can be used in its respective crate artifact. When adding a new `.rs` file, register it in the crate(s) that **consume** it — and only those.
-
-**Declaring in `main.rs` a module the binary never references is not free.** `lib.rs` and `main.rs` are separate crate artifacts, so a `mod foo;` in `main.rs` compiles `foo.rs` a *second* time, into the binary, whether or not anything there uses it. 204 modules (~179 kloc) had accumulated that way; dropping their `main.rs` declarations took `cargo check -p vibecli` from **150 s to 34 s** with no other change. `pub mod` in `lib.rs` alone keeps a module fully available to the library, its tests, and every other crate. Add the `main.rs` line when `main.rs` (or a sibling binary module) actually names the module — not by reflex.
-
 ### Key storage rules (summary — see AGENTS.md for full details)
 
 - API keys → `ProfileStore` (`~/.vibecli/profile_settings.db`)
@@ -105,10 +99,6 @@ Every "flaky" test found here was shared-state, not timing. Don't mutate process
 
 Full table: [AGENTS.md → Test Isolation](./AGENTS.md#test-isolation--shared-state-is-the-top-cause-of-flaky-here).
 
-### Tauri commands
-
-Commands are registered via `tauri::generate_handler!` in `vibecoder/src-tauri/src/lib.rs`. When adding a new Tauri command: implement in `commands.rs`, register in `tauri::generate_handler!` in `lib.rs`.
-
 ### Testing encrypted stores
 
 Use `open_with(path, key)` variants to avoid touching production DBs:
@@ -127,19 +117,6 @@ Use the **`add-provider` skill** (`.claude/skills/add-provider/SKILL.md`) — it
 ## Product Matrix (know every surface)
 
 VibeCody is **14 clients talking to one Rust daemon**. Before a cross-cutting change (RPC, auth, pairing, settings, provider, artifact, OS floor), consult **[AGENTS.md → Product Matrix + Change-Surface Cookbook](./AGENTS.md)** — it's the authoritative "when I change X, I must also touch Y" checklist.
-
-| Client | Path | Stack |
-|--------|------|-------|
-| VibeCLI (daemon + TUI + REPL) | `vibecli/vibecli-cli/` | Rust · Axum · Ratatui |
-| VibeCoder (desktop editor) | `vibecoder/` | Tauri 2 + React |
-| VibeDesk (task-first companion) | `vibedesk/` | Tauri 2 + React |
-| VibeCLI App (secondary shell) | `vibeaichat/` | Tauri 2 + React |
-| VibeMobile | `vibemobile/` | Flutter |
-| VibeCodyWatch + Companion | `vibewatch/VibeCodyWatch*/` | SwiftUI · watchOS 10+ |
-| VibeCodyWear + Companion | `vibewatch/VibeCodyWear*/` | Kotlin Compose · Wear OS 3+ |
-| VS Code / JetBrains / Neovim | `vscode-extension/` · `jetbrains-plugin/` · `neovim-plugin/` | TS · Kotlin · Lua |
-| Agent SDK | `packages/agent-sdk/` | TypeScript |
-| vibe-indexer | `vibe-indexer/` | Rust |
 
 The VibeCLI daemon is the **single source of truth** for protocol semantics. If a client disagrees with the daemon, the client is wrong.
 
