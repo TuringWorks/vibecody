@@ -1083,9 +1083,10 @@ async fn health(State(state): State<ServeState>) -> impl IntoResponse {
                 "budget_periods": ["daily", "weekly", "monthly"],
             },
             // Workspace switcher — folder picker + LRU recents capped
-            // at 10. add_workspace_folder validates the path exists +
-            // is a directory before mutating state. Recents
-            // self-prune entries that no longer exist on disk.
+            // at 10. set_workspace_folder validates the path exists +
+            // is a directory before mutating state, then makes it the
+            // single workspace root. Recents self-prune entries that
+            // no longer exist on disk.
             "workspace": {
                 "available": true,
                 "transport": "tauri-desktop",

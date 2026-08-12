@@ -429,7 +429,7 @@ pub fn run() {
             commands::create_directory,
             commands::delete_item,
             commands::rename_item,
-            commands::add_workspace_folder,
+            commands::set_workspace_folder,
             commands::get_workspace_folders,
             commands::list_recent_workspaces,
             commands::remove_recent_workspace,
