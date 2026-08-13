@@ -68,6 +68,28 @@ impl TaskResult {
     }
 }
 
+/// How much a task's repeated samples disagreed with each other.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Instability {
+    pub task: String,
+    pub passed: usize,
+    pub samples: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub min_score: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_score: Option<f64>,
+}
+
+impl Instability {
+    /// Difference between the best and worst sample, when both were scored.
+    pub fn score_spread(&self) -> Option<f64> {
+        match (self.min_score, self.max_score) {
+            (Some(lo), Some(hi)) => Some(hi - lo),
+            _ => None,
+        }
+    }
+}
+
 /// Counts, kept as counts rather than a single rate.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Tally {
@@ -195,29 +217,52 @@ impl EvalReport {
 
     /// Tasks whose repeated samples disagreed, worst-first.
     ///
-    /// This is the honest reading of a non-deterministic agent: `2/5` says
-    /// something a single pass or fail cannot, and quoting either alone from a
-    /// task that behaves this way is close to fabrication.
-    pub fn flaky(&self) -> Vec<(String, usize, usize)> {
-        let mut by_task: BTreeMap<String, (usize, usize)> = BTreeMap::new();
+    /// Disagreement is measured on *both* the verdict and the score, and the
+    /// second half is not decorative. Three samples of the greenfield build
+    /// came back at completion depths of 1.00, 0.875 and 0.00 — one finished
+    /// the entire application — yet all three carried the same `fail` verdict
+    /// because each blew its time budget. Judging instability on verdicts
+    /// alone reports those three as being in perfect agreement.
+    pub fn flaky(&self) -> Vec<Instability> {
+        /// Score spread past which samples are treated as disagreeing even
+        /// when every verdict matches.
+        const SCORE_SPREAD: f64 = 0.25;
+
+        let mut by_task: BTreeMap<String, Instability> = BTreeMap::new();
         for r in &self.results {
             if !r.verdict.is_scored() {
                 continue;
             }
-            let entry = by_task.entry(r.task_key()).or_insert((0, 0));
-            entry.1 += 1;
+            let entry = by_task.entry(r.task_key()).or_insert_with(|| Instability {
+                task: r.task_key(),
+                passed: 0,
+                samples: 0,
+                min_score: None,
+                max_score: None,
+            });
+            entry.samples += 1;
             if r.verdict.is_pass() {
-                entry.0 += 1;
+                entry.passed += 1;
+            }
+            if let Some(score) = r.score {
+                entry.min_score = Some(entry.min_score.map_or(score, |m: f64| m.min(score)));
+                entry.max_score = Some(entry.max_score.map_or(score, |m: f64| m.max(score)));
             }
         }
-        let mut flaky: Vec<(String, usize, usize)> = by_task
-            .into_iter()
-            .filter(|(_, (passed, total))| *total > 1 && *passed > 0 && passed < total)
-            .map(|(k, (passed, total))| (k, passed, total))
+
+        let mut flaky: Vec<Instability> = by_task
+            .into_values()
+            .filter(|i| {
+                if i.samples < 2 {
+                    return false;
+                }
+                let verdicts_disagree = i.passed > 0 && i.passed < i.samples;
+                verdicts_disagree || i.score_spread().is_some_and(|s| s > SCORE_SPREAD)
+            })
             .collect();
         flaky.sort_by(|a, b| {
-            let ra = a.1 as f64 / a.2 as f64;
-            let rb = b.1 as f64 / b.2 as f64;
+            let ra = a.passed as f64 / a.samples as f64;
+            let rb = b.passed as f64 / b.samples as f64;
             ra.partial_cmp(&rb).unwrap_or(std::cmp::Ordering::Equal)
         });
         flaky
@@ -380,13 +425,23 @@ impl EvalReport {
         }
         let mut md = String::from("## Unstable tasks\n\n");
         md.push_str(
-            "These produced different verdicts across repeated samples. Their \
-             pass/fail in any single run is close to a coin toss, and a report \
-             that quoted one run would be reporting the toss.\n\n",
+            "These disagreed across repeated samples — in verdict, in how far \
+             they got, or both. Quoting any single run of one of these is \
+             reporting a coin toss.\n\n",
         );
-        md.push_str("| task | passed | samples |\n|---|---:|---:|\n");
-        for (task, passed, total) in &flaky {
-            md.push_str(&format!("| `{}` | {} | {} |\n", task, passed, total));
+        md.push_str("| task | passed | samples | score range |\n|---|---:|---:|---|\n");
+        for i in &flaky {
+            let range = match (i.min_score, i.max_score) {
+                (Some(lo), Some(hi)) if (hi - lo).abs() > f64::EPSILON => {
+                    format!("{:.2} – {:.2}", lo, hi)
+                }
+                (Some(v), Some(_)) => format!("{:.2}", v),
+                _ => "n/a".to_string(),
+            };
+            md.push_str(&format!(
+                "| `{}` | {} | {} | {} |\n",
+                i.task, i.passed, i.samples, range
+            ));
         }
         md.push('\n');
         md
@@ -812,11 +867,39 @@ mod tests {
 
         let flaky = report.flaky();
         assert_eq!(flaky.len(), 1);
-        assert_eq!(flaky[0].1, 1, "one sample passed");
-        assert_eq!(flaky[0].2, 4, "out of four");
+        assert_eq!(flaky[0].passed, 1, "one sample passed");
+        assert_eq!(flaky[0].samples, 4, "out of four");
 
         let md = report.to_markdown();
         assert!(md.contains("Unstable tasks"), "{}", md);
+    }
+
+    #[test]
+    fn samples_that_agree_on_the_verdict_but_not_the_depth_are_still_unstable() {
+        // Observed: three greenfield samples graded 1.00, 0.875 and 0.00 —
+        // one had built the entire application — yet all three carried the
+        // same `fail` verdict, because each blew its time budget. Judging
+        // instability on verdicts alone calls that perfect agreement.
+        let mut results = vec![];
+        for (i, score) in [1.0_f64, 0.875, 0.0].into_iter().enumerate() {
+            let mut r = result(
+                "build",
+                Capability::LongHorizon,
+                Surface::Cli,
+                Verdict::Fail {
+                    reason: "budget".into(),
+                },
+            );
+            r.sample = i;
+            r.score = Some(score);
+            results.push(r);
+        }
+        let report = report(results);
+        let flaky = report.flaky();
+        assert_eq!(flaky.len(), 1, "score spread must count as disagreement");
+        assert_eq!(flaky[0].passed, 0);
+        assert_eq!(flaky[0].score_spread(), Some(1.0));
+        assert!(report.to_markdown().contains("0.00 – 1.00"));
     }
 
     #[test]

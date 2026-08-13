@@ -224,10 +224,16 @@ impl DeclineLog {
 ///
 /// Many writes in one turn are the normal case and they nearly always share a
 /// workspace, so this collapses them to one question rather than one per file.
-pub fn pending_offer(edited: &[PathBuf], workspace_root: &Path, log: &DeclineLog) -> Option<PathBuf> {
-    edited
-        .iter()
-        .find_map(|p| evaluate(p, workspace_root, |d| log.is_declined(d)).offered_dir().map(Path::to_path_buf))
+pub fn pending_offer(
+    edited: &[PathBuf],
+    workspace_root: &Path,
+    log: &DeclineLog,
+) -> Option<PathBuf> {
+    edited.iter().find_map(|p| {
+        evaluate(p, workspace_root, |d| log.is_declined(d))
+            .offered_dir()
+            .map(Path::to_path_buf)
+    })
 }
 
 /// What came of offering to create a repository.
@@ -250,7 +256,11 @@ pub enum OfferOutcome {
 /// and creates nothing: an unanswerable prompt is not consent, and it is also
 /// not a decline, so nothing is written to the log and the user still gets
 /// asked the first time they run interactively.
-pub fn offer(dir: &Path, log: &DeclineLog, ask: impl FnOnce(&Path) -> Option<bool>) -> OfferOutcome {
+pub fn offer(
+    dir: &Path,
+    log: &DeclineLog,
+    ask: impl FnOnce(&Path) -> Option<bool>,
+) -> OfferOutcome {
     match ask(dir) {
         None => OfferOutcome::NotAsked,
         Some(false) => {
@@ -556,7 +566,10 @@ mod tests {
 
         let outcome = offer(ws.path(), &log, |_| Some(true));
 
-        assert!(matches!(outcome, OfferOutcome::Initialized(_)), "{outcome:?}");
+        assert!(
+            matches!(outcome, OfferOutcome::Initialized(_)),
+            "{outcome:?}"
+        );
         assert!(vibe_core::git::is_inside_repo(ws.path()));
     }
 
@@ -566,7 +579,10 @@ mod tests {
         let ws = TempDir::new().unwrap();
         let log = log_in(&tmp);
 
-        assert_eq!(offer(ws.path(), &log, |_| Some(false)), OfferOutcome::Declined);
+        assert_eq!(
+            offer(ws.path(), &log, |_| Some(false)),
+            OfferOutcome::Declined
+        );
 
         assert!(!ws.path().join(".git").exists(), "declining must not init");
         assert!(log.is_declined(ws.path()));
@@ -677,7 +693,9 @@ mod tests {
         let ws = TempDir::new().unwrap();
         let file = ws.path().join("main.rs");
         std::fs::write(&file, "fn main() {}").unwrap();
-        assert!(evaluate(&file, ws.path(), |_| false).offered_dir().is_some());
+        assert!(evaluate(&file, ws.path(), |_| false)
+            .offered_dir()
+            .is_some());
 
         vibe_core::git::init_repo(ws.path()).unwrap();
 

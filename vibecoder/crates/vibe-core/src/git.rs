@@ -1706,6 +1706,77 @@ mod tests {
         assert!(discover_repo_root(Path::new("/nonexistent/xyz/abc")).is_none());
     }
 
+    /// What `git rev-parse --show-toplevel` reports for `dir`, or None.
+    fn cli_toplevel(dir: &Path) -> Option<std::path::PathBuf> {
+        let out = std::process::Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(["rev-parse", "--show-toplevel"])
+            .output()
+            .ok()?;
+        if !out.status.success() {
+            return None;
+        }
+        let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        (!s.is_empty()).then(|| std::path::PathBuf::from(s))
+    }
+
+    /// Pins the contract the hand-rolled `rev-parse --show-toplevel` callers
+    /// relied on before they were consolidated onto `discover_repo_root`:
+    /// the two must agree, including for a linked worktree, which resolves to
+    /// its own root rather than the main checkout's.
+    #[test]
+    fn discover_repo_root_agrees_with_rev_parse_show_toplevel() {
+        let dir = TempDir::new().unwrap();
+        init_repo(dir.path()).unwrap();
+        let nested = dir.path().join("src").join("inner");
+        std::fs::create_dir_all(&nested).unwrap();
+
+        for probe in [dir.path(), nested.as_path()] {
+            let ours = discover_repo_root(probe).map(|p| p.canonicalize().unwrap());
+            let theirs = cli_toplevel(probe).map(|p| p.canonicalize().unwrap());
+            assert_eq!(ours, theirs, "disagreed about {}", probe.display());
+        }
+
+        // Outside any repo both must decline. "/" has no enclosing repo and is
+        // not inside a TempDir that might itself sit in one.
+        assert_eq!(discover_repo_root(Path::new("/")), None);
+        assert_eq!(cli_toplevel(Path::new("/")), None);
+    }
+
+    #[test]
+    fn discover_repo_root_resolves_a_linked_worktree_to_its_own_root() {
+        let dir = TempDir::new().unwrap();
+        init_repo(dir.path()).unwrap();
+        // A worktree needs a commit to branch from.
+        let file = dir.path().join("seed.txt");
+        std::fs::write(&file, "seed").unwrap();
+        let git = |args: &[&str]| {
+            std::process::Command::new("git")
+                .arg("-C")
+                .arg(dir.path())
+                .args(args)
+                .output()
+                .expect("git runs in tests")
+        };
+        git(&["config", "user.email", "t@example.com"]);
+        git(&["config", "user.name", "t"]);
+        git(&["add", "-A"]);
+        git(&["commit", "-m", "seed", "--no-verify"]);
+
+        let wt = dir.path().join("wt");
+        let out = git(&["worktree", "add", wt.to_str().unwrap(), "-b", "side"]);
+        assert!(out.status.success(), "worktree add failed");
+
+        let ours = discover_repo_root(&wt).map(|p| p.canonicalize().unwrap());
+        assert_eq!(
+            ours,
+            cli_toplevel(&wt).map(|p| p.canonicalize().unwrap()),
+            "a linked worktree must resolve to its own root, not the main checkout"
+        );
+        assert_eq!(ours, Some(wt.canonicalize().unwrap()));
+    }
+
     #[test]
     fn init_repo_creates_a_working_tree_on_main() {
         let dir = TempDir::new().unwrap();

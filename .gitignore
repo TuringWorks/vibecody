@@ -77,3 +77,8 @@ purge-history.sh
 packages/vibe-ui-shared/src/**/*.js
 packages/vibe-ui-shared/src/**/*.d.ts
 packages/vibe-ui-shared/src/**/*.js.map
+
+# Python bytecode from the eval fixtures. `evals/fixtures/orders-service` is a
+# runnable Python project, so any suite that imports it leaves these behind.
+__pycache__/
+*.pyc
