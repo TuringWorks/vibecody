@@ -4634,10 +4634,7 @@ pub async fn mobile_get_active_session() -> Result<serde_json::Value, String> {
     if token.is_empty() {
         return Ok(serde_json::json!({"active_session": null}));
     }
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(2))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = vibe_http_pool::client(2);
     match client
         .get("http://localhost:7878/mobile/active-session")
         .header("Authorization", format!("Bearer {}", token))
@@ -4707,10 +4704,7 @@ pub async fn daemon_auth_token() -> Result<String, String> {
 
 async fn skillforge_daemon_get(path: &str) -> Result<serde_json::Value, String> {
     let token = daemon_bearer_token()?;
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(15))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = vibe_http_pool::client(15);
     let resp = client
         .get(format!("{SKILLFORGE_DAEMON_BASE}{path}"))
         .header("Authorization", format!("Bearer {token}"))
@@ -4733,10 +4727,7 @@ async fn skillforge_daemon_post(
     let token = daemon_bearer_token()?;
     // `train` returns a job id immediately (the run is async on the daemon);
     // 30s is plenty for the synchronous catalog/extract/score/promote calls.
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(30))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = vibe_http_pool::client(30);
     let resp = client
         .post(format!("{SKILLFORGE_DAEMON_BASE}{path}"))
         .header("Authorization", format!("Bearer {token}"))
@@ -4877,10 +4868,7 @@ pub async fn watch_get_active_session() -> Result<serde_json::Value, String> {
     if token.is_empty() {
         return Ok(serde_json::json!({"session_id": null}));
     }
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(2))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = vibe_http_pool::client(2);
     match client
         .get("http://localhost:7878/watch/active-session")
         .header("Authorization", format!("Bearer {}", token))
@@ -4910,10 +4898,7 @@ pub async fn watch_get_sandbox_chat_session() -> Result<serde_json::Value, Strin
     if token.is_empty() {
         return Ok(serde_json::json!({"session_id": null}));
     }
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(2))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = vibe_http_pool::client(2);
     match client
         .get("http://localhost:7878/watch/sandbox/chat-session")
         .header("Authorization", format!("Bearer {}", token))
@@ -4945,10 +4930,7 @@ pub async fn watch_set_sandbox_chat_session(
     if token.is_empty() {
         return Ok(serde_json::json!({"ok": false, "error": "daemon not running"}));
     }
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(2))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = vibe_http_pool::client(2);
     let body = serde_json::json!({"session_id": session_id});
     match client
         .put("http://localhost:7878/watch/sandbox/chat-session")
@@ -12141,10 +12123,7 @@ pub async fn validate_api_key(
     api_url: Option<String>,
 ) -> Result<ApiKeyValidation, String> {
     let start = std::time::Instant::now();
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = vibe_http_pool::client(10);
 
     let result: Result<(), String> = match provider.as_str() {
         "anthropic" | "claude" => {
@@ -18299,10 +18278,7 @@ pub async fn send_http_request(
     }
 
     let start = std::time::Instant::now();
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(30))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = vibe_http_pool::client(30);
 
     let method_parsed =
         reqwest::Method::from_bytes(method.to_uppercase().as_bytes()).map_err(|e| e.to_string())?;
@@ -30263,10 +30239,7 @@ pub async fn transcribe_audio_file(audio_path: String) -> Result<String, String>
     }
 
     // Build multipart form
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(60))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = vibe_http_pool::client(60);
 
     let file_bytes = tokio::fs::read(&path).await.map_err(|e| e.to_string())?;
     let file_name = path
@@ -30331,10 +30304,7 @@ pub async fn text_to_speech(text: String) -> Result<Vec<u8>, String> {
         (key, vid)
     };
 
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(30))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = vibe_http_pool::client(30);
 
     let url = format!("https://api.elevenlabs.io/v1/text-to-speech/{}", voice_id);
     let resp = client
@@ -30920,10 +30890,7 @@ pub async fn test_webhook(id: String) -> Result<serde_json::Value, String> {
         .find(|w| w.id == id)
         .ok_or("Webhook not found")?;
 
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = vibe_http_pool::client(10);
 
     let body = serde_json::json!({
         "event": "test",
@@ -31023,10 +30990,7 @@ pub async fn replay_webhook(log_id: String) -> Result<serde_json::Value, String>
         .find(|w| w.id == entry.webhook_id)
         .ok_or("Webhook not found")?;
 
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = vibe_http_pool::client(10);
 
     let start = std::time::Instant::now();
     let resp = client
@@ -31308,10 +31272,7 @@ pub struct CdpConsoleEntry {
 #[tauri::command]
 pub async fn cdp_capture_page(url: String) -> Result<serde_json::Value, String> {
     // First, discover available targets from CDP
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(5))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = vibe_http_pool::client(5);
 
     let cdp_url = "http://localhost:9222/json/list".to_string();
     let resp = client.get(&cdp_url).send().await.map_err(|_| {
@@ -31364,10 +31325,7 @@ pub async fn cdp_capture_page(url: String) -> Result<serde_json::Value, String> 
 /// Get Chrome DevTools version info.
 #[tauri::command]
 pub async fn cdp_get_version() -> Result<serde_json::Value, String> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(5))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = vibe_http_pool::client(5);
 
     let resp = client
         .get("http://localhost:9222/json/version")
@@ -31386,10 +31344,7 @@ pub async fn cdp_get_version() -> Result<serde_json::Value, String> {
 /// List all CDP debug targets (pages, service workers, extensions).
 #[tauri::command]
 pub async fn cdp_list_targets() -> Result<Vec<serde_json::Value>, String> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(5))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = vibe_http_pool::client(5);
 
     let resp = client
         .get("http://localhost:9222/json/list")
@@ -31411,10 +31366,7 @@ pub async fn cdp_open_tab(url: String) -> Result<serde_json::Value, String> {
         return Err("Only http:// and https:// URLs are allowed".to_string());
     }
 
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(5))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = vibe_http_pool::client(5);
 
     let resp = client
         .get(format!("http://localhost:9222/json/new?{}", url))
@@ -45114,10 +45066,7 @@ async fn call_dalle3_api(
     size: &str,
     image_id: &str,
 ) -> Result<String, String> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(120))
-        .build()
-        .map_err(|e| format!("HTTP client error: {e}"))?;
+    let client = vibe_http_pool::client(120);
 
     // 1. Request image generation
     let resp = client
@@ -45207,10 +45156,7 @@ async fn call_gemini_imagen_api(
     prompt: &str,
     image_id: &str,
 ) -> Result<String, String> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(120))
-        .build()
-        .map_err(|e| format!("HTTP client error: {e}"))?;
+    let client = vibe_http_pool::client(120);
 
     let url = format!(
         "https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key={api_key}"
@@ -45264,10 +45210,7 @@ async fn call_grok_aurora_api(
     prompt: &str,
     image_id: &str,
 ) -> Result<String, String> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(120))
-        .build()
-        .map_err(|e| format!("HTTP client error: {e}"))?;
+    let client = vibe_http_pool::client(120);
 
     let resp = client
         .post("https://api.x.ai/v1/images/generations")
@@ -45328,10 +45271,7 @@ async fn call_openrouter_image_api(
     size: &str,
     image_id: &str,
 ) -> Result<String, String> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(120))
-        .build()
-        .map_err(|e| format!("HTTP client error: {e}"))?;
+    let client = vibe_http_pool::client(120);
 
     let resp = client
         .post("https://openrouter.ai/api/v1/images/generations")
@@ -45631,10 +45571,7 @@ pub async fn vibesql_delete_connection(id: String) -> Result<(), String> {
 #[tauri::command]
 pub async fn vibesql_connect(connection_string: String) -> Result<String, String> {
     // Parse the connection string to extract host/port
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
-        .build()
-        .map_err(|e| format!("HTTP client error: {e}"))?;
+    let client = vibe_http_pool::client(10);
 
     // VibeSQL exposes a REST API — test connectivity via /api/v1/health
     let base_url = vibesql_base_url(&connection_string)?;
@@ -45657,10 +45594,7 @@ pub async fn vibesql_connect(connection_string: String) -> Result<String, String
 pub async fn vibesql_list_tables(
     connection_string: String,
 ) -> Result<Vec<VibeSqlTableInfo>, String> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(15))
-        .build()
-        .map_err(|e| format!("HTTP client error: {e}"))?;
+    let client = vibe_http_pool::client(15);
 
     let base_url = vibesql_base_url(&connection_string)?;
     let db = vibesql_database(&connection_string);
@@ -45686,10 +45620,7 @@ pub async fn vibesql_execute_query(
     connection_string: String,
     sql: String,
 ) -> Result<VibeSqlQueryResult, String> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(30))
-        .build()
-        .map_err(|e| format!("HTTP client error: {e}"))?;
+    let client = vibe_http_pool::client(30);
 
     let base_url = vibesql_base_url(&connection_string)?;
     let db = vibesql_database(&connection_string);
@@ -45766,10 +45697,7 @@ pub async fn vibesql_execute_query(
 /// Get VibeSQL server info.
 #[tauri::command]
 pub async fn vibesql_server_info(connection_string: String) -> Result<VibeSqlServerInfo, String> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
-        .build()
-        .map_err(|e| format!("HTTP client error: {e}"))?;
+    let client = vibe_http_pool::client(10);
 
     let base_url = vibesql_base_url(&connection_string)?;
     let resp = client
@@ -61714,11 +61642,12 @@ async fn recap_daemon_token() -> Result<String, String> {
     Ok(token)
 }
 
-fn recap_http_client() -> Result<reqwest::Client, String> {
-    reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(5))
-        .build()
-        .map_err(|e| e.to_string())
+/// The shared 5-second client for recap calls.
+///
+/// Was a fresh `Client` per call — seven call sites, each discarding the
+/// connection pool it had just built. Infallible now, so callers drop the `?`.
+fn recap_http_client() -> reqwest::Client {
+    vibe_http_pool::client(5)
 }
 
 /// F2.2 — fetch the most recent recap for a session subject_id.
@@ -61731,7 +61660,7 @@ pub async fn recap_get_for_session(subject_id: String) -> Result<serde_json::Val
     if token.is_empty() {
         return Ok(serde_json::Value::Null);
     }
-    let client = recap_http_client()?;
+    let client = recap_http_client();
     // subject_id is daemon-issued (UUID or tab-id format) — already
     // URL-safe; use reqwest's query() helper to be defensive anyway.
     let url = "http://localhost:7878/v1/recap";
@@ -61772,7 +61701,7 @@ pub async fn recap_resume_session(
     if token.is_empty() {
         return Err("daemon not running".into());
     }
-    let client = recap_http_client()?;
+    let client = recap_http_client();
     let body = serde_json::json!({
         "from_recap_id": recap_id,
         "branch": branch.unwrap_or(false),
@@ -61805,7 +61734,7 @@ pub async fn recap_generate(
     if token.is_empty() {
         return Err("daemon not running".into());
     }
-    let client = recap_http_client()?;
+    let client = recap_http_client();
     let body = serde_json::json!({
         "kind": "session",
         "subject_id": subject_id,
@@ -61845,7 +61774,7 @@ pub async fn diffcomplete_chain_autosave(
     if token.is_empty() {
         return Err("daemon not running".into());
     }
-    let client = recap_http_client()?;
+    let client = recap_http_client();
     let resp = client
         .post("http://localhost:7878/v1/diffcomplete/chains")
         .header("Authorization", format!("Bearer {}", token))
@@ -62120,7 +62049,7 @@ async fn exec_goal_authed_get(
     if token.is_empty() {
         return Err("daemon not running".into());
     }
-    let client = recap_http_client()?;
+    let client = recap_http_client();
     let mut req = client
         .get(format!("{}{}", EXEC_GOAL_BASE, path))
         .header("Authorization", format!("Bearer {}", token));
@@ -62145,7 +62074,7 @@ async fn exec_goal_authed_json(
     if token.is_empty() {
         return Err("daemon not running".into());
     }
-    let client = recap_http_client()?;
+    let client = recap_http_client();
     let resp = client
         .request(method, format!("{}{}", EXEC_GOAL_BASE, path))
         .header("Authorization", format!("Bearer {}", token))
@@ -62392,7 +62321,7 @@ pub async fn exec_goal_unpin(workspace: Option<String>) -> Result<serde_json::Va
     if token.is_empty() {
         return Err("daemon not running".into());
     }
-    let client = recap_http_client()?;
+    let client = recap_http_client();
     let q = workspace_query(&workspace);
     let mut req = client
         .delete(format!("{}{}", EXEC_GOAL_BASE, "/v1/goals/current"))
@@ -62796,10 +62725,7 @@ async fn fluxo_read(resp: reqwest::Response) -> Result<serde_json::Value, String
 
 async fn fluxo_get(path: &str) -> Result<serde_json::Value, String> {
     let token = daemon_bearer_token()?;
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(15))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = vibe_http_pool::client(15);
     let resp = client
         .get(format!("{FLUXO_DAEMON_BASE}{path}"))
         .header("Authorization", format!("Bearer {token}"))
@@ -62811,10 +62737,7 @@ async fn fluxo_get(path: &str) -> Result<serde_json::Value, String> {
 
 async fn fluxo_post(path: &str, body: &serde_json::Value) -> Result<serde_json::Value, String> {
     let token = daemon_bearer_token()?;
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(30))
-        .build()
-        .map_err(|e| e.to_string())?;
+    let client = vibe_http_pool::client(30);
     let resp = client
         .post(format!("{FLUXO_DAEMON_BASE}{path}"))
         .header("Authorization", format!("Bearer {token}"))

@@ -1,0 +1,10 @@
+[package]
+name = "vibe-http-pool"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "One shared reqwest::Client per timeout, for the whole process. Building a Client per request throws away connection pooling and the DNS cache along with it."
+
+[dependencies]
+reqwest = { workspace = true }

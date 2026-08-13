@@ -6,7 +6,7 @@
 //! full workspace index means thousands of fresh TLS handshakes.
 
 use crate::{EmbeddingConfig, EmbeddingError, ProviderKind, Result, SharedEmbedder};
-use std::sync::{Arc, OnceLock, RwLock};
+use std::sync::{Arc, OnceLock};
 
 mod cohere;
 mod gemini;
@@ -36,34 +36,13 @@ pub const fn default_base_url(provider: ProviderKind) -> &'static str {
 // Shared HTTP client
 // ---------------------------------------------------------------------------
 
-/// One client per distinct timeout. Almost every caller uses the default, so
-/// in practice this is a single client for the whole process.
-fn client_pool() -> &'static RwLock<Vec<(u64, reqwest::Client)>> {
-    static POOL: OnceLock<RwLock<Vec<(u64, reqwest::Client)>>> = OnceLock::new();
-    POOL.get_or_init(|| RwLock::new(Vec::new()))
-}
-
+/// The process-wide client for `timeout_secs`.
+///
+/// This crate used to own the pool; it now lives in `vibe-http-pool` so the
+/// Tauri commands and the daemon share one set of connections instead of each
+/// building their own. Kept as a thin alias so provider call sites are unchanged.
 pub(crate) fn http_client(timeout_secs: u64) -> reqwest::Client {
-    let pool = client_pool();
-    // Read path first — the steady state is a hit.
-    if let Ok(guard) = pool.read() {
-        if let Some((_, c)) = guard.iter().find(|(t, _)| *t == timeout_secs) {
-            return c.clone();
-        }
-    }
-    let built = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(timeout_secs))
-        .build()
-        .unwrap_or_else(|_| reqwest::Client::new());
-    if let Ok(mut guard) = pool.write() {
-        // Another thread may have inserted while we built; prefer theirs so
-        // the pool stays one-client-per-timeout.
-        if let Some((_, c)) = guard.iter().find(|(t, _)| *t == timeout_secs) {
-            return c.clone();
-        }
-        guard.push((timeout_secs, built.clone()));
-    }
-    built
+    vibe_http_pool::client(timeout_secs)
 }
 
 // ---------------------------------------------------------------------------
@@ -196,14 +175,13 @@ mod tests {
 
     /// Indexing a workspace is thousands of requests; a fresh client per call
     /// would discard the connection pool every time.
+    /// The pooling property itself is now tested in `vibe-http-pool`, which
+    /// owns the pool; this only pins that providers still go through it.
     #[test]
-    fn client_pool_keeps_one_entry_per_timeout() {
-        let _ = http_client(4242);
-        let _ = http_client(4242);
-        let _ = http_client(4243);
-        let guard = client_pool().read().expect("pool lock");
-        assert_eq!(guard.iter().filter(|(t, _)| *t == 4242).count(), 1);
-        assert_eq!(guard.iter().filter(|(t, _)| *t == 4243).count(), 1);
+    fn http_client_delegates_to_the_shared_pool() {
+        let a = http_client(4242);
+        let b = vibe_http_pool::client(4242);
+        assert_eq!(format!("{a:?}"), format!("{b:?}"));
     }
 
     #[test]

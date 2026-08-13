@@ -12199,6 +12199,7 @@ dependencies = [
  "vibe-desktop-voice",
  "vibe-embed",
  "vibe-extensions",
+ "vibe-http-pool",
  "vibe-lsp",
  "vibe-memory",
  "vibecli",
@@ -12279,6 +12280,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+ "vibe-http-pool",
 ]
 
 [[package]]
@@ -12314,6 +12316,13 @@ dependencies = [
  "tracing",
  "wasmtime",
  "wat",
+]
+
+[[package]]
+name = "vibe-http-pool"
+version = "0.5.8"
+dependencies = [
+ "reqwest 0.12.28",
 ]
 
 [[package]]

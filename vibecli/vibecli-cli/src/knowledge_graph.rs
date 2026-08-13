@@ -714,12 +714,13 @@ impl Default for KnowledgeGraph {
 
 // ── Symbol extraction helpers ────────────────────────────────────────────────
 
-fn extract_symbols_for_graph(
-    path: &Path,
-    content: &str,
-    lang: &str,
-) -> Vec<(String, NodeKind, usize, String)> {
-    let patterns: &[(&str, NodeKind)] = match lang {
+/// Every language the graph extractor knows patterns for. Drives the compiled
+/// caches below, so adding a language means adding it here too.
+const GRAPH_LANGS: &[&str] = &["rust", "typescript", "javascript", "python", "go"];
+
+/// Raw symbol patterns for a language. Capture group 1 is the symbol name.
+fn symbol_patterns_for(lang: &str) -> &'static [(&'static str, NodeKind)] {
+    match lang {
         "rust" => &[
             (r"(?:pub\s+)?fn\s+(\w+)", NodeKind::Function),
             (r"(?:pub\s+)?struct\s+(\w+)", NodeKind::Struct),
@@ -746,18 +747,47 @@ fn extract_symbols_for_graph(
             (r"type\s+(\w+)\s+struct", NodeKind::Struct),
             (r"type\s+(\w+)\s+interface", NodeKind::Interface),
         ],
-        _ => return vec![],
-    };
+        _ => &[],
+    }
+}
+
+/// Symbol patterns compiled once per language.
+///
+/// These were compiled inside the extractor, which runs **once per file** in
+/// the graph build loop — so a 10,000-file repository compiled them 10,000
+/// times over. Same bug, same fix, as `vibe_core::index::symbol`.
+fn compiled_symbol_patterns(lang: &str) -> &'static [(regex::Regex, NodeKind)] {
+    static CACHE: std::sync::LazyLock<HashMap<&'static str, Vec<(regex::Regex, NodeKind)>>> =
+        std::sync::LazyLock::new(|| {
+            GRAPH_LANGS
+                .iter()
+                .map(|lang| {
+                    let compiled = symbol_patterns_for(lang)
+                        .iter()
+                        .filter_map(|(p, k)| regex::Regex::new(p).ok().map(|re| (re, k.clone())))
+                        .collect();
+                    (*lang, compiled)
+                })
+                .collect()
+        });
+    CACHE.get(lang).map(Vec::as_slice).unwrap_or(&[])
+}
+
+fn extract_symbols_for_graph(
+    path: &Path,
+    content: &str,
+    lang: &str,
+) -> Vec<(String, NodeKind, usize, String)> {
+    let patterns = compiled_symbol_patterns(lang);
+    if patterns.is_empty() {
+        return vec![];
+    }
 
     let mut results = Vec::new();
     let lines: Vec<&str> = content.lines().collect();
     let mut seen: HashSet<(usize, String)> = HashSet::new();
 
-    for (pattern, kind) in patterns {
-        let re = match regex::Regex::new(pattern) {
-            Ok(r) => r,
-            Err(_) => continue,
-        };
+    for (re, kind) in patterns {
         for (line_idx, &line) in lines.iter().enumerate() {
             if let Some(cap) = re.captures(line) {
                 if let Some(m) = cap.get(1) {
@@ -780,8 +810,9 @@ fn extract_symbols_for_graph(
     results
 }
 
-fn extract_imports(content: &str, lang: &str) -> Vec<String> {
-    let patterns: &[&str] = match lang {
+/// Raw import patterns for a language. Capture group 1 is the imported name.
+fn import_patterns_for(lang: &str) -> &'static [&'static str] {
+    match lang {
         "rust" => &[r"use\s+(?:crate::)?(\w+)", r"mod\s+(\w+)"],
         "typescript" | "javascript" => &[
             r#"import\s+.*?from\s+['"]([\w@/.-]+)['"]"#,
@@ -789,15 +820,31 @@ fn extract_imports(content: &str, lang: &str) -> Vec<String> {
         ],
         "python" => &[r"from\s+([\w.]+)\s+import", r"import\s+([\w.]+)"],
         "go" => &[r#""([\w./]+)""#],
-        _ => return vec![],
-    };
+        _ => &[],
+    }
+}
 
+/// Import patterns compiled once per language. See `compiled_symbol_patterns`.
+fn compiled_import_patterns(lang: &str) -> &'static [regex::Regex] {
+    static CACHE: std::sync::LazyLock<HashMap<&'static str, Vec<regex::Regex>>> =
+        std::sync::LazyLock::new(|| {
+            GRAPH_LANGS
+                .iter()
+                .map(|lang| {
+                    let compiled = import_patterns_for(lang)
+                        .iter()
+                        .filter_map(|p| regex::Regex::new(p).ok())
+                        .collect();
+                    (*lang, compiled)
+                })
+                .collect()
+        });
+    CACHE.get(lang).map(Vec::as_slice).unwrap_or(&[])
+}
+
+fn extract_imports(content: &str, lang: &str) -> Vec<String> {
     let mut imports = Vec::new();
-    for pattern in patterns {
-        let re = match regex::Regex::new(pattern) {
-            Ok(r) => r,
-            Err(_) => continue,
-        };
+    for re in compiled_import_patterns(lang) {
         imports.extend(
             re.captures_iter(content)
                 .filter_map(|cap| cap.get(1).map(|m| m.as_str().to_string())),

@@ -23,6 +23,10 @@ default = ["devtools"]
 devtools = ["tauri/devtools"]
 
 [dependencies]
+# One shared reqwest::Client per timeout. The session pollers ran on a 2s
+# interval and built a fresh Client each time, so every poll paid a new
+# handshake to a daemon on localhost.
+vibe-http-pool = { path = "../../crates/vibe-http-pool" }
 vibe-embed = { path = "../../crates/vibe-embed" }
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"

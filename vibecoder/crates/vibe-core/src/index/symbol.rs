@@ -3,6 +3,7 @@
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Language {
@@ -102,47 +103,68 @@ impl SymbolInfo {
 
 // ── Extraction ────────────────────────────────────────────────────────────────
 
+/// A language's patterns, compiled once.
+type CompiledPatterns = Vec<(Regex, SymbolKind)>;
+
+/// Compile a pattern table, dropping any pattern that fails to parse — the
+/// same tolerance the per-call version had, where a bad pattern was skipped.
+fn compile(patterns: &[(&'static str, SymbolKind)]) -> CompiledPatterns {
+    patterns
+        .iter()
+        .filter_map(|(p, kind)| Regex::new(p).ok().map(|re| (re, kind.clone())))
+        .collect()
+}
+
+/// The compiled patterns for a language.
+///
+/// These were compiled inside `extract_with_patterns`, which runs **once per
+/// file indexed** — 7 regex compilations for every Rust file, so ~70,000 on a
+/// cold 10,000-file repository, and 7 more on every single file save (the
+/// indexer's `refresh` path). Compiling them once per process makes indexing
+/// cost proportional to the code, not to the pattern table.
+fn compiled_patterns(language: &Language) -> &'static CompiledPatterns {
+    static RUST: LazyLock<CompiledPatterns> = LazyLock::new(|| compile(RUST_PATTERNS));
+    static TS: LazyLock<CompiledPatterns> = LazyLock::new(|| compile(TS_PATTERNS));
+    static PYTHON: LazyLock<CompiledPatterns> = LazyLock::new(|| compile(PYTHON_PATTERNS));
+    static GO: LazyLock<CompiledPatterns> = LazyLock::new(|| compile(GO_PATTERNS));
+    static NONE: LazyLock<CompiledPatterns> = LazyLock::new(Vec::new);
+
+    match language {
+        Language::Rust => &RUST,
+        // JavaScript deliberately shares the TypeScript table.
+        Language::TypeScript | Language::JavaScript => &TS,
+        Language::Python => &PYTHON,
+        Language::Go => &GO,
+        Language::Unknown => &NONE,
+    }
+}
+
 /// Extract symbols from `content` using language-specific regex patterns.
 pub fn extract_symbols(path: &Path, content: &str, language: &Language) -> Vec<SymbolInfo> {
-    match language {
-        Language::Rust => extract_with_patterns(path, content, Language::Rust, RUST_PATTERNS),
-        Language::TypeScript => {
-            extract_with_patterns(path, content, Language::TypeScript, TS_PATTERNS)
-        }
-        Language::JavaScript => {
-            extract_with_patterns(path, content, Language::JavaScript, TS_PATTERNS)
-        }
-        Language::Python => extract_with_patterns(path, content, Language::Python, PYTHON_PATTERNS),
-        Language::Go => extract_with_patterns(path, content, Language::Go, GO_PATTERNS),
-        Language::Unknown => vec![],
-    }
+    extract_with_patterns(path, content, language.clone(), compiled_patterns(language))
 }
 
 fn extract_with_patterns(
     path: &Path,
     content: &str,
     language: Language,
-    patterns: &[(&'static str, SymbolKind)],
-) -> Vec<SymbolInfo>
-where
-    SymbolKind: Clone,
-{
+    patterns: &[(Regex, SymbolKind)],
+) -> Vec<SymbolInfo> {
     let lines: Vec<&str> = content.lines().collect();
     let mut symbols: Vec<SymbolInfo> = Vec::new();
     let mut seen: std::collections::HashSet<(usize, String)> = Default::default();
 
-    for (pattern, kind) in patterns {
-        let re = match Regex::new(pattern) {
-            Ok(r) => r,
-            Err(_) => continue,
-        };
+    // Pattern-outer, line-inner is kept deliberately: it is what orders the
+    // returned symbols (all functions, then all structs, …), and callers such
+    // as `symbols_in_file` surface that order directly.
+    for (re, kind) in patterns {
         for (line_idx, &line) in lines.iter().enumerate() {
             if let Some(cap) = re.captures(line) {
                 if let Some(name_match) = cap.get(1) {
                     let name = name_match.as_str().to_string();
-                    let key = (line_idx, name.clone());
-                    if !seen.contains(&key) {
-                        seen.insert(key);
+                    // `insert` returns false when already present — one lookup
+                    // where `contains` + `insert` did two.
+                    if seen.insert((line_idx, name.clone())) {
                         symbols.push(SymbolInfo {
                             name,
                             kind: kind.clone(),
