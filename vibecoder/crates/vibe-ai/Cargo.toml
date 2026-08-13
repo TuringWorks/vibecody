@@ -45,6 +45,9 @@ testing = []
 
 [dev-dependencies]
 tempfile = "3"
+# Measures the streaming parser's per-chunk allocation cost. See
+# tests/tool_parse_allocations.rs.
+vibe-alloc-count = { path = "../../../crates/vibe-alloc-count" }
 cucumber = { version = "0.23", features = ["macros"] }
 tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread"] }
 
@@ -73,3 +76,7 @@ name = "mock_provider_bdd"
 path = "tests/mock_provider_bdd.rs"
 harness = false
 required-features = ["testing"]
+
+[[test]]
+name = "tool_parse_allocations"
+path = "tests/tool_parse_allocations.rs"

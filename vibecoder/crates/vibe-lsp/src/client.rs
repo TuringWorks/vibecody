@@ -28,7 +28,7 @@
 //! another language.
 
 use crate::discovery::{augmented_path, resolve_server, ServerSearchPaths};
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use lsp_types::*;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -750,6 +750,20 @@ pub fn normalize_uri(uri: &str) -> String {
     String::from_utf8_lossy(&decoded).to_string()
 }
 
+/// Largest LSP message body we will allocate for.
+///
+/// `Content-Length` is chosen by the language server, and `vec![0u8; length]`
+/// allocates *before* a single body byte is read — so a server that prints
+/// `Content-Length: 9999999999999` aborts the process without sending anything.
+/// Language servers are third-party binaries that crash and print garbage; this
+/// need not be hostile to happen. 64 MiB is far above any real response
+/// (a large workspace-symbol reply is single-digit MiB).
+const MAX_LSP_MESSAGE_BYTES: usize = 64 * 1024 * 1024;
+
+/// Largest single header line. A server that never emits `\n` would otherwise
+/// grow this `String` until the process dies, with no `Content-Length` needed.
+const MAX_LSP_HEADER_BYTES: u64 = 8 * 1024;
+
 /// Read one `Content-Length`-framed message. `Ok(None)` is a clean EOF.
 async fn read_message<R: AsyncBufReadExt + AsyncReadExt + Unpin>(
     reader: &mut R,
@@ -759,12 +773,20 @@ async fn read_message<R: AsyncBufReadExt + AsyncReadExt + Unpin>(
     // so we scan until the blank line instead of assuming a fixed layout.
     loop {
         let mut line = String::new();
-        if reader.read_line(&mut line).await? == 0 {
+        if (&mut *reader)
+            .take(MAX_LSP_HEADER_BYTES)
+            .read_line(&mut line)
+            .await?
+            == 0
+        {
             return Ok(None);
         }
         let header = line.trim_end_matches(['\r', '\n']);
         if header.is_empty() {
             break;
+        }
+        if line.len() as u64 >= MAX_LSP_HEADER_BYTES {
+            bail!("LSP header line exceeded {MAX_LSP_HEADER_BYTES} bytes");
         }
         if let Some((name, value)) = header.split_once(':') {
             if name.eq_ignore_ascii_case("content-length") {
@@ -775,6 +797,10 @@ async fn read_message<R: AsyncBufReadExt + AsyncReadExt + Unpin>(
 
     let length =
         content_length.ok_or_else(|| anyhow!("LSP message header had no usable Content-Length"))?;
+    // Check before allocating, not after reading — the allocation is the attack.
+    if length > MAX_LSP_MESSAGE_BYTES {
+        bail!("LSP message Content-Length {length} exceeds {MAX_LSP_MESSAGE_BYTES}");
+    }
     let mut body = vec![0u8; length];
     reader.read_exact(&mut body).await?;
     serde_json::from_slice(&body)
@@ -1078,6 +1104,45 @@ mod tests {
         let raw = format!("Content-Length: {}\r\n\r\n{body}", body.len());
         let msg = frame(&raw).await.expect("parse").expect("message");
         assert_eq!(msg["id"], 1);
+    }
+
+    /// A `Content-Length` far larger than any real message must be rejected
+    /// *before* the allocation, not after the body arrives — the body never
+    /// arrives. Left unchecked, `vec![0u8; length]` here aborts the process on
+    /// a header a crashed language server can print by accident.
+    #[tokio::test]
+    async fn an_absurd_content_length_is_refused_without_allocating() {
+        let raw = format!("Content-Length: {}\r\n\r\n", usize::MAX);
+        let err = frame(&raw).await.expect_err("must not try to allocate");
+        assert!(err.to_string().contains("exceeds"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn a_content_length_just_over_the_cap_is_refused() {
+        let raw = format!("Content-Length: {}\r\n\r\n", MAX_LSP_MESSAGE_BYTES + 1);
+        let err = frame(&raw).await.expect_err("must be refused");
+        assert!(err.to_string().contains("exceeds"), "{err}");
+    }
+
+    /// The bound must not break ordinary messages.
+    #[tokio::test]
+    async fn a_normal_message_is_unaffected_by_the_cap() {
+        let body = format!(
+            r#"{{"jsonrpc":"2.0","id":7,"result":"{}"}}"#,
+            "x".repeat(4096)
+        );
+        let raw = format!("Content-Length: {}\r\n\r\n{body}", body.len());
+        let msg = frame(&raw).await.expect("parse").expect("message");
+        assert_eq!(msg["id"], 7);
+    }
+
+    /// A peer that never sends a newline must not grow the header `String`
+    /// without limit — an OOM that needs no `Content-Length` at all.
+    #[tokio::test]
+    async fn an_endless_header_line_is_refused() {
+        let raw = "C".repeat(MAX_LSP_HEADER_BYTES as usize * 2);
+        let err = frame(&raw).await.expect_err("must be refused");
+        assert!(err.to_string().contains("exceeded"), "{err}");
     }
 
     #[tokio::test]

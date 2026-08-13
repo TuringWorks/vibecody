@@ -543,7 +543,13 @@ impl ExtensionLoader {
                     Some(Extern::Memory(m)) => m,
                     _ => return -1,
                 };
-                let mut buf = vec![0u8; data_len as usize];
+                // The guest picks `data_len`; bound it before it sizes a host
+                // allocation. See `checked_guest_len`.
+                let data_len = match checked_guest_len(&caller, &mem, data_len) {
+                    Some(n) => n,
+                    None => return -1,
+                };
+                let mut buf = vec![0u8; data_len];
                 if mem.read(&caller, data_ptr as usize, &mut buf).is_err() {
                     return -1;
                 }
@@ -1060,12 +1066,30 @@ mod tests {
     }
 }
 
+/// Validate a length the *guest* chose before it sizes a *host* allocation.
+///
+/// `len` is an `i32` under the extension's control, and `len as usize` trusts
+/// it twice over: a negative value wraps to something near `usize::MAX` (a
+/// capacity-overflow abort), and even an honest `i32::MAX` asks the host for
+/// 2 GiB on demand. The extension sandbox bounds fuel, epochs and *guest*
+/// memory, but none of that bounds a `Vec` allocated on the host's side of the
+/// call.
+///
+/// The bound is not arbitrary: a read cannot legitimately exceed the guest's
+/// own linear memory, because that is where the bytes would have to come from.
+fn checked_guest_len(store: impl AsContext, mem: &Memory, len: i32) -> Option<usize> {
+    // `try_from` rejects negatives; `as` would have wrapped them.
+    let len = usize::try_from(len).ok()?;
+    (len <= mem.data_size(store)).then_some(len)
+}
+
 fn wasm_read_str(caller: &mut Caller<HostState>, ptr: i32, len: i32) -> Option<String> {
     let mem = match caller.get_export("memory") {
         Some(Extern::Memory(m)) => m,
         _ => return None,
     };
-    let mut buf = vec![0u8; len as usize];
+    let len = checked_guest_len(&*caller, &mem, len)?;
+    let mut buf = vec![0u8; len];
     mem.read(caller, ptr as usize, &mut buf).ok()?;
     String::from_utf8(buf).ok()
 }

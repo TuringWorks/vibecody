@@ -152,6 +152,9 @@ impl LspClient {
     }
 }
 
+/// Largest LSP frame we will allocate for. See the check in [`read_frame`].
+const MAX_LSP_FRAME_BYTES: usize = 64 * 1024 * 1024;
+
 fn read_frame<R: BufRead>(reader: &mut R) -> Result<String> {
     let mut content_length: Option<usize> = None;
     let mut line = String::new();
@@ -170,6 +173,14 @@ fn read_frame<R: BufRead>(reader: &mut R) -> Result<String> {
         }
     }
     let len = content_length.ok_or_else(|| anyhow!("missing Content-Length"))?;
+    // Bound before allocating. `len` is whatever the language server printed,
+    // and this `vec!` runs before any body byte is read, so a crashed server
+    // emitting garbage takes the process with it.
+    if len > MAX_LSP_FRAME_BYTES {
+        return Err(anyhow!(
+            "LSP Content-Length {len} exceeds {MAX_LSP_FRAME_BYTES}"
+        ));
+    }
     let mut buf = vec![0u8; len];
     reader.read_exact(&mut buf)?;
     Ok(String::from_utf8_lossy(&buf).into_owned())

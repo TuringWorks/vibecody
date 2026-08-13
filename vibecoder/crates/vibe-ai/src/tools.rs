@@ -6,6 +6,7 @@
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::sync::LazyLock;
 
 // ── System Prompt ─────────────────────────────────────────────────────────────
 
@@ -914,11 +915,21 @@ pub fn tool_call_rejection_reason(text: &str) -> Option<String> {
     ))
 }
 
+/// The canonical `<tool_call name="…">…</tool_call>` regex, compiled once.
+///
+/// Two call sites had their own copy of this pattern and each recompiled it per
+/// call; one shared static keeps them from drifting as well as from allocating.
+fn tool_call_re() -> &'static Regex {
+    static RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r#"(?s)<tool_call\s+name="([^"]+)">(.*?)</tool_call>"#)
+            .expect("hardcoded regex is valid")
+    });
+    &RE
+}
+
 pub fn unparsed_tool_call_name(text: &str) -> Option<String> {
     let visible = strip_thinking(text);
-    let re = Regex::new(r#"(?s)<tool_call\s+name="([^"]+)">(.*?)</tool_call>"#)
-        .expect("hardcoded regex is valid");
-    for cap in re.captures_iter(&visible) {
+    for cap in tool_call_re().captures_iter(&visible) {
         let name = cap[1].trim();
         if parse_single_tool(name, &cap[2]).is_none() {
             return Some(name.to_string());
@@ -988,27 +999,31 @@ const THINK_CLOSE: &str = r"</(?:[A-Za-z][\w.-]*:)?think(?:ing)?>";
 /// Only for display paths. Tool parsing must keep using `strip_thinking`,
 /// because reasoning quotes calls the model then rejected.
 pub fn unwrap_thinking(text: &str) -> String {
-    let tags = Regex::new(&format!(r"</?(?:[A-Za-z][\w.-]*:)?think(?:ing)?>"))
-        .expect("hardcoded regex is valid");
-    tags.replace_all(text, "").trim().to_string()
+    static TAGS: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"</?(?:[A-Za-z][\w.-]*:)?think(?:ing)?>").expect("hardcoded regex is valid")
+    });
+    TAGS.replace_all(text, "").trim().to_string()
 }
 
 pub fn strip_thinking(text: &str) -> String {
-    let block_re =
-        Regex::new(&format!("(?s){THINK_OPEN}.*?{THINK_CLOSE}")).expect("hardcoded regex is valid");
-    let stripped = block_re.replace_all(text, "");
+    static BLOCK: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(&format!("(?s){THINK_OPEN}.*?{THINK_CLOSE}")).expect("hardcoded regex is valid")
+    });
+    let stripped = BLOCK.replace_all(text, "");
 
     // An *orphan closing* tag: the provider consumed the opening tag into its
     // own reasoning field, so everything before the close is still reasoning.
     // Without this the tail of a model's thinking survives as prose — exactly
     // how `</mm:think>` reached the screen.
-    let orphan_re =
-        Regex::new(&format!("(?s)^.*?{THINK_CLOSE}")).expect("hardcoded regex is valid");
-    let stripped = orphan_re.replace(&stripped, "").into_owned();
+    static ORPHAN: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(&format!("(?s)^.*?{THINK_CLOSE}")).expect("hardcoded regex is valid")
+    });
+    let stripped = ORPHAN.replace(&stripped, "").into_owned();
 
-    let unclosed_re =
-        Regex::new(&format!("(?s){THINK_OPEN}.*$")).expect("hardcoded regex is valid");
-    unclosed_re.replace(&stripped, "").into_owned()
+    static UNCLOSED: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(&format!("(?s){THINK_OPEN}.*$")).expect("hardcoded regex is valid")
+    });
+    UNCLOSED.replace(&stripped, "").into_owned()
 }
 
 /// Parse all `<tool_call>` blocks from a model response.
@@ -1038,8 +1053,11 @@ fn body_param(tool: &str) -> Option<&'static str> {
 
 /// Parse `name="value"` pairs off an element's attribute list.
 fn parse_attrs(raw: &str) -> Vec<(String, String)> {
-    let re = Regex::new(r#"([A-Za-z_][\w.-]*)\s*=\s*"([^"]*)""#).expect("hardcoded regex is valid");
-    re.captures_iter(raw)
+    static ATTRS: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r#"([A-Za-z_][\w.-]*)\s*=\s*"([^"]*)""#).expect("hardcoded regex is valid")
+    });
+    ATTRS
+        .captures_iter(raw)
         .map(|c| (c[1].to_string(), c[2].trim().to_string()))
         .collect()
 }
@@ -1076,6 +1094,30 @@ fn element_to_canonical(tool: &str, attrs: &str, body: Option<&str>) -> Option<T
 /// models carry it into agent runs. Only names in [`AVAILABLE_TOOL_NAMES`] are
 /// considered, so ordinary markup in prose — `<div>`, `<p>` — is never mistaken
 /// for a call.
+/// The paired and self-closing element regexes, one pair per tool, built once.
+///
+/// These used to be compiled inside `parse_element_calls`, twice per tool name
+/// per call — 28 regex compilations every time a model response was parsed, and
+/// the count grew with every tool added. Building them once makes the parse
+/// cost independent of how many tools exist, which is the property
+/// `cost_does_not_scale_with_the_number_of_tools` in
+/// `tests/tool_parse_allocations.rs` holds us to.
+fn element_patterns() -> &'static [(&'static str, Regex, Regex)] {
+    static PATTERNS: LazyLock<Vec<(&'static str, Regex, Regex)>> = LazyLock::new(|| {
+        AVAILABLE_TOOL_NAMES
+            .iter()
+            .map(|name| {
+                let paired = Regex::new(&format!(r"(?s)<{name}(\s[^>]*?)?>(.*?)</{name}\s*>"))
+                    .expect("generated regex is valid");
+                let solo = Regex::new(&format!(r"<{name}(\s[^>]*?)?/>"))
+                    .expect("generated regex is valid");
+                (*name, paired, solo)
+            })
+            .collect()
+    });
+    &PATTERNS
+}
+
 fn parse_element_calls(text: &str) -> Vec<ToolCall> {
     // One regex per tool name rather than one alternation with a backreference:
     // Rust's `regex` has no backreferences, so `</\1>` cannot express "the same
@@ -1085,9 +1127,7 @@ fn parse_element_calls(text: &str) -> Vec<ToolCall> {
     let mut found: Vec<(usize, ToolCall)> = Vec::new();
     let mut consumed: Vec<(usize, usize)> = Vec::new();
 
-    for name in AVAILABLE_TOOL_NAMES {
-        let paired = Regex::new(&format!(r"(?s)<{name}(\s[^>]*?)?>(.*?)</{name}\s*>"))
-            .expect("generated regex is valid");
+    for (name, paired, _) in element_patterns() {
         for c in paired.captures_iter(text) {
             let whole = c.get(0).expect("group 0 always exists");
             if let Some(call) = element_to_canonical(
@@ -1102,8 +1142,7 @@ fn parse_element_calls(text: &str) -> Vec<ToolCall> {
     }
 
     // Self-closing form, ignoring anything already inside a paired match.
-    for name in AVAILABLE_TOOL_NAMES {
-        let solo = Regex::new(&format!(r"<{name}(\s[^>]*?)?/>")).expect("generated regex is valid");
+    for (name, _, solo) in element_patterns() {
         for c in solo.captures_iter(text) {
             let whole = c.get(0).expect("group 0 always exists");
             if consumed
@@ -1130,10 +1169,12 @@ fn parse_element_calls(text: &str) -> Vec<ToolCall> {
 /// Observed live from minimax-m3 when it is given no native tool definitions —
 /// it reaches for the OpenAI function-call shape it was trained on.
 fn parse_json_calls(text: &str) -> Vec<ToolCall> {
-    let re =
+    static JSON_CALL: LazyLock<Regex> = LazyLock::new(|| {
         Regex::new(r#"(?s)\{[^{}]*"name"\s*:\s*"([^"]+)"[^{}]*"arguments"\s*:\s*(\{.*?\})\s*\}"#)
-            .expect("hardcoded regex is valid");
-    re.captures_iter(text)
+            .expect("hardcoded regex is valid")
+    });
+    JSON_CALL
+        .captures_iter(text)
         .filter_map(|c| {
             let tool = c[1].trim();
             if !AVAILABLE_TOOL_NAMES.contains(&tool) {
@@ -1170,8 +1211,7 @@ fn parse_json_calls(text: &str) -> Vec<ToolCall> {
 pub fn parse_tool_calls(text: &str) -> Vec<ToolCall> {
     let text = &strip_thinking(text);
     // Match <tool_call name="...">...</tool_call> — possibly multi-line
-    let outer_re = Regex::new(r#"(?s)<tool_call\s+name="([^"]+)">(.*?)</tool_call>"#)
-        .expect("hardcoded regex is valid");
+    let outer_re = tool_call_re();
 
     let mut calls = Vec::new();
 
@@ -1336,15 +1376,55 @@ fn escape_xml_text(s: &str) -> String {
         .replace('>', "&gt;")
 }
 
+/// Byte index just past the first `<tag>` (or `</tag>` when `closing`) in
+/// `body`, or `None`.
+///
+/// A plain scan rather than a regex: the pattern has no metacharacters, and the
+/// caller runs once per parameter of every tool call. Uses `get` rather than
+/// slicing so a non-ASCII tag can only fail to match, never panic on a char
+/// boundary.
+fn find_tag_end(body: &str, tag: &str, closing: bool) -> Option<usize> {
+    let mut from = 0usize;
+    while let Some(rel) = body.get(from..)?.find('<') {
+        let at = from + rel;
+        let after_lt = at + 1;
+        let rest = body.get(after_lt..)?;
+        let rest = if closing {
+            match rest.strip_prefix('/') {
+                Some(r) => r,
+                None => {
+                    from = after_lt;
+                    continue;
+                }
+            }
+        } else if rest.starts_with('/') {
+            from = after_lt;
+            continue;
+        } else {
+            rest
+        };
+        if let Some(after_name) = rest.strip_prefix(tag) {
+            if after_name.starts_with('>') {
+                // Distance from `at` to just past the '>' that closes this tag.
+                let consumed = body.len() - after_name.len() + 1;
+                return Some(consumed);
+            }
+        }
+        from = after_lt;
+    }
+    None
+}
+
 /// Extract content from `<tag>...</tag>` in a body string, decoding any XML
 /// entities the model escaped (see [`decode_xml_entities`]).
 fn extract_tag(body: &str, tag: &str) -> Option<String> {
-    let pattern = format!(r"(?s)<{tag}>(.*?)</{tag}>", tag = regex::escape(tag));
-    let re = Regex::new(&pattern).ok()?;
-    re.captures(body)
-        .and_then(|c| c.get(1))
-        .map(|m| decode_xml_entities(m.as_str().trim()))
-        .filter(|s| !s.is_empty())
+    let start = find_tag_end(body, tag, false)?;
+    let rest = body.get(start..)?;
+    // The close is located within `rest`, so a `</tag>` appearing *before* the
+    // open cannot terminate the match.
+    let close_end = find_tag_end(rest, tag, true)?;
+    let inner = rest.get(..close_end.checked_sub(tag.len() + 3)?)?;
+    Some(decode_xml_entities(inner.trim())).filter(|s| !s.is_empty())
 }
 
 // ── Formatting ────────────────────────────────────────────────────────────────

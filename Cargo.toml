@@ -20,6 +20,7 @@ members = [
     "crates/vibe-desktop-voice",
     "crates/vibe-profile-store",
     "crates/vibe-sync-ext",
+    "crates/vibe-alloc-count",
     "crates/vibe-embed",
     "crates/vibe-eval",
     "vibe-indexer",

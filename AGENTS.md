@@ -548,6 +548,83 @@ Apply this **after** cadence and structure — see [Performance](#performance--m
 
 > Every item in this subsection is worth less than one correctly-sized poll interval. Reach for it **after** the performance loop below, not instead of it.
 
+#### Never size an allocation from unvalidated input — check *before* you allocate
+
+This is the one allocation rule that is a **security** rule, not a performance
+one, and it does not wait for a measurement.
+
+```rust
+// WRONG — the allocation happens before a single body byte arrives, so a peer
+// that never sends anything still kills the process.
+let len: usize = header.trim().parse()?;
+let mut buf = vec![0u8; len];
+reader.read_exact(&mut buf).await?;
+
+// RIGHT — bound first. `subprocess_dispatch.rs::read_frame` is the template.
+if len == 0 || len > MAX_FRAME_PAYLOAD {
+    bail!("invalid frame length {len}");
+}
+let mut buf = vec![0u8; len];
+```
+
+Applies to every length that crosses a trust boundary: `Content-Length` from a
+language server or an MCP peer, a length argument from a WASM guest, a JSON
+field, a Tauri command parameter from the renderer, a file's reported size.
+
+- **`as usize` is not validation.** A negative `i32` from a WASM guest becomes
+  a number near `usize::MAX` and aborts on capacity overflow. Use
+  `usize::try_from(n).ok()?`.
+- **Check before, not after.** Reading the body and *then* comparing its length
+  to a cap bounds the disk, not the memory — the OOM already happened.
+- **Clamp a knob, reject a frame.** A benchmark's `num_vectors` should
+  `clamp`; a protocol frame that claims 9 TB should be an error.
+- **Bound `read_to_end` and `read_line` on anything network-facing.**
+  `.take(MAX + 1)` then check, so a truncated body is distinguishable from a
+  complete one. A `timeout` bounds time, not bytes.
+
+#### You cannot handle Rust's allocation failure — so bound the input instead
+
+On stable Rust, `Vec::push` / `vec![0; n]` / `String::from` **abort** on
+allocation failure. There is no `Err` to propagate and no unwinding: the
+process dies. `try_reserve` is the only fallible path, and this repo does not
+use it anywhere. Consequently:
+
+**The bound on the input *is* the error handling.** A `MAX_*_BYTES` check that
+returns `Err` is the only way an oversized message becomes a handled error
+rather than a dead daemon. Treat "where does this size come from?" as part of
+reviewing any `with_capacity` / `vec![_; n]`.
+
+#### Measure allocation, don't assert it
+
+`crates/vibe-alloc-count` is a counting global allocator for tests and benches.
+Use it whenever you claim a path got cheaper, and leave the assertion behind as
+a ratchet:
+
+```rust
+use vibe_alloc_count::{measure_steady_state, CountingAllocator};
+
+#[global_allocator]
+static ALLOC: CountingAllocator = CountingAllocator::new();
+
+let stats = measure_steady_state(|| parse_tool_calls(CHUNK));
+assert!(stats.allocations < 1_000, "{stats:?}");
+```
+
+Use `measure_steady_state` (runs twice, reports the second) whenever the code
+has `LazyLock`/`OnceLock` statics — counting one-time lazy init against
+per-call cost overstates it by orders of magnitude, which is exactly how an
+optimisation gets mistaken for a no-op. Only one crate per test binary may
+install a global allocator, so these live in dedicated test targets.
+`vibecoder/crates/vibe-ai/tests/tool_parse_allocations.rs` is the worked
+example, including the before/after table.
+
+**A regex built outside a `LazyLock` is the single most expensive mistake in
+this codebase's hot paths.** `strip_thinking` compiled three per streamed chunk
+and cost 46,559 allocations / 27 MB *per chunk*; `parse_tool_calls` compiled 28
+and cost 100,503 allocations / 41 MB to decide a fragment of prose contained no
+tool call. Hoisting them made those 61 and 226. Grep for `Regex::new` outside a
+`static` before adding one.
+
 ### Discipline for refactors
 
 - **Behaviour-preserving only.** A speed/safety refactor must not change observable output. If a test doesn't already pin the behaviour, add one *first* (red/green — see [Test discipline](#test-discipline-redgreen-tdd--bdd)), then refactor under it.

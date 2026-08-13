@@ -1,0 +1,9 @@
+[package]
+name = "vibe-alloc-count"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "A counting global allocator for tests and benches, so allocation claims in VibeCody are measured rather than asserted. Dependency-free."
+
+[dependencies]

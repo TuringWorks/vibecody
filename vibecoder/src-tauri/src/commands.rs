@@ -46733,7 +46733,9 @@ pub async fn get_gpu_terminal_stats() -> Result<GpuRenderStats, String> {
 /// Run a simple benchmark measuring string-processing throughput.
 #[tauri::command]
 pub async fn run_gpu_terminal_benchmark(frames: Option<u64>) -> Result<GpuBenchmarkResult, String> {
-    let num_frames = frames.unwrap_or(100);
+    // Clamped: `frames` sizes a `Vec<u64>` *and* bounds the loop below, so an
+    // unclamped `u64::MAX` is both an OOM and an unbounded busy loop.
+    let num_frames = frames.unwrap_or(100).clamp(1, 10_000);
     let mut timings: Vec<u64> = Vec::with_capacity(num_frames as usize);
 
     for _ in 0..num_frames {
@@ -53676,6 +53678,15 @@ pub async fn turboquant_benchmark(
     dimension: usize,
 ) -> Result<serde_json::Value, String> {
     use std::time::Instant;
+
+    // Both parameters size allocations, and both arrive from the renderer.
+    // Unclamped, `num_vectors: 1e12` asks for a `Vec<Vec<f32>>` far beyond
+    // memory and aborts the app. Clamped rather than rejected because this is
+    // a benchmark knob — the useful range is small and a caller asking for
+    // more just gets the maximum. Mirrors the clamp already used by the
+    // concurrency benchmark in this file.
+    let num_vectors = num_vectors.clamp(1, 100_000);
+    let dimension = dimension.clamp(1, 8_192);
 
     let config = TurboQuantConfig {
         dimension,

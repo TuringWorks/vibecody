@@ -37,7 +37,19 @@ pub enum ForwardError {
     BadResponse,
     #[error("upstream timeout after {0:?}")]
     Timeout(Duration),
+    #[error("upstream response exceeded {0} bytes")]
+    ResponseTooLarge(usize),
 }
+
+/// Largest upstream response the broker will buffer.
+///
+/// `read_to_end` on a socket is bounded only by the peer's willingness to stop
+/// sending. The surrounding `timeout` bounds *time*, not bytes, so an upstream
+/// streaming at line rate filled memory for the whole timeout window — and
+/// `parse_response` then copies the body out, so peak was twice the download.
+/// The rest of this crate already reads into fixed 8 KiB buffers; this was the
+/// outlier.
+const MAX_UPSTREAM_RESPONSE_BYTES: usize = 32 * 1024 * 1024;
 
 pub async fn forward_plain_http(
     req: ForwardRequest<'_>,
@@ -98,7 +110,13 @@ pub async fn forward_plain_http(
 
     let read_fut = async {
         let mut buf = Vec::with_capacity(4096);
-        stream.read_to_end(&mut buf).await?;
+        // `take` caps the read; a response at exactly the cap is treated as
+        // over it, because we cannot tell a truncated body from a complete one
+        // and must not hand a caller a silently-cut response.
+        (&mut stream)
+            .take(MAX_UPSTREAM_RESPONSE_BYTES as u64 + 1)
+            .read_to_end(&mut buf)
+            .await?;
         std::io::Result::Ok(buf)
     };
     let raw = match tokio::time::timeout(timeout, read_fut).await {
@@ -106,6 +124,10 @@ pub async fn forward_plain_http(
         Ok(Err(e)) => return Err(ForwardError::Io(e)),
         Err(_) => return Err(ForwardError::Timeout(timeout)),
     };
+
+    if raw.len() > MAX_UPSTREAM_RESPONSE_BYTES {
+        return Err(ForwardError::ResponseTooLarge(MAX_UPSTREAM_RESPONSE_BYTES));
+    }
 
     parse_response(&raw)
 }

@@ -17,6 +17,31 @@ pub use embeddings::{
 // stores and the indexer can share one catalog and one trait. Re-exported here
 // because every consumer of an index also needs to name the model it wants.
 pub use symbol::{Language, SymbolInfo, SymbolKind};
+
+/// Skip files larger than this when indexing.
+///
+/// Matches `search::MAX_FILE_BYTES`, so a file too big to grep is also too big
+/// to index — the two disagreeing is confusing to explain to a user.
+const MAX_INDEXABLE_FILE_BYTES: u64 = 10 * 1024 * 1024; // 10 MB
+
+/// Read a source file for indexing, or `None` if it should be skipped.
+///
+/// `read_to_string` allocates the whole file, and nothing upstream bounds what
+/// lands in a workspace: a checked-in generated bundle or a vendored blob with
+/// a source extension is enough to exhaust memory during a routine index. The
+/// size is checked from metadata *before* the read, so an oversized file costs
+/// a stat rather than an allocation. `embeddings::read_indexable` already did
+/// this; the symbol indexer did not.
+fn read_indexable_source(path: &std::path::Path) -> Option<String> {
+    let meta = std::fs::metadata(path).ok()?;
+    if meta.len() > MAX_INDEXABLE_FILE_BYTES {
+        tracing::debug!("index: skipping oversized file {}", path.display());
+        return None;
+    }
+    // Still fallible after the size check: binaries and non-UTF-8 land here.
+    std::fs::read_to_string(path).ok()
+}
+
 pub use turboquant::{
     compress_batch, TurboQuantConfig, TurboQuantIndex, TurboQuantSearchResult, TurboQuantStats,
 };
@@ -116,9 +141,8 @@ impl CodebaseIndex {
                 }
             }
 
-            let content = match std::fs::read_to_string(path) {
-                Ok(c) => c,
-                Err(_) => continue, // binary or unreadable
+            let Some(content) = read_indexable_source(path) else {
+                continue; // oversized, binary, or unreadable
             };
 
             let path_buf = path.to_path_buf();
@@ -162,7 +186,7 @@ impl CodebaseIndex {
             if !language.is_source() {
                 continue;
             }
-            match std::fs::read_to_string(path) {
+            match read_indexable_source(path).ok_or(()) {
                 Ok(content) => {
                     let modified = std::fs::metadata(path)
                         .and_then(|m| m.modified())

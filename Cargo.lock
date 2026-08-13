@@ -12123,9 +12123,14 @@ dependencies = [
  "tokio-stream",
  "toml 0.8.23",
  "tracing",
+ "vibe-alloc-count",
  "vibe-embed",
  "walkdir",
 ]
+
+[[package]]
+name = "vibe-alloc-count"
+version = "0.5.8"
 
 [[package]]
 name = "vibe-broker"

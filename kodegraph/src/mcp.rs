@@ -21,6 +21,11 @@ use tokio::sync::Mutex;
 use crate::model::graph::CodeGraph;
 use crate::query;
 
+/// Largest MCP frame we will allocate for. `Content-Length` is peer-controlled
+/// and sizes the buffer before any body arrives, so it is bounded here rather
+/// than trusted. Well above any real JSON-RPC payload.
+const MAX_MCP_MESSAGE_BYTES: usize = 64 * 1024 * 1024;
+
 /// An MCP server over a loaded graph.
 pub struct McpServer {
     graph: Arc<Mutex<CodeGraph>>,
@@ -50,6 +55,13 @@ impl McpServer {
             let trimmed = line.trim_end_matches(&['\r', '\n'][..]);
             if trimmed.is_empty() {
                 if let Some(len) = content_len.take() {
+                    // Check before allocating: `len` comes from a
+                    // `Content-Length` on stdin, and the allocation happens
+                    // before a single body byte is read, so a bogus header
+                    // aborts the process without the peer sending anything.
+                    if len > MAX_MCP_MESSAGE_BYTES {
+                        anyhow::bail!("MCP Content-Length {len} exceeds {MAX_MCP_MESSAGE_BYTES}");
+                    }
                     let mut buf = vec![0u8; len];
                     stdin.read_exact(&mut buf).await?;
                     let frame = String::from_utf8_lossy(&buf);
