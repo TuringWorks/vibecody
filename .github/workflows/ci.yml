@@ -20,7 +20,7 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  NODE_VERSION: "20"
+  NODE_VERSION: "22"
   FLUTTER_VERSION: "3.44.2"
   JAVA_VERSION: "17"
 
@@ -97,6 +97,20 @@ jobs:
         env:
           RUST_TEST_THREADS: "1"
         run: cargo test --workspace --exclude vibe-memory --exclude vibe-broker --lib --bins --tests
+
+      # The eval suites are data, so nothing else in the build checks them: a
+      # typo in a grader key, a duplicate task id, or an assertion naming a
+      # fixture file that does not exist would surface only as a confusing
+      # mid-run error — or, worse, as a task that quietly stops testing
+      # anything. Called out as its own step so a suite break reads as a suite
+      # break rather than as one line in the workspace test output.
+      #
+      # This runs no agent and calls no provider, so it costs nothing and needs
+      # no API key. Actually *running* the evals is deliberately not in CI:
+      # that spends tokens and belongs behind `make eval-offline`.
+      - name: Validate eval suites
+        if: matrix.check == 'test'
+        run: cargo test -p vibe-eval --test suites_are_valid
 
   # ─── VibeCoder: TypeScript + React ────────────────────────────────────────
   vibecoder-checks:

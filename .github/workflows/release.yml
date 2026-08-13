@@ -16,7 +16,7 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  NODE_VERSION: "20"
+  NODE_VERSION: "22"
   FLUTTER_VERSION: "3.44.2"
   JAVA_VERSION: "17"
 

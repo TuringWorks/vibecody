@@ -50,6 +50,7 @@ COPY crates/vibe-desktop-settings/Cargo.toml crates/vibe-desktop-settings/Cargo.
 COPY crates/vibe-desktop-voice/Cargo.toml crates/vibe-desktop-voice/Cargo.toml
 COPY crates/vibe-profile-store/Cargo.toml crates/vibe-profile-store/Cargo.toml
 COPY crates/vibe-embed/Cargo.toml crates/vibe-embed/Cargo.toml
+COPY crates/vibe-eval/Cargo.toml crates/vibe-eval/Cargo.toml
 COPY kodegraph/Cargo.toml kodegraph/Cargo.toml
 COPY skilllensai-rs/Cargo.toml skilllensai-rs/Cargo.toml
 COPY skilloptai-rs/Cargo.toml skilloptai-rs/Cargo.toml
@@ -84,6 +85,7 @@ RUN mkdir -p vibecli/vibecli-cli/src && echo 'fn main() {}' > vibecli/vibecli-cl
     mkdir -p crates/vibe-desktop-voice/src && echo '' > crates/vibe-desktop-voice/src/lib.rs && \
     mkdir -p crates/vibe-profile-store/src && echo '' > crates/vibe-profile-store/src/lib.rs && \
     mkdir -p crates/vibe-embed/src && echo '' > crates/vibe-embed/src/lib.rs && \
+    mkdir -p crates/vibe-eval/src && echo '' > crates/vibe-eval/src/lib.rs && \
     mkdir -p kodegraph/src && echo '' > kodegraph/src/lib.rs && \
     mkdir -p skilllensai-rs/src && echo '' > skilllensai-rs/src/lib.rs && \
     mkdir -p skilloptai-rs/src && echo '' > skilloptai-rs/src/lib.rs && \
@@ -113,6 +115,7 @@ COPY crates/vibe-desktop-settings/src/ crates/vibe-desktop-settings/src/
 COPY crates/vibe-desktop-voice/src/ crates/vibe-desktop-voice/src/
 COPY crates/vibe-profile-store/src/ crates/vibe-profile-store/src/
 COPY crates/vibe-embed/src/ crates/vibe-embed/src/
+COPY crates/vibe-eval/src/ crates/vibe-eval/src/
 COPY kodegraph/src/ kodegraph/src/
 COPY skilllensai-rs/src/ skilllensai-rs/src/
 COPY skilloptai-rs/src/ skilloptai-rs/src/
