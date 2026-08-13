@@ -233,16 +233,23 @@ tasks:
                   import pathlib, re, sys
                   src = pathlib.Path(
                       "vibecli/vibecli-cli/src/watch_auth.rs").read_text()
-                  # Mentions that explain the constraint are fine; mentions
-                  # that label a field as holding an Ed25519 key are not.
+                  # The rule: a *doc comment* may name Ed25519 only while also
+                  # naming P-256. That permits the sentences explaining why
+                  # the Enclave forces P-256, and the legacy-named wrapper
+                  # that verifies P-256, while catching the thing that
+                  # actually misleads — a field documented as carrying an
+                  # Ed25519 key when it carries a P-256 one. Ordinary `//`
+                  # comments and identifiers are out of scope; only the
+                  # rendered API documentation is being policed.
                   offenders = [
                       line.strip()
                       for line in src.splitlines()
-                      if re.search(r"[Ee]d25519", line)
-                      and not re.search(r"not Ed25519|never Ed25519", line)
+                      if re.match(r"\s*//[/!]", line)
+                      and re.search(r"[Ee]d25519", line)
+                      and not re.search(r"P-?256", line)
                   ]
                   if offenders:
-                      print("ED25519_REFERENCES_FOUND")
+                      print("ED25519_IN_DOCS_WITHOUT_P256")
                       for line in offenders:
                           print("  " + line)
                       sys.exit(1)

@@ -40,7 +40,8 @@ pub struct WatchDevice {
     pub device_id: String,
     /// Human-readable name (e.g. "Ravindra's Apple Watch Ultra")
     pub name: String,
-    /// Base64url-encoded Ed25519 public key from Watch Secure Enclave
+    /// Base64url-encoded P-256 (secp256r1) public key from the Watch Secure
+    /// Enclave, 64 raw bytes (x||y). The Enclave supports no other algorithm.
     pub public_key_b64: String,
     /// watchOS version string
     pub os_version: String,
@@ -90,9 +91,10 @@ pub struct WatchRegisterRequest {
     pub name: String,
     pub os_version: String,
     pub model: String,
-    /// Base64url Ed25519 public key
+    /// Base64url P-256 public key (64 raw bytes, x||y)
     pub public_key_b64: String,
-    /// Base64url Ed25519 signature over SHA-256(nonce || device_id || issued_at)
+    /// Base64url P-256 ECDSA signature over SHA-256(nonce || device_id ||
+    /// issued_at), 64-byte compact IEEE P1363 (r||s)
     pub signature_b64: String,
     /// The nonce from the challenge
     pub nonce: String,
@@ -115,7 +117,7 @@ pub struct WatchRefreshRequest {
     pub device_id: String,
     /// Existing refresh token (HMAC-JWT)
     pub refresh_token: String,
-    /// Ed25519 signature over SHA-256(refresh_token || timestamp) to prove key
+    /// P-256 ECDSA signature over SHA-256(refresh_token || timestamp) to prove key
     /// possession alongside the token, preventing token-only theft attacks.
     pub proof_signature_b64: String,
     pub timestamp: u64,
@@ -128,7 +130,7 @@ pub struct WristEvent {
     pub device_id: String,
     pub on_wrist: bool,
     pub timestamp: u64,
-    /// Ed25519 signature over SHA-256(device_id || on_wrist_byte || timestamp)
+    /// P-256 ECDSA signature over SHA-256(device_id || on_wrist_byte || timestamp)
     pub signature_b64: String,
 }
 
@@ -553,6 +555,10 @@ pub fn verify_p256_signature(pk: &[u8], msg: &[u8], sig: &[u8]) -> Result<()> {
 }
 
 /// Public wrapper kept for existing BDD step compatibility.
+///
+/// Legacy name only — it verifies P-256, not Ed25519, and always has on this
+/// path. Renaming it would break the BDD steps that call it; the name is kept
+/// and the behaviour documented: this is a P-256 path, not an Ed25519 one.
 #[doc(hidden)]
 pub fn verify_ed25519_signature_pub(pk: &[u8], msg: &[u8], sig: &[u8]) -> Result<()> {
     verify_p256_signature(pk, msg, sig)

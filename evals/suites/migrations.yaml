@@ -1,0 +1,431 @@
+# Version and language migrations — the long, boring, high-risk kind of work.
+#
+# Upgrades are where agents should shine and where they most often quietly
+# half-finish: convert four files out of six, leave a shim in place, or "fix"
+# a call site by deleting the feature. The graders here are built around that
+# failure mode. Each one checks three things, not one:
+#
+#   1. the new world works,
+#   2. the old world is *gone* (no leftover shim, no surviving old API),
+#   3. behaviour is unchanged — the same inputs still produce the same outputs.
+#
+# Checking only (1) passes a migration that left half the codebase behind, and
+# that is exactly the state a half-finished upgrade leaves you in.
+
+id: migrations
+title: Version and language migrations
+description: >
+  Whole-codebase upgrades: Python 2 to 3, CommonJS to ESM, and retiring a
+  deprecated internal API along with its compatibility shim.
+default_surfaces: [cli]
+defaults:
+  timeout_secs: 1800
+
+tasks:
+  - id: python2-to-python3
+    title: Port a Python 2 package to Python 3
+    capability: refactoring
+    difficulty: hard
+    requires: [python3]
+    tags: [migration, python, long-run]
+    prompt: |
+      This package is written for Python 2 and does not even parse under
+      Python 3. Port it.
+
+      Every module must run under Python 3 with identical behaviour. Keep the
+      public function names and their return types the same — callers outside
+      this package depend on them.
+
+      When you are done, `python3 runner.py` must print `PORTED_OK`.
+
+      Note `stats.mean`: under Python 2 its `/` was integer division for two
+      ints, and callers rely on the truncating behaviour. Preserve what the
+      code *does*, not what the operator now means.
+    fixture:
+      files:
+        textutil.py: |
+          # Python 2 module.
+          def normalise(s):
+              if isinstance(s, unicode):
+                  return s.strip().lower()
+              return unicode(s, "utf-8").strip().lower()
+
+          def join_pairs(d):
+              out = []
+              for k, v in d.iteritems():
+                  out.append("%s=%s" % (k, v))
+              return ",".join(sorted(out))
+
+          def has_field(d, key):
+              return d.has_key(key)
+        stats.py: |
+          # Python 2 module.
+          def mean(values):
+              """Average, truncated — callers depend on an int result."""
+              total = 0
+              for v in values:
+                  total += v
+              return total / len(values)
+
+          def describe(values):
+              print "n=%d" % len(values)
+              return {"n": len(values), "mean": mean(values)}
+        errors.py: |
+          # Python 2 module.
+          class DataError(Exception):
+              pass
+
+          def parse_int(raw):
+              try:
+                  return int(raw)
+              except ValueError, e:
+                  raise DataError, "not an integer: %s" % raw
+        runner.py: |
+          # Python 2 entry point.
+          import textutil
+          import stats
+          import errors
+
+          def main():
+              assert textutil.normalise("  HeLLo ") == u"hello"
+              assert textutil.join_pairs({"b": 2, "a": 1}) == "a=1,b=2"
+              assert textutil.has_field({"x": 1}, "x") is True
+              assert stats.mean([1, 2, 3, 4]) == 2
+              assert stats.describe([2, 4])["mean"] == 3
+              try:
+                  errors.parse_int("nope")
+              except errors.DataError:
+                  pass
+              else:
+                  raise AssertionError("expected DataError")
+              print "PORTED_OK"
+
+          main()
+    grader:
+      type: all
+      of:
+        - type: command
+          steps:
+            - cmd: python3
+              args: [runner.py]
+              stdout_contains: PORTED_OK
+              timeout_secs: 180
+            # Behaviour preservation, checked independently of the runner the
+            # agent was free to edit. `mean` is the trap: `/` in Python 3 is
+            # true division, so a mechanical port silently changes 2 into 2.5
+            # and every caller downstream drifts.
+            - cmd: python3
+              args:
+                - "-c"
+                - |
+                  import textutil, stats, errors
+                  assert textutil.normalise("  HeLLo ") == "hello"
+                  assert textutil.join_pairs({"b": 2, "a": 1}) == "a=1,b=2"
+                  assert textutil.has_field({"x": 1}, "x") is True
+                  assert textutil.has_field({"x": 1}, "y") is False
+                  m = stats.mean([1, 2, 3, 4])
+                  assert m == 2, "mean changed from 2 to %r — true division crept in" % m
+                  assert isinstance(m, int), "mean must stay an int, got %r" % type(m)
+                  assert stats.mean([1, 2]) == 1, stats.mean([1, 2])
+                  try:
+                      errors.parse_int("nope")
+                  except errors.DataError as e:
+                      assert "nope" in str(e), str(e)
+                  else:
+                      raise AssertionError("expected DataError")
+                  assert errors.parse_int("42") == 42
+                  print("BEHAVIOUR_PRESERVED")
+              stdout_contains: BEHAVIOUR_PRESERVED
+              timeout_secs: 180
+        - type: files
+          assertions:
+            # Leftovers that prove the port was mechanical rather than complete.
+            - assert: not_matches
+              path: textutil.py
+              regex: "iteritems|has_key|(?<![A-Za-z_])unicode\\("
+            - assert: not_matches
+              path: errors.py
+              regex: "except\\s+\\w+\\s*,|raise\\s+\\w+\\s*,"
+            - assert: not_matches
+              path: stats.py
+              regex: "print\\s+[\"']"
+
+  - id: commonjs-to-esm
+    title: Convert a CommonJS package to ES modules
+    capability: refactoring
+    difficulty: hard
+    requires: [node]
+    tags: [migration, javascript, long-run]
+    prompt: |
+      This package uses CommonJS. Convert the whole thing to ES modules.
+
+      - `package.json` must declare `"type": "module"`.
+      - Every source file uses `import` / `export`, not `require` /
+        `module.exports`.
+      - Relative imports must carry their `.js` extension, as Node's ESM
+        resolver requires.
+      - Behaviour must not change.
+
+      `node runner.js` must print `ESM_OK` when you are done.
+    fixture:
+      files:
+        package.json: |
+          {
+            "name": "legacy-pkg",
+            "version": "1.0.0",
+            "private": true
+          }
+        money.js: |
+          function formatCents(cents) {
+            const sign = cents < 0 ? '-' : '';
+            const abs = Math.abs(cents);
+            return `${sign}$${Math.floor(abs / 100)}.${String(abs % 100).padStart(2, '0')}`;
+          }
+          module.exports = { formatCents };
+        cart.js: |
+          const { formatCents } = require('./money');
+
+          function subtotal(lines) {
+            return lines.reduce((acc, l) => acc + l.priceCents * l.qty, 0);
+          }
+
+          function receipt(lines) {
+            return lines
+              .map((l) => `${l.name} x${l.qty} ${formatCents(l.priceCents * l.qty)}`)
+              .join('\n');
+          }
+
+          module.exports = { subtotal, receipt };
+        discount.js: |
+          const { subtotal } = require('./cart');
+
+          const CODES = { SAVE10: 10, HALF: 50 };
+
+          function applyCode(lines, code) {
+            if (!(code in CODES)) throw new Error(`unknown code ${code}`);
+            const base = subtotal(lines);
+            return base - Math.round((base * CODES[code]) / 100);
+          }
+
+          module.exports = { applyCode, CODES };
+        runner.js: |
+          const assert = require('assert');
+          const { formatCents } = require('./money');
+          const { subtotal, receipt } = require('./cart');
+          const { applyCode } = require('./discount');
+
+          const lines = [
+            { name: 'Widget', priceCents: 2500, qty: 2 },
+            { name: 'Gadget', priceCents: 999, qty: 1 },
+          ];
+
+          assert.strictEqual(formatCents(2500), '$25.00');
+          assert.strictEqual(formatCents(5), '$0.05');
+          assert.strictEqual(subtotal(lines), 5999);
+          assert.ok(receipt(lines).includes('Widget x2 $50.00'));
+          // 5999 - round(5999 * 50 / 100) = 5999 - 3000 = 2999.
+          assert.strictEqual(applyCode(lines, 'HALF'), 2999);
+          console.log('ESM_OK');
+    grader:
+      type: all
+      of:
+        - type: command
+          steps:
+            - cmd: node
+              args: [runner.js]
+              stdout_contains: ESM_OK
+              timeout_secs: 180
+            # Checked from a separate ESM entry point the agent never saw, so
+            # a runner.js rewritten around a broken library still fails.
+            - cmd: node
+              args:
+                - "--input-type=module"
+                - "-e"
+                - |
+                  import assert from 'node:assert';
+                  const { formatCents } = await import('./money.js');
+                  const { subtotal, receipt } = await import('./cart.js');
+                  const { applyCode } = await import('./discount.js');
+                  const lines = [
+                    { name: 'Widget', priceCents: 2500, qty: 2 },
+                    { name: 'Gadget', priceCents: 999, qty: 1 },
+                  ];
+                  assert.strictEqual(formatCents(-5), '-$0.05');
+                  assert.strictEqual(subtotal(lines), 5999);
+                  assert.ok(receipt(lines).includes('Gadget x1 $9.99'));
+                  assert.strictEqual(applyCode(lines, 'SAVE10'), 5399);
+                  assert.throws(() => applyCode(lines, 'NOPE'));
+                  console.log('ESM_LIBRARY_OK');
+              stdout_contains: ESM_LIBRARY_OK
+              timeout_secs: 180
+        - type: files
+          assertions:
+            - assert: matches
+              path: package.json
+              regex: '"type"\s*:\s*"module"'
+            # A migration that leaves one `require` behind is not a migration;
+            # under `"type": "module"` that file throws on first import.
+            - assert: not_matches
+              path: money.js
+              regex: "module\\.exports|require\\("
+            - assert: not_matches
+              path: cart.js
+              regex: "module\\.exports|require\\("
+            - assert: not_matches
+              path: discount.js
+              regex: "module\\.exports|require\\("
+
+  - id: retire-a-deprecated-api
+    title: Migrate every call site off a deprecated API and delete the shim
+    capability: multi_file_edit
+    difficulty: hard
+    requires: [python3]
+    tags: [migration, python, deprecation]
+    prompt: |
+      `legacy.py` is a compatibility shim kept alive for one release. It is
+      time to remove it.
+
+      - Move every caller of `fetch_user_by_id(uid)` to `users.get_user(uid)`.
+        The replacement raises `LookupError` for an unknown id where the old
+        one returned `None`, so call sites must be updated, not just renamed.
+      - Delete `legacy.py` entirely.
+      - `PYTHONPATH=. python3 tests_existing.py` passes today and must still
+        pass. Do not modify it.
+
+      Behaviour visible to callers must not change: functions that returned
+      `None` for a missing user must keep returning `None`.
+    fixture:
+      files:
+        users.py: |
+          _USERS = {
+              1: {"id": 1, "name": "ada", "email": "ada@example.com"},
+              2: {"id": 2, "name": "grace", "email": "grace@example.com"},
+          }
+
+
+          def get_user(uid):
+              """Return the user. Raises LookupError when there is none."""
+              if uid not in _USERS:
+                  raise LookupError(f"no user {uid}")
+              return dict(_USERS[uid])
+        legacy.py: |
+          """DEPRECATED compatibility shim — remove in the next release."""
+          from users import get_user
+
+
+          def fetch_user_by_id(uid):
+              """Old API: returns None instead of raising."""
+              try:
+                  return get_user(uid)
+              except LookupError:
+                  return None
+        greeting.py: |
+          from legacy import fetch_user_by_id
+
+
+          def greet(uid):
+              user = fetch_user_by_id(uid)
+              if user is None:
+                  return "hello, stranger"
+              return f"hello, {user['name']}"
+        mailer.py: |
+          from legacy import fetch_user_by_id
+
+
+          def address_for(uid):
+              user = fetch_user_by_id(uid)
+              return user["email"] if user else None
+
+
+          def bulk_addresses(uids):
+              return [a for a in (address_for(u) for u in uids) if a]
+        report.py: |
+          from legacy import fetch_user_by_id
+
+
+          def names(uids):
+              out = []
+              for uid in uids:
+                  user = fetch_user_by_id(uid)
+                  out.append(user["name"] if user else "unknown")
+              return out
+        tests_existing.py: |
+          from greeting import greet
+          from mailer import address_for, bulk_addresses
+          from report import names
+
+
+          def run():
+              assert greet(1) == "hello, ada"
+              assert greet(99) == "hello, stranger"
+              assert address_for(2) == "grace@example.com"
+              assert address_for(99) is None
+              assert bulk_addresses([1, 99, 2]) == [
+                  "ada@example.com", "grace@example.com"]
+              assert names([1, 99]) == ["ada", "unknown"]
+              print("EXISTING_OK")
+
+
+          run()
+    grader:
+      type: all
+      of:
+        - type: files
+          assertions:
+            - assert: unchanged
+              path: tests_existing.py
+            # The shim is the point of the exercise.
+            - assert: not_exists
+              path: legacy.py
+            - assert: not_contains
+              path: greeting.py
+              text: fetch_user_by_id
+            - assert: not_contains
+              path: mailer.py
+              text: fetch_user_by_id
+            - assert: not_contains
+              path: report.py
+              text: fetch_user_by_id
+        - type: command
+          steps:
+            - cmd: python3
+              args: [tests_existing.py]
+              env: { PYTHONPATH: "." }
+              stdout_contains: EXISTING_OK
+              timeout_secs: 120
+            # Held out: the callers must translate LookupError themselves
+            # rather than re-inventing the shim under another name.
+            - cmd: python3
+              args:
+                - "-c"
+                - |
+                  import pathlib, sys
+                  from greeting import greet
+                  from mailer import address_for, bulk_addresses
+                  from report import names
+                  import users
+
+                  assert greet(99) == "hello, stranger"
+                  assert address_for(99) is None
+                  assert names([99]) == ["unknown"]
+                  assert bulk_addresses([99]) == []
+
+                  # The new API keeps its stricter contract.
+                  try:
+                      users.get_user(99)
+                  except LookupError:
+                      pass
+                  else:
+                      raise AssertionError("get_user should raise for a missing id")
+
+                  # A shim renamed is a shim kept: no module may still expose a
+                  # None-returning wrapper around get_user.
+                  for name in ("greeting", "mailer", "report", "users"):
+                      src = pathlib.Path(name + ".py").read_text()
+                      assert "fetch_user_by_id" not in src, (
+                          f"{name}.py still references the old API")
+                  assert not pathlib.Path("legacy.py").exists()
+                  print("DEPRECATION_RETIRED")
+              env: { PYTHONPATH: "." }
+              stdout_contains: DEPRECATION_RETIRED
+              timeout_secs: 120

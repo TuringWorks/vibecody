@@ -3017,7 +3017,10 @@ mod open_memory;
 #[allow(dead_code)]
 mod soul_generator;
 #[allow(dead_code)]
-mod swe_bench;
+// `swe_bench` is no longer referenced from the binary: `--benchmark` now
+// delegates to `eval_cmd`, which drives the real harness in `vibe-eval`. Left
+// declared only in `lib.rs` — a `mod` here would compile it into the binary a
+// second time for nothing (see this crate's CLAUDE.md).
 // Recap & Resume — Phase F1.1 foundation (types + heuristic).
 mod recap;
 // Recap & Resume — Phase F1.3 resume routes (in-memory handle registry).
@@ -20316,6 +20319,9 @@ fn show_help() {
     println!("  --acp                    - Serve Agent Client Protocol over stdio (for Zed/JetBrains/Neovim)");
     println!(
         "  --bugbot                 - Review a diff (--staged, --pr N, --propose-fixes, --passes N)"
+    );
+    println!(
+        "  --eval <cmd>             - Evaluation harness (list, run, report, runs, gate, datasets)"
     );
     println!("\nProviders (--provider <name>):");
     println!("  ollama                   - Local Ollama (default, no key needed)");

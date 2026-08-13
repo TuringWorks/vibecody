@@ -855,6 +855,20 @@ pub trait JudgeModel: Send + Sync {
 
 // ── The grader tree ──────────────────────────────────────────────────────────
 
+/// The held-out half of a [`Grader::PatchAndTest`] task.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PatchAndTestSpec {
+    /// Unified diff applied after the agent finishes, before testing.
+    #[serde(default)]
+    pub test_patch: String,
+    #[serde(default)]
+    pub fail_to_pass: Vec<String>,
+    #[serde(default)]
+    pub pass_to_pass: Vec<String>,
+    /// How to run one test; `{test}` in an arg is replaced by its name.
+    pub runner: CommandStep,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Grader {
@@ -871,16 +885,13 @@ pub enum Grader {
     /// previously-failing tests to pass *and* the previously-passing ones to
     /// keep passing. The second half is what stops "delete the test" from
     /// scoring.
-    PatchAndTest {
-        /// Unified diff applied after the agent finishes, before testing.
-        test_patch: String,
-        #[serde(default)]
-        fail_to_pass: Vec<String>,
-        #[serde(default)]
-        pass_to_pass: Vec<String>,
-        /// How to run one test; `{test}` in an arg is replaced by its name.
-        runner: CommandStep,
-    },
+    ///
+    /// Boxed because a whole unified diff plus two test lists inline would
+    /// make every `Grader` — including the one-line `AlwaysSkip` — as large as
+    /// the biggest variant. Serde's internal tagging flattens a newtype
+    /// variant's struct fields, and `Box` is transparent, so the YAML shape is
+    /// unchanged.
+    PatchAndTest(Box<PatchAndTestSpec>),
     /// Probe a live surface over HTTP. Every probe must hold.
     Http { probes: Vec<HttpProbe> },
     /// Score an open-ended answer against a rubric using a judge model.
@@ -982,14 +993,15 @@ impl Grader {
                 GradeResult::reduce_all("transcript", children)
             }
 
-            Grader::PatchAndTest {
-                test_patch,
-                fail_to_pass,
-                pass_to_pass,
-                runner,
-            } => {
-                self.grade_patch_and_test(ctx, test_patch, fail_to_pass, pass_to_pass, runner)
-                    .await
+            Grader::PatchAndTest(spec) => {
+                self.grade_patch_and_test(
+                    ctx,
+                    &spec.test_patch,
+                    &spec.fail_to_pass,
+                    &spec.pass_to_pass,
+                    &spec.runner,
+                )
+                .await
             }
 
             Grader::Http { probes } => {
@@ -1468,7 +1480,7 @@ mod tests {
     async fn patch_and_test_with_no_declared_tests_is_an_error() {
         let dir = tempfile::tempdir().expect("tempdir");
         let run = empty_run();
-        let g = Grader::PatchAndTest {
+        let g = Grader::PatchAndTest(Box::new(PatchAndTestSpec {
             test_patch: String::new(),
             fail_to_pass: vec![],
             pass_to_pass: vec![],
@@ -1482,7 +1494,7 @@ mod tests {
                 stdout_not_contains: None,
                 timeout_secs: None,
             },
-        };
+        }));
         let r = g.grade(&ctx(dir.path(), &run)).await;
         assert!(matches!(r.verdict, Verdict::Error { .. }));
     }

@@ -204,9 +204,12 @@ In REPL mode, the following slash commands are available:
 | `/cloud terraform` | Generate Terraform template from detected services |
 | `/cloud cost` | Estimate monthly cloud costs |
 | `/cloud providers` | List supported cloud providers and services |
-| `/benchmark run` | Start a SWE-bench benchmark run |
-| `/benchmark compare` | Compare multiple benchmark runs |
-| `/benchmark list` | List all benchmark runs |
+| `--eval list` | Show the eval tasks a run would execute |
+| `--eval run` | Run the eval suites and write a report |
+| `--eval report [id\|latest]` | Print a stored report |
+| `--eval runs` | List archived runs |
+| `--eval gate [id] --baseline <id>` | Compare against a baseline; exits 1 on regression |
+| `--eval datasets list\|fetch\|import` | Third-party datasets (HumanEval, MBPP, SWE-bench) |
 | `/metering status` | Show usage metering status (tokens, cost, budgets) |
 | `/metering budget` | Manage credit budgets |
 | `/metering report` | Generate usage report by provider/model/task |

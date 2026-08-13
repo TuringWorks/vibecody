@@ -1,0 +1,323 @@
+# VibeCoder panel functionality.
+#
+# VibeCoder has ~300 panels. Nothing in the build proves any of them work:
+# `tsc --noEmit` type-checks the TypeScript, `vitest` runs the components that
+# have tests, and neither knows whether the Tauri command a panel invokes
+# actually exists on the Rust side. A panel whose command was never registered
+# compiles, type-checks, renders — and throws the moment a user opens the tab.
+#
+# That is the gap these tasks close. They are static checks over the shipped
+# source, so they cost nothing and run in CI, and they cover every panel rather
+# than the handful anyone remembered to click.
+#
+# The `generation` panels (fullstack_generate, design_mode_generate,
+# generate_component, generate_diagram, …) are covered by the same checks —
+# they are panels like any other, and their commands are exactly the kind that
+# drift.
+
+id: vibecoder-panels
+title: VibeCoder panel wiring and conformance
+description: >
+  Every panel's Tauri commands exist, every LLM panel honours the toolbar
+  provider, and the shells agree on what they expose.
+defaults:
+  timeout_secs: 300
+
+tasks:
+  - id: every-invoked-command-is-registered
+    title: Every command a panel invokes is registered in the shell
+    capability: surface_conformance
+    difficulty: hard
+    surfaces: [vibecoder]
+    workspace: repo_root
+    requires: [python3]
+    tags: [static, panels, wiring]
+    grader:
+      # `invoke('foo')` is a string. TypeScript cannot check it, Rust never
+      # sees it, and the failure is a runtime rejection inside whichever panel
+      # nobody opened during review. This is the only thing in the repository
+      # that connects the two halves.
+      type: command
+      steps:
+        - cmd: python3
+          args:
+            - "-c"
+            - |
+              import re, pathlib, sys
+
+              def handlers(path):
+                  """Names inside generate_handler![...].
+
+                  Entries are `commands::name,` and the block carries `//`
+                  section comments. A naive identifier regex harvests the
+                  comment prose too ("Phase 4 commands — Memory / Rules"
+                  yielded Memory and Rules), which both inflates the
+                  registered set and makes the mirror check report handlers
+                  that were never handlers. Strip comments, split on commas,
+                  keep the last path segment, and require snake_case.
+                  """
+                  text = pathlib.Path(path).read_text()
+                  m = re.search(r"generate_handler!\[(.*?)\]", text, re.S)
+                  if not m:
+                      raise SystemExit(f"no generate_handler! block in {path}")
+                  block = re.sub(r"//[^\n]*", "", m.group(1))
+                  names = set()
+                  for seg in block.split(","):
+                      last = seg.strip().split("::")[-1].strip()
+                      if re.fullmatch(r"[a-z_][a-z0-9_]*", last):
+                          names.add(last)
+                  return names
+
+              registered = handlers("vibecoder/src-tauri/src/lib.rs")
+
+              # Test files legitimately invoke mocks that no shell registers,
+              # so they are not evidence of a broken panel.
+              def is_test(p):
+                  s = str(p)
+                  return "__tests__" in s or ".test." in s or ".bdd." in s
+
+              callers = {}
+              for p in pathlib.Path("vibecoder/src").rglob("*"):
+                  if p.suffix not in (".ts", ".tsx") or not p.is_file() or is_test(p):
+                      continue
+                  text = p.read_text(errors="ignore")
+                  for name in re.findall(
+                          r"""invoke(?:<[^>]*>)?\(\s*['"]([a-zA-Z0-9_]+)['"]""", text):
+                      callers.setdefault(name, set()).add(
+                          str(p).replace("vibecoder/src/", ""))
+
+              missing = {k: v for k, v in callers.items() if k not in registered}
+              if missing:
+                  print(f"UNREGISTERED_COMMANDS: {len(missing)} command(s) are "
+                        f"invoked by a panel but absent from generate_handler! "
+                        f"in vibecoder/src-tauri/src/lib.rs.")
+                  print("Each one throws at runtime the moment its panel is opened.\n")
+                  for name in sorted(missing):
+                      where = ", ".join(sorted(missing[name])[:3])
+                      print(f"  {name:34} ← {where}")
+                  sys.exit(1)
+              print(f"ALL_{len(callers)}_INVOKED_COMMANDS_REGISTERED")
+          stdout_contains: INVOKED_COMMANDS_REGISTERED
+          timeout_secs: 120
+
+  - id: panels-honour-the-toolbar-provider
+    title: LLM panels use the selected provider, not a hard-coded one
+    capability: surface_conformance
+    difficulty: medium
+    surfaces: [vibecoder]
+    workspace: repo_root
+    requires: [python3]
+    tags: [static, panels, provider-agnostic]
+    grader:
+      # AGENTS.md → "Provider-Agnostic Panels — STRICT": no panel may pin a
+      # single vendor as its LLM backend. The rule has an audit checklist and
+      # nothing that runs it, so drift is invisible until a user on a
+      # different provider finds a panel that silently calls someone else's
+      # API — or fails outright because they hold no key for it.
+      type: command
+      steps:
+        - cmd: python3
+          args:
+            - "-c"
+            - |
+              import re, pathlib, sys
+
+              # A panel that reads the registry or takes the prop is choosing
+              # deliberately; naming providers there is data, not a default.
+              # `CounselPanel` seeds a multi-provider roster and is compliant
+              # for exactly this reason.
+              AWARE = re.compile(r"selectedProvider|useModelRegistry")
+              PINNED = re.compile(
+                  r"""provider\s*:\s*['"](anthropic|claude|openai|gemini)['"]""")
+
+              offenders = []
+              for p in sorted(pathlib.Path("vibecoder/src/components").rglob("*.tsx")):
+                  s = str(p)
+                  if "__tests__" in s or ".test." in s or ".bdd." in s:
+                      continue
+                  text = p.read_text(errors="ignore")
+                  hits = PINNED.findall(text)
+                  if hits and not AWARE.search(text):
+                      offenders.append((p.name, sorted(set(hits))))
+
+              if offenders:
+                  print("HARD_CODED_PROVIDERS: panel(s) pin an LLM vendor and "
+                        "never consult the toolbar selection.")
+                  for name, hits in offenders:
+                      print(f"  {name:34} pins {', '.join(hits)}")
+                  print("\nPass `selectedProvider` in, or read useModelRegistry(). "
+                        "See AGENTS.md → Provider-Agnostic Panels — STRICT.")
+                  sys.exit(1)
+              print("ALL_PANELS_PROVIDER_AGNOSTIC")
+          stdout_contains: ALL_PANELS_PROVIDER_AGNOSTIC
+          timeout_secs: 120
+
+  - id: registered-commands-have-implementations
+    title: Every registered handler resolves to a real function
+    capability: surface_conformance
+    difficulty: medium
+    surfaces: [vibecoder]
+    workspace: repo_root
+    requires: [python3]
+    tags: [static, panels, wiring]
+    grader:
+      # The mirror of the first check. `generate_handler!` fails to compile on
+      # an unknown name, so this cannot currently break — which is precisely
+      # why it is worth pinning: it documents that the Rust half is compiler-
+      # enforced while the TypeScript half is not, and it fails loudly if a
+      # future refactor moves registration somewhere the compiler stops
+      # checking.
+      type: command
+      steps:
+        - cmd: python3
+          args:
+            - "-c"
+            - |
+              import re, pathlib, sys
+              lib = pathlib.Path("vibecoder/src-tauri/src/lib.rs").read_text()
+              m = re.search(r"generate_handler!\[(.*?)\]", lib, re.S)
+              if not m:
+                  raise SystemExit("no generate_handler! block found")
+              # Comments inside the block would otherwise be read as handler
+              # names; see the note in every-invoked-command-is-registered.
+              block = re.sub(r"//[^\n]*", "", m.group(1))
+              owned = set()
+              for seg in block.split(","):
+                  seg = seg.strip()
+                  if not seg:
+                      continue
+                  parts = seg.split("::")
+                  name = parts[-1].strip()
+                  qualifier = parts[-2].strip() if len(parts) > 1 else ""
+                  if re.fullmatch(r"[a-z_][a-z0-9_]*", name):
+                      owned.add((qualifier, name))
+              registered = {n for _, n in owned}
+
+              rust = "".join(
+                  p.read_text(errors="ignore")
+                  for p in pathlib.Path("vibecoder/src-tauri/src").rglob("*.rs"))
+              defined = set(re.findall(r"pub (?:async )?fn ([a-zA-Z0-9_]+)", rust))
+
+              # Only names this crate is responsible for. Entries qualified
+              # with another crate (`vibe_desktop_voice::transcribe_audio`)
+              # live outside the directory scanned above, and reporting them
+              # as unimplemented would be an artefact of where the scan looks
+              # rather than a defect — Cargo and the compiler already enforce
+              # those.
+              local = {n for path, n in owned if path in ("", "commands")}
+              missing = sorted(n for n in local if n not in defined)
+              if missing:
+                  print(f"HANDLERS_WITHOUT_IMPLEMENTATIONS: {len(missing)}")
+                  for n in missing[:40]:
+                      print("  " + n)
+                  sys.exit(1)
+              print(f"ALL_{len(registered)}_HANDLERS_IMPLEMENTED")
+          stdout_contains: HANDLERS_IMPLEMENTED
+          timeout_secs: 120
+
+  - id: generation-panels-are-reachable
+    title: The generation panels' commands are wired end to end
+    capability: surface_conformance
+    difficulty: medium
+    surfaces: [vibecoder]
+    workspace: repo_root
+    requires: [python3]
+    tags: [static, panels, generation]
+    grader:
+      # Called out separately from the sweep above because these are the
+      # panels the product leads with. A generic "28 commands are missing"
+      # failure buries the fact that *generation itself* is among them; this
+      # names them, so the report says which headline feature is unreachable.
+      type: command
+      steps:
+        - cmd: python3
+          args:
+            - "-c"
+            - |
+              import re, pathlib, sys
+              lib = pathlib.Path("vibecoder/src-tauri/src/lib.rs").read_text()
+              m = re.search(r"generate_handler!\[(.*?)\]", lib, re.S)
+              block = re.sub(r"//[^\n]*", "", m.group(1))
+              registered = {seg.strip().split("::")[-1].strip()
+                            for seg in block.split(",")}
+              registered = {n for n in registered
+                            if re.fullmatch(r"[a-z_][a-z0-9_]*", n)}
+
+              broken = {}
+              for p in sorted(pathlib.Path("vibecoder/src/components").rglob("*.tsx")):
+                  s = str(p)
+                  if "__tests__" in s or ".test." in s or ".bdd." in s:
+                      continue
+                  text = p.read_text(errors="ignore")
+                  cmds = set(re.findall(
+                      r"""invoke(?:<[^>]*>)?\(\s*['"]([a-zA-Z0-9_]*(?:generat|scaffold|build)[a-zA-Z0-9_]*)['"]""",
+                      text))
+                  missing = sorted(c for c in cmds if c not in registered)
+                  if missing:
+                      broken[p.name] = missing
+
+              if broken:
+                  print("GENERATION_PANELS_BROKEN: a generation command is "
+                        "invoked but not registered.")
+                  for panel, cmds in broken.items():
+                      print(f"  {panel:34} {', '.join(cmds)}")
+                  sys.exit(1)
+              print("ALL_GENERATION_PANELS_WIRED")
+          stdout_contains: ALL_GENERATION_PANELS_WIRED
+          timeout_secs: 120
+
+  - id: panels-reach-the-daemon-through-daemonfetch
+    title: Panels do not bypass daemonFetch with a bare fetch
+    capability: surface_conformance
+    difficulty: medium
+    surfaces: [vibecoder]
+    workspace: repo_root
+    requires: [python3]
+    tags: [static, panels, auth]
+    grader:
+      # Nearly every daemon route sits behind `require_auth`, and the token
+      # rotates on every daemon start. A plain `fetch` to a protected route is
+      # a silent 100% 401 — the panel renders, shows an empty state, and looks
+      # like a backend fault.
+      type: command
+      steps:
+        - cmd: python3
+          args:
+            - "-c"
+            - |
+              import re, pathlib, sys
+              PUBLIC = ("/health", "/models", "/web", "/favicon.svg",
+                        "/pair", "/v1/capabilities", "/acp/v1/capabilities",
+                        "/mobile/beacon", "/.well-known/")
+              offenders = []
+              for p in sorted(pathlib.Path("vibecoder/src").rglob("*")):
+                  s = str(p)
+                  if p.suffix not in (".ts", ".tsx") or not p.is_file():
+                      continue
+                  if ("__tests__" in s or ".test." in s or ".bdd." in s
+                          or s.endswith("daemonFetch.ts")):
+                      continue
+                  for line in p.read_text(errors="ignore").splitlines():
+                      # A bare fetch aimed at the daemon's own origin.
+                      if not re.search(r"(?<![A-Za-z])fetch\s*\(", line):
+                          continue
+                      if "daemonFetch" in line:
+                          continue
+                      m = re.search(r"""['"`](?:http://[^'"`]*:\d+)?(/[a-z0-9v][^'"`]*)['"`]""", line)
+                      if not m:
+                          continue
+                      path = m.group(1)
+                      if any(path.startswith(x) for x in PUBLIC):
+                          continue
+                      offenders.append(f"{s.replace('vibecoder/src/','')}: {path}")
+
+              if offenders:
+                  print(f"UNAUTHENTICATED_DAEMON_CALLS: {len(offenders)}")
+                  for o in offenders[:30]:
+                      print("  " + o)
+                  print("\nUse daemonFetch() — it attaches the bearer token and "
+                        "re-reads it on a 401, which a cached token cannot survive.")
+                  sys.exit(1)
+              print("ALL_DAEMON_CALLS_AUTHENTICATED")
+          stdout_contains: ALL_DAEMON_CALLS_AUTHENTICATED
+          timeout_secs: 120

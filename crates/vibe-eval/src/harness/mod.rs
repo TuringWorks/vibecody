@@ -94,8 +94,16 @@ pub enum HarnessError {
     Spawn(String),
     #[error("surface returned no usable response: {0}")]
     Protocol(String),
-    #[error("run exceeded its {0}s budget")]
-    Timeout(u64),
+    /// The run blew its budget. `tail` carries the last of whatever the
+    /// surface had printed before it was killed.
+    ///
+    /// Without it a long timeout is a black box: three consecutive
+    /// hour-long greenfield runs produced no file and no explanation, and
+    /// "the agent is bad" was indistinguishable from "the provider stopped
+    /// answering forty minutes in". The tail is the only evidence that
+    /// survives a killed process.
+    #[error("run exceeded its {secs}s budget")]
+    Timeout { secs: u64, tail: String },
     #[error("transport error: {0}")]
     Transport(String),
 }

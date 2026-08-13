@@ -1,0 +1,413 @@
+# Greenfield builds — can it produce a whole working application?
+#
+# This is the capability Devin, Codex and Cursor are actually sold on, and it
+# is the one nothing else here measures. The rest of the suites hand the agent
+# a file and ask for a change; these hand it a specification and an empty
+# directory.
+#
+# Grading is **black-box against a running system**. The agent picks its own
+# structure, names its own functions, and organises the code however it likes;
+# the grader starts the server it produced and drives it over HTTP. Asserting
+# on file layout instead would measure obedience to a structure we invented,
+# not whether the thing works.
+#
+# Scored as a ladder, not pass/fail. Each milestone is a separate child of
+# `all`, so nothing short-circuits and the mean across children is a genuine
+# completion depth: an agent that boots a server and serves a catalogue but
+# never gets checkout working scores ~0.5 and shows exactly where it stopped.
+# A single all-or-nothing verdict would throw that away, and for a build that
+# takes an hour the depth is the whole point.
+#
+# These are slow and deliberately excluded from the `offline` tag so a quick
+# run stays quick. Opt in with `--suite greenfield`.
+
+id: greenfield
+title: Greenfield application builds
+description: >
+  Build a working application from a specification alone, graded by driving
+  the result over HTTP.
+default_surfaces: [cli]
+defaults:
+  # A real build, not a snippet. The runner's `--timeout` caps this when an
+  # operator wants a shorter leash.
+  timeout_secs: 3600
+
+tasks:
+  - id: ecommerce-api
+    title: Build a working e-commerce API from a spec
+    capability: long_horizon
+    difficulty: hard
+    requires: [python3]
+    tags: [greenfield, long-run, api]
+    prompt: |
+      Build the e-commerce API described in `SPEC.md`.
+
+      Read the spec carefully — it defines every endpoint, status code and JSON
+      shape you must implement. `products.json` is your seed catalogue.
+
+      Requirements:
+        - The entry point must be `server.py`, started as:
+              python3 server.py --port <PORT>
+        - Python 3 standard library only. No pip installs, no network access —
+          `http.server` and `json` are enough.
+        - State may live in memory; it must be consistent within a single run
+          of the process (a checkout must actually reduce stock for subsequent
+          requests).
+
+      Work until the whole spec is implemented, not just the first endpoints.
+      Test it yourself as you go by running the server and making requests.
+    fixture:
+      files:
+        products.json: |
+          [
+            {"id": "p1", "name": "Mechanical Keyboard", "price_cents": 12900, "stock": 5},
+            {"id": "p2", "name": "Desk Lamp",          "price_cents": 4550,  "stock": 2},
+            {"id": "p3", "name": "Monitor Stand",      "price_cents": 7899,  "stock": 0},
+            {"id": "p4", "name": "USB-C Cable",        "price_cents": 999,   "stock": 100}
+          ]
+        SPEC.md: |
+          # Storefront API — specification
+
+          A JSON over HTTP API. Every response body is JSON. Every request body
+          that carries data is JSON.
+
+          Start: `python3 server.py --port <PORT>`, listening on 127.0.0.1.
+
+          ## Catalogue
+
+          ### `GET /health`
+          `200` → `{"status": "ok"}`
+
+          ### `GET /products`
+          `200` → a JSON array of every product in `products.json`, each with
+          `id`, `name`, `price_cents`, `stock`. Prices are integer cents; never
+          use floats for money.
+
+          ### `GET /products/{id}`
+          `200` → the single product object.
+          `404` → `{"error": "..."}` when no such product exists.
+
+          ## Cart
+
+          ### `POST /cart`
+          Creates an empty cart. `201` → `{"id": "<cart-id>"}`. Ids are opaque
+          strings, unique per cart.
+
+          ### `POST /cart/{cart_id}/items`
+          Body: `{"product_id": "p1", "qty": 2}`
+
+          - `200` or `201` → the updated cart (see `GET /cart/{id}`).
+          - `404` → the cart does not exist, or the product does not exist.
+          - `409` → `qty` exceeds the product's available stock.
+          - `400` → `qty` is missing, not an integer, or less than 1.
+
+          Adding a product already in the cart increases its quantity rather
+          than creating a second line.
+
+          ### `GET /cart/{cart_id}`
+          `200` → `{"id": ..., "items": [...], "total_cents": <int>}`
+
+          Each item has `product_id`, `qty`, and `line_total_cents`
+          (`price_cents × qty`). `total_cents` is the sum of the line totals.
+
+          `404` when the cart does not exist.
+
+          ### `POST /cart/{cart_id}/checkout`
+          - `201` → `{"order_id": "<id>", "total_cents": <int>}`
+          - `409` when the cart is empty.
+          - `404` when the cart does not exist.
+
+          Checkout **decrements the stock** of every product in the cart.
+          Stock must never go negative. After checkout the cart is considered
+          converted: checking it out again is a `409`.
+
+          ## Orders
+
+          ### `GET /orders/{order_id}`
+          `200` → `{"id": ..., "items": [...], "total_cents": <int>}` with the
+          same item shape as the cart.
+          `404` when no such order exists.
+    grader:
+      # Each child is one rung. `all` evaluates every child regardless of
+      # earlier failures, so the mean score is real completion depth rather
+      # than "how far before the first stumble".
+      type: all
+      of:
+        # ── Rung 1: it exists, it boots, it answers ───────────────────────
+        # This step also writes the shared acceptance helper the later rungs
+        # import. Written at grade time, never into the fixture — putting it
+        # in the workspace beforehand would hand the agent the test suite.
+        - type: command
+          steps:
+            - cmd: python3
+              args:
+                - "-c"
+                - |
+                  import pathlib
+                  pathlib.Path("_accept.py").write_text('''
+                  import json, socket, subprocess, sys, time, urllib.request, urllib.error
+
+                  def free_port():
+                      s = socket.socket()
+                      s.bind(("127.0.0.1", 0))
+                      port = s.getsockname()[1]
+                      s.close()
+                      return port
+
+                  def start():
+                      """Start server.py and wait until it answers /health."""
+                      port = free_port()
+                      proc = subprocess.Popen(
+                          [sys.executable, "server.py", "--port", str(port)],
+                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                      # Poll to a deadline. A fixed sleep either flakes on a
+                      # slow start or wastes the budget on a fast one.
+                      deadline = time.time() + 30
+                      while time.time() < deadline:
+                          if proc.poll() is not None:
+                              out = proc.stdout.read() if proc.stdout else ""
+                              raise SystemExit("server exited immediately:\\n" + out[-1500:])
+                          try:
+                              urllib.request.urlopen(
+                                  "http://127.0.0.1:%d/health" % port, timeout=1).read()
+                              return proc, port
+                          except Exception:
+                              time.sleep(0.3)
+                      proc.kill()
+                      raise SystemExit("server did not answer /health within 30s")
+
+                  def req(port, method, path, body=None):
+                      data = json.dumps(body).encode() if body is not None else None
+                      r = urllib.request.Request(
+                          "http://127.0.0.1:%d%s" % (port, path), data=data, method=method,
+                          headers={"Content-Type": "application/json"})
+                      try:
+                          with urllib.request.urlopen(r, timeout=15) as resp:
+                              raw = resp.read().decode()
+                              return resp.status, (json.loads(raw) if raw.strip() else None)
+                      except urllib.error.HTTPError as e:
+                          raw = e.read().decode()
+                          try:
+                              return e.code, json.loads(raw)
+                          except Exception:
+                              return e.code, raw
+
+                  class Server:
+                      """Context manager so a failed assertion never leaks a process."""
+                      def __enter__(self):
+                          self.proc, self.port = start()
+                          return self
+                      def __exit__(self, *exc):
+                          self.proc.kill()
+                          self.proc.wait(timeout=10)
+                      def __call__(self, method, path, body=None):
+                          return req(self.port, method, path, body)
+                  ''')
+                  import _accept as A
+                  with A.Server() as s:
+                      code, body = s("GET", "/health")
+                      assert code == 200, "GET /health returned %s" % code
+                      assert isinstance(body, dict) and body.get("status") == "ok", body
+                  print("RUNG1_BOOTS_OK")
+              stdout_contains: RUNG1_BOOTS_OK
+              timeout_secs: 180
+
+        # ── Rung 2: the catalogue ─────────────────────────────────────────
+        - type: command
+          steps:
+            - cmd: python3
+              args:
+                - "-c"
+                - |
+                  import _accept as A
+                  with A.Server() as s:
+                      code, body = s("GET", "/products")
+                      assert code == 200, code
+                      assert isinstance(body, list), "expected a JSON array, got %r" % type(body)
+                      by_id = {p["id"]: p for p in body}
+                      assert set(by_id) == {"p1", "p2", "p3", "p4"}, sorted(by_id)
+                      kb = by_id["p1"]
+                      # Integer cents: a float here means money is being handled
+                      # in a way that will drift.
+                      assert kb["price_cents"] == 12900 and isinstance(kb["price_cents"], int), kb
+                      assert kb["name"] == "Mechanical Keyboard", kb
+                      assert kb["stock"] == 5, kb
+                      assert by_id["p3"]["stock"] == 0, by_id["p3"]
+                  print("RUNG2_CATALOGUE_OK")
+              stdout_contains: RUNG2_CATALOGUE_OK
+              timeout_secs: 180
+
+        # ── Rung 3: single product + the 404 path ─────────────────────────
+        - type: command
+          steps:
+            - cmd: python3
+              args:
+                - "-c"
+                - |
+                  import _accept as A
+                  with A.Server() as s:
+                      code, body = s("GET", "/products/p2")
+                      assert code == 200, code
+                      assert body["id"] == "p2" and body["price_cents"] == 4550, body
+                      code, _ = s("GET", "/products/does-not-exist")
+                      assert code == 404, "unknown product should be 404, got %s" % code
+                  print("RUNG3_LOOKUP_OK")
+              stdout_contains: RUNG3_LOOKUP_OK
+              timeout_secs: 180
+
+        # ── Rung 4: carts exist and are distinct ──────────────────────────
+        - type: command
+          steps:
+            - cmd: python3
+              args:
+                - "-c"
+                - |
+                  import _accept as A
+                  with A.Server() as s:
+                      code, a = s("POST", "/cart")
+                      assert code == 201, "POST /cart should be 201, got %s" % code
+                      assert isinstance(a, dict) and a.get("id"), a
+                      code, b = s("POST", "/cart")
+                      assert code == 201, code
+                      # Two carts sharing an id would silently merge strangers'
+                      # baskets — worth its own assertion.
+                      assert a["id"] != b["id"], "cart ids must be unique"
+                      code, _ = s("GET", "/cart/no-such-cart")
+                      assert code == 404, "unknown cart should be 404, got %s" % code
+                  print("RUNG4_CARTS_OK")
+              stdout_contains: RUNG4_CARTS_OK
+              timeout_secs: 180
+
+        # ── Rung 5: adding items, and the error paths ─────────────────────
+        - type: command
+          steps:
+            - cmd: python3
+              args:
+                - "-c"
+                - |
+                  import _accept as A
+                  with A.Server() as s:
+                      _, cart = s("POST", "/cart")
+                      cid = cart["id"]
+                      code, _ = s("POST", "/cart/%s/items" % cid,
+                                  {"product_id": "p1", "qty": 2})
+                      assert code in (200, 201), "adding an item returned %s" % code
+
+                      code, _ = s("POST", "/cart/%s/items" % cid,
+                                  {"product_id": "nope", "qty": 1})
+                      assert code == 404, "unknown product should be 404, got %s" % code
+
+                      # p3 has zero stock; p2 has two.
+                      code, _ = s("POST", "/cart/%s/items" % cid,
+                                  {"product_id": "p3", "qty": 1})
+                      assert code == 409, "out-of-stock should be 409, got %s" % code
+                      code, _ = s("POST", "/cart/%s/items" % cid,
+                                  {"product_id": "p2", "qty": 3})
+                      assert code == 409, "over-stock should be 409, got %s" % code
+
+                      code, _ = s("POST", "/cart/%s/items" % cid,
+                                  {"product_id": "p1", "qty": 0})
+                      assert code == 400, "qty 0 should be 400, got %s" % code
+                      code, _ = s("POST", "/cart/no-such-cart/items",
+                                  {"product_id": "p1", "qty": 1})
+                      assert code == 404, "unknown cart should be 404, got %s" % code
+                  print("RUNG5_ADD_ITEMS_OK")
+              stdout_contains: RUNG5_ADD_ITEMS_OK
+              timeout_secs: 180
+
+        # ── Rung 6: the arithmetic ────────────────────────────────────────
+        - type: command
+          steps:
+            - cmd: python3
+              args:
+                - "-c"
+                - |
+                  import _accept as A
+                  with A.Server() as s:
+                      _, cart = s("POST", "/cart")
+                      cid = cart["id"]
+                      s("POST", "/cart/%s/items" % cid, {"product_id": "p1", "qty": 2})
+                      s("POST", "/cart/%s/items" % cid, {"product_id": "p4", "qty": 3})
+                      # Re-adding must increase the existing line, not add a
+                      # second one for the same product.
+                      s("POST", "/cart/%s/items" % cid, {"product_id": "p4", "qty": 1})
+
+                      code, body = s("GET", "/cart/%s" % cid)
+                      assert code == 200, code
+                      lines = {i["product_id"]: i for i in body["items"]}
+                      assert len(body["items"]) == 2, "duplicate lines: %r" % body["items"]
+                      assert lines["p4"]["qty"] == 4, lines["p4"]
+                      assert lines["p1"]["line_total_cents"] == 25800, lines["p1"]
+                      assert lines["p4"]["line_total_cents"] == 3996, lines["p4"]
+                      assert body["total_cents"] == 29796, body["total_cents"]
+                  print("RUNG6_TOTALS_OK")
+              stdout_contains: RUNG6_TOTALS_OK
+              timeout_secs: 180
+
+        # ── Rung 7: checkout, and stock actually moving ───────────────────
+        - type: command
+          steps:
+            - cmd: python3
+              args:
+                - "-c"
+                - |
+                  import _accept as A
+                  with A.Server() as s:
+                      _, cart = s("POST", "/cart")
+                      cid = cart["id"]
+                      s("POST", "/cart/%s/items" % cid, {"product_id": "p1", "qty": 2})
+
+                      code, order = s("POST", "/cart/%s/checkout" % cid)
+                      assert code == 201, "checkout should be 201, got %s" % code
+                      assert order.get("order_id"), order
+                      assert order["total_cents"] == 25800, order
+
+                      # The state change is the point: a checkout that does not
+                      # move stock is a receipt printer, not a store.
+                      code, p1 = s("GET", "/products/p1")
+                      assert p1["stock"] == 3, "stock should be 5-2=3, got %s" % p1["stock"]
+
+                      code, fetched = s("GET", "/orders/%s" % order["order_id"])
+                      assert code == 200, "GET /orders/{id} returned %s" % code
+                      assert fetched["total_cents"] == 25800, fetched
+                      code, _ = s("GET", "/orders/no-such-order")
+                      assert code == 404, code
+                  print("RUNG7_CHECKOUT_OK")
+              stdout_contains: RUNG7_CHECKOUT_OK
+              timeout_secs: 180
+
+        # ── Rung 8: the awkward cases most builds skip ────────────────────
+        - type: command
+          steps:
+            - cmd: python3
+              args:
+                - "-c"
+                - |
+                  import _accept as A
+                  with A.Server() as s:
+                      _, empty = s("POST", "/cart")
+                      code, _ = s("POST", "/cart/%s/checkout" % empty["id"])
+                      assert code == 409, "empty checkout should be 409, got %s" % code
+
+                      _, cart = s("POST", "/cart")
+                      cid = cart["id"]
+                      s("POST", "/cart/%s/items" % cid, {"product_id": "p2", "qty": 2})
+                      code, _ = s("POST", "/cart/%s/checkout" % cid)
+                      assert code == 201, code
+
+                      # p2 had exactly 2; it is now sold out and must refuse.
+                      code, p2 = s("GET", "/products/p2")
+                      assert p2["stock"] == 0, "stock should be 0, got %s" % p2["stock"]
+                      _, another = s("POST", "/cart")
+                      code, _ = s("POST", "/cart/%s/items" % another["id"],
+                                  {"product_id": "p2", "qty": 1})
+                      assert code == 409, "sold-out product should be 409, got %s" % code
+
+                      # Double checkout must not create a second order.
+                      code, _ = s("POST", "/cart/%s/checkout" % cid)
+                      assert code == 409, "re-checkout should be 409, got %s" % code
+                      code, p2 = s("GET", "/products/p2")
+                      assert p2["stock"] == 0, "stock went negative: %s" % p2["stock"]
+                  print("RUNG8_EDGE_CASES_OK")
+              stdout_contains: RUNG8_EDGE_CASES_OK
+              timeout_secs: 180

@@ -193,11 +193,9 @@ fn validate_grader(grader: &Grader) -> Vec<String> {
             vec!["composite grader has no children".to_string()]
         }
         Grader::All { of } | Grader::Any { of } => of.iter().flat_map(validate_grader).collect(),
-        Grader::PatchAndTest {
-            fail_to_pass,
-            pass_to_pass,
-            ..
-        } if fail_to_pass.is_empty() && pass_to_pass.is_empty() => {
+        Grader::PatchAndTest(spec)
+            if spec.fail_to_pass.is_empty() && spec.pass_to_pass.is_empty() =>
+        {
             vec!["patch_and_test declares no tests, so it would verify nothing".to_string()]
         }
         Grader::Judge { threshold, .. } if !(0.0..=1.0).contains(threshold) => {

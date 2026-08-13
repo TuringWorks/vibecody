@@ -352,6 +352,7 @@ mod tests {
             duration_ms: 1,
             harness: "h".into(),
             source: TaskSource::Vendored,
+            sample: 0,
         }
     }
 

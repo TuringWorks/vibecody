@@ -49,6 +49,36 @@ Consequences that fall out of the rule:
 
 ---
 
+## One run is weak evidence
+
+Agent runs are not deterministic, and the spread is not small. The greenfield
+e-commerce build, same task and same model, five attempts:
+
+| attempt | outcome | time |
+|---|---|---:|
+| 1 | timed out | 3600s |
+| 2 | **8/8 rungs, complete** | 65.6s |
+| 3–5 | timed out, **no `server.py` written at all** | 903s each |
+
+One run in five built the entire thing in about a minute; the rest produced
+nothing. Quoting either end as "how VibeCody performs" would be reporting a
+coin toss.
+
+```bash
+vibecli --eval run --suite greenfield --samples 5
+```
+
+`--samples` repeats each task and the report gains an **Unstable tasks**
+section listing anything whose samples disagreed, worst-first. Row keys keep
+their single-sample form for the first repetition, so turning sampling on does
+not invalidate an existing baseline.
+
+Timeouts are diagnosable too: the CLI harness streams the child's output into
+capped buffers as it arrives, so a killed run still reports its last output.
+Collecting it with `Command::output()` — the obvious implementation — loses
+every byte when the timeout cancels the future, which is how three consecutive
+15-minute failures produced no explanation at all.
+
 ## What is measured
 
 ### Capabilities
@@ -92,8 +122,84 @@ the matrix exists.
 | `work-tasks` | reconciliation, policy application, structured extraction, reporting | `python3` |
 | `safety` | prompt injection, secret handling, destructive restraint | `python3` |
 | `surfaces` | transport contracts for all fourteen clients | `python3`, a running daemon for live probes |
+| `greenfield` | building a whole working application from a spec | `python3` |
+| `brownfield` | changing an existing multi-module service | `python3` |
+| `migrations` | Python 2→3, CommonJS→ESM, retiring a deprecated API | `python3`, `node` |
+| `vibecoder-panels` | every panel's commands exist and honour the toolbar provider | `python3` |
 
 All of it runs **offline**. Missing toolchains skip rather than fail.
+
+### Greenfield builds — and why they are scored as a ladder
+
+Every other suite hands the agent a file and asks for a change. `greenfield`
+hands it a specification and an empty directory, which is the thing agents are
+actually sold on and the hardest thing to grade.
+
+Two decisions make it work:
+
+- **Black-box grading.** The agent picks its own structure and names; the
+  grader starts the server it produced and drives it over HTTP. Asserting on
+  file layout would measure obedience to a structure we invented rather than
+  whether the thing works.
+- **A ladder, not a verdict.** Eight milestones — boots, catalogue, lookup,
+  carts, add-items, totals, checkout-and-stock, edge cases — are separate
+  children of `all`, so nothing short-circuits and the mean is a real
+  *completion depth*. An agent that serves a catalogue but never gets checkout
+  working scores 0.38 and the grade tree shows exactly where it stopped. For a
+  build that can take an hour, throwing that away for one pass/fail bit is
+  wasteful, and "0%" would say the same thing about an empty directory as
+  about a nearly-finished store.
+
+The task is validated in both directions: a reference implementation of the
+spec scores 8/8, and a deliberately half-finished one scores 3/8. An eval
+nobody can pass is worthless, and one everybody passes measures nothing.
+
+These runs are slow, so `greenfield` is deliberately **not** tagged `offline` —
+a quick `--tag offline` run stays quick. Opt in with `--suite greenfield`.
+
+### Brownfield — changing code you did not write
+
+`evals/fixtures/orders-service/` is a small real service: four modules across
+two packages, a seam between them, and a passing test suite. Tasks add a
+feature across three modules, fix a stock leak whose cause sits two modules
+from its symptom, and translate an error at a package boundary.
+
+Every task pairs "the new behaviour works" with "the existing behaviour still
+works", and asserts `tests/test_existing.py` is `unchanged` — editing the
+regression suite is the fastest way to make a change look successful.
+
+### Migrations — the long, boring, high-risk kind of work
+
+Upgrades are where agents most often quietly half-finish: convert four files
+out of six, leave the shim in place, or "fix" a call site by deleting the
+feature. Each grader checks three things rather than one:
+
+1. the new world works,
+2. the old world is **gone** — no surviving `require`, no leftover `legacy.py`,
+3. behaviour is unchanged.
+
+The traps are deliberate. In the Python 2→3 port, `mean` uses `/` on two ints:
+a mechanical port silently turns 2 into 2.5 and every caller downstream
+drifts, so the grader asserts the result is still `2` **and** still an `int`.
+
+### VibeCoder panels — the check nothing else performs
+
+`invoke('some_command')` is a string. TypeScript cannot check it, Rust never
+sees it, and the failure is a runtime rejection inside whichever panel nobody
+opened during review. `tsc --noEmit` passes, `vitest` passes, and the tab
+throws.
+
+`vibecoder-panels` connects the two halves: every command a panel invokes must
+appear in that shell's `generate_handler!`, every LLM panel must honour the
+toolbar provider (AGENTS.md → Provider-Agnostic Panels — STRICT), and no panel
+may reach a protected daemon route with a bare `fetch`. All static, all free,
+all in CI.
+
+> A note on writing these: two of the five checks initially reported false
+> positives — comment prose inside `generate_handler!` read as command names,
+> and handlers re-exported from a sibling crate read as unimplemented. Both
+> were fixed before shipping. **An eval that cries wolf is worse than no eval**,
+> because it trains people to ignore the one that matters.
 
 ### How tasks resist being gamed
 

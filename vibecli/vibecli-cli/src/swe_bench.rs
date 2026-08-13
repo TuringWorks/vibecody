@@ -1,7 +1,18 @@
-//! SWE-bench benchmarking harness.
+//! Superseded — bookkeeping types for benchmark runs, no longer wired to
+//! anything.
 //!
-//! Built-in benchmark runner for evaluating agent performance on SWE-bench
-//! and custom benchmark suites. Tracks runs, results, and generates reports.
+//! **Use `vibe-eval` instead** (`vibecli --eval`, suites in `evals/`). That is
+//! the harness that actually materialises a workspace, invokes an agent, and
+//! grades the result by execution.
+//!
+//! What lived here was only the bookkeeping half, and the gap was not
+//! cosmetic: `create_run` minted an id and ran nothing, while the `--benchmark
+//! results` path constructed a *fresh* `BenchmarkRunner` before looking the id
+//! up, so it could never find the run it had just been handed. Both printed
+//! confidently. `--benchmark` now delegates to `vibe-eval`.
+//!
+//! Kept `pub` for one release so an external caller does not break on an
+//! unannounced removal; nothing inside this repository references it.
 
 use std::collections::HashMap;
 

@@ -1,6 +1,6 @@
 ---
 layout: page
-title: "Demo 25: SWE-bench Benchmarking"
+title: "Demo 25: Evaluations"
 permalink: /demos/swe-bench/
 nav_order: 25
 parent: Demos
@@ -9,246 +9,264 @@ parent: Demos
 
 ## Overview
 
-This demo shows how to run SWE-bench benchmarks against your AI provider configuration, compare model performance across runs, and export results as Markdown reports. VibeCody integrates the SWE-bench harness directly into both the CLI and VibeCoder so you can evaluate coding ability without leaving your workflow.
+VibeCody ships an evaluation harness — `vibecli --eval` — that measures how
+good it actually is at coding, at multi-step tool work, at knowledge-work
+tasks, and at doing all of it through every surface the product ships. Runs
+produce a report you can act on, and a gate you can put in CI.
 
-**Time to complete:** ~15 minutes (excluding benchmark execution time)
+This demo walks through a run, reading the report, and gating on regressions.
+
+**Time to complete:** ~10 minutes, plus run time.
 
 ## Prerequisites
 
-- VibeCody installed and configured with at least one AI provider
-- A working internet connection (benchmarks download test cases on first run)
-- At least 2 GB of free disk space for benchmark data
-- For VibeCoder: the desktop app running (`npm run tauri dev`)
+- A VibeCody checkout — the suites live at `evals/suites/` in the repository.
+- `python3` and `node` for the coding suites. Tasks needing a toolchain you do
+  not have are **skipped**, not failed.
+- A configured provider for the capability suites. The conformance suite needs
+  none.
 
-## Step-by-Step Walkthrough
+## The rule to understand first
 
-### Step 1: List available benchmark suites
+The harness has four verdicts, and none of them collapses into another:
 
-VibeCody ships with four suite types. Start by listing them:
+| verdict | meaning | counted in the pass rate? |
+|---|---|---|
+| `pass` | an assertion ran and held | yes |
+| `fail` | the agent was measured and came up short | yes |
+| `error` | the harness could not reach a judgement | **no** |
+| `skipped` | the task did not apply here | **no** |
 
-```bash
-vibecli
-> /benchmark list
-```
+A missing toolchain, a stopped daemon and an expired API key all produce tasks
+that do not pass, and none of them says anything about VibeCody. So a pass rate
+over zero scored tasks renders as `n/a` — never `0%` — and every report prints
+coverage next to its headline.
 
-```
-Available SWE-bench Suites:
-  verified   300 tasks   Official human-verified subset
-  pro        500 tasks   Extended professional-grade problems
-  lite       100 tasks   Quick evaluation subset
-  custom     —           User-defined task sets
-```
+## Step-by-step walkthrough
 
-Each suite contains real GitHub issues paired with their ground-truth patches, scored using Pass@1 (first-attempt success rate).
-
-### Step 2: Run a benchmark
-
-Run the Lite suite against your current provider to get a quick evaluation:
+### Step 1: See what a run would do
 
 ```bash
-> /benchmark run --suite lite
+vibecli --eval list
 ```
 
 ```
-Starting SWE-bench Lite (100 tasks)...
-Provider: claude | Model: claude-sonnet-4-6
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12/100
-  ✓ django__django-11099   passed  (4.2s)
-  ✓ django__django-11283   passed  (6.1s)
-  ✗ astropy__astropy-6938   failed (8.3s)
-  ...
-```
-
-Each task is sent to the agent loop. The agent reads the issue description, explores the repository, writes a patch, and VibeCody scores the result against the ground-truth diff.
-
-You can also run directly from the shell:
-
-```bash
-vibecli --benchmark run --suite lite --provider openai --model gpt-4o
-```
-
-### Step 3: View results
-
-Once a run completes, inspect the results:
-
-```bash
-> /benchmark results
-```
-
-```
-Run #3 — SWE-bench Lite — 2026-03-13T10:42:00Z
-Provider: claude (claude-sonnet-4-6)
-
-Pass@1: 42/100 (42.0%)
-
-Difficulty Breakdown:
-  Easy    28/40  (70.0%)
-  Medium  11/35  (31.4%)
-  Hard     3/25  (12.0%)
-
-Top categories:
-  Django      18/30 (60.0%)
-  Flask        6/12 (50.0%)
-  Requests     4/8  (50.0%)
-  Astropy      2/10 (20.0%)
-```
-
-### Step 4: Compare models across runs
-
-Run the same suite with a different provider, then compare:
-
-```bash
-> /benchmark run --suite lite --provider openai --model gpt-4o
-# ... wait for completion ...
-
-> /benchmark compare --runs 3,4
-```
-
-```
-Model Comparison — SWE-bench Lite
-
-                     Run #3          Run #4
-Provider:            claude          openai
-Model:               sonnet-4        gpt-4o
-Pass@1:              42.0%           38.0%
-Easy:                70.0%           65.0%
-Medium:              31.4%           28.6%
-Hard:                12.0%            8.0%
-Avg Time/Task:       6.2s            7.8s
-Total Time:          10m 20s         13m 00s
-
-Tasks solved by #3 only:  8
-Tasks solved by #4 only:  4
-Tasks solved by both:     34
-```
-
-### Step 5: Run the Verified suite
-
-For a comprehensive evaluation, use the Verified suite:
-
-```bash
-vibecli --benchmark run --suite verified --provider claude
-```
-
-This takes longer (300 tasks) but provides the most reliable scoring since every task has been human-verified.
-
-### Step 6: Create a custom suite
-
-Define a custom suite from specific repositories:
-
-```bash
-> /benchmark run --suite custom --repos "django/django,pallets/flask" --max-tasks 20
-```
-
-Custom suites let you benchmark against codebases relevant to your team.
-
-### Step 7: Export a Markdown report
-
-Generate a shareable report:
-
-```bash
-> /benchmark export --run 3 --format markdown --output benchmark-report.md
-```
-
-```markdown
-# SWE-bench Results — Run #3
-Generated: 2026-03-13T10:55:00Z
-
-## Summary
-| Metric      | Value   |
-|-------------|---------|
-| Suite       | Lite    |
-| Provider    | claude  |
-| Pass@1      | 42.0%   |
-| Total Tasks | 100     |
-| Duration    | 10m 20s |
-
-## Per-Task Results
-| Task ID                  | Status | Time  |
-|--------------------------|--------|-------|
-| django__django-11099     | PASS   | 4.2s  |
-| django__django-11283     | PASS   | 6.1s  |
-| astropy__astropy-6938    | FAIL   | 8.3s  |
+coding-core
+  js-lru-cache              code_generation    medium  cli  Implement an LRU cache in JavaScript
+  py-cli-exit-codes         code_generation    medium  cli  Build a CLI with correct exit codes and stderr
+  py-log-parser             code_generation    easy    cli  Implement a log-line parser to spec
+  py-tests-that-catch-a-bug test_authoring     hard    cli  Write tests that actually catch a regression
+  py-trace-the-bug          code_comprehension medium  cli  Explain which function produces a wrong value
 ...
 ```
 
-### Step 8: Use the SWE-bench panel in VibeCoder
+Filters narrow it, and `list` shows exactly what `run` with the same filters
+would execute:
 
-Open VibeCoder and navigate to the **SWE-bench** panel from the AI sidebar. The panel has three tabs:
+```bash
+vibecli --eval list --capability code_repair,debugging
+vibecli --eval list --suite safety
+vibecli --eval list --tag offline --difficulty hard
+```
 
-1. **Run** -- Select a suite, provider, and model. Click "Start Benchmark" to begin. A progress bar shows completion status with live pass/fail indicators.
+A misspelled filter is an error, not an empty selection — a run that quietly
+matches zero tasks and reports cleanly is the failure mode this harness exists
+to avoid.
 
-2. **Results** -- Browse all completed runs. Click a run to see the full difficulty breakdown, per-task results, and timing data. Failed tasks show the expected vs. actual diff.
+### Step 2: Run the surface conformance suite
 
-3. **Compare** -- Select two or more runs to see a side-by-side comparison table. Bar charts visualize Pass@1 differences across difficulty levels.
+Start here: it invokes no agent and calls no provider, so it costs nothing.
+
+```bash
+vibecli --eval run --suite surfaces
+```
+
+```
+▶️  21 task/surface pairs · provider=ollama · concurrency=4
+📁 Run archived at ~/.vibecli/evals/runs/run-1786580693
+
+**Pass rate: 100%** (21 passed / 21 scored)
+
+| passed | failed | errored | skipped | total | coverage |
+|-------:|-------:|--------:|--------:|------:|---------:|
+| 21 | 0 | 0 | 0 | 21 | 100% |
+```
+
+These tasks check the things a capability score can never reveal: that every
+client sends its bearer token, that `/health` identifies itself as `vibecli`
+rather than merely answering, that protected routes reject anonymous callers
+*and* public ones do not, that all three Tauri shells still agree on the macOS
+floor, and that watch device keys are P-256 — the only algorithm the Secure
+Enclave supports.
+
+### Step 3: Run the capability suites
+
+```bash
+vibecli --eval run --tag offline --provider claude --model claude-opus-5
+```
+
+Every task is graded by running code. Tests are held out of the workspace the
+agent can see, repair tasks assert the test file is byte-identical afterwards,
+and the test-authoring task scores by mutation — the agent's tests must pass
+against correct code *and* fail against a deliberately broken variant.
+
+### Step 4: Read the report
+
+The report ends with three sections meant to change what you build next.
+
+**Capability × surface** answers "is this a model problem or a transport
+problem":
+
+```
+| capability          | cli        | daemon     | watch     |
+|---------------------|-----------:|-----------:|----------:|
+| code_repair         | 75% (3/4)  | 75% (3/4)  | —         |
+| surface_conformance | 100% (2/2) | 100% (4/4) | 50% (1/2) |
+```
+
+**What to fix** ranks capabilities worst-first, breaking ties by sample size,
+and points each at the module most likely responsible:
+
+```
+| capability   | pass rate | scored | where this points                              |
+|--------------|----------:|-------:|------------------------------------------------|
+| code_repair  |       50% |      4 | tool loop: test-running and error feedback     |
+| retrieval    |       67% |      3 | vibe-indexer, kodegraph, /semindex             |
+```
+
+**Unmeasured capabilities** are listed separately, because a gap in the suites
+is not a result and silence must never read as success.
+
+### Step 5: Gate on regressions
+
+```bash
+vibecli --eval runs                                    # list archived runs
+vibecli --eval gate latest --baseline run-1786580420
+```
+
+```
+# Eval comparison — `run-1786580420` → `run-1786580693`
+
+- **Pass rate:** 95.2% → 100.0% (+4.8 pts)
+- **Regressions:** 0
+- **Fixes:** 1
+- **Stopped being measured:** 0
+
+✅ Gate passed.
+```
+
+The gate exits `1` on regression and `0` when clean, so it drops into CI
+directly.
+
+Note the third counter. A task that goes from `pass` to `skipped` is neither a
+regression nor a fix — it is the measurement disappearing, and it can even push
+the headline rate *up*. Tracking it separately is what stops "make the failing
+tasks skip" from being the cheapest route to a green gate.
+
+### Step 6: Import a third-party dataset
+
+Public benchmarks are not vendored into this repository — their licences are
+their own, and a benchmark checked into the repo a coding agent is tested on
+has a short life.
+
+```bash
+vibecli --eval datasets list
+vibecli --eval datasets fetch humaneval
+vibecli --eval datasets import mbpp --limit 100
+```
+
+`datasets list` prints the wired datasets with their licences, and the known
+gaps with the specific reason each is blocked — Terminal-Bench, Aider polyglot,
+GAIA, τ-bench, SWE-bench Multimodal.
+
+> **Imported scores are not leaderboard-comparable.** Official SWE-bench numbers
+> come from per-instance Docker images with pinned dependency sets. This harness
+> clones the repo at the base commit and runs the declared tests in whatever
+> environment it finds. It is a signal for tracking VibeCody against itself, not
+> a number to publish beside anyone else's.
+
+## Make targets
+
+```bash
+make eval-check      # validate the suite files (no agent, no provider, CI-safe)
+make eval-list       # what a full run would execute
+make eval-offline    # the zero-dependency capability suites
+make eval-surfaces   # conformance only
+make eval-gate BASELINE=run-1786580420
+```
+
+`make eval-check` runs in CI on every push. Actually running the evals is
+deliberately not in CI: that spends tokens.
+
+## Adding your own tasks
+
+Suites are YAML under `evals/suites/`. See
+[evals/README.md](https://github.com/ravituringworks/vibecody/blob/main/evals/README.md)
+for the task format and the grader reference.
+
+Before adding one, ask the question that matters: **how could this be passed
+without doing the work?** Then close that path in the grader. That question is
+why repair tasks carry `unchanged` guards on their test files, and why the
+test-authoring task is scored by mutation.
 
 ## Demo Recording
 
 ```json
 {
   "meta": {
-    "title": "SWE-bench Benchmarking",
-    "description": "Run SWE-bench suites, compare model performance, and export reports.",
-    "duration_seconds": 300,
-    "version": "1.0.0"
+    "title": "Evaluations",
+    "description": "Run the eval suites, read the report, gate on regressions.",
+    "duration_seconds": 240,
+    "version": "2.0.0"
   },
   "steps": [
     {
       "id": 1,
-      "action": "repl",
-      "commands": [
-        { "input": "/benchmark list", "delay_ms": 2000 }
-      ],
-      "description": "List available benchmark suites"
+      "action": "shell",
+      "command": "vibecli --eval list",
+      "description": "Show what a full run would execute",
+      "expected_output_contains": "coding-core",
+      "delay_ms": 3000
     },
     {
       "id": 2,
       "action": "shell",
-      "command": "vibecli --benchmark run --suite lite --provider claude",
-      "description": "Run SWE-bench Lite against Claude",
-      "expected_output_contains": "Pass@1",
-      "delay_ms": 60000,
-      "typing_speed_ms": 40
+      "command": "vibecli --eval run --suite surfaces",
+      "description": "Run surface conformance — no agent, no provider, no cost",
+      "expected_output_contains": "Pass rate",
+      "delay_ms": 20000
     },
     {
       "id": 3,
-      "action": "repl",
-      "commands": [
-        { "input": "/benchmark results", "delay_ms": 3000 }
-      ],
-      "description": "View benchmark results with difficulty breakdown"
+      "action": "shell",
+      "command": "vibecli --eval run --tag offline --limit 5",
+      "description": "Run a slice of the capability suites",
+      "expected_output_contains": "Capability × surface",
+      "delay_ms": 120000
     },
     {
       "id": 4,
       "action": "shell",
-      "command": "vibecli --benchmark run --suite lite --provider openai --model gpt-4o",
-      "description": "Run the same suite against OpenAI for comparison",
-      "expected_output_contains": "Pass@1",
-      "delay_ms": 60000
+      "command": "vibecli --eval runs",
+      "description": "List archived runs",
+      "expected_output_contains": "scored",
+      "delay_ms": 3000
     },
     {
       "id": 5,
-      "action": "repl",
-      "commands": [
-        { "input": "/benchmark compare --runs 1,2", "delay_ms": 3000 }
-      ],
-      "description": "Compare two benchmark runs side by side"
+      "action": "shell",
+      "command": "vibecli --eval gate latest",
+      "description": "Gate the latest run against its absolute thresholds",
+      "expected_output_contains": "Gate",
+      "delay_ms": 5000
     },
     {
       "id": 6,
-      "action": "repl",
-      "commands": [
-        { "input": "/benchmark export --run 1 --format markdown --output report.md", "delay_ms": 2000 }
-      ],
-      "description": "Export results as a Markdown report"
-    },
-    {
-      "id": 7,
-      "action": "vibecoder",
-      "panel": "SWEBench",
-      "tabs": ["Run", "Results", "Compare"],
-      "description": "Navigate the SWE-bench panel in VibeCoder: start a run, view results, compare models",
-      "delay_ms": 5000
+      "action": "shell",
+      "command": "vibecli --eval datasets list",
+      "description": "Third-party datasets, their licences, and the wiring gaps",
+      "expected_output_contains": "Known gaps",
+      "delay_ms": 4000
     }
   ]
 }

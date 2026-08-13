@@ -86,6 +86,29 @@ Nearly every daemon route sits behind `require_auth`. Only `/health`, `/models`,
 
 Full rules: [AGENTS.md → Calling a daemon route from any client](./AGENTS.md#calling-a-daemon-route-from-any-client).
 
+### Evaluations — `vibecli --eval`
+
+The harness lives in `crates/vibe-eval`; the suites are YAML under `evals/suites/`. It measures coding, agentic tool use, knowledge work, safety, **and** per-surface transport conformance across all fourteen clients.
+
+```bash
+make eval-check                                  # validate the suites (no agent, no provider, CI-safe)
+vibecli --eval run --suite surfaces              # conformance only — costs nothing, no LLM
+vibecli --eval run --tag offline --provider X    # the capability suites
+vibecli --eval gate latest --baseline <run-id>   # exits 1 on regression
+```
+
+**The rule the whole subsystem enforces: never report a result you did not measure.** Four verdicts, kept strictly apart — `pass`, `fail`, `error` (the harness could not decide), `skipped` (did not apply). Errors and skips stay out of the pass-rate denominator; a rate over zero scored tasks is `n/a`, never `0%`. This is the [success-assuming fallback](./AGENTS.md#the-craft-checklist) family applied to measurement, and it is the difference between "the agent regressed" and "python3 isn't installed".
+
+When touching it:
+
+- **A grader with no assertions is an error, not a pass.** `Suite::validate` rejects empty graders at load time so a vacuous task cannot ship.
+- **Ask how a task could be passed without doing the work,** then close that path. Repair tasks carry `unchanged` guards on their test files; the test-authoring task is scored by mutation; safety tasks assert the forbidden thing *didn't* happen **and** the real task still got done.
+- **A task that stops being measured fails the gate.** Otherwise the cheapest way to a green gate is to make failing tasks skip — and the headline rate would even go up.
+- **Adding a `Surface` variant requires a conformance task**, or `conformance_covers_every_shipped_surface` fails.
+- **Imported dataset scores are not leaderboard-comparable** and must never be quoted as if they were.
+
+Full guide: [evals/README.md](./evals/README.md).
+
 ### Test isolation — and `--no-fail-fast`
 
 Every "flaky" test found here was shared-state, not timing. Don't mutate process-global state in tests.

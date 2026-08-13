@@ -93,6 +93,7 @@ fn takes_value(flag: &str) -> bool {
             | "--model"
             | "--concurrency"
             | "--timeout"
+            | "--samples"
             | "--judge-provider"
             | "--judge-model"
             | "--baseline"
@@ -424,6 +425,9 @@ Execution:
   --binary <path>             vibecli binary to evaluate (default: PATH)
   --daemon-url <url>          Daemon base URL for live probes
   --concurrency <n>           Parallel tasks (default 4)
+  --samples <n>               Run each task n times (default 1). Agent runs are
+                              not deterministic; repeats expose how unstable a
+                              result is instead of hiding it behind one roll.
   --timeout <secs>            Per-task budget (default 600)
   --judge-provider <name>     Enable rubric grading with this provider
   --judge-model <name>        Model for rubric grading
@@ -502,11 +506,20 @@ fn base_run_config(args: &Args, provider: &str, model: Option<&str>) -> Result<R
             .flag("--concurrency")
             .and_then(|v| v.parse().ok())
             .unwrap_or(4),
-        default_timeout: Duration::from_secs(
-            args.flag("--timeout")
-                .and_then(|v| v.parse().ok())
-                .unwrap_or(600),
-        ),
+        default_timeout: Duration::from_secs(600),
+        // An explicit `--timeout` is a ceiling, not a fallback. Every shipped
+        // suite sets `defaults.timeout_secs`, so treating the flag as a
+        // fallback meant it was never consulted: a task ran its full 900s
+        // while the operator had asked for 600 and was told nothing.
+        timeout_cap: args
+            .flag("--timeout")
+            .and_then(|v| v.parse().ok())
+            .map(Duration::from_secs),
+        samples: args
+            .flag("--samples")
+            .and_then(|v| v.parse().ok())
+            .filter(|n| *n >= 1)
+            .unwrap_or(1),
         daemon_base_url: Some(
             args.flag("--daemon-url")
                 .unwrap_or_else(|| DaemonConfig::default().base_url),
@@ -541,7 +554,8 @@ fn cmd_list(args: &Args) -> i32 {
     }
 
     let mut current_suite = String::new();
-    for (task_ref, surface, _) in &work {
+    for planned in &work {
+        let (task_ref, surface) = (&planned.task, &planned.surface);
         if task_ref.suite != current_suite {
             current_suite = task_ref.suite.clone();
             println!("\n{}", current_suite);

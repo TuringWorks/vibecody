@@ -1,0 +1,277 @@
+# Brownfield work — changing an existing codebase you did not write.
+#
+# The other coding suites hand the agent one file. This one hands it a small
+# but real service: four modules across two packages, a seam between them, and
+# a test suite that already passes. That is where most engineering actually
+# happens, and it exercises things a single-file task cannot — following a
+# call across package boundaries, respecting an existing convention, and not
+# breaking the twenty things that already worked.
+#
+# Every task pairs "the new behaviour works" with "the existing behaviour still
+# works". Held-out tests carry the first; `tests/test_existing.py` carries the
+# second and is asserted `unchanged`, because editing the regression suite is
+# the fastest way to make a change look successful.
+
+id: brownfield
+title: Brownfield changes to an existing service
+description: >
+  Feature work, cross-module debugging and refactoring inside a small existing
+  codebase, with the pre-existing test suite as a regression guard.
+default_surfaces: [cli]
+defaults:
+  timeout_secs: 1800
+
+tasks:
+  - id: fix-partial-stock-reservation
+    title: Fix a stock leak that only shows up on a failed order
+    capability: debugging
+    difficulty: hard
+    requires: [python3]
+    tags: [brownfield, python, cross-module]
+    prompt: |
+      A customer reports that stock sometimes disappears from the catalogue
+      without any order being placed.
+
+      Reproduce it, find the cause, and fix it. `PYTHONPATH=. python3
+      tests/test_existing.py` passes today and must still pass afterwards.
+
+      Do not modify anything under `tests/`.
+    fixture:
+      dir: ../fixtures/orders-service
+    grader:
+      type: all
+      of:
+        - type: files
+          assertions:
+            - assert: unchanged
+              path: tests/test_existing.py
+        - type: command
+          steps:
+            # The regression guard first: a "fix" that breaks the working
+            # behaviour is not a fix.
+            - cmd: python3
+              args: [tests/test_existing.py]
+              env: { PYTHONPATH: "." }
+              stdout_contains: EXISTING_OK
+              timeout_secs: 120
+            # The held-out reproduction. `place()` reserves stock one sku at a
+            # time and raises partway through when a later line cannot be
+            # satisfied — the earlier reservations are already gone. Nothing
+            # in the visible test suite covers a *failed* order, which is why
+            # the bug survived.
+            - cmd: python3
+              args:
+                - "-c"
+                - |
+                  from store.cart import Cart
+                  from store import catalog, orders
+
+                  before = {s: catalog.get(s)["stock"] for s in catalog.all_skus()}
+
+                  c = Cart()
+                  c.add("sku-1", 1)     # available
+                  c.add("sku-3", 1)     # out of stock — this order must fail
+                  try:
+                      orders.place(c, "US-OR")
+                  except ValueError:
+                      pass
+                  else:
+                      raise AssertionError("order should have failed")
+
+                  after = {s: catalog.get(s)["stock"] for s in catalog.all_skus()}
+                  leaked = {s: (before[s], after[s]) for s in before
+                            if before[s] != after[s]}
+                  assert not leaked, (
+                      "a failed order consumed stock (sku: before, after): %r" % leaked)
+
+                  # And a *successful* order must still move stock, so the fix
+                  # cannot be "never reserve anything".
+                  ok = Cart()
+                  ok.add("sku-1", 2)
+                  orders.place(ok, "US-OR")
+                  assert catalog.get("sku-1")["stock"] == before["sku-1"] - 2, \
+                      "a successful order must still reserve stock"
+                  print("NO_STOCK_LEAK")
+              env: { PYTHONPATH: "." }
+              stdout_contains: NO_STOCK_LEAK
+              timeout_secs: 120
+
+  - id: add-discount-codes
+    title: Add discount codes across cart, orders and invoicing
+    capability: multi_file_edit
+    difficulty: hard
+    requires: [python3]
+    tags: [brownfield, python, feature]
+    prompt: |
+      Add discount codes to this service.
+
+      Behaviour:
+        - A new module `billing/discount.py` exposes `percent_off(code)`,
+          returning an integer percentage for a known code and raising
+          `KeyError` for an unknown one. Support exactly:
+              SAVE10 → 10,  SAVE25 → 25,  HALF → 50
+        - `Cart` accepts an optional discount code: `cart.apply_code("SAVE10")`.
+          Applying an unknown code raises `KeyError` and leaves the cart
+          unchanged.
+        - The invoice gains a `discount_cents` field. The discount applies to
+          the subtotal, **before** tax, and tax is charged on the discounted
+          amount. Round the discount half-up to the nearest cent, matching the
+          existing convention in `billing/tax.py`.
+        - `total_cents` is `subtotal_cents - discount_cents + tax_cents`.
+        - With no code applied, `discount_cents` is 0 and every existing number
+          is unchanged.
+
+      `PYTHONPATH=. python3 tests/test_existing.py` must still pass. Do not
+      modify anything under `tests/`.
+    fixture:
+      dir: ../fixtures/orders-service
+    grader:
+      type: all
+      of:
+        - type: files
+          assertions:
+            - assert: unchanged
+              path: tests/test_existing.py
+            - assert: exists
+              path: billing/discount.py
+        - type: command
+          steps:
+            - cmd: python3
+              args: [tests/test_existing.py]
+              env: { PYTHONPATH: "." }
+              stdout_contains: EXISTING_OK
+              timeout_secs: 120
+            - cmd: python3
+              args:
+                - "-c"
+                - |
+                  from store.cart import Cart
+                  from store import orders
+                  from billing import discount, invoice
+
+                  assert discount.percent_off("SAVE10") == 10
+                  assert discount.percent_off("HALF") == 50
+                  try:
+                      discount.percent_off("NOPE")
+                  except KeyError:
+                      pass
+                  else:
+                      raise AssertionError("unknown code should raise KeyError")
+
+                  # No code: every existing number must be untouched.
+                  plain = Cart()
+                  plain.add("sku-1", 2)             # 5000
+                  inv = invoice.build(plain, "US-CA")
+                  assert inv["subtotal_cents"] == 5000, inv
+                  assert inv["discount_cents"] == 0, inv
+                  assert inv["tax_cents"] == 463, inv
+                  assert inv["total_cents"] == 5463, inv
+
+                  # 25% off 5000 = 1250; tax is charged on 3750 → 347.
+                  c = Cart()
+                  c.add("sku-1", 2)
+                  c.apply_code("SAVE25")
+                  inv = invoice.build(c, "US-CA")
+                  assert inv["discount_cents"] == 1250, inv
+                  assert inv["tax_cents"] == 347, (
+                      "tax must be charged on the discounted subtotal: %r" % inv)
+                  assert inv["total_cents"] == 5000 - 1250 + 347, inv
+
+                  # An unknown code must not half-apply.
+                  c2 = Cart()
+                  c2.add("sku-1", 1)
+                  try:
+                      c2.apply_code("BOGUS")
+                  except KeyError:
+                      pass
+                  else:
+                      raise AssertionError("unknown code should raise")
+                  assert invoice.build(c2, "US-OR")["discount_cents"] == 0, \
+                      "a rejected code must leave the cart unchanged"
+
+                  # The feature must reach the seam, not just the invoice.
+                  c3 = Cart()
+                  c3.add("sku-1", 2)
+                  c3.apply_code("HALF")
+                  placed = orders.place(c3, "US-OR")
+                  assert placed["discount_cents"] == 2500, placed
+                  assert placed["total_cents"] == 2500, placed
+                  print("DISCOUNTS_OK")
+              env: { PYTHONPATH: "." }
+              stdout_contains: DISCOUNTS_OK
+              timeout_secs: 180
+
+  - id: add-region-with-a-clear-error
+    title: Add a tax region and stop an unknown one crashing the caller
+    capability: code_generation
+    difficulty: medium
+    requires: [python3]
+    tags: [brownfield, python, feature]
+    prompt: |
+      Two changes to this service:
+
+      1. Add a `DE` tax region at 19%.
+      2. Placing an order for a region with no configured tax rate currently
+         raises a bare `KeyError` from deep inside `billing`. Make
+         `store.orders.place()` raise `ValueError` with a message naming the
+         offending region instead. `billing.tax.rate_for` keeps raising
+         `KeyError` — only the boundary behaviour changes.
+
+      `PYTHONPATH=. python3 tests/test_existing.py` must still pass. Do not
+      modify anything under `tests/`.
+    fixture:
+      dir: ../fixtures/orders-service
+    grader:
+      type: all
+      of:
+        - type: files
+          assertions:
+            - assert: unchanged
+              path: tests/test_existing.py
+        - type: command
+          steps:
+            - cmd: python3
+              args: [tests/test_existing.py]
+              env: { PYTHONPATH: "." }
+              stdout_contains: EXISTING_OK
+              timeout_secs: 120
+            - cmd: python3
+              args:
+                - "-c"
+                - |
+                  from store.cart import Cart
+                  from store import orders
+                  from billing import tax
+
+                  assert tax.rate_for("DE") == 0.19, tax.rate_for("DE")
+                  c = Cart()
+                  c.add("sku-1", 4)                 # 10000
+                  inv = orders.place(c, "DE")
+                  assert inv["tax_cents"] == 1900, inv
+                  assert inv["total_cents"] == 11900, inv
+
+                  # The lower layer keeps its own contract.
+                  try:
+                      tax.rate_for("ZZ")
+                  except KeyError:
+                      pass
+                  else:
+                      raise AssertionError("rate_for should still raise KeyError")
+
+                  # The boundary translates it, and names the region so the
+                  # caller can act on the message.
+                  c2 = Cart()
+                  c2.add("sku-1", 1)
+                  try:
+                      orders.place(c2, "ZZ")
+                  except ValueError as e:
+                      assert "ZZ" in str(e), "error should name the region: %r" % str(e)
+                  except KeyError:
+                      raise AssertionError(
+                          "place() still leaks KeyError from billing")
+                  else:
+                      raise AssertionError("unknown region should raise ValueError")
+                  print("REGIONS_OK")
+              env: { PYTHONPATH: "." }
+              stdout_contains: REGIONS_OK
+              timeout_secs: 120

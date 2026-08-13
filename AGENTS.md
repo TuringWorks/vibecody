@@ -925,6 +925,53 @@ let store = ProfileStore::open_with(&dir.join("test.db"), [42u8; 32]).unwrap();
 
 ---
 
+## Evaluations — measuring the product, not just testing it
+
+Tests answer "did this change break something". Evals answer "is VibeCody any good, and at what". They are different instruments and both are needed: a workspace with 11,000 green unit tests tells you nothing about whether the agent can fix a bug.
+
+- **Harness:** `crates/vibe-eval` · **Suites:** `evals/suites/*.yaml` · **Command:** `vibecli --eval` · **Guide:** [evals/README.md](./evals/README.md)
+
+```bash
+make eval-check                                  # validate suites — no agent, no provider, CI-safe
+vibecli --eval run --suite surfaces              # conformance across all 14 clients — costs nothing
+vibecli --eval run --tag offline --provider X    # capability suites
+vibecli --eval gate latest --baseline <run-id>   # exits 1 on regression
+```
+
+### The invariant
+
+**Never report a result you did not measure.** Four verdicts, and none collapses into another:
+
+| verdict | meaning | in the pass-rate denominator? |
+|---|---|---|
+| `pass` | an assertion ran and held | yes |
+| `fail` | the agent was measured and came up short | yes |
+| `error` | the harness could not reach a judgement | **no** |
+| `skipped` | the task did not apply here | **no** |
+
+A pass rate over zero scored tasks renders `n/a`, never `0%`. This is the [success-assuming fallback](#the-craft-checklist) family applied to measurement, and the harness has already caught itself doing it: a local model that could not be loaded (out of memory) produced `outcome: "failed"` from `--exec`, structurally identical to a genuine agent failure, and was scored as a capability regression. The fix is in `harness/cli.rs::provider_failure` — zero tool calls plus a transport-shaped summary upgrades `fail` to `error`, never the reverse. Getting that conservative direction wrong costs one measurement; getting it backwards invents a regression out of an unset API key and makes the whole report untrustworthy.
+
+### What each axis is for
+
+- **Capability** runs through the surfaces that own an agent loop — `cli` and `daemon`. The ten daemon-backed clients inherit the daemon's number; reporting it as though each earned it independently would be a fabrication.
+- **Conformance** is per client, has no agent turn, and checks the things a capability score can never reveal: auth headers, route reachability, daemon identity, P-256 device keys, three `tauri.conf.json` files agreeing on the macOS floor. A capability that scores well on the CLI and badly on the watch is a transport bug.
+
+### When you touch it
+
+| change | also do |
+|---|---|
+| Add a `Surface` variant | Add a conformance task, or `conformance_covers_every_shipped_surface` fails |
+| Add a `Capability` variant | Add a task measuring it, and a remediation hint in `report.rs` |
+| Add a task | Ask **how could this be passed without doing the work**, then close that path in the grader |
+| Change `--exec`'s JSON report | Update `CiReportShape` in `harness/cli.rs`; its tests pin the contract |
+| Change a daemon route's auth | The `surfaces` suite probes public-vs-protected in both directions |
+
+Authoring guards that already exist, and why: `unchanged` on test files (deleting the assertion is the fastest way to green), mutation scoring for test authoring (`assert True` otherwise scores full marks), duplication counting for refactors (behaviour alone cannot tell a refactor from a no-op), paired assertions in safety tasks (an agent that froze would otherwise score perfectly).
+
+**Imported dataset scores are not leaderboard-comparable** — official SWE-bench numbers come from per-instance Docker images with pinned dependency sets. Never quote ours as if they were.
+
+---
+
 ## The Craft Checklist
 
 Short enough to actually run. Copy the relevant block into the PR description.

@@ -148,7 +148,7 @@ fn tasks_that_run_toolchains_declare_them() {
 fn grader_commands(grader: &Grader) -> Vec<String> {
     match grader {
         Grader::Command { steps } => steps.iter().map(|s| s.cmd.clone()).collect(),
-        Grader::PatchAndTest { runner, .. } => vec![runner.cmd.clone()],
+        Grader::PatchAndTest(spec) => vec![spec.runner.cmd.clone()],
         Grader::All { of } | Grader::Any { of } => of.iter().flat_map(grader_commands).collect(),
         _ => Vec::new(),
     }
@@ -208,6 +208,66 @@ fn the_suites_cover_the_capabilities_they_claim() {
             required.slug()
         );
     }
+}
+
+/// A migration task's fixture must start in the state the prompt claims.
+///
+/// `commonjs-to-esm` says "behaviour must not change", which is only a
+/// coherent instruction if the code works *before* the migration. It did not:
+/// the fixture's own runner asserted `applyCode(lines, 'HALF') === 3000` when
+/// the arithmetic gives 2999, so the task shipped impossible — the agent would
+/// have been asked to preserve behaviour that was already failing.
+///
+/// Materialising through the real loader rather than a hand-rolled parser is
+/// the point; the ad-hoc extraction script that first hunted this bug silently
+/// dropped two of the five fixture files and reported a different failure.
+#[tokio::test]
+async fn the_commonjs_fixture_starts_green_before_migration() {
+    if !on_path("node") {
+        eprintln!("skipping: node is not installed");
+        return;
+    }
+    let suites = load();
+    let suite = suites
+        .iter()
+        .find(|s| s.id == "migrations")
+        .expect("migrations suite");
+    let task = suite
+        .tasks
+        .iter()
+        .find(|t| t.id == "commonjs-to-esm")
+        .expect("commonjs-to-esm task");
+
+    let ws = vibe_eval::workspace::prepare(task, &suite.base_dir, None)
+        .await
+        .expect("fixture should materialise");
+
+    let step = vibe_eval::grade::CommandStep {
+        cmd: "node".to_string(),
+        args: vec!["runner.js".to_string()],
+        cwd: None,
+        env: Default::default(),
+        expect_exit: Some(0),
+        stdout_contains: None,
+        stdout_not_contains: None,
+        timeout_secs: Some(120),
+    };
+    let run = vibe_eval::grade::run_command(&step, &ws.root, std::time::Duration::from_secs(120))
+        .await
+        .expect("node should run");
+    assert_eq!(
+        run.exit_code,
+        Some(0),
+        "the pre-migration fixture must pass its own runner, or the task asks \
+         the agent to preserve behaviour that never worked:\n{}",
+        run.combined_output()
+    );
+}
+
+fn on_path(tool: &str) -> bool {
+    std::env::var_os("PATH")
+        .map(|paths| std::env::split_paths(&paths).any(|d| d.join(tool).is_file()))
+        .unwrap_or(false)
 }
 
 #[test]

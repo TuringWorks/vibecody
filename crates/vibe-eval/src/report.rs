@@ -43,12 +43,27 @@ pub struct TaskResult {
     pub harness: String,
     #[serde(default)]
     pub source: TaskSource,
+    /// Which repetition this was, zero-based. Always 0 for a single-sample run.
+    #[serde(default)]
+    pub sample: usize,
 }
 
 impl TaskResult {
     /// A report row identity that includes the surface, because the same task
     /// legitimately has different outcomes on different surfaces.
+    ///
+    /// The sample index only appears past the first, so a single-sample run
+    /// keeps the exact keys a baseline recorded and the gate keeps comparing
+    /// like with like.
     pub fn row_key(&self) -> String {
+        match self.sample {
+            0 => format!("{}@{}", self.key, self.surface.slug()),
+            n => format!("{}@{}#{}", self.key, self.surface.slug(), n),
+        }
+    }
+
+    /// Identity ignoring which repetition this was.
+    pub fn task_key(&self) -> String {
         format!("{}@{}", self.key, self.surface.slug())
     }
 }
@@ -176,6 +191,36 @@ impl EvalReport {
     /// model problem or a transport problem".
     pub fn matrix(&self) -> BTreeMap<(Capability, Surface), Tally> {
         self.tally_by(|r| (r.capability, r.surface))
+    }
+
+    /// Tasks whose repeated samples disagreed, worst-first.
+    ///
+    /// This is the honest reading of a non-deterministic agent: `2/5` says
+    /// something a single pass or fail cannot, and quoting either alone from a
+    /// task that behaves this way is close to fabrication.
+    pub fn flaky(&self) -> Vec<(String, usize, usize)> {
+        let mut by_task: BTreeMap<String, (usize, usize)> = BTreeMap::new();
+        for r in &self.results {
+            if !r.verdict.is_scored() {
+                continue;
+            }
+            let entry = by_task.entry(r.task_key()).or_insert((0, 0));
+            entry.1 += 1;
+            if r.verdict.is_pass() {
+                entry.0 += 1;
+            }
+        }
+        let mut flaky: Vec<(String, usize, usize)> = by_task
+            .into_iter()
+            .filter(|(_, (passed, total))| *total > 1 && *passed > 0 && passed < total)
+            .map(|(k, (passed, total))| (k, passed, total))
+            .collect();
+        flaky.sort_by(|a, b| {
+            let ra = a.1 as f64 / a.2 as f64;
+            let rb = b.1 as f64 / b.2 as f64;
+            ra.partial_cmp(&rb).unwrap_or(std::cmp::Ordering::Equal)
+        });
+        flaky
     }
 
     pub fn failures(&self) -> Vec<&TaskResult> {
@@ -312,6 +357,7 @@ impl EvalReport {
             d.slug().to_string()
         }));
 
+        md.push_str(&self.flaky_markdown());
         md.push_str(&self.matrix_markdown());
         md.push_str(&self.action_markdown());
         md.push_str(&self.failure_markdown());
@@ -324,6 +370,25 @@ impl EvalReport {
             md.push('\n');
         }
 
+        md
+    }
+
+    fn flaky_markdown(&self) -> String {
+        let flaky = self.flaky();
+        if flaky.is_empty() {
+            return String::new();
+        }
+        let mut md = String::from("## Unstable tasks\n\n");
+        md.push_str(
+            "These produced different verdicts across repeated samples. Their \
+             pass/fail in any single run is close to a coin toss, and a report \
+             that quoted one run would be reporting the toss.\n\n",
+        );
+        md.push_str("| task | passed | samples |\n|---|---:|---:|\n");
+        for (task, passed, total) in &flaky {
+            md.push_str(&format!("| `{}` | {} | {} |\n", task, passed, total));
+        }
+        md.push('\n');
         md
     }
 
@@ -573,6 +638,7 @@ mod tests {
             duration_ms: 1,
             harness: "test".to_string(),
             source: TaskSource::Vendored,
+            sample: 0,
         }
     }
 
@@ -724,6 +790,64 @@ mod tests {
     }
 
     #[test]
+    fn repeated_samples_of_one_task_are_reported_as_unstable() {
+        // The greenfield build passed 8/8 in 65s on one attempt and produced
+        // no file at all in 900s on the next three. Quoting either run alone
+        // would have been reporting a coin toss as a measurement.
+        let mut results = vec![];
+        for (i, verdict) in [
+            Verdict::Pass,
+            Verdict::Fail { reason: "x".into() },
+            Verdict::Fail { reason: "x".into() },
+            Verdict::Fail { reason: "x".into() },
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let mut r = result("build", Capability::LongHorizon, Surface::Cli, verdict);
+            r.sample = i;
+            results.push(r);
+        }
+        let report = report(results);
+
+        let flaky = report.flaky();
+        assert_eq!(flaky.len(), 1);
+        assert_eq!(flaky[0].1, 1, "one sample passed");
+        assert_eq!(flaky[0].2, 4, "out of four");
+
+        let md = report.to_markdown();
+        assert!(md.contains("Unstable tasks"), "{}", md);
+    }
+
+    #[test]
+    fn a_task_that_always_agrees_with_itself_is_not_flagged() {
+        let mut results = vec![];
+        for i in 0..3 {
+            let mut r = result("steady", Capability::ToolUse, Surface::Cli, Verdict::Pass);
+            r.sample = i;
+            results.push(r);
+        }
+        assert!(report(results).flaky().is_empty());
+    }
+
+    #[test]
+    fn a_single_sample_run_keeps_its_baseline_row_keys() {
+        // Sampling must not silently invalidate every stored baseline: the
+        // gate matches rows by key, and renaming them would read as "every
+        // task was removed and a new one added".
+        let r = result("a", Capability::ToolUse, Surface::Cli, Verdict::Pass);
+        assert_eq!(r.row_key(), "a@cli");
+        let mut second = r.clone();
+        second.sample = 1;
+        assert_eq!(second.row_key(), "a@cli#1");
+        assert_eq!(
+            second.task_key(),
+            "a@cli",
+            "task identity ignores the sample"
+        );
+    }
+
+    #[test]
     fn report_round_trips_through_json() {
         let r = report(vec![result(
             "a",
@@ -754,10 +878,16 @@ mod tests {
                 },
             ));
         }
-        let md = report(results).to_markdown();
+        let r = report(results);
+        // 1 of 10 scored: the headline reads 100%, which is true and
+        // thoroughly misleading on its own.
+        assert_eq!(r.overall().pass_rate(), Some(1.0));
+        assert_eq!(r.overall().coverage(), Some(0.1));
+
+        let md = r.to_markdown();
         assert!(
-            md.contains("partial \nsample") || md.contains("partial"),
-            "{}",
+            md.contains("Only 10% of tasks were scored"),
+            "the report must state the coverage that the headline rests on:\n{}",
             md
         );
     }

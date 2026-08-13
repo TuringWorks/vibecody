@@ -199,7 +199,12 @@ impl Harness for DaemonHarness {
                     .timeout(Duration::from_secs(10))
                     .send()
                     .await;
-                return Err(HarnessError::Timeout(timeout.as_secs()));
+                return Err(HarnessError::Timeout {
+                    secs: timeout.as_secs(),
+                    // The daemon runs out of process; its logs are not ours to
+                    // capture, so this stays empty rather than fabricated.
+                    tail: String::new(),
+                });
             }
 
             tokio::time::sleep(self.config.poll_interval).await;

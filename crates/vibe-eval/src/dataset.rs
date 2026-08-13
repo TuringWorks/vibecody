@@ -499,12 +499,11 @@ fn import_humaneval(
         manifest,
         slug,
         format!("HumanEval {}", task_id),
-        format!(
-            "Complete the function in `solution.py`. The file contains a signature and \
-             docstring; implement the body so the described behaviour holds. Do not \
-             change the signature, and do not create or modify any other file.\n\n\
-             Run `python3 -c \"import solution\"` to check it at least parses."
-        ),
+        "Complete the function in `solution.py`. The file contains a signature and \
+         docstring; implement the body so the described behaviour holds. Do not \
+         change the signature, and do not create or modify any other file.\n\n\
+         Run `python3 -c \"import solution\"` to check it at least parses."
+            .to_string(),
         task_id.to_string(),
     );
 
@@ -683,7 +682,7 @@ fn import_swebench(
         },
     ];
 
-    task.grader = Grader::PatchAndTest {
+    task.grader = Grader::PatchAndTest(Box::new(crate::grade::PatchAndTestSpec {
         test_patch: test_patch.to_string(),
         fail_to_pass,
         pass_to_pass,
@@ -703,7 +702,7 @@ fn import_swebench(
             stdout_not_contains: None,
             timeout_secs: Some(900),
         },
-    };
+    }));
     task.requires = vec!["git".to_string(), "python3".to_string()];
     task.limits.timeout_secs = Some(2400);
     Ok(task)
@@ -880,11 +879,8 @@ mod tests {
         assert!(errors.is_empty(), "{:?}", errors);
         let task = &tasks[0];
         match &task.grader {
-            Grader::PatchAndTest {
-                fail_to_pass,
-                pass_to_pass,
-                ..
-            } => {
+            Grader::PatchAndTest(spec) => {
+                let (fail_to_pass, pass_to_pass) = (&spec.fail_to_pass, &spec.pass_to_pass);
                 // FAIL_TO_PASS arrives JSON-encoded in some exports and as a
                 // real array in others; both must parse.
                 assert_eq!(fail_to_pass, &vec!["tests/x.py::test_a".to_string()]);
@@ -997,6 +993,40 @@ mod tests {
         let suite = crate::suite::Suite::from_yaml(&yaml, Path::new("/tmp/x.yaml"))
             .expect("imported suite must be valid");
         assert_eq!(suite.tasks.len(), 1);
+    }
+
+    #[test]
+    fn an_imported_swebench_suite_round_trips_through_yaml() {
+        // `Grader::PatchAndTest` is a boxed newtype variant under an
+        // internally-tagged enum. Serde flattens that, so the YAML shape is
+        // the same as when the fields were inline — but "should be" is not
+        // "is", and an import that serialises to something the loader rejects
+        // would only surface hours into a SWE-bench run.
+        let manifest = Registry::find("swebench_verified").expect("manifest");
+        let row = serde_json::json!({
+            "instance_id": "django__django-12345",
+            "repo": "django/django",
+            "base_commit": "abcdef1234567890",
+            "problem_statement": "ORM does the wrong thing",
+            "test_patch": "--- a/tests/x.py\n+++ b/tests/x.py\n",
+            "FAIL_TO_PASS": ["tests/x.py::test_a"],
+            "PASS_TO_PASS": ["tests/x.py::test_b"]
+        });
+        let (tasks, errors) = import(&manifest, &[row], None);
+        assert!(errors.is_empty(), "{:?}", errors);
+
+        let yaml = to_suite_yaml(&manifest, &tasks).expect("serialize");
+        assert!(yaml.contains("patch_and_test"), "tag missing:\n{}", yaml);
+        let suite = crate::suite::Suite::from_yaml(&yaml, Path::new("/tmp/x.yaml"))
+            .expect("an imported swebench suite must load");
+        match &suite.tasks[0].grader {
+            Grader::PatchAndTest(spec) => {
+                assert_eq!(spec.fail_to_pass, vec!["tests/x.py::test_a".to_string()]);
+                assert_eq!(spec.pass_to_pass, vec!["tests/x.py::test_b".to_string()]);
+                assert_eq!(spec.runner.cmd, "python3");
+            }
+            other => panic!("wrong grader after round trip: {:?}", other),
+        }
     }
 
     #[test]

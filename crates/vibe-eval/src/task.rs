@@ -236,10 +236,11 @@ impl Difficulty {
 /// Imports carry their provenance so a report can state which numbers are
 /// comparable to a published leaderboard and which are ours alone. Reporting
 /// a mixed run as a single "SWE-bench score" would be a category error.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum TaskSource {
     /// Authored in this repository, MIT-licensed with the rest of it.
+    #[default]
     Vendored,
     /// Converted from a third-party dataset.
     Imported {
@@ -250,12 +251,6 @@ pub enum TaskSource {
         /// SPDX-ish licence string copied from the manifest.
         license: String,
     },
-}
-
-impl Default for TaskSource {
-    fn default() -> Self {
-        TaskSource::Vendored
-    }
 }
 
 /// A file tree the task starts from.

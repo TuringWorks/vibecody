@@ -98,6 +98,8 @@ make test-all           Test every Rust + Node surface
 make ci                 Mirror the GitHub CI gate locally
 make check              Fast type-check (Rust + UI/App/VibeDesk TypeScript)
 make lint               Run clippy + UI TypeScript check
+make eval-check         Validate the eval suites (no agent, no provider)
+make eval-offline       Run the capability evals (needs a provider)
 make clean              Remove build artifacts
 make docker             Build Docker image
 make icons              Regenerate every app icon from the shared brand mark
@@ -392,6 +394,11 @@ make test-fast     # Skip collab crate (faster)
 make test-all      # Every Rust + Node surface
 make check         # Type-check only (Rust + UI/App/VibeDesk TypeScript)
 make ci            # Mirror the GitHub CI gate locally
+
+# Evaluations — how good VibeCody actually is (see evals/README.md)
+make eval-check    # Validate the suites: no agent, no provider, CI-safe
+make eval-surfaces # Transport conformance across all 14 clients (costs nothing)
+make eval-offline  # Coding, agentic, work-task and safety suites
 
 # Per-surface tests
 make test-cli      # VibeCLI (Rust)      make test-ui     # VibeCoder  (vitest)
