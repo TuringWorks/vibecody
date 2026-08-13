@@ -52,8 +52,10 @@ Write new code and refactor existing code toward a functional style: **pure func
 - **Swift / Kotlin / Dart clients**: `let`/`val`/`final` by default; value types for payloads; `enum` w/ associated values, `sealed class` + exhaustive `when`/`switch` for UI state instead of parallel `isLoading`/`error`/`data` fields. Parse into a typed value once at the transport edge (`WatchNetworkManager.swift`, `api_client.dart`) — everything inward is non-optional.
 - **Use the language's idiom, not the pattern's name.** Most GoF patterns are a language feature here: sum type → `enum`+`match` / `sealed class`+`when` / discriminated union+`switch`; strategy → a function value; RAII → `Drop`/`defer`/`use`/`try…finally`. Refactor toward a pattern when the smell is there (growing type-tag switch, boolean parameter selecting behaviour), never because the pattern is admired.
 - **Refactors must be behaviour-preserving and test-covered.** Pin behaviour with a test first, then refactor; the PostToolUse hooks (`cargo check` / `tsc --noEmit`) must be clean before it's done. Keep style sweeps in their own commit.
+- **Check for an existing helper before writing one.** Duplication here comes from a second copy written because the first was ten thousand lines away. Repo root → `vibe_core::git::discover_repo_root`; git anything → `vibe_core::git::*`; locks → `vibe_sync_ext::{LockRecover, RwLockRecover}`; non-crypto hash → `vibe_core::hash`; SHA-256 → `sha2`; masking a secret → `serve::mask_secret`; path safety → `vibe_core::path_guard`.
+- **`is_git_repo` does not mean "is this in a repo".** It opens the path *as* a repo, so it answers "no" for any subdirectory of an ordinary checkout — a mistake already made three times here. Use `discover_repo_root`, which walks up (and resolves linked worktrees).
 
-Full guidance + idiom table + refactor triggers: [AGENTS.md → Functional Style & Safe Refactoring](./AGENTS.md#functional-style--safe-refactoring--rust--typescript).
+Full guidance + idiom table + refactor triggers + the shared-helper table: [AGENTS.md → Functional Style & Safe Refactoring](./AGENTS.md#functional-style--safe-refactoring--rust--typescript).
 
 ### Performance, honesty, verification — the three that a green build misses
 

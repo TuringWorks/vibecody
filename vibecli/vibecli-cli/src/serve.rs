@@ -3372,7 +3372,7 @@ async fn stream_agent(
 /// Byte-slicing (`&s[..4]`) panics on a short or non-ASCII value, and this runs
 /// on the daemon's startup path where a panic means the daemon simply does not
 /// come up.
-fn mask_secret(secret: &str) -> String {
+pub(crate) fn mask_secret(secret: &str) -> String {
     let chars: Vec<char> = secret.chars().collect();
     if chars.len() < 12 {
         // Too short to reveal any of it without leaking a meaningful fraction.

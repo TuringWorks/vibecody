@@ -3767,16 +3767,7 @@ fn generate_nonce() -> [u8; 12] {
 
 /// FNV-1a hash for fast O(1) content deduplication in DrawerStore.
 /// Same algorithm used by MemPalace's dedup.py for exact-match detection.
-fn fnv1a_hash(data: &[u8]) -> u64 {
-    const FNV_PRIME: u64 = 1_099_511_628_211;
-    const FNV_OFFSET: u64 = 14_695_981_039_346_656_037;
-    let mut hash = FNV_OFFSET;
-    for &byte in data {
-        hash ^= byte as u64;
-        hash = hash.wrapping_mul(FNV_PRIME);
-    }
-    hash
-}
+use vibe_core::hash::fnv1a_bytes as fnv1a_hash;
 
 /// Simple pseudo-random u16 (not cryptographically secure).
 fn rand_u16() -> u16 {

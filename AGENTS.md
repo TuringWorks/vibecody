@@ -439,6 +439,38 @@ Most GoF patterns already exist as a language feature in every stack this repo s
 - **Parallelize independent CPU-bound work with `rayon` `par_iter`** where the crate already depends on it and the work is side-effect-free. Never block the async runtime — wrap blocking IO/CPU in `tokio::task::spawn_blocking`.
 - **Use `itertools`** (already a workspace dep) for `chunks`, `group_by`, `unique`, `partition_map`, `try_collect` rather than hand-rolling.
 
+### Before you write a helper, check whether it already exists
+
+The single largest source of duplication here is a helper written a second time
+because the first one was ten thousand lines away. Named algorithms and shared
+policy live in one place; check these before adding your own.
+
+| You need | Use | Never |
+|---|---|---|
+| "is this path in a git repo / where is its root?" | `vibe_core::git::discover_repo_root` | `is_git_repo` (see below), or a fresh `rev-parse --show-toplevel` |
+| Create a repository | `vibe_core::git::init_repo` (refuses `$HOME` and `/`) | raw `git init` |
+| Any other git operation | `vibe_core::git::*` — it has push/pull/branch/worktree/stash | shelling out when a function exists |
+| A poison-tolerant lock | `vibe_sync_ext::{LockRecover, RwLockRecover}` | `.lock().unwrap()` |
+| FNV-1a / non-crypto hash | `vibe_core::hash::{fnv1a, fnv1a_bytes, fnv1a_hex}` | a fifth copy of the constants |
+| SHA-256 | `sha2::Sha256` + `hex::encode` | hand-rolling it (this repo had 87 lines of it) |
+| Show a secret in a log or on screen | `serve::mask_secret` | `&s[..4]` — byte-slicing panics on non-ASCII |
+| Path safety / sensitive-path deny | `vibe_core::path_guard` | a local deny-list (five have already drifted apart) |
+
+**`is_git_repo` is not "is this in a repo".** It calls `Repository::open`, which
+only succeeds when the path is *itself* a repo root, so it answers "no" for
+`src/` in an ordinary checkout. That mistake has now been made three times: it
+left the Environment inspector, Review diff and Files list blank, and it would
+have offered to create a nested repository inside the user's existing one on the
+first agent edit. **Anything asking whether a file is under version control must
+walk up** — `discover_repo_root` does, and `vibe-core` tests pin it against
+`git rev-parse --show-toplevel`, including for linked worktrees.
+
+**`vibe-sync-ext` is deliberately dependency-free.** `vibecli-cli` depends on
+`vibe-broker`, so the lock helpers could not live in `vibecli-cli` and still be
+usable from the broker. Leaf crates (sandbox backends, the broker) can depend on
+`vibe-sync-ext` without inheriting the daemon's tree. Put the next
+zero-dependency primitive there rather than copying it.
+
 ### TypeScript / React
 
 - **`const` over `let`; never mutate props or state.** Build new values with spread / `map` / `filter` / `structuredClone`. Treat arrays and objects flowing through the UI as `readonly`.
@@ -468,6 +500,29 @@ Whichever client you touch, the decoding boundary is the place to be total: **pa
 | `match` pyramid on `Result`/`Option` | `?`, `map_err`, `and_then` | clarity |
 | `bool` flag pair encoding a state | enum with exhaustive `match` | safety |
 | Blocking IO/CPU on the async runtime | `spawn_blocking` / `rayon` | responsiveness |
+| A tag enum whose value is tracked *beside* it (`Uds` + an `Option` the caller unwraps) | put the value in the variant — `Uds(&Path)` | safety (the two can't disagree) |
+| `panic!` inside `OnceLock::get_or_init` | return `Option`, `set` after building | safety (a panic there poisons the cell — *every* later call panics) |
+| `expect` on a slot filled by another thread | `unwrap_or_else(|| …failed result…)` | one worker's panic stops taking the batch with it |
+| Byte-slicing a user-supplied string (`&s[..4]`) | operate on `.chars()` | safety (panics on any multi-byte input) |
+| A helper you're about to write | check the table above first | less code, no drift |
+
+### Panics: where the remaining debt is
+
+The lock-poisoning sweep is done crate-wide in `vibecli-cli` and `vibe-broker`.
+What is left, in rough priority order, if you are looking for work:
+
+- **`vibe-memory`, `vibe-extensions`, the sandbox backends** — never swept.
+- **The `push`-then-`.last().expect("just pushed")` family** (~40 sites). Use
+  `let i = v.len(); v.push(x); &v[i]`, or `entry(k).insert_entry(v).into_mut()`
+  for the map version — one lookup instead of two, and total.
+- **`contains_key`-then-`get().expect()`** — use the `Entry` API.
+- **Wall-clock `duration_since(UNIX_EPOCH).unwrap()`** — panics on a host whose
+  clock reads pre-1970, which is routine in containers without clock sync. Use
+  `.unwrap_or_default()`.
+
+Regexes built with `format!` from consts are safe but are recompiled on every
+call unless they are in a `LazyLock` — `vibe-ai/src/tools.rs` compiles ~28 of
+them per `parse_element_calls`, which runs on every streamed chunk.
 | String built by `+=` in a loop | `push_str` into one buffer, or `join` / `format!` | speed |
 | `useState` mirror kept in sync via `useEffect` | derive with `useMemo` | fewer renders, no drift |
 | `any` on a boundary type | `unknown` + a narrowing type guard | safety |

@@ -6,6 +6,7 @@ pub mod diff;
 pub mod executor;
 pub mod file_system;
 pub mod git;
+pub mod hash;
 pub mod index;
 pub mod path_guard;
 pub mod search;

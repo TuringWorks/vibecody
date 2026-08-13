@@ -400,10 +400,14 @@ mod tests {
             ToolCall::new("c", "Read", "{}"),
         ];
 
-        let results = ParallelDispatcher::new(3).dispatch(calls, allow_all, |call: &ToolCall| {
-            assert_ne!(call.tool_name, "Explode", "this tool panics on purpose");
-            instant_executor(call)
-        });
+        let results = ParallelToolDispatcher::new(ExecutionMode::Parallel).dispatch(
+            calls,
+            allow_all,
+            |call: &ToolCall| {
+                assert_ne!(call.tool_name, "Explode", "this tool panics on purpose");
+                instant_executor(call)
+            },
+        );
 
         assert_eq!(results.len(), 3);
         // The siblings survived with their real output.

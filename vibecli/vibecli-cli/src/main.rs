@@ -20248,23 +20248,10 @@ fn find_closest_command(input: &str) -> Option<&'static str> {
     best.map(|(cmd, _)| cmd)
 }
 
-/// Show the first and last four *characters* of a secret, hiding the middle.
-///
-/// Character-wise, not byte-wise. The previous inline version sliced
-/// `&value[..4]` on a `String` whose `len()` is bytes, so a key containing any
-/// multi-byte character — `vibecli set-key openai "ab🔑cdefgh"` — panicked on
-/// "byte index 4 is not a char boundary", *after* the key had already been
-/// written to the store. Nothing about an API key guarantees ASCII, and a
-/// user's typo should not abort the process.
-fn mask_secret(value: &str) -> String {
-    let chars: Vec<char> = value.chars().collect();
-    if chars.len() <= 8 {
-        return "••••".to_string();
-    }
-    let head: String = chars[..4].iter().collect();
-    let tail: String = chars[chars.len() - 4..].iter().collect();
-    format!("{head}…{tail}")
-}
+// `set-key` masks its echo with `serve::mask_secret` — the daemon already had
+// a char-safe implementation carrying this exact warning in its doc comment,
+// and a second one here would be one more place for the two to drift.
+use crate::serve::mask_secret;
 
 /// Ask the user a yes/no question, or `None` when there is nobody to ask.
 ///
@@ -21927,32 +21914,32 @@ mod tests {
     use super::*;
 
     // ── Secret masking ──────────────────────────────────────────────────────
-
-    #[test]
-    fn mask_secret_shows_four_each_end_of_a_long_key() {
-        assert_eq!(mask_secret("sk-abcdefghijklmnop"), "sk-a…mnop");
-    }
-
-    #[test]
-    fn mask_secret_hides_a_short_key_entirely() {
-        assert_eq!(mask_secret("short"), "••••");
-        assert_eq!(mask_secret(""), "••••");
-        // Exactly 8 is still too short to reveal 4+4 — that would be all of it.
-        assert_eq!(mask_secret("12345678"), "••••");
-    }
+    //
+    // The implementation lives in `serve`; these pin the property `set-key`
+    // depends on, which is that echoing a key back can never abort the process
+    // *after* the key has already been written to the store.
 
     #[test]
     fn mask_secret_does_not_panic_on_a_multibyte_key() {
-        // The regression: `&value[..4]` on this splits the 4-byte emoji and
-        // panics with "byte index 4 is not a char boundary" — after the key
-        // has already been stored.
-        assert_eq!(mask_secret("ab🔑cdefgh"), "ab🔑c…efgh");
-        // Wide characters throughout, where every boundary is a multiple of 3.
-        assert_eq!(mask_secret("日本語のキーです"), "••••");
+        // The regression: `&value[..4]` splits this 4-byte emoji and panics
+        // with "byte index 4 is not a char boundary".
+        assert_eq!(mask_secret("ab🔑cdefghijkl"), "ab🔑c...ijkl");
+        // Wide characters throughout, where no boundary is a multiple of 4.
         assert_eq!(
-            mask_secret("日本語のキーですよろしく"),
-            "日本語の…ですよろしく".replace("ですよろしく", "しく")
+            mask_secret("日本語のキーですよろしくね"),
+            "日本語の...ろしくね"
         );
+    }
+
+    #[test]
+    fn mask_secret_never_reveals_a_short_key() {
+        for short in ["", "s", "short", "12345678901"] {
+            let masked = mask_secret(short);
+            assert!(
+                masked.chars().all(|c| c == '*'),
+                "{short:?} leaked as {masked:?}"
+            );
+        }
     }
 
     // ── Tool-approval prompt answers ────────────────────────────────────────

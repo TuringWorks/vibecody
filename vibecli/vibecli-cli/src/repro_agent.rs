@@ -251,14 +251,7 @@ impl ReproEngine {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /// Deterministic string hash using FNV-1a (no external deps).
-fn simple_hash(input: &str) -> String {
-    let mut hash: u64 = 14695981039346656037;
-    for byte in input.bytes() {
-        hash ^= byte as u64;
-        hash = hash.wrapping_mul(1099511628211);
-    }
-    format!("{:016x}", hash)
-}
+use vibe_core::hash::fnv1a_hex as simple_hash;
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 

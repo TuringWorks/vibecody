@@ -41,14 +41,7 @@ fn now_secs() -> u64 {
         .as_secs()
 }
 
-fn fnv1a_hash(data: &str) -> u64 {
-    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
-    for b in data.as_bytes() {
-        hash ^= *b as u64;
-        hash = hash.wrapping_mul(0x0100_0000_01b3);
-    }
-    hash
-}
+use vibe_core::hash::fnv1a as fnv1a_hash;
 
 // ---------------------------------------------------------------------------
 // Errors

@@ -177,16 +177,7 @@ impl FingerprintStore {
 ///
 /// Starts with the FNV offset basis and, for each byte, XORs then multiplies
 /// by the FNV prime.
-pub fn fnv1a_hash(data: &str) -> u64 {
-    const OFFSET_BASIS: u64 = 0xcbf29ce484222325;
-    const PRIME: u64 = 0x00000100000001B3;
-    let mut h = OFFSET_BASIS;
-    for b in data.bytes() {
-        h ^= b as u64;
-        h = h.wrapping_mul(PRIME);
-    }
-    h
-}
+pub use vibe_core::hash::fnv1a as fnv1a_hash;
 
 /// Produce a 16-character lowercase hex fingerprint for a workspace path.
 ///
