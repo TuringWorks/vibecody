@@ -3264,6 +3264,23 @@ pub async fn send_chat_message(
 /// - Emits `chat:error` on failure
 ///
 /// Call `stop_chat_stream` to cancel an in-progress stream.
+/// The bytes a chunk just added, plus `overlap` before them.
+///
+/// Lets a per-chunk check look at what actually arrived instead of
+/// rescanning the whole accumulated response — the difference between
+/// O(chunk) and O(response) work on every chunk, i.e. between linear
+/// and quadratic over a stream. The overlap is what makes it correct:
+/// a marker can be split across a chunk boundary, so the window has to
+/// reach back at least `marker.len() - 1` bytes. Passing the full
+/// marker length is the simple safe choice.
+fn fresh_tail(buf: &str, chunk_len: usize, overlap: usize) -> &str {
+    let mut at = buf.len().saturating_sub(chunk_len + overlap);
+    while at > 0 && !buf.is_char_boundary(at) {
+        at -= 1;
+    }
+    &buf[at..]
+}
+
 #[tauri::command]
 pub async fn stream_chat_message(
     mut request: ChatRequest,
@@ -3836,11 +3853,27 @@ pub async fn stream_chat_message(
                         let _ = app_handle.emit("chat:chunk", &text);
                         accumulated.push_str(&text);
 
+                        // Both checks below look only at the *tail* — the bytes
+                        // this chunk added, plus enough overlap to catch a
+                        // marker split across a chunk boundary.
+                        //
+                        // They used to scan `accumulated`, which is O(response)
+                        // on every chunk and therefore quadratic over a stream.
+                        // Worse, both conditions latch: `accumulated` only
+                        // grows, so once a marker appeared anywhere the guard
+                        // was true for every remaining chunk of the response,
+                        // and the body ran each time over an ever-longer
+                        // buffer. A 40 KB reasoning answer in 1500 chunks did
+                        // ~180 MB of copying for one reply.
                         // Normalize GLM/Qwen-style <|tag|> delimiters in-place
-                        // so the incremental write scanner can find them.
-                        if accumulated.contains("<|write_file")
-                            || accumulated.contains("</|write_file")
-                        {
+                        // so the incremental write scanner can find them. The
+                        // replacements stay whole-buffer — a marker can be
+                        // anywhere — but they now only run on a chunk that
+                        // actually delivered one.
+                        const OPEN_MARKER: &str = "<|write_file";
+                        const CLOSE_MARKER: &str = "</|write_file";
+                        let marker_tail = fresh_tail(&accumulated, text.len(), CLOSE_MARKER.len());
+                        if marker_tail.contains(OPEN_MARKER) || marker_tail.contains(CLOSE_MARKER) {
                             accumulated = accumulated
                                 .replace("<|write_file", "<write_file")
                                 .replace("</|write_file|>", "</write_file>")
@@ -3851,13 +3884,25 @@ pub async fn stream_chat_message(
                         // Incrementally write completed <write_file> blocks so
                         // files are saved as soon as the closing tag streams in.
                         // This prevents total data loss on mid-stream failures.
-                        write_scan_pos = flush_completed_writes(
-                            &accumulated,
-                            write_scan_pos,
-                            &ws_root,
-                            &mut files_written,
-                            &app_handle,
-                        );
+                        //
+                        // Only a chunk that carried the closing tag can have
+                        // *completed* a block, and this only ever acts on
+                        // complete blocks — it `break`s at the first unclosed
+                        // one. So on any other chunk there is nothing to find,
+                        // and calling it cost a full `strip_thinking` over the
+                        // whole buffer to discover that.
+                        const WRITE_CLOSE: &str = "</write_file>";
+                        if fresh_tail(&accumulated, text.len(), WRITE_CLOSE.len())
+                            .contains(WRITE_CLOSE)
+                        {
+                            write_scan_pos = flush_completed_writes(
+                                &accumulated,
+                                write_scan_pos,
+                                &ws_root,
+                                &mut files_written,
+                                &app_handle,
+                            );
+                        }
 
                         // Detect thinking blocks — only scan new chunk, not entire accumulated string
                         if text.contains("<thinking>") {
@@ -18927,6 +18972,74 @@ pub async fn apply_autofix(workspace: String, apply: bool) -> Result<(), String>
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── fresh_tail: the per-chunk scan window ────────────────────────────────
+    //
+    // The streaming loop uses this to avoid rescanning the whole accumulated
+    // response on every chunk. It is only safe if the window reliably contains
+    // any marker the chunk completed — including one split across the boundary.
+
+    /// Simulate a marker arriving split across two chunks and assert the
+    /// window still sees it whole. This is the case that makes the overlap
+    /// load-bearing; without it the tag would be missed and the file never
+    /// written incrementally.
+    #[test]
+    fn fresh_tail_sees_a_marker_split_across_chunks() {
+        const CLOSE: &str = "</write_file>";
+        let mut buf = String::from("some earlier content that is quite long indeed");
+        // First half of the marker arrives.
+        let chunk_a = "</write_";
+        buf.push_str(chunk_a);
+        // Second half arrives in the next chunk.
+        let chunk_b = "file>";
+        buf.push_str(chunk_b);
+
+        let window = fresh_tail(&buf, chunk_b.len(), CLOSE.len());
+
+        assert!(
+            window.contains(CLOSE),
+            "split marker was missed; window was {window:?}"
+        );
+    }
+
+    #[test]
+    fn fresh_tail_returns_only_the_recent_bytes_not_the_whole_buffer() {
+        let buf = format!("{}TAIL", "x".repeat(10_000));
+        let window = fresh_tail(&buf, 4, 8);
+        assert!(window.ends_with("TAIL"));
+        assert!(
+            window.len() < 100,
+            "window should be chunk-sized, got {}",
+            window.len()
+        );
+    }
+
+    #[test]
+    fn fresh_tail_clamps_to_the_whole_buffer_when_the_chunk_is_everything() {
+        let buf = "short";
+        assert_eq!(fresh_tail(buf, 5, 13), "short");
+        // Asking for more than exists must not panic or underflow.
+        assert_eq!(fresh_tail(buf, 9_999, 9_999), "short");
+    }
+
+    #[test]
+    fn fresh_tail_never_splits_a_multibyte_character() {
+        // Every boundary in this buffer is a multiple of 3, so a naive index
+        // lands mid-character and slicing would panic.
+        let buf = "日本語のテキストです";
+        for chunk_len in 0..buf.len() {
+            for overlap in 0..8 {
+                let w = fresh_tail(buf, chunk_len, overlap);
+                assert!(buf.ends_with(w), "window {w:?} is not a suffix");
+            }
+        }
+    }
+
+    #[test]
+    fn fresh_tail_of_an_empty_buffer_is_empty() {
+        assert_eq!(fresh_tail("", 0, 13), "");
+        assert_eq!(fresh_tail("", 10, 13), "");
+    }
 
     // ── Path-traversal regression tests for `safe_resolve_path` ──────────────
     //

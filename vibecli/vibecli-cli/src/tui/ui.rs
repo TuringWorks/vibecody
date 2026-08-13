@@ -431,7 +431,13 @@ pub fn draw_agent_view(f: &mut Frame, app: &App, area: Rect) {
             Style::default().fg(t.primary).add_modifier(Modifier::BOLD),
         )));
         for l in av.streaming_text.lines() {
-            lines.push(Line::from(Span::raw(l.to_string())));
+            // `Span` is `Cow`-backed, so this borrows from `av` rather than
+            // copying. The `to_string()` here allocated one `String` per line
+            // of the *entire response so far*, and the TUI redraws on every
+            // streamed chunk — a 500-line answer arriving in 1000 chunks threw
+            // away ~250,000 Strings before the next frame. `draw_main_area`
+            // already borrows this way.
+            lines.push(Line::from(Span::raw(l)));
         }
         lines.push(Line::from(Span::styled("▋", Style::default().fg(t.text))));
         lines.push(Line::from(""));

@@ -164,11 +164,7 @@ impl CodebaseIndex {
         }
 
         // Rebuild flat symbol table
-        self.symbols = self
-            .files
-            .values()
-            .flat_map(|f| f.symbols.clone())
-            .collect();
+        self.rebuild_flat_symbols();
 
         stats.total_files = self.files.len();
         stats.total_symbols = self.symbols.len();
@@ -210,12 +206,30 @@ impl CodebaseIndex {
             }
         }
         // Rebuild symbol table
-        self.symbols = self
-            .files
-            .values()
-            .flat_map(|f| f.symbols.clone())
-            .collect();
+        self.rebuild_flat_symbols();
         Ok(())
+    }
+
+    /// Rebuild the flat symbol table from the per-file tables.
+    ///
+    /// This is a deep clone of every symbol in the workspace — each
+    /// `SymbolInfo` owns a `String` name, a `PathBuf`, and a `String`
+    /// signature, so three allocations apiece. `refresh` calls it after
+    /// file-change events, which means editing one file rebuilds the table for
+    /// the entire repository.
+    ///
+    /// Sizing the `Vec` up front removes the repeated grow-and-copy; the clone
+    /// itself is inherent to `all_symbols()` returning `&[SymbolInfo]`.
+    /// Removing it means holding `Arc<[SymbolInfo]>` per file, or making the
+    /// flat table indices into `files` — a public-API change, deliberately not
+    /// folded into an allocation pass.
+    fn rebuild_flat_symbols(&mut self) {
+        let total = self.files.values().map(|f| f.symbols.len()).sum();
+        let mut flat = Vec::with_capacity(total);
+        for file in self.files.values() {
+            flat.extend_from_slice(&file.symbols);
+        }
+        self.symbols = flat;
     }
 
     /// Search symbols by name (case-insensitive substring match), scored by relevance.
@@ -225,8 +239,7 @@ impl CodebaseIndex {
             .symbols
             .iter()
             .filter_map(|s| {
-                let name_lower = s.name.to_lowercase();
-                let score = score_symbol(&name_lower, &q);
+                let score = score_symbol_ci(&s.name, &q);
                 if score > 0.0 {
                     Some((score, s))
                 } else {
@@ -289,6 +302,26 @@ impl CodebaseIndex {
 }
 
 // ── Scoring ───────────────────────────────────────────────────────────────────
+
+/// [`score_symbol`] against an already-lowercased query, without allocating a
+/// lowercase copy of `name` when it cannot need one.
+///
+/// `search_symbols` called `name.to_lowercase()` for **every symbol on every
+/// query** — one `String` allocated and dropped per symbol per keystroke, over
+/// an index that can hold hundreds of thousands of them.
+///
+/// The fast path is guarded by "pure ASCII with no uppercase", which is
+/// *provably* a no-op for `to_lowercase`, rather than by `is_uppercase()`:
+/// titlecase characters like `ǅ` are not uppercase but do lowercase to
+/// something else, so that cheaper-looking test would silently change results.
+/// Anything non-ASCII falls back to the original path.
+fn score_symbol_ci(name: &str, query_lower: &str) -> f32 {
+    if name.is_ascii() && !name.bytes().any(|b| b.is_ascii_uppercase()) {
+        score_symbol(name, query_lower)
+    } else {
+        score_symbol(&name.to_lowercase(), query_lower)
+    }
+}
 
 fn score_symbol(name: &str, query: &str) -> f32 {
     if name == query {
@@ -484,6 +517,53 @@ mod tests {
     #[test]
     fn score_symbol_no_match() {
         assert!((score_symbol("foo", "bar")).abs() < f32::EPSILON);
+    }
+
+    // ── score_symbol_ci: must match the allocating version exactly ──────────
+    //
+    // The fast path skips `to_lowercase()` when it would be a no-op. These pin
+    // that it really is a no-op for the inputs it accepts, including the
+    // non-ASCII cases that must fall through to the slow path.
+
+    #[test]
+    fn score_symbol_ci_agrees_with_lowercasing_for_every_case_shape() {
+        let cases = [
+            ("main", "main"),
+            ("MainLoop", "main"),
+            ("get_MAIN_value", "main"),
+            ("foo", "bar"),
+            ("", "main"),
+            // Non-ASCII: must take the slow path and still fold correctly.
+            ("ÉCLAIR", "éclair"),
+            ("Ünicode_Name", "ünicode"),
+            // Titlecase `ǅ` is not `is_uppercase()`, but does lowercase to `ǆ`
+            // — the reason the guard tests for ASCII rather than uppercase.
+            ("ǅungla", "ǆungla"),
+        ];
+        for (name, query) in cases {
+            let fast = score_symbol_ci(name, query);
+            let slow = score_symbol(&name.to_lowercase(), query);
+            assert!(
+                (fast - slow).abs() < f32::EPSILON,
+                "{name:?} vs {query:?}: fast={fast} slow={slow}"
+            );
+        }
+    }
+
+    #[test]
+    fn search_symbols_is_still_case_insensitive() {
+        let mut idx = CodebaseIndex::new(PathBuf::from("/tmp"));
+        idx.symbols = vec![SymbolInfo {
+            name: "MainLoop".to_string(),
+            kind: SymbolKind::Function,
+            file: PathBuf::from("/tmp/a.rs"),
+            line: 1,
+            signature: "fn MainLoop()".to_string(),
+            language: Language::Rust,
+        }];
+        assert_eq!(idx.search_symbols("mainloop").len(), 1);
+        assert_eq!(idx.search_symbols("MAINLOOP").len(), 1);
+        assert_eq!(idx.search_symbols("nope").len(), 0);
     }
 
     // ── tokenize tests ────────────────────────────────────────────────────

@@ -49,6 +49,39 @@ fn local_name(name: &str) -> &str {
     name.rsplit(':').next().unwrap_or(name)
 }
 
+/// The closing-tag regex for a suppressed element, compiled once.
+///
+/// This used to `format!` a pattern and call `Regex::new` on **every call**,
+/// and the caller runs once per streamed chunk for as long as the model stays
+/// inside a reasoning block — so a long `<thinking>` block compiled a fresh
+/// regex for every chunk of its duration. `tag` is always the local name of a
+/// [`SUPPRESSED`] element (see `drain`), so three regexes cover every call.
+///
+/// Matching is case-insensitive, which [`is_suppressed`] already is for the
+/// *opening* tag. The old per-call regex was built from the observed tag and
+/// so was case-*sensitive* on close: a model emitting `<Think>` … `</think>`
+/// never closed the block, and the whole tail was dropped on flush. Being
+/// consistent with the open tag fixes that rather than reproducing it.
+fn close_re(tag: &str) -> Option<&'static Regex> {
+    static RES: OnceLock<Vec<(&'static str, Regex)>> = OnceLock::new();
+    let res = RES.get_or_init(|| {
+        SUPPRESSED
+            .iter()
+            .filter_map(|name| {
+                Regex::new(&format!(
+                    r"(?si)</(?:[A-Za-z][\w.-]*:)?{}\s*>",
+                    regex::escape(name)
+                ))
+                .ok()
+                .map(|re| (*name, re))
+            })
+            .collect()
+    });
+    res.iter()
+        .find(|(n, _)| n.eq_ignore_ascii_case(tag))
+        .map(|(_, re)| re)
+}
+
 fn is_suppressed(name: &str) -> bool {
     let local = local_name(name);
     SUPPRESSED.iter().any(|s| s.eq_ignore_ascii_case(local))
@@ -90,17 +123,21 @@ impl StreamFilter {
     fn drain(&mut self, flush: bool) -> String {
         let mut out = String::new();
         loop {
-            match self.inside.clone() {
+            // `take` rather than `clone`: this loop runs per streamed chunk and
+            // the clone allocated a `String` on every iteration purely to end
+            // the borrow. The tag is put back on the path that keeps buffering.
+            match self.inside.take() {
                 // Inside a suppressed element: consume until its close tag.
                 Some(tag) => {
                     match self.find_close(&tag) {
                         Some(end) => {
                             self.buf.drain(..end);
-                            self.inside = None;
+                            // `inside` stays None — `take` already cleared it.
                         }
                         None => {
                             // Keep buffering; on flush the block never closed,
                             // so everything left is reasoning — drop it.
+                            self.inside = Some(tag);
                             if flush {
                                 self.buf.clear();
                             }
@@ -115,22 +152,36 @@ impl StreamFilter {
                         return out;
                     };
                     out.push_str(&self.buf[..lt]);
-                    let rest = self.buf[lt..].to_string();
 
-                    if let Some(caps) = tag_re().captures(&rest) {
-                        let whole = caps.get(0).map(|m| m.len()).unwrap_or(0);
-                        let closing = !caps[1].is_empty();
-                        let name = caps[2].to_string();
-                        if !closing && is_suppressed(&name) {
+                    // Both regexes are `^`-anchored, so they can run against a
+                    // borrow of the buffer. This used to `.to_string()` the
+                    // entire remaining buffer on every iteration — a full copy
+                    // of the rest of the response, per chunk — solely because
+                    // `self.buf.drain()` is called later in the same scope.
+                    // Extracting what we need first ends the borrow instead.
+                    let rest = &self.buf[lt..];
+                    let matched = tag_re().captures(rest).map(|caps| {
+                        (
+                            caps.get(0).map(|m| m.len()).unwrap_or(0),
+                            !caps[1].is_empty(),
+                            // One allocation, not two: the old code built the
+                            // full name and then the local name separately.
+                            local_name(&caps[2]).to_string(),
+                        )
+                    });
+                    let could_still_grow = matched.is_none() && partial_tag_re().is_match(rest);
+
+                    if let Some((whole, closing, local)) = matched {
+                        if !closing && is_suppressed(&local) {
                             self.buf.drain(..lt + whole);
-                            self.inside = Some(local_name(&name).to_string());
+                            self.inside = Some(local);
                         } else {
                             // Not ours — an ordinary `<` (HTML in prose, a
                             // generic in code). Emit it and move past.
                             out.push('<');
                             self.buf.drain(..lt + 1);
                         }
-                    } else if partial_tag_re().is_match(&rest) && !flush {
+                    } else if could_still_grow && !flush {
                         // Might still become a tag once more arrives.
                         self.buf.drain(..lt);
                         return out;
@@ -145,14 +196,43 @@ impl StreamFilter {
 
     /// Byte offset just past `</tag>` (namespace-tolerant), if present.
     fn find_close(&self, tag: &str) -> Option<usize> {
-        let pattern = format!(r"(?s)</(?:[A-Za-z][\w.-]*:)?{}\s*>", regex::escape(tag));
-        Regex::new(&pattern).ok()?.find(&self.buf).map(|m| m.end())
+        close_re(tag)?.find(&self.buf).map(|m| m.end())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The open tag has always been matched case-insensitively
+    /// ([`is_suppressed`]), but the close tag was matched case-*sensitively*
+    /// because its regex was built from the observed text. A model emitting
+    /// `<Think>` … `</think>` therefore never closed the block, and everything
+    /// after it was swallowed as reasoning. Now consistent in both directions.
+    #[test]
+    fn a_reasoning_block_closes_regardless_of_tag_case() {
+        let mut f = StreamFilter::new();
+        let mut out = f.push("before <Think>hidden</think> after");
+        out.push_str(&f.finish());
+
+        assert!(out.contains("before "), "{out:?}");
+        assert!(
+            out.contains(" after"),
+            "lost the text after the block: {out:?}"
+        );
+        assert!(!out.contains("hidden"), "leaked reasoning: {out:?}");
+    }
+
+    #[test]
+    fn a_namespaced_reasoning_block_still_closes() {
+        let mut f = StreamFilter::new();
+        let mut out = f.push("a <mm:think>r</mm:think> b");
+        out.push_str(&f.finish());
+
+        assert!(!out.contains('r') || out.contains("a "), "{out:?}");
+        assert!(out.contains("a "), "{out:?}");
+        assert!(out.contains(" b"), "{out:?}");
+    }
 
     /// Feed a whole string one byte at a time — the worst case for a filter
     /// that assumes tags arrive intact.
