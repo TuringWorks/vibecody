@@ -1,0 +1,244 @@
+# Continuity — does a session survive the things that end it?
+#
+# Three things routinely destroy an agent's history mid-task: compaction
+# rewrites the middle of the conversation, a circuit-breaker hand-off clears it
+# outright, and the process itself can be killed. None of those are exotic —
+# the greenfield build hit the third on four consecutive runs, and one of those
+# had finished the entire application before it was cut off.
+#
+# What makes that expensive is where the writes were: until this suite existed,
+# `save_messages` had exactly two callers — an explicit `/fork` and the end of a
+# run. A session that was compacted, retired, or killed lost the record of what
+# it had done, so there was nothing to resume from and nothing to diagnose.
+#
+# These are static checks over the shipped source. Continuity is a property of
+# *when* the code writes, and asserting on timing is exactly what an
+# end-to-end run cannot do cheaply: reproducing genuine context pressure costs
+# an hour of tokens per sample and is non-deterministic on top.
+
+id: continuity
+title: Session continuity under context pressure
+description: >
+  The conversation is checkpointed before compaction, before a hand-off, and
+  reaches disk somewhere other than the end of a run.
+defaults:
+  timeout_secs: 300
+
+tasks:
+  - id: checkpoint-before-compaction
+    title: The conversation is checkpointed before compaction destroys it
+    capability: surface_conformance
+    difficulty: medium
+    surfaces: [cli]
+    workspace: repo_root
+    requires: [python3]
+    tags: [static, continuity]
+    grader:
+      # Ordering is the entire property. `prune_middle` replaces the middle of
+      # the conversation with a summary, so a checkpoint written afterwards
+      # preserves the summary rather than the work it summarised. A test can
+      # assert the checkpoint exists; only reading the source can assert it
+      # happens first.
+      type: command
+      steps:
+        - cmd: python3
+          args:
+            - "-c"
+            - |
+              import pathlib, re, sys
+              src = pathlib.Path(
+                  "vibecoder/crates/vibe-ai/src/agent.rs").read_text()
+
+              if "context_writer" not in src:
+                  print("NO_CONTEXT_WRITER: the agent loop has no way to "
+                        "checkpoint the conversation at all.")
+                  sys.exit(1)
+
+              save = src.find("context_writer")
+              prune = src.find("prune_messages(&mut messages")
+              if prune < 0:
+                  print("PRUNE_CALL_NOT_FOUND: this check no longer matches "
+                        "the agent loop and must be updated.")
+                  sys.exit(1)
+              if save > prune:
+                  print("CHECKPOINT_AFTER_COMPACTION: the conversation is "
+                        "saved after prune_messages has already replaced the "
+                        "middle with a summary, so the checkpoint preserves "
+                        "the summary rather than the work.")
+                  sys.exit(1)
+              print("CHECKPOINT_PRECEDES_COMPACTION")
+          stdout_contains: CHECKPOINT_PRECEDES_COMPACTION
+          timeout_secs: 60
+
+  - id: checkpoint-before-handoff
+    title: The retired context is saved before a hand-off clears it
+    capability: surface_conformance
+    difficulty: medium
+    surfaces: [cli]
+    workspace: repo_root
+    requires: [python3]
+    tags: [static, continuity]
+    grader:
+      # The successor's brief is deliberately thin — the goal and six turns.
+      # Everything else the predecessor did is in the messages about to be
+      # cleared, and this is the last moment it exists.
+      type: command
+      steps:
+        - cmd: python3
+          args:
+            - "-c"
+            - |
+              import pathlib, sys
+              src = pathlib.Path(
+                  "vibecoder/crates/vibe-ai/src/agent.rs").read_text()
+              anchor = src.find("let brief = handoff_brief(")
+              if anchor < 0:
+                  print("HANDOFF_NOT_FOUND: this check no longer matches the "
+                        "agent loop and must be updated.")
+                  sys.exit(1)
+              clear = src.find("messages.clear()", anchor)
+              if clear < 0:
+                  print("HANDOFF_DOES_NOT_CLEAR: check no longer applies.")
+                  sys.exit(1)
+              window = src[anchor:clear]
+              if "context_writer" not in window or "save_messages" not in window:
+                  print("RETIRED_CONTEXT_DISCARDED: the hand-off clears the "
+                        "conversation without saving it, so everything the "
+                        "predecessor did beyond the six-turn brief is lost.")
+                  sys.exit(1)
+              print("RETIRED_CONTEXT_SAVED")
+          stdout_contains: RETIRED_CONTEXT_SAVED
+          timeout_secs: 60
+
+  - id: sessions-persist-before-the-end-of-a-run
+    title: Session transcripts reach disk somewhere other than run completion
+    capability: surface_conformance
+    difficulty: medium
+    surfaces: [cli]
+    workspace: repo_root
+    requires: [python3]
+    tags: [static, continuity]
+    grader:
+      # The original state: two callers, `/fork` and end-of-run. Anything that
+      # ends a run early — a kill, a timeout, a budget — took the whole
+      # transcript with it. Observed directly: greenfield runs that had built
+      # a complete working application left nothing behind.
+      type: command
+      steps:
+        - cmd: python3
+          args:
+            - "-c"
+            - |
+              import pathlib, sys
+              roots = [pathlib.Path("vibecli/vibecli-cli/src"),
+                       pathlib.Path("vibecoder/crates/vibe-ai/src")]
+              callers = []
+              for root in roots:
+                  for p in root.rglob("*.rs"):
+                      text = p.read_text(errors="ignore")
+                      for i, line in enumerate(text.splitlines(), 1):
+                          if "save_messages(" in line and "pub fn save_messages" not in line \
+                                  and not line.strip().startswith("//"):
+                              callers.append(f"{p}:{i}")
+              # The agent loop itself must be one of them; end-of-run writes
+              # alone cannot survive the run ending abnormally.
+              in_agent = [c for c in callers if "vibe-ai/src/agent.rs" in c]
+              if not in_agent:
+                  print("ONLY_END_OF_RUN_PERSISTENCE: no caller inside the "
+                        "agent loop, so a killed or budget-exhausted run "
+                        "leaves nothing resumable.")
+                  for c in callers:
+                      print("  existing caller: " + c)
+                  sys.exit(1)
+              print(f"AGENT_LOOP_PERSISTS ({len(in_agent)} call site(s))")
+          stdout_contains: AGENT_LOOP_PERSISTS
+          timeout_secs: 60
+
+  - id: checkpoint-failures-are-not-silent
+    title: A failed checkpoint says so rather than failing quietly
+    capability: surface_conformance
+    difficulty: easy
+    surfaces: [cli]
+    workspace: repo_root
+    requires: [python3]
+    tags: [static, continuity]
+    grader:
+      # A checkpoint nobody knows failed is discovered as a resume that
+      # restores nothing, long after the context is unrecoverable. Best-effort
+      # is fine; silent is not.
+      type: command
+      steps:
+        - cmd: python3
+          args:
+            - "-c"
+            - |
+              import pathlib, re, sys
+              src = pathlib.Path(
+                  "vibecoder/crates/vibe-ai/src/agent.rs").read_text()
+              start = src.find("context_writer")
+              if start < 0:
+                  print("NO_CONTEXT_WRITER")
+                  sys.exit(1)
+              # Every save_messages call in the agent loop must handle its
+              # error rather than discard it with `let _ =`.
+              bad = [
+                  line.strip()
+                  for line in src.splitlines()
+                  if "save_messages(" in line and line.strip().startswith("let _ =")
+              ]
+              if bad:
+                  print("SILENT_CHECKPOINT_FAILURE:")
+                  for line in bad:
+                      print("  " + line)
+                  sys.exit(1)
+              if "warn!" not in src[start:start + 4000] and "Err(e)" not in src[start:start + 4000]:
+                  print("CHECKPOINT_ERRORS_UNHANDLED: no error branch near the "
+                        "checkpoint call.")
+                  sys.exit(1)
+              print("CHECKPOINT_FAILURES_REPORTED")
+          stdout_contains: CHECKPOINT_FAILURES_REPORTED
+          timeout_secs: 60
+
+  - id: handoff-module-is-wired-or-absent
+    title: The session-handoff module is reachable, not half-built
+    capability: surface_conformance
+    difficulty: easy
+    surfaces: [cli]
+    workspace: repo_root
+    requires: [python3]
+    tags: [static, continuity, reachability]
+    grader:
+      # `handoff.rs` advertises "WARRIOR-style 7-section handoff documents,
+      # enabling smooth session continuity" — the feature this suite is about —
+      # and is referenced by nothing while being declared in both lib.rs and
+      # main.rs, so it compiles twice into the binary for no benefit. Either
+      # wire it up or delete it; shipping an unreachable implementation of a
+      # feature makes the codebase claim something it does not do.
+      type: command
+      steps:
+        - cmd: python3
+          args:
+            - "-c"
+            - |
+              import pathlib, re, sys
+              root = pathlib.Path("vibecli/vibecli-cli/src")
+              module = root / "handoff.rs"
+              if not module.exists():
+                  print("HANDOFF_MODULE_ABSENT (removed — fine)")
+                  sys.exit(0)
+              users = []
+              for p in root.rglob("*.rs"):
+                  if p.name == "handoff.rs":
+                      continue
+                  text = p.read_text(errors="ignore")
+                  # `context_handoff::` is a different, reachable module.
+                  if re.search(r"(?<!context_)\bhandoff::", text):
+                      users.append(p.name)
+              if not users:
+                  print("HANDOFF_MODULE_UNREACHABLE: handoff.rs implements "
+                        "session-continuity documents and nothing calls it. "
+                        "Wire it up or remove it.")
+                  sys.exit(1)
+              print(f"HANDOFF_MODULE_WIRED (used by {', '.join(sorted(set(users)))})")
+          stdout_contains: HANDOFF_MODULE
+          timeout_secs: 60

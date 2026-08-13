@@ -328,7 +328,16 @@ pub async fn run_ci(
     }
 
     let workspace = std::env::current_dir()?;
-    let agent = AgentLoop::new(provider, approval_policy, executor.clone());
+    // Shared with the agent so it can checkpoint the conversation under
+    // context pressure and before a hand-off retires it. Without this the
+    // only write was at the end of the run, so a run that was killed, blew
+    // its budget, or finished the work and failed to stop left nothing
+    // resumable behind.
+    let trace_writer = trace_writer.map(Arc::new);
+    let mut agent = AgentLoop::new(provider, approval_policy, executor.clone());
+    if let Some(writer) = &trace_writer {
+        agent = agent.with_context_writer(Arc::clone(writer));
+    }
     let context = AgentContext {
         workspace_root: workspace,
         ..Default::default()
