@@ -175,27 +175,44 @@ tasks:
               import pathlib, re, sys
               src = pathlib.Path(
                   "vibecoder/crates/vibe-ai/src/agent.rs").read_text()
-              start = src.find("context_writer")
-              if start < 0:
-                  print("NO_CONTEXT_WRITER")
+
+              # Production code only. `.expect()` is the documented
+              # convention inside `#[cfg(test)]` (AGENTS.md reserves
+              # unwrap/expect for tests), so scanning the test modules would
+              # report the project's own style as a defect.
+              cut = src.find("#[cfg(test)]")
+              if cut > 0:
+                  src = src[:cut]
+
+              calls = [m.start() for m in re.finditer(r"save_messages\(", src)]
+              if not calls:
+                  print("NO_CHECKPOINT_CALLS: the agent loop never saves the "
+                        "conversation.")
                   sys.exit(1)
-              # Every save_messages call in the agent loop must handle its
-              # error rather than discard it with `let _ =`.
-              bad = [
-                  line.strip()
-                  for line in src.splitlines()
-                  if "save_messages(" in line and line.strip().startswith("let _ =")
-              ]
-              if bad:
-                  print("SILENT_CHECKPOINT_FAILURE:")
-                  for line in bad:
+
+              # Anchor on each call site, not on the first mention of the
+              # field: the struct declaration and its doc comment sit ~15k
+              # characters from the loop, and a window around the wrong one
+              # reports a problem that is not there.
+              unhandled = []
+              for pos in calls:
+                  line_start = src.rfind("\n", 0, pos) + 1
+                  line = src[line_start:src.find("\n", pos)].strip()
+                  if line.startswith("let _ ="):
+                      unhandled.append(line)
+                      continue
+                  window = src[pos:pos + 800]
+                  if not re.search(r"Err\(|warn!|eprintln!", window):
+                      unhandled.append(line)
+
+              if unhandled:
+                  print("SILENT_CHECKPOINT_FAILURE: a checkpoint nobody knows "
+                        "failed is discovered as a resume that restores "
+                        "nothing.")
+                  for line in unhandled:
                       print("  " + line)
                   sys.exit(1)
-              if "warn!" not in src[start:start + 4000] and "Err(e)" not in src[start:start + 4000]:
-                  print("CHECKPOINT_ERRORS_UNHANDLED: no error branch near the "
-                        "checkpoint call.")
-                  sys.exit(1)
-              print("CHECKPOINT_FAILURES_REPORTED")
+              print(f"CHECKPOINT_FAILURES_REPORTED ({len(calls)} call site(s))")
           stdout_contains: CHECKPOINT_FAILURES_REPORTED
           timeout_secs: 60
 

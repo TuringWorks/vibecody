@@ -1656,12 +1656,10 @@ fn run_keys_command(action: &str, args: &[String]) {
                 eprintln!("error: {e}");
                 std::process::exit(1);
             }
-            let masked = if value.len() > 8 {
-                format!("{}…{}", &value[..4], &value[value.len() - 4..])
-            } else {
-                "••••".to_string()
-            };
-            println!("Stored {provider} key ({masked}) in ~/.vibecli/profile_settings.db");
+            println!(
+                "Stored {provider} key ({}) in ~/.vibecli/profile_settings.db",
+                mask_secret(&value)
+            );
         }
         "unset" => {
             let provider = match positionals.first().copied() {
@@ -20250,6 +20248,24 @@ fn find_closest_command(input: &str) -> Option<&'static str> {
     best.map(|(cmd, _)| cmd)
 }
 
+/// Show the first and last four *characters* of a secret, hiding the middle.
+///
+/// Character-wise, not byte-wise. The previous inline version sliced
+/// `&value[..4]` on a `String` whose `len()` is bytes, so a key containing any
+/// multi-byte character — `vibecli set-key openai "ab🔑cdefgh"` — panicked on
+/// "byte index 4 is not a char boundary", *after* the key had already been
+/// written to the store. Nothing about an API key guarantees ASCII, and a
+/// user's typo should not abort the process.
+fn mask_secret(value: &str) -> String {
+    let chars: Vec<char> = value.chars().collect();
+    if chars.len() <= 8 {
+        return "••••".to_string();
+    }
+    let head: String = chars[..4].iter().collect();
+    let tail: String = chars[chars.len() - 4..].iter().collect();
+    format!("{head}…{tail}")
+}
+
 /// Ask the user a yes/no question, or `None` when there is nobody to ask.
 ///
 /// A prompt written to a pipe is not a question, it is a hang: `read_line`
@@ -21909,6 +21925,35 @@ async fn fetch_and_strip_url(url: &str, max_chars: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── Secret masking ──────────────────────────────────────────────────────
+
+    #[test]
+    fn mask_secret_shows_four_each_end_of_a_long_key() {
+        assert_eq!(mask_secret("sk-abcdefghijklmnop"), "sk-a…mnop");
+    }
+
+    #[test]
+    fn mask_secret_hides_a_short_key_entirely() {
+        assert_eq!(mask_secret("short"), "••••");
+        assert_eq!(mask_secret(""), "••••");
+        // Exactly 8 is still too short to reveal 4+4 — that would be all of it.
+        assert_eq!(mask_secret("12345678"), "••••");
+    }
+
+    #[test]
+    fn mask_secret_does_not_panic_on_a_multibyte_key() {
+        // The regression: `&value[..4]` on this splits the 4-byte emoji and
+        // panics with "byte index 4 is not a char boundary" — after the key
+        // has already been stored.
+        assert_eq!(mask_secret("ab🔑cdefgh"), "ab🔑c…efgh");
+        // Wide characters throughout, where every boundary is a multiple of 3.
+        assert_eq!(mask_secret("日本語のキーです"), "••••");
+        assert_eq!(
+            mask_secret("日本語のキーですよろしく"),
+            "日本語の…ですよろしく".replace("ですよろしく", "しく")
+        );
+    }
 
     // ── Tool-approval prompt answers ────────────────────────────────────────
 

@@ -126,59 +126,86 @@ static GRAPH: OnceLock<GraphHandle> = OnceLock::new();
 /// store at `<workspace>/.vibecli/codegraph.db` and loads any persisted graph
 /// + hash cache into the `RwLock`s. Probe is `Ready` if a graph loaded, else
 /// `Disabled` (caller should [`spawn_background_build`] to populate it).
-pub fn init_graph_handle(workspace_root: &Path) -> &'static GraphHandle {
-    GRAPH.get_or_init(|| {
-        let workspace_root = workspace_root.to_path_buf();
-        let vibecli_dir = workspace_root.join(".vibecli");
-        let _ = std::fs::create_dir_all(&vibecli_dir);
-        let db_path = vibecli_dir.join("codegraph.db");
+///
+/// Returns `None` when no store can be opened at all — the graph is an
+/// optional accelerator, and this module already has a `Disabled` state for
+/// exactly that. It used to `panic!` inside `get_or_init`, which is worse than
+/// it looks: the panic poisons the `OnceLock`, so every later call panics too,
+/// turning a read-only or full workspace into a dead process rather than a
+/// degraded one.
+pub fn init_graph_handle(workspace_root: &Path) -> Option<&'static GraphHandle> {
+    if let Some(existing) = GRAPH.get() {
+        return Some(existing);
+    }
+    // Not `get_or_init`: that cannot express "initialisation failed" without
+    // panicking. Losing the race is harmless — `set` fails and we return
+    // whichever handle won, which is equally valid.
+    let handle = build_graph_handle(workspace_root)?;
+    let _ = GRAPH.set(handle);
+    GRAPH.get()
+}
 
-        let store = SQLiteStore::open(&db_path).unwrap_or_else(|e| {
+/// Open the store and load any persisted graph. `None` if no store is openable.
+fn build_graph_handle(workspace_root: &Path) -> Option<GraphHandle> {
+    let workspace_root = workspace_root.to_path_buf();
+    let vibecli_dir = workspace_root.join(".vibecli");
+    let _ = std::fs::create_dir_all(&vibecli_dir);
+    let db_path = vibecli_dir.join("codegraph.db");
+
+    // On-disk first; an unwritable workspace falls back to a memory store so
+    // the graph still works for this run. If even that fails there is nothing
+    // to hand back.
+    let store = match SQLiteStore::open(&db_path) {
+        Ok(s) => s,
+        Err(e) => {
             eprintln!("[vibecli graph] failed to open {}: {e}", db_path.display());
-            SQLiteStore::open_memory().unwrap_or_else(|e| {
-                eprintln!("[vibecli graph] in-memory fallback failed: {e}");
-                panic!("kodegraph store unavailable");
-            })
-        });
-
-        let (graph, hashes) = match store.load_graph() {
-            Ok(Some(g)) => {
-                let h = store.load_hashes().unwrap_or_default();
-                (Some(g), h)
+            match SQLiteStore::open_memory() {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("[vibecli graph] in-memory fallback failed: {e}; graph disabled");
+                    return None;
+                }
             }
-            Ok(None) => (None, FileHashes::new()),
-            Err(e) => {
-                eprintln!("[vibecli graph] load failed, starting empty: {e}");
-                (None, FileHashes::new())
-            }
-        };
-
-        let (node_count, edge_count) = graph
-            .as_ref()
-            .map(|g| (g.node_count(), g.edge_count()))
-            .unwrap_or((0, 0));
-        let status = if graph.is_some() {
-            GraphStatus::Ready
-        } else {
-            GraphStatus::Disabled
-        };
-
-        let probe = GraphProbeReport {
-            status,
-            node_count,
-            edge_count,
-            last_built_at: None,
-        };
-
-        GraphHandle {
-            graph: Arc::new(RwLock::new(graph)),
-            hashes: Arc::new(RwLock::new(hashes)),
-            mtimes: Arc::new(RwLock::new(HashMap::new())),
-            store: Arc::new(store),
-            workspace_root,
-            db_path,
-            probe: Arc::new(RwLock::new(probe)),
         }
+    };
+
+    let (graph, hashes) = match store.load_graph() {
+        Ok(Some(g)) => {
+            let h = store.load_hashes().unwrap_or_default();
+            (Some(g), h)
+        }
+        Ok(None) => (None, FileHashes::new()),
+        Err(e) => {
+            eprintln!("[vibecli graph] load failed, starting empty: {e}");
+            (None, FileHashes::new())
+        }
+    };
+
+    let (node_count, edge_count) = graph
+        .as_ref()
+        .map(|g| (g.node_count(), g.edge_count()))
+        .unwrap_or((0, 0));
+    let status = if graph.is_some() {
+        GraphStatus::Ready
+    } else {
+        GraphStatus::Disabled
+    };
+
+    let probe = GraphProbeReport {
+        status,
+        node_count,
+        edge_count,
+        last_built_at: None,
+    };
+
+    Some(GraphHandle {
+        graph: Arc::new(RwLock::new(graph)),
+        hashes: Arc::new(RwLock::new(hashes)),
+        mtimes: Arc::new(RwLock::new(HashMap::new())),
+        store: Arc::new(store),
+        workspace_root,
+        db_path,
+        probe: Arc::new(RwLock::new(probe)),
     })
 }
 
@@ -191,7 +218,8 @@ pub fn graph_handle() -> Option<&'static GraphHandle> {
 /// probe. Returns the new probe on success. Errors are logged and the prior
 /// graph (if any) is left intact.
 pub fn build_graph_blocking(workspace_root: &Path) -> Result<GraphProbeReport, String> {
-    let handle = init_graph_handle(workspace_root);
+    let handle = init_graph_handle(workspace_root)
+        .ok_or_else(|| "code graph unavailable: no store could be opened".to_string())?;
     do_build(handle)
 }
 
@@ -244,7 +272,10 @@ pub fn spawn_background_build(workspace_root: PathBuf) {
         p.status = GraphStatus::Indexing;
     }
     std::thread::spawn(move || {
-        let h = init_graph_handle(&workspace_root);
+        let Some(h) = init_graph_handle(&workspace_root) else {
+            eprintln!("[vibecli graph] no store could be opened; background build skipped");
+            return;
+        };
         if let Err(e) = do_build(h) {
             eprintln!("[vibecli graph] background build failed: {e}");
             let mut p = h.probe.write_recover();
@@ -870,7 +901,7 @@ mod tests {
     #[test]
     fn build_and_query() {
         let dir = fixture_dir();
-        let handle = init_graph_handle(dir);
+        let handle = init_graph_handle(dir).expect("test store opens");
         let probe = build_graph_blocking(dir).unwrap();
         assert_eq!(probe.status, GraphStatus::Ready);
         assert!(probe.node_count >= 3, "node_count={}", probe.node_count);
@@ -925,7 +956,7 @@ mod tests {
     #[test]
     fn graph_aware_symbols_seeds_from_query() {
         let dir = fixture_dir();
-        init_graph_handle(dir);
+        init_graph_handle(dir).expect("test store opens");
         build_graph_blocking(dir).unwrap();
         let syms = graph_aware_symbols("alpha", 10);
         assert!(!syms.is_empty(), "should seed symbols from query 'alpha'");

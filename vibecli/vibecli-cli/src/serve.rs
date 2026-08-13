@@ -8427,20 +8427,30 @@ pub async fn serve(
     // Zero-Config: requires no env var or key; the graph stores only code
     // structure, never secrets. AGENTS.md → Zero-Config First.
     {
-        let handle = crate::graph_index::init_graph_handle(&workspace_root);
-        let probe = handle.probe.read_recover().clone();
-        match probe.status {
-            crate::graph_index::GraphStatus::Ready => {
-                eprintln!(
-                    "[vibecli serve] code graph: ready ({} nodes, {} edges) — loaded from {}",
-                    probe.node_count,
-                    probe.edge_count,
-                    handle.db_path.display(),
-                );
-            }
-            _ => {
-                eprintln!("[vibecli serve] code graph: indexing in background…");
-                crate::graph_index::spawn_background_build(workspace_root.clone());
+        // A workspace whose store cannot be opened at all is a distinct state
+        // from "not built yet", and the banner says so rather than reporting a
+        // background build that will never run.
+        match crate::graph_index::init_graph_handle(&workspace_root) {
+            None => eprintln!(
+                "[vibecli serve] code graph: disabled — no store could be opened under {}",
+                workspace_root.join(".vibecli").display(),
+            ),
+            Some(handle) => {
+                let probe = handle.probe.read_recover().clone();
+                match probe.status {
+                    crate::graph_index::GraphStatus::Ready => {
+                        eprintln!(
+                            "[vibecli serve] code graph: ready ({} nodes, {} edges) — loaded from {}",
+                            probe.node_count,
+                            probe.edge_count,
+                            handle.db_path.display(),
+                        );
+                    }
+                    _ => {
+                        eprintln!("[vibecli serve] code graph: indexing in background…");
+                        crate::graph_index::spawn_background_build(workspace_root.clone());
+                    }
+                }
             }
         }
     }

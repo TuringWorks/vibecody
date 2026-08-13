@@ -126,6 +126,7 @@ the matrix exists.
 | `brownfield` | changing an existing multi-module service | `python3` |
 | `migrations` | Python 2→3, CommonJS→ESM, retiring a deprecated API | `python3`, `node` |
 | `vibecoder-panels` | every panel's commands exist and honour the toolbar provider | `python3` |
+| `continuity` | the conversation survives compaction, hand-off and being killed | `python3` |
 
 All of it runs **offline**. Missing toolchains skip rather than fail.
 
@@ -194,6 +195,29 @@ appear in that shell's `generate_handler!`, every LLM panel must honour the
 toolbar provider (AGENTS.md → Provider-Agnostic Panels — STRICT), and no panel
 may reach a protected daemon route with a bare `fetch`. All static, all free,
 all in CI.
+
+### Continuity — a property of *when* the code writes
+
+Three things routinely destroy an agent's history mid-task: compaction rewrites
+the middle of the conversation, a circuit-breaker hand-off clears it outright,
+and the process can simply be killed. The greenfield build hit the third on
+four consecutive runs, and **one of those had finished the entire application**
+before it was cut off.
+
+What made that expensive is where the writes were. `save_messages` had two
+callers — an explicit `/fork` and the end of a run — and the headless `--exec`
+path had *neither*: 35 step-traces in `~/.vibecli/traces` with not one
+conversation transcript beside them. Nothing run headlessly was ever resumable.
+
+The agent loop now checkpoints at 80% of the context budget (**before**
+`prune_middle` can replace the history with a summary), before a hand-off
+retires the context, and once more at the end of every run.
+
+These tasks are static checks over the source, because continuity is a property
+of *ordering*: a test can assert a checkpoint exists, but only reading the code
+can assert it happens before the thing that destroys what it was meant to save.
+Reproducing genuine context pressure end-to-end costs an hour of tokens per
+sample and is non-deterministic on top.
 
 > A note on writing these: two of the five checks initially reported false
 > positives — comment prose inside `generate_handler!` read as command names,

@@ -296,10 +296,31 @@ impl ParallelToolDispatcher {
         }
 
         // Collect in original order.
+        //
+        // A slot is still `None` only when its worker thread panicked: the
+        // `let _ = h.join()` above deliberately discards the `Err(Box<dyn Any>)`,
+        // so nothing else notices. `expect` here turned one tool's panic into a
+        // panic of the whole dispatch on the *main* thread, losing every other
+        // result in the batch. Report the crash as a failed tool instead — the
+        // caller already knows how to handle `error: Some(_)`.
         let mut guard = results.lock().unwrap_or_else(|e| e.into_inner());
         guard
             .iter_mut()
-            .map(|slot| slot.take().expect("result slot must be filled"))
+            .enumerate()
+            .map(|(idx, slot)| {
+                slot.take().unwrap_or_else(|| {
+                    let call = calls_arc.get(idx).map(|(c, _)| c);
+                    ToolResult {
+                        tool_name: call
+                            .map_or_else(|| "unknown".to_string(), |c| c.tool_name.clone()),
+                        call_id: call.map_or_else(String::new, |c| c.call_id.clone()),
+                        output: String::new(),
+                        elapsed_ms: 0,
+                        blocked: false,
+                        error: Some("tool worker thread panicked".to_string()),
+                    }
+                })
+            })
             .collect()
     }
 
@@ -365,6 +386,39 @@ mod tests {
                 PreflightDecision::Allow
             }
         }
+    }
+
+    /// A panicking tool must not take the rest of the batch with it. The
+    /// worker's `Err` from `join` is discarded by design, leaving its slot
+    /// empty; collection used to `expect` on that and panic the main thread,
+    /// losing every sibling result.
+    #[test]
+    fn a_panicking_tool_becomes_a_failed_result_not_a_dead_batch() {
+        let calls = vec![
+            ToolCall::new("a", "Read", "{}"),
+            ToolCall::new("boom", "Explode", "{}"),
+            ToolCall::new("c", "Read", "{}"),
+        ];
+
+        let results = ParallelDispatcher::new(3).dispatch(calls, allow_all, |call: &ToolCall| {
+            assert_ne!(call.tool_name, "Explode", "this tool panics on purpose");
+            instant_executor(call)
+        });
+
+        assert_eq!(results.len(), 3);
+        // The siblings survived with their real output.
+        assert_eq!(results[0].output, "ok:a");
+        assert_eq!(results[2].output, "ok:c");
+        // The crash is reported, not swallowed and not fatal.
+        assert_eq!(results[1].call_id, "boom");
+        assert!(
+            results[1]
+                .error
+                .as_deref()
+                .is_some_and(|e| e.contains("panicked")),
+            "expected a reported panic, got {:?}",
+            results[1].error
+        );
     }
 
     fn instant_executor(call: &ToolCall) -> ToolResult {

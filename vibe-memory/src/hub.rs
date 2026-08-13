@@ -135,8 +135,16 @@ impl MemoryContextHub {
             }
         }
 
+        // Re-acquired as a *read* guard, so the write guard above has been
+        // released in between: another task can clear the store in that window
+        // and `expect` here would panic a library path. Same shape as
+        // `store_to_project`.
         let project_store = self.project_store.read().await;
-        let project_store = project_store.as_ref().expect("project store not set");
+        let Some(project_store) = project_store.as_ref() else {
+            return Err(MemoryError::StoreNotFound(
+                "project store could not be opened".to_string(),
+            ));
+        };
 
         let project_results = project_store.search(query, top_k * 2, min_score).await?;
 
@@ -234,8 +242,16 @@ impl MemoryContextHub {
             }
         }
 
+        // Re-acquired as a *read* guard, so the write guard above has been
+        // released in between: another task can clear the store in that window
+        // and `expect` here would panic a library path. Same shape as
+        // `store_to_project`.
         let project_store = self.project_store.read().await;
-        let project_store = project_store.as_ref().expect("project store not set");
+        let Some(project_store) = project_store.as_ref() else {
+            return Err(MemoryError::StoreNotFound(
+                "project store could not be opened".to_string(),
+            ));
+        };
 
         let proj_decayed = project_store.apply_decay().await?;
 
@@ -268,8 +284,16 @@ impl MemoryContextHub {
             }
         }
 
+        // Re-acquired as a *read* guard, so the write guard above has been
+        // released in between: another task can clear the store in that window
+        // and `expect` here would panic a library path. Same shape as
+        // `store_to_project`.
         let project_store = self.project_store.read().await;
-        let project_store = project_store.as_ref().expect("project store not set");
+        let Some(project_store) = project_store.as_ref() else {
+            return Err(MemoryError::StoreNotFound(
+                "project store could not be opened".to_string(),
+            ));
+        };
 
         let proj_entries = project_store.list(None, None).await?;
         let proj_db_size = std::fs::metadata(project_store.path())
@@ -303,7 +327,12 @@ impl MemoryContextHub {
         if guard.is_none() {
             *guard = Some(ProjectMemStore::open(workspace)?);
         }
-        guard.as_ref().unwrap().clear().await
+        match guard.as_ref() {
+            Some(store) => store.clear().await,
+            None => Err(MemoryError::StoreNotFound(
+                "project store could not be opened".to_string(),
+            )),
+        }
     }
 
     async fn get_sector_weight(&self, sector: &str) -> f64 {

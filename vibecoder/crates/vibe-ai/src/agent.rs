@@ -1082,6 +1082,7 @@ impl AgentLoop {
                             reason
                         )))
                         .await;
+                    self.checkpoint(&messages, "blocked by hook");
                     return Ok(());
                 }
                 HookDecision::InjectContext { text } => {
@@ -1658,6 +1659,7 @@ impl AgentLoop {
                             remaining_plan: remaining,
                         })
                         .await;
+                    self.checkpoint(&messages, "plan exhausted");
                     return Ok(());
                 }
 
@@ -1703,6 +1705,7 @@ impl AgentLoop {
                         .await;
                 }
                 let _ = event_tx.send(AgentEvent::Complete(accumulated)).await;
+                self.checkpoint(&messages, "complete");
                 return Ok(());
             }
 
@@ -1719,6 +1722,7 @@ impl AgentLoop {
                 Some(c) => c,
                 None => {
                     let _ = event_tx.send(AgentEvent::Complete(accumulated)).await;
+                    self.checkpoint(&messages, "no tool call");
                     return Ok(());
                 }
             };
@@ -1956,6 +1960,7 @@ impl AgentLoop {
                     "Agent task complete",
                 );
                 let _ = event_tx.send(AgentEvent::Complete(summary)).await;
+                self.checkpoint(&messages, "task complete");
                 return Ok(());
             }
 
@@ -2088,6 +2093,7 @@ impl AgentLoop {
                         .await
                         .is_err()
                     {
+                        self.checkpoint(&messages, "caller gone");
                         return Ok(()); // Receiver dropped — caller gone
                     }
                     match result_rx.await {
@@ -2186,6 +2192,7 @@ impl AgentLoop {
                                     step,
                                 )))
                                 .await;
+                            self.checkpoint(&messages, "tool error");
                             return Ok(());
                         }
                     }
@@ -2575,6 +2582,7 @@ impl AgentLoop {
                         }
 
                         let _ = event_tx.send(AgentEvent::Error(hint)).await;
+                        self.checkpoint(&messages, "circuit breaker blocked");
                         return Ok(());
                     }
 
@@ -2668,7 +2676,32 @@ impl AgentLoop {
                 })
                 .await;
         }
+
+        self.checkpoint(&messages, "step limit");
         Ok(())
+    }
+
+    /// Persist the conversation, if a writer is configured.
+    ///
+    /// Called at *every* exit from `run`. The function has eight early
+    /// returns, and the one that matters most — `task_complete` — is a
+    /// `return` two-thirds of the way up, so a checkpoint written only at the
+    /// bottom is dead code for the common path. That is exactly how `--exec`
+    /// ended up with 35 step-traces in ~/.vibecli/traces and not one
+    /// conversation transcript beside them.
+    fn checkpoint(&self, messages: &[Message], reason: &str) {
+        let Some(writer) = &self.context_writer else {
+            return;
+        };
+        if let Err(e) = writer.save_messages(messages) {
+            // Best-effort, never silent: a checkpoint nobody knows failed is
+            // discovered as a resume that restores nothing.
+            tracing::warn!(
+                error = %e,
+                reason,
+                "Could not save the conversation; this session will not be resumable"
+            );
+        }
     }
 
     fn needs_approval(&self, call: &ToolCall) -> bool {
