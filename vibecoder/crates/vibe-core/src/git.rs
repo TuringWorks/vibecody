@@ -417,6 +417,31 @@ fn home_dir() -> Option<std::path::PathBuf> {
         .and_then(|h| h.canonicalize().ok())
 }
 
+/// Why `dir` is a bad place to create a repository, or `None` if it is fine.
+///
+/// Shared by `init_repo` and by the "should we suggest this?" decision, so a
+/// location we would refuse to initialise is never one we offer to initialise.
+/// Says nothing about whether `dir` is already inside a repo — that is a
+/// separate question with a separate answer for each caller.
+pub fn repo_location_objection(dir: &Path) -> Option<String> {
+    if !dir.is_dir() {
+        return Some(format!("{} is not a directory", dir.display()));
+    }
+    let canonical = match dir.canonicalize() {
+        Ok(c) => c,
+        Err(e) => return Some(format!("cannot resolve {}: {e}", dir.display())),
+    };
+    if canonical.parent().is_none() {
+        return Some("refusing to create a git repository at the filesystem root".to_string());
+    }
+    if home_dir().is_some_and(|home| home == canonical) {
+        return Some(
+            "refusing to create a git repository over your entire home directory".to_string(),
+        );
+    }
+    None
+}
+
 /// Create a new repository at `dir` with `main` as the initial branch.
 ///
 /// Refuses paths that would put a working tree around a user's entire home
@@ -425,17 +450,11 @@ fn home_dir() -> Option<std::path::PathBuf> {
 /// a repository, since a nested checkout shadows the outer one rather than
 /// adding anything.
 pub fn init_repo(dir: &Path) -> Result<std::path::PathBuf> {
-    if !dir.is_dir() {
-        anyhow::bail!("{} is not a directory", dir.display());
+    if let Some(objection) = repo_location_objection(dir) {
+        anyhow::bail!(objection);
     }
     let canonical = dir.canonicalize()?;
 
-    if canonical.parent().is_none() {
-        anyhow::bail!("refusing to create a git repository at the filesystem root");
-    }
-    if home_dir().is_some_and(|home| home == canonical) {
-        anyhow::bail!("refusing to create a git repository over your entire home directory");
-    }
     if let Some(existing) = discover_repo_root(&canonical) {
         anyhow::bail!(
             "{} is already inside the git repository at {}",

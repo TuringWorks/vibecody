@@ -400,6 +400,7 @@ pub mod fullstack_gen;
 pub mod gateway;
 pub mod gh_actions_agent;
 pub mod git_platform;
+pub mod git_suggest;
 pub mod github_app;
 pub mod gpu_cluster;
 pub mod gpu_terminal;

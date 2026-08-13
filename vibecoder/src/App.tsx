@@ -618,6 +618,32 @@ function App() {
     lspBridgeRef.current?.closeDocument(path);
   };
 
+  /** Workspaces already nudged about version control this session, so a folder
+   *  the user is deliberately keeping outside git is mentioned once, not on
+   *  every save. The durable "never ask again" lives in the backend decline
+   *  log, shared with the CLI; this only stops repeats within one run. */
+  const gitNudgedWorkspaces = useRef<Set<string>>(new Set());
+
+  /** After a file is written, mention it if nothing is tracking the folder.
+   *  Deliberately only *tells* — creating the repository needs a click in the
+   *  Git panel, so nothing appears in the user's directory unasked. */
+  const maybeSuggestGitRepo = async () => {
+    const ws = workspaceFolders[0];
+    if (!ws || gitNudgedWorkspaces.current.has(ws)) return;
+    try {
+      const s = await invoke<{ in_repo: boolean; should_suggest: boolean }>(
+        "git_repo_suggestion",
+        { workspacePath: ws }
+      );
+      if (!s.should_suggest) return;
+      gitNudgedWorkspaces.current.add(ws);
+      toast.info("This folder isn't tracked by git — open the Source Control panel to create a repository.");
+    } catch (e) {
+      // Never let a failed check interfere with the save that triggered it.
+      console.error("git_repo_suggestion failed", e);
+    }
+  };
+
   const saveFile = async () => {
     if (!activeFilePath || !activeFile) return;
     try {
@@ -635,6 +661,7 @@ function App() {
     }
     // Refresh git status after save
     fetchGitStatus();
+    maybeSuggestGitRepo();
   };
 
   const handleEditorChange = (value: string | undefined) => {
@@ -893,6 +920,7 @@ function App() {
       });
       setActiveFilePath(path);
       lspBridgeRef.current?.openDocument(path, language, content);
+      maybeSuggestGitRepo();
     } catch (error) {
       console.error("Failed to write AI edit:", error);
     } finally {

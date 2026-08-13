@@ -203,6 +203,13 @@ mod memory;
 mod redact;
 mod sandbox_policy;
 mod schema;
+// Offers a git repository when the agent edits files no version control is
+// watching. Named by the REPL turn loop and by `/git-init`, and by
+// `tool_executor`, which records the writes. `open_with` is exercised only by
+// the library's tests, so it is dead in this crate artifact (see CLAUDE.md
+// "Module declaration pattern").
+#[allow(dead_code)]
+mod git_suggest;
 mod syntax;
 mod tainted;
 mod tainted_http_bridge;
@@ -5569,6 +5576,13 @@ async fn main() -> Result<()> {
     }
 
     loop {
+        // Between turns, not during one: if the last turn wrote files that no
+        // repository is tracking, this is the moment there is a terminal free
+        // to ask about it. Runs before the prompt rather than at the end of the
+        // turn body because several command arms `continue`, and a check down
+        // there would silently miss them.
+        offer_git_repo_for_recent_edits(&cwd);
+
         let prompt = crate::syntax::colored_prompt(&effective_provider, effective_model.as_deref());
         let readline = rl.readline(&prompt);
         match readline {
@@ -13731,6 +13745,42 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        "/git-init" => {
+                            let want_github = args.split_whitespace().any(|a| a == "--github");
+                            match vibe_core::git::discover_repo_root(&cwd) {
+                                Some(root) => {
+                                    println!(
+                                        "  Already a git repository: \x1b[1m{}\x1b[0m\n",
+                                        root.display()
+                                    );
+                                    if want_github {
+                                        offer_github_remote(&root);
+                                        println!();
+                                    }
+                                }
+                                None => match vibe_core::git::init_repo(&cwd) {
+                                    Ok(root) => {
+                                        // An explicit /git-init is consent, so
+                                        // clear any earlier "no" for this
+                                        // directory rather than leaving a
+                                        // stale decline behind.
+                                        if let Ok(log) = crate::git_suggest::DeclineLog::open() {
+                                            let _ = log.reset(&root);
+                                        }
+                                        println!(
+                                            "  \x1b[32m✓\x1b[0m Created a git repository at {}",
+                                            root.display()
+                                        );
+                                        println!("  \x1b[2mNothing is committed yet — `git add -A && git commit` when ready.\x1b[0m");
+                                        offer_github_remote(&root);
+                                        println!();
+                                    }
+                                    Err(e) => {
+                                        println!("  \x1b[31mCould not create the repository:\x1b[0m {e}\n");
+                                    }
+                                },
+                            }
+                        }
                         "/orient" => {
                             let workspace = std::env::current_dir()?;
                             println!("🧭 Analyzing project...\n");
@@ -20165,6 +20215,143 @@ fn find_closest_command(input: &str) -> Option<&'static str> {
     best.map(|(cmd, _)| cmd)
 }
 
+/// Ask the user a yes/no question, or `None` when there is nobody to ask.
+///
+/// A prompt written to a pipe is not a question, it is a hang: `read_line`
+/// returns 0 bytes immediately and a default-yes would then "consent" on the
+/// user's behalf on every scripted run. Checking for a terminal first keeps
+/// silence meaning silence.
+fn prompt_yes_no(question: &str, default_yes: bool) -> Option<bool> {
+    use std::io::IsTerminal;
+    if !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
+        return None;
+    }
+    let hint = if default_yes { "[Y/n]" } else { "[y/N]" };
+    print!("  {question} \x1b[2m{hint}\x1b[0m ");
+    if io::stdout().flush().is_err() {
+        return None;
+    }
+    let mut answer = String::new();
+    match io::stdin().read_line(&mut answer) {
+        // 0 bytes means EOF — stdin closed mid-session. Not an answer.
+        Ok(0) | Err(_) => None,
+        Ok(_) => {
+            let a = answer.trim().to_lowercase();
+            Some(if a.is_empty() {
+                default_yes
+            } else {
+                matches!(a.as_str(), "y" | "yes")
+            })
+        }
+    }
+}
+
+/// If the last turn wrote files that git is not tracking, offer a repository.
+///
+/// Called between turns. Returns immediately when nothing was written, which
+/// is the overwhelmingly common case — the profile database is not opened and
+/// no git call is made unless there is actually something to consider.
+fn offer_git_repo_for_recent_edits(workspace_root: &std::path::Path) {
+    use crate::git_suggest::{self, OfferOutcome};
+
+    let edited = git_suggest::take_edited();
+    if edited.is_empty() {
+        return;
+    }
+
+    let log = match git_suggest::DeclineLog::open() {
+        Ok(l) => l,
+        // Without the log we cannot honour a previous "no", and re-asking
+        // every turn is worse than staying quiet.
+        Err(_) => return,
+    };
+    let Some(dir) = git_suggest::pending_offer(&edited, workspace_root, &log) else {
+        return;
+    };
+
+    let count = edited.len();
+    println!(
+        "\n\x1b[33m•\x1b[0m {} file{} {} edited in \x1b[1m{}\x1b[0m, which is not a git repository.",
+        count,
+        if count == 1 { "" } else { "s" },
+        if count == 1 { "was" } else { "were" },
+        dir.display()
+    );
+    println!("  \x1b[2mWithout one there is no history and no way back to what you had.\x1b[0m");
+
+    match git_suggest::offer(&dir, &log, |d| {
+        prompt_yes_no(&format!("Create a git repository in {}?", d.display()), true)
+    }) {
+        OfferOutcome::NotAsked => {
+            println!("  \x1b[2mNot a terminal — run /git-init to create one.\x1b[0m\n");
+        }
+        OfferOutcome::Declined => {
+            println!("  \x1b[2mLeft alone. Run /git-init if you change your mind.\x1b[0m\n");
+        }
+        OfferOutcome::Failed(e) => {
+            println!("  \x1b[31mCould not create the repository:\x1b[0m {e}\n");
+        }
+        OfferOutcome::Initialized(root) => {
+            println!("  \x1b[32m✓\x1b[0m Created a git repository at {}", root.display());
+            println!("  \x1b[2mNothing is committed yet — `git add -A && git commit` when ready.\x1b[0m");
+            offer_github_remote(&root);
+            println!();
+        }
+    }
+}
+
+/// After a local repository exists, offer to put it on GitHub.
+///
+/// Separate from the local offer because it is a separate decision with a
+/// separate blast radius: one writes a `.git` directory, the other publishes
+/// code to a server. Declining this is not recorded — unlike the local
+/// suggestion it is only ever raised right after an init the user just agreed
+/// to, so it cannot become a recurring nag.
+fn offer_github_remote(repo_root: &std::path::Path) {
+    use crate::git_suggest;
+
+    let name = repo_root
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    if name.is_empty() {
+        return;
+    }
+
+    if !git_suggest::gh_is_ready() {
+        // Say what is missing and what it would take, rather than offering
+        // something that cannot work.
+        println!(
+            "  \x1b[2mTo put this on GitHub: install the GitHub CLI, run `gh auth login`,\n   \
+             then `gh repo create {name} --private --source=. --remote=origin`.\x1b[0m"
+        );
+        return;
+    }
+
+    let Some(true) = prompt_yes_no(&format!("Also create the GitHub repository '{name}'?"), false)
+    else {
+        println!("  \x1b[2mSkipped. `gh repo create` when you want one.\x1b[0m");
+        return;
+    };
+
+    let private = prompt_yes_no("Make it private?", true).unwrap_or(true);
+    match git_suggest::create_github_remote(repo_root, &name, private) {
+        Ok(url) => {
+            println!("  \x1b[32m✓\x1b[0m Created {url} and set it as \x1b[1morigin\x1b[0m");
+            if git_suggest::has_commits(repo_root) {
+                println!("  \x1b[2mPush with `git push -u origin HEAD`.\x1b[0m");
+            } else {
+                // Nothing was pushed, and saying "done" here would be a lie.
+                println!(
+                    "  \x1b[2mNothing has been pushed — there are no commits yet. \
+                     Commit first, then `git push -u origin HEAD`.\x1b[0m"
+                );
+            }
+        }
+        Err(e) => println!("  \x1b[31mCould not create the GitHub repository:\x1b[0m {e}"),
+    }
+}
+
 fn show_help() {
     println!("\nVibeCLI Commands:");
     println!("  /chat <message>          - Chat with AI (supports [image.png] and [file.rs] attachments)");
@@ -20176,6 +20363,7 @@ fn show_help() {
     println!("  /rewind <timestamp>      - Restore conversation to a checkpoint");
     println!("  /generate <prompt>       - Generate code from a description");
     println!("  /diff <file>             - Show diff for a file");
+    println!("  /git-init [--github]     - Create a git repository here (and optionally on GitHub)");
     println!("  /apply <file>            - Apply AI-suggested changes to a file");
     println!("  /exec <task>             - Generate and execute a shell command");
     println!("  /memory [show]           - Show loaded project memory (VIBECLI.md / AGENTS.md)");

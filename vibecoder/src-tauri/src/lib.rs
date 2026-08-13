@@ -604,6 +604,10 @@ pub fn run() {
             // Phase 26: Auth scaffolding
             commands::generate_auth_scaffold,
             commands::write_auth_scaffold,
+            // Offer version control when the open folder has none.
+            commands::git_repo_suggestion,
+            commands::git_init_repo,
+            commands::git_dismiss_repo_suggestion,
             // Phase 26: GitHub Sync
             commands::has_github_token,
             commands::save_github_token,

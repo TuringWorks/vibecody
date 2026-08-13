@@ -16141,6 +16141,86 @@ pub async fn save_github_token(workspace_path: String, token: String) -> Result<
     std::fs::write(dir.join("github_token"), token.trim()).map_err(|e| e.to_string())
 }
 
+/// Whether the open workspace is under version control, and whether we should
+/// offer to put it under version control if not.
+#[derive(serde::Serialize)]
+pub struct GitRepoSuggestion {
+    /// The workspace is inside a git working tree.
+    pub in_repo: bool,
+    /// The root of the enclosing repository, when there is one.
+    pub repo_root: Option<String>,
+    /// Whether the UI should raise the suggestion. False when already tracked,
+    /// already declined, or the location is one we refuse to initialise.
+    pub should_suggest: bool,
+    /// The user previously declined a repository for this directory.
+    pub declined: bool,
+    /// Why a repository cannot be created here, when that is the reason.
+    pub blocked_reason: Option<String>,
+}
+
+/// Report whether the workspace needs a git repository.
+///
+/// Uses upward discovery, not `is_git_repo`: the latter only recognises a path
+/// that is *itself* a repo root, so opening any subfolder of a checkout would
+/// report "no repo" and offer to create a nested one.
+#[tauri::command]
+pub async fn git_repo_suggestion(workspace_path: String) -> Result<GitRepoSuggestion, String> {
+    let ws = reject_sensitive_path(&workspace_path)?;
+
+    if let Some(root) = vibe_core::git::discover_repo_root(&ws) {
+        return Ok(GitRepoSuggestion {
+            in_repo: true,
+            repo_root: Some(root.display().to_string()),
+            should_suggest: false,
+            declined: false,
+            blocked_reason: None,
+        });
+    }
+
+    if let Some(reason) = vibe_core::git::repo_location_objection(&ws) {
+        return Ok(GitRepoSuggestion {
+            in_repo: false,
+            repo_root: None,
+            should_suggest: false,
+            declined: false,
+            blocked_reason: Some(reason),
+        });
+    }
+
+    // Shared with the CLI, so declining in one is honoured by the other.
+    let declined = vibecli_cli::git_suggest::DeclineLog::open()
+        .map(|log| log.is_declined(&ws))
+        .unwrap_or(false);
+
+    Ok(GitRepoSuggestion {
+        in_repo: false,
+        repo_root: None,
+        should_suggest: !declined,
+        declined,
+        blocked_reason: None,
+    })
+}
+
+/// Create a git repository at the workspace root. Returns its path.
+#[tauri::command]
+pub async fn git_init_repo(workspace_path: String) -> Result<String, String> {
+    let ws = reject_sensitive_path(&workspace_path)?;
+    let root = vibe_core::git::init_repo(&ws).map_err(|e| e.to_string())?;
+    // Creating one is consent; drop any earlier decline so the state is not
+    // left saying the user refused a repository that now exists.
+    if let Ok(log) = vibecli_cli::git_suggest::DeclineLog::open() {
+        let _ = log.reset(&root);
+    }
+    Ok(root.display().to_string())
+}
+
+/// Remember that the user does not want a repository for this workspace.
+#[tauri::command]
+pub async fn git_dismiss_repo_suggestion(workspace_path: String) -> Result<(), String> {
+    let ws = reject_sensitive_path(&workspace_path)?;
+    vibecli_cli::git_suggest::DeclineLog::open()?.decline(&ws)
+}
+
 #[tauri::command]
 pub async fn get_github_sync_status(workspace_path: String) -> Result<GitHubSyncStatus, String> {
     use vibe_core::git;
@@ -16339,20 +16419,44 @@ pub async fn github_create_repo(
         .to_string();
     let html_url = json["html_url"].as_str().unwrap_or(&clone_url).to_string();
 
-    // Add remote and push
-    std::process::Command::new("git")
+    // The repository now exists on GitHub, so from here a failure cannot undo
+    // what was already done — but it must still be reported. This used to
+    // ignore `remote add`'s exit status entirely and downgrade a failed push to
+    // an eprintln, then return Ok(html_url): the panel said "created and
+    // pushed" while the local repo had no origin and had pushed nothing, and
+    // the only trace was on a stderr nobody reads. Report what actually
+    // happened, naming the repo that does exist so the user can recover.
+    let remote = std::process::Command::new("git")
         .args(["-C", &workspace_path, "remote", "add", "origin", &clone_url])
-        .status()
+        .output()
         .map_err(|e| e.to_string())?;
+    if !remote.status.success() {
+        let stderr = String::from_utf8_lossy(&remote.stderr).trim().to_string();
+        return Err(format!(
+            "Created {html_url}, but could not add it as 'origin': {stderr}"
+        ));
+    }
+
+    // A repository with no commits has nothing to push, and `git push` fails on
+    // it. That is an expected state right after `git init`, not an error worth
+    // reporting — but it does mean we must not claim anything was pushed.
+    let has_commits = std::process::Command::new("git")
+        .args(["-C", &workspace_path, "rev-parse", "--verify", "HEAD"])
+        .output()
+        .is_ok_and(|o| o.status.success());
+    if !has_commits {
+        return Ok(html_url);
+    }
 
     let out = std::process::Command::new("git")
         .args(["-C", &workspace_path, "push", "-u", "origin", "HEAD"])
         .output()
         .map_err(|e| e.to_string())?;
     if !out.status.success() {
-        let stderr = String::from_utf8_lossy(&out.stderr).to_string();
-        // Don't fail on push errors (workspace might be empty)
-        eprintln!("git push warning: {}", stderr);
+        let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+        return Err(format!(
+            "Created {html_url} and set it as 'origin', but the push failed: {stderr}"
+        ));
     }
 
     Ok(html_url)

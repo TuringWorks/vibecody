@@ -26,6 +26,15 @@ interface CommitInfo {
  timestamp: number;
 }
 
+/** Mirrors `GitRepoSuggestion` in src-tauri/src/commands.rs. */
+interface GitRepoSuggestion {
+ in_repo: boolean;
+ repo_root: string | null;
+ should_suggest: boolean;
+ declined: boolean;
+ blocked_reason: string | null;
+}
+
 export function GitPanel({ workspacePath, onCompareFile, selectedProvider }: GitPanelProps) {
  const { toasts, toast, dismiss } = useToast();
  const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
@@ -61,9 +70,12 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider }: Git
  const [gitCredToken, setGitCredToken] = useState('');
  const [sshAvailable, setSshAvailable] = useState(false);
  const [remoteUrl, setRemoteUrl] = useState('');
+ const [repoSuggestion, setRepoSuggestion] = useState<GitRepoSuggestion | null>(null);
+ const [initializingRepo, setInitializingRepo] = useState(false);
 
  useEffect(() => {
  if (workspacePath) {
+ loadRepoSuggestion();
  loadGitStatus();
  loadBranches();
  loadGitConfig();
@@ -89,13 +101,58 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider }: Git
  }
  };
 
+ /** Asks the backend — which walks up to the enclosing repo — rather than
+  *  inferring "no repo" from the text of a git error message. */
+ const loadRepoSuggestion = async () => {
+ if (!workspacePath) return;
+ try {
+ setRepoSuggestion(await invoke<GitRepoSuggestion>('git_repo_suggestion', { workspacePath }));
+ } catch (e) {
+ // Leave it null: the panel then falls back to reporting the git error
+ // itself rather than claiming anything about version control.
+ setRepoSuggestion(null);
+ console.error('git_repo_suggestion failed', e);
+ }
+ };
+
+ const handleInitRepo = async () => {
+ if (!workspacePath) return;
+ setInitializingRepo(true);
+ try {
+ const root = await invoke<string>('git_init_repo', { workspacePath });
+ toast.success(`Created a git repository at ${root}`);
+ await loadRepoSuggestion();
+ await loadGitStatus();
+ await loadBranches();
+ } catch (e) {
+ toast.error(`Could not create the repository: ${e}`);
+ } finally {
+ setInitializingRepo(false);
+ }
+ };
+
+ const handleDismissRepoSuggestion = async () => {
+ if (!workspacePath) return;
+ try {
+ await invoke('git_dismiss_repo_suggestion', { workspacePath });
+ await loadRepoSuggestion();
+ } catch (e) {
+ toast.error(`Could not save that choice: ${e}`);
+ }
+ };
+
  const loadBranches = async () => {
  if (!workspacePath) return;
  try {
  const branchList = await invoke<string[]>('git_list_branches', { path: workspacePath });
  setBranches(branchList);
  } catch (e) {
+ // A folder with no repository has no branches, and saying so as an error
+ // toast on every open is noise, not information — the panel already
+ // explains the situation properly.
+ if (repoSuggestion?.in_repo !== false) {
  toast.error(`Failed to load branches: ${e}`);
+ }
  }
  };
 
@@ -369,7 +426,13 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider }: Git
 
  if (!gitStatus) {
  if (gitError) {
- const isNotRepo = gitError.toLowerCase().includes('not a git repository') || gitError.toLowerCase().includes('not found');
+ // The backend is the authority on whether a repo encloses this folder;
+ // matching on the error text only guesses, and guessed wrong for any
+ // subfolder of a checkout. Fall back to the text match only when the
+ // suggestion command itself failed.
+ const isNotRepo = repoSuggestion
+  ? !repoSuggestion.in_repo
+  : gitError.toLowerCase().includes('not a git repository') || gitError.toLowerCase().includes('not found');
  return (
   <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-secondary)' }}>
   <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", color: "var(--text-secondary)" }}>{isNotRepo ? <FolderOpen size={28} strokeWidth={1.5} /> : <AlertTriangle size={28} strokeWidth={1.5} />}</div>
@@ -378,13 +441,36 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider }: Git
   </div>
   <div style={{ fontSize: "var(--font-size-base)", lineHeight: 1.6, marginBottom: 12 }}>
    {isNotRepo
-    ? 'This folder is not a git repository.'
+    ? 'This folder is not tracked by git, so edits here have no history and no way back.'
     : gitError}
   </div>
-  {isNotRepo && (
+  {isNotRepo && repoSuggestion?.blocked_reason && (
    <div style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)', opacity: 0.7 }}>
-    Run <code style={{ fontSize: "var(--font-size-xs)" }}>git init</code> in the terminal to initialize one.
+    {repoSuggestion.blocked_reason}
    </div>
+  )}
+  {isNotRepo && !repoSuggestion?.blocked_reason && (
+   <>
+    <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+     <button
+      className="panel-btn panel-btn-primary"
+      onClick={handleInitRepo}
+      disabled={initializingRepo}
+     >
+      {initializingRepo ? 'Initializing…' : 'Initialize repository'}
+     </button>
+     {repoSuggestion && !repoSuggestion.declined && (
+      <button className="panel-btn" onClick={handleDismissRepoSuggestion}>
+       Not now
+      </button>
+     )}
+    </div>
+    <div style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)', opacity: 0.7, marginTop: 10 }}>
+     {repoSuggestion?.declined
+      ? 'You chose not to be asked again for this folder.'
+      : <>Creates a local repository. You can publish it to GitHub from the <strong>GitHub</strong> panel afterwards.</>}
+    </div>
+   </>
   )}
   </div>
  );

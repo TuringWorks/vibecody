@@ -414,10 +414,16 @@ impl ToolExecutor {
             }
         }
         match tokio::fs::write(&resolved, content).await {
-            Ok(_) => ToolResult::ok(
-                "write_file",
-                format!("Written {} bytes to {}", content.len(), resolved.display()),
-            ),
+            Ok(_) => {
+                // Only note a write that actually landed, and only record —
+                // asking about version control belongs between turns, where
+                // there is a terminal and the user is not mid-tool-call.
+                crate::git_suggest::note_edited(&resolved);
+                ToolResult::ok(
+                    "write_file",
+                    format!("Written {} bytes to {}", content.len(), resolved.display()),
+                )
+            }
             Err(e) => ToolResult::err(
                 "write_file",
                 format!("Cannot write {}: {}", resolved.display(), e),
@@ -444,10 +450,13 @@ impl ToolExecutor {
             Err(e) => return ToolResult::err("apply_patch", format!("Patch failed: {}", e)),
         };
         match tokio::fs::write(&resolved, &patched).await {
-            Ok(_) => ToolResult::ok(
-                "apply_patch",
-                format!("Patch applied to {}", resolved.display()),
-            ),
+            Ok(_) => {
+                crate::git_suggest::note_edited(&resolved);
+                ToolResult::ok(
+                    "apply_patch",
+                    format!("Patch applied to {}", resolved.display()),
+                )
+            }
             Err(e) => ToolResult::err("apply_patch", format!("Cannot write patched file: {}", e)),
         }
     }
