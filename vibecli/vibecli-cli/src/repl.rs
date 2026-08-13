@@ -605,7 +605,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/sessions" => Some("[<id_prefix>]  — list recent agent sessions from history (SQLite)"),
         "/share"    => Some("<session_id>  — print shareable URL for a session (requires vibecli serve)"),
         "/workflow" => Some("[new <name>|list|show <n>|advance <n>|check <n> <id>|generate <n>]  — Code Complete workflow"),
-        "/goal"     => Some("[new <title>|list [status]|show <id>|status <id> <s>|link <id> <kind> <target>|start <id> [task]|children <id>|reparent <id> <parent>|delete <id>]  — durable execution intent"),
+        "/goal"     => Some("<what you want done>  — states a goal and works on it until it's met.  Also: [new <title>|list [status]|show <id>|status <id> <s>|link <id> <kind> <target>|start <id> [task]|children <id>|reparent <id> <parent>|delete <id>]"),
         "/loop"     => Some("<interval> <prompt> | auto <prompt> | goal <id> [guidance] | list | stop <id> | status <id>  — recurring, self-paced, or goal-driven loop-until-done (MAX_ITER guard, Ctrl-C to stop)"),
         "/redteam"  => Some("[scan <url>|list|show <id>|report <id>|config]  — autonomous security scanning"),
         "/voice"    => Some("[transcribe <file>|speak <text>]  — voice transcription (Whisper) & TTS (ElevenLabs)"),

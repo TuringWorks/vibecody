@@ -3019,17 +3019,17 @@ mod idp;
 #[allow(dead_code)]
 mod open_memory;
 #[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-mod soul_generator;
-#[allow(dead_code)]
 // `swe_bench` is no longer referenced from the binary: `--benchmark` now
 // delegates to `eval_cmd`, which drives the real harness in `vibe-eval`. Left
 // declared only in `lib.rs` — a `mod` here would compile it into the binary a
 // second time for nothing (see this crate's CLAUDE.md).
 // Recap & Resume — Phase F1.1 foundation (types + heuristic).
 mod recap;
+#[allow(dead_code)]
+#[allow(dead_code)]
+#[allow(dead_code)]
+#[allow(dead_code)]
+mod soul_generator;
 // Recap & Resume — Phase F1.3 resume routes (in-memory handle registry).
 #[allow(dead_code)]
 mod resume;
@@ -5575,6 +5575,10 @@ async fn main() -> Result<()> {
         }
     }
 
+    // Set by a command arm to run something next without prompting. Consumed
+    // once, so a queued command cannot loop; see the readline call below.
+    let mut pending_command: Option<String> = None;
+
     loop {
         // Between turns, not during one: if the last turn wrote files that no
         // repository is tracking, this is the moment there is a terminal free
@@ -5584,7 +5588,16 @@ async fn main() -> Result<()> {
         offer_git_repo_for_recent_edits(&cwd);
 
         let prompt = crate::syntax::colored_prompt(&effective_provider, effective_model.as_deref());
-        let readline = rl.readline(&prompt);
+        // A command arm can queue the next command instead of asking the user
+        // for it. `/goal <statement>` uses this to hand straight over to
+        // `/loop goal <id>`: the loop that runs, validates against the goal and
+        // reworks already exists, and re-entering it here is what makes the
+        // one-liner equivalent to typing the four commands by hand — without a
+        // second copy of the 240-line runner.
+        let readline = match pending_command.take() {
+            Some(queued) => Ok(queued),
+            None => rl.readline(&prompt),
+        };
         match readline {
             Ok(line) => {
                 let input = line.trim();
@@ -6393,13 +6406,33 @@ async fn main() -> Result<()> {
                                          then POST to /v1/goals/{rest}/plan, or open VibeCoder → Goals.\n"
                                     );
                                 }
-                                other => {
-                                    println!(
-                                        "Unknown /goal subcommand {other:?}. \
-                                         Try: new, list, show, status, link, start, plan, \
-                                         children, reparent, pin, unpin, current, delete.\n"
-                                    );
-                                }
+                                // Anything that isn't a subcommand is the goal
+                                // itself. `/goal add dark mode to the settings
+                                // panel` should do the thing, not explain that
+                                // `add` is not a verb it knows — the
+                                // subcommands are for managing goals, and
+                                // stating one is the common case.
+                                _ => match exec_goal_repl::create_goal_from_statement(trimmed) {
+                                    Err(msg) => println!("{msg}\n"),
+                                    Ok(goal) => {
+                                        println!(
+                                            "Goal {} — {}",
+                                            &goal.id[..8.min(goal.id.len())],
+                                            goal.title
+                                        );
+                                        println!(
+                                            "Working on it. Each round runs the goal, then checks \
+                                             the result against it and reworks what falls short. \
+                                             Ctrl-C stops; `/goal show {}` picks it back up.\n",
+                                            &goal.id[..8.min(goal.id.len())]
+                                        );
+                                        // Hand over to the existing loop rather
+                                        // than reimplement it. This is exactly
+                                        // what the user would have typed after
+                                        // `new` + `plan` + `start`.
+                                        pending_command = Some(format!("/loop goal {}", goal.id));
+                                    }
+                                },
                             }
                         }
                         "/trace" => {
@@ -20280,7 +20313,10 @@ fn offer_git_repo_for_recent_edits(workspace_root: &std::path::Path) {
     println!("  \x1b[2mWithout one there is no history and no way back to what you had.\x1b[0m");
 
     match git_suggest::offer(&dir, &log, |d| {
-        prompt_yes_no(&format!("Create a git repository in {}?", d.display()), true)
+        prompt_yes_no(
+            &format!("Create a git repository in {}?", d.display()),
+            true,
+        )
     }) {
         OfferOutcome::NotAsked => {
             println!("  \x1b[2mNot a terminal — run /git-init to create one.\x1b[0m\n");
@@ -20292,8 +20328,13 @@ fn offer_git_repo_for_recent_edits(workspace_root: &std::path::Path) {
             println!("  \x1b[31mCould not create the repository:\x1b[0m {e}\n");
         }
         OfferOutcome::Initialized(root) => {
-            println!("  \x1b[32m✓\x1b[0m Created a git repository at {}", root.display());
-            println!("  \x1b[2mNothing is committed yet — `git add -A && git commit` when ready.\x1b[0m");
+            println!(
+                "  \x1b[32m✓\x1b[0m Created a git repository at {}",
+                root.display()
+            );
+            println!(
+                "  \x1b[2mNothing is committed yet — `git add -A && git commit` when ready.\x1b[0m"
+            );
             offer_github_remote(&root);
             println!();
         }
@@ -20328,8 +20369,10 @@ fn offer_github_remote(repo_root: &std::path::Path) {
         return;
     }
 
-    let Some(true) = prompt_yes_no(&format!("Also create the GitHub repository '{name}'?"), false)
-    else {
+    let Some(true) = prompt_yes_no(
+        &format!("Also create the GitHub repository '{name}'?"),
+        false,
+    ) else {
         println!("  \x1b[2mSkipped. `gh repo create` when you want one.\x1b[0m");
         return;
     };
@@ -20363,7 +20406,9 @@ fn show_help() {
     println!("  /rewind <timestamp>      - Restore conversation to a checkpoint");
     println!("  /generate <prompt>       - Generate code from a description");
     println!("  /diff <file>             - Show diff for a file");
-    println!("  /git-init [--github]     - Create a git repository here (and optionally on GitHub)");
+    println!(
+        "  /git-init [--github]     - Create a git repository here (and optionally on GitHub)"
+    );
     println!("  /apply <file>            - Apply AI-suggested changes to a file");
     println!("  /exec <task>             - Generate and execute a shell command");
     println!("  /memory [show]           - Show loaded project memory (VIBECLI.md / AGENTS.md)");
@@ -20749,7 +20794,7 @@ async fn run_bugbot(llm: Arc<dyn LLMProvider>, opts: BugbotRunOptions) -> Result
         if proposals.is_empty() {
             println!("\nNo fixes to apply.");
         } else {
-            let root = git_repo_root(&cwd).unwrap_or(cwd);
+            let root = vibe_core::git::discover_repo_root(&cwd).unwrap_or(cwd);
             let (written, skipped) = apply_bugbot_fixes(&root, &ordered)?;
             println!("\nApplied {written} fix(es) to the working tree; {skipped} skipped.");
         }

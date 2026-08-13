@@ -151,8 +151,62 @@ pub fn record_goal_loop_outcome(
     }
 }
 
+/// Create a goal from a free-text statement and return it.
+///
+/// Backs the one-shot `/goal <statement>` form, where the user says what they
+/// want and expects it to be worked on — no `new`, no separate `plan`, no
+/// `start`. The whole text becomes the statement, because that is what the
+/// planner and the completion validator read; the title is only a label, so it
+/// is the first sentence (or a clipped prefix) rather than something the user
+/// has to compose separately.
+///
+/// Success criteria are deliberately left empty here. They are what the
+/// validator checks against, and inventing them from a one-line statement would
+/// produce a stop condition nobody chose — a "done" that means the model agreed
+/// with its own guess. The caller warns that the validator will judge against
+/// the statement alone, which is weaker but honest.
+pub fn create_goal_from_statement(statement: &str) -> Result<Goal, String> {
+    let statement = statement.trim();
+    if statement.is_empty() {
+        return Err("Say what you want done: /goal <what you want>".to_string());
+    }
+
+    let title = derive_title(statement);
+    let store =
+        SessionStore::open_default().map_err(|e| format!("Failed to open session store: {e}"))?;
+
+    let mut goal = Goal::new(&title);
+    goal.statement = statement.to_string();
+    goal.workspace = std::env::current_dir().ok();
+    store
+        .insert_goal(&goal)
+        .map_err(|e| format!("Failed to create goal: {e}"))
+}
+
+/// A short label for a goal, taken from its statement.
+///
+/// First sentence when there is one and it fits; otherwise a clipped prefix.
+/// Clipping counts characters, not bytes — a byte slice would panic partway
+/// through a multi-byte character, and statements are free text.
+fn derive_title(statement: &str) -> String {
+    let first = statement
+        .split_terminator(['.', '\n', ';'])
+        .next()
+        .unwrap_or(statement)
+        .trim();
+    let candidate = if first.is_empty() { statement } else { first };
+    if candidate.chars().count() <= TITLE_MAX_LEN {
+        return candidate.to_string();
+    }
+    let clipped: String = candidate.chars().take(TITLE_MAX_LEN - 1).collect();
+    format!("{}…", clipped.trim_end())
+}
+
 /// `/goal new <title…>` — create a new goal at default scope. The
 /// statement and other fields can be edited via VibeCoder or `/goal edit`.
+///
+/// Creates without running it; [`create_goal_from_statement`] is the form that
+/// starts work immediately.
 pub fn handle_goal_new(args: &str) {
     let title = args.trim();
     if title.is_empty() {
@@ -699,5 +753,61 @@ pub fn handle_goal_delete(args: &str) {
         Ok(true) => println!("Deleted goal {}.\n", short(&id)),
         Ok(false) => println!("Goal vanished before delete.\n"),
         Err(e) => println!("Failed to delete: {e}\n"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // `create_goal_from_statement` itself is not tested here: it opens the
+    // developer's real `~/.vibecli` session store, and a test that writes goals
+    // into it would pollute actual user data. The title derivation is the part
+    // with logic, and it is pure.
+
+    #[test]
+    fn title_is_the_first_sentence() {
+        assert_eq!(
+            derive_title("Add dark mode to settings. Then update the docs."),
+            "Add dark mode to settings"
+        );
+    }
+
+    #[test]
+    fn title_falls_back_to_the_whole_statement_when_there_is_no_sentence_break() {
+        assert_eq!(derive_title("make the tests pass"), "make the tests pass");
+    }
+
+    #[test]
+    fn a_long_first_sentence_is_clipped_to_the_limit() {
+        let long = "x".repeat(TITLE_MAX_LEN + 40);
+        let title = derive_title(&long);
+        assert!(
+            title.chars().count() <= TITLE_MAX_LEN,
+            "title must fit the store's limit, got {} chars",
+            title.chars().count()
+        );
+        assert!(title.ends_with('…'), "clipping should be visible: {title}");
+    }
+
+    /// Statements are free text. Slicing by byte would panic in the middle of a
+    /// multi-byte character, so the clip counts characters.
+    #[test]
+    fn clipping_does_not_split_a_multi_byte_character() {
+        let long = "é".repeat(TITLE_MAX_LEN + 10);
+        let title = derive_title(&long);
+        assert!(title.chars().count() <= TITLE_MAX_LEN);
+    }
+
+    #[test]
+    fn an_empty_statement_is_rejected_before_touching_the_store() {
+        let err = create_goal_from_statement("   ").expect_err("empty must not create a goal");
+        assert!(err.contains("Say what you want done"), "got: {err}");
+    }
+
+    #[test]
+    fn newlines_and_semicolons_also_end_the_title() {
+        assert_eq!(derive_title("Ship the CLI\nthen the docs"), "Ship the CLI");
+        assert_eq!(derive_title("Fix the build; add tests"), "Fix the build");
     }
 }
