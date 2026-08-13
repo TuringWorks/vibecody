@@ -316,6 +316,118 @@ tasks:
           stdout_contains: TAURI_FLOORS_AGREE
           timeout_secs: 60
 
+  - id: acp-capabilities-are-public-and-served
+    title: ACP is reachable over stdio and advertises capabilities
+    capability: surface_conformance
+    difficulty: easy
+    surfaces: [acp]
+    workspace: repo_root
+    tags: [static, protocol]
+    grader:
+      # Zed, JetBrains and Neovim all speak ACP. The capabilities route is
+      # public by design — an editor negotiates before it has a token.
+      type: all
+      of:
+        - type: files
+          assertions:
+            - assert: exists
+              path: vibecli/vibecli-cli/src/acp_stdio.rs
+            - assert: contains
+              path: vibecli/vibecli-cli/src/serve.rs
+              text: "/acp/v1/capabilities"
+        - type: http
+          probes:
+            - url: "{daemon}/acp/v1/capabilities"
+              authenticated: false
+              reject_status: [401, 403]
+
+  - id: mcp-well-known-is-public
+    title: MCP discovery is served and unauthenticated
+    capability: surface_conformance
+    difficulty: easy
+    surfaces: [mcp]
+    workspace: repo_root
+    tags: [static, protocol]
+    grader:
+      type: all
+      of:
+        - type: files
+          assertions:
+            - assert: exists
+              path: vibecli/vibecli-cli/src/mcp_server.rs
+        - type: http
+          probes:
+            # Claude Desktop and other MCP hosts fetch this before any
+            # handshake; requiring auth here makes VibeCody undiscoverable.
+            - url: "{daemon}/.well-known/mcp.json"
+              authenticated: false
+              reject_status: [401, 403]
+
+  - id: neovim-reads-the-rotating-token
+    title: Neovim plugin resolves the daemon token from disk
+    capability: surface_conformance
+    difficulty: easy
+    surfaces: [neovim]
+    workspace: repo_root
+    tags: [static, auth]
+    grader:
+      type: files
+      assertions:
+        # The token rotates on every daemon start, so the plugin must read the
+        # file rather than carry a value from the user's config.
+        - assert: contains
+          path: neovim-plugin/lua/vibecli/init.lua
+          text: "daemon.token"
+        - assert: matches
+          path: neovim-plugin/lua/vibecli/init.lua
+          regex: "7878"
+
+  - id: web-client-is-served-without-a-token
+    title: The built-in web client loads anonymously
+    capability: surface_conformance
+    difficulty: easy
+    surfaces: [web]
+    workspace: repo_root
+    tags: [static, live]
+    grader:
+      type: all
+      of:
+        - type: files
+          assertions:
+            - assert: contains
+              path: vibecli/vibecli-cli/src/serve.rs
+              text: '"/web"'
+        - type: http
+          probes:
+            # The page itself must load before the user can supply anything;
+            # gating it behind the token they came to fetch is a deadlock.
+            - url: "{daemon}/web"
+              authenticated: false
+              reject_status: [401, 403]
+
+  - id: github-action-declares-its-contract
+    title: The GitHub Action still declares prompt and key inputs
+    capability: surface_conformance
+    difficulty: easy
+    surfaces: [github_action]
+    workspace: repo_root
+    tags: [static, ci]
+    grader:
+      type: files
+      assertions:
+        - assert: exists
+          path: vibecody-action/action.yml
+        # Renaming either input silently breaks every workflow that uses the
+        # action, and nothing in this repository builds those workflows.
+        - assert: matches
+          path: vibecody-action/action.yml
+          regex: "(?m)^\\s+prompt:"
+        - assert: matches
+          path: vibecody-action/action.yml
+          regex: "(?m)^\\s+api_key:"
+        - assert: exists
+          path: vibecody-action/Dockerfile
+
   - id: every-client-surface-is-present
     title: Every declared client surface still exists in the tree
     capability: surface_conformance

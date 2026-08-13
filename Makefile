@@ -450,6 +450,38 @@ test-all: test test-ui test-aichat test-vibedesk test-sdk ## Test every Node + R
 	@echo "✓ Rust + Node surfaces tested. For platform-gated suites run: make test-mobile test-rl test-jetbrains"
 
 # ══════════════════════════════════════════════════════════════════════════════
+# AGGREGATE: Evaluations
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# `eval-check` validates the suite files themselves and is safe in CI: it runs
+# no agent and calls no provider. Everything below it costs tokens.
+
+.PHONY: eval-check eval-list eval-offline eval-surfaces eval-full eval-gate
+
+eval-check: ## Validate the eval suites (no agent, no provider, CI-safe)
+	$(CARGO) test -p vibe-eval
+
+eval-list: ## Show what a full eval run would execute
+	$(CARGO) run --release -p vibecli -- --eval list
+
+eval-offline: ## Run the zero-dependency capability suites (needs a provider)
+	$(CARGO) run --release -p vibecli -- --eval run --tag offline \
+		--binary target/release/vibecli
+
+eval-surfaces: ## Run surface conformance only (static checks + live daemon probes)
+	$(CARGO) run --release -p vibecli -- --eval run --suite surfaces
+
+eval-full: ## Run every suite (slow, costs tokens)
+	$(CARGO) run --release -p vibecli -- --eval run \
+		--binary target/release/vibecli
+
+eval-gate: ## Compare the latest run against BASELINE and fail on regression
+	@test -n "$(BASELINE)" || { \
+		echo "Set BASELINE to a run id: make eval-gate BASELINE=run-1754000000"; \
+		echo "List them with: vibecli --eval runs"; exit 2; }
+	$(CARGO) run --release -p vibecli -- --eval gate latest --baseline $(BASELINE)
+
+# ══════════════════════════════════════════════════════════════════════════════
 # AGGREGATE: Quality (type-check, lint, format)
 # ══════════════════════════════════════════════════════════════════════════════
 

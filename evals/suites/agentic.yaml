@@ -172,7 +172,7 @@ tasks:
     title: Complete a five-part task without dropping a step
     capability: long_horizon
     difficulty: hard
-    requires: [python3]
+    requires: [python3, make]
     tags: [python, offline, planning]
     prompt: |
       Set up this small project. All five items must be done:

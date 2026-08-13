@@ -381,6 +381,77 @@ pub fn is_git_repo(path: &Path) -> bool {
     Repository::open(path).is_ok()
 }
 
+/// The working root of the repository *containing* `path`, or `None` when
+/// `path` is not inside one.
+///
+/// This is deliberately not `is_git_repo`. That helper calls
+/// `Repository::open`, which only succeeds when `path` is *itself* the repo
+/// root, so it answers "no repo" for `src/` inside a perfectly ordinary
+/// checkout — the same trap already documented at `serve.rs::resolve_repo_root`
+/// after it left the Environment inspector and Review diff blank. Anything
+/// deciding whether a file is under version control must walk up, because that
+/// is what every other git tool does.
+///
+/// A file path is resolved from its parent directory, so callers can pass the
+/// path they just wrote without pre-trimming it. Linked worktrees resolve to
+/// their own root (git2's `workdir`), matching `rev-parse --show-toplevel`.
+/// Bare repositories have no working tree and yield `None`.
+pub fn discover_repo_root(path: &Path) -> Option<std::path::PathBuf> {
+    let start = if path.is_file() { path.parent()? } else { path };
+    let repo = Repository::discover(start).ok()?;
+    repo.workdir().map(|w| w.to_path_buf())
+}
+
+/// Whether `path` lives inside a git working tree.
+pub fn is_inside_repo(path: &Path) -> bool {
+    discover_repo_root(path).is_some()
+}
+
+/// The user's home directory, canonicalised so it compares equal to a path
+/// that reached us through a symlink (`/var` → `/private/var` on macOS).
+fn home_dir() -> Option<std::path::PathBuf> {
+    std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .filter(|h| !h.is_empty())
+        .map(std::path::PathBuf::from)
+        .and_then(|h| h.canonicalize().ok())
+}
+
+/// Create a new repository at `dir` with `main` as the initial branch.
+///
+/// Refuses paths that would put a working tree around a user's entire home
+/// directory or filesystem root — an accidental `git init` there is tedious to
+/// notice and unpleasant to undo. Refuses as well when `dir` is already inside
+/// a repository, since a nested checkout shadows the outer one rather than
+/// adding anything.
+pub fn init_repo(dir: &Path) -> Result<std::path::PathBuf> {
+    if !dir.is_dir() {
+        anyhow::bail!("{} is not a directory", dir.display());
+    }
+    let canonical = dir.canonicalize()?;
+
+    if canonical.parent().is_none() {
+        anyhow::bail!("refusing to create a git repository at the filesystem root");
+    }
+    if home_dir().is_some_and(|home| home == canonical) {
+        anyhow::bail!("refusing to create a git repository over your entire home directory");
+    }
+    if let Some(existing) = discover_repo_root(&canonical) {
+        anyhow::bail!(
+            "{} is already inside the git repository at {}",
+            canonical.display(),
+            existing.display()
+        );
+    }
+
+    let mut opts = git2::RepositoryInitOptions::new();
+    opts.initial_head("main");
+    let repo = Repository::init_opts(&canonical, &opts)?;
+    repo.workdir()
+        .map(|w| w.to_path_buf())
+        .ok_or_else(|| anyhow::anyhow!("initialized repository has no working tree"))
+}
+
 pub fn get_current_branch(path: &Path) -> Result<String> {
     let repo = Repository::open(path)?;
     let head = repo.head()?;
@@ -1563,6 +1634,104 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let result = get_diff(dir.path(), "file.txt");
         assert!(result.is_err());
+    }
+
+    // ── Repo discovery + init ────────────────────────────────────────────────
+    //
+    // TempDir hands back /var/... on macOS, which is a symlink to /private/var,
+    // and git2 reports the resolved form — so every comparison here canonicalises
+    // both sides rather than trusting the path we were given.
+
+    #[test]
+    fn discover_repo_root_finds_the_enclosing_repo_from_a_subdirectory() {
+        let dir = TempDir::new().unwrap();
+        let root = init_repo(dir.path()).unwrap();
+        let nested = dir.path().join("src").join("deeply").join("nested");
+        std::fs::create_dir_all(&nested).unwrap();
+
+        // The regression this whole helper exists for: `is_git_repo` answers
+        // "no" here, which would make us offer to create a repo inside a repo.
+        assert!(!is_git_repo(&nested));
+        assert!(is_inside_repo(&nested));
+        assert_eq!(
+            discover_repo_root(&nested).unwrap().canonicalize().unwrap(),
+            root.canonicalize().unwrap()
+        );
+    }
+
+    #[test]
+    fn discover_repo_root_resolves_a_file_path_via_its_parent() {
+        let dir = TempDir::new().unwrap();
+        let root = init_repo(dir.path()).unwrap();
+        let sub = dir.path().join("src");
+        std::fs::create_dir_all(&sub).unwrap();
+        let file = sub.join("main.rs");
+        std::fs::write(&file, "fn main() {}").unwrap();
+
+        assert_eq!(
+            discover_repo_root(&file).unwrap().canonicalize().unwrap(),
+            root.canonicalize().unwrap()
+        );
+    }
+
+    #[test]
+    fn discover_repo_root_is_none_outside_any_repo() {
+        // A TempDir can sit under a directory that is itself in a repo on a
+        // developer machine, so assert against a path we know is not: discovery
+        // from the filesystem root has nowhere above it to find a .git.
+        assert!(discover_repo_root(Path::new("/")).is_none());
+    }
+
+    #[test]
+    fn discover_repo_root_is_none_for_a_nonexistent_path() {
+        assert!(discover_repo_root(Path::new("/nonexistent/xyz/abc")).is_none());
+    }
+
+    #[test]
+    fn init_repo_creates_a_working_tree_on_main() {
+        let dir = TempDir::new().unwrap();
+        let root = init_repo(dir.path()).unwrap();
+
+        assert!(dir.path().join(".git").exists());
+        assert_eq!(
+            root.canonicalize().unwrap(),
+            dir.path().canonicalize().unwrap()
+        );
+        // A fresh repo has no commits, so HEAD is unborn and `get_current_branch`
+        // cannot resolve it; read the symbolic target instead.
+        let repo = Repository::open(dir.path()).unwrap();
+        let head_ref = repo.find_reference("HEAD").unwrap();
+        assert_eq!(head_ref.symbolic_target(), Ok(Some("refs/heads/main")));
+    }
+
+    #[test]
+    fn init_repo_refuses_a_directory_already_inside_a_repo() {
+        let dir = TempDir::new().unwrap();
+        init_repo(dir.path()).unwrap();
+        let nested = dir.path().join("packages").join("app");
+        std::fs::create_dir_all(&nested).unwrap();
+
+        let err = init_repo(&nested).unwrap_err().to_string();
+        assert!(
+            err.contains("already inside the git repository"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn init_repo_refuses_a_path_that_is_not_a_directory() {
+        let dir = TempDir::new().unwrap();
+        let file = dir.path().join("notes.txt");
+        std::fs::write(&file, "hi").unwrap();
+
+        let err = init_repo(&file).unwrap_err().to_string();
+        assert!(err.contains("not a directory"), "unexpected error: {err}");
+    }
+
+    #[test]
+    fn init_repo_refuses_the_filesystem_root() {
+        let err = init_repo(Path::new("/")).unwrap_err().to_string();
+        assert!(err.contains("filesystem root"), "unexpected error: {err}");
     }
 }
 

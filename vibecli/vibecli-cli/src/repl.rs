@@ -902,11 +902,109 @@ impl Highlighter for VibeHelper {
 
 impl Helper for VibeHelper {}
 
+// ── Execute blocks ────────────────────────────────────────────────────────────
+
+/// Commands the model asked to run, in the order it asked.
+///
+/// Chat mode's system prompt tells the model: "If the user asks you to run a
+/// command, output it in a ```execute block." Nothing read those blocks, so a
+/// turn that needed one ended right there — the command was printed as a pretty
+/// box and the prompt came back, with the task untouched. This is the reader
+/// that closes the protocol.
+///
+/// Strictly ```execute. ```bash and ```sh are how a model *illustrates* a
+/// command ("you would run `rm -rf build`"), and running those would execute
+/// things nobody asked for.
+pub fn extract_execute_blocks(response: &str) -> Vec<String> {
+    let mut blocks = Vec::new();
+    let mut current: Option<String> = None;
+
+    for line in response.lines() {
+        let trimmed = line.trim_start();
+        match current {
+            // Any closing fence ends the block; models are not consistent about
+            // whether the closer carries the language tag.
+            Some(ref mut body) if trimmed.starts_with("```") => {
+                let cmd = body.trim().to_string();
+                if !cmd.is_empty() {
+                    blocks.push(cmd);
+                }
+                current = None;
+            }
+            Some(ref mut body) => {
+                body.push_str(line);
+                body.push('\n');
+            }
+            None if is_execute_fence(trimmed) => current = Some(String::new()),
+            None => {}
+        }
+    }
+
+    // An unterminated block is a truncated response, not a command to run.
+    blocks
+}
+
+/// True for the opening fence of an execute block: ```execute, optionally with
+/// trailing words some models add (```execute bash).
+fn is_execute_fence(trimmed_line: &str) -> bool {
+    trimmed_line
+        .strip_prefix("```")
+        .map(str::trim)
+        .and_then(|rest| rest.split_whitespace().next())
+        .is_some_and(|tag| tag.eq_ignore_ascii_case("execute"))
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── extract_execute_blocks ────────────────────────────────────────────
+
+    #[test]
+    fn extract_execute_blocks_reads_the_shape_the_prompt_asks_for() {
+        let response = "<thinking>Let me look.</thinking>\nI'll check the folder.\n\
+                        ```execute\nls -la\n```\n";
+        assert_eq!(extract_execute_blocks(response), vec!["ls -la"]);
+    }
+
+    #[test]
+    fn extract_execute_blocks_keeps_every_block_and_multi_line_commands() {
+        let response = "```execute\ncd src && ls\n```\nthen\n```execute\ngit status\n\
+                        git log --oneline -3\n```";
+        assert_eq!(
+            extract_execute_blocks(response),
+            vec!["cd src && ls", "git status\ngit log --oneline -3"]
+        );
+    }
+
+    /// ```bash is how a model *illustrates* a command. Running it would execute
+    /// things the user never agreed to, so only ```execute counts.
+    #[test]
+    fn extract_execute_blocks_ignores_illustrative_fences() {
+        let response = "You could run:\n```bash\nrm -rf build\n```\n```sh\nmake\n```";
+        assert!(extract_execute_blocks(response).is_empty());
+    }
+
+    #[test]
+    fn extract_execute_blocks_tolerates_a_language_suffix_and_indentation() {
+        let response = "  ```execute bash\n  echo hi\n  ```";
+        assert_eq!(extract_execute_blocks(response), vec!["echo hi"]);
+    }
+
+    /// A response cut off mid-block has no complete command in it. Running the
+    /// partial text is how `find . -name '*.rs' -delete` loses its predicate.
+    #[test]
+    fn extract_execute_blocks_drops_an_unterminated_block() {
+        assert!(extract_execute_blocks("```execute\nls -la\n").is_empty());
+    }
+
+    #[test]
+    fn extract_execute_blocks_skips_empty_blocks() {
+        assert!(extract_execute_blocks("```execute\n\n```").is_empty());
+        assert!(extract_execute_blocks("no commands here").is_empty());
+    }
 
     #[test]
     fn test_root_command_completion() {

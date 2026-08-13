@@ -222,6 +222,7 @@ mod plugin_install;
 // B2.5 — runtime view: per-policy filtered component enumeration.
 mod ci;
 mod context_assembler;
+mod eval_cmd;
 mod mcp_server;
 // Named by `serve::well_known_mcp`, which compiles into the binary too.
 mod mcp_well_known;
@@ -902,87 +903,51 @@ fn run_compliance_command(args: &[String]) {
 
 // ── --benchmark handler ───────────────────────────────────────────────────────
 
-fn run_benchmark_command(args: &[String]) {
-    use swe_bench::{BenchmarkConfig, BenchmarkRunner, BenchmarkSuite};
+/// `--benchmark` is a thin alias over `--eval`.
+///
+/// It used to be a shell: `run` minted a run id and executed nothing, and
+/// `results` built a fresh in-memory runner so it could never find the run it
+/// had just been given. Both printed confidently. Everything now routes to the
+/// real harness in `vibe-eval`, and the one thing this wrapper still does on
+/// its own is tell the caller which name to use.
+async fn run_benchmark_command(args: &[String]) {
+    eprintln!("Note: `--benchmark` is an alias for `--eval`; prefer that going forward.\n");
 
-    let get_flag = |flag: &str| -> Option<String> {
-        let mut it = args.iter().peekable();
-        while let Some(a) = it.next() {
-            if a == flag {
-                return it.next().cloned();
-            }
-            if let Some(v) = a.strip_prefix(&format!("{}=", flag)) {
-                return Some(v.to_string());
-            }
-        }
-        None
-    };
     let positionals: Vec<&str> = args
         .iter()
         .filter(|a| !a.starts_with('-'))
         .map(String::as_str)
         .collect();
-    let subcmd = positionals.first().copied().unwrap_or("list");
 
-    match subcmd {
-        "run" => {
-            let suite_str = get_flag("--suite").unwrap_or_else(|| "lite".to_string());
-            let provider = get_flag("--provider").unwrap_or_else(|| "claude".to_string());
-            let model = get_flag("--model");
-            let suite = match suite_str.as_str() {
-                "verified" => BenchmarkSuite::SWEBenchVerified,
-                "full" | "lite" => BenchmarkSuite::SWEBenchLite,
-                other => BenchmarkSuite::Custom(other.to_string()),
-            };
-            let model_str = model.unwrap_or_else(|| match provider.as_str() {
-                "openai" => "gpt-4o".to_string(),
-                "claude" => "claude-opus-4-6".to_string(),
-                _ => "default".to_string(),
-            });
-            let mut runner = BenchmarkRunner::new();
-            let config = BenchmarkConfig {
-                max_turns: 10,
-                timeout_per_task_secs: 300,
-                parallel_tasks: 4,
-                model: model_str.clone(),
-                provider: provider.clone(),
-            };
-            let run_id = runner.create_run(suite, config);
-            println!("Benchmark run started:");
-            println!("  Run ID   : {}", run_id);
-            println!("  Suite    : {}", suite_str);
-            println!("  Provider : {}", provider);
-            println!("  Model    : {}", model_str);
-            println!();
-            println!("  Note: full execution requires live provider API keys.");
-            println!(
-                "  Use 'vibecli --benchmark results {}' to view results.",
-                run_id
-            );
-        }
-        "list" => {
-            println!("Available benchmark suites:");
-            println!("  lite      — 300 tasks, curated subset");
-            println!("  verified  — 500 tasks, human-verified solutions");
-            println!("  full      — 2,294 tasks, complete SWE-bench dataset");
-        }
+    // The old vocabulary mapped onto the new one. `results` is `report`, and
+    // the SWE-bench suite names are dataset ids now — they are fetched and
+    // imported rather than shipped, because the data is not ours to vendor.
+    let forwarded: Vec<String> = match positionals.first().copied().unwrap_or("list") {
         "results" => {
-            let run_id = positionals.get(1).copied().unwrap_or("(none)");
-            let runner = BenchmarkRunner::new();
-            if let Some(report) = runner.get_report(run_id) {
-                println!("{}", BenchmarkRunner::export_report_markdown(&report));
-            } else {
-                println!("No results found for run: {}", run_id);
+            let mut v = vec!["report".to_string()];
+            if let Some(id) = positionals.get(1) {
+                v.push((*id).to_string());
             }
+            v
+        }
+        "list" => vec!["list".to_string()],
+        "run" => {
+            let mut v = vec!["run".to_string()];
+            v.extend(args.iter().skip(1).cloned());
+            v
         }
         other => {
             eprintln!(
-                "Unknown --benchmark subcommand '{}'. Available: run, list, results",
+                "Unknown --benchmark subcommand '{}'. Available: run, list, results.\n\
+                 The full command set is `vibecli --eval help`.",
                 other
             );
-            std::process::exit(1);
+            safe_exit(2);
         }
-    }
+    };
+
+    let code = eval_cmd::run_eval_command(&forwarded, "ollama", None).await;
+    safe_exit(code);
 }
 
 // ── --batch handler ───────────────────────────────────────────────────────────
@@ -3796,8 +3761,14 @@ async fn main() -> Result<()> {
                 run_compliance_command(&argv[1..]);
                 return Ok(());
             }
+            Some("--eval") => {
+                // The provider default matches the main Cli's (`ollama`, the
+                // zero-config path); `--eval run --provider X` overrides it.
+                let code = eval_cmd::run_eval_command(&argv[1..], "ollama", None).await;
+                safe_exit(code);
+            }
             Some("--benchmark") => {
-                run_benchmark_command(&argv[1..]);
+                run_benchmark_command(&argv[1..]).await;
                 return Ok(());
             }
             Some("--batch") => {
@@ -18049,37 +18020,105 @@ async fn main() -> Result<()> {
                         role: MessageRole::User,
                         content: full_content,
                     });
-                    // Collect full response then render with markdown highlighting
-                    let chat_result = if images.is_empty() {
-                        llm.chat(&messages, None).await
-                    } else {
-                        println!(
-                            "({} image{})",
-                            images.len(),
-                            if images.len() > 1 { "s" } else { "" }
-                        );
-                        llm.chat_with_images(&messages, &images, None).await
-                    };
-                    match chat_result {
-                        Ok(full_response) => {
-                            if !full_response.is_empty() {
-                                let rendered = if full_response.contains("```mermaid") {
-                                    let mermaid =
-                                        mermaid_ascii::render_mermaid_blocks(&full_response);
-                                    highlight_code_blocks(&mermaid)
-                                } else {
-                                    highlight_code_blocks(&full_response)
-                                };
-                                println!("{}", rendered);
+                    // The turn runs until the model stops asking for commands.
+                    //
+                    // The system prompt above defines an ```execute protocol and
+                    // nothing implemented the other half of it: a turn that
+                    // needed a command printed the command, ended, and returned
+                    // the prompt with the task untouched — "list what needs to
+                    // be done next in this folder" answered with `ls -la` and
+                    // nothing else. Each round now runs what the model asked
+                    // for, feeds the output back, and asks again.
+                    let mut round = 0usize;
+                    let mut approve_rest = false;
+                    let mut images_for_turn = images;
+                    loop {
+                        // Collect full response then render with markdown highlighting
+                        let chat_result = if images_for_turn.is_empty() {
+                            llm.chat(&messages, None).await
+                        } else {
+                            println!(
+                                "({} image{})",
+                                images_for_turn.len(),
+                                if images_for_turn.len() > 1 { "s" } else { "" }
+                            );
+                            llm.chat_with_images(&messages, &images_for_turn, None)
+                                .await
+                        };
+                        // Images belong to the user's own message, not to the
+                        // command-output turns that follow it.
+                        images_for_turn = Vec::new();
+
+                        let full_response = match chat_result {
+                            Ok(r) => r,
+                            Err(e) => {
+                                eprintln!("❌ Error: {:#}\n", e);
+                                break;
                             }
-                            if !full_response.is_empty() {
-                                messages.push(Message {
-                                    role: MessageRole::Assistant,
-                                    content: full_response,
-                                });
-                            }
+                        };
+
+                        if !full_response.is_empty() {
+                            let rendered = if full_response.contains("```mermaid") {
+                                let mermaid = mermaid_ascii::render_mermaid_blocks(&full_response);
+                                highlight_code_blocks(&mermaid)
+                            } else {
+                                highlight_code_blocks(&full_response)
+                            };
+                            println!("{}", rendered);
+                            messages.push(Message {
+                                role: MessageRole::Assistant,
+                                content: full_response.clone(),
+                            });
                         }
-                        Err(e) => eprintln!("❌ Error: {:#}\n", e),
+
+                        let commands = repl::extract_execute_blocks(&full_response);
+                        if commands.is_empty() {
+                            break;
+                        }
+                        round += 1;
+                        if round > CHAT_EXECUTE_MAX_ROUNDS {
+                            // Say which round it stopped on: a silent cap is
+                            // indistinguishable from the model finishing.
+                            println!(
+                                "  \x1b[33m⚠ Stopped after {CHAT_EXECUTE_MAX_ROUNDS} rounds of commands. \
+                                 Say \"continue\" to keep going.\x1b[0m"
+                            );
+                            break;
+                        }
+
+                        let mut fed_back = String::new();
+                        let mut answered = true;
+                        for command in &commands {
+                            let (approved, still_answering) =
+                                approve_chat_command(command, approve_rest)?;
+                            answered = still_answering;
+                            if !still_answering {
+                                // stdin is closed (piped input, or the user hit
+                                // ^D). Asking again would spin.
+                                break;
+                            }
+                            if approved == ChatApproval::All {
+                                approve_rest = true;
+                            }
+                            if approved == ChatApproval::No {
+                                fed_back
+                                    .push_str(&format!("The user declined to run: {command}\n\n"));
+                                continue;
+                            }
+                            fed_back.push_str(&run_chat_command(command));
+                        }
+                        if !answered {
+                            break;
+                        }
+
+                        messages.push(Message {
+                            role: MessageRole::User,
+                            content: format!(
+                                "Command output:\n\n{fed_back}\
+                                 Continue the task using this output. Run another ```execute \
+                                 block if you need more, or give your final answer."
+                            ),
+                        });
                     }
                 }
             }
@@ -18306,6 +18345,105 @@ fn parse_approval_answer(input: &str) -> ApprovalAnswer {
         "a" => ApprovalAnswer::ApproveAll,
         _ => ApprovalAnswer::ApproveOnce,
     }
+}
+
+/// How many command→output rounds one chat turn may take before handing the
+/// prompt back. A runaway guard only: a model that keeps asking for commands
+/// forever should not be able to loop the terminal.
+const CHAT_EXECUTE_MAX_ROUNDS: usize = 12;
+
+/// Output fed back to the model per command. Enough for a directory listing or
+/// a test run's tail; short enough that a `find /` cannot blow the context.
+const CHAT_EXECUTE_OUTPUT_LIMIT: usize = 8_000;
+
+/// The user's answer for one ```execute command.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ChatApproval {
+    No,
+    Once,
+    All,
+}
+
+/// Ask whether to run `command`.
+///
+/// Returns the answer and whether stdin is still answering: at EOF (piped
+/// input, or ^D) there is nobody to ask, and re-prompting would spin. The
+/// caller stops the turn rather than treating silence as consent.
+fn approve_chat_command(command: &str, approve_rest: bool) -> Result<(ChatApproval, bool)> {
+    if approve_rest {
+        return Ok((ChatApproval::All, true));
+    }
+    let require_approval = Config::load()
+        .map(|c| c.safety.require_approval_for_commands)
+        .unwrap_or(true);
+    if !require_approval {
+        return Ok((ChatApproval::Once, true));
+    }
+    print!("  Run: {command}? (Y/n/a=run all): ");
+    io::stdout().flush()?;
+    let mut answer = String::new();
+    if io::stdin().read_line(&mut answer)? == 0 {
+        println!();
+        println!("  \x1b[33m⚠ No answer available (stdin closed) — command not run.\x1b[0m");
+        return Ok((ChatApproval::No, false));
+    }
+    let approval = match parse_approval_answer(&answer) {
+        ApprovalAnswer::Reject => ChatApproval::No,
+        ApprovalAnswer::ApproveOnce => ChatApproval::Once,
+        ApprovalAnswer::ApproveAll => ChatApproval::All,
+    };
+    Ok((approval, true))
+}
+
+/// Run one ```execute command, print it as an output block, and return the text
+/// to feed back to the model.
+///
+/// Secrets are redacted before either happens — the output goes to a provider,
+/// so an API key echoed by `env` would otherwise leave the machine.
+fn run_chat_command(command: &str) -> String {
+    let cwd = std::env::current_dir().unwrap_or_default();
+    let start = std::time::Instant::now();
+    let output = std::process::Command::new("sh")
+        .arg("-c")
+        .arg(command)
+        .output();
+    let duration_ms = start.elapsed().as_millis() as u64;
+
+    let (exit_code, combined) = match output {
+        Ok(out) => (
+            out.status.code().unwrap_or(-1),
+            format!(
+                "{}{}",
+                String::from_utf8_lossy(&out.stdout),
+                String::from_utf8_lossy(&out.stderr)
+            ),
+        ),
+        // A command that could not start is a fact the model needs, not a
+        // silent skip: without it the next turn re-suggests the same command.
+        Err(e) => (-1, format!("could not run command: {e}")),
+    };
+
+    let redacted = warp_features::SecretRedactor::new().redact(&combined);
+    let block = warp_features::OutputBlock {
+        command: command.to_string(),
+        output: redacted.clone(),
+        exit_code,
+        duration_ms,
+        cwd: cwd.display().to_string(),
+        timestamp: warp_features::epoch_secs(),
+    };
+    // `format()` ends flush against the last output line, so the model's next
+    // turn would start on it.
+    println!("{}", block.format());
+    let _ = io::stdout().flush();
+
+    let clipped = if redacted.chars().count() > CHAT_EXECUTE_OUTPUT_LIMIT {
+        let head: String = redacted.chars().take(CHAT_EXECUTE_OUTPUT_LIMIT).collect();
+        format!("{head}\n…(output truncated)")
+    } else {
+        redacted
+    };
+    format!("$ {command}\n(exit {exit_code})\n{clipped}\n\n")
 }
 
 async fn run_agent_repl_with_context(
