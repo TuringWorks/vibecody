@@ -509,20 +509,29 @@ Whichever client you touch, the decoding boundary is the place to be total: **pa
 ### Panics: where the remaining debt is
 
 The lock-poisoning sweep is done crate-wide in `vibecli-cli` and `vibe-broker`.
-What is left, in rough priority order, if you are looking for work:
+**Counted, not estimated** (`#[cfg(test)]`, `tests/`, `benches/` excluded):
 
-- **`vibe-memory`, `vibe-extensions`, the sandbox backends** — never swept.
-- **The `push`-then-`.last().expect("just pushed")` family** (~40 sites). Use
+- **The sandbox backends and `vibe-extensions` are not a backlog** — 11 non-test
+  sites between them, and all but one are provably unreachable. The raw
+  whole-file counts look alarming (135 in `vibe-sandbox-firecracker`) because
+  ~92% are inside test modules. Count before you sweep.
+- **The one that matters is `vibe-extensions/src/loader.rs:273`** —
+  `results[0].unwrap_i32()` on an untyped `get_func("alloc")` call. An extension
+  exporting `alloc: (i32) -> f64` panics the *host*, which is precisely what a
+  WASM sandbox exists to prevent. Use `get_typed_func::<i32, i32>`.
+- **`push`-then-`.last().expect("just pushed")`** — 13 sites. Use
   `let i = v.len(); v.push(x); &v[i]`, or `entry(k).insert_entry(v).into_mut()`
   for the map version — one lookup instead of two, and total.
 - **`contains_key`-then-`get().expect()`** — use the `Entry` API.
-- **Wall-clock `duration_since(UNIX_EPOCH).unwrap()`** — panics on a host whose
-  clock reads pre-1970, which is routine in containers without clock sync. Use
-  `.unwrap_or_default()`.
+- **Wall-clock `duration_since(UNIX_EPOCH).unwrap()`: zero occurrences.** This
+  was listed here as debt on the strength of a survey rather than a grep, and it
+  was wrong — every call site already uses `unwrap_or_default`. Left recorded so
+  nobody goes looking for it again.
 
 Regexes built with `format!` from consts are safe but are recompiled on every
-call unless they are in a `LazyLock` — `vibe-ai/src/tools.rs` compiles ~28 of
-them per `parse_element_calls`, which runs on every streamed chunk.
+call unless they are in a `LazyLock`. That has been swept in `vibe-ai/tools.rs`,
+`vibe-core/index/symbol.rs`, `knowledge_graph.rs` and `agent_stream_filter.rs`;
+`grep -rn 'Regex::new' --include='*.rs' | grep -v static` before adding one.
 | String built by `+=` in a loop | `push_str` into one buffer, or `join` / `format!` | speed |
 | `useState` mirror kept in sync via `useEffect` | derive with `useMemo` | fewer renders, no drift |
 | `any` on a boundary type | `unknown` + a narrowing type guard | safety |
