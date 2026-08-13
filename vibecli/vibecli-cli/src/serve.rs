@@ -2973,26 +2973,20 @@ struct VibedeskScopeQuery {
 /// upward discovery, so a perfectly ordinary choice — picking a subfolder in
 /// the "New project" folder picker — reported "no repo" and left the
 /// Environment inspector, Review diff and Files list all empty. Every other git
-/// tool walks up to the enclosing repo; so do we. `rev-parse --show-toplevel`
-/// is used rather than opening the path directly because it resolves linked
-/// worktrees to their own root, which is exactly what a task worktree needs.
-/// Falls back to the resolved path when it isn't inside a repo at all.
+/// tool walks up to the enclosing repo; so do we. Discovery also resolves
+/// linked worktrees to their own root, which is exactly what a task worktree
+/// needs. Falls back to the resolved path when it isn't inside a repo at all.
+///
+/// The walk itself lives in `vibe_core::git::discover_repo_root`; this only
+/// adds the "which directory do we start from" policy. It used to shell out to
+/// `rev-parse --show-toplevel` here, one of three hand-rolled copies of the
+/// same walk — `vibe_core` tests pin the two against each other.
 fn resolve_repo_root(
     requested: Option<&str>,
     default_root: &std::path::Path,
 ) -> std::path::PathBuf {
     let start = resolve_run_root(requested, default_root);
-    std::process::Command::new("git")
-        .arg("-C")
-        .arg(&start)
-        .args(["rev-parse", "--show-toplevel"])
-        .output()
-        .ok()
-        .filter(|o| o.status.success())
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .filter(|s| !s.is_empty())
-        .map(std::path::PathBuf::from)
-        .unwrap_or(start)
+    vibe_core::git::discover_repo_root(&start).unwrap_or(start)
 }
 
 /// GET /api/vibedesk/git/status — branch + changed files for the Environment

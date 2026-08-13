@@ -1,0 +1,9 @@
+[package]
+name = "vibe-sync-ext"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Poison-tolerant Mutex/RwLock guards for VibeCody. Deliberately dependency-free so leaf crates (sandbox backends, the egress broker) can use it without pulling in the daemon tree."
+
+[dependencies]

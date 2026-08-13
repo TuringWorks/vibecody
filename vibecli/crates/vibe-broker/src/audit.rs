@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
+use vibe_sync_ext::LockRecover;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -108,27 +109,27 @@ impl MemoryAuditSink {
 
     /// Snapshot the recorded events. Cheap clone of the inner Vec.
     pub fn events(&self) -> Vec<AuditEvent> {
-        self.events.lock().unwrap().clone()
+        self.events.lock_recover().clone()
     }
 
     /// Number of events recorded so far.
     pub fn len(&self) -> usize {
-        self.events.lock().unwrap().len()
+        self.events.lock_recover().len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.events.lock().unwrap().is_empty()
+        self.events.lock_recover().is_empty()
     }
 
     /// Drop everything. Useful between scenarios in BDD World structs.
     pub fn clear(&self) {
-        self.events.lock().unwrap().clear();
+        self.events.lock_recover().clear();
     }
 }
 
 impl AuditSink for MemoryAuditSink {
     fn record(&self, event: AuditEvent) {
-        self.events.lock().unwrap().push(event);
+        self.events.lock_recover().push(event);
     }
 }
 

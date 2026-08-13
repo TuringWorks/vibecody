@@ -12,7 +12,7 @@ use crate::tools::{
     format_tool_result, parse_tool_calls, strip_thinking, unparsed_tool_call_name, ToolCall,
     ToolResult, AVAILABLE_TOOL_NAMES, TOOL_SYSTEM_PROMPT,
 };
-use crate::trace::DecisionWriter;
+use crate::trace::{DecisionWriter, TraceWriter};
 use anyhow::Result;
 use async_trait::async_trait;
 use futures::StreamExt;
@@ -832,6 +832,18 @@ pub struct AgentLoop {
     pub decision_tracing_enabled: bool,
     /// Writer for decision tracing logs (initialized in run_inner).
     pub decision_writer: Option<DecisionWriter>,
+    /// Where to checkpoint the conversation when context pressure builds.
+    ///
+    /// Compaction and the successor hand-off both destroy history that is not
+    /// recoverable afterwards: `prune_middle` replaces the middle of the
+    /// conversation with a summary, and a hand-off clears it outright. Until
+    /// this existed the only writes were an explicit `/fork` and the end of a
+    /// run, so a session that was compacted, retired, killed, or that blew its
+    /// budget lost the record of what it had done — including runs that had
+    /// finished the work and simply not stopped.
+    pub context_writer: Option<Arc<TraceWriter>>,
+    /// Fraction of `max_context_tokens` at which a checkpoint is written.
+    pub checkpoint_at: f64,
     /// Retry configuration for transient API errors.
     pub retry_config: RetryConfig,
     /// How many times the step budget may be extended when the agent runs out
@@ -889,6 +901,11 @@ impl AgentLoop {
             atomic_commits: false,
             decision_tracing_enabled: false,
             decision_writer: None,
+            context_writer: None,
+            // Early enough to run before `prune_middle` has anything to drop
+            // (it starts trimming at 100%), late enough not to write on every
+            // short task.
+            checkpoint_at: 0.8,
             retry_config: RetryConfig::default(),
             max_step_extensions: 3,
         }
@@ -956,6 +973,21 @@ impl AgentLoop {
     /// Enable or disable decision tracing for audit/debugging.
     pub fn with_decision_tracing(mut self, enabled: bool) -> Self {
         self.decision_tracing_enabled = enabled;
+        self
+    }
+
+    /// Checkpoint the conversation to `writer` when context pressure builds,
+    /// and before any hand-off retires it.
+    pub fn with_context_writer(mut self, writer: Arc<TraceWriter>) -> Self {
+        self.context_writer = Some(writer);
+        self
+    }
+
+    /// Fraction of the context budget at which a checkpoint is written.
+    /// Clamped to `0.1..=1.0`; values outside that would either checkpoint on
+    /// every step or never checkpoint before compaction destroys the history.
+    pub fn with_checkpoint_at(mut self, fraction: f64) -> Self {
+        self.checkpoint_at = fraction.clamp(0.1, 1.0);
         self
     }
 
@@ -1093,6 +1125,9 @@ impl AgentLoop {
         let mut step_budget = self.max_steps;
         let mut extensions_used = 0usize;
         let mut next_step = 0usize;
+        // Highest usage already checkpointed, so a conversation hovering above
+        // the threshold writes once rather than on every step.
+        let mut last_checkpoint_tokens = 0usize;
         // Step index of the last successful tool call — the progress signal
         // that gates an extension.
         let mut last_progress_step = 0usize;
@@ -1143,7 +1178,39 @@ impl AgentLoop {
             // Default budget: 200 000 tokens (~800 KB of text), overridable via
             // AgentLoop::with_context_limit().
             let message_count_before = messages.len();
-            prune_messages(&mut messages, self.max_context_tokens.unwrap_or(200_000));
+            let context_budget = self.max_context_tokens.unwrap_or(200_000);
+
+            // Checkpoint *before* pruning. `prune_middle` replaces the middle
+            // of the conversation with a summary, so anything not written by
+            // now is gone for good — and the whole point of a checkpoint is to
+            // survive the thing that is about to destroy it.
+            if let Some(writer) = &self.context_writer {
+                let used = estimate_tokens(&messages);
+                if used as f64 >= context_budget as f64 * self.checkpoint_at
+                    && used > last_checkpoint_tokens
+                {
+                    match writer.save_messages(&messages) {
+                        Ok(()) => {
+                            last_checkpoint_tokens = used;
+                            tracing::info!(
+                                used,
+                                budget = context_budget,
+                                session = writer.session_id(),
+                                "Context checkpoint written — the session is resumable from here",
+                            );
+                        }
+                        // Best-effort, but never silent: a checkpoint nobody
+                        // knows failed is discovered as a resume that restores
+                        // nothing, long after the context is unrecoverable.
+                        Err(e) => tracing::warn!(
+                            error = %e,
+                            "Could not checkpoint the conversation; this session may not be resumable"
+                        ),
+                    }
+                }
+            }
+
+            prune_messages(&mut messages, context_budget);
             let message_count_after = messages.len();
             let messages_pruned = message_count_before.saturating_sub(message_count_after);
 
@@ -2419,6 +2486,20 @@ impl AgentLoop {
                         // cannot act on either.
                         let brief = handoff_brief(task, &messages);
                         let retired_tokens = estimate_tokens(&messages);
+
+                        // The retired context is about to be cleared. It holds
+                        // everything the predecessor actually did, and the
+                        // brief handed forward is deliberately thin — six
+                        // turns and the goal. Writing it here is the only
+                        // chance to keep the rest.
+                        if let Some(writer) = &self.context_writer {
+                            if let Err(e) = writer.save_messages(&messages) {
+                                tracing::warn!(
+                                    error = %e,
+                                    "Could not save the retired context before hand-off"
+                                );
+                            }
+                        }
 
                         // A successor is a genuinely fresh context: the system
                         // prompt and the brief, nothing else. Carrying any of
@@ -3875,6 +3956,100 @@ mod circuit_breaker_tests {
             .with_circuit_breaker(false);
         assert_eq!(agent.max_context_tokens, Some(50_000));
         assert!(!agent.circuit_breaker_enabled);
+    }
+
+    #[test]
+    fn checkpointing_is_off_until_a_writer_is_given() {
+        // A default AgentLoop must not start writing session transcripts to
+        // disk just because it was constructed — callers opt in.
+        let provider: Arc<dyn crate::provider::AIProvider> =
+            Arc::new(crate::providers::ollama::OllamaProvider::new(
+                crate::provider::ProviderConfig::default(),
+            ));
+        let exec: Arc<dyn ToolExecutorTrait> = Arc::new(DummyExecutor);
+        let agent = AgentLoop::new(provider, ApprovalPolicy::Suggest, exec);
+        assert!(agent.context_writer.is_none());
+        assert_eq!(agent.checkpoint_at, 0.8);
+    }
+
+    #[test]
+    fn the_checkpoint_threshold_is_clamped_to_something_useful() {
+        let provider: Arc<dyn crate::provider::AIProvider> =
+            Arc::new(crate::providers::ollama::OllamaProvider::new(
+                crate::provider::ProviderConfig::default(),
+            ));
+        let exec: Arc<dyn ToolExecutorTrait> = Arc::new(DummyExecutor);
+        let mk = |f: f64| {
+            AgentLoop::new(
+                Arc::clone(&provider),
+                ApprovalPolicy::Suggest,
+                Arc::clone(&exec),
+            )
+            .with_checkpoint_at(f)
+            .checkpoint_at
+        };
+        // 0.0 would checkpoint on every step; 5.0 would never checkpoint
+        // before compaction had already destroyed the history.
+        assert_eq!(mk(0.0), 0.1);
+        assert_eq!(mk(5.0), 1.0);
+        assert_eq!(mk(0.5), 0.5);
+    }
+
+    #[test]
+    fn a_checkpoint_is_written_before_compaction_can_destroy_history() {
+        // The ordering is the whole feature: `prune_middle` replaces the
+        // middle of the conversation with a summary, so a checkpoint taken
+        // afterwards preserves the summary rather than the work.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let writer = TraceWriter::new(dir.path().to_path_buf());
+        let session = writer.session_id().to_string();
+
+        // A history well past a small budget, with a distinctive middle that
+        // compaction would drop.
+        let mut messages = vec![
+            Message {
+                role: MessageRole::System,
+                content: "system".to_string(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: "the original task".to_string(),
+            },
+        ];
+        for i in 0..40 {
+            messages.push(Message {
+                role: MessageRole::Assistant,
+                content: format!("step {i} detail {}", "x".repeat(400)),
+            });
+        }
+
+        writer.save_messages(&messages).expect("checkpoint");
+        let before = messages.len();
+        prune_messages(&mut messages, 1_000);
+        assert!(
+            messages.len() < before,
+            "the fixture must actually be over budget for this test to mean anything"
+        );
+
+        // Loaded back through `load_session` — the same path `--resume` uses.
+        // Asserting on the raw file would pass even if resume could not reach
+        // it, and `load_session` returns None without a trace alongside, so a
+        // checkpoint is only useful once the run has recorded a step.
+        writer.record(0, "read_file", "read_file(a.rs)", "ok", true, 1, "auto");
+        let snapshot = crate::trace::load_session(&session, dir.path())
+            .expect("the checkpoint must be reachable through the resume path");
+        assert_eq!(
+            snapshot.messages.len(),
+            before,
+            "the checkpoint holds the pre-compaction history, not the pruned one"
+        );
+        assert!(
+            snapshot
+                .messages
+                .iter()
+                .any(|m| m.content.contains("step 7 ")),
+            "a message compaction would have dropped must survive in the checkpoint"
+        );
     }
 
     #[test]

@@ -9,6 +9,7 @@
 
 use std::collections::HashMap;
 use std::sync::RwLock;
+use vibe_sync_ext::RwLockRecover;
 
 use crate::policy::SecretRef;
 
@@ -70,19 +71,19 @@ impl InMemorySecretStore {
     }
 
     pub fn set(&self, key: impl Into<String>, value: impl Into<String>) {
-        self.map.write().unwrap().insert(key.into(), value.into());
+        self.map.write_recover().insert(key.into(), value.into());
     }
 
     pub fn set_aws(&self, key: impl Into<String>, creds: AwsCredentials) {
-        self.aws.write().unwrap().insert(key.into(), creds);
+        self.aws.write_recover().insert(key.into(), creds);
     }
 
     pub fn set_gcp(&self, key: impl Into<String>, token: GcpAccessToken) {
-        self.gcp.write().unwrap().insert(key.into(), token);
+        self.gcp.write_recover().insert(key.into(), token);
     }
 
     pub fn set_azure(&self, key: impl Into<String>, token: AzureAccessToken) {
-        self.azure.write().unwrap().insert(key.into(), token);
+        self.azure.write_recover().insert(key.into(), token);
     }
 
     pub fn from_pairs<I, K, V>(pairs: I) -> Self
@@ -101,19 +102,19 @@ impl InMemorySecretStore {
 
 impl SecretStore for InMemorySecretStore {
     fn resolve(&self, secret: &SecretRef) -> Option<String> {
-        self.map.read().unwrap().get(&secret.0).cloned()
+        self.map.read_recover().get(&secret.0).cloned()
     }
 
     fn resolve_aws(&self, secret: &SecretRef) -> Option<AwsCredentials> {
-        self.aws.read().unwrap().get(&secret.0).cloned()
+        self.aws.read_recover().get(&secret.0).cloned()
     }
 
     fn resolve_gcp(&self, secret: &SecretRef) -> Option<GcpAccessToken> {
-        self.gcp.read().unwrap().get(&secret.0).cloned()
+        self.gcp.read_recover().get(&secret.0).cloned()
     }
 
     fn resolve_azure(&self, secret: &SecretRef) -> Option<AzureAccessToken> {
-        self.azure.read().unwrap().get(&secret.0).cloned()
+        self.azure.read_recover().get(&secret.0).cloned()
     }
 }
 

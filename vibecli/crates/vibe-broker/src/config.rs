@@ -115,10 +115,19 @@ pub struct GcpProfile {
     pub endpoint: Option<String>,
 }
 
+/// Which socket the broker will bind, carrying the address it needs.
+///
+/// The variants carry their value rather than being bare tags. As tags, the
+/// kind was inferred with `if listen_tcp.is_some() { Tcp } else { Uds }` —
+/// which returns `Uds` whenever TCP is unset, *without checking `listen_uds`
+/// is set at all*. The caller then unwrapped it. `validate()` rejects that
+/// combination, but only on the file-load path, so any `BrokerConfig` built as
+/// a struct literal or via `Default` panicked at daemon startup. Carrying the
+/// value makes the empty case unrepresentable instead of merely documented.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ListenerKind {
-    Tcp,
-    Uds,
+pub enum ListenerKind<'a> {
+    Tcp(&'a str),
+    Uds(&'a std::path::Path),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -143,39 +152,38 @@ impl BrokerConfig {
         Self::from_toml_str(&text)
     }
 
-    /// Inspect the listener configuration. The validator already
-    /// guarantees exactly one of TCP / UDS is set, so unwrapping is
-    /// safe in production.
-    pub fn listener_kind(&self) -> ListenerKind {
-        if self.broker.listen_tcp.is_some() {
-            ListenerKind::Tcp
-        } else {
-            ListenerKind::Uds
-        }
-    }
-
-    pub fn listener_address(&self) -> String {
-        if let Some(addr) = &self.broker.listen_tcp {
-            addr.clone()
-        } else if let Some(path) = &self.broker.listen_uds {
-            path.to_string_lossy().into_owned()
-        } else {
-            String::new()
-        }
-    }
-
-    fn validate(&self) -> Result<(), ConfigError> {
-        let has_tcp = self.broker.listen_tcp.is_some();
-        let has_uds = self.broker.listen_uds.is_some();
-        match (has_tcp, has_uds) {
-            (true, true) => Err(ConfigError::Invalid(
+    /// Which listener to bind, together with its address.
+    ///
+    /// Fallible because "exactly one of TCP / UDS" is a property of the
+    /// *config*, not of the type, and a config can reach here without passing
+    /// through `from_toml_str`. Returning the address with the variant means
+    /// the caller has nothing left to unwrap.
+    pub fn listener_kind(&self) -> Result<ListenerKind<'_>, ConfigError> {
+        match (&self.broker.listen_tcp, &self.broker.listen_uds) {
+            (Some(addr), None) => Ok(ListenerKind::Tcp(addr)),
+            (None, Some(path)) => Ok(ListenerKind::Uds(path)),
+            (Some(_), Some(_)) => Err(ConfigError::Invalid(
                 "specify exactly one of broker.listen_tcp or broker.listen_uds".into(),
             )),
-            (false, false) => Err(ConfigError::Invalid(
+            (None, None) => Err(ConfigError::Invalid(
                 "broker.listen_tcp or broker.listen_uds must be set".into(),
             )),
-            _ => Ok(()),
         }
+    }
+
+    /// The configured listener address, or empty when the config names none.
+    pub fn listener_address(&self) -> String {
+        match self.listener_kind() {
+            Ok(ListenerKind::Tcp(addr)) => addr.to_string(),
+            Ok(ListenerKind::Uds(path)) => path.to_string_lossy().into_owned(),
+            Err(_) => String::new(),
+        }
+    }
+
+    /// Validation is now exactly "can we name a listener?", so the rule lives
+    /// in one place instead of being duplicated here and in `listener_kind`.
+    fn validate(&self) -> Result<(), ConfigError> {
+        self.listener_kind().map(|_| ())
     }
 }
 
@@ -191,7 +199,10 @@ listen_tcp = "127.0.0.1:8080"
 policy_id = "skill:test"
 "#;
         let cfg = BrokerConfig::from_toml_str(toml).unwrap();
-        assert_eq!(cfg.listener_kind(), ListenerKind::Tcp);
+        assert_eq!(
+            cfg.listener_kind().unwrap(),
+            ListenerKind::Tcp("127.0.0.1:8080")
+        );
         assert_eq!(cfg.listener_address(), "127.0.0.1:8080");
         assert_eq!(cfg.broker.policy_id, "skill:test");
     }
@@ -203,7 +214,10 @@ policy_id = "skill:test"
 listen_uds = "/run/vibe-broker.sock"
 "#;
         let cfg = BrokerConfig::from_toml_str(toml).unwrap();
-        assert_eq!(cfg.listener_kind(), ListenerKind::Uds);
+        assert_eq!(
+            cfg.listener_kind().unwrap(),
+            ListenerKind::Uds(std::path::Path::new("/run/vibe-broker.sock"))
+        );
         assert_eq!(cfg.listener_address(), "/run/vibe-broker.sock");
         assert_eq!(cfg.broker.policy_id, "broker");
     }
@@ -227,6 +241,33 @@ policy_id = "x"
 "#;
         let err = BrokerConfig::from_toml_str(toml).unwrap_err();
         assert!(matches!(err, ConfigError::Invalid(_)));
+    }
+
+    /// The hole that made `listener_kind` fallible. A config that never went
+    /// through `from_toml_str` — a struct literal in a caller, or `Default` —
+    /// skips `validate`, and the old bare-tag version answered `Uds` for this
+    /// purely because TCP was unset. The daemon then unwrapped `listen_uds`
+    /// and panicked at startup. It must be an error, not a variant.
+    #[test]
+    fn a_config_naming_no_listener_is_an_error_even_without_validate() {
+        let cfg = BrokerConfig {
+            broker: BrokerSection {
+                listen_tcp: None,
+                listen_uds: None,
+                policy_id: "x".into(),
+                tls_ca_dir: None,
+                forward_upstream: false,
+                audit: None,
+                imds: None,
+            },
+            policy: PolicySection::default(),
+            refresher: None,
+            azure: Vec::new(),
+            gcp: Vec::new(),
+        };
+
+        assert!(matches!(cfg.listener_kind(), Err(ConfigError::Invalid(_))));
+        assert_eq!(cfg.listener_address(), "");
     }
 
     #[test]
@@ -262,7 +303,7 @@ private_key_pem_path = "/etc/vibe/gcp-key.pem"
 scope = "https://www.googleapis.com/auth/cloud-platform"
 "#;
         let cfg = BrokerConfig::from_toml_str(toml).unwrap();
-        assert_eq!(cfg.listener_kind(), ListenerKind::Uds);
+        assert!(matches!(cfg.listener_kind(), Ok(ListenerKind::Uds(_))));
         assert_eq!(
             cfg.broker.tls_ca_dir.as_deref(),
             Some(std::path::Path::new("/var/run/vibe-ca"))

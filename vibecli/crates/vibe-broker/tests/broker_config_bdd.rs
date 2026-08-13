@@ -92,8 +92,9 @@ fn cfg(world: &CWorld) -> &BrokerConfig {
 #[then(expr = "the parsed listener kind is {string}")]
 fn listener_kind(world: &mut CWorld, expected: String) {
     let actual = match cfg(world).listener_kind() {
-        vibe_broker::ListenerKind::Tcp => "tcp",
-        vibe_broker::ListenerKind::Uds => "uds",
+        Ok(vibe_broker::ListenerKind::Tcp(_)) => "tcp",
+        Ok(vibe_broker::ListenerKind::Uds(_)) => "uds",
+        Err(e) => panic!("config names no listener: {e}"),
     };
     assert_eq!(actual, expected);
 }

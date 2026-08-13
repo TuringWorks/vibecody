@@ -21,6 +21,7 @@ use rcgen::{
     KeyPair, KeyUsagePurpose, SerialNumber,
 };
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
+use vibe_sync_ext::LockRecover;
 
 #[derive(Debug, thiserror::Error)]
 pub enum TlsError {
@@ -64,7 +65,7 @@ pub struct BrokerCa {
 impl std::fmt::Debug for BrokerCa {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BrokerCa")
-            .field("cached_origins", &self.leaf_cache.lock().unwrap().len())
+            .field("cached_origins", &self.leaf_cache.lock_recover().len())
             .finish()
     }
 }
@@ -136,7 +137,7 @@ impl BrokerCa {
     /// Mint or fetch a cached leaf for `hostname`. Cache key is the bare
     /// SNI host (no port).
     pub fn leaf_for(&self, hostname: &str) -> Result<LeafCert, TlsError> {
-        if let Some(cached) = self.leaf_cache.lock().unwrap().get(hostname) {
+        if let Some(cached) = self.leaf_cache.lock_recover().get(hostname) {
             return Ok(cached.clone());
         }
         let leaf_kp = KeyPair::generate()?;
@@ -163,8 +164,7 @@ impl BrokerCa {
             serial,
         };
         self.leaf_cache
-            .lock()
-            .unwrap()
+            .lock_recover()
             .insert(hostname.to_string(), leaf_cert.clone());
         Ok(leaf_cert)
     }

@@ -10,6 +10,12 @@
 //! Behaviour is **identical to `.lock().unwrap()` on the happy path**; the only
 //! difference is on poison, where these recover the inner guard instead of
 //! panicking. Use them anywhere a poisoned lock should not cascade.
+//!
+//! This lived in `vibecli-cli` until the sweep reached `vibe-broker`, which
+//! `vibecli-cli` *depends on* — so the trait could not travel in that
+//! direction, and copying it would have meant two versions of the one rule the
+//! sweep exists to enforce. It is its own crate, with no dependencies, so any
+//! leaf crate can use it without inheriting the daemon's tree.
 
 use std::sync::{Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 

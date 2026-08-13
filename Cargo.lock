@@ -12153,6 +12153,7 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
  "url",
+ "vibe-sync-ext",
  "webpki-roots 1.0.9",
 ]
 
@@ -12459,6 +12460,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "vibe-sync-ext"
+version = "0.5.8"
+
+[[package]]
 name = "vibeaichat"
 version = "0.5.8"
 dependencies = [
@@ -12551,6 +12556,7 @@ dependencies = [
  "vibe-sandbox-firecracker",
  "vibe-sandbox-hyperlight",
  "vibe-sandbox-native",
+ "vibe-sync-ext",
  "walkdir",
  "whisper-rs",
  "zip",

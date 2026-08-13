@@ -17,6 +17,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use vibe_sync_ext::LockRecover;
 
 #[derive(Debug, Clone)]
 pub struct MintedToken {
@@ -305,11 +306,11 @@ impl<M: TokenMinter> CachedMinter<M> {
     /// Number of times the underlying minter was actually called. Used in
     /// tests to assert caching behaviour.
     pub fn underlying_call_count(&self) -> u64 {
-        self.state.lock().unwrap().inner_calls
+        self.state.lock_recover().inner_calls
     }
 
     fn cached_if_fresh(&self) -> Option<MintedToken> {
-        let s = self.state.lock().unwrap();
+        let s = self.state.lock_recover();
         match &s.token {
             Some(t) => {
                 let remaining = t
@@ -334,7 +335,7 @@ impl<M: TokenMinter> TokenMinter for CachedMinter<M> {
             return Ok(t);
         }
         let fresh = self.inner.mint().await?;
-        let mut s = self.state.lock().unwrap();
+        let mut s = self.state.lock_recover();
         s.inner_calls += 1;
         s.token = Some(fresh.clone());
         Ok(fresh)

@@ -153,15 +153,14 @@ impl BrokerDaemon {
             broker = broker.with_tls_ca(ca);
         }
 
-        let broker_handle = match config.listener_kind() {
-            ListenerKind::Tcp => {
-                let addr = config.broker.listen_tcp.as_ref().unwrap();
-                broker.start_tcp(addr).await.map_err(DaemonError::Io)?
-            }
-            ListenerKind::Uds => {
+        let listener = config
+            .listener_kind()
+            .map_err(|e| DaemonError::Config(e.to_string()))?;
+        let broker_handle = match listener {
+            ListenerKind::Tcp(addr) => broker.start_tcp(addr).await.map_err(DaemonError::Io)?,
+            ListenerKind::Uds(path) => {
                 #[cfg(unix)]
                 {
-                    let path = config.broker.listen_uds.as_ref().unwrap();
                     broker.start_uds(path).await.map_err(DaemonError::Io)?
                 }
                 #[cfg(not(unix))]

@@ -3042,7 +3042,9 @@ mod exec_goal_repl;
 mod hosted_loop;
 #[allow(dead_code)]
 mod loop_engine;
-mod sync_ext;
+// Now its own crate so `vibe-broker` can share it — see lib.rs. Aliased so
+// `crate::sync_ext::LockRecover` call sites in this crate artifact still work.
+use vibe_sync_ext as sync_ext;
 // Recap & Resume — Phase D1.1: diffcomplete chain types + encrypted
 // store on workspace.db.
 #[allow(dead_code)]
@@ -20832,23 +20834,6 @@ fn report_fix_attempts(
         .into_iter()
         .filter_map(|(index, attempt)| attempt.ok().map(|p| (index, p)))
         .collect()
-}
-
-/// Resolve the repository root.
-///
-/// Diff paths are relative to the repo root, not to the invocation directory —
-/// joining them onto `cwd` from a subdirectory writes to files that don't exist.
-fn git_repo_root(cwd: &std::path::Path) -> Option<std::path::PathBuf> {
-    let out = std::process::Command::new("git")
-        .args(["rev-parse", "--show-toplevel"])
-        .current_dir(cwd)
-        .output()
-        .ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    let root = String::from_utf8_lossy(&out.stdout).trim().to_string();
-    (!root.is_empty()).then(|| std::path::PathBuf::from(root))
 }
 
 /// Write proposals to disk, skipping any file whose anchor no longer matches.

@@ -29,6 +29,9 @@ reqwest = { workspace = true }
 ring = "0.17"
 base64 = "0.23"
 async-trait = { workspace = true }
+# Poison-tolerant lock guards. Dependency-free, so it does not drag the daemon
+# tree into this leaf crate.
+vibe-sync-ext = { path = "../../../crates/vibe-sync-ext" }
 
 [dev-dependencies]
 cucumber = "0.23"

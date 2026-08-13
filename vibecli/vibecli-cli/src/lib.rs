@@ -235,7 +235,11 @@ pub mod exec_goal;
 // /loop — recurring + self-paced loop-until-done engine (gap C1).
 pub mod hosted_loop;
 pub mod loop_engine;
-pub mod sync_ext;
+// Poison-tolerant lock guards. Extracted to its own crate so `vibe-broker` —
+// which this crate depends on, so the trait could not travel that way — can
+// share it instead of carrying a second copy. Re-exported under the original
+// path, so every `crate::sync_ext` call site is unchanged.
+pub use vibe_sync_ext as sync_ext;
 // /goal — REPL handlers (display + direct-DB CRUD).
 pub mod exec_goal_repl;
 // Recap & Resume — Phase D1.1: diffcomplete chain types + encrypted
