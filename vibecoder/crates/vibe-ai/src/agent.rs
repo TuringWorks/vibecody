@@ -1224,6 +1224,17 @@ impl AgentLoop {
         // measure that holds no matter how the run is shaped.
         let mut last_mutation_at = std::time::Instant::now();
         let mut anything_mutated = false;
+        // Time spent inside a tool since that mutation, subtracted from the
+        // wall below.
+        //
+        // Only writes move `last_mutation_at` now, so a five-minute
+        // `cargo test` — the agent working, and the whole point of running the
+        // suite — was charged against the clock and ended the run mid-build.
+        // Waiting on a human approval counts here for the same reason. Reads
+        // are fast, so a read loop still trips the wall on generation time
+        // alone, and a run that only ever re-runs a slow test is caught by the
+        // step-based breaker instead, which does not measure time at all.
+        let mut tool_time_since_mutation = Duration::ZERO;
         // The most recent completed model turn, kept outside the loop so the
         // step-limit path below can report where the run got to. `accumulated`
         // is per-step and is moved into `messages` on the tool-call paths, so
@@ -1342,9 +1353,11 @@ impl AgentLoop {
             // one rule, because all three look the same from here: the
             // workspace is not moving.
             const MAX_IDLE_WITHOUT_MUTATION: Duration = Duration::from_secs(240);
-            if last_mutation_at.elapsed() > MAX_IDLE_WITHOUT_MUTATION {
+            let idle = deliberation_idle(last_mutation_at.elapsed(), tool_time_since_mutation);
+            if idle > MAX_IDLE_WITHOUT_MUTATION {
                 tracing::warn!(
-                    idle_secs = last_mutation_at.elapsed().as_secs(),
+                    idle_secs = idle.as_secs(),
+                    since_mutation_secs = last_mutation_at.elapsed().as_secs(),
                     mutated = anything_mutated,
                     step,
                     "Workspace unchanged for too long; ending the run"
@@ -1352,28 +1365,31 @@ impl AgentLoop {
                 let summary = if anything_mutated {
                     format!(
                         "The agent stopped changing anything {}s ago and never called \
-                         task_complete, so the run was concluded. Its work is on disk.",
-                        last_mutation_at.elapsed().as_secs()
+                         task_complete, so the run was concluded. Its work is on disk, but \
+                         nothing confirmed the task was finished.",
+                        idle.as_secs()
                     )
                 } else {
                     format!(
                         "The agent ran for {}s without writing anything — it was reading and \
                          planning rather than building — so the run was stopped instead of \
                          spending the remaining budget.",
-                        last_mutation_at.elapsed().as_secs()
+                        idle.as_secs()
                     )
                 };
-                let event = if anything_mutated {
-                    AgentEvent::Complete(redact_secrets(&summary))
-                } else {
-                    AgentEvent::Partial {
-                        summary: redact_secrets(&summary),
-                        steps_completed: step,
-                        steps_planned: step_budget,
-                        remaining_plan: Vec::new(),
-                    }
-                };
-                let _ = event_tx.send(event).await;
+                // Partial either way. The agent never called `task_complete`,
+                // so nothing here knows the task was finished — only that it
+                // stopped. Reporting Complete because bytes reached the disk
+                // states as fact the one thing the run could not establish.
+                let _ = event_tx
+                    .send(partial_event(
+                        redact_secrets(&summary),
+                        &plan_steps,
+                        plan_steps_done,
+                        step,
+                        step_budget,
+                    ))
+                    .await;
                 self.checkpoint(&messages, "no mutation wall");
                 return Ok(());
             }
@@ -1393,16 +1409,26 @@ impl AgentLoop {
                 let summary = format!(
                     "The agent spent {}s without running a single tool — it was planning rather \
                      than acting — so the run was stopped instead of spending the remaining \
-                     budget. Nothing was written to disk.",
-                    last_tool_at.elapsed().as_secs()
+                     budget. {}",
+                    last_tool_at.elapsed().as_secs(),
+                    // This wall also catches an agent that worked and then
+                    // fell into deliberating, so "nothing was written" is not
+                    // a safe thing to say here — it was said unconditionally,
+                    // and would have told the user their files were not there.
+                    if anything_mutated {
+                        "Whatever it had already written is on disk."
+                    } else {
+                        "Nothing was written to disk."
+                    }
                 );
                 let _ = event_tx
-                    .send(AgentEvent::Partial {
-                        summary: redact_secrets(&summary),
-                        steps_completed: step,
-                        steps_planned: step_budget,
-                        remaining_plan: Vec::new(),
-                    })
+                    .send(partial_event(
+                        redact_secrets(&summary),
+                        &plan_steps,
+                        plan_steps_done,
+                        step,
+                        step_budget,
+                    ))
                     .await;
                 self.checkpoint(&messages, "deliberation wall");
                 return Ok(());
@@ -1775,12 +1801,13 @@ impl AgentLoop {
                         accumulated.trim().chars().take(2_000).collect::<String>()
                     );
                     let _ = event_tx
-                        .send(AgentEvent::Partial {
-                            summary: redact_secrets(&summary),
-                            steps_completed: step,
-                            steps_planned: step_budget,
-                            remaining_plan: Vec::new(),
-                        })
+                        .send(partial_event(
+                            redact_secrets(&summary),
+                            &plan_steps,
+                            plan_steps_done,
+                            step,
+                            step_budget,
+                        ))
                         .await;
                     self.checkpoint(&messages, "prose loop");
                     return Ok(());
@@ -2385,6 +2412,9 @@ impl AgentLoop {
                 }
             }
 
+            // Wraps approval as well as execution: a human deliberating over a
+            // prompt is not the agent idling either.
+            let tool_started = std::time::Instant::now();
             let tool_result = {
                 let _guard = step_span.enter();
                 if needs_approval {
@@ -2713,10 +2743,13 @@ impl AgentLoop {
             // Any executed tool — success or not — proves the agent is acting
             // rather than deliberating.
             last_tool_at = std::time::Instant::now();
+            tool_time_since_mutation += tool_started.elapsed();
             // A shell command is usually the agent checking its work, not
             // changing it. Counting `python3 server.py` as a mutation reset
             // this clock on every check, so a finished build never looked idle
-            // and ran to its budget with the work already done.
+            // and ran to its budget with the work already done. The time that
+            // command took is credited above instead, so a slow test suite
+            // does not read as an idle agent.
             if tool_result.success
                 && matches!(
                     call,
@@ -2724,6 +2757,7 @@ impl AgentLoop {
                 )
             {
                 last_mutation_at = std::time::Instant::now();
+                tool_time_since_mutation = Duration::ZERO;
                 anything_mutated = true;
             }
 
@@ -2980,9 +3014,12 @@ impl AgentLoop {
                     // longer only burns the budget and the run gets killed
                     // with the work finished but unreported. Observed on the
                     // greenfield build: a complete, working application, then
-                    // silence until the harness killed it. Concluding here is
+                    // silence until the harness killed it. Ending here is
                     // strictly better — the work is on disk either way, and
-                    // this way the user gets told about it.
+                    // this way the user gets told about it. Reported as
+                    // Partial: "it stopped changing things" is not the same
+                    // claim as "it finished", and only the agent can make the
+                    // second one.
                     if new_state == AgentHealthState::Stalled
                         && cb.has_mutated
                         && cb.approach_rotations >= 2
@@ -2993,17 +3030,26 @@ impl AgentLoop {
                             "Agent finished its changes and did not conclude; ending the run"
                         );
                         let summary = if accumulated.trim().is_empty() {
-                            "The agent stopped making changes but never called task_complete.                              Its work is on disk; this summary was generated by the harness."
+                            "The agent stopped making changes but never called task_complete. \
+                             Its work is on disk; this summary was generated by the harness, \
+                             and nothing confirmed the task was finished."
                                 .to_string()
                         } else {
                             format!(
                                 "{}\n\n(The agent stopped making changes without calling \
-                                 task_complete; the run was concluded automatically.)",
+                                 task_complete, so the run was ended automatically. Its work is \
+                                 on disk; nothing confirmed the task was finished.)",
                                 accumulated.trim()
                             )
                         };
                         let _ = event_tx
-                            .send(AgentEvent::Complete(redact_secrets(&summary)))
+                            .send(partial_event(
+                                redact_secrets(&summary),
+                                &plan_steps,
+                                plan_steps_done,
+                                step,
+                                step_budget,
+                            ))
                             .await;
                         self.checkpoint(&messages, "auto-concluded");
                         return Ok(());
@@ -3924,6 +3970,73 @@ mod circuit_breaker_tests {
             verify_workspace_builds(dir.path()).await,
             BuildVerdict::Passed
         );
+    }
+
+    #[test]
+    fn a_slow_test_run_is_not_an_idle_agent() {
+        // The mutation clock only moves on a write, so the five minutes an
+        // agent spends waiting for `cargo test` used to read as five minutes
+        // of doing nothing and ended the run mid-verification.
+        let idle = deliberation_idle(Duration::from_secs(300), Duration::from_secs(295));
+        assert!(
+            idle < Duration::from_secs(240),
+            "a run that spent the time inside a tool tripped the wall: {idle:?}"
+        );
+
+        // A read loop is the case the wall exists for: the tools return
+        // instantly, so the time is all generation and it still trips.
+        let idle = deliberation_idle(Duration::from_secs(300), Duration::from_secs(2));
+        assert!(idle > Duration::from_secs(240), "{idle:?}");
+
+        // Credit can exceed the span when a tool straddles the mutation that
+        // reset the clock; that must not underflow.
+        assert_eq!(
+            deliberation_idle(Duration::from_secs(1), Duration::from_secs(90)),
+            Duration::ZERO
+        );
+    }
+
+    #[test]
+    fn a_harness_initiated_exit_is_never_reported_as_completion() {
+        // `Complete` means the agent said it finished. Every exit built by
+        // this helper is the harness ending a run the agent did not end, and
+        // one of them reported `Complete` whenever any byte had reached the
+        // disk — stating the one thing the run could not know.
+        let plan = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+
+        let AgentEvent::Partial {
+            steps_completed,
+            steps_planned,
+            remaining_plan,
+            ..
+        } = partial_event("s".into(), &plan, 1, 7, 40)
+        else {
+            panic!("a harness exit must not claim completion");
+        };
+        assert_eq!((steps_completed, steps_planned), (1, 3));
+        assert_eq!(remaining_plan, vec!["b".to_string(), "c".to_string()]);
+
+        // No plan, or a finished one: fall back to the step budget rather than
+        // report 3/3 done on a run that was cut short.
+        for (plan, done) in [(&plan[..], 3), (&[][..], 0)] {
+            let AgentEvent::Partial {
+                steps_completed,
+                steps_planned,
+                remaining_plan,
+                ..
+            } = partial_event("s".into(), plan, done, 7, 40)
+            else {
+                panic!("a harness exit must not claim completion");
+            };
+            assert_eq!((steps_completed, steps_planned), (7, 40));
+            assert!(remaining_plan.is_empty());
+        }
+
+        // Out-of-range `done` is a bug elsewhere, but it must not panic here.
+        assert!(matches!(
+            partial_event("s".into(), &plan, 99, 7, 40),
+            AgentEvent::Partial { .. }
+        ));
     }
 
     #[test]
@@ -5681,6 +5794,45 @@ pub async fn verify_workspace_builds(ws: &std::path::Path) -> BuildVerdict {
         Ok(_) => BuildVerdict::Failed,
         // Could not even start it — not evidence of success.
         Err(e) => BuildVerdict::Unverifiable(format!("could not run `{cmd}`: {e}")),
+    }
+}
+
+/// How long the run spent neither changing the workspace nor running a tool.
+///
+/// The deliberation walls measure this rather than raw elapsed time. Only a
+/// write moves the mutation clock, so charging tool time against it ended runs
+/// in the middle of a slow `cargo test` — the agent verifying its work, which
+/// is the behaviour the rest of this module exists to encourage.
+fn deliberation_idle(since_mutation: Duration, tool_time: Duration) -> Duration {
+    since_mutation.saturating_sub(tool_time)
+}
+
+/// A `Partial` reported against the plan when there is one, and against the
+/// step budget otherwise — the same convention as the step-limit path.
+///
+/// Every harness-initiated exit uses this. None of them may report `Complete`:
+/// that event means the agent said it finished, and an agent that went quiet
+/// said no such thing. Files on disk are evidence of work, not of completion.
+fn partial_event(
+    summary: String,
+    plan_steps: &[String],
+    plan_steps_done: usize,
+    step: usize,
+    step_budget: usize,
+) -> AgentEvent {
+    match plan_steps.get(plan_steps_done..) {
+        Some(remaining) if !remaining.is_empty() => AgentEvent::Partial {
+            summary,
+            steps_completed: plan_steps_done,
+            steps_planned: plan_steps.len(),
+            remaining_plan: remaining.to_vec(),
+        },
+        _ => AgentEvent::Partial {
+            summary,
+            steps_completed: step,
+            steps_planned: step_budget,
+            remaining_plan: Vec::new(),
+        },
     }
 }
 
