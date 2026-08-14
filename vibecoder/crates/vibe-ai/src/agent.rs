@@ -727,6 +727,13 @@ pub const DEFAULT_STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(180);
 /// minutes — but finite, so one runaway generation cannot consume a run.
 pub const DEFAULT_MAX_TURN_DURATION: Duration = Duration::from_secs(240);
 
+/// Ceiling on a whole agent run.
+///
+/// A backstop, not a budget: real work should finish long before it. It exists
+/// so that termination does not depend on having predicted the shape of every
+/// stall.
+pub const DEFAULT_MAX_RUN_DURATION: Duration = Duration::from_secs(600);
+
 /// Build the brief handed to a successor agent when a degrading one is retired.
 ///
 /// Deliberately thin. Everything here is read off the run that actually
@@ -934,6 +941,14 @@ pub struct AgentLoop {
     /// the turn never completes, nothing that checks between turns can
     /// intervene.
     pub max_turn_duration: Duration,
+    /// Ceiling on the whole run.
+    ///
+    /// Every other bound here is checked between turns or between chunks, so
+    /// each depends on some inner loop yielding. This one is checked inside
+    /// the streaming loop as well, which makes it the only guarantee that a
+    /// run terminates regardless of where it is stuck. Without it, "the agent
+    /// cannot stall" rested on having enumerated every way it might.
+    pub max_run_duration: Duration,
     /// Enable circuit breaker for stall/spin/degradation detection.
     pub circuit_breaker_enabled: bool,
     /// Enable pre-completion double-check (re-read files, run build, run tests).
@@ -1009,6 +1024,7 @@ impl AgentLoop {
             max_context_tokens: None,
             stream_idle_timeout: DEFAULT_STREAM_IDLE_TIMEOUT,
             max_turn_duration: DEFAULT_MAX_TURN_DURATION,
+            max_run_duration: DEFAULT_MAX_RUN_DURATION,
             circuit_breaker_enabled: true,
             double_check_enabled: false,
             atomic_commits: false,
@@ -1086,6 +1102,18 @@ impl AgentLoop {
     /// Enable or disable decision tracing for audit/debugging.
     pub fn with_decision_tracing(mut self, enabled: bool) -> Self {
         self.decision_tracing_enabled = enabled;
+        self
+    }
+
+    /// Raise or lower the ceiling on a whole run.
+    ///
+    /// The default is a backstop sized for ordinary work. A caller with a
+    /// genuinely long task — a large migration, a full-repo sweep — should
+    /// raise it rather than be capped with no recourse; a caller running
+    /// untrusted or unattended work may want it lower. Clamped to at least a
+    /// minute so a mistaken value cannot make every run terminate instantly.
+    pub fn with_max_run_duration(mut self, limit: Duration) -> Self {
+        self.max_run_duration = limit.max(Duration::from_secs(60));
         self
     }
 
@@ -1227,6 +1255,9 @@ impl AgentLoop {
         // without a single tool call is the measure that holds regardless of
         // how the output is shaped.
         let run_started = std::time::Instant::now();
+        // Set when the streaming loop notices the run deadline; acted on at
+        // the top of the main loop, where the exit machinery lives.
+        let mut run_deadline_hit = false;
         let mut last_tool_at = std::time::Instant::now();
         // When the workspace last actually changed.
         //
@@ -1357,6 +1388,34 @@ impl AgentLoop {
         } {
             let step = next_step;
             next_step += 1;
+
+            // ── 0. Run deadline ───────────────────────────────────────────────
+            // Checked first, and also from inside the streaming loop. Every
+            // other bound here depends on some inner loop yielding; this one
+            // is what makes termination unconditional.
+            if run_deadline_hit || run_started.elapsed() > self.max_run_duration {
+                tracing::warn!(
+                    secs = run_started.elapsed().as_secs(),
+                    step,
+                    "Run exceeded its ceiling — stopping"
+                );
+                let summary = format!(
+                    "The run hit its {}s ceiling and was stopped. Any work done is on disk; \
+                     the agent never reported the task finished.",
+                    self.max_run_duration.as_secs()
+                );
+                let _ = event_tx
+                    .send(partial_event(
+                        redact_secrets(&summary),
+                        &plan_steps,
+                        plan_steps_done,
+                        step,
+                        step_budget,
+                    ))
+                    .await;
+                self.checkpoint(&messages, "run deadline");
+                return Ok(());
+            }
 
             // ── 0a. Deliberation wall ─────────────────────────────────────────
             // Two clocks, because "not working" has two shapes. Ending either
@@ -1603,6 +1662,18 @@ impl AgentLoop {
                     // unreachable.
                     let turn_started = std::time::Instant::now();
                     loop {
+                        // The run deadline is checked here, not only between
+                        // turns: a turn that never ends never reaches the
+                        // between-turn checks, which is precisely the case
+                        // that kept burning whole budgets.
+                        if run_started.elapsed() > self.max_run_duration {
+                            tracing::warn!(
+                                secs = run_started.elapsed().as_secs(),
+                                "Run exceeded its ceiling mid-response — stopping"
+                            );
+                            run_deadline_hit = true;
+                            break;
+                        }
                         if turn_started.elapsed() > self.max_turn_duration {
                             tracing::warn!(
                                 secs = turn_started.elapsed().as_secs(),
@@ -4877,6 +4948,54 @@ mod circuit_breaker_tests {
             .with_circuit_breaker(false);
         assert_eq!(agent.max_context_tokens, Some(50_000));
         assert!(!agent.circuit_breaker_enabled);
+    }
+
+    #[test]
+    fn the_run_ceiling_is_tunable_but_cannot_be_set_to_nothing() {
+        let provider: Arc<dyn crate::provider::AIProvider> =
+            Arc::new(crate::providers::ollama::OllamaProvider::new(
+                crate::provider::ProviderConfig::default(),
+            ));
+        let exec: Arc<dyn ToolExecutorTrait> = Arc::new(DummyExecutor);
+        let mk = |d: Duration| {
+            AgentLoop::new(
+                Arc::clone(&provider),
+                ApprovalPolicy::Suggest,
+                Arc::clone(&exec),
+            )
+            .with_max_run_duration(d)
+            .max_run_duration
+        };
+        // A long migration may legitimately need more than the default.
+        assert_eq!(mk(Duration::from_secs(3600)), Duration::from_secs(3600));
+        // But zero would end every run before it began.
+        assert_eq!(mk(Duration::ZERO), Duration::from_secs(60));
+    }
+
+    #[test]
+    fn the_run_ceiling_is_the_unconditional_bound() {
+        // Every other limit here depends on some inner loop yielding: the
+        // deliberation walls are checked between turns, the turn ceiling
+        // between chunks. Four separate stalls this session slipped past one
+        // of those because the loop they guarded never came back round. The
+        // run ceiling is checked inside the streaming loop too, so it holds
+        // without needing every stall shape to have been predicted.
+        let provider: Arc<dyn crate::provider::AIProvider> =
+            Arc::new(crate::providers::ollama::OllamaProvider::new(
+                crate::provider::ProviderConfig::default(),
+            ));
+        let exec: Arc<dyn ToolExecutorTrait> = Arc::new(DummyExecutor);
+        let agent = AgentLoop::new(provider, ApprovalPolicy::Suggest, exec);
+
+        assert_eq!(agent.max_run_duration, DEFAULT_MAX_RUN_DURATION);
+        assert!(
+            agent.max_run_duration > agent.max_turn_duration,
+            "a run must outlast a single turn, or no turn could ever finish"
+        );
+        assert!(
+            agent.max_run_duration > agent.stream_idle_timeout,
+            "a run must outlast one quiet gap"
+        );
     }
 
     #[test]
