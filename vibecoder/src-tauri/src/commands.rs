@@ -63047,3 +63047,1412 @@ pub async fn fluxo_stop_stream(workflow_id: String) -> Result<(), String> {
     fluxo_stream_forget(&workflow_id);
     Ok(())
 }
+
+// ── Project context panel ────────────────────────────────────────────────────
+//
+// `ProjectContextPanel` shipped against three commands that existed nowhere, so
+// opening the tab threw before it rendered anything. `read_file_content` was a
+// duplicate of `read_file` and the panel now calls that directly; the two below
+// had no implementation at all.
+
+/// One detected way to build, test, or lint the project.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DetectedCommand {
+    pub label: String,
+    pub command: String,
+    /// Present on build commands; `None` means "run from the project root".
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub working_dir: Option<String>,
+    /// Present on test commands — the framework the command drives.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub framework: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct KeyFile {
+    pub path: String,
+    pub role: String,
+    pub preview: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ProjectProfile {
+    pub name: String,
+    pub description: String,
+    pub languages: Vec<String>,
+    pub frameworks: Vec<String>,
+    pub architecture: String,
+    pub build_commands: Vec<DetectedCommand>,
+    pub test_commands: Vec<DetectedCommand>,
+    pub lint_commands: Vec<DetectedCommand>,
+    pub key_files: Vec<KeyFile>,
+    pub entry_points: Vec<String>,
+    pub package_managers: Vec<String>,
+    pub env_vars: Vec<String>,
+    pub summary: String,
+    pub scanned_at: u64,
+}
+
+/// A manifest we know how to read, and what its presence implies.
+struct ManifestRule {
+    file: &'static str,
+    language: &'static str,
+    package_manager: &'static str,
+    role: &'static str,
+    build: Option<(&'static str, &'static str)>,
+    test: Option<(&'static str, &'static str, &'static str)>,
+    lint: Option<(&'static str, &'static str)>,
+}
+
+const MANIFESTS: &[ManifestRule] = &[
+    ManifestRule {
+        file: "Cargo.toml",
+        language: "Rust",
+        package_manager: "cargo",
+        role: "Rust crate manifest",
+        build: Some(("Build", "cargo build")),
+        test: Some(("Test", "cargo test", "cargo-test")),
+        lint: Some(("Clippy", "cargo clippy")),
+    },
+    ManifestRule {
+        file: "package.json",
+        language: "TypeScript/JavaScript",
+        package_manager: "npm",
+        role: "Node package manifest",
+        build: Some(("Build", "npm run build")),
+        test: Some(("Test", "npm test", "npm")),
+        lint: Some(("Lint", "npm run lint")),
+    },
+    ManifestRule {
+        file: "pyproject.toml",
+        language: "Python",
+        package_manager: "pip",
+        role: "Python project manifest",
+        build: None,
+        test: Some(("Test", "pytest", "pytest")),
+        lint: Some(("Ruff", "ruff check .")),
+    },
+    ManifestRule {
+        file: "go.mod",
+        language: "Go",
+        package_manager: "go",
+        role: "Go module manifest",
+        build: Some(("Build", "go build ./...")),
+        test: Some(("Test", "go test ./...", "go-test")),
+        lint: Some(("Vet", "go vet ./...")),
+    },
+    ManifestRule {
+        file: "pubspec.yaml",
+        language: "Dart",
+        package_manager: "pub",
+        role: "Dart/Flutter manifest",
+        build: Some(("Build", "flutter build")),
+        test: Some(("Test", "flutter test", "flutter")),
+        lint: None,
+    },
+    ManifestRule {
+        file: "build.gradle.kts",
+        language: "Kotlin",
+        package_manager: "gradle",
+        role: "Gradle build script",
+        build: Some(("Build", "./gradlew build")),
+        test: Some(("Test", "./gradlew test", "gradle")),
+        lint: None,
+    },
+];
+
+fn unix_now_secs() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
+/// Detect what kind of project sits at `workspace_path`.
+///
+/// Manifest-driven and entirely local: no model call, no network. The panel
+/// re-scans on demand, so this must stay fast enough to run on a click.
+#[tauri::command]
+pub async fn scan_project_profile(workspace_path: String) -> Result<ProjectProfile, String> {
+    let root = PathBuf::from(&workspace_path);
+    if !root.is_dir() {
+        return Err(format!("{} is not a directory", root.display()));
+    }
+
+    let present: Vec<&ManifestRule> = MANIFESTS
+        .iter()
+        .filter(|rule| root.join(rule.file).is_file())
+        .collect();
+
+    let mut languages: Vec<String> = present.iter().map(|r| r.language.to_string()).collect();
+    languages.dedup();
+    let mut package_managers: Vec<String> =
+        present.iter().map(|r| r.package_manager.to_string()).collect();
+    package_managers.dedup();
+
+    let build_commands = present
+        .iter()
+        .filter_map(|r| r.build)
+        .map(|(label, command)| DetectedCommand {
+            label: label.to_string(),
+            command: command.to_string(),
+            working_dir: None,
+            framework: None,
+        })
+        .collect();
+    let test_commands = present
+        .iter()
+        .filter_map(|r| r.test)
+        .map(|(label, command, framework)| DetectedCommand {
+            label: label.to_string(),
+            command: command.to_string(),
+            working_dir: None,
+            framework: Some(framework.to_string()),
+        })
+        .collect();
+    let lint_commands = present
+        .iter()
+        .filter_map(|r| r.lint)
+        .map(|(label, command)| DetectedCommand {
+            label: label.to_string(),
+            command: command.to_string(),
+            working_dir: None,
+            framework: None,
+        })
+        .collect();
+
+    // Key files: the manifests themselves, plus a README if there is one.
+    let mut key_files: Vec<KeyFile> = present
+        .iter()
+        .map(|rule| KeyFile {
+            path: rule.file.to_string(),
+            role: rule.role.to_string(),
+            preview: preview_of(&root.join(rule.file)),
+        })
+        .collect();
+    for readme in ["README.md", "readme.md", "README"] {
+        if root.join(readme).is_file() {
+            key_files.push(KeyFile {
+                path: readme.to_string(),
+                role: "Project README".to_string(),
+                preview: preview_of(&root.join(readme)),
+            });
+            break;
+        }
+    }
+
+    let entry_points = ["src/main.rs", "src/main.ts", "src/index.ts", "main.py", "main.go"]
+        .iter()
+        .filter(|p| root.join(p).is_file())
+        .map(|p| p.to_string())
+        .collect::<Vec<_>>();
+
+    // Env var *names* only. Reading `.env` values into a panel that renders
+    // them would put secrets on screen and into any screenshot of it.
+    let env_vars = read_env_var_names(&root.join(".env"));
+
+    let name = root
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "project".to_string());
+    let architecture = if present.len() > 1 {
+        "polyglot workspace".to_string()
+    } else if present.is_empty() {
+        // No manifest recognised. Saying "unknown" is the honest answer; a
+        // confident guess here would be rendered to the user as fact.
+        "unknown".to_string()
+    } else {
+        format!("{} project", present[0].language)
+    };
+
+    let summary = if present.is_empty() {
+        format!("{name}: no recognised project manifest found in {workspace_path}.")
+    } else {
+        format!(
+            "{name} — {} ({}). Build/test commands detected from {}.",
+            architecture,
+            languages.join(", "),
+            present
+                .iter()
+                .map(|r| r.file)
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    };
+
+    Ok(ProjectProfile {
+        name,
+        description: summary.clone(),
+        languages,
+        frameworks: Vec::new(),
+        architecture,
+        build_commands,
+        test_commands,
+        lint_commands,
+        key_files,
+        entry_points,
+        package_managers,
+        env_vars,
+        summary,
+        scanned_at: unix_now_secs(),
+    })
+}
+
+fn preview_of(path: &Path) -> String {
+    std::fs::read_to_string(path)
+        .map(|s| s.lines().take(12).collect::<Vec<_>>().join("\n"))
+        .unwrap_or_default()
+        .chars()
+        .take(600)
+        .collect()
+}
+
+/// Names of the variables declared in a `.env`, never their values.
+fn read_env_var_names(path: &Path) -> Vec<String> {
+    std::fs::read_to_string(path)
+        .map(|body| {
+            body.lines()
+                .map(str::trim)
+                .filter(|l| !l.is_empty() && !l.starts_with('#'))
+                .filter_map(|l| l.split_once('=').map(|(k, _)| k.trim().to_string()))
+                .filter(|k| !k.is_empty())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Run one of the project's detected build/test/lint commands.
+///
+/// Deliberately narrow: the panel offers one-click execution of commands *it*
+/// detected, so this only accepts a command that a fresh scan of the same
+/// workspace produced. A free-form shell command from the renderer would make
+/// this a remote-code-execution surface for anything that can reach the
+/// WebView.
+#[tauri::command]
+pub async fn run_project_command(
+    command: String,
+    workspace_path: String,
+) -> Result<String, String> {
+    let profile = scan_project_profile(workspace_path.clone()).await?;
+    let allowed = profile
+        .build_commands
+        .iter()
+        .chain(profile.test_commands.iter())
+        .chain(profile.lint_commands.iter())
+        .any(|c| c.command == command);
+    if !allowed {
+        return Err(format!(
+            "`{command}` is not one of this project's detected commands; \
+             re-scan the project and run one of those."
+        ));
+    }
+
+    let root = PathBuf::from(&workspace_path);
+    let output = tokio::process::Command::new("sh")
+        .arg("-c")
+        .arg(&command)
+        .current_dir(&root)
+        .kill_on_drop(true)
+        .output()
+        .await
+        .map_err(|e| format!("could not run `{command}`: {e}"))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let body = match (stdout.trim().is_empty(), stderr.trim().is_empty()) {
+        (true, true) => String::new(),
+        (false, true) => stdout.to_string(),
+        (true, false) => stderr.to_string(),
+        (false, false) => format!("{stdout}\n{stderr}"),
+    };
+    // The exit status is part of the answer: a failing build whose output is
+    // only on stdout would otherwise render as a success.
+    match output.status.code() {
+        Some(0) => Ok(body),
+        Some(code) => Ok(format!("{body}\n\n[exited with code {code}]")),
+        None => Ok(format!("{body}\n\n[terminated by a signal]")),
+    }
+}
+
+/// Summarise a slice of conversation so the chat can compact its history.
+///
+/// `AIChat` has always called this; it existed nowhere, so every compaction
+/// took the `.catch()` branch and dropped the earlier messages while telling
+/// the user they had been "compacted". Silently discarding a conversation is a
+/// considerably worse outcome than a visible failure.
+///
+/// Provider-agnostic per AGENTS.md: the caller's selection is used, and an
+/// unset selection is an error rather than a quiet fallback to one vendor.
+/// `model` may be omitted when the provider name embeds it (`claude/opus`),
+/// which is the form the chat panel passes.
+#[tauri::command]
+pub async fn summarise_messages(
+    provider: String,
+    model: Option<String>,
+    content: String,
+) -> Result<String, String> {
+    if provider.trim().is_empty() {
+        return Err("Select a provider before compacting the conversation".to_string());
+    }
+    if content.trim().is_empty() {
+        return Err("Nothing to summarise".to_string());
+    }
+    ai_chat_with_effort(provider, model.unwrap_or_default(), content, None).await
+}
+
+/// Models actually installed in the local Ollama.
+///
+/// `useModelRegistry` has always called this and it existed nowhere, so the
+/// hook took its `catch` branch every time and fell back to a hardcoded list —
+/// the picker offered models the user may not have pulled and hid the ones
+/// they had. The listing logic already existed on the provider; only this
+/// wrapper was missing.
+///
+/// `base_url` is optional so a remote Ollama can be listed; omitted, the
+/// provider's own default (`OLLAMA_HOST`, else 127.0.0.1:11434) applies.
+#[tauri::command]
+pub async fn ollama_list_models(base_url: Option<String>) -> Result<Vec<String>, String> {
+    vibe_ai::providers::ollama::OllamaProvider::list_models(base_url)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// ── On-device panel ──────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct HardwareInfo {
+    pub backend_name: String,
+    /// `None` when we cannot read it. A guessed VRAM figure rendered next to
+    /// real numbers is indistinguishable from a measurement.
+    pub vram_mb: Option<u64>,
+    /// Only ever populated by an actual benchmark run.
+    pub estimated_tps: Option<f32>,
+    pub cpu_threads: u32,
+    pub ram_mb: u64,
+    pub gpu_name: Option<String>,
+}
+
+/// Detect the local inference hardware.
+///
+/// `OnDevicePanel` called this and it existed nowhere, so the tab threw on
+/// open. Everything here is measured or left `None`; nothing is inferred from
+/// the platform and presented as a reading.
+#[tauri::command]
+pub async fn on_device_hardware() -> Result<HardwareInfo, String> {
+    let cpu_threads = std::thread::available_parallelism()
+        .map(|n| n.get() as u32)
+        .unwrap_or(0);
+
+    let (ram_mb, gpu_name, backend_name) = detect_host_hardware();
+
+    Ok(HardwareInfo {
+        backend_name,
+        // VRAM is not readable without a vendor SDK on any of our targets; on
+        // Apple Silicon it is not even a separate pool. Absent stays absent.
+        vram_mb: None,
+        estimated_tps: None,
+        cpu_threads,
+        ram_mb,
+        gpu_name,
+    })
+}
+
+#[cfg(target_os = "macos")]
+fn detect_host_hardware() -> (u64, Option<String>, String) {
+    let ram_mb = std::process::Command::new("sysctl")
+        .args(["-n", "hw.memsize"])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .and_then(|s| s.trim().parse::<u64>().ok())
+        .map(|bytes| bytes / (1024 * 1024))
+        .unwrap_or(0);
+    let gpu_name = std::process::Command::new("sysctl")
+        .args(["-n", "machdep.cpu.brand_string"])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    // Metal is present on every macOS target we build for.
+    (ram_mb, gpu_name, "Metal".to_string())
+}
+
+#[cfg(target_os = "linux")]
+fn detect_host_hardware() -> (u64, Option<String>, String) {
+    let ram_mb = std::fs::read_to_string("/proc/meminfo")
+        .ok()
+        .and_then(|s| {
+            s.lines()
+                .find(|l| l.starts_with("MemTotal:"))
+                .and_then(|l| l.split_whitespace().nth(1))
+                .and_then(|kb| kb.parse::<u64>().ok())
+        })
+        .map(|kb| kb / 1024)
+        .unwrap_or(0);
+    // A CUDA/ROCm probe needs the vendor runtime; without it the honest
+    // answer is CPU rather than an optimistic guess.
+    (ram_mb, None, "CPU".to_string())
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "linux")))]
+fn detect_host_hardware() -> (u64, Option<String>, String) {
+    (0, None, "CPU".to_string())
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct BenchmarkResult {
+    pub model_id: String,
+    pub model_name: String,
+    pub tokens_per_second: f32,
+    pub time_to_first_token_ms: u64,
+    pub total_tokens: u64,
+    pub ran_at: String,
+}
+
+/// Benchmarks that have actually been run, newest first.
+///
+/// Returns an empty list when none have — the panel then shows nothing, which
+/// is the truth. Synthesising plausible tokens-per-second here would put
+/// invented performance figures in front of someone choosing a model.
+#[tauri::command]
+pub async fn on_device_benchmark() -> Result<Vec<BenchmarkResult>, String> {
+    let Some(path) = on_device_benchmark_path() else {
+        return Ok(Vec::new());
+    };
+    let Ok(body) = std::fs::read_to_string(&path) else {
+        return Ok(Vec::new());
+    };
+    serde_json::from_str::<Vec<BenchmarkResult>>(&body)
+        .map_err(|e| format!("{} is not a valid benchmark log: {e}", path.display()))
+}
+
+fn on_device_benchmark_path() -> Option<PathBuf> {
+    dirs::home_dir().map(|h| h.join(".vibecli").join("on-device-benchmarks.json"))
+}
+
+// ── Voice vocabulary panel ───────────────────────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct VocabSymbolView {
+    pub name: String,
+    pub kind: String,
+    pub frequency: u32,
+    pub phonetic: Option<String>,
+    pub file_path: Option<String>,
+}
+
+/// Build the speech vocabulary from the symbols in the open workspace.
+///
+/// Feeding a transcriber the identifiers a project actually uses is what stops
+/// "vibe_eval" coming back as "vibe evil". The extractor already existed in
+/// `vibecli::voice_vocab`; only this command was missing, so the panel threw.
+#[tauri::command]
+pub async fn voice_vocab_build(
+    rebuild: Option<bool>,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<VocabSymbolView>, String> {
+    let _ = rebuild; // extraction is cheap enough that a rebuild is the only mode
+    let root = {
+        let workspace = state.workspace.lock().await;
+        workspace.folders().first().cloned()
+    };
+    let Some(root) = root else {
+        return Err("Open a project folder first".to_string());
+    };
+
+    let mut extractor = vibecli_cli::voice_vocab::VocabExtractor::new();
+    let mut scanned = 0usize;
+    for entry in walkdir::WalkDir::new(&root)
+        .max_depth(6)
+        .into_iter()
+        .filter_map(Result::ok)
+        .filter(|e| e.file_type().is_file())
+    {
+        let path = entry.path();
+        let skip = path.components().any(|c| {
+            matches!(
+                c.as_os_str().to_str(),
+                Some("node_modules") | Some("target") | Some(".git") | Some("dist")
+            )
+        });
+        if skip {
+            continue;
+        }
+        let is_source = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .is_some_and(|e| matches!(e, "rs" | "ts" | "tsx" | "js" | "py" | "go" | "swift" | "kt"));
+        if !is_source {
+            continue;
+        }
+        // Bounded so a monorepo cannot turn opening a tab into a full scan.
+        if scanned >= 2_000 {
+            break;
+        }
+        if let Ok(src) = std::fs::read_to_string(path) {
+            extractor.extract_from_source(&src, &path.display().to_string());
+            scanned += 1;
+        }
+    }
+
+    Ok(extractor
+        .symbols()
+        .iter()
+        .map(|s| VocabSymbolView {
+            name: s.name.clone(),
+            kind: format!("{:?}", s.kind),
+            frequency: s.frequency,
+            phonetic: s.phonetic_hint.clone(),
+            file_path: Some(s.file_path.clone()),
+        })
+        .collect())
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct WhisperVocabConfig {
+    pub initial_prompt: String,
+    pub hotwords: Vec<String>,
+    pub language: String,
+    pub model_size: String,
+    pub temperature: f32,
+}
+
+/// The transcriber configuration derived from the project's vocabulary.
+#[tauri::command]
+pub async fn voice_vocab_stats(
+    state: tauri::State<'_, AppState>,
+) -> Result<WhisperVocabConfig, String> {
+    let symbols = voice_vocab_build(Some(false), state).await?;
+    // Highest-frequency identifiers first: a hot-word list is bounded, so the
+    // ones the project actually says most are the ones worth spending it on.
+    let mut ranked = symbols;
+    ranked.sort_by(|a, b| b.frequency.cmp(&a.frequency));
+    let hotwords: Vec<String> = ranked.iter().take(64).map(|s| s.name.clone()).collect();
+    let initial_prompt = if hotwords.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "The speaker is discussing source code. Expect these identifiers: {}.",
+            hotwords
+                .iter()
+                .take(24)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    };
+    Ok(WhisperVocabConfig {
+        initial_prompt,
+        hotwords,
+        language: "en".to_string(),
+        model_size: "base".to_string(),
+        // Deterministic transcription: identifiers are not a place for
+        // creative decoding.
+        temperature: 0.0,
+    })
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct VocabMetricsView {
+    pub wer_before: f32,
+    pub wer_after: f32,
+    pub improvement_pct: f32,
+    pub total_utterances: u32,
+    pub hotword_hit_rate: f32,
+    /// `None` until a real evaluation has been run.
+    pub last_evaluated_at: Option<String>,
+}
+
+/// Word-error-rate metrics for the vocabulary, from recorded evaluations.
+///
+/// Zeroes with a `null` timestamp mean "never evaluated" — which the panel can
+/// render as such. Inventing an improvement percentage would be advertising a
+/// benefit nobody measured.
+#[tauri::command]
+pub async fn voice_vocab_metrics() -> Result<VocabMetricsView, String> {
+    let path = dirs::home_dir().map(|h| h.join(".vibecli").join("voice-vocab-metrics.json"));
+    let recorded = path
+        .as_ref()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .and_then(|b| serde_json::from_str::<serde_json::Value>(&b).ok());
+
+    let Some(v) = recorded else {
+        return Ok(VocabMetricsView {
+            wer_before: 0.0,
+            wer_after: 0.0,
+            improvement_pct: 0.0,
+            total_utterances: 0,
+            hotword_hit_rate: 0.0,
+            last_evaluated_at: None,
+        });
+    };
+    let before = v.get("before_wer").and_then(|x| x.as_f64()).unwrap_or(0.0) as f32;
+    let after = v.get("after_wer").and_then(|x| x.as_f64()).unwrap_or(0.0) as f32;
+    let metrics = vibecli_cli::voice_vocab::WerMetrics::compute(before, after);
+    Ok(VocabMetricsView {
+        wer_before: metrics.before_wer,
+        wer_after: metrics.after_wer,
+        improvement_pct: metrics.improvement_pct,
+        total_utterances: metrics.sample_count,
+        hotword_hit_rate: v
+            .get("hotword_hit_rate")
+            .and_then(|x| x.as_f64())
+            .unwrap_or(0.0) as f32,
+        last_evaluated_at: v
+            .get("last_evaluated_at")
+            .and_then(|x| x.as_str())
+            .map(str::to_string),
+    })
+}
+
+// ── Policy engine panel ──────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct CheckResultDisplay {
+    pub action: String,
+    pub effect: String,
+    #[serde(rename = "matchedRule")]
+    pub matched_rule: Option<String>,
+    #[serde(rename = "policyId")]
+    pub policy_id: String,
+}
+
+/// Evaluate one access decision against the loaded policies.
+///
+/// The panel previously fell back to rendering `DENY (error)` when this threw,
+/// which is indistinguishable from a genuine deny — an operator testing a rule
+/// would read a missing backend as a working policy.
+#[tauri::command]
+pub async fn policy_check(
+    principal_id: String,
+    roles: Vec<String>,
+    resource_kind: String,
+    resource_id: String,
+    action: String,
+) -> Result<CheckResultDisplay, String> {
+    use vibecli_cli::policy_engine::{CheckRequest, PolicyEngine, Principal, Resource};
+
+    let mut engine = PolicyEngine::new();
+    let request = CheckRequest {
+        principal: Principal {
+            id: principal_id,
+            roles,
+            attributes: Default::default(),
+        },
+        resource: Resource {
+            kind: resource_kind,
+            id: resource_id,
+            attributes: Default::default(),
+            policy_version: String::new(),
+        },
+        action: action.clone(),
+        aux_data: Default::default(),
+    };
+    let result = engine.check(&request);
+    Ok(CheckResultDisplay {
+        action,
+        effect: format!("{:?}", result.effect).to_uppercase(),
+        matched_rule: result.matched_rule.clone(),
+        policy_id: result.policy_id.clone(),
+    })
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct PolicyConflictDisplay {
+    #[serde(rename = "policyA")]
+    pub policy_a: String,
+    #[serde(rename = "policyB")]
+    pub policy_b: String,
+    pub resource: String,
+    pub description: String,
+}
+
+/// Policies that contradict each other on the same resource.
+#[tauri::command]
+pub async fn policy_conflicts() -> Result<serde_json::Value, String> {
+    use vibecli_cli::policy_engine::{PolicyAnalytics, PolicyEngine};
+    let engine = PolicyEngine::new();
+    let conflicts: Vec<PolicyConflictDisplay> = PolicyAnalytics::conflict_detection(&engine)
+        .into_iter()
+        .map(|c| PolicyConflictDisplay {
+            policy_a: c.policy_a,
+            policy_b: c.policy_b,
+            resource: c.resource,
+            description: c.description,
+        })
+        .collect();
+    Ok(serde_json::json!({ "conflicts": conflicts }))
+}
+
+// ── Long-context panel ───────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ModelEntry {
+    pub model_id: String,
+    pub name: String,
+    pub provider: String,
+    pub max_tokens: u64,
+    pub cost_per_1k_input: f32,
+    pub cost_per_1k_output: f32,
+    pub supports_long_context: bool,
+}
+
+/// Context profiles for the models the app can route between.
+///
+/// Costs are the published list prices for each model; `classify_context`
+/// decides what counts as long-context so the panel and the router agree.
+fn long_context_profiles() -> Vec<vibecli_cli::long_context::ModelContextProfile> {
+    use vibecli_cli::long_context::ModelContextProfile;
+    vec![
+        ModelContextProfile::new("claude-opus-5", "claude", 200_000, 0.015, 0.075),
+        ModelContextProfile::new("claude-sonnet-5", "claude", 200_000, 0.003, 0.015),
+        ModelContextProfile::new("gpt-4o", "openai", 128_000, 0.005, 0.015),
+        ModelContextProfile::new("gemini-2.5-pro", "gemini", 1_000_000, 0.00125, 0.005),
+        ModelContextProfile::new("llama3.2", "ollama", 128_000, 0.0, 0.0),
+    ]
+}
+
+#[tauri::command]
+pub async fn long_context_models() -> Result<Vec<ModelEntry>, String> {
+    use vibecli_cli::long_context::ContextCapability;
+    Ok(long_context_profiles()
+        .into_iter()
+        .map(|p| ModelEntry {
+            name: p.model_id.clone(),
+            model_id: p.model_id,
+            provider: p.provider,
+            max_tokens: p.max_tokens,
+            cost_per_1k_input: p.cost_per_1k_input,
+            cost_per_1k_output: p.cost_per_1k_output,
+            supports_long_context: !matches!(p.context_capability, ContextCapability::Standard),
+        })
+        .collect())
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct RouteResult {
+    pub input_tokens: u64,
+    pub chosen_model: String,
+    pub provider: String,
+    pub cost_estimate_usd: f32,
+    pub reason: String,
+}
+
+/// Pick the cheapest model whose context window actually fits `token_count`.
+#[tauri::command]
+pub async fn long_context_route(token_count: u64) -> Result<RouteResult, String> {
+    let mut fitting: Vec<_> = long_context_profiles()
+        .into_iter()
+        .filter(|p| p.max_tokens >= token_count)
+        .collect();
+    if fitting.is_empty() {
+        return Err(format!(
+            "No configured model has a context window large enough for {token_count} tokens"
+        ));
+    }
+    // Cheapest that fits; ties break toward the larger window.
+    fitting.sort_by(|a, b| {
+        a.cost_per_1k_input
+            .partial_cmp(&b.cost_per_1k_input)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then(b.max_tokens.cmp(&a.max_tokens))
+    });
+    let chosen = &fitting[0];
+    let cost = (token_count as f32 / 1000.0) * chosen.cost_per_1k_input;
+    Ok(RouteResult {
+        input_tokens: token_count,
+        chosen_model: chosen.model_id.clone(),
+        provider: chosen.provider.clone(),
+        cost_estimate_usd: cost,
+        reason: format!(
+            "cheapest model whose {} token window fits {} tokens",
+            chosen.max_tokens, token_count
+        ),
+    })
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct IngestProgress {
+    pub file_path: String,
+    pub total_chunks: usize,
+    pub processed_chunks: usize,
+    pub status: String,
+    pub error: Option<String>,
+}
+
+/// Chunk a file for long-context ingestion.
+#[tauri::command]
+pub async fn long_context_ingest(file_path: String) -> Result<IngestProgress, String> {
+    let path = PathBuf::from(&file_path);
+    let body = std::fs::read_to_string(&path)
+        .map_err(|e| format!("cannot read {}: {e}", path.display()))?;
+
+    // 4k-token chunks with 200 tokens of overlap: large enough that a chunk
+    // carries context on its own, overlapped so a definition split across a
+    // boundary still appears whole in one of them.
+    let chunker = vibecli_cli::long_context::DocumentChunker::new(4_000, 200);
+    let is_source = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| matches!(e, "rs" | "ts" | "tsx" | "js" | "py" | "go"));
+    let chunks = if is_source {
+        chunker.chunk_source_file(&body, &file_path)
+    } else {
+        chunker.chunk_text(&body, &file_path)
+    };
+
+    Ok(IngestProgress {
+        file_path,
+        total_chunks: chunks.len(),
+        // Chunking is the whole of ingestion here, so it is complete on
+        // return; reporting a partial count would imply background work that
+        // is not happening.
+        processed_chunks: chunks.len(),
+        status: "complete".to_string(),
+        error: None,
+    })
+}
+
+// ── IDE bridge panel ─────────────────────────────────────────────────────────
+//
+// The bridge is a socket another editor connects to. Nothing connects to it in
+// a stock desktop install, so these report the real state — disconnected, with
+// nothing open — rather than sample data. A panel that invents an attached IDE
+// is worse than one that says there is none.
+
+fn ide_bridge_socket_path() -> PathBuf {
+    dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".vibecli")
+        .join("ide-bridge.sock")
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct BridgeStatus {
+    pub connected: bool,
+    pub socket_path: String,
+    pub ide_name: Option<String>,
+    pub ide_version: Option<String>,
+    pub pid: Option<u32>,
+}
+
+/// State of the editor bridge. `action: "connect"` re-checks rather than
+/// claiming a connection the socket cannot back.
+#[tauri::command]
+pub async fn ide_bridge_status(action: Option<String>) -> Result<BridgeStatus, String> {
+    let _ = action;
+    let socket = ide_bridge_socket_path();
+    Ok(BridgeStatus {
+        connected: socket.exists(),
+        socket_path: socket.display().to_string(),
+        ide_name: None,
+        ide_version: None,
+        pid: None,
+    })
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct BridgeContext {
+    pub open_files: Vec<String>,
+    pub active_file: Option<String>,
+    pub active_selection: Option<serde_json::Value>,
+    pub test_results: Option<serde_json::Value>,
+    pub workspace_root: Option<String>,
+}
+
+/// What the bridge currently knows about the attached editor.
+#[tauri::command]
+pub async fn ide_bridge_context(
+    state: tauri::State<'_, AppState>,
+) -> Result<BridgeContext, String> {
+    let workspace_root = {
+        let workspace = state.workspace.lock().await;
+        workspace
+            .folders()
+            .first()
+            .map(|p| p.display().to_string())
+    };
+    Ok(BridgeContext {
+        open_files: Vec::new(),
+        active_file: None,
+        active_selection: None,
+        test_results: None,
+        workspace_root,
+    })
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SyncInfo {
+    pub last_sync_at: Option<String>,
+    pub pending_changes: u32,
+    pub sync_status: String,
+}
+
+#[tauri::command]
+pub async fn ide_bridge_sync(force: Option<bool>) -> Result<SyncInfo, String> {
+    let _ = force;
+    let connected = ide_bridge_socket_path().exists();
+    Ok(SyncInfo {
+        // Never synced, so the timestamp is absent rather than "now".
+        last_sync_at: None,
+        pending_changes: 0,
+        sync_status: if connected {
+            "idle".to_string()
+        } else {
+            "no editor attached".to_string()
+        },
+    })
+}
+
+// ── Auto-deploy panel ────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct PipelineStage {
+    pub id: String,
+    pub name: String,
+    pub kind: String,
+    pub status: String,
+    pub pre_conditions: Vec<String>,
+    pub post_conditions: Vec<String>,
+    pub duration_secs: Option<u64>,
+    pub order: u32,
+}
+
+/// The deployment pipeline for this project, derived from what it actually has.
+///
+/// Stages are only offered when the project provides the thing they run: no
+/// test stage without a test command, no container stage without a Dockerfile.
+/// A fixed five-stage pipeline would show green checkmarks for steps that
+/// could never execute.
+#[tauri::command]
+pub async fn auto_deploy_plan(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<PipelineStage>, String> {
+    let root = {
+        let workspace = state.workspace.lock().await;
+        workspace.folders().first().cloned()
+    };
+    let Some(root) = root else {
+        return Ok(Vec::new());
+    };
+    let profile = scan_project_profile(root.display().to_string()).await?;
+
+    let mut stages: Vec<PipelineStage> = Vec::new();
+    let mut push = |name: &str, kind: &str, pre: Vec<String>| {
+        let order = stages.len() as u32;
+        stages.push(PipelineStage {
+            id: format!("stage-{order}"),
+            name: name.to_string(),
+            kind: kind.to_string(),
+            status: "pending".to_string(),
+            pre_conditions: pre,
+            post_conditions: Vec::new(),
+            duration_secs: None,
+            order,
+        });
+    };
+
+    if !profile.build_commands.is_empty() {
+        push("Build", "build", vec![profile.build_commands[0].command.clone()]);
+    }
+    if !profile.test_commands.is_empty() {
+        push("Test", "test", vec![profile.test_commands[0].command.clone()]);
+    }
+    if !profile.lint_commands.is_empty() {
+        push("Lint", "lint", vec![profile.lint_commands[0].command.clone()]);
+    }
+    if root.join("Dockerfile").is_file() {
+        push("Container image", "package", vec!["Dockerfile".to_string()]);
+    }
+    Ok(stages)
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct HealthGateView {
+    pub id: String,
+    pub name: String,
+    pub metric: String,
+    pub threshold: String,
+    /// `None` until the gate has actually been evaluated against a deployment.
+    pub current_value: Option<String>,
+    pub passed: Option<bool>,
+}
+
+#[tauri::command]
+pub async fn auto_deploy_stage_status() -> Result<Vec<HealthGateView>, String> {
+    // Gates are defined per deployment; with no deployment in flight there is
+    // nothing to report. An empty list renders as "no gates", which is true.
+    Ok(Vec::new())
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DeployPlanSummary {
+    pub id: String,
+    pub created_at: String,
+    pub target_env: String,
+    pub triggered_by: String,
+    pub status: String,
+    pub stages_total: u32,
+    pub stages_passed: u32,
+}
+
+/// Past deployments, newest first — read from the recorded log.
+#[tauri::command]
+pub async fn auto_deploy_history() -> Result<Vec<DeployPlanSummary>, String> {
+    let Some(path) = dirs::home_dir().map(|h| h.join(".vibecli").join("deploy-history.json"))
+    else {
+        return Ok(Vec::new());
+    };
+    let Ok(body) = std::fs::read_to_string(&path) else {
+        return Ok(Vec::new());
+    };
+    serde_json::from_str::<Vec<DeployPlanSummary>>(&body)
+        .map_err(|e| format!("{} is not a valid deploy history: {e}", path.display()))
+}
+
+// ── Semantic index panel ─────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct CallEdge {
+    pub caller: String,
+    pub callee: String,
+    pub file: String,
+    pub line: u32,
+}
+
+/// Call-graph edges around the symbols matching `query`.
+///
+/// Built from the daemon's code graph: `/v1/graph/query` resolves the query to
+/// seed symbols, and each seed's neighbours become edges. The daemon's
+/// neighbour set is undirected, so an edge here means "these two symbols are
+/// related in the graph" rather than a proven caller→callee direction — the
+/// panel labels the columns that way and this is the honest reading of what
+/// the index stores.
+///
+/// Bounded on both axes: a 41k-node graph would otherwise turn opening a tab
+/// into tens of thousands of requests.
+#[tauri::command]
+pub async fn semindex_callgraph(query: String) -> Result<Vec<CallEdge>, String> {
+    const MAX_SEEDS: usize = 12;
+    const MAX_EDGES_PER_SEED: usize = 25;
+
+    let seeds_body = serde_json::json!({
+        "query": if query.trim().is_empty() { "*" } else { query.trim() },
+        "budget": 200,
+    });
+    let response =
+        exec_goal_authed_json(reqwest::Method::POST, "/v1/graph/query", seeds_body).await?;
+
+    let seeds: Vec<String> = response
+        .get("seeds")
+        .and_then(|s| s.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(str::to_string))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    // The query endpoint repeats a name once per matching symbol; the
+    // neighbour lookup is by name, so asking twice returns the same edges.
+    let unique_seeds: Vec<String> = {
+        let mut seen = std::collections::BTreeSet::new();
+        seeds.into_iter().filter(|s| seen.insert(s.clone())).collect()
+    };
+
+    let mut edges = Vec::new();
+    for seed in unique_seeds.into_iter().take(MAX_SEEDS) {
+        // Symbol names can contain `::` and other path-significant
+        // characters; percent-encoding keeps them inside the one path segment
+        // the route expects.
+        let encoded: String = seed
+            .bytes()
+            .map(|b| match b {
+                b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                    (b as char).to_string()
+                }
+                other => format!("%{other:02X}"),
+            })
+            .collect();
+        let path = format!("/v1/graph/neighbors/{encoded}");
+        let Ok(neighbours) = exec_goal_authed_get(&path, None).await else {
+            // One unresolvable symbol should not empty the whole view.
+            continue;
+        };
+        let Some(items) = neighbours.as_array() else {
+            continue;
+        };
+        for item in items.iter().take(MAX_EDGES_PER_SEED) {
+            let Some(sym) = item.get("Symbol") else { continue };
+            let (Some(name), Some(file)) = (
+                sym.get("name").and_then(|v| v.as_str()),
+                sym.get("file_path").and_then(|v| v.as_str()),
+            ) else {
+                continue;
+            };
+            edges.push(CallEdge {
+                caller: seed.clone(),
+                callee: name.to_string(),
+                file: file.to_string(),
+                line: sym
+                    .get("line_start")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0) as u32,
+            });
+        }
+    }
+    Ok(edges)
+}
+
+// ── Design annotations panel ─────────────────────────────────────────────────
+//
+// `design_mode::Annotation` in vibecli is a *geometric* annotation — arrows and
+// regions over a screenshot. This panel's annotations are design-intent notes
+// ("spacing", "color", …) attached to a CSS selector. Force-fitting one onto
+// the other would have made both wrong, so this stores the panel's own model.
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DesignAnnotation {
+    pub id: String,
+    pub kind: String,
+    pub description: String,
+    pub selector: Option<String>,
+    pub created_at: String,
+}
+
+fn design_annotations_path() -> Option<PathBuf> {
+    dirs::home_dir().map(|h| h.join(".vibecli").join("design-annotations.json"))
+}
+
+fn load_design_annotations() -> Vec<DesignAnnotation> {
+    design_annotations_path()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .and_then(|b| serde_json::from_str(&b).ok())
+        .unwrap_or_default()
+}
+
+/// List annotations, or add one when `action == "add"`.
+///
+/// Returns the whole list for a read and the created item for an add, matching
+/// what the panel destructures in each case.
+#[tauri::command]
+pub async fn design_mode_annotations(
+    action: Option<String>,
+    kind: Option<String>,
+    description: Option<String>,
+    selector: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let mut items = load_design_annotations();
+    if action.as_deref() != Some("add") {
+        return serde_json::to_value(&items).map_err(|e| e.to_string());
+    }
+
+    let description = description
+        .filter(|d| !d.trim().is_empty())
+        .ok_or_else(|| "An annotation needs a description".to_string())?;
+    let created = DesignAnnotation {
+        id: format!("ann-{}", unix_now_secs()),
+        kind: kind.unwrap_or_else(|| "component".to_string()),
+        description,
+        selector: selector.filter(|s| !s.trim().is_empty()),
+        created_at: unix_now_secs().to_string(),
+    };
+    items.push(created.clone());
+
+    let path = design_annotations_path()
+        .ok_or_else(|| "No home directory to store annotations in".to_string())?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let body = serde_json::to_string_pretty(&items).map_err(|e| e.to_string())?;
+    // Written before returning: reporting a saved annotation that is not on
+    // disk would lose it on the next reload.
+    std::fs::write(&path, body).map_err(|e| format!("cannot save annotations: {e}"))?;
+    serde_json::to_value(&created).map_err(|e| e.to_string())
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct DesignInstruction {
+    pub index: u32,
+    pub text: String,
+    pub source_annotation_ids: Vec<String>,
+}
+
+/// Turn the stored annotations into implementation instructions.
+#[tauri::command]
+pub async fn design_mode_generate() -> Result<Vec<DesignInstruction>, String> {
+    Ok(load_design_annotations()
+        .into_iter()
+        .enumerate()
+        .map(|(i, a)| DesignInstruction {
+            index: i as u32,
+            text: match &a.selector {
+                Some(sel) => format!("[{}] {} — applies to `{}`", a.kind, a.description, sel),
+                None => format!("[{}] {}", a.kind, a.description),
+            },
+            source_annotation_ids: vec![a.id],
+        })
+        .collect())
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct DesignTokenView {
+    pub name: String,
+    pub value: String,
+    pub category: String,
+}
+
+/// Design tokens declared in the workspace's stylesheets.
+#[tauri::command]
+pub async fn design_mode_tokens(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<DesignTokenView>, String> {
+    let root = {
+        let workspace = state.workspace.lock().await;
+        workspace.folders().first().cloned()
+    };
+    let Some(root) = root else {
+        return Ok(Vec::new());
+    };
+
+    let mut extractor = vibecli_cli::design_mode::DesignTokenExtractor::new();
+    let mut scanned = 0usize;
+    for entry in walkdir::WalkDir::new(&root)
+        .max_depth(6)
+        .into_iter()
+        .filter_map(Result::ok)
+        .filter(|e| e.file_type().is_file())
+    {
+        let path = entry.path();
+        if path.components().any(|c| {
+            matches!(
+                c.as_os_str().to_str(),
+                Some("node_modules") | Some("target") | Some(".git") | Some("dist")
+            )
+        }) {
+            continue;
+        }
+        if path.extension().and_then(|e| e.to_str()) != Some("css") {
+            continue;
+        }
+        if scanned >= 200 {
+            break;
+        }
+        if let Ok(css) = std::fs::read_to_string(path) {
+            extractor.extract_from_css(&css);
+            scanned += 1;
+        }
+    }
+
+    Ok(extractor
+        .tokens()
+        .iter()
+        .map(|t| DesignTokenView {
+            name: t.var_name.clone(),
+            value: t.hex_value.clone(),
+            category: t.usage_context.clone(),
+        })
+        .collect())
+}
+
+// ── Company task board ───────────────────────────────────────────────────────
+
+/// Move a task to a new status.
+///
+/// The panel previously swallowed the failure and updated its own state
+/// "optimistically", so a card appeared to move and snapped back on the next
+/// load — with no indication that nothing had been saved.
+#[tauri::command]
+pub async fn company_task_move(id: String, status: String) -> Result<serde_json::Value, String> {
+    use vibecli_cli::company_tasks::{TaskStatus, TaskStore};
+    let db_path = vibecli_cli::company_store::default_db_path();
+    let conn = rusqlite::Connection::open(&db_path).map_err(|e| e.to_string())?;
+    let store = TaskStore::new(&conn);
+    store.ensure_schema().map_err(|e| e.to_string())?;
+    let task = store
+        .transition(&id, TaskStatus::from_str(&status))
+        .map_err(|e| e.to_string())?;
+    serde_json::to_value(&task).map_err(|e| e.to_string())
+}
+
+// ── Pencil wireframe export ──────────────────────────────────────────────────
+
+/// Export a generated wireframe.
+///
+/// `ep_xml` is the document as-is; `react` asks the selected provider to
+/// convert it. Provider-agnostic: an unset selection is an error rather than a
+/// silent fallback to one vendor.
+#[tauri::command]
+pub async fn export_pencil_wireframe(
+    xml: String,
+    format: String,
+    workspace_path: Option<String>,
+    provider: Option<String>,
+) -> Result<String, String> {
+    let _ = workspace_path;
+    if xml.trim().is_empty() {
+        return Err("Generate a wireframe before exporting".to_string());
+    }
+    match format.as_str() {
+        "ep_xml" => Ok(xml),
+        "react" => {
+            let provider = provider
+                .filter(|p| !p.trim().is_empty())
+                .ok_or_else(|| "Select a provider to convert the wireframe".to_string())?;
+            let prompt = format!(
+                "Convert this Pencil (evolus) wireframe XML into a single self-contained \
+                 React function component using inline styles. Return only the code.\n\n{xml}"
+            );
+            ai_chat_with_effort(provider, String::new(), prompt, None).await
+        }
+        other => Err(format!(
+            "Unsupported export format `{other}` — expected `ep_xml` or `react`"
+        )),
+    }
+}
+
+// ── Agile / SAFe panel ───────────────────────────────────────────────────────
+
+/// Score a PI's objectives as SAFe features with WSJF inputs.
+///
+/// The rest of the `agile_ai_*` family shipped; this one did not, so the
+/// "Enhance (SAFe)" action threw. Provider-agnostic like its siblings.
+#[tauri::command]
+pub async fn agile_ai_enhance_safe(
+    pi_id: String,
+    objective_text: String,
+    provider: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let provider = provider
+        .filter(|p| !p.trim().is_empty())
+        .ok_or_else(|| "Select a provider first".to_string())?;
+    if objective_text.trim().is_empty() {
+        return Err("This PI has no objectives to enhance".to_string());
+    }
+
+    let prompt = format!(
+        "You are a SAFe release train engineer. Break the following Program \
+         Increment objectives into features and score each for WSJF.\n\n\
+         Objectives for {pi_id}:\n{objective_text}\n\n\
+         Reply with JSON only, no prose and no markdown fence, in exactly this \
+         shape:\n\
+         {{\"features\":[{{\"title\":\"…\",\"description\":\"…\",\
+         \"businessValue\":1-10,\"timeCriticality\":1-10,\
+         \"riskReduction\":1-10,\"jobSize\":1-10}}]}}"
+    );
+
+    let raw = ai_chat_with_effort(provider, String::new(), prompt, None).await?;
+    // Models fence JSON and prefix it with prose; take the outermost object.
+    let cleaned = raw.replace("```json", "").replace("```", "");
+    let slice = match (cleaned.find('{'), cleaned.rfind('}')) {
+        (Some(a), Some(b)) if b > a => &cleaned[a..=b],
+        _ => {
+            return Err(format!(
+                "The model did not return JSON: {}",
+                cleaned.chars().take(200).collect::<String>()
+            ))
+        }
+    };
+    serde_json::from_str::<serde_json::Value>(slice)
+        .map_err(|e| format!("The model's JSON did not parse ({e})"))
+}

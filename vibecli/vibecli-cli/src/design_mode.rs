@@ -168,6 +168,14 @@ impl DesignTokenExtractor {
         Self { tokens: Vec::new() }
     }
 
+    /// The tokens extracted so far.
+    ///
+    /// Without this the type could be filled but never read, which is what
+    /// left VibeCoder's design-token view unable to use it.
+    pub fn tokens(&self) -> &[DesignTokenRef] {
+        &self.tokens
+    }
+
     /// Parses CSS for `--var-name: #hexcolor` patterns and stores them.
     pub fn extract_from_css(&mut self, css: &str) {
         for line in css.lines() {

@@ -1215,9 +1215,8 @@ export function AIChat({
     const summaryPrompt = "Summarise the following conversation into a concise paragraph (max 300 words) preserving key facts, decisions, and any important code snippets mentioned:\n\n"
       + toSummarise.map((m) => `${m.role}: ${m.content}`).join("\n\n");
 
-    invoke<{ message: string }>("summarise_messages", { content: summaryPrompt })
-      .then((res) => {
-        const summaryText = res?.message ?? toSummarise.map((m) => `${m.role}: ${m.content.slice(0, 120)}`).join(" | ");
+    invoke<string>("summarise_messages", { provider, content: summaryPrompt })
+      .then((summaryText) => {
         const summaryMsg: Message = {
           role: "assistant",
           content: `Conversation summary (earlier messages compacted):\n\n${summaryText}`,
@@ -1226,11 +1225,16 @@ export function AIChat({
         };
         setMessages([summaryMsg, ...kept]);
       })
-      .catch(() => {
-        // Backend command not available — do a simple truncation with a notice
+      .catch((err) => {
+        // Summarising failed, so the earlier turns are being *dropped*, not
+        // compacted. Saying "compacted to save context" here — as this did
+        // while the backing command did not exist at all — tells the user
+        // their conversation was preserved when it was discarded.
         const summaryMsg: Message = {
           role: "assistant",
-          content: `[Earlier ${toSummarise.length} messages were compacted to save context.]`,
+          content:
+            `[Could not summarise the earlier ${toSummarise.length} messages, so they were ` +
+            `dropped to stay within the context window. Reason: ${err}]`,
           isSummary: true,
           timestamp: Date.now(),
         };

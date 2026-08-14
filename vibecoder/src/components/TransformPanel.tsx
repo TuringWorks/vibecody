@@ -223,11 +223,11 @@ export function TransformPanel({ provider }: TransformPanelProps) {
     setTransformedCode("");
     const def = ALL_TRANSFORMS.find(t => t.id === selectedTransform);
     try {
-      const result = await invoke<string>("execute_chat", {
+      const result = await invoke<string>("ai_chat_with_effort", {
         provider: effectiveProvider,
-        model: effectiveModel || undefined,
-        message: `You are a code transformation expert. Transform the following code using the "${def?.label || selectedTransform}" transformation (${def?.description || ""}).\n\nReturn ONLY the transformed code, no explanations.\n\nSource code:\n\`\`\`\n${sourceCode}\n\`\`\``,
-      }).catch((e: unknown) => String(e));
+        model: effectiveModel || "",
+        prompt: `You are a code transformation expert. Transform the following code using the "${def?.label || selectedTransform}" transformation (${def?.description || ""}).\n\nReturn ONLY the transformed code, no explanations.\n\nSource code:\n\`\`\`\n${sourceCode}\n\`\`\``,
+      });
       if (mountedRef.current) {
         let code = result.trim();
         if (code.startsWith("```")) {

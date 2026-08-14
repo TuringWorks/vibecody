@@ -133,7 +133,12 @@ function ResolutionBadge({ ruleId, mode, onChange }: { ruleId: string; mode: Res
 // Component
 // ---------------------------------------------------------------------------
 
-const AutomationsPanel: React.FC = () => {
+/** Props forwarded by `createComposite`; `provider` is the toolbar selection. */
+interface AutomationsPanelProps {
+  provider?: string;
+}
+
+const AutomationsPanel: React.FC<AutomationsPanelProps> = ({ provider }) => {
   const [tab, setTab] = useState<'rules' | 'tasks' | 'logs'>('rules');
   const [rules, setRules] = useState<AutomationRule[]>([]);
   const [tasks, setTasks] = useState<AutomationTask[]>([]);
@@ -200,7 +205,11 @@ const AutomationsPanel: React.FC = () => {
           events: newEvents.split(',').map((e) => e.trim()).filter(Boolean),
           filter: '',
           promptTemplate: newPrompt,
-          provider: 'claude',
+          // The toolbar selection, not a pinned vendor. Hard-coding one
+          // here silently ran every automation on Claude regardless of what
+          // the user had chosen — and failed outright for anyone without an
+          // Anthropic key. See AGENTS.md → Provider-Agnostic Panels — STRICT.
+          provider,
           maxTurns: 10,
           sandbox: false,
           resolution_mode: newResolutionMode,

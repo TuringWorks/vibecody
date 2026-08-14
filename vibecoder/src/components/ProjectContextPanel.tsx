@@ -71,7 +71,7 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
     setLoading(true);
     setError("");
     try {
-      const result = await invoke<string>("read_file_content", { path: `${wp}/.vibecli/project-profile.json` });
+      const result = await invoke<string>("read_file", { path: `${wp}/.vibecli/project-profile.json` });
       setProfile(JSON.parse(result));
     } catch {
       // No cached profile — try to scan
@@ -90,7 +90,7 @@ export function ProjectContextPanel({ workspacePath }: { workspacePath?: string 
   const runCommand = async (cmd: string) => {
     setRunOutput(`Running: ${cmd}...`);
     try {
-      const result = await invoke<string>("run_terminal_command", { command: cmd, workspacePath: wp });
+      const result = await invoke<string>("run_project_command", { command: cmd, workspacePath: wp });
       setRunOutput(result);
     } catch (_e) {
       setRunOutput(`Error: ${_e}`);
