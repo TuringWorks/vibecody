@@ -734,6 +734,16 @@ pub const DEFAULT_MAX_TURN_DURATION: Duration = Duration::from_secs(240);
 /// stall.
 pub const DEFAULT_MAX_RUN_DURATION: Duration = Duration::from_secs(600);
 
+/// How long the outer backstop waits past `max_run_duration` before killing
+/// the run outright.
+///
+/// The in-loop checks produce a far better outcome — they let the agent
+/// summarise what it did — but they cannot fire while a tool call is blocked.
+/// This gap is the window in which they get to win; wide enough that a run
+/// finishing its current chunk is not cut off mid-sentence, narrow enough
+/// that a wedged run still ends in bounded time.
+const RUN_DEADLINE_GRACE: Duration = Duration::from_secs(30);
+
 /// Build the brief handed to a successor agent when a degrading one is retired.
 ///
 /// Deliberately thin. Everything here is read off the run that actually
@@ -949,6 +959,9 @@ pub struct AgentLoop {
     /// run terminates regardless of where it is stuck. Without it, "the agent
     /// cannot stall" rested on having enumerated every way it might.
     pub max_run_duration: Duration,
+    /// Grace period the outer backstop allows past `max_run_duration` before
+    /// killing the run outright. See [`RUN_DEADLINE_GRACE`].
+    pub run_deadline_grace: Duration,
     /// Enable circuit breaker for stall/spin/degradation detection.
     pub circuit_breaker_enabled: bool,
     /// Enable pre-completion double-check (re-read files, run build, run tests).
@@ -1025,6 +1038,7 @@ impl AgentLoop {
             stream_idle_timeout: DEFAULT_STREAM_IDLE_TIMEOUT,
             max_turn_duration: DEFAULT_MAX_TURN_DURATION,
             max_run_duration: DEFAULT_MAX_RUN_DURATION,
+            run_deadline_grace: RUN_DEADLINE_GRACE,
             circuit_breaker_enabled: true,
             double_check_enabled: false,
             atomic_commits: false,
@@ -1133,7 +1147,59 @@ impl AgentLoop {
     }
 
     /// Run the agent for `task`, emitting [`AgentEvent`]s via `event_tx`.
+    /// Run the agent, bounded unconditionally by `max_run_duration`.
+    ///
+    /// The in-loop deadline checks are the preferred path: they stop between
+    /// turns or between chunks, so the agent gets to say why it stopped and
+    /// what it had done. But both of them only run when control comes back to
+    /// a loop, and the two longest awaits in an iteration sit outside both —
+    /// double-check verification, which runs the project's own build and test
+    /// suite, and tool execution, whose bash cap (900s) is itself longer than
+    /// this ceiling. A single hung command therefore outlived the entire run
+    /// budget: measured greenfield runs reached the 900s harness budget with
+    /// the 600s ceiling armed and never consulted.
+    ///
+    /// This wrapper is the backstop. It depends on nothing inside the loop.
+    /// The grace period lets the in-loop checks win when they can, so the
+    /// good message stays the common case and this stays the floor.
     pub async fn run(
+        &self,
+        task: &str,
+        context: AgentContext,
+        event_tx: mpsc::Sender<AgentEvent>,
+    ) -> Result<()> {
+        let backstop = self.max_run_duration + self.run_deadline_grace;
+        match tokio::time::timeout(
+            backstop,
+            self.run_bounded(task, context, event_tx.clone()),
+        )
+        .await
+        {
+            Ok(result) => result,
+            Err(_) => {
+                // Absent stays absent: we do not know how much of the work
+                // landed, so this reports the bound that fired and nothing
+                // about completeness.
+                let summary = format!(
+                    "Run stopped at its {}s ceiling while a tool call or \
+                     verification step was still running, so no summary of the \
+                     work is available. Any files already written are on disk.",
+                    self.max_run_duration.as_secs()
+                );
+                let _ = event_tx
+                    .send(AgentEvent::Partial {
+                        summary: summary.clone(),
+                        steps_completed: 0,
+                        steps_planned: 0,
+                        remaining_plan: Vec::new(),
+                    })
+                    .await;
+                Err(anyhow::anyhow!(summary))
+            }
+        }
+    }
+
+    async fn run_bounded(
         &self,
         task: &str,
         context: AgentContext,
@@ -5485,6 +5551,101 @@ mod stream_stall_tests {
         assert!(
             err.to_string().contains("went silent"),
             "error should name the stall, got: {err}"
+        );
+    }
+
+    /// Wedges *before* returning a stream, so there is no stream to poll.
+    struct WedgedProvider;
+
+    #[async_trait::async_trait]
+    impl crate::provider::AIProvider for WedgedProvider {
+        fn name(&self) -> &str {
+            "wedged"
+        }
+        async fn is_available(&self) -> bool {
+            true
+        }
+        async fn complete(&self, _c: &CodeContext) -> Result<CompletionResponse> {
+            anyhow::bail!("unused")
+        }
+        async fn stream_complete(&self, _c: &CodeContext) -> Result<CompletionStream> {
+            anyhow::bail!("unused")
+        }
+        async fn chat(&self, _m: &[Message], _c: Option<String>) -> Result<String> {
+            futures::future::pending::<()>().await;
+            unreachable!()
+        }
+        async fn stream_chat(&self, _m: &[Message]) -> Result<CompletionStream> {
+            futures::future::pending::<()>().await;
+            unreachable!()
+        }
+    }
+
+    /// The gap the in-loop checks cannot close.
+    ///
+    /// Both deadline checks live inside loops: one at the top of the turn
+    /// loop, one between stream chunks. An await that blocks *before* the
+    /// stream exists reaches neither — and neither do the two longest awaits
+    /// in a real iteration, double-check verification and tool execution,
+    /// whose bash cap is itself longer than the run ceiling. Measured
+    /// greenfield runs hit the 900s harness budget with the 600s ceiling
+    /// armed and never consulted.
+    ///
+    /// Like the silent-stream test, the assertion that matters is that the
+    /// run *finishes at all*; without the backstop this hangs rather than
+    /// fails, so the outer timeout is the real oracle.
+    #[tokio::test]
+    async fn a_run_wedged_outside_every_loop_still_terminates() {
+        let provider: Arc<dyn crate::provider::AIProvider> = Arc::new(WedgedProvider);
+        let exec: Arc<dyn ToolExecutorTrait> = Arc::new(NoOpExecutor);
+        let mut agent = AgentLoop::new(provider, ApprovalPolicy::FullAuto, exec);
+        agent.max_run_duration = Duration::from_millis(100);
+        agent.run_deadline_grace = Duration::from_millis(200);
+
+        let (tx, _rx) = mpsc::channel::<AgentEvent>(64);
+        let outcome = tokio::time::timeout(
+            Duration::from_secs(20),
+            agent.run("build the thing", AgentContext::default(), tx),
+        )
+        .await
+        .expect("the backstop did not fire — a wedged run outlived its ceiling");
+
+        let err = outcome.expect_err("a wedged run cannot succeed");
+        assert!(
+            err.to_string().contains("ceiling"),
+            "the error should name the bound that fired, got: {err}"
+        );
+        // It must not claim to know how much work landed.
+        assert!(
+            !err.to_string().contains("completed successfully"),
+            "a killed run must not report success: {err}"
+        );
+    }
+
+    /// The backstop is a floor, not the normal path: a run that ends on its
+    /// own must keep its own outcome, not be relabelled by the wrapper.
+    #[tokio::test]
+    async fn a_run_that_finishes_early_keeps_its_own_outcome() {
+        let provider: Arc<dyn crate::provider::AIProvider> = Arc::new(SilentStreamProvider);
+        let exec: Arc<dyn ToolExecutorTrait> = Arc::new(NoOpExecutor);
+        let mut agent = AgentLoop::new(provider, ApprovalPolicy::FullAuto, exec);
+        agent.stream_idle_timeout = Duration::from_millis(50);
+        agent.max_steps = 1;
+        // Ceiling far away: whatever ends this run, it is not the backstop.
+        agent.max_run_duration = Duration::from_secs(300);
+
+        let (tx, _rx) = mpsc::channel::<AgentEvent>(64);
+        let err = tokio::time::timeout(
+            Duration::from_secs(20),
+            agent.run("do the thing", AgentContext::default(), tx),
+        )
+        .await
+        .expect("run hung")
+        .expect_err("a stream that never yields cannot succeed");
+
+        assert!(
+            err.to_string().contains("went silent"),
+            "the idle-stall message must survive the wrapper, got: {err}"
         );
     }
 
