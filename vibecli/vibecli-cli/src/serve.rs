@@ -3326,6 +3326,10 @@ async fn vibedesk_plugin_catalog(
                         "kind": c.kind(),
                         "name": c.name(),
                     })).collect::<Vec<_>>(),
+                    // A bundle's parts, so a card can say what installing it brings
+                    // before the click rather than after.
+                    "includes": p.includes,
+                    "connectors": p.connectors,
                     "installed": policy.is_some(),
                     "policy": policy.map(|p| format!("{p:?}").to_lowercase()),
                 })
@@ -3344,9 +3348,10 @@ async fn vibedesk_plugin_install(
     Json(req): Json<PluginInstallRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     let root = resolve_repo_root(req.path.as_deref(), &state.workspace_root);
+    let now = chrono::Utc::now().timestamp_millis();
     let outcome = tokio::task::spawn_blocking(move || {
         let store = crate::workspace_store::WorkspaceStore::open(&root)?;
-        crate::plugin_catalog::install(&root, &store, &req.name, req.force)
+        crate::plugin_catalog::install(&root, &store, &req.name, req.force, now)
             .map_err(|e| e.to_string())
     })
     .await
@@ -3363,6 +3368,11 @@ async fn vibedesk_plugin_install(
         // fingerprint changes on every install, and an operator comparing
         // fingerprints deserves to know why they moved.
         "signing_key_persisted": outcome.key_persisted,
+        // What a bundle actually set up, and what it could not. The panel
+        // prompts for anything that came back `needs_credentials` — the one
+        // outcome a one-click install cannot resolve on its own.
+        "included": outcome.included,
+        "connectors": outcome.connectors,
     })))
 }
 

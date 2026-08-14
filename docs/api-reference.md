@@ -1016,9 +1016,50 @@ format or an install directory.
 |---|---|---|
 | `GET` | `/api/vibedesk/plugins` | Components live in this workspace, grouped by kind. Read-only inventory. |
 | `GET` | `/api/vibedesk/plugins/catalog` | Every core plugin compiled into the daemon, with `installed` and `policy` for this workspace. |
-| `POST` | `/api/vibedesk/plugins/install` | Body: `{ name, path?, force? }`. Materialises the catalog entry, signs it, and installs it through the same verified path as a downloaded bundle. Returns `signing_key_persisted` — `false` means the publisher fingerprint will differ next install. |
+| `POST` | `/api/vibedesk/plugins/install` | Body: `{ name, path?, force? }`. Materialises the catalog entry, signs it, and installs it through the same verified path as a downloaded bundle. Returns `signing_key_persisted` — `false` means the publisher fingerprint will differ next install — plus `included` (plugins a bundle brought) and `connectors` (what became of each one it expects). |
 | `POST` | `/api/vibedesk/plugins/policy` | Body: `{ name, policy, path? }`. `policy` is `"on"` or `"off"`. `"required"` is refused: it is an admin pin the same user could not then lower. |
 | `POST` | `/api/vibedesk/plugins/uninstall` | Body: `{ name, path? }`. Removes the install directory and the policy row. `removed: false` means there was nothing on disk — the policy row may still have been cleared. |
+
+### Plugins, bundles and connectors
+
+Three words, one distinction worth keeping straight:
+
+- A **connector** answers *what can the agent reach* — one external service, one
+  MCP server, authenticated once. Slack, GitHub, a Postgres database.
+- A **plugin** answers *what does the agent know how to do* — skills and rules
+  that change how it works.
+- A **bundle** answers *what job is it set up for*. It installs a set of plugins
+  and sets up the connectors that job assumes, so a role is one click instead of
+  six.
+
+A bundle carries `includes` (other catalog plugins) and `connectors` (ids from
+the connector catalog) instead of components of its own. It references the
+single-purpose plugins rather than copying them: two plugins shipping a skill of
+the same name would collide, and a second copy of a rule is a second thing to
+keep true.
+
+Installing a bundle returns what it actually managed, per connector:
+
+| `state` | Meaning |
+|---|---|
+| `already_configured` | The workspace already had it; left as it was. |
+| `added` | Configured by this install. It needed no credential. |
+| `needs_credentials` | **Not** configured — it cannot run without a secret only you have. `fields` names them. |
+| `unknown` | Named by the bundle but absent from the connector catalog — a bad bundle. |
+| `failed` | Adding it errored; `error` says why. |
+
+`needs_credentials` is the one that matters. A bundle can wire up everything
+that asks for nothing and it cannot invent a token; reporting that as configured
+would be the feature lying at the moment it is most believed. The panel prompts
+for those and says the setup is incomplete until they are supplied.
+
+| Bundle | Installs | Expects |
+|---|---|---|
+| `bundle-engineering` | review standards, test first, debugging | filesystem, git, github |
+| `bundle-on-call` | incident response, debugging | sentry, github, slack |
+| `bundle-security-review` | secure defaults, dependency hygiene | github, git |
+| `bundle-data` | review standards | postgres, sqlite |
+| `bundle-research` | technical writing | fetch, brave-search, memory |
 
 ### Core plugin catalog
 

@@ -34,9 +34,36 @@ interface CatalogPlugin {
   description: string;
   category: string;
   components: { kind: string; name: string }[];
+  /** Other catalog plugins a bundle installs with it. */
+  includes: string[];
+  /** Connector ids this setup expects. */
+  connectors: string[];
   installed: boolean;
   /** `null` until installed; "on" | "off" | "required" after. */
   policy: string | null;
+}
+
+/** What became of one connector a bundle expects. Mirrors `ConnectorSetup`. */
+type ConnectorSetup =
+  | { state: "already_configured" }
+  | { state: "added" }
+  | { state: "needs_credentials"; fields: string[] }
+  | { state: "unknown" }
+  | { state: "failed"; error: string };
+
+interface ConnectorOutcome {
+  id: string;
+  title: string;
+  state: ConnectorSetup["state"];
+  fields?: string[];
+  error?: string;
+}
+
+interface InstallReply {
+  components: number;
+  signing_key_persisted: boolean;
+  included: string[];
+  connectors: ConnectorOutcome[];
 }
 
 interface CredentialField {
@@ -101,6 +128,10 @@ type Loaded<T> = { state: "loading" } | { state: "ready"; value: T } | { state: 
 const COLLAPSED_ROWS = 4;
 
 const SECTION_ORDER = [
+  // Bundles first: they answer "what job is this set up to do", which is the
+  // question someone opening a marketplace usually has. The capability
+  // sections below answer "what can it reach".
+  "Bundles",
   "VibeCody",
   "Engineering Practice",
   "Security",
@@ -146,6 +177,11 @@ export function PluginsView({ daemonUrl, path, onClose }: PluginsViewProps) {
   >({ state: "loading" });
 
   const [notice, setNotice] = useState<string | null>(null);
+  /** Connectors a just-installed bundle expects but could not configure. */
+  const [pendingSetup, setPendingSetup] = useState<{
+    plugin: string;
+    connectors: ConnectorOutcome[];
+  } | null>(null);
   const [busy, setBusy] = useState<ReadonlySet<string>>(new Set());
   const [probes, setProbes] = useState<Record<string, ProbeRecord>>({});
   const [tick, setTick] = useState(0);
@@ -209,13 +245,41 @@ export function PluginsView({ daemonUrl, path, onClose }: PluginsViewProps) {
 
   const installPlugin = (p: CatalogPlugin) =>
     act(`plugin:${p.name}`, async () => {
-      const res = await invoke<{ components: number; signing_key_persisted: boolean }>(
-        "install_plugin",
-        { url: daemonUrl, path, name: p.name },
+      const res = await invoke<InstallReply>("install_plugin", {
+        url: daemonUrl,
+        path,
+        name: p.name,
+      });
+
+      // A bundle cannot finish the job on its own: the connectors that need a
+      // token are still waiting for one. Surfacing them here, with a way to
+      // supply the key, is the difference between a setup and a promise.
+      const pending = (res.connectors ?? []).filter((c) => c.state === "needs_credentials");
+      setPendingSetup(pending.length > 0 ? { plugin: p.title, connectors: pending } : null);
+      if (pending.length > 0) setTab("marketplace");
+
+      const parts: string[] = [];
+      const wired = (res.connectors ?? []).filter(
+        (c) => c.state === "added" || c.state === "already_configured",
       );
-      return res.signing_key_persisted
-        ? `Added ${p.title} — ${res.components} component${res.components === 1 ? "" : "s"} now active.`
-        : `Added ${p.title}, but the signing key could not be stored, so its publisher fingerprint will differ next time.`;
+      if ((res.included ?? []).length > 0) {
+        parts.push(`${res.included.length} plugin${res.included.length === 1 ? "" : "s"}`);
+      } else if (res.components > 0) {
+        parts.push(`${res.components} component${res.components === 1 ? "" : "s"}`);
+      }
+      if (wired.length > 0) parts.push(`${wired.length} connector${wired.length === 1 ? "" : "s"}`);
+
+      const summary = parts.length > 0 ? ` — ${parts.join(", ")} set up` : "";
+      const asking =
+        pending.length > 0
+          ? ` ${pending.length} connector${pending.length === 1 ? "" : "s"} still need${
+              pending.length === 1 ? "s" : ""
+            } a credential; add ${pending.length === 1 ? "it" : "them"} below.`
+          : "";
+      const keyWarning = res.signing_key_persisted
+        ? ""
+        : " The signing key could not be stored, so its publisher fingerprint will differ next time.";
+      return `Added ${p.title}${summary}.${asking}${keyWarning}`;
     });
 
   const setPolicy = (p: CatalogPlugin, policy: "on" | "off") =>
@@ -310,6 +374,28 @@ export function PluginsView({ daemonUrl, path, onClose }: PluginsViewProps) {
         : [];
     return [...plugins, ...specs];
   }, [catalog, connectors]);
+
+  // Prune the pending list as connectors actually get configured. Without
+  // this the banner keeps saying a credential is missing after it has been
+  // supplied — the same false claim as any other stale status, just friendlier
+  // looking.
+  useEffect(() => {
+    if (connectors.state !== "ready" || !pendingSetup) return;
+    const done = new Set(connectors.value.connectors.map((c) => c.id));
+    const left = pendingSetup.connectors.filter((c) => !done.has(c.id));
+    if (left.length === pendingSetup.connectors.length) return;
+    setPendingSetup(left.length > 0 ? { ...pendingSetup, connectors: left } : null);
+  }, [connectors, pendingSetup]);
+
+  /** A connector id as the catalog titles it, falling back to the raw id so a
+   *  bundle naming something this build has not heard of still says which. */
+  const connectorTitle = useCallback(
+    (id: string) => {
+      if (connectors.state !== "ready") return id;
+      return connectors.value.catalog.find((c) => c.id === id)?.title ?? id;
+    },
+    [connectors],
+  );
 
   const configuredIds = useMemo(
     () => new Set(connectors.state === "ready" ? connectors.value.connectors.map((c) => c.id) : []),
@@ -424,6 +510,36 @@ export function PluginsView({ daemonUrl, path, onClose }: PluginsViewProps) {
 
       {notice && <div className="vx-market__notice">{notice}</div>}
 
+      {pendingSetup && (
+        <div className="vx-market__pending">
+          <AlertTriangle size={14} />
+          <div>
+            <strong>{pendingSetup.plugin}</strong> expects{" "}
+            {pendingSetup.connectors.map((c) => c.title).join(", ")}, which cannot be set up
+            without a credential. Open{" "}
+            {pendingSetup.connectors.length === 1 ? "it" : "each"} below to supply one.
+            <div className="vx-market__pending-actions">
+              {pendingSetup.connectors.map((c) => (
+                <button
+                  key={c.id}
+                  className="vx-market__btn"
+                  onClick={() => {
+                    setTab("marketplace");
+                    setQuery(c.title);
+                    setOpenForm(c.id);
+                  }}
+                >
+                  Set up {c.title}
+                </button>
+              ))}
+              <button className="vx-market__btn" onClick={() => setPendingSetup(null)}>
+                Later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="vx-market__body">
         {tab === "marketplace" && (
           <>
@@ -455,6 +571,7 @@ export function PluginsView({ daemonUrl, path, onClose }: PluginsViewProps) {
                         <PluginRow
                           key={item.key}
                           item={item.plugin}
+                          connectorTitle={connectorTitle}
                           busy={busy.has(`plugin:${item.plugin.name}`)}
                           onAdd={() => installPlugin(item.plugin)}
                         />
@@ -547,19 +664,36 @@ function Icon({ id, label }: { id: string; label: string }) {
 
 function PluginRow({
   item,
+  connectorTitle,
   busy,
   onAdd,
 }: {
   item: CatalogPlugin;
+  connectorTitle: (id: string) => string;
   busy: boolean;
   onAdd: () => void;
 }) {
+  // A bundle's value is what it brings, so the card says it before the click.
+  // "Installing the Sales plugin brings its skills plus the CRM connectors" is
+  // only reassuring if you can see which ones.
+  const brings = [
+    item.includes.length > 0
+      ? `${item.includes.length} plugin${item.includes.length === 1 ? "" : "s"}`
+      : null,
+    item.connectors.length > 0
+      ? item.connectors.map(connectorTitle).join(", ")
+      : null,
+  ].filter((x): x is string => x !== null);
+
   return (
     <div className="vx-market__row">
       <Icon id={item.name} label={item.title} />
       <div className="vx-market__row-text">
         <div className="vx-market__row-title">{item.title}</div>
         <div className="vx-market__row-desc">{item.description}</div>
+        {brings.length > 0 && (
+          <div className="vx-market__brings">Includes {brings.join(" · ")}</div>
+        )}
       </div>
       {item.installed ? (
         <span className="vx-market__added">

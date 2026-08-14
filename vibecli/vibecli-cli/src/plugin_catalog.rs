@@ -93,6 +93,13 @@ impl CoreComponent {
 }
 
 /// A plugin the user can install from the panel with one click.
+///
+/// Two shapes share this type. A **plugin** carries components — the skills and
+/// rules that change how the agent works. A **bundle** carries `includes` and
+/// `connectors` instead: it is a job description, and installing it sets up the
+/// whole kit. The distinction the user cares about is what each answers — a
+/// connector answers "what can the agent reach", a bundle answers "what job is
+/// it set up to do".
 #[derive(Debug, Clone, Copy)]
 pub struct CorePlugin {
     /// Manifest name and install-directory name. Kebab-case.
@@ -105,6 +112,18 @@ pub struct CorePlugin {
     /// section list is presentation, not a type.
     pub category: &'static str,
     pub components: &'static [CoreComponent],
+    /// Other catalog plugins installed alongside this one.
+    ///
+    /// A bundle references the single-purpose plugins rather than copying their
+    /// content: two plugins shipping a skill of the same name would collide in
+    /// the catalog, and a second copy of a rule is a second thing to keep true.
+    pub includes: &'static [&'static str],
+    /// Connector ids from `connectors::CATALOG` this setup expects.
+    ///
+    /// Installing the plugin adds the ones that need no credential and *asks*
+    /// for the ones that do. It never reports a connector as configured that
+    /// the user has not given a token for — "already configured" has to mean it.
+    pub connectors: &'static [&'static str],
 }
 
 /// The catalog itself.
@@ -112,6 +131,69 @@ pub struct CorePlugin {
 /// Each entry has to earn its place by changing what the agent does; a catalog
 /// padded with plausible-sounding plugins is a catalog nobody reads.
 pub const CATALOG: &[CorePlugin] = &[
+    // ── Bundles ──────────────────────────────────────────────────────────
+    //
+    // A job, not a capability. Each installs the single-purpose plugins it
+    // needs and sets up the connectors that job assumes, so the answer to
+    // "what is this agent set up to do" is one click rather than six.
+    CorePlugin {
+        name: "bundle-engineering",
+        title: "Engineering",
+        version: "1.0.0",
+        description: "The everyday coding setup: review standards, test-first \
+                      discipline and a debugging method, plus the repository and \
+                      filesystem connectors that work assumes.",
+        category: "Bundles",
+        components: &[],
+        includes: &["core-review-standards", "core-test-first", "core-debugging"],
+        connectors: &["filesystem", "git", "github"],
+    },
+    CorePlugin {
+        name: "bundle-on-call",
+        title: "On-call",
+        version: "1.0.0",
+        description: "For the hour something is broken: incident response and \
+                      debugging, wired to the error tracker, the repository and the \
+                      channel where the incident is being run.",
+        category: "Bundles",
+        components: &[],
+        includes: &["core-incident-response", "core-debugging"],
+        connectors: &["sentry", "github", "slack"],
+    },
+    CorePlugin {
+        name: "bundle-security-review",
+        title: "Security review",
+        version: "1.0.0",
+        description: "Secret handling and input-bounding rules, dependency hygiene, \
+                      and the repository access a review needs.",
+        category: "Bundles",
+        components: &[],
+        includes: &["core-secure-defaults", "core-dependency-hygiene"],
+        connectors: &["github", "git"],
+    },
+    CorePlugin {
+        name: "bundle-data",
+        title: "Data work",
+        version: "1.0.0",
+        description: "Schema-first database work: the review standards that apply to \
+                      queries as much as code, plus read access to Postgres and SQLite.",
+        category: "Bundles",
+        components: &[],
+        includes: &["core-review-standards"],
+        connectors: &["postgres", "sqlite"],
+    },
+    CorePlugin {
+        name: "bundle-research",
+        title: "Research",
+        version: "1.0.0",
+        description: "Reading the web and writing down what it found: technical \
+                      writing, page fetching, search, and a memory that survives the \
+                      session.",
+        category: "Bundles",
+        components: &[],
+        includes: &["core-technical-writing"],
+        connectors: &["fetch", "brave-search", "memory"],
+    },
     CorePlugin {
         name: "core-review-standards",
         title: "Review standards",
@@ -123,6 +205,8 @@ pub const CATALOG: &[CorePlugin] = &[
             name: "review-standards",
             body: REVIEW_STANDARDS,
         }],
+        includes: &[],
+        connectors: &[],
     },
     CorePlugin {
         name: "core-test-first",
@@ -136,6 +220,8 @@ pub const CATALOG: &[CorePlugin] = &[
             category: "testing",
             body: TEST_FIRST,
         }],
+        includes: &[],
+        connectors: &[],
     },
     CorePlugin {
         name: "core-commit-craft",
@@ -149,6 +235,8 @@ pub const CATALOG: &[CorePlugin] = &[
             category: "workflow",
             body: COMMIT_CRAFT,
         }],
+        includes: &[],
+        connectors: &[],
     },
     CorePlugin {
         name: "core-refactoring",
@@ -162,6 +250,8 @@ pub const CATALOG: &[CorePlugin] = &[
             category: "workflow",
             body: SAFE_REFACTORING,
         }],
+        includes: &[],
+        connectors: &[],
     },
     CorePlugin {
         name: "core-secure-defaults",
@@ -181,6 +271,8 @@ pub const CATALOG: &[CorePlugin] = &[
                 body: UNTRUSTED_INPUT,
             },
         ],
+        includes: &[],
+        connectors: &[],
     },
     CorePlugin {
         name: "core-dependency-hygiene",
@@ -194,6 +286,8 @@ pub const CATALOG: &[CorePlugin] = &[
             category: "security",
             body: DEPENDENCY_HYGIENE,
         }],
+        includes: &[],
+        connectors: &[],
     },
     CorePlugin {
         name: "core-performance",
@@ -207,6 +301,8 @@ pub const CATALOG: &[CorePlugin] = &[
             category: "performance",
             body: PERFORMANCE_WORK,
         }],
+        includes: &[],
+        connectors: &[],
     },
     CorePlugin {
         name: "core-debugging",
@@ -220,6 +316,8 @@ pub const CATALOG: &[CorePlugin] = &[
             category: "debugging",
             body: DEBUGGING,
         }],
+        includes: &[],
+        connectors: &[],
     },
     CorePlugin {
         name: "core-incident-response",
@@ -233,6 +331,8 @@ pub const CATALOG: &[CorePlugin] = &[
             category: "operations",
             body: INCIDENT_RESPONSE,
         }],
+        includes: &[],
+        connectors: &[],
     },
     CorePlugin {
         name: "core-api-design",
@@ -246,6 +346,8 @@ pub const CATALOG: &[CorePlugin] = &[
             category: "design",
             body: API_DESIGN,
         }],
+        includes: &[],
+        connectors: &[],
     },
     CorePlugin {
         name: "core-technical-writing",
@@ -259,6 +361,8 @@ pub const CATALOG: &[CorePlugin] = &[
             category: "documentation",
             body: TECHNICAL_WRITING,
         }],
+        includes: &[],
+        connectors: &[],
     },
 ];
 
@@ -385,12 +489,50 @@ fn manifest_for(plugin: &CorePlugin, key: &SigningKey) -> PluginManifest {
     }
 }
 
+/// What happened to one connector a plugin expects.
+///
+/// Four outcomes, kept apart because they need different things from the user.
+/// The one that matters is `NeedsCredentials`: a bundle can wire up everything
+/// that asks for nothing, and it cannot invent a token. Reporting that as
+/// "configured" would be the whole feature lying at the moment it is most
+/// believed.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(tag = "state", rename_all = "snake_case")]
+pub enum ConnectorSetup {
+    /// The workspace already had it; left exactly as it was.
+    AlreadyConfigured,
+    /// Added by this install. It needed no credential.
+    Added,
+    /// Not added: it cannot run without a secret only the user has.
+    NeedsCredentials { fields: Vec<String> },
+    /// Named by the bundle but absent from the connector catalog — a bad
+    /// bundle. Reported rather than skipped, or the setup silently ships
+    /// short of what it promised.
+    Unknown,
+    /// Adding it failed. Carries the reason.
+    Failed { error: String },
+}
+
+/// One connector a plugin expects, and what became of it.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ConnectorOutcome {
+    pub id: String,
+    pub title: String,
+    #[serde(flatten)]
+    pub setup: ConnectorSetup,
+}
+
 /// What an install actually did, for the caller to report.
 #[derive(Debug)]
 pub struct CatalogInstall {
     pub installed: InstalledPlugin,
     /// See [`PublisherKey::persisted`].
     pub key_persisted: bool,
+    /// Plugins installed alongside this one because it includes them. Empty for
+    /// a plain plugin; the members for a bundle.
+    pub included: Vec<String>,
+    /// Every connector the plugin expects, with what happened to it.
+    pub connectors: Vec<ConnectorOutcome>,
 }
 
 /// Materialise a catalog plugin into `workspace` and install it.
@@ -398,18 +540,91 @@ pub struct CatalogInstall {
 /// Writes the manifest, the detached signature and every component file into a
 /// temporary directory, then hands that to `plugin_install::install_from_dir`,
 /// which verifies the signature before anything reaches the install slot.
+///
+/// For a bundle this also installs the plugins it includes and sets up the
+/// connectors it expects. `now_ms` is passed in rather than read from the clock
+/// here so the caller owns the timestamp it records.
 pub fn install(
     workspace: &Path,
     store: &WorkspaceStore,
     name: &str,
     force: bool,
+    now_ms: i64,
 ) -> Result<CatalogInstall, InstallError> {
     let publisher = publisher_key();
     let installed = install_signed_with(workspace, store, name, force, &publisher.key)?;
+    let plugin = find(name).ok_or_else(|| {
+        InstallError::Manifest(crate::plugin_manifest::ManifestError::InvalidName(
+            name.to_string(),
+        ))
+    })?;
+
+    // Members first: a bundle that fails halfway should still have put its
+    // parts on disk, and each is independently removable afterwards.
+    let mut included = Vec::new();
+    for member in plugin.includes {
+        match install_signed_with(workspace, store, member, false, &publisher.key) {
+            Ok(_) => included.push((*member).to_string()),
+            // Already there is the common case and not a failure — a bundle
+            // installed over an existing plugin adopts it rather than
+            // duplicating or refusing.
+            Err(InstallError::AlreadyInstalled { name, .. }) => included.push(name),
+            Err(e) => {
+                tracing::warn!(member, error = %e, "bundle member failed to install");
+            }
+        }
+    }
+
+    let connectors = plugin
+        .connectors
+        .iter()
+        .map(|id| setup_connector(store, id, now_ms))
+        .collect();
+
     Ok(CatalogInstall {
         installed,
         key_persisted: publisher.persisted,
+        included,
+        connectors,
     })
+}
+
+/// Add one expected connector, or say precisely why it was not added.
+fn setup_connector(store: &WorkspaceStore, id: &str, now_ms: i64) -> ConnectorOutcome {
+    let Some(spec) = crate::connectors::spec(id) else {
+        return ConnectorOutcome {
+            id: id.to_string(),
+            title: id.to_string(),
+            setup: ConnectorSetup::Unknown,
+        };
+    };
+    let out = |setup| ConnectorOutcome {
+        id: spec.id.to_string(),
+        title: spec.title.to_string(),
+        setup,
+    };
+
+    let already = crate::connectors::list(store)
+        .unwrap_or_default()
+        .into_iter()
+        .any(|c| c.id == spec.id);
+    if already {
+        return out(ConnectorSetup::AlreadyConfigured);
+    }
+    if !spec.credentials.is_empty() {
+        return out(ConnectorSetup::NeedsCredentials {
+            fields: spec.credentials.iter().map(|f| f.env.to_string()).collect(),
+        });
+    }
+    match crate::connectors::add_from_catalog(
+        store,
+        spec.id,
+        &std::collections::HashMap::new(),
+        now_ms,
+    ) {
+        Ok(_) => out(ConnectorSetup::Added),
+        Err(error) => out(ConnectorSetup::Failed { error }),
+    }
 }
 
 /// Install signed by a caller-supplied key.
@@ -953,6 +1168,41 @@ mod tests {
         SigningKey::try_generate_from_rng(&mut rand::rng()).expect("ThreadRng is Infallible")
     }
 
+    /// `install` with a throwaway publisher key.
+    ///
+    /// Mirrors the bundle half of [`install`] so the member and connector
+    /// behaviour is covered without `publisher_key()` writing into the
+    /// developer's real profile store.
+    fn install_bundle_with(
+        workspace: &std::path::Path,
+        store: &WorkspaceStore,
+        name: &str,
+        key: &SigningKey,
+    ) -> CatalogInstall {
+        let installed =
+            install_signed_with(workspace, store, name, true, key).expect("bundle install");
+        let plugin = find(name).expect("catalog entry");
+        let mut included = Vec::new();
+        for member in plugin.includes {
+            match install_signed_with(workspace, store, member, false, key) {
+                Ok(_) => included.push((*member).to_string()),
+                Err(InstallError::AlreadyInstalled { name, .. }) => included.push(name),
+                Err(e) => panic!("{member}: {e}"),
+            }
+        }
+        let connectors = plugin
+            .connectors
+            .iter()
+            .map(|id| setup_connector(store, id, 1_700_000_000_000))
+            .collect();
+        CatalogInstall {
+            installed,
+            key_persisted: false,
+            included,
+            connectors,
+        }
+    }
+
     fn temp_workspace() -> (tempfile::TempDir, WorkspaceStore) {
         let dir = tempfile::tempdir().expect("tempdir");
         let db = dir.path().join(".vibecli").join("workspace.db");
@@ -975,11 +1225,6 @@ mod tests {
                 .unwrap_or_else(|e| panic!("{}: {e}", plugin.name));
             plugin_signing::verify_manifest_signature(&manifest, &sig)
                 .unwrap_or_else(|e| panic!("{}: {e}", plugin.name));
-            assert!(
-                !plugin.components.is_empty(),
-                "{} ships nothing, so installing it would change nothing",
-                plugin.name
-            );
         }
     }
 
@@ -1067,6 +1312,124 @@ mod tests {
                 .exists(),
             "a failed install must leave nothing behind"
         );
+    }
+
+    /// A bundle is a job, and installing it has to actually set the job up.
+    #[test]
+    fn a_bundle_installs_its_members_and_the_connectors_that_need_nothing() {
+        let (dir, store) = temp_workspace();
+        let out = install_bundle_with(dir.path(), &store, "bundle-research", &fixture_key());
+
+        // Its member plugin is on disk and live…
+        assert!(out.included.contains(&"core-technical-writing".to_string()));
+        let enabled = crate::plugin_runtime::enabled_components(dir.path(), &store).expect("view");
+        assert!(
+            enabled
+                .skills
+                .iter()
+                .any(|s| s.spec.name == "technical-writing"),
+            "the bundle's skill did not become live"
+        );
+
+        // …and the connectors that ask for nothing are configured, while the
+        // one that needs a key is reported rather than pretended.
+        let by_id = |id: &str| {
+            out.connectors
+                .iter()
+                .find(|c| c.id == id)
+                .unwrap_or_else(|| panic!("{id} missing from the outcome"))
+                .setup
+                .clone()
+        };
+        assert_eq!(by_id("fetch"), ConnectorSetup::Added);
+        assert_eq!(by_id("memory"), ConnectorSetup::Added);
+        assert!(
+            matches!(
+                by_id("brave-search"),
+                ConnectorSetup::NeedsCredentials { .. }
+            ),
+            "a connector needing an API key must not be reported as set up"
+        );
+
+        let configured = crate::connectors::list(&store).expect("connectors");
+        assert!(configured.iter().any(|c| c.id == "fetch"));
+        assert!(
+            !configured.iter().any(|c| c.id == "brave-search"),
+            "a connector was added without the credential it requires"
+        );
+    }
+
+    #[test]
+    fn a_bundle_adopts_a_connector_that_is_already_there() {
+        let (dir, store) = temp_workspace();
+        crate::connectors::add_from_catalog(
+            &store,
+            "fetch",
+            &std::collections::HashMap::new(),
+            1_700_000_000_000,
+        )
+        .expect("pre-existing connector");
+
+        let out = install_bundle_with(dir.path(), &store, "bundle-research", &fixture_key());
+        let fetch = out
+            .connectors
+            .iter()
+            .find(|c| c.id == "fetch")
+            .expect("fetch");
+        assert_eq!(fetch.setup, ConnectorSetup::AlreadyConfigured);
+        // Exactly one, not a duplicate.
+        assert_eq!(
+            crate::connectors::list(&store)
+                .expect("list")
+                .iter()
+                .filter(|c| c.id == "fetch")
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn installing_a_bundle_twice_adopts_its_members_rather_than_failing() {
+        // The second install of a member returns AlreadyInstalled; a bundle
+        // that treated that as an error would report a broken setup for the
+        // most ordinary case there is — installing two bundles that share a
+        // plugin.
+        let (dir, store) = temp_workspace();
+        let key = fixture_key();
+        install_bundle_with(dir.path(), &store, "bundle-engineering", &key);
+        let out = install_bundle_with(dir.path(), &store, "bundle-on-call", &key);
+        assert!(
+            out.included.contains(&"core-debugging".to_string()),
+            "a shared member must still be reported as part of the setup: {:?}",
+            out.included
+        );
+    }
+
+    #[test]
+    fn every_bundle_names_real_members_and_real_connectors() {
+        // A typo here ships a bundle that silently sets up less than it says.
+        for p in CATALOG {
+            for member in p.includes {
+                assert!(
+                    find(member).is_some(),
+                    "{}: unknown member `{member}`",
+                    p.name
+                );
+                assert_ne!(*member, p.name, "{} includes itself", p.name);
+            }
+            for id in p.connectors {
+                assert!(
+                    crate::connectors::spec(id).is_some(),
+                    "{}: unknown connector `{id}`",
+                    p.name
+                );
+            }
+            assert!(
+                !p.components.is_empty() || !p.includes.is_empty() || !p.connectors.is_empty(),
+                "{} installs nothing at all",
+                p.name
+            );
+        }
     }
 
     #[test]

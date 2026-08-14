@@ -46,9 +46,23 @@ interface CatalogPlugin {
   title: string;
   version: string;
   description: string;
+  category: string;
   components: { kind: string; name: string }[];
+  /** Other catalog plugins a bundle installs with it. */
+  includes: string[];
+  /** Connector ids this setup expects. */
+  connectors: string[];
   installed: boolean;
   policy: Policy | null;
+}
+
+/** What became of one connector a bundle expects. */
+interface ConnectorOutcome {
+  id: string;
+  title: string;
+  state: "already_configured" | "added" | "needs_credentials" | "unknown" | "failed";
+  fields?: string[];
+  error?: string;
 }
 
 type Policy = "off" | "on" | "required";
@@ -171,12 +185,38 @@ export function PluginGovernancePanel({ workspacePath }: Props) {
     setBusyPlugin(entry.name);
     setInstallMsg(null);
     try {
-      const installed = await invoke<InstalledPlugin & { signing_key_persisted: boolean }>(
-        "plugin_install_from_catalog",
-        { workspacePath, name: entry.name, force: false },
+      const installed = await invoke<
+        InstalledPlugin & {
+          signing_key_persisted: boolean;
+          included: string[];
+          connectors: ConnectorOutcome[];
+        }
+      >("plugin_install_from_catalog", { workspacePath, name: entry.name, force: false });
+
+      // A bundle brings its members and wires up the connectors it can. The
+      // ones needing a credential are named rather than counted as done —
+      // this panel has no field to enter one, so the user is told where to.
+      const wired = (installed.connectors ?? []).filter(
+        (c) => c.state === "added" || c.state === "already_configured",
       );
+      const pending = (installed.connectors ?? []).filter((c) => c.state === "needs_credentials");
+      const brought = [
+        (installed.included ?? []).length > 0
+          ? `${installed.included.length} plugin${installed.included.length === 1 ? "" : "s"}`
+          : null,
+        wired.length > 0 ? `${wired.length} connector${wired.length === 1 ? "" : "s"}` : null,
+      ]
+        .filter((x): x is string => x !== null)
+        .join(", ");
+
       setInstallMsg(
         `Installed ${installed.name} v${installed.version} — policy: ${installed.policy}` +
+          (brought ? ` — brought ${brought}` : "") +
+          (pending.length > 0
+            ? `. Still needs a credential: ${pending
+                .map((c) => c.title)
+                .join(", ")} — add ${pending.length === 1 ? "it" : "them"} in Connectors.`
+            : "") +
           // Rare, and worth saying in the same breath: the fingerprint shown on
           // the row below will differ next install if the key did not persist.
           (installed.signing_key_persisted
@@ -292,6 +332,19 @@ export function PluginGovernancePanel({ workspacePath }: Props) {
                   <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4, lineHeight: 1.5 }}>
                     {c.description}
                   </div>
+                  {(c.includes?.length > 0 || c.connectors?.length > 0) && (
+                    <div style={{ marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--text-muted)" }}>
+                      Includes{" "}
+                      {[
+                        c.includes?.length > 0
+                          ? `${c.includes.length} plugin${c.includes.length === 1 ? "" : "s"}`
+                          : null,
+                        c.connectors?.length > 0 ? c.connectors.join(", ") : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </div>
+                  )}
                   <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 4 }}>
                     {c.components.map((comp) => (
                       <span

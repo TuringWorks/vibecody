@@ -42232,6 +42232,10 @@ pub async fn plugin_catalog_list(workspace_path: String) -> Result<serde_json::V
                     "kind": c.kind(),
                     "name": c.name(),
                 })).collect::<Vec<_>>(),
+                // A bundle's parts, so a card can say what installing it brings
+                // before the click rather than after.
+                "includes": p.includes,
+                "connectors": p.connectors,
                 "installed": policy.is_some(),
                 "policy": policy.map(|p| match p {
                     PluginPolicy::Off => "off",
@@ -42256,8 +42260,14 @@ pub async fn plugin_install_from_catalog(
 ) -> Result<serde_json::Value, String> {
     let workspace = reject_sensitive_path(&workspace_path)?;
     let store = WorkspaceStore::open(&workspace)?;
-    let outcome = vibecli_cli::plugin_catalog::install(&workspace, &store, &name, force)
-        .map_err(|e| e.to_string())?;
+    let outcome = vibecli_cli::plugin_catalog::install(
+        &workspace,
+        &store,
+        &name,
+        force,
+        chrono::Utc::now().timestamp_millis(),
+    )
+    .map_err(|e| e.to_string())?;
     let mut json = installed_plugin_to_json(&outcome.installed);
     if let Some(obj) = json.as_object_mut() {
         // Reported rather than swallowed: without a persisted key the publisher
@@ -42266,6 +42276,13 @@ pub async fn plugin_install_from_catalog(
         obj.insert(
             "signing_key_persisted".to_string(),
             serde_json::json!(outcome.key_persisted),
+        );
+        // A bundle also installs its members and sets up the connectors it can.
+        // `needs_credentials` is the outcome the panel has to act on.
+        obj.insert("included".to_string(), serde_json::json!(outcome.included));
+        obj.insert(
+            "connectors".to_string(),
+            serde_json::json!(outcome.connectors),
         );
     }
     Ok(json)
