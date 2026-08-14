@@ -1169,11 +1169,8 @@ impl AgentLoop {
         event_tx: mpsc::Sender<AgentEvent>,
     ) -> Result<()> {
         let backstop = self.max_run_duration + self.run_deadline_grace;
-        match tokio::time::timeout(
-            backstop,
-            self.run_bounded(task, context, event_tx.clone()),
-        )
-        .await
+        match tokio::time::timeout(backstop, self.run_bounded(task, context, event_tx.clone()))
+            .await
         {
             Ok(result) => result,
             Err(_) => {

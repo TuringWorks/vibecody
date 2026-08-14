@@ -553,12 +553,28 @@ fn epoch_secs() -> u64 {
 mod tests {
     use super::*;
 
+    /// A directory no other test can be handed.
+    ///
+    /// This used to be named by `SystemTime` nanos alone, which is not the
+    /// resolution it looks like: tests starting in the same microsecond got the
+    /// same path, and `verify_detects_corruption` would write "CORRUPTED DATA"
+    /// into the file `verify_after_export` had just written — failing that test
+    /// with `Corrupted` for `mcp-catalog.json` in one run out of three. The
+    /// process id separates concurrent test binaries; the counter separates
+    /// threads within one.
     fn test_dir() -> PathBuf {
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let ns = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_nanos();
-        std::env::temp_dir().join(format!("vibecody-resources-test-{}", ns))
+        let seq = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        std::env::temp_dir().join(format!(
+            "vibecody-resources-test-{}-{}-{}",
+            std::process::id(),
+            ns,
+            seq
+        ))
     }
 
     // ── SHA-256 ──────────────────────────────────────────────────────

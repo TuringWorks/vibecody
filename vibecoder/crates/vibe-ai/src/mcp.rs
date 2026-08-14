@@ -23,8 +23,8 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader, Write};
-use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::io::{BufRead, BufReader, Read, Write};
+use std::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static REQUEST_ID: AtomicU64 = AtomicU64::new(1);
@@ -95,7 +95,19 @@ pub struct McpClient {
     _child: Child,
     stdin: ChildStdin,
     stdout: BufReader<ChildStdout>,
+    /// The server's stderr, kept until something goes wrong.
+    ///
+    /// It used to be `Stdio::null()`, which threw away the only place a broken
+    /// server says what happened. A Python reference server crashing on an
+    /// import error reached the user as `invalid MCP response: EOF while
+    /// parsing a value at line 1 column 0` — accurate about the empty stdout,
+    /// silent about the traceback sitting in the pipe.
+    stderr: Option<ChildStderr>,
 }
+
+/// How much of a failing server's stderr to keep. A server that crashes in a
+/// loop can print without limit; the tail is where the cause is anyway.
+const STDERR_TAIL_BYTES: u64 = 8 * 1024;
 
 impl McpClient {
     /// Spawn the MCP server described by `cfg` and perform the initialize
@@ -112,7 +124,8 @@ impl McpClient {
             .args(&cfg.args)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::null());
+            // Piped, not null: see `McpClient::stderr`.
+            .stderr(Stdio::piped());
 
         for (k, v) in &cfg.env {
             cmd.env(k, v);
@@ -124,15 +137,52 @@ impl McpClient {
 
         let stdin = child.stdin.take().context("no stdin on MCP server")?;
         let stdout = BufReader::new(child.stdout.take().context("no stdout on MCP server")?);
+        let stderr = child.stderr.take();
 
         let mut client = Self {
             server_name: cfg.name.clone(),
             _child: child,
             stdin,
             stdout,
+            stderr,
         };
-        client.initialize()?;
+        if let Err(e) = client.initialize() {
+            // Say why, not just that. A server that dies during the handshake
+            // has already explained itself on stderr; without this the caller
+            // gets a parse error about the empty stdout and has to reproduce
+            // the whole thing by hand to find out it was a version mismatch.
+            let detail = client.stderr_tail();
+            return Err(if detail.is_empty() {
+                e
+            } else {
+                e.context(format!("server '{}' wrote: {detail}", cfg.name))
+            });
+        }
         Ok(client)
+    }
+
+    /// Kill the server and return the tail of what it printed to stderr.
+    ///
+    /// Killing first is what makes this terminate: the pipe EOFs when the
+    /// process is gone, so the read cannot block on a server that is still
+    /// running and quiet.
+    pub fn stderr_tail(&mut self) -> String {
+        let _ = self._child.kill();
+        let Some(mut err) = self.stderr.take() else {
+            return String::new();
+        };
+        let mut buf = Vec::new();
+        let _ = Read::take(&mut err, STDERR_TAIL_BYTES).read_to_end(&mut buf);
+        let text = String::from_utf8_lossy(&buf);
+        // The last few lines carry the cause; earlier ones are usually the
+        // package manager narrating a download.
+        let tail: Vec<&str> = text
+            .lines()
+            .filter(|l| !l.trim().is_empty())
+            .rev()
+            .take(6)
+            .collect();
+        tail.into_iter().rev().collect::<Vec<_>>().join("\n")
     }
 
     // ── Internal JSON-RPC helpers ─────────────────────────────────────────
@@ -569,5 +619,54 @@ mod tests {
         let resp: JsonRpcResponse = serde_json::from_str(json).unwrap();
         assert!(resp.result.is_none());
         assert!(resp.error.is_none());
+    }
+
+    /// A server that dies during the handshake must say why.
+    ///
+    /// Before stderr was piped, this exact shape — a process that prints its
+    /// error and exits without writing to stdout — surfaced as "invalid MCP
+    /// response: EOF while parsing a value at line 1 column 0", which describes
+    /// the empty stdout and not the cause. Three catalog connectors failed this
+    /// way and the reason had to be reproduced by hand.
+    #[test]
+    #[cfg(unix)]
+    fn a_server_that_crashes_reports_what_it_printed() {
+        let cfg = McpServerConfig {
+            name: "crasher".into(),
+            command: "/bin/sh".into(),
+            args: vec![
+                "-c".into(),
+                "echo 'ImportError: cannot import name McpError' >&2; exit 1".into(),
+            ],
+            env: Default::default(),
+        };
+        let Err(err) = McpClient::connect(&cfg) else {
+            panic!("this server cannot handshake");
+        };
+        let text = format!("{err:#}");
+        assert!(
+            text.contains("cannot import name McpError"),
+            "the cause was dropped: {text}"
+        );
+    }
+
+    /// A server with nothing to say must not turn into a fabricated one.
+    #[test]
+    #[cfg(unix)]
+    fn a_silent_crash_reports_the_transport_error_alone() {
+        let cfg = McpServerConfig {
+            name: "quiet".into(),
+            command: "/bin/sh".into(),
+            args: vec!["-c".into(), "exit 1".into()],
+            env: Default::default(),
+        };
+        let Err(err) = McpClient::connect(&cfg) else {
+            panic!("this server cannot handshake");
+        };
+        let text = format!("{err:#}");
+        assert!(
+            !text.contains("wrote:"),
+            "invented a stderr message: {text}"
+        );
     }
 }

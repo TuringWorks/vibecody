@@ -33,6 +33,18 @@ use vibe_ai::mcp::McpServerConfig;
 /// Workspace-store setting key holding the connector definitions.
 const SETTING_KEY: &str = "connectors";
 
+/// The Python MCP SDK the reference servers are written against, pinned for
+/// every `uvx` entry.
+///
+/// Measured, not defensive: without it, `mcp-server-time`, `mcp-server-fetch`
+/// and `mcp-server-git` all died on import against the SDK `uv` resolves today
+/// — `cannot import name 'McpError'` (renamed to `MCPError`) and
+/// `'Server' object has no attribute 'list_tools'`. The published servers have
+/// not caught up with the 2.x rename. `uvx --with 'mcp<2' mcp-server-time`
+/// completes the handshake; the same command without it does not.
+const UV_SDK_PIN_FLAG: &str = "--with";
+const UV_SDK_PIN: &str = "mcp<2";
+
 /// Placeholder substituted with the workspace root when a connector is
 /// launched. Stored verbatim so a workspace that moves keeps working.
 pub const WORKSPACE_PLACEHOLDER: &str = "{workspace}";
@@ -141,7 +153,13 @@ pub const CATALOG: &[ConnectorSpec] = &[
         category: "Files And Code",
         runtime: Runtime::Uvx,
         command: "uvx",
-        args: &["mcp-server-git", "--repository", WORKSPACE_PLACEHOLDER],
+        args: &[
+            UV_SDK_PIN_FLAG,
+            UV_SDK_PIN,
+            "mcp-server-git",
+            "--repository",
+            WORKSPACE_PLACEHOLDER,
+        ],
         credentials: &[],
         docs_url: "https://github.com/modelcontextprotocol/servers",
     },
@@ -195,7 +213,7 @@ pub const CATALOG: &[ConnectorSpec] = &[
         category: "Web And Search",
         runtime: Runtime::Uvx,
         command: "uvx",
-        args: &["mcp-server-fetch"],
+        args: &[UV_SDK_PIN_FLAG, UV_SDK_PIN, "mcp-server-fetch"],
         credentials: &[],
         docs_url: "https://github.com/modelcontextprotocol/servers",
     },
@@ -275,7 +293,13 @@ pub const CATALOG: &[ConnectorSpec] = &[
         category: "Databases",
         runtime: Runtime::Uvx,
         command: "uvx",
-        args: &["mcp-server-sqlite", "--db-path", "{secret:SQLITE_DB_PATH}"],
+        args: &[
+            UV_SDK_PIN_FLAG,
+            UV_SDK_PIN,
+            "mcp-server-sqlite",
+            "--db-path",
+            "{secret:SQLITE_DB_PATH}",
+        ],
         credentials: &[CredentialField {
             env: "SQLITE_DB_PATH",
             label: "Database path",
@@ -342,6 +366,8 @@ pub const CATALOG: &[ConnectorSpec] = &[
         runtime: Runtime::Uvx,
         command: "uvx",
         args: &[
+            UV_SDK_PIN_FLAG,
+            UV_SDK_PIN,
             "mcp-server-sentry",
             "--auth-token",
             "{secret:SENTRY_AUTH_TOKEN}",
@@ -363,7 +389,7 @@ pub const CATALOG: &[ConnectorSpec] = &[
         category: "Utilities",
         runtime: Runtime::Uvx,
         command: "uvx",
-        args: &["mcp-server-time"],
+        args: &[UV_SDK_PIN_FLAG, UV_SDK_PIN, "mcp-server-time"],
         credentials: &[],
         docs_url: "https://github.com/modelcontextprotocol/servers",
     },
