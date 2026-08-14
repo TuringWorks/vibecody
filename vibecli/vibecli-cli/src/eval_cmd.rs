@@ -377,6 +377,15 @@ pub async fn run_eval_command(
     let positionals = args.positionals();
     let subcommand = positionals.first().copied().unwrap_or("help");
 
+    // `--help` is only a positional when it is the whole request, so matching
+    // it in subcommand position alone left `--eval run --help` dispatching to
+    // a real run — asking what the flags are spent a provider budget and, at
+    // the default 600s ceiling, took ten minutes to not answer the question.
+    if raw_args.iter().any(|a| a == "--help" || a == "-h") {
+        print_help();
+        return 0;
+    }
+
     match subcommand {
         "list" => cmd_list(&args),
         "run" => cmd_run(&args, default_provider, default_model).await,
@@ -971,6 +980,26 @@ mod tests {
         let raw = args(&["--suite", "safety", "list"]);
         let a = Args(&raw);
         assert_eq!(a.positionals(), vec!["list"]);
+    }
+
+    #[tokio::test]
+    async fn help_flag_never_starts_a_run() {
+        // `--help` is not a positional, so subcommand-position matching alone
+        // let `--eval run --help` fall through to a real run: a question about
+        // flags became a ten-minute provider-billed no-answer. Any placement
+        // has to short-circuit.
+        for raw in [
+            args(&["run", "--help"]),
+            args(&["run", "--suite", "greenfield", "--help"]),
+            args(&["gate", "-h"]),
+            args(&["--help"]),
+        ] {
+            assert_eq!(
+                run_eval_command(&raw, "test-provider", None).await,
+                0,
+                "help should print and exit 0, not dispatch: {raw:?}"
+            );
+        }
     }
 
     #[test]
