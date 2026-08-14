@@ -317,10 +317,7 @@ export function SessionStream({
 
       <div className="vx-stream__body" ref={bodyRef} onScroll={onScroll}>
         {items.length === 0 && (
-          <div className="vx-stream__empty">
-            Type a message below — VibeDesk runs the agent and streams the result here. Toggle
-            Branch in the composer to isolate a coding task on its own git worktree.
-          </div>
+          <div className="vx-stream__empty">Welcome to VibeDesk</div>
         )}
         {items.map((item, i) => {
           switch (item.kind) {
