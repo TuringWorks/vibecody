@@ -830,6 +830,28 @@ The following Tauri commands are available for the VibeCoder frontend via `invok
 | `openmemory_unpin` | `id: string` | `{ ok: boolean }` |
 | `openmemory_delete` | `id: string` | `{ ok: boolean }` |
 
+#### Plugin commands
+
+Back the Plugin Governance panel. Workspace plugins — signed bundles under
+`<workspace>/.vibecli/plugins/`, distinct from the user-level plugins in
+[Plugin Development](/plugin-development/).
+
+| Command | Arguments | Returns |
+|---------|-----------|---------|
+| `plugin_list_installed` | `workspacePath: string` | `InstalledPlugin[]` |
+| `plugin_catalog_list` | `workspacePath: string` | `CatalogPlugin[]` — every core plugin with `installed` and `policy` for this workspace |
+| `plugin_install_from_catalog` | `workspacePath: string, name: string, force: boolean` | `InstalledPlugin` + `signing_key_persisted` |
+| `plugin_install_from_file` | `workspacePath: string, bundlePath: string, force: boolean` | `InstalledPlugin` |
+| `plugin_install_from_url` | `workspacePath: string, url: string, force: boolean` | `InstalledPlugin` |
+| `plugin_set_policy` | `workspacePath, name, policy, isAdmin` | `{ ok }` |
+| `plugin_uninstall` | `workspacePath, name, isAdmin` | `boolean` |
+
+VibeCoder's Connectors panel has no Tauri wrapper — it calls
+`/api/vibedesk/connectors*` through `daemonFetch` directly. The five
+`connectors_*` commands it used to call were removed: they kept connectors in a
+process-local `Vec`, recorded every one as `connected` without a credential, and
+answered `connectors_test` from whether the row existed.
+
 #### Verbatim drawer commands
 
 | Command | Arguments | Returns |

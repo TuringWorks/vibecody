@@ -111,7 +111,12 @@ export function ConnectorsPanel({
 
   /** POST one action, reporting the daemon's own message when it fails. */
   const post = useCallback(
-    async (key: string, path: string, body: Record<string, unknown>, describe: (r: never) => string) => {
+    async (
+      key: string,
+      path: string,
+      body: Record<string, unknown>,
+      describe: (reply: unknown) => string,
+    ) => {
       setBusy((prev) => new Set(prev).add(key));
       setNotice(null);
       try {
@@ -127,7 +132,7 @@ export function ConnectorsPanel({
           // throws away the only useful sentence.
           throw new Error(json?.error ?? `daemon returned ${res.status}`);
         }
-        setNotice(describe(json as never));
+        setNotice(describe(json));
         await load();
       } catch (e) {
         setNotice(`Failed: ${String(e)}`);
@@ -159,16 +164,16 @@ export function ConnectorsPanel({
     );
 
   const remove = (c: Connector) =>
-    post(c.id, "/remove", { id: c.id }, (json: never) => {
-      const deleted = (json as { secrets_deleted?: number }).secrets_deleted ?? 0;
+    post(c.id, "/remove", { id: c.id }, (reply) => {
+      const deleted = (reply as { secrets_deleted?: number }).secrets_deleted ?? 0;
       return deleted > 0
         ? `Removed ${c.title} and deleted ${deleted} stored credential${deleted === 1 ? "" : "s"}.`
         : `Removed ${c.title}.`;
     });
 
   const probe = (c: Connector) =>
-    post(c.id, "/probe", { id: c.id }, (json: never) => {
-      const record = json as unknown as ProbeRecord;
+    post(c.id, "/probe", { id: c.id }, (reply) => {
+      const record = reply as ProbeRecord;
       setProbes((prev) => ({ ...prev, [c.id]: record }));
       switch (record.result.state) {
         case "ok":

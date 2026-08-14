@@ -40,6 +40,17 @@ interface InstalledPlugin {
   };
 }
 
+/** A core plugin compiled into the binary, with its state in this workspace. */
+interface CatalogPlugin {
+  name: string;
+  title: string;
+  version: string;
+  description: string;
+  components: { kind: string; name: string }[];
+  installed: boolean;
+  policy: Policy | null;
+}
+
 type Policy = "off" | "on" | "required";
 
 const POLICY_COLORS: Record<Policy, { bg: string; fg: string }> = {
@@ -56,6 +67,7 @@ interface Props {
 
 export function PluginGovernancePanel({ workspacePath }: Props) {
   const [plugins, setPlugins] = useState<InstalledPlugin[]>([]);
+  const [catalog, setCatalog] = useState<CatalogPlugin[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -71,10 +83,12 @@ export function PluginGovernancePanel({ workspacePath }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const list = await invoke<InstalledPlugin[]>("plugin_list_installed", {
-        workspacePath,
-      });
+      const [list, core] = await Promise.all([
+        invoke<InstalledPlugin[]>("plugin_list_installed", { workspacePath }),
+        invoke<CatalogPlugin[]>("plugin_catalog_list", { workspacePath }),
+      ]);
       setPlugins(Array.isArray(list) ? list : []);
+      setCatalog(Array.isArray(core) ? core : []);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -153,6 +167,30 @@ export function PluginGovernancePanel({ workspacePath }: Props) {
     }
   }
 
+  async function installFromCatalog(entry: CatalogPlugin) {
+    setBusyPlugin(entry.name);
+    setInstallMsg(null);
+    try {
+      const installed = await invoke<InstalledPlugin & { signing_key_persisted: boolean }>(
+        "plugin_install_from_catalog",
+        { workspacePath, name: entry.name, force: false },
+      );
+      setInstallMsg(
+        `Installed ${installed.name} v${installed.version} — policy: ${installed.policy}` +
+          // Rare, and worth saying in the same breath: the fingerprint shown on
+          // the row below will differ next install if the key did not persist.
+          (installed.signing_key_persisted
+            ? ` (key ${installed.publisher.key_fingerprint}…)`
+            : " — the signing key could not be stored, so its fingerprint will change next install"),
+      );
+      await load();
+    } catch (e) {
+      setInstallMsg(`Error: ${e}`);
+    } finally {
+      setBusyPlugin(null);
+    }
+  }
+
   async function installFromUrl() {
     if (!installUrl.trim()) return;
     setInstallMsg(null);
@@ -214,6 +252,91 @@ export function PluginGovernancePanel({ workspacePath }: Props) {
 
       <div className="panel-body" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         {error && <div className="panel-error"><span>{error}</span></div>}
+
+        {/* Core catalog — the only plugins available without authoring a
+            bundle first, which is why the empty state below used to be a dead
+            end for anyone who did not already have one. */}
+        <section>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>
+            Core plugins
+            <span style={{ color: "var(--text-muted)", fontWeight: 400, marginLeft: 8, fontSize: "var(--font-size-sm)" }}>
+              ({catalog.filter((c) => !c.installed).length} available)
+            </span>
+          </div>
+          <div style={{ color: "var(--text-muted)", fontSize: "var(--font-size-sm)", marginBottom: 8 }}>
+            Skills and rules that ship with VibeCody. Installed through the same verified
+            path as a downloaded bundle, but signed by this machine — the signature proves
+            the install has not been altered, not who wrote it.
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {catalog.map((c) => (
+              <div
+                key={c.name}
+                style={{
+                  background: "var(--bg-secondary)",
+                  border: "1px solid var(--border-color)",
+                  borderRadius: "var(--radius-sm-alt)",
+                  padding: 12,
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 12,
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div>
+                    <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>{c.title}</span>
+                    <span style={{ color: "var(--text-muted)", marginLeft: 8, fontSize: "var(--font-size-sm)" }}>
+                      v{c.version}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4, lineHeight: 1.5 }}>
+                    {c.description}
+                  </div>
+                  <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 4 }}>
+                    {c.components.map((comp) => (
+                      <span
+                        key={`${comp.kind}/${comp.name}`}
+                        style={{
+                          fontSize: "var(--font-size-sm)",
+                          padding: "1px 8px",
+                          border: "1px solid var(--border-color)",
+                          borderRadius: "var(--radius-md)",
+                          color: "var(--text-muted)",
+                        }}
+                      >
+                        {comp.kind} · {comp.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                {c.installed && c.policy ? (
+                  <span
+                    style={{
+                      padding: "2px 12px",
+                      borderRadius: "var(--radius-md)",
+                      fontSize: "var(--font-size-sm)",
+                      fontWeight: 600,
+                      background: POLICY_COLORS[c.policy].bg,
+                      color: POLICY_COLORS[c.policy].fg,
+                      flex: "none",
+                    }}
+                  >
+                    {c.policy}
+                  </span>
+                ) : (
+                  <button
+                    className="panel-btn"
+                    disabled={busyPlugin === c.name}
+                    onClick={() => installFromCatalog(c)}
+                    style={{ flex: "none", padding: "4px 14px", fontSize: "var(--font-size-sm)", fontWeight: 600 }}
+                  >
+                    {busyPlugin === c.name ? "Installing…" : "Install"}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
 
         {/* Install signed MCPB bundle — local file or HTTPS URL. */}
         <section style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm-alt)", padding: 14 }}>
@@ -281,7 +404,8 @@ export function PluginGovernancePanel({ workspacePath }: Props) {
           </div>
           {!loading && plugins.length === 0 && (
             <div style={{ color: "var(--text-muted)", fontStyle: "italic" }}>
-              No plugins installed. Use the form above to install a signed MCPB bundle.
+              None installed. Install a core plugin above, or a signed MCPB bundle from a
+              file or URL.
             </div>
           )}
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>

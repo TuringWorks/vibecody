@@ -358,7 +358,6 @@ pub fn run() {
             nexttask_suggestions: Arc::new(Mutex::new(Vec::new())),
             docsync_state: Arc::new(Mutex::new(serde_json::json!({ "total_sections": 0, "avg_freshness": 100.0, "stale_count": 0, "alerts": 0 }))),
             // Phase 30: Connectors + Analytics + Trust + SmartDeps
-            connector_instances: Arc::new(Mutex::new(Vec::new())),
             analytics_data: Arc::new(Mutex::new(serde_json::json!({ "total_tasks": 0, "total_cost": 0.0, "time_saved_mins": 0, "roi": 0.0 }))),
             trust_scores: Arc::new(Mutex::new(Vec::new())),
             smartdeps_analysis: Arc::new(Mutex::new(serde_json::json!({ "dependencies": [], "conflicts": [], "advisories": [] }))),
@@ -1280,6 +1279,8 @@ pub fn run() {
             // B2.6 — Plugin Governance (signed MCPB bundles)
             commands::plugin_install_from_file,
             commands::plugin_install_from_url,
+            commands::plugin_catalog_list,
+            commands::plugin_install_from_catalog,
             commands::plugin_list_installed,
             commands::plugin_uninstall,
             commands::plugin_get_policy,
@@ -1609,11 +1610,6 @@ pub fn run() {
             commands::voice_list_models,
             commands::voice_start_recording,
             commands::voice_stop_recording,
-            commands::connectors_list,
-            commands::connectors_available,
-            commands::connectors_add,
-            commands::connectors_test,
-            commands::connectors_discover,
             commands::analytics_dashboard,
             commands::analytics_users,
             commands::analytics_teams,

@@ -185,7 +185,6 @@ pub struct AppState {
     pub nexttask_suggestions: Arc<Mutex<Vec<serde_json::Value>>>,
     pub docsync_state: Arc<Mutex<serde_json::Value>>,
     // Phase 30: Connectors + Analytics + Trust + SmartDeps
-    pub connector_instances: Arc<Mutex<Vec<serde_json::Value>>>,
     pub analytics_data: Arc<Mutex<serde_json::Value>>,
     pub trust_scores: Arc<Mutex<Vec<serde_json::Value>>>,
     pub smartdeps_analysis: Arc<Mutex<serde_json::Value>>,
@@ -42197,6 +42196,80 @@ pub async fn plugin_install_from_file(
     Ok(installed_plugin_to_json(&installed))
 }
 
+/// The core plugin catalog compiled into the binary, with each entry's state
+/// in this workspace.
+///
+/// Without it the panel's empty state was "No plugins installed. Use the form
+/// above to install a signed MCPB bundle" — true, and useless to anyone who
+/// does not already have a bundle. Nobody does: authoring one means writing a
+/// manifest, generating a P-256 key, signing and packing it.
+#[tauri::command]
+pub async fn plugin_catalog_list(workspace_path: String) -> Result<serde_json::Value, String> {
+    let workspace = reject_sensitive_path(&workspace_path)?;
+    // A workspace with no store yet has nothing installed. That is an empty
+    // state, not a reason to refuse to show the catalog.
+    let installed: std::collections::HashMap<String, PluginPolicy> =
+        match WorkspaceStore::open(&workspace) {
+            Ok(store) => plugin_install::list_installed(&workspace, &store)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|p| (p.manifest.name, p.policy))
+                .collect(),
+            Err(_) => std::collections::HashMap::new(),
+        };
+
+    Ok(serde_json::json!(vibecli_cli::plugin_catalog::CATALOG
+        .iter()
+        .map(|p| {
+            let policy = installed.get(p.name);
+            serde_json::json!({
+                "name": p.name,
+                "title": p.title,
+                "version": p.version,
+                "description": p.description,
+                "components": p.components.iter().map(|c| serde_json::json!({
+                    "kind": c.kind(),
+                    "name": c.name(),
+                })).collect::<Vec<_>>(),
+                "installed": policy.is_some(),
+                "policy": policy.map(|p| match p {
+                    PluginPolicy::Off => "off",
+                    PluginPolicy::On => "on",
+                    PluginPolicy::Required => "required",
+                }),
+            })
+        })
+        .collect::<Vec<_>>()))
+}
+
+/// Install a core catalog plugin into `workspace_path`.
+///
+/// Goes through the same verified install path as a downloaded bundle — the
+/// manifest is materialised, signed, and its signature checked before anything
+/// reaches the install slot.
+#[tauri::command]
+pub async fn plugin_install_from_catalog(
+    workspace_path: String,
+    name: String,
+    force: bool,
+) -> Result<serde_json::Value, String> {
+    let workspace = reject_sensitive_path(&workspace_path)?;
+    let store = WorkspaceStore::open(&workspace)?;
+    let outcome = vibecli_cli::plugin_catalog::install(&workspace, &store, &name, force)
+        .map_err(|e| e.to_string())?;
+    let mut json = installed_plugin_to_json(&outcome.installed);
+    if let Some(obj) = json.as_object_mut() {
+        // Reported rather than swallowed: without a persisted key the publisher
+        // fingerprint this panel shows will differ on the next install, and the
+        // fingerprint is the whole point of showing it.
+        obj.insert(
+            "signing_key_persisted".to_string(),
+            serde_json::json!(outcome.key_persisted),
+        );
+    }
+    Ok(json)
+}
+
 /// B2.12 — install a signed MCPB bundle from an HTTPS URL.
 ///
 /// Thin wrapper over `plugin_install::install_from_url`. The workspace
@@ -52257,116 +52330,19 @@ pub async fn voice_stop_recording() -> Result<serde_json::Value, String> {
 }
 
 // ── Native Connectors ──
-
-#[tauri::command]
-pub async fn connectors_list(
-    state: tauri::State<'_, AppState>,
-) -> Result<serde_json::Value, String> {
-    let connectors = state.connector_instances.lock().await;
-    Ok(serde_json::json!(*connectors))
-}
-
-#[tauri::command]
-pub async fn connectors_available() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([
-        "Stripe",
-        "Figma",
-        "Notion",
-        "Jira",
-        "Slack",
-        "PagerDuty",
-        "Datadog",
-        "Sentry",
-        "LaunchDarkly",
-        "Vercel",
-        "Netlify",
-        "Supabase",
-        "Firebase",
-        "AWS",
-        "GCP",
-        "Azure",
-        "GitHub",
-        "GitLab",
-        "Linear",
-        "Confluence"
-    ]))
-}
-
-#[tauri::command]
-pub async fn connectors_add(
-    state: tauri::State<'_, AppState>,
-    connector_type: String,
-    api_key: String,
-) -> Result<serde_json::Value, String> {
-    let ts = chrono::Utc::now().timestamp();
-    let connector = serde_json::json!({
-        "id": format!("conn-{}", ts),
-        "type": connector_type,
-        "status": "connected",
-        "key_len": api_key.len(),
-        "connected_at": ts
-    });
-    let mut connectors = state.connector_instances.lock().await;
-    connectors.push(connector.clone());
-    Ok(connector)
-}
-
-#[tauri::command]
-pub async fn connectors_test(
-    state: tauri::State<'_, AppState>,
-    connector_id: String,
-) -> Result<serde_json::Value, String> {
-    let connectors = state.connector_instances.lock().await;
-    let exists = connectors
-        .iter()
-        .any(|c| c.get("id").and_then(|v| v.as_str()) == Some(&connector_id));
-    Ok(
-        serde_json::json!({ "id": connector_id, "healthy": exists, "tested_at": chrono::Utc::now().timestamp() }),
-    )
-}
-
-#[tauri::command]
-pub async fn connectors_discover(
-    state: tauri::State<'_, AppState>,
-) -> Result<serde_json::Value, String> {
-    let connectors = state.connector_instances.lock().await;
-    let connected_types: Vec<String> = connectors
-        .iter()
-        .filter_map(|c| {
-            c.get("type")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string())
-        })
-        .collect();
-    let all_available = vec![
-        "Stripe",
-        "Figma",
-        "Notion",
-        "Jira",
-        "Slack",
-        "PagerDuty",
-        "Datadog",
-        "Sentry",
-        "LaunchDarkly",
-        "Vercel",
-        "Netlify",
-        "Supabase",
-        "Firebase",
-        "AWS",
-        "GCP",
-        "Azure",
-        "GitHub",
-        "GitLab",
-        "Linear",
-        "Confluence",
-    ];
-    let discovered: Vec<serde_json::Value> = all_available
-        .iter()
-        .filter(|t| !connected_types.contains(&t.to_string()))
-        .map(|t| serde_json::json!({ "type": t, "status": "available" }))
-        .collect();
-    Ok(serde_json::json!({ "discovered": discovered }))
-}
+//
+// The five commands that used to live here backed a panel that could not work:
+// `connectors_add` was called with an empty API key (the UI had no field for
+// one), stored `status: "connected"` regardless, and kept the row in a
+// process-local `Vec` that emptied on restart; `connectors_test` reported
+// healthy when that row existed; `connectors_discover` returned the hard-coded
+// vendor list minus whatever had been added, having scanned nothing.
+//
+// Connectors are now the daemon's: `/api/vibedesk/connectors*`, with
+// definitions in the workspace store, credentials encrypted in
+// `workspace_secrets`, and a health check that actually launches the server.
+// The panel calls those routes through `daemonFetch`, so there is nothing to
+// wrap here.
 
 // ── Agent Analytics ──
 
