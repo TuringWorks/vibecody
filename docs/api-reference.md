@@ -975,3 +975,79 @@ The Apple Watch / Wear OS never hits `/v1/*` directly. Use the curated read-only
 | `GET` | `/watch/goals` | Active goals only, ≤25, slim payload (`{ id, title, status, workspace_label, updated_at, pinned }`). `pinned` is `true` when the row is the workspace-specific OR global current pin (G11.2). Older daemons that lack the field decode cleanly on the watch side. |
 | `GET` | `/watch/goals/:id` | Envelope `{ goal, links, pinned }` (G12.1 added `pinned: bool` at the envelope level so the watch detail / tile can render the ★ without a separate `/v1/goals/current` lookup; watch never hits `/v1/*`). |
 | `POST` | `/watch/goals/:id/start` | Curated wrapper for `do_v1_exec_goal_start`. Body: `{ task? }`. Returns `{ session_id, link_id, goal_id }`. |
+
+## Plugins & connectors — `/api/vibedesk/plugins/*`, `/api/vibedesk/connectors/*`
+
+Back the Plugins panel: what is extending the agent in a workspace, what can be
+installed, and which MCP servers this machine is connected to. All require the
+bearer token. `path` (query for `GET`, body field for `POST`) scopes to a
+project, like the other `/api/vibedesk/*` routes; omitted, it uses the daemon's
+workspace root.
+
+Plugins here are the **workspace** plugin system — signed bundles under
+`<workspace>/.vibecli/plugins/`, policed per workspace. That is a different
+system from the user-level `~/.vibecli/plugins/` bundles described in
+[Plugin Development](/plugin-development/); the two do not share a manifest
+format or an install directory.
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/vibedesk/plugins` | Components live in this workspace, grouped by kind. Read-only inventory. |
+| `GET` | `/api/vibedesk/plugins/catalog` | Every core plugin compiled into the daemon, with `installed` and `policy` for this workspace. |
+| `POST` | `/api/vibedesk/plugins/install` | Body: `{ name, path?, force? }`. Materialises the catalog entry, signs it, and installs it through the same verified path as a downloaded bundle. Returns `signing_key_persisted` — `false` means the publisher fingerprint will differ next install. |
+| `POST` | `/api/vibedesk/plugins/policy` | Body: `{ name, policy, path? }`. `policy` is `"on"` or `"off"`. `"required"` is refused: it is an admin pin the same user could not then lower. |
+| `POST` | `/api/vibedesk/plugins/uninstall` | Body: `{ name, path? }`. Removes the install directory and the policy row. `removed: false` means there was nothing on disk — the policy row may still have been cleared. |
+
+### Core plugin catalog
+
+Compiled into the binary, so there is no registry to reach and nothing to
+download. Each ships skills and rules only — Markdown that `skill_catalog` and
+`context_assembler` already load. Hooks and MCP-server components are not
+offered here: a hook is an executable whose exec bit does not survive the bundle
+round-trip, and plugin MCP servers are registered only by a module nothing
+currently calls.
+
+| Plugin | Ships |
+|---|---|
+| `core-review-standards` | Rule: what a review must check before approving. |
+| `core-secure-defaults` | Rules: secret handling, and bounding untrusted input. |
+| `core-commit-craft` | Skill: writing commit messages that say why. |
+| `core-test-first` | Skill: pinning behaviour before changing it, and spotting a vacuous test. |
+
+The signature on a catalog install is real and verified, but it attests
+integrity, not provenance: the manifest is signed on this machine with a locally
+generated P-256 key. The embedded publisher key in a third-party bundle carries
+exactly the same weight — that is this format's trust model.
+
+### Connectors
+
+A connector is an MCP server definition plus the credentials it needs.
+Definitions live in the workspace store; credentials live encrypted in
+`workspace_secrets` and are never returned by any route.
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/vibedesk/connectors` | `{ connectors, catalog }`. Each configured connector reports `missing_credentials`; each catalog entry reports `runtime_available` (is `npx` / `uvx` on PATH). Neither carries a health field. |
+| `POST` | `/api/vibedesk/connectors` | Body: `{ catalog_id, credentials?, path? }` for a catalog entry, or `{ id, title?, command, args?, credentials?, path? }` for a hand-entered server. A required credential left blank is refused. |
+| `POST` | `/api/vibedesk/connectors/toggle` | Body: `{ id, enabled, path? }`. Disabled connectors are not launchable; their credentials are kept. |
+| `POST` | `/api/vibedesk/connectors/remove` | Body: `{ id, path? }`. Returns `secrets_deleted` so the caller can say whether the credentials went too. |
+| `POST` | `/api/vibedesk/connectors/probe` | Body: `{ id, path? }`. **Actually launches the server** and lists its tools. Returns `{ result: { state: "ok", tools } \| { state: "failed", error } \| { state: "timedout", after_secs } , checked_at }`. Bounded at 45s. |
+
+`probe` is the only route that reports a connector as working, because it is the
+only one that runs it. Nothing infers "connected" from the presence of a key,
+and no probe result is persisted — a stored `ok` is a claim about the past
+presented as a claim about now.
+
+Enabled connectors are merged into `vibecli`'s `/mcp` command alongside
+`[[mcp_servers]]` from `config.toml`, with config.toml winning a name collision.
+Agent runs do not consume MCP tools yet, so a connector makes tools reachable
+from the CLI, not from an agent turn.
+
+| Connector | Runtime | Credential |
+|---|---|---|
+| `vibecli` | none — this binary, via `--mcp-server` | — |
+| `filesystem` | `npx` | — |
+| `git` | `uvx` | — |
+| `fetch` | `uvx` | — |
+| `memory` | `npx` | — |
+| `github` | `npx` | `GITHUB_PERSONAL_ACCESS_TOKEN` |

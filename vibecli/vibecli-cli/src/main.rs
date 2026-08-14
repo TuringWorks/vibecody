@@ -241,6 +241,13 @@ mod path_guard;
 mod plugin;
 #[allow(dead_code)]
 mod plugin_runtime;
+// Both are referenced by `serve.rs`, which the binary compiles, so the binary
+// needs its own declaration — see this crate's CLAUDE.md on why a `mod` line
+// here is not free.
+#[allow(dead_code)]
+mod connectors;
+#[allow(dead_code)]
+mod plugin_catalog;
 mod review;
 mod serve;
 use plugin::PluginLoader;
@@ -6821,24 +6828,42 @@ async fn main() -> Result<()> {
 
                         "/mcp" => {
                             let config = Config::load().unwrap_or_default();
-                            if config.mcp_servers.is_empty() {
-                                println!("No MCP servers configured.\nAdd [[mcp_servers]] to ~/.vibecli/config.toml\n");
+                            // Config-file servers plus the connectors added
+                            // from the Plugins panel. Without this merge a
+                            // connector is a row in a database that nothing
+                            // ever launches.
+                            let cwd = std::env::current_dir()
+                                .unwrap_or_else(|_| std::path::PathBuf::from("."));
+                            let servers =
+                                connectors::merge_with_configured(&cwd, config.mcp_servers.clone());
+                            if servers.is_empty() {
+                                println!("No MCP servers configured.\nAdd a connector in the Plugins panel, or [[mcp_servers]] to ~/.vibecli/config.toml\n");
                                 continue;
                             }
                             let mcp_parts: Vec<&str> = args.splitn(3, ' ').collect();
                             match mcp_parts[0] {
                                 "list" | "" => {
                                     println!("\n🔌 Configured MCP servers:");
-                                    for srv in &config.mcp_servers {
-                                        println!("  {} — {}", srv.name, srv.command);
+                                    for srv in &servers {
+                                        // Say where each came from: a name that
+                                        // is not in config.toml is otherwise a
+                                        // mystery to anyone editing that file.
+                                        let origin = if config
+                                            .mcp_servers
+                                            .iter()
+                                            .any(|c| c.name == srv.name)
+                                        {
+                                            "config.toml"
+                                        } else {
+                                            "workspace connector"
+                                        };
+                                        println!("  {} — {} ({origin})", srv.name, srv.command);
                                     }
                                     println!("\nUse: /mcp tools <server>  or  /mcp call <server> <tool>\n");
                                 }
                                 "tools" if mcp_parts.len() > 1 => {
                                     let name = mcp_parts[1];
-                                    if let Some(srv_cfg) =
-                                        config.mcp_servers.iter().find(|s| s.name == name)
-                                    {
+                                    if let Some(srv_cfg) = servers.iter().find(|s| s.name == name) {
                                         match vibe_ai::mcp::McpClient::connect(srv_cfg) {
                                             Ok(mut client) => match client.list_tools() {
                                                 Ok(tools) => {

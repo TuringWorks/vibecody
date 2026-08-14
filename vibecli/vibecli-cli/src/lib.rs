@@ -291,6 +291,15 @@ pub mod plugin_install;
 // Consumed by skill_catalog / mcp_governance / hook_abort / rules
 // loader as a filtered input list (per-loader wiring is a follow-up).
 pub mod plugin_runtime;
+// First-party plugins compiled into the binary, so a workspace can have
+// plugins without a registry to fetch them from. Installs through
+// `plugin_install::install_from_dir`, so they are verified and policed
+// exactly like a downloaded bundle.
+pub mod plugin_catalog;
+// Workspace connectors: MCP servers plus the encrypted credentials they need.
+// Definitions in the workspace store, secrets in `workspace_secrets`, status
+// only ever reported from an actual launch.
+pub mod connectors;
 // FIT-GAP v12 — P3: long sessions, Windows sandbox, dispatch, focus
 pub mod dispatch_remote;
 pub mod focus_view;

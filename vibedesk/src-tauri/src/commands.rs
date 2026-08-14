@@ -800,6 +800,201 @@ pub async fn list_plugins(
     daemon_get(url, "/api/vibedesk/plugins", path, token).await
 }
 
+/// POST a JSON body to the daemon and return its JSON reply.
+///
+/// Unlike [`daemon_get`], a failed response's body is read and surfaced. These
+/// routes answer 400 with the reason — "`Personal access token` is required for
+/// GitHub", "connector `github` is already configured" — and reporting only
+/// "Daemon returned 400 Bad Request" would throw away the one sentence the user
+/// needs.
+async fn daemon_post(
+    url: String,
+    path: &str,
+    body: serde_json::Value,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let full = format!("{}{}", url.trim_end_matches('/'), path);
+    let client = reqwest::Client::new();
+    let resp = send_authed(client.post(&full).json(&body), token).await?;
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        let detail = serde_json::from_str::<serde_json::Value>(&text)
+            .ok()
+            .and_then(|v| v.get("error").and_then(|e| e.as_str()).map(String::from))
+            .unwrap_or(text);
+        return Err(if detail.is_empty() {
+            format!("Daemon returned {status}")
+        } else {
+            detail
+        });
+    }
+    resp.json().await.map_err(|e| e.to_string())
+}
+
+/// GET /api/vibedesk/plugins/catalog — installable plugins and their state.
+#[tauri::command]
+pub async fn plugin_catalog(
+    url: String,
+    path: Option<String>,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    daemon_get(url, "/api/vibedesk/plugins/catalog", path, token).await
+}
+
+/// POST /api/vibedesk/plugins/install — install a catalog plugin.
+#[tauri::command]
+pub async fn install_plugin(
+    url: String,
+    path: Option<String>,
+    name: String,
+    force: Option<bool>,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    daemon_post(
+        url,
+        "/api/vibedesk/plugins/install",
+        serde_json::json!({ "path": path, "name": name, "force": force.unwrap_or(false) }),
+        token,
+    )
+    .await
+}
+
+/// POST /api/vibedesk/plugins/policy — turn an installed plugin on or off.
+#[tauri::command]
+pub async fn set_plugin_policy(
+    url: String,
+    path: Option<String>,
+    name: String,
+    policy: String,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    daemon_post(
+        url,
+        "/api/vibedesk/plugins/policy",
+        serde_json::json!({ "path": path, "name": name, "policy": policy }),
+        token,
+    )
+    .await
+}
+
+/// POST /api/vibedesk/plugins/uninstall — remove a plugin and its policy row.
+#[tauri::command]
+pub async fn uninstall_plugin(
+    url: String,
+    path: Option<String>,
+    name: String,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    daemon_post(
+        url,
+        "/api/vibedesk/plugins/uninstall",
+        serde_json::json!({ "path": path, "name": name }),
+        token,
+    )
+    .await
+}
+
+/// GET /api/vibedesk/connectors — configured connectors plus the catalog.
+#[tauri::command]
+pub async fn list_connectors(
+    url: String,
+    path: Option<String>,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    daemon_get(url, "/api/vibedesk/connectors", path, token).await
+}
+
+/// POST /api/vibedesk/connectors — add one, from the catalog or by hand.
+///
+/// `credentials` goes straight through to the daemon, which encrypts it into
+/// the workspace store. It is never logged here and never comes back in a
+/// response.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn add_connector(
+    url: String,
+    path: Option<String>,
+    catalog_id: Option<String>,
+    id: Option<String>,
+    title: Option<String>,
+    command: Option<String>,
+    args: Option<Vec<String>>,
+    credentials: Option<std::collections::HashMap<String, String>>,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    daemon_post(
+        url,
+        "/api/vibedesk/connectors",
+        serde_json::json!({
+            "path": path,
+            "catalog_id": catalog_id,
+            "id": id,
+            "title": title,
+            "command": command,
+            "args": args.unwrap_or_default(),
+            "credentials": credentials.unwrap_or_default(),
+        }),
+        token,
+    )
+    .await
+}
+
+/// POST /api/vibedesk/connectors/toggle — enable or disable a connector.
+#[tauri::command]
+pub async fn toggle_connector(
+    url: String,
+    path: Option<String>,
+    id: String,
+    enabled: bool,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    daemon_post(
+        url,
+        "/api/vibedesk/connectors/toggle",
+        serde_json::json!({ "path": path, "id": id, "enabled": enabled }),
+        token,
+    )
+    .await
+}
+
+/// POST /api/vibedesk/connectors/remove — delete a connector and its secrets.
+#[tauri::command]
+pub async fn remove_connector(
+    url: String,
+    path: Option<String>,
+    id: String,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    daemon_post(
+        url,
+        "/api/vibedesk/connectors/remove",
+        serde_json::json!({ "path": path, "id": id }),
+        token,
+    )
+    .await
+}
+
+/// POST /api/vibedesk/connectors/probe — launch the connector and list its tools.
+///
+/// Slow on purpose: this really starts the server, and `npx` may be fetching a
+/// package it has never seen. The daemon bounds it; the UI shows it running.
+#[tauri::command]
+pub async fn probe_connector(
+    url: String,
+    path: Option<String>,
+    id: String,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    daemon_post(
+        url,
+        "/api/vibedesk/connectors/probe",
+        serde_json::json!({ "path": path, "id": id }),
+        token,
+    )
+    .await
+}
+
 /// POST /jobs/:id/cancel — stop an in-flight agent run. Backs the composer's
 /// Stop button: a long or wrong-headed turn must be interruptible without
 /// killing the app or waiting it out. The daemon marks the job cancelled and

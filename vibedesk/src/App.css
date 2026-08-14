@@ -378,7 +378,7 @@ html, body, #root {
 .vx-term__run:disabled { opacity: 0.4; cursor: default; }
 .vx-term__run:hover:not(:disabled) { color: var(--text-primary); }
 
-/* ── Plugins inventory (read-only) ──────────────────────────────────────── */
+/* ── Plugins: active inventory, catalog, connectors ─────────────────────── */
 .vx-plugins__body { flex: 1; overflow-y: auto; padding: 14px 18px; min-height: 0; }
 .vx-plugins__hint { margin-top: 8px; font-size: 11px; color: var(--text-tertiary); }
 .vx-plugins__hint code { font-family: ui-monospace, "SF Mono", Menlo, monospace; background: var(--bg-elevated); padding: 1px 5px; border-radius: 4px; }
@@ -395,6 +395,38 @@ html, body, #root {
 .vx-plugins__policy { font-size: 10px; padding: 0 6px; border-radius: 8px; background: var(--bg-elevated); color: var(--text-secondary); flex: none; }
 .vx-plugins__policy--required { color: var(--accent-gold); }
 .vx-plugins__policy--on { color: var(--accent-green); }
+.vx-plugins__policy--off { color: var(--text-tertiary); }
+
+.vx-plugins__tabs { flex: none; display: flex; gap: 4px; padding: 8px 16px 0; }
+.vx-plugins__notice { flex: none; margin: 8px 16px 0; padding: 6px 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-elevated); color: var(--text-secondary); font-size: 12px; }
+.vx-plugins__cta { margin-top: 12px; padding: 5px 12px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-elevated); color: var(--text-primary); font-family: inherit; font-size: 12px; cursor: pointer; }
+.vx-plugins__cta:hover { border-color: var(--accent-blue); }
+
+.vx-plugins__cards { display: flex; flex-direction: column; gap: 10px; max-width: 720px; margin-left: 20px; }
+.vx-plugins__card { border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 14px; background: var(--bg-secondary); }
+.vx-plugins__card-head { display: flex; align-items: center; gap: 8px; }
+.vx-plugins__card-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.vx-plugins__card-version { font-size: 11px; color: var(--text-tertiary); }
+.vx-plugins__card-desc { margin: 6px 0 0; font-size: 12px; line-height: 1.5; color: var(--text-secondary); }
+.vx-plugins__chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.vx-plugins__chip { font-size: 10px; padding: 1px 6px; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-tertiary); }
+.vx-plugins__cmd { display: block; margin-top: 8px; padding: 4px 8px; border-radius: 5px; background: var(--bg-elevated); color: var(--text-secondary); font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; overflow-x: auto; white-space: pre; }
+.vx-plugins__card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+.vx-plugins__btn { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-elevated); color: var(--text-secondary); font-family: inherit; font-size: 12px; cursor: pointer; text-decoration: none; }
+.vx-plugins__btn:hover:not(:disabled) { color: var(--text-primary); border-color: var(--accent-blue); }
+.vx-plugins__btn:disabled { opacity: 0.45; cursor: default; }
+.vx-plugins__btn--danger:hover:not(:disabled) { color: var(--error-color); border-color: var(--error-color); }
+.vx-plugins__btn--link { color: var(--text-tertiary); }
+.vx-plugins__note { margin-top: 8px; font-size: 11px; color: var(--text-tertiary); }
+.vx-plugins__warn { display: flex; align-items: flex-start; gap: 6px; margin-top: 8px; font-size: 11px; line-height: 1.45; color: var(--accent-gold); }
+.vx-plugins__ok { display: flex; align-items: flex-start; gap: 6px; margin-top: 8px; font-size: 11px; line-height: 1.45; color: var(--accent-green); }
+.vx-plugins__field { display: block; margin-top: 10px; }
+.vx-plugins__field-label { display: block; font-size: 11px; color: var(--text-secondary); margin-bottom: 3px; }
+.vx-plugins__input { width: 100%; box-sizing: border-box; padding: 5px 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
+.vx-plugins__input:focus { outline: none; border-color: var(--accent-blue); }
+.vx-plugins__field-help { display: block; margin-top: 3px; font-size: 10px; line-height: 1.45; color: var(--text-tertiary); }
+.vx-spin { animation: vx-spin 1s linear infinite; }
+@keyframes vx-spin { to { transform: rotate(360deg); } }
 
 /* ── Right rail: Environment / Side chat tabs ───────────────────────────── */
 .vx-right { display: flex; flex-direction: column; height: 100%; min-height: 0; }

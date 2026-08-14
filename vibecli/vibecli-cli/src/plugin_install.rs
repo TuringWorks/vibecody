@@ -154,6 +154,51 @@ pub fn install_from_file(
     mcpb_bundle::extract_bundle(bundle_path, &staging)
         .map_err(|e| InstallError::Mcpb(e.to_string()))?;
 
+    finish_install(workspace, store, staging, staging_guard, force)
+}
+
+/// Install from a directory that already holds the extracted layout —
+/// `vibecli-plugin.toml`, `vibecli-plugin.sig`, and the component files.
+///
+/// The core catalog (`plugin_catalog`) materialises its plugins as files
+/// rather than shipping prebuilt `.mcpb` archives, so it needs the second
+/// half of `install_from_file` without the first. Sharing the tail matters
+/// more than it looks: signature verification, the already-installed check,
+/// the atomic swap and the policy write all live there, and a catalog with
+/// its own copy would be a second install path that could drift out of
+/// agreement with this one about what "installed" means.
+pub fn install_from_dir(
+    workspace: &Path,
+    store: &WorkspaceStore,
+    src_dir: &Path,
+    force: bool,
+) -> Result<InstalledPlugin, InstallError> {
+    let install_root = plugin_install_dir(workspace);
+    std::fs::create_dir_all(&install_root)?;
+    let staging = install_root.join(format!(
+        ".staging.{}.{}",
+        std::process::id(),
+        uuid::Uuid::new_v4().simple()
+    ));
+    let staging_guard = StagingGuard(staging.clone());
+    copy_dir_recursive(src_dir, &staging)?;
+    finish_install(workspace, store, staging, staging_guard, force)
+}
+
+/// Verify a staged extract and swap it into the install slot.
+///
+/// Shared tail of `install_from_file` and `install_from_dir`. Consumes the
+/// staging guard so the caller cannot accidentally keep it armed past the
+/// rename.
+fn finish_install(
+    workspace: &Path,
+    store: &WorkspaceStore,
+    staging: PathBuf,
+    staging_guard: StagingGuard,
+    force: bool,
+) -> Result<InstalledPlugin, InstallError> {
+    let install_root = plugin_install_dir(workspace);
+
     // 2. Parse + validate vibecli-plugin.toml.
     let manifest = read_manifest_from_extracted(&staging)?;
 
@@ -354,6 +399,30 @@ pub fn uninstall(
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+/// Copy a directory tree. Used by `install_from_dir` to move a
+/// materialised layout into the staging slot, so the atomic-swap and
+/// verification guarantees apply to it unchanged.
+///
+/// Symlinks are not followed: `copy` resolves them, so a link pointing
+/// outside the source tree would pull in whatever it aimed at. The catalog
+/// writes plain files, so refusing anything else costs nothing and keeps
+/// this from becoming a general-purpose copy that a caller could point at
+/// hostile input.
+fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), std::io::Error> {
+    std::fs::create_dir_all(dst)?;
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let file_type = entry.file_type()?;
+        let to = dst.join(entry.file_name());
+        if file_type.is_dir() {
+            copy_dir_recursive(&entry.path(), &to)?;
+        } else if file_type.is_file() {
+            std::fs::copy(entry.path(), &to)?;
+        }
+    }
+    Ok(())
+}
 
 /// RAII cleanup for the staging directory. If install fails partway
 /// through, the staging dir is removed automatically. `disarm()` is

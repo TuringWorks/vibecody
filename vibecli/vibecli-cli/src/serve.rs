@@ -3250,6 +3250,417 @@ async fn vibedesk_plugins(
     })))
 }
 
+// ── Plugin catalog + policy ──────────────────────────────────────────────────
+//
+// `vibedesk_plugins` above reports what is enabled. These make it changeable.
+// The read-only split was defensible while the only way to get a plugin was to
+// author, sign and pack a bundle by hand — the panel could not offer anything
+// to install. With a catalog compiled into the binary it stopped being a
+// safety property and became a dead end: every workspace showed "no plugin
+// components" and a sentence pointing at a CLI command.
+//
+// Policy still cannot be widened here: `PolicySetter::User` cannot lower an
+// admin's `Required` pin, and the store enforces that, not this code.
+
+#[derive(Debug, serde::Deserialize)]
+struct PluginInstallRequest {
+    #[serde(default)]
+    path: Option<String>,
+    name: String,
+    /// Replace an existing install of the same name.
+    #[serde(default)]
+    force: bool,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct PluginPolicyRequest {
+    #[serde(default)]
+    path: Option<String>,
+    name: String,
+    /// `"on"` or `"off"`. `"required"` is admin territory and is refused here.
+    policy: String,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct PluginNameRequest {
+    #[serde(default)]
+    path: Option<String>,
+    name: String,
+}
+
+/// GET /api/vibedesk/plugins/catalog — what can be installed, and what already is.
+///
+/// Returns every catalog entry with its live state, so the panel does not have
+/// to join two lists and guess. `installed` reflects the install directory;
+/// `policy` reflects the store, and the two can legitimately disagree (a plugin
+/// installed then turned off).
+async fn vibedesk_plugin_catalog(
+    Query(q): Query<VibedeskScopeQuery>,
+    State(state): State<ServeState>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let root = resolve_repo_root(q.path.as_deref(), &state.workspace_root);
+    let entries = tokio::task::spawn_blocking(move || {
+        // A workspace with no store yet has nothing installed — that is a
+        // legitimate empty state, not a failure to report the catalog.
+        let installed: std::collections::HashMap<String, crate::workspace_store::PluginPolicy> =
+            match crate::workspace_store::WorkspaceStore::open(&root) {
+                Ok(store) => crate::plugin_install::list_installed(&root, &store)
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|p| (p.manifest.name, p.policy))
+                    .collect(),
+                Err(_) => std::collections::HashMap::new(),
+            };
+
+        crate::plugin_catalog::CATALOG
+            .iter()
+            .map(|p| {
+                let policy = installed.get(p.name);
+                serde_json::json!({
+                    "name": p.name,
+                    "title": p.title,
+                    "version": p.version,
+                    "description": p.description,
+                    "components": p.components.iter().map(|c| serde_json::json!({
+                        "kind": c.kind(),
+                        "name": c.name(),
+                    })).collect::<Vec<_>>(),
+                    "installed": policy.is_some(),
+                    "policy": policy.map(|p| format!("{p:?}").to_lowercase()),
+                })
+            })
+            .collect::<Vec<_>>()
+    })
+    .await
+    .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("catalog: {e}")))?;
+
+    Ok(Json(serde_json::json!({ "plugins": entries })))
+}
+
+/// POST /api/vibedesk/plugins/install — install a catalog plugin.
+async fn vibedesk_plugin_install(
+    State(state): State<ServeState>,
+    Json(req): Json<PluginInstallRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let root = resolve_repo_root(req.path.as_deref(), &state.workspace_root);
+    let outcome = tokio::task::spawn_blocking(move || {
+        let store = crate::workspace_store::WorkspaceStore::open(&root)?;
+        crate::plugin_catalog::install(&root, &store, &req.name, req.force)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("install: {e}")))?
+    .map_err(|e| json_error(StatusCode::BAD_REQUEST, e))?;
+
+    Ok(Json(serde_json::json!({
+        "name": outcome.installed.manifest.name,
+        "version": outcome.installed.manifest.version,
+        "policy": format!("{:?}", outcome.installed.policy).to_lowercase(),
+        "components": outcome.installed.manifest.components.skills.len()
+            + outcome.installed.manifest.components.rules.len(),
+        // Surfaced rather than swallowed: without a persisted key the publisher
+        // fingerprint changes on every install, and an operator comparing
+        // fingerprints deserves to know why they moved.
+        "signing_key_persisted": outcome.key_persisted,
+    })))
+}
+
+/// POST /api/vibedesk/plugins/policy — turn an installed plugin on or off.
+async fn vibedesk_plugin_policy(
+    State(state): State<ServeState>,
+    Json(req): Json<PluginPolicyRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let policy = match req.policy.as_str() {
+        "on" => crate::workspace_store::PluginPolicy::On,
+        "off" => crate::workspace_store::PluginPolicy::Off,
+        // Pinning is an admin act with different consequences — it cannot be
+        // undone by the same user through this route — so it is not offered
+        // here at all rather than accepted and quietly downgraded.
+        other => {
+            return Err(json_error(
+                StatusCode::BAD_REQUEST,
+                format!("policy must be `on` or `off`, got `{other}`"),
+            ))
+        }
+    };
+    let root = resolve_repo_root(req.path.as_deref(), &state.workspace_root);
+    let name = req.name.clone();
+    tokio::task::spawn_blocking(move || {
+        let store = crate::workspace_store::WorkspaceStore::open(&root)?;
+        store
+            .set_plugin_policy(&name, policy, crate::workspace_store::PolicySetter::User)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("policy: {e}")))?
+    .map_err(|e| json_error(StatusCode::BAD_REQUEST, e))?;
+
+    Ok(Json(serde_json::json!({
+        "name": req.name,
+        "policy": req.policy,
+    })))
+}
+
+/// POST /api/vibedesk/plugins/uninstall — remove a plugin and its policy row.
+async fn vibedesk_plugin_uninstall(
+    State(state): State<ServeState>,
+    Json(req): Json<PluginNameRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let root = resolve_repo_root(req.path.as_deref(), &state.workspace_root);
+    let name = req.name.clone();
+    let removed = tokio::task::spawn_blocking(move || {
+        let store = crate::workspace_store::WorkspaceStore::open(&root)?;
+        crate::plugin_install::uninstall(
+            &root,
+            &store,
+            &name,
+            crate::workspace_store::PolicySetter::User,
+        )
+        .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("uninstall: {e}")))?
+    .map_err(|e| json_error(StatusCode::BAD_REQUEST, e))?;
+
+    Ok(Json(serde_json::json!({
+        "name": req.name,
+        // `false` means there was nothing on disk to remove — the policy row
+        // may still have been cleared. Reporting it as a plain success would
+        // hide a workspace whose install directory was deleted by hand.
+        "removed": removed,
+    })))
+}
+
+// ── Connectors ───────────────────────────────────────────────────────────────
+
+#[derive(Debug, serde::Deserialize)]
+struct ConnectorAddRequest {
+    #[serde(default)]
+    path: Option<String>,
+    /// Catalog entry to add. Omit for a hand-entered command.
+    #[serde(default)]
+    catalog_id: Option<String>,
+    #[serde(default)]
+    id: Option<String>,
+    #[serde(default)]
+    title: Option<String>,
+    #[serde(default)]
+    command: Option<String>,
+    #[serde(default)]
+    args: Vec<String>,
+    /// Environment variable name → value. Never logged, never echoed back.
+    #[serde(default)]
+    credentials: std::collections::HashMap<String, String>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct ConnectorActionRequest {
+    #[serde(default)]
+    path: Option<String>,
+    id: String,
+    #[serde(default)]
+    enabled: Option<bool>,
+}
+
+/// GET /api/vibedesk/connectors — configured connectors plus the catalog.
+///
+/// No status field: a connector's health is only known after
+/// `/connectors/probe` has actually launched it. What is reported here is what
+/// can be known without running anything — whether its credentials are present,
+/// and whether its runtime is on PATH.
+async fn vibedesk_connectors(
+    Query(q): Query<VibedeskScopeQuery>,
+    State(state): State<ServeState>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let root = resolve_repo_root(q.path.as_deref(), &state.workspace_root);
+    let payload = tokio::task::spawn_blocking(move || {
+        let configured = match crate::workspace_store::WorkspaceStore::open(&root) {
+            Ok(store) => crate::connectors::list(&store)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|c| {
+                    let missing =
+                        crate::connectors::missing_credentials(&store, &c).unwrap_or_default();
+                    serde_json::json!({
+                        "id": c.id,
+                        "catalog_id": c.catalog_id,
+                        "title": c.title,
+                        "command": c.command,
+                        "args": c.args,
+                        "enabled": c.enabled,
+                        "added_at": c.added_at,
+                        "credential_names": c.env_keys,
+                        "missing_credentials": missing,
+                    })
+                })
+                .collect::<Vec<_>>(),
+            Err(_) => Vec::new(),
+        };
+
+        let catalog = crate::connectors::CATALOG
+            .iter()
+            .map(|c| {
+                serde_json::json!({
+                    "id": c.id,
+                    "title": c.title,
+                    "description": c.description,
+                    "command": c.command,
+                    "args": c.args,
+                    "runtime": c.runtime,
+                    "runtime_program": c.runtime.program(),
+                    // Advisory: a missing runtime is a different failure from a
+                    // bad token and gets different advice in the panel.
+                    "runtime_available": crate::connectors::runtime_available(c.runtime),
+                    "credentials": c.credentials,
+                    "docs_url": c.docs_url,
+                })
+            })
+            .collect::<Vec<_>>();
+
+        serde_json::json!({ "connectors": configured, "catalog": catalog })
+    })
+    .await
+    .map_err(|e| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("connectors: {e}"),
+        )
+    })?;
+
+    Ok(Json(payload))
+}
+
+/// POST /api/vibedesk/connectors — add one, from the catalog or by hand.
+async fn vibedesk_connector_add(
+    State(state): State<ServeState>,
+    Json(req): Json<ConnectorAddRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let root = resolve_repo_root(req.path.as_deref(), &state.workspace_root);
+    let now = chrono::Utc::now().timestamp_millis();
+    let added = tokio::task::spawn_blocking(move || {
+        let store = crate::workspace_store::WorkspaceStore::open(&root)?;
+        match req.catalog_id.as_deref() {
+            Some(catalog_id) => {
+                crate::connectors::add_from_catalog(&store, catalog_id, &req.credentials, now)
+            }
+            None => {
+                let id = req
+                    .id
+                    .as_deref()
+                    .ok_or_else(|| "an id is required for a custom connector".to_string())?;
+                let command = req
+                    .command
+                    .as_deref()
+                    .ok_or_else(|| "a command is required for a custom connector".to_string())?;
+                crate::connectors::add_custom(
+                    &store,
+                    id,
+                    req.title.as_deref().unwrap_or(id),
+                    command,
+                    req.args,
+                    &req.credentials,
+                    now,
+                )
+            }
+        }
+    })
+    .await
+    .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("add: {e}")))?
+    .map_err(|e| json_error(StatusCode::BAD_REQUEST, e))?;
+
+    // Deliberately not echoing the credentials back, not even masked.
+    Ok(Json(serde_json::json!({
+        "id": added.id,
+        "title": added.title,
+        "enabled": added.enabled,
+        "credential_names": added.env_keys,
+    })))
+}
+
+/// POST /api/vibedesk/connectors/toggle — enable or disable one.
+async fn vibedesk_connector_toggle(
+    State(state): State<ServeState>,
+    Json(req): Json<ConnectorActionRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let Some(enabled) = req.enabled else {
+        return Err(json_error(
+            StatusCode::BAD_REQUEST,
+            "`enabled` is required (true or false)",
+        ));
+    };
+    let root = resolve_repo_root(req.path.as_deref(), &state.workspace_root);
+    let id = req.id.clone();
+    let updated = tokio::task::spawn_blocking(move || {
+        let store = crate::workspace_store::WorkspaceStore::open(&root)?;
+        crate::connectors::set_enabled(&store, &id, enabled)
+    })
+    .await
+    .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("toggle: {e}")))?
+    .map_err(|e| json_error(StatusCode::BAD_REQUEST, e))?;
+
+    Ok(Json(serde_json::json!({
+        "id": updated.id,
+        "enabled": updated.enabled,
+    })))
+}
+
+/// POST /api/vibedesk/connectors/remove — delete a connector and its secrets.
+async fn vibedesk_connector_remove(
+    State(state): State<ServeState>,
+    Json(req): Json<ConnectorActionRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let root = resolve_repo_root(req.path.as_deref(), &state.workspace_root);
+    let id = req.id.clone();
+    let (removed, secrets) = tokio::task::spawn_blocking(move || {
+        let store = crate::workspace_store::WorkspaceStore::open(&root)?;
+        crate::connectors::remove(&store, &id)
+    })
+    .await
+    .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("remove: {e}")))?
+    .map_err(|e| json_error(StatusCode::BAD_REQUEST, e))?;
+
+    Ok(Json(serde_json::json!({
+        "id": req.id,
+        "removed": removed,
+        // Named because "removed" alone would not say whether the credentials
+        // went with it.
+        "secrets_deleted": secrets,
+    })))
+}
+
+/// POST /api/vibedesk/connectors/probe — actually launch it and list its tools.
+///
+/// The only route that reports a connector as working, because it is the only
+/// one that runs it. Bounded by `connectors::PROBE_TIMEOUT`; a server that
+/// starts and then says nothing comes back as `timedout`, which is a different
+/// answer from `failed` and deserves different advice.
+async fn vibedesk_connector_probe(
+    State(state): State<ServeState>,
+    Json(req): Json<ConnectorActionRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let root = resolve_repo_root(req.path.as_deref(), &state.workspace_root);
+    let id = req.id.clone();
+    let result = tokio::task::spawn_blocking(move || {
+        let store = crate::workspace_store::WorkspaceStore::open(&root)?;
+        let cfg = crate::connectors::resolve_mcp_configs(&root, &store)?
+            .into_iter()
+            .find(|c| c.name == id)
+            .ok_or_else(|| {
+                format!("connector `{id}` is not configured, or is disabled — enable it first")
+            })?;
+        Ok::<_, String>(crate::connectors::probe(cfg))
+    })
+    .await
+    .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("probe: {e}")))?
+    .map_err(|e| json_error(StatusCode::BAD_REQUEST, e))?;
+
+    Ok(Json(serde_json::json!({
+        "id": req.id,
+        "result": result,
+        "checked_at": chrono::Utc::now().timestamp_millis(),
+    })))
+}
+
 /// GET /api/vibedesk/files — tracked + changed file paths for the Files
 /// quick-action (VX-110). Uses git's view of the tree (gitignore-correct)
 /// rather than a raw fs walk. Falls back to an empty list outside a repo.
@@ -7837,6 +8248,39 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/api/vibedesk/git/diff", get(vibedesk_git_diff))
         .route("/api/vibedesk/files", get(vibedesk_files))
         .route("/api/vibedesk/plugins", get(vibedesk_plugins))
+        // Plugins are installable and switchable from the panel, not just
+        // viewable. Policy widening is still the store's decision, not this
+        // route's — `PolicySetter::User` cannot lower an admin `Required` pin.
+        .route(
+            "/api/vibedesk/plugins/catalog",
+            get(vibedesk_plugin_catalog),
+        )
+        .route(
+            "/api/vibedesk/plugins/install",
+            post(vibedesk_plugin_install),
+        )
+        .route("/api/vibedesk/plugins/policy", post(vibedesk_plugin_policy))
+        .route(
+            "/api/vibedesk/plugins/uninstall",
+            post(vibedesk_plugin_uninstall),
+        )
+        // Connectors: MCP servers plus encrypted credentials. `probe` is the
+        // only one that reports health, because it is the only one that runs
+        // anything.
+        .route("/api/vibedesk/connectors", get(vibedesk_connectors))
+        .route("/api/vibedesk/connectors", post(vibedesk_connector_add))
+        .route(
+            "/api/vibedesk/connectors/toggle",
+            post(vibedesk_connector_toggle),
+        )
+        .route(
+            "/api/vibedesk/connectors/remove",
+            post(vibedesk_connector_remove),
+        )
+        .route(
+            "/api/vibedesk/connectors/probe",
+            post(vibedesk_connector_probe),
+        )
         .route("/api/vibedesk/exec", post(vibedesk_exec))
         .route("/collab/rooms", post(create_collab_room))
         .route("/collab/rooms", get(list_collab_rooms))
@@ -13010,6 +13454,134 @@ mod tests {
             assert!(
                 val.contains("default-src") && val.contains("script-src"),
                 "CSP should contain default-src and script-src; got: {val}"
+            );
+        }
+
+        // ── Plugin catalog + connectors ───────────────────────────────
+
+        /// Every one of these mutates the workspace — installs a plugin,
+        /// stores a credential, launches a process. A route that changes the
+        /// machine and answers to anyone is the failure worth a test.
+        #[tokio::test]
+        async fn plugin_and_connector_routes_require_auth() {
+            for (method, uri) in [
+                ("GET", "/api/vibedesk/plugins/catalog"),
+                ("POST", "/api/vibedesk/plugins/install"),
+                ("POST", "/api/vibedesk/plugins/policy"),
+                ("POST", "/api/vibedesk/plugins/uninstall"),
+                ("GET", "/api/vibedesk/connectors"),
+                ("POST", "/api/vibedesk/connectors"),
+                ("POST", "/api/vibedesk/connectors/toggle"),
+                ("POST", "/api/vibedesk/connectors/remove"),
+                ("POST", "/api/vibedesk/connectors/probe"),
+            ] {
+                let (app, _tmp) = test_app("my-secret");
+                let req = Request::builder()
+                    .method(method)
+                    .uri(uri)
+                    .header("content-type", "application/json")
+                    .body(Body::from("{}"))
+                    .unwrap();
+                let resp = app.oneshot(req).await.unwrap();
+                assert_eq!(
+                    resp.status(),
+                    StatusCode::UNAUTHORIZED,
+                    "{method} {uri} answered without a token"
+                );
+            }
+        }
+
+        #[tokio::test]
+        async fn the_plugin_catalog_lists_installable_plugins() {
+            let (app, _tmp) = test_app("tok");
+            let req = Request::builder()
+                .uri("/api/vibedesk/plugins/catalog")
+                .header("authorization", "Bearer tok")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::OK);
+            let body = axum::body::to_bytes(resp.into_body(), 1 << 20)
+                .await
+                .unwrap();
+            let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            let plugins = json["plugins"].as_array().expect("plugins array");
+            assert!(
+                !plugins.is_empty(),
+                "an empty catalog is the state this panel existed to escape"
+            );
+            // A fresh workspace has none of them installed, and says so rather
+            // than omitting the field.
+            assert!(plugins.iter().all(|p| p["installed"] == false));
+            assert!(plugins.iter().all(|p| p["policy"].is_null()));
+        }
+
+        #[tokio::test]
+        async fn pinning_a_plugin_as_required_is_refused_over_http() {
+            // `Required` cannot be lowered by the same non-admin user who set
+            // it, so offering it here would let a click create a state the
+            // clicker cannot undo.
+            let (app, _tmp) = test_app("tok");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/api/vibedesk/plugins/policy")
+                .header("authorization", "Bearer tok")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"name":"core-test-first","policy":"required"}"#,
+                ))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        }
+
+        #[tokio::test]
+        async fn connectors_report_the_catalog_without_claiming_any_are_working() {
+            let (app, _tmp) = test_app("tok");
+            let req = Request::builder()
+                .uri("/api/vibedesk/connectors")
+                .header("authorization", "Bearer tok")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::OK);
+            let body = axum::body::to_bytes(resp.into_body(), 1 << 20)
+                .await
+                .unwrap();
+            let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            assert!(json["connectors"].as_array().unwrap().is_empty());
+            let catalog = json["catalog"].as_array().expect("catalog");
+            assert!(!catalog.is_empty());
+            // No status field anywhere: nothing has been launched, so there is
+            // nothing truthful to say about health.
+            assert!(
+                catalog.iter().all(|c| c.get("status").is_none()),
+                "the catalog must not carry a health claim"
+            );
+        }
+
+        #[tokio::test]
+        async fn probing_a_connector_that_is_not_configured_says_so() {
+            let (app, _tmp) = test_app("tok");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/api/vibedesk/connectors/probe")
+                .header("authorization", "Bearer tok")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"id":"github"}"#))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+            let body = axum::body::to_bytes(resp.into_body(), 1 << 20)
+                .await
+                .unwrap();
+            let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            assert!(
+                json["error"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .contains("github"),
+                "{json}"
             );
         }
 
