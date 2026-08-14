@@ -501,14 +501,29 @@ mod tests {
                    SENDGRID_API_KEY=SG.FIXTURE-NOT-REAL.2222\n";
         let out = redact_secrets(env);
 
-        assert!(!out.contains("S3cr3t-Fixture-Pw"), "db password leaked: {out}");
-        assert!(!out.contains("sk_test_FIXTURE0000NOTREAL1111"), "stripe key leaked: {out}");
-        assert!(!out.contains("SG.FIXTURE-NOT-REAL.2222"), "sendgrid key leaked: {out}");
+        assert!(
+            !out.contains("S3cr3t-Fixture-Pw"),
+            "db password leaked: {out}"
+        );
+        assert!(
+            !out.contains("sk_test_FIXTURE0000NOTREAL1111"),
+            "stripe key leaked: {out}"
+        );
+        assert!(
+            !out.contains("SG.FIXTURE-NOT-REAL.2222"),
+            "sendgrid key leaked: {out}"
+        );
 
         // Non-secret configuration must survive, or the summary becomes
         // useless and people stop trusting the redactor.
-        assert!(out.contains("APP_ENV=staging"), "harmless value was redacted: {out}");
-        assert!(out.contains("db.internal:5432"), "host should remain: {out}");
+        assert!(
+            out.contains("APP_ENV=staging"),
+            "harmless value was redacted: {out}"
+        );
+        assert!(
+            out.contains("db.internal:5432"),
+            "host should remain: {out}"
+        );
     }
 
     #[test]
