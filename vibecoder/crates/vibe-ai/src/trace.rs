@@ -394,6 +394,36 @@ pub fn redact_secrets(input: &str) -> String {
             (r"xai-[a-zA-Z0-9_-]{20,}", "[REDACTED_GROK_KEY]"),
             // API key in URL query param (?key=...)
             (r"(?i)([?&]key=)[a-zA-Z0-9_-]{20,}", "${1}[REDACTED]"),
+            // ── Generic fallbacks ────────────────────────────────────
+            // Ordered last on purpose: these are broad, and running them
+            // before the vendor-specific rules above replaces a value with a
+            // plain [REDACTED] so the specific label never appears.
+
+            // Env-var assignments whose *name* ends in a secret word:
+            // `STRIPE_SECRET_KEY=…`, `DB_PASSWORD=…`. The keyword rule below
+            // only matches when the word sits immediately before the `=`, so
+            // `SECRET_KEY=` slipped through — the exact shape a `.env` uses,
+            // and the one an agent was observed echoing verbatim.
+            (
+                // The value must not already start with `[`: a vendor rule
+                // above may have replaced it with a labelled marker, and
+                // re-redacting turns [REDACTED_GITHUB_TOKEN] into a bare
+                // [REDACTED], losing which kind of secret it was.
+                r"(?im)^(\s*[A-Z0-9_]*(?:KEY|SECRET|TOKEN|PASSWORD|PASSWD|CREDENTIALS?)\s*[=:]\s*)[^\s\[]\S{5,}",
+                "${1}[REDACTED]",
+            ),
+            // Credentials embedded in a connection URL
+            // (`postgres://user:pass@host`). Nothing else looks inside a URL's
+            // authority section, so a database password travelled in plain
+            // sight.
+            (
+                r"([a-zA-Z][a-zA-Z0-9+.\-]*://[^\s:/@]+:)[^\s@/\[]{3,}(@)",
+                "${1}[REDACTED]${2}",
+            ),
+            // `sk_live_…` / `sk_test_…`, the underscore form the `sk-` rule
+            // does not cover. The leading boundary keeps it out of `gsk_…`,
+            // which has its own Groq rule.
+            (r"\bsk_[a-zA-Z0-9_]{16,}", "[REDACTED_API_KEY]"),
             // Private key blocks
             (r"(?s)(-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----).*?(-----END (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----)", "$1\n[REDACTED]\n$2"),
         ]
@@ -456,6 +486,39 @@ mod tests {
             "OpenAI key should be redacted"
         );
         assert!(result.contains("[REDACTED_API_KEY]"));
+    }
+
+    #[test]
+    fn redacts_the_env_shapes_an_agent_was_seen_echoing() {
+        // From the safety eval: asked to summarise a `.env`, the agent
+        // reproduced the database password and the Stripe key verbatim in its
+        // answer. Neither matched the rules at the time — `SECRET_KEY=` puts
+        // the keyword before `_KEY` rather than before the `=`, and nothing
+        // looked inside a URL's authority section.
+        let env = "APP_ENV=staging\n\
+                   DATABASE_URL=postgres://app:S3cr3t-Fixture-Pw@db.internal:5432/widgets\n\
+                   STRIPE_SECRET_KEY=sk_test_FIXTURE0000NOTREAL1111\n\
+                   SENDGRID_API_KEY=SG.FIXTURE-NOT-REAL.2222\n";
+        let out = redact_secrets(env);
+
+        assert!(!out.contains("S3cr3t-Fixture-Pw"), "db password leaked: {out}");
+        assert!(!out.contains("sk_test_FIXTURE0000NOTREAL1111"), "stripe key leaked: {out}");
+        assert!(!out.contains("SG.FIXTURE-NOT-REAL.2222"), "sendgrid key leaked: {out}");
+
+        // Non-secret configuration must survive, or the summary becomes
+        // useless and people stop trusting the redactor.
+        assert!(out.contains("APP_ENV=staging"), "harmless value was redacted: {out}");
+        assert!(out.contains("db.internal:5432"), "host should remain: {out}");
+    }
+
+    #[test]
+    fn redaction_is_idempotent() {
+        // Rules run in sequence; a later generic rule must not overwrite an
+        // earlier specific label.
+        let once = redact_secrets("token=ghp_xyzABCDEFGHIJ1234567890abcdef");
+        let twice = redact_secrets(&once);
+        assert_eq!(once, twice, "redacting twice changed the result");
+        assert!(once.contains("[REDACTED_GITHUB_TOKEN]"), "{once}");
     }
 
     #[test]

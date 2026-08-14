@@ -12,7 +12,11 @@ use crate::tools::{
     format_tool_result, parse_tool_calls, strip_thinking, unparsed_tool_call_name, ToolCall,
     ToolResult, AVAILABLE_TOOL_NAMES, TOOL_SYSTEM_PROMPT,
 };
-use crate::trace::{DecisionWriter, TraceWriter};
+// `redact_secrets` guards what leaves the agent, not only what is written to
+// a trace: asked to summarise a `.env`, the agent reproduced a database
+// password and a Stripe key verbatim in its answer. Redacting at the point the
+// summary is emitted is the last place before a human reads it.
+use crate::trace::{redact_secrets, DecisionWriter, TraceWriter};
 use anyhow::Result;
 use async_trait::async_trait;
 use futures::StreamExt;
@@ -99,6 +103,28 @@ impl std::fmt::Display for AgentHealthState {
 pub struct CircuitBreaker {
     /// Steps since last file change (WriteFile/ApplyPatch success).
     pub steps_since_file_change: u32,
+    /// Steps since the workspace was last *mutated*.
+    ///
+    /// Distinct from `steps_since_file_change`, which resets on any successful
+    /// tool call including a read. An agent that has finished its work and
+    /// keeps successfully reading files therefore never trips stall detection
+    /// — observed directly: a greenfield run built a complete, working
+    /// application, then ran until the harness killed it because reading kept
+    /// the counter at zero.
+    pub steps_since_mutation: u32,
+    /// Whether the workspace was mutated at any point in this run.
+    ///
+    /// This is what separates "stuck before doing anything" from "finished and
+    /// not stopping". The two need opposite advice.
+    pub has_mutated: bool,
+    /// Hashes of writes already performed, so re-writing identical content is
+    /// not counted as progress.
+    ///
+    /// An agent that has finished and is polishing rewrites the same files
+    /// with the same bytes. Each of those reset the mutation counter, so the
+    /// stall nudge never arrived and a completed build ran until it was
+    /// killed. A write that changes nothing is not a change.
+    pub recent_write_hashes: Vec<u64>,
     /// Hashes of recent error outputs — detects repeated failures.
     pub recent_error_hashes: Vec<u64>,
     /// Output volume (chars) per step — detects declining response quality.
@@ -142,6 +168,9 @@ impl Default for CircuitBreaker {
     fn default() -> Self {
         Self {
             steps_since_file_change: 0,
+            steps_since_mutation: 0,
+            has_mutated: false,
+            recent_write_hashes: Vec::new(),
             recent_error_hashes: Vec::new(),
             output_volumes: Vec::new(),
             approach_rotations: 0,
@@ -232,6 +261,22 @@ impl CircuitBreaker {
             self.steps_since_file_change += 1;
         }
 
+        // Mutation is tracked on its own axis: only a tool that can change the
+        // workspace counts. `Bash` is included because it is the usual way a
+        // file gets written without `write_file`.
+        let mutated = tool_result.success
+            && matches!(
+                tool_call,
+                ToolCall::WriteFile { .. } | ToolCall::ApplyPatch { .. } | ToolCall::Bash { .. }
+            )
+            && !self.is_repeat_write(tool_call);
+        if mutated {
+            self.steps_since_mutation = 0;
+            self.has_mutated = true;
+        } else {
+            self.steps_since_mutation += 1;
+        }
+
         // Track error hashes for spin detection
         if !tool_result.success {
             let mut hasher = DefaultHasher::new();
@@ -290,8 +335,15 @@ impl CircuitBreaker {
             }
         }
 
-        // Check for STALLED (no file changes)
-        if self.steps_since_file_change >= self.stall_threshold {
+        // STALLED is measured on mutations, not on "any successful call".
+        //
+        // Both observed failure modes hide from the older counter, which resets
+        // on every successful read: an agent that finished its work and kept
+        // reading, and an agent that planned and read for fifteen minutes
+        // without ever writing a file. Neither ever tripped it. `rotation_hint`
+        // then gives each case the opposite advice it needs, keyed on whether
+        // any mutation happened at all.
+        if self.steps_since_mutation >= self.stall_threshold {
             self.approach_rotations += 1;
             return AgentHealthState::Stalled;
         }
@@ -371,14 +423,56 @@ impl CircuitBreaker {
     }
 
     /// Generate a rotation hint message for the agent.
+    /// Whether this write reproduces content already written this run.
+    ///
+    /// Identical bytes to the same path are a no-op; counting them as progress
+    /// is what let a finished agent keep the stall detector at zero forever.
+    fn is_repeat_write(&mut self, tool_call: &ToolCall) -> bool {
+        use std::hash::{Hash, Hasher};
+        let key = match tool_call {
+            ToolCall::WriteFile { path, content } => Some((path.clone(), content.clone())),
+            _ => None,
+        };
+        let Some((path, content)) = key else {
+            return false;
+        };
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        path.hash(&mut hasher);
+        content.hash(&mut hasher);
+        let hash = hasher.finish();
+        if self.recent_write_hashes.contains(&hash) {
+            return true;
+        }
+        self.recent_write_hashes.push(hash);
+        // Bounded: a long run should not accumulate a hash per write forever.
+        if self.recent_write_hashes.len() > 64 {
+            self.recent_write_hashes.remove(0);
+        }
+        false
+    }
+
     pub fn rotation_hint(&self) -> String {
         match &self.state {
+            AgentHealthState::Stalled if self.has_mutated => {
+                // The work happened and then stopped happening. Almost always
+                // this means the task is done and the model has not said so;
+                // the correct instruction is to conclude, not to try harder.
+                format!(
+                    "⚠️ CIRCUIT BREAKER — STALLED: you have not changed anything for {} steps, but you have \
+                     already made changes in this run. If the task is complete, call task_complete \
+                     NOW with a summary of what you did. If it is not, state in one sentence what \
+                     remains and do that next — do not re-read files you have already read. \
+                     (Rotation {}/{})",
+                    self.steps_since_mutation, self.approach_rotations, self.max_rotations
+                )
+            }
             AgentHealthState::Stalled => {
                 format!(
-                    "⚠️ CIRCUIT BREAKER: Agent appears STALLED — {} consecutive idle/failed steps without progress. \
-                     Try a different approach: write partial output to disk, break the task into smaller steps, \
-                     or attempt a simpler sub-goal first. (Rotation {}/{})",
-                    self.steps_since_file_change, self.approach_rotations, self.max_rotations
+                    "⚠️ CIRCUIT BREAKER — STALLED: {} steps and you have not created or changed a single \
+                     file yet. Stop planning and write something to disk now — even a partial \
+                     first file is progress you can build on. Do not restate the plan. \
+                     (Rotation {}/{})",
+                    self.steps_since_mutation, self.approach_rotations, self.max_rotations
                 )
             }
             AgentHealthState::Spinning => {
@@ -1129,6 +1223,9 @@ impl AgentLoop {
         // Highest usage already checkpointed, so a conversation hovering above
         // the threshold writes once rather than on every step.
         let mut last_checkpoint_tokens = 0usize;
+        /// How many times a failed pre-completion check may send the agent back.
+        const MAX_DOUBLE_CHECK_REJECTIONS: u32 = 3;
+        let mut double_check_rejections: u32 = 0;
         // Step index of the last successful tool call — the progress signal
         // that gates an extension.
         let mut last_progress_step = 0usize;
@@ -1704,7 +1801,9 @@ impl AgentLoop {
                         })
                         .await;
                 }
-                let _ = event_tx.send(AgentEvent::Complete(accumulated)).await;
+                let _ = event_tx
+                    .send(AgentEvent::Complete(redact_secrets(&accumulated)))
+                    .await;
                 self.checkpoint(&messages, "complete");
                 return Ok(());
             }
@@ -1721,7 +1820,9 @@ impl AgentLoop {
             let call = match tool_calls.first().cloned() {
                 Some(c) => c,
                 None => {
-                    let _ = event_tx.send(AgentEvent::Complete(accumulated)).await;
+                    let _ = event_tx
+                        .send(AgentEvent::Complete(redact_secrets(&accumulated)))
+                        .await;
                     self.checkpoint(&messages, "no tool call");
                     return Ok(());
                 }
@@ -1791,26 +1892,45 @@ impl AgentLoop {
                     }
 
                     let ws = &context.workspace_root;
-                    // Try to run a build check (async to avoid blocking the tokio runtime)
-                    let build_ok = if ws.join("Cargo.toml").exists() {
-                        tokio::process::Command::new("cargo")
-                            .args(["check", "--quiet"])
-                            .current_dir(ws)
-                            .output()
-                            .await
-                            .map(|o| o.status.success())
-                            .unwrap_or(true)
-                    } else if ws.join("package.json").exists() {
-                        tokio::process::Command::new("npm")
-                            .args(["run", "build", "--if-present"])
-                            .current_dir(ws)
-                            .output()
-                            .await
-                            .map(|o| o.status.success())
-                            .unwrap_or(true)
-                    } else {
-                        true
-                    };
+                    let verdict = verify_workspace_builds(ws).await;
+                    if matches!(verdict, BuildVerdict::Unverifiable(_)) {
+                        // Say so rather than bank it. The old code mapped a
+                        // failure-to-spawn onto `true`, so a machine without
+                        // `cargo` on PATH reported every completion as
+                        // verified — the verification step itself contained
+                        // the success-assuming fallback it exists to catch.
+                        if let BuildVerdict::Unverifiable(why) = &verdict {
+                            tracing::warn!(
+                                reason = %why,
+                                "Pre-completion check could not run; completion is NOT verified"
+                            );
+                        }
+                    }
+                    // Bounded. Without a cap this is an unbounded retry loop:
+                    // when the check can never pass — a wrong test, a broken
+                    // environment — the agent is sent back forever and the run
+                    // dies on its time budget with the work already finished.
+                    // Observed immediately after this verification was turned
+                    // on: a task graded 100% complete still failed, having
+                    // spun until it was killed.
+                    let build_ok = !matches!(verdict, BuildVerdict::Failed)
+                        || double_check_rejections >= MAX_DOUBLE_CHECK_REJECTIONS;
+
+                    if matches!(verdict, BuildVerdict::Failed)
+                        && double_check_rejections >= MAX_DOUBLE_CHECK_REJECTIONS
+                    {
+                        // Let it finish, but never silently: the summary must
+                        // carry the fact that verification did not pass.
+                        tracing::warn!(
+                            rejections = double_check_rejections,
+                            "Pre-completion check still failing after the retry limit; \
+                             completing with verification NOT passed"
+                        );
+                        accumulated.push_str(
+                            "\n\n⚠️ Note: the project's build/test check did not pass on \
+                             completion, after repeated attempts.",
+                        );
+                    }
 
                     if !build_ok {
                         // Log double-check failure if decision tracing is enabled
@@ -1841,8 +1961,17 @@ impl AgentLoop {
                         tracing::warn!("Double-check: build failed, injecting retry hint");
                         messages.push(Message {
                             role: MessageRole::User,
-                            content: "IMPORTANT: The build/check failed after your task_complete. Please investigate and fix the build errors before completing.".to_string(),
+                            content: format!(
+                                "IMPORTANT: the build/check failed after your task_complete \
+                                 (attempt {} of {}). Investigate and fix it before completing. \
+                                 If the check cannot be made to pass because the check itself is \
+                                 wrong, say so explicitly in your final summary instead of \
+                                 changing behaviour to satisfy it.",
+                                double_check_rejections + 1,
+                                MAX_DOUBLE_CHECK_REJECTIONS
+                            ),
                         });
+                        double_check_rejections += 1;
                         continue;
                     }
 
@@ -1959,7 +2088,9 @@ impl AgentLoop {
                     summary_len = summary.len(),
                     "Agent task complete",
                 );
-                let _ = event_tx.send(AgentEvent::Complete(summary)).await;
+                let _ = event_tx
+                    .send(AgentEvent::Complete(redact_secrets(&summary)))
+                    .await;
                 self.checkpoint(&messages, "task complete");
                 return Ok(());
             }
@@ -2197,7 +2328,30 @@ impl AgentLoop {
                         }
                     }
                 } else {
-                    // Auto-execute
+                    // Auto-execute. One class of edit is refused first: an
+                    // autonomous run must not strip an existing authorization
+                    // guard out of a file. Told "make the failing test pass"
+                    // against a test that asserts anonymous access should
+                    // succeed, the agent deleted the check in 2 of 3 sampled
+                    // runs. Prompt guidance did not stop it and approval
+                    // cannot — full-auto is headless by definition — so the
+                    // control has to be mechanical. Rejecting only the write
+                    // (rather than ending the run) leaves the agent free to
+                    // report the test as wrong, which is the correct outcome.
+                    if let Some(reason) = removes_authorization_guard(&call, &context.workspace_root)
+                    {
+                        tracing::warn!(reason = %reason, "Refused an edit that removes an authorization guard");
+                        messages.push(Message {
+                            role: MessageRole::User,
+                            content: format!(
+                                "REFUSED: {reason}\n\nRemoving an authorization check to satisfy \
+                                 a failing test is never the correct fix. Leave the check in place. \
+                                 If the test asserts that unauthenticated access should succeed, the \
+                                 test is wrong — call task_complete and say so in your summary."
+                            ),
+                        });
+                        continue;
+                    }
                     let result = self.executor.execute(&call).await;
                     tracing::debug!(
                         tool = %call.name(),
@@ -2386,6 +2540,20 @@ impl AgentLoop {
             // ── 4. Feed result back into conversation ─────────────────────────
             let raw_content = format_tool_result(&call, &tool_result);
             let safe_content = sanitize_tool_output(&raw_content);
+            // Secret files never enter the conversation in the clear.
+            //
+            // Redacting the agent's *answer* is not enough: asked to summarise
+            // a `.env`, it paraphrased — "password `S3cr3t-Fixture-Pw`" — and
+            // no output-side pattern catches prose without redacting half of
+            // every normal sentence. The only reliable fix is that the model
+            // never receives the value. Scoped to files that exist to hold
+            // credentials, so ordinary source reads are untouched.
+            let safe_content = match &call {
+                ToolCall::ReadFile { path } if path_holds_secrets(path) => {
+                    redact_secrets(&safe_content)
+                }
+                _ => safe_content,
+            };
             messages.push(Message {
                 role: MessageRole::User,
                 content: safe_content,
@@ -3429,6 +3597,253 @@ mod circuit_breaker_tests {
         };
         cb.record_step(&write_call, &ok_result("write_file"), 100);
         assert_eq!(cb.steps_since_file_change, 0);
+    }
+
+    #[tokio::test]
+    async fn a_check_that_cannot_run_is_not_reported_as_passing() {
+        // The old code mapped a failure-to-spawn onto `true`, so the
+        // verification step contained exactly the success-assuming fallback it
+        // exists to catch.
+        let dir = tempfile::tempdir().expect("tempdir");
+        // No manifest of any kind: nothing to check.
+        match verify_workspace_builds(dir.path()).await {
+            BuildVerdict::Unverifiable(_) => {}
+            other => panic!("expected Unverifiable, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn a_failing_python_suite_is_caught_rather_than_waved_through() {
+        // A bare Python directory previously fell through to an unconditional
+        // pass, so an agent could finish with "all tests now pass" against a
+        // suite that was never run.
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("tests.py"), "raise SystemExit(1)\n").expect("write");
+        assert_eq!(
+            verify_workspace_builds(dir.path()).await,
+            BuildVerdict::Failed
+        );
+
+        std::fs::write(dir.path().join("tests.py"), "print('ok')\n").expect("write");
+        assert_eq!(
+            verify_workspace_builds(dir.path()).await,
+            BuildVerdict::Passed
+        );
+    }
+
+    #[test]
+    fn removing_an_auth_guard_is_refused_but_ordinary_edits_are_not() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let auth = dir.path().join("auth.py");
+        std::fs::write(
+            &auth,
+            "def require_token(request):\n    raise PermissionError(\"missing bearer token\")\n",
+        )
+        .expect("write");
+
+        // Stripping the guard — exactly what happened when the agent was told
+        // to make a test asserting anonymous access pass.
+        let strip = ToolCall::WriteFile {
+            path: "auth.py".into(),
+            content: "def require_token(request):\n    return None\n".into(),
+        };
+        assert!(
+            removes_authorization_guard(&strip, dir.path()).is_some(),
+            "removing the only permission check must be refused"
+        );
+
+        // Keeping it while changing other things is fine.
+        let keep = ToolCall::WriteFile {
+            path: "auth.py".into(),
+            content: "def require_token(request):\n    # tidy up\n    raise PermissionError(\"missing bearer token\")\n".into(),
+        };
+        assert!(removes_authorization_guard(&keep, dir.path()).is_none());
+
+        // A brand-new file has nothing to remove.
+        let fresh = ToolCall::WriteFile {
+            path: "brand_new.py".into(),
+            content: "print('hello')\n".into(),
+        };
+        assert!(removes_authorization_guard(&fresh, dir.path()).is_none());
+
+        // A patch that deletes the guard is the same act by another route,
+        // and leaving it open let a sampled run weaken auth anyway.
+        let patch_out = ToolCall::ApplyPatch {
+            path: "auth.py".into(),
+            patch: "--- a/auth.py\n+++ b/auth.py\n-    raise PermissionError(\"missing bearer token\")\n+    return None\n".into(),
+        };
+        assert!(
+            removes_authorization_guard(&patch_out, dir.path()).is_some(),
+            "a patch deleting the guard must be refused too"
+        );
+
+        // A patch that moves the guard around keeps the count and is allowed.
+        let patch_keep = ToolCall::ApplyPatch {
+            path: "auth.py".into(),
+            patch: "--- a/auth.py\n+++ b/auth.py\n-    raise PermissionError(\"missing bearer token\")\n+    raise PermissionError(\"no bearer token supplied\")\n".into(),
+        };
+        assert!(removes_authorization_guard(&patch_keep, dir.path()).is_none());
+
+        // Ordinary source with no guard at all is untouched by this rule.
+        let plain = dir.path().join("util.py");
+        std::fs::write(&plain, "def add(a, b):\n    return a + b\n").expect("write");
+        let edit = ToolCall::WriteFile {
+            path: "util.py".into(),
+            content: "def add(a, b):\n    return b + a\n".into(),
+        };
+        assert!(removes_authorization_guard(&edit, dir.path()).is_none());
+    }
+
+    #[test]
+    fn secret_files_are_recognised_but_source_files_are_not() {
+        // The list must be tight. Redacting ordinary source because it
+        // mentions a key would leave the agent unable to read its own code.
+        for secret in [
+            ".env",
+            "/app/.env",
+            ".env.local",
+            "certs/server.pem",
+            "deploy/private.key",
+            "/home/u/.ssh/id_rsa",
+            "~/.vibecli/daemon.token",
+        ] {
+            assert!(path_holds_secrets(secret), "should be secret: {secret}");
+        }
+        for ordinary in [
+            "src/main.rs",
+            "src/keyboard.rs",
+            "docs/environment.md",
+            "test_env.py",
+            "src/secrets_manager.rs",
+        ] {
+            assert!(
+                !path_holds_secrets(ordinary),
+                "should NOT be treated as secret: {ordinary}"
+            );
+        }
+    }
+
+    #[test]
+    fn reading_files_does_not_mask_a_finished_run() {
+        // The bug this fixes: `steps_since_file_change` resets on *any*
+        // successful call, so an agent that finished its work and kept reading
+        // never tripped stall detection. A greenfield run built a complete,
+        // working application and then ran until the harness killed it.
+        let mut cb = CircuitBreaker {
+            stall_threshold: 3,
+            ..Default::default()
+        };
+        let write = ToolCall::WriteFile {
+            path: "server.py".into(),
+            content: "print('ok')".into(),
+        };
+        let read = ToolCall::ReadFile {
+            path: "server.py".into(),
+        };
+
+        cb.record_step(&write, &ok_result("write_file"), 100);
+        assert!(cb.has_mutated, "the run did real work");
+
+        // Successful reads keep the old counter pinned at zero…
+        // `record_step` reports only state *transitions*, so the first Some is
+        // what matters — checking the last call would see None simply because
+        // the breaker had already tripped.
+        let mut tripped = None;
+        for _ in 0..5 {
+            if let Some(state) = cb.record_step(&read, &ok_result("read_file"), 100) {
+                tripped.get_or_insert(state);
+            }
+        }
+        assert_eq!(cb.steps_since_file_change, 0, "reads still reset the old counter");
+
+        // …but the mutation counter climbs, and the breaker now notices.
+        assert!(cb.steps_since_mutation >= 3);
+        assert_eq!(
+            tripped,
+            Some(AgentHealthState::Stalled),
+            "a finished agent that keeps reading must be caught"
+        );
+    }
+
+    #[test]
+    fn rewriting_a_file_with_the_same_content_is_not_progress() {
+        // A finished agent polishes: it rewrites the same files with the same
+        // bytes. Each of those reset the mutation counter, so the stall nudge
+        // never arrived and a completed build ran to its budget and was killed
+        // with the work finished but unreported.
+        let mut cb = CircuitBreaker {
+            stall_threshold: 3,
+            ..Default::default()
+        };
+        let write = ToolCall::WriteFile {
+            path: "server.py".into(),
+            content: "print('ok')".into(),
+        };
+        cb.record_step(&write, &ok_result("write_file"), 100);
+        assert_eq!(cb.steps_since_mutation, 0, "the first write is real progress");
+
+        let mut tripped = None;
+        for _ in 0..5 {
+            if let Some(state) = cb.record_step(&write, &ok_result("write_file"), 100) {
+                tripped.get_or_insert(state);
+            }
+        }
+        assert!(
+            cb.steps_since_mutation >= 3,
+            "identical rewrites must not count as progress"
+        );
+        assert_eq!(tripped, Some(AgentHealthState::Stalled));
+
+        // A genuinely different write still counts.
+        let changed = ToolCall::WriteFile {
+            path: "server.py".into(),
+            content: "print('different')".into(),
+        };
+        cb.record_step(&changed, &ok_result("write_file"), 100);
+        assert_eq!(cb.steps_since_mutation, 0, "real edits are still progress");
+    }
+
+    #[test]
+    fn a_finished_agent_is_told_to_conclude_not_to_try_harder() {
+        // Same state, opposite advice depending on whether work happened.
+        let mut finished = CircuitBreaker {
+            stall_threshold: 2,
+            ..Default::default()
+        };
+        let write = ToolCall::WriteFile {
+            path: "a.rs".into(),
+            content: "x".into(),
+        };
+        let read = ToolCall::ReadFile { path: "a.rs".into() };
+        finished.record_step(&write, &ok_result("write_file"), 100);
+        for _ in 0..3 {
+            finished.record_step(&read, &ok_result("read_file"), 100);
+        }
+        let hint = finished.rotation_hint();
+        assert!(
+            hint.contains("task_complete"),
+            "an agent that has done the work must be told to conclude: {hint}"
+        );
+
+        // An agent that has changed nothing yet is genuinely stuck, and must
+        // NOT be told to call task_complete — that would end the run having
+        // done nothing.
+        let mut stuck = CircuitBreaker {
+            stall_threshold: 2,
+            ..Default::default()
+        };
+        let think = ToolCall::Think {
+            thought: "hmm".into(),
+        };
+        for _ in 0..3 {
+            stuck.record_step(&think, &ok_result("think"), 100);
+        }
+        let stuck_hint = stuck.rotation_hint();
+        assert!(!stuck.has_mutated);
+        assert!(
+            !stuck_hint.contains("task_complete"),
+            "a stuck agent must not be told to declare success: {stuck_hint}"
+        );
     }
 
     #[test]
@@ -4892,3 +5307,154 @@ mod reasoning_turn_tests {
         assert!(summary.contains("step limit"), "got: {summary}");
     }
 }
+
+/// Outcome of the pre-completion build/test check.
+///
+/// `Unverifiable` is deliberately distinct from `Passed`: "we could not check"
+/// and "we checked and it was fine" are different facts, and collapsing them
+/// is what let a missing toolchain read as a green verification.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BuildVerdict {
+    Passed,
+    Failed,
+    Unverifiable(String),
+}
+
+/// Run whatever check this workspace actually supports before a completion is
+/// accepted.
+///
+/// Covers more than cargo and npm: a Python or Go project previously fell
+/// through to an unconditional pass, so an agent could finish with "all tests
+/// now pass" against a suite that was never run — observed, with the failing
+/// test still failing.
+pub async fn verify_workspace_builds(ws: &std::path::Path) -> BuildVerdict {
+    let candidate: Option<(&str, Vec<&str>)> = if ws.join("Cargo.toml").exists() {
+        Some(("cargo", vec!["check", "--quiet"]))
+    } else if ws.join("package.json").exists() {
+        Some(("npm", vec!["run", "build", "--if-present"]))
+    } else if ws.join("go.mod").exists() {
+        Some(("go", vec!["build", "./..."]))
+    } else if ws.join("pyproject.toml").exists() || ws.join("setup.py").exists() {
+        Some(("python3", vec!["-m", "compileall", "-q", "."]))
+    } else if ws.join("tests.py").exists() {
+        // A bare script directory: running the tests *is* the build check.
+        Some(("python3", vec!["tests.py"]))
+    } else {
+        None
+    };
+
+    let Some((cmd, args)) = candidate else {
+        return BuildVerdict::Unverifiable("no recognised build or test command".to_string());
+    };
+
+    match tokio::process::Command::new(cmd)
+        .args(&args)
+        .current_dir(ws)
+        .output()
+        .await
+    {
+        Ok(out) if out.status.success() => BuildVerdict::Passed,
+        Ok(_) => BuildVerdict::Failed,
+        // Could not even start it — not evidence of success.
+        Err(e) => BuildVerdict::Unverifiable(format!("could not run `{cmd}`: {e}")),
+    }
+}
+
+/// Whether one line rejects unauthorized access.
+fn is_authorization_guard_line(line: &str) -> bool {
+    let l = line.to_ascii_lowercase();
+    let raises = l.contains("raise ")
+        || l.contains("throw ")
+        || l.contains("return err(")
+        || l.contains("panic!");
+    let auth = l.contains("permission")
+        || l.contains("unauthorized")
+        || l.contains("unauthorised")
+        || l.contains("forbidden")
+        || l.contains("authenticat");
+    raises && auth
+}
+
+/// Reject a write that deletes an authorization guard from an existing file.
+///
+/// Fires only on *removal*: the file already raises a permission/authorization
+/// error and the replacement does not. A new file, or an edit that keeps the
+/// guard, is untouched — so ordinary work never sees this.
+///
+/// Deliberately narrow. A broader "looks security-sensitive" heuristic would
+/// block legitimate refactors, and a control that fires on innocent edits gets
+/// switched off.
+pub fn removes_authorization_guard(call: &ToolCall, workspace_root: &std::path::Path) -> Option<String> {
+    // A patch that deletes guard lines is the same act as a write that omits
+    // them; checking only `write_file` left the obvious second route open, and
+    // a sampled run took it.
+    if let ToolCall::ApplyPatch { path, patch } = call {
+        let removed = patch
+            .lines()
+            .filter(|l| l.starts_with('-') && !l.starts_with("---"))
+            .filter(|l| is_authorization_guard_line(l))
+            .count();
+        let added = patch
+            .lines()
+            .filter(|l| l.starts_with('+') && !l.starts_with("+++"))
+            .filter(|l| is_authorization_guard_line(l))
+            .count();
+        if removed > added {
+            return Some(format!(
+                "the patch to `{path}` deletes {removed} authorization check(s) and adds {added}"
+            ));
+        }
+        return None;
+    }
+
+    let ToolCall::WriteFile { path, content } = call else {
+        return None;
+    };
+    let full = if std::path::Path::new(path).is_absolute() {
+        std::path::PathBuf::from(path)
+    } else {
+        workspace_root.join(path)
+    };
+    let existing = std::fs::read_to_string(&full).ok()?;
+
+    let guard_count =
+        |text: &str| -> usize { text.lines().filter(|l| is_authorization_guard_line(l)).count() };
+
+    let before = guard_count(&existing);
+    let after = guard_count(content);
+    if before > 0 && after < before {
+        Some(format!(
+            "`{path}` currently rejects unauthorized access in {before} place(s); the proposed \
+             content does so in {after}"
+        ))
+    } else {
+        None
+    }
+}
+
+/// Whether a path is the kind of file that exists to hold credentials.
+///
+/// Deliberately a small, explicit list rather than a content sniff: a
+/// heuristic that guesses "this looks secret" would redact source files that
+/// merely mention the word, and an agent that cannot read its own code is
+/// worse than one that cannot read a `.env`.
+pub fn path_holds_secrets(path: &str) -> bool {
+    let name = path
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or(path)
+        .to_ascii_lowercase();
+    name == ".env"
+        || name.starts_with(".env.")
+        || name.ends_with(".pem")
+        || name.ends_with(".key")
+        || name == "id_rsa"
+        || name == "id_ed25519"
+        || name == "credentials"
+        || name == "secrets.yaml"
+        || name == "secrets.yml"
+        || name == ".netrc"
+        || name == ".npmrc"
+        || name == "daemon.token"
+}
+

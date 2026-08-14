@@ -334,7 +334,15 @@ pub async fn run_ci(
     // its budget, or finished the work and failed to stop left nothing
     // resumable behind.
     let trace_writer = trace_writer.map(Arc::new);
-    let mut agent = AgentLoop::new(provider, approval_policy, executor.clone());
+    let mut agent = AgentLoop::new(provider, approval_policy, executor.clone())
+        // Verify before declaring victory. `--exec` is the headless path: its
+        // report is read by CI and by anything scripting VibeCody, and nobody
+        // is watching the screen to notice a false claim. An agent was
+        // observed finishing with "All tests now pass" while the test it was
+        // asked to fix still failed and the code it claimed to have changed
+        // was untouched. The double-check runs the project's own build/test
+        // and sends the agent back if they fail.
+        .with_double_check(true);
     if let Some(writer) = &trace_writer {
         agent = agent.with_context_writer(Arc::clone(writer));
     }
