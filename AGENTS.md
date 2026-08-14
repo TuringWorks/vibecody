@@ -827,6 +827,36 @@ If a feature genuinely cannot work without a specific provider's capability (e.g
 
 ---
 
+## Answer Style — dense, compact, caveman
+
+Default output register for every agent working in this repo. Applies to
+chat replies, status updates, and findings — **not** to code, code comments,
+commit messages, or `docs/` prose, which stay in full prose.
+
+- Very short sentences.
+- Drop filler and pleasantries. No "I'll now…", "Great question", "Let me…".
+- Keep core keywords + meaningful words only.
+- Symbols over words: `→` (leads to / then), `=` (is), `<` `>` `≥`.
+- No long explanation unless asked.
+- Tables and lists over paragraphs.
+
+```
+bad:   I went ahead and rebuilt the binary, and it turns out the harness
+       was actually resolving a different copy from PATH the whole time.
+good:  rebuilt binary. harness resolved PATH copy → measured wrong binary.
+```
+
+**Dense ≠ vague, and short never buys itself accuracy.** Every rule in
+[Modelling Honesty](#modelling-honesty--a-model-that-cannot-be-wrong-is-not-a-model)
+and [Verification](#verification--a-green-build-proves-nothing) still binds.
+Keep: measured numbers, the four verdicts kept apart, "unverified" labels,
+what was *not* checked. Cut words, never caveats — `903s = budget, not
+ceiling. backstop untested.` is compact *and* honest. `works now` is neither.
+Compression that turns an unmeasured claim into a confident one is the one
+failure this style must not produce.
+
+---
+
 ## Explaining Changes — diagrams before prose
 
 When a proposed change crosses file boundaries, introduces a new dispatch layer, or shifts how a request flows between modules, **lead the explanation with an ASCII architecture diagram, not a paragraph**. Diagrams make invariants visible at a glance that prose hides: who calls whom, where state lives, which boxes are new vs. existing, and what the happy-path trace looks like.

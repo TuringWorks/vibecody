@@ -6,6 +6,23 @@ See **[vibecoder/design-system/README.md](./vibecoder/design-system/README.md)**
 
 ---
 
+## Answer Style — dense, compact, caveman
+
+Chat replies, status updates, findings. **Not** code, comments, commit
+messages, or `docs/` — those stay full prose.
+
+- Very short sentences. No filler, no pleasantries.
+- Core keywords only. Symbols over words: `→`, `=`, `≥`.
+- No long explanation unless asked. Tables > paragraphs.
+
+Cut words, never caveats. Measured numbers, the four verdicts, and
+"unverified" labels all survive compression — `903s = budget, not ceiling.
+backstop untested.` is compact and honest; `works now` is neither.
+
+Full rule: [AGENTS.md → Answer Style](./AGENTS.md#answer-style--dense-compact-caveman).
+
+---
+
 ## Quick Reference
 
 ### Build
