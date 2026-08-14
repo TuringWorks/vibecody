@@ -538,9 +538,26 @@ async fn daemon_get(
     };
     let resp = send_authed(get, token).await?;
     if !resp.status().is_success() {
-        return Err(format!("Daemon returned {}", resp.status()));
+        return Err(describe_status(resp.status(), path));
     }
     resp.json().await.map_err(|e| e.to_string())
+}
+
+/// A failed daemon response, said in a way the user can act on.
+///
+/// A 404 on a route this app knows about is not "not found" — the app and the
+/// daemon are different builds. Reported as "Daemon returned 404 Not Found",
+/// that came out on screen as a broken feature with no next step; the daemon
+/// was simply an older binary still running from a previous install.
+fn describe_status(status: reqwest::StatusCode, path: &str) -> String {
+    if status == reqwest::StatusCode::NOT_FOUND {
+        return format!(
+            "The daemon does not have `{path}` — it is an older build than this app. \
+             Restart it to pick up the current binary (quit VibeDesk, then relaunch, \
+             or run `vibecli --serve --port 7878` from an up-to-date install)."
+        );
+    }
+    format!("Daemon returned {status}")
 }
 
 /// GET /api/vibedesk/git/status — branch + changed files (VX-109), scoped to
@@ -824,7 +841,7 @@ async fn daemon_post(
             .and_then(|v| v.get("error").and_then(|e| e.as_str()).map(String::from))
             .unwrap_or(text);
         return Err(if detail.is_empty() {
-            format!("Daemon returned {status}")
+            describe_status(status, path)
         } else {
             detail
         });

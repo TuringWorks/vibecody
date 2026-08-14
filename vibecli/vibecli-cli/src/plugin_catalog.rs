@@ -101,14 +101,16 @@ pub struct CorePlugin {
     pub title: &'static str,
     pub version: &'static str,
     pub description: &'static str,
+    /// Marketplace section. Free text, like the connector catalog's — the
+    /// section list is presentation, not a type.
+    pub category: &'static str,
     pub components: &'static [CoreComponent],
 }
 
 /// The catalog itself.
 ///
-/// Kept small on purpose. Each entry has to earn its place by changing what
-/// the agent does; a catalog padded with plausible-sounding plugins is a
-/// catalog nobody reads.
+/// Each entry has to earn its place by changing what the agent does; a catalog
+/// padded with plausible-sounding plugins is a catalog nobody reads.
 pub const CATALOG: &[CorePlugin] = &[
     CorePlugin {
         name: "core-review-standards",
@@ -116,9 +118,49 @@ pub const CATALOG: &[CorePlugin] = &[
         version: "1.0.0",
         description: "What a code review must check before it approves — \
                       correctness first, then the failure modes a green build misses.",
+        category: "Engineering Practice",
         components: &[CoreComponent::Rule {
             name: "review-standards",
             body: REVIEW_STANDARDS,
+        }],
+    },
+    CorePlugin {
+        name: "core-test-first",
+        title: "Test first",
+        version: "1.0.0",
+        description: "Pin behaviour with a failing test before changing it, and tell \
+                      a real test from one that cannot fail.",
+        category: "Engineering Practice",
+        components: &[CoreComponent::Skill {
+            name: "test-first",
+            category: "testing",
+            body: TEST_FIRST,
+        }],
+    },
+    CorePlugin {
+        name: "core-commit-craft",
+        title: "Commit craft",
+        version: "1.0.0",
+        description: "Commit messages that say why, in the shape reviewers and \
+                      `git log` expect.",
+        category: "Engineering Practice",
+        components: &[CoreComponent::Skill {
+            name: "commit-craft",
+            category: "workflow",
+            body: COMMIT_CRAFT,
+        }],
+    },
+    CorePlugin {
+        name: "core-refactoring",
+        title: "Safe refactoring",
+        version: "1.0.0",
+        description: "Behaviour-preserving change: what to pin first, which smells \
+                      justify the move, and when to stop.",
+        category: "Engineering Practice",
+        components: &[CoreComponent::Skill {
+            name: "safe-refactoring",
+            category: "workflow",
+            body: SAFE_REFACTORING,
         }],
     },
     CorePlugin {
@@ -128,6 +170,7 @@ pub const CATALOG: &[CorePlugin] = &[
         description: "Secrets stay out of the repo and the transcript; input is \
                       bounded before it is allocated; auth checks are never weakened \
                       to make a test pass.",
+        category: "Security",
         components: &[
             CoreComponent::Rule {
                 name: "secret-handling",
@@ -140,27 +183,81 @@ pub const CATALOG: &[CorePlugin] = &[
         ],
     },
     CorePlugin {
-        name: "core-commit-craft",
-        title: "Commit craft",
+        name: "core-dependency-hygiene",
+        title: "Dependency hygiene",
         version: "1.0.0",
-        description: "A skill for writing commit messages that say why, in the \
-                      shape reviewers and `git log` expect.",
+        description: "Adding, upgrading and removing a dependency without importing \
+                      someone else's incident.",
+        category: "Security",
         components: &[CoreComponent::Skill {
-            name: "commit-craft",
-            category: "workflow",
-            body: COMMIT_CRAFT,
+            name: "dependency-hygiene",
+            category: "security",
+            body: DEPENDENCY_HYGIENE,
         }],
     },
     CorePlugin {
-        name: "core-test-first",
-        title: "Test first",
+        name: "core-performance",
+        title: "Performance work",
         version: "1.0.0",
-        description: "A skill for pinning behaviour with a failing test before \
-                      changing it — and for telling a real test from a vacuous one.",
+        description: "Measure, attribute to a call tree, fix, re-measure like for \
+                      like — and the order in which wins usually appear.",
+        category: "Performance",
         components: &[CoreComponent::Skill {
-            name: "test-first",
-            category: "testing",
-            body: TEST_FIRST,
+            name: "performance-work",
+            category: "performance",
+            body: PERFORMANCE_WORK,
+        }],
+    },
+    CorePlugin {
+        name: "core-debugging",
+        title: "Debugging",
+        version: "1.0.0",
+        description: "Reproduce, bisect the search space, and confirm the cause by \
+                      turning the bug off and on again.",
+        category: "Operations",
+        components: &[CoreComponent::Skill {
+            name: "debugging",
+            category: "debugging",
+            body: DEBUGGING,
+        }],
+    },
+    CorePlugin {
+        name: "core-incident-response",
+        title: "Incident response",
+        version: "1.0.0",
+        description: "Stop the bleeding first, keep a timeline, and write the \
+                      follow-up that stops the repeat.",
+        category: "Operations",
+        components: &[CoreComponent::Skill {
+            name: "incident-response",
+            category: "operations",
+            body: INCIDENT_RESPONSE,
+        }],
+    },
+    CorePlugin {
+        name: "core-api-design",
+        title: "API design",
+        version: "1.0.0",
+        description: "Make the wrong call impossible to write: names, errors, \
+                      defaults, and what a version boundary owes its callers.",
+        category: "Design",
+        components: &[CoreComponent::Skill {
+            name: "api-design",
+            category: "design",
+            body: API_DESIGN,
+        }],
+    },
+    CorePlugin {
+        name: "core-technical-writing",
+        title: "Technical writing",
+        version: "1.0.0",
+        description: "Documentation that stays true: what to write down, what the \
+                      code already says, and how a doc goes stale.",
+        category: "Design",
+        components: &[CoreComponent::Skill {
+            name: "technical-writing",
+            category: "documentation",
+            body: TECHNICAL_WRITING,
         }],
     },
 ];
@@ -514,6 +611,335 @@ global registry. Give each test its own temporary directory, and pass values as
 arguments instead of setting them globally.
 "#;
 
+const SAFE_REFACTORING: &str = r#"---
+category: workflow
+triggers:
+  - refactor
+  - clean up
+  - extract
+  - rename
+---
+
+# Safe refactoring
+
+A refactor changes structure and nothing else. The moment behaviour moves, it is
+not a refactor any more — it is a change wearing a refactor's name, and it will
+be reviewed as if it were safe.
+
+## Before
+
+1. Find the test that covers the behaviour. If there is none, write one that
+   passes now. A refactor with no test is a rewrite with extra confidence.
+2. Read the callers, not just the function. Most refactors that break something
+   break it at a call site nobody opened.
+3. Commit the pin separately, so the refactor's diff is only the refactor.
+
+## What justifies one
+
+Refactor toward a shape when the smell is there, never because the shape is
+admired:
+
+- A `match`/`switch` on a type tag that grows every time a case is added → make
+  the type carry the behaviour.
+- A boolean parameter that selects behaviour → two functions, or an enum.
+- The same fix applied in three places → one implementation, three callers.
+- A function whose name needs "and" → two functions.
+
+## While
+
+- One kind of change per commit. A rename mixed with an extraction is
+  unreviewable; both look like noise and the real change hides in it.
+- Keep the old name working through a deprecation if anything outside the repo
+  calls it.
+- Run the pinning test after every step, not at the end. A refactor that broke
+  four steps ago is four times harder to find.
+
+## When to stop
+
+When the next move is speculative. Structure that anticipates a requirement
+nobody has asked for is the most expensive kind to undo, because it looks
+deliberate.
+"#;
+
+const DEPENDENCY_HYGIENE: &str = r#"---
+category: security
+triggers:
+  - add a dependency
+  - upgrade
+  - npm install
+  - cargo add
+  - vulnerability
+---
+
+# Dependency hygiene
+
+Every dependency is code you did not write running with your permissions.
+
+## Adding one
+
+- Ask what it replaces. Twenty lines of your own beats a package for anything
+  you could write in an afternoon and will have to audit forever.
+- Check when it was last released and how many people maintain it. One
+  maintainer and two years of silence is a supply-chain risk, not a feature.
+- Check what it pulls in. The transitive tree is the real dependency.
+- Prefer the standard library, then the framework you already have, then a new
+  package.
+
+## Upgrading
+
+- Read the changelog for the versions you skipped, not just the one you land on.
+- A major bump is a porting job. Pinning the new version without changing the
+  call sites produces a build that fails everywhere at once and a diff that
+  claims to be routine.
+- Upgrade one thing at a time when something breaks. A batch bump with a failure
+  in it is a bisect you have to do by hand.
+
+## Removing
+
+- Delete the code first, then the dependency, then the lockfile entry. Removing
+  the package first turns a clean deletion into a compile error hunt.
+- An unused dependency is still an attack surface — it ships.
+
+## Vulnerabilities
+
+- Fix by upgrading, not by suppressing. A suppression with no expiry is a
+  permanent decision made in a hurry.
+- Check whether you actually reach the vulnerable path before treating severity
+  as urgency, and say which it is when you report it.
+"#;
+
+const PERFORMANCE_WORK: &str = r#"---
+category: performance
+triggers:
+  - slow
+  - performance
+  - optimize
+  - profile
+  - latency
+---
+
+# Performance work
+
+## The loop
+
+**Measure → attribute → fix → re-measure like for like → confirm the feature
+still works.** Skipping the first step produces a fix for a problem nobody has;
+skipping the last produces a fast, broken feature.
+
+- **Measure** on the machine and the input that showed the problem. A synthetic
+  benchmark measures the benchmark.
+- **Attribute to a call tree, not a leaf list.** A flat profile says
+  `memcpy` is hot. The call tree says which of your loops is calling it.
+- **Re-measure like for like.** Same input, same machine, same build profile.
+  A debug-vs-release comparison is not a result.
+
+## Where the wins usually are, in order
+
+1. **Cadence** — is this poll faster than the data it polls actually changes?
+   The cheapest optimisation is not doing the work.
+2. **Eager instantiation** — is this built at startup and used by one screen in
+   twenty? Load it when it is needed.
+3. **Recycling** — is a list rebuilding every row on every update?
+4. **Dirty checks** — is work repeating on unchanged input?
+5. **Algorithms** — now the O() actually matters.
+6. **Allocation** — last, and only with an allocation count to prove it.
+
+## Traps
+
+- **A good number proves less than a bad one.** Confirm the feature still works
+  after the fix, on screen, not just in the benchmark.
+- **Idle cost is invisible to CI.** After touching any timer, interval or
+  subscription, check idle CPU by hand.
+- **Allocation sized from input** is a crash, not a slowdown. Bound it before
+  allocating.
+- **A regex compiled inside a loop** is the most expensive line in most hot
+  paths. Hoist it.
+"#;
+
+const DEBUGGING: &str = r#"---
+category: debugging
+triggers:
+  - bug
+  - not working
+  - crash
+  - fails
+  - investigate
+---
+
+# Debugging
+
+## Reproduce first
+
+A bug you cannot reproduce is a bug you cannot confirm you fixed. Get to a
+command that fails every time before changing anything. Shrink it: fewest steps,
+smallest input, least environment.
+
+If it only reproduces sometimes, that is information — concurrency, ordering,
+leftover state, clock, network. Say which, or say you do not know yet.
+
+## Bisect the search space, not the code
+
+Each step should halve what is left:
+
+- Does it happen with the feature off? Before that commit? On another machine?
+  With an empty database? With the network unplugged?
+- `git bisect` works on any yes/no test and is faster than reading.
+- Add a check in the middle of the pipeline and ask which side is wrong.
+
+## Confirm the cause
+
+You have not found it until you can turn it off and on. Make the bug appear on
+demand by re-introducing the cause; if you cannot, you have found a correlation.
+
+Then ask why it was not caught: no test, a test that skipped silently, a
+swallowed error, a default that made the failure look like success.
+
+## Say what you know
+
+Distinguish "I reproduced it and the cause is X" from "the symptom is consistent
+with X". The second is a hypothesis, and labelling it as one costs nothing and
+saves the next person an afternoon.
+"#;
+
+const INCIDENT_RESPONSE: &str = r#"---
+category: operations
+triggers:
+  - incident
+  - outage
+  - production is down
+  - rollback
+  - postmortem
+---
+
+# Incident response
+
+## Order of operations
+
+1. **Stop the bleeding.** Roll back, disable the flag, drain the node. The fix
+   comes after service returns; understanding comes after that.
+2. **Say what is happening.** One message, in the channel people are already
+   watching: what is broken, who is affected, what is being done, when the next
+   update comes. Then keep that cadence even when there is nothing new.
+3. **Keep a timeline as you go.** Timestamps, what was observed, what was
+   changed. Reconstructing it afterwards produces a tidy story that is wrong.
+
+## While you work
+
+- Change one thing at a time and write down what you changed. Three
+  simultaneous mitigations mean nobody knows which one worked.
+- Prefer reversible mitigations. A rollback you can undo beats a forward fix you
+  cannot.
+- If you are the only one who knows something, say it out loud. Silent
+  competence extends outages.
+
+## Afterwards
+
+- Write the follow-up while it is fresh, and write it blameless: the question is
+  what made the mistake easy, not who made it.
+- Every action item gets an owner and a date, or it is not an action item.
+- The most valuable line is usually "why we did not notice sooner". Fix the
+  detection gap, not only the cause.
+"#;
+
+const API_DESIGN: &str = r#"---
+category: design
+triggers:
+  - api design
+  - interface
+  - public API
+  - breaking change
+---
+
+# API design
+
+The goal is that the wrong call is hard to write and the right one is obvious.
+
+## Shape
+
+- **Make illegal states unrepresentable.** A type that cannot hold a bad
+  combination beats a runtime check and a comment.
+- **Name for the caller's world, not the implementation's.** `retry_after` not
+  `backoff_ms_internal`.
+- **Booleans lie about the future.** `create(force: true)` becomes
+  `create(force: true, overwrite: false)` within a year. Take an enum.
+- **Return what the caller needs to act.** An `Ok(())` that hides which of three
+  things happened forces every caller to go looking.
+
+## Errors
+
+- Distinguish "you asked for something impossible" from "I could not do it right
+  now" — the caller retries one and not the other.
+- Carry the context the caller cannot reconstruct: which field, which id, which
+  limit.
+- Never make an error look like success. A default returned on failure is a bug
+  the caller cannot see.
+
+## Defaults
+
+- A default is a decision made for everyone who did not think about it. Pick the
+  safe one, not the convenient one.
+- No default at all is better than a plausible one for anything the caller must
+  know — a timeout, a scope, a destination.
+
+## Versions
+
+- Adding an optional field is compatible. Adding a required one is not.
+- Removing anything needs a deprecation window and a message that names the
+  replacement.
+- Changing what a value means is the breaking change nobody catches, because
+  everything still compiles.
+"#;
+
+const TECHNICAL_WRITING: &str = r#"---
+category: documentation
+triggers:
+  - write documentation
+  - README
+  - docs
+  - changelog
+---
+
+# Technical writing
+
+## Write what the code cannot say
+
+The code already says what it does. Documentation earns its keep by recording
+what is not in it:
+
+- Why this approach and not the obvious one.
+- What was tried and did not work.
+- The constraint that explains the odd bit.
+- What breaks if you change this.
+
+A comment restating the line above it is a maintenance cost with no return.
+
+## Structure
+
+- Lead with what the reader needs first, not with history. The person reading a
+  README wants to run the thing.
+- One page per question. A document that answers five questions is found by
+  nobody looking for any of them.
+- Show the command and its real output. Invented output is a promise the
+  software has not made.
+
+## Staying true
+
+A doc goes stale the moment the thing it describes moves. Reduce the surface:
+
+- Link to the source of truth rather than restating it.
+- Generate what can be generated — flag lists, route tables, config keys.
+- When you change behaviour, grep the docs for the old behaviour in the same
+  commit. A changelog entry is not a substitute for fixing the page that now
+  lies.
+- Date anything that is a snapshot ("as of…"), so a reader can tell staleness
+  from disagreement.
+
+## Tone
+
+Say what is true, plainly. Hedging every sentence makes the uncertain and the
+certain look alike, and the reader has to guess which is which.
+"#;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -641,6 +1067,15 @@ mod tests {
                 .exists(),
             "a failed install must leave nothing behind"
         );
+    }
+
+    #[test]
+    fn every_catalog_entry_is_filed_under_a_category() {
+        // The marketplace groups by this; an entry with no category lands in a
+        // section named after nothing.
+        for p in CATALOG {
+            assert!(!p.category.trim().is_empty(), "{} has no category", p.name);
+        }
     }
 
     #[test]

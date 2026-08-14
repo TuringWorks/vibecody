@@ -42227,6 +42227,7 @@ pub async fn plugin_catalog_list(workspace_path: String) -> Result<serde_json::V
                 "title": p.title,
                 "version": p.version,
                 "description": p.description,
+                "category": p.category,
                 "components": p.components.iter().map(|c| serde_json::json!({
                     "kind": c.kind(),
                     "name": c.name(),

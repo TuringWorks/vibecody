@@ -1029,12 +1029,22 @@ offered here: a hook is an executable whose exec bit does not survive the bundle
 round-trip, and plugin MCP servers are registered only by a module nothing
 currently calls.
 
-| Plugin | Ships |
-|---|---|
-| `core-review-standards` | Rule: what a review must check before approving. |
-| `core-secure-defaults` | Rules: secret handling, and bounding untrusted input. |
-| `core-commit-craft` | Skill: writing commit messages that say why. |
-| `core-test-first` | Skill: pinning behaviour before changing it, and spotting a vacuous test. |
+Every entry carries a `category`, which is what the Plugins panel groups its
+marketplace sections by.
+
+| Plugin | Category | Ships |
+|---|---|---|
+| `core-review-standards` | Engineering Practice | Rule: what a review must check before approving. |
+| `core-test-first` | Engineering Practice | Skill: pinning behaviour before changing it, and spotting a vacuous test. |
+| `core-commit-craft` | Engineering Practice | Skill: commit messages that say why. |
+| `core-refactoring` | Engineering Practice | Skill: behaviour-preserving change, and when to stop. |
+| `core-secure-defaults` | Security | Rules: secret handling, and bounding untrusted input. |
+| `core-dependency-hygiene` | Security | Skill: adding, upgrading and removing a dependency. |
+| `core-performance` | Performance | Skill: measure → attribute → fix → re-measure, and the usual win order. |
+| `core-debugging` | Operations | Skill: reproduce, bisect the search space, confirm the cause. |
+| `core-incident-response` | Operations | Skill: stop the bleeding, keep a timeline, write the follow-up. |
+| `core-api-design` | Design | Skill: make the wrong call hard to write. |
+| `core-technical-writing` | Design | Skill: documentation that stays true. |
 
 The signature on a catalog install is real and verified, but it attests
 integrity, not provenance: the manifest is signed on this machine with a locally
@@ -1065,11 +1075,33 @@ Enabled connectors are merged into `vibecli`'s `/mcp` command alongside
 Agent runs do not consume MCP tools yet, so a connector makes tools reachable
 from the CLI, not from an agent turn.
 
-| Connector | Runtime | Credential |
-|---|---|---|
-| `vibecli` | none — this binary, via `--mcp-server` | — |
-| `filesystem` | `npx` | — |
-| `git` | `uvx` | — |
-| `fetch` | `uvx` | — |
-| `memory` | `npx` | — |
-| `github` | `npx` | `GITHUB_PERSONAL_ACCESS_TOKEN` |
+Catalog entries are the reference servers from `modelcontextprotocol/servers`
+plus this binary's own. Listing one here is not a claim that it runs on this
+machine — the package may have moved, the runtime may be missing. `probe` is the
+only thing that answers that.
+
+An argument may contain `{secret:NAME}`, resolved from the encrypted store at
+launch. That is how a connection string reaches a server that takes it as an
+argument without ever being stored in the definition. An unresolved placeholder
+is passed through verbatim, so the failure names the missing secret instead of
+looking like a malformed argument.
+
+| Connector | Category | Runtime | Credentials |
+|---|---|---|---|
+| `vibecli` | VibeCody | this binary, via `--mcp-server` | — |
+| `filesystem` | Files And Code | `npx` | — |
+| `git` | Files And Code | `uvx` | — |
+| `github` | Files And Code | `npx` | `GITHUB_PERSONAL_ACCESS_TOKEN` |
+| `gitlab` | Files And Code | `npx` | `GITLAB_PERSONAL_ACCESS_TOKEN`, `GITLAB_API_URL` |
+| `fetch` | Web And Search | `uvx` | — |
+| `brave-search` | Web And Search | `npx` | `BRAVE_API_KEY` |
+| `puppeteer` | Web And Search | `npx` | — |
+| `google-maps` | Web And Search | `npx` | `GOOGLE_MAPS_API_KEY` |
+| `postgres` | Databases | `npx` | `POSTGRES_URL` (an argument secret) |
+| `sqlite` | Databases | `uvx` | `SQLITE_DB_PATH` (an argument secret) |
+| `memory` | Agent Memory | `npx` | — |
+| `sequential-thinking` | Agent Memory | `npx` | — |
+| `slack` | Inbox And Collaboration | `npx` | `SLACK_BOT_TOKEN`, `SLACK_TEAM_ID` |
+| `sentry` | Observability | `uvx` | `SENTRY_AUTH_TOKEN` (an argument secret) |
+| `time` | Utilities | `uvx` | — |
+| `everything` | Utilities | `npx` | — |

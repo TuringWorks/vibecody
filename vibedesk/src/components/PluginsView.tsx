@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import {
-  X, Plug, Server, Sparkles, Bot, Scale, Webhook, Download, Trash2, Power,
-  PlugZap, AlertTriangle, Check, Loader2, ExternalLink,
-} from "lucide-react";
+import { X, Search, SlidersHorizontal, Check, Loader2, AlertTriangle } from "lucide-react";
 
 interface PluginsViewProps {
   daemonUrl: string;
@@ -35,6 +32,7 @@ interface CatalogPlugin {
   title: string;
   version: string;
   description: string;
+  category: string;
   components: { kind: string; name: string }[];
   installed: boolean;
   /** `null` until installed; "on" | "off" | "required" after. */
@@ -51,6 +49,7 @@ interface ConnectorSpec {
   id: string;
   title: string;
   description: string;
+  category: string;
   command: string;
   args: string[];
   runtime: string;
@@ -72,94 +71,120 @@ interface Connector {
   missing_credentials: string[];
 }
 
-/** What a probe found. Mirrors `connectors::ProbeResult` on the daemon. */
+/** Mirrors `connectors::ProbeResult` on the daemon. */
 type ProbeResult =
   | { state: "ok"; tools: string[] }
   | { state: "failed"; error: string }
   | { state: "timedout"; after_secs: number };
 
-/** A probe's outcome plus when it was taken — a result with no time is a claim
+/** A probe's outcome and when it was taken. A result with no time is a claim
  *  about now made from a measurement of then. */
 interface ProbeRecord {
   result: ProbeResult;
   checked_at: number;
 }
 
-type Tab = "active" | "catalog" | "connectors";
+/**
+ * One marketplace row. Plugins and connectors sit in the same list because
+ * that is how they are shopped for — the difference between "a rule the agent
+ * reads" and "a server the agent calls" matters when you manage it, not when
+ * you are looking for Postgres.
+ */
+type MarketItem =
+  | { kind: "plugin"; key: string; title: string; description: string; category: string; plugin: CatalogPlugin }
+  | { kind: "connector"; key: string; title: string; description: string; category: string; spec: ConnectorSpec };
 
-const SECTIONS: {
-  key: keyof Omit<Inventory, "available" | "total">;
-  label: string;
-  icon: typeof Server;
-  blurb: string;
-}[] = [
-  { key: "mcp_servers", label: "MCP servers", icon: Server, blurb: "Tool servers the agent can call" },
-  { key: "skills", label: "Skills", icon: Sparkles, blurb: "Extra skills merged into the catalog" },
-  { key: "subagents", label: "Subagents", icon: Bot, blurb: "Delegate agents the loop can spawn" },
-  { key: "rules", label: "Rules", icon: Scale, blurb: "Policy injected into every run" },
-  { key: "hooks", label: "Hooks", icon: Webhook, blurb: "Run on agent lifecycle events" },
+/** Each panel loads on its own, so one failure does not blank the others. */
+type Loaded<T> = { state: "loading" } | { state: "ready"; value: T } | { state: "error"; message: string };
+
+/** Rows shown per category before "Show N more". */
+const COLLAPSED_ROWS = 4;
+
+const SECTION_ORDER = [
+  "VibeCody",
+  "Engineering Practice",
+  "Security",
+  "Performance",
+  "Operations",
+  "Design",
+  "Files And Code",
+  "Web And Search",
+  "Databases",
+  "Agent Memory",
+  "Inbox And Collaboration",
+  "Observability",
+  "Utilities",
 ];
 
 /**
- * Plugins and connectors for this workspace: what is active, what can be
- * installed, and what this machine is connected to.
+ * Plugins: a marketplace of everything that can extend the agent here, and a
+ * manage view for what already does.
  *
- * This used to be read-only, on the reasoning that a policy change belongs in
- * the CLI where it is audited. That held while the only way to obtain a plugin
- * was to author, sign and pack a bundle by hand — so in practice every
- * workspace showed "no plugin components are enabled" above a sentence naming a
- * command, and nothing could be done about it from here. With a catalog
- * compiled into the daemon there is something to install, and installing it is
- * the whole point of the panel.
+ * The panel used to be a single sentence — "No plugin components are enabled
+ * for this workspace" — above a pointer to a CLI command, because the only way
+ * to obtain a plugin was to author, sign and pack a bundle by hand. There is a
+ * catalog now, so this is a shop.
  *
- * Two things are still not offered here, deliberately: pinning a plugin as
- * `required` (an admin act the same user could not then undo), and any claim
- * that a connector works. A connector's health comes only from Test, which
- * launches it for real.
+ * Two claims it will not make. A connector is never described as working until
+ * Test has actually launched it: there is no state here inferred from a
+ * credential being present. And a plugin cannot be pinned `required` from here,
+ * because that is an admin act the same user could not then undo.
  */
 export function PluginsView({ daemonUrl, path, onClose }: PluginsViewProps) {
-  const [tab, setTab] = useState<Tab>("active");
-  const [inv, setInv] = useState<Inventory | null>(null);
-  const [catalog, setCatalog] = useState<CatalogPlugin[] | null>(null);
-  const [connectors, setConnectors] = useState<Connector[] | null>(null);
-  const [connectorCatalog, setConnectorCatalog] = useState<ConnectorSpec[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<"marketplace" | "yours">("marketplace");
+  const [query, setQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  const [openForm, setOpenForm] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, Record<string, string>>>({});
+
+  const [inventory, setInventory] = useState<Loaded<Inventory>>({ state: "loading" });
+  const [catalog, setCatalog] = useState<Loaded<CatalogPlugin[]>>({ state: "loading" });
+  const [connectors, setConnectors] = useState<
+    Loaded<{ connectors: Connector[]; catalog: ConnectorSpec[] }>
+  >({ state: "loading" });
+
   const [notice, setNotice] = useState<string | null>(null);
-  /** Ids of rows with an action in flight, so each button disables on its own. */
   const [busy, setBusy] = useState<ReadonlySet<string>>(new Set());
   const [probes, setProbes] = useState<Record<string, ProbeRecord>>({});
-  const [reloadTick, setReloadTick] = useState(0);
+  const [tick, setTick] = useState(0);
+  const reload = useCallback(() => setTick((t) => t + 1), []);
 
-  const reload = useCallback(() => setReloadTick((t) => t + 1), []);
-
+  // Three independent loads. Awaiting them together meant a single stale route
+  // — a daemon older than the app, 404 on the catalog — blanked the whole
+  // panel, including the inventory that had answered fine.
   useEffect(() => {
     let alive = true;
-    (async () => {
+    const run = async <T,>(
+      call: () => Promise<T>,
+      set: (v: Loaded<T>) => void,
+    ) => {
       try {
-        const [inventory, plugins, conns] = await Promise.all([
-          invoke<Inventory>("list_plugins", { url: daemonUrl, path }),
-          invoke<{ plugins: CatalogPlugin[] }>("plugin_catalog", { url: daemonUrl, path }),
-          invoke<{ connectors: Connector[]; catalog: ConnectorSpec[] }>("list_connectors", {
-            url: daemonUrl,
-            path,
-          }),
-        ]);
-        if (!alive) return;
-        setInv(inventory);
-        setCatalog(plugins.plugins);
-        setConnectors(conns.connectors);
-        setConnectorCatalog(conns.catalog);
-        setError(null);
+        const value = await call();
+        if (alive) set({ state: "ready", value });
       } catch (e) {
-        if (alive) setError(String(e));
+        if (alive) set({ state: "error", message: String(e) });
       }
-    })();
+    };
+    void run(() => invoke<Inventory>("list_plugins", { url: daemonUrl, path }), setInventory);
+    void run(
+      async () => (await invoke<{ plugins: CatalogPlugin[] }>("plugin_catalog", { url: daemonUrl, path })).plugins,
+      setCatalog,
+    );
+    void run(
+      () =>
+        invoke<{ connectors: Connector[]; catalog: ConnectorSpec[] }>("list_connectors", {
+          url: daemonUrl,
+          path,
+        }),
+      setConnectors,
+    );
     return () => {
       alive = false;
     };
-  }, [daemonUrl, path, reloadTick]);
+  }, [daemonUrl, path, tick]);
 
-  /** Run one action, tracking its own busy key and surfacing its own failure. */
   const act = useCallback(
     async (key: string, run: () => Promise<string>) => {
       setBusy((prev) => new Set(prev).add(key));
@@ -168,7 +193,8 @@ export function PluginsView({ daemonUrl, path, onClose }: PluginsViewProps) {
         setNotice(await run());
         reload();
       } catch (e) {
-        // The daemon's message, not a generic one: it names the actual reason.
+        // The daemon's own sentence names the reason — a missing credential, a
+        // duplicate id, an older binary. A status code would not.
         setNotice(`Failed: ${String(e)}`);
       } finally {
         setBusy((prev) => {
@@ -187,11 +213,9 @@ export function PluginsView({ daemonUrl, path, onClose }: PluginsViewProps) {
         "install_plugin",
         { url: daemonUrl, path, name: p.name },
       );
-      // The key warning is rare and easy to miss; say it in the same breath as
-      // the success rather than hiding it in a log.
       return res.signing_key_persisted
-        ? `Installed ${p.title} — ${res.components} component${res.components === 1 ? "" : "s"} now active.`
-        : `Installed ${p.title}, but the signing key could not be stored, so its publisher fingerprint will differ next time.`;
+        ? `Added ${p.title} — ${res.components} component${res.components === 1 ? "" : "s"} now active.`
+        : `Added ${p.title}, but the signing key could not be stored, so its publisher fingerprint will differ next time.`;
     });
 
   const setPolicy = (p: CatalogPlugin, policy: "on" | "off") =>
@@ -200,7 +224,7 @@ export function PluginsView({ daemonUrl, path, onClose }: PluginsViewProps) {
       return policy === "on" ? `${p.title} enabled.` : `${p.title} disabled — its components no longer load.`;
     });
 
-  const uninstallPlugin = (p: CatalogPlugin) =>
+  const removePlugin = (p: CatalogPlugin) =>
     act(`plugin:${p.name}`, async () => {
       const res = await invoke<{ removed: boolean }>("uninstall_plugin", {
         url: daemonUrl,
@@ -212,15 +236,17 @@ export function PluginsView({ daemonUrl, path, onClose }: PluginsViewProps) {
         : `${p.title} had no files on disk; its policy row was cleared.`;
     });
 
-  const addConnector = (spec: ConnectorSpec, credentials: Record<string, string>) =>
+  const addConnector = (spec: ConnectorSpec) =>
     act(`connector:${spec.id}`, async () => {
       await invoke("add_connector", {
         url: daemonUrl,
         path,
         catalogId: spec.id,
-        credentials,
+        credentials: drafts[spec.id] ?? {},
       });
-      return `Added ${spec.title}. Use Test to check it actually starts.`;
+      setDrafts((d) => ({ ...d, [spec.id]: {} }));
+      setOpenForm(null);
+      return `Added ${spec.title}. Use Test in Yours to check it actually starts.`;
     });
 
   const toggleConnector = (c: Connector) =>
@@ -236,11 +262,9 @@ export function PluginsView({ daemonUrl, path, onClose }: PluginsViewProps) {
         path,
         id: c.id,
       });
-      return `Removed ${c.title}${
-        res.secrets_deleted > 0
-          ? ` and deleted ${res.secrets_deleted} stored credential${res.secrets_deleted === 1 ? "" : "s"}.`
-          : "."
-      }`;
+      return res.secrets_deleted > 0
+        ? `Removed ${c.title} and deleted ${res.secrets_deleted} stored credential${res.secrets_deleted === 1 ? "" : "s"}.`
+        : `Removed ${c.title}.`;
     });
 
   const probeConnector = (c: Connector) =>
@@ -259,81 +283,229 @@ export function PluginsView({ daemonUrl, path, onClose }: PluginsViewProps) {
       }
     });
 
-  const catalogById = useMemo(
-    () => new Map((connectorCatalog ?? []).map((c) => [c.id, c])),
-    [connectorCatalog],
-  );
+  // ── Marketplace model ─────────────────────────────────────────────────────
+
+  const items = useMemo<MarketItem[]>(() => {
+    const plugins: MarketItem[] =
+      catalog.state === "ready"
+        ? catalog.value.map((p) => ({
+            kind: "plugin" as const,
+            key: `plugin:${p.name}`,
+            title: p.title,
+            description: p.description,
+            category: p.category,
+            plugin: p,
+          }))
+        : [];
+    const specs: MarketItem[] =
+      connectors.state === "ready"
+        ? connectors.value.catalog.map((s) => ({
+            kind: "connector" as const,
+            key: `connector:${s.id}`,
+            title: s.title,
+            description: s.description,
+            category: s.category,
+            spec: s,
+          }))
+        : [];
+    return [...plugins, ...specs];
+  }, [catalog, connectors]);
+
   const configuredIds = useMemo(
-    () => new Set((connectors ?? []).map((c) => c.id)),
+    () => new Set(connectors.state === "ready" ? connectors.value.connectors.map((c) => c.id) : []),
     [connectors],
   );
 
+  const categories = useMemo(() => {
+    const present = new Set(items.map((i) => i.category));
+    const ordered = SECTION_ORDER.filter((c) => present.has(c));
+    // Anything the daemon files under a section this build has not heard of
+    // still gets shown, alphabetically after the known ones — a newer daemon
+    // must not be able to hide entries from an older panel.
+    const extra = [...present].filter((c) => !SECTION_ORDER.includes(c)).sort();
+    return [...ordered, ...extra];
+  }, [items]);
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return items.filter((i) => {
+      if (categoryFilter && i.category !== categoryFilter) return false;
+      if (!q) return true;
+      return (
+        i.title.toLowerCase().includes(q) ||
+        i.description.toLowerCase().includes(q) ||
+        i.category.toLowerCase().includes(q)
+      );
+    });
+  }, [items, query, categoryFilter]);
+
+  const loading = catalog.state === "loading" || connectors.state === "loading";
+  const marketErrors = [
+    catalog.state === "error" ? catalog.message : null,
+    connectors.state === "error" ? connectors.message : null,
+  ].filter((m): m is string => m !== null);
+
   return (
-    <div className="vx-skills">
-      <div className="vx-skills__head">
-        <Plug size={14} />
-        <span>Plugins</span>
-        {inv && (
-          <span className="vx-skills__count">
-            {inv.total} enabled component{inv.total === 1 ? "" : "s"}
-          </span>
-        )}
-        <div className="vx-skills__spacer" />
+    <div className="vx-market">
+      <div className="vx-market__head">
+        <span className="vx-market__title">Plugins</span>
         <button className="vx-icon-btn" aria-label="Close plugins" onClick={onClose}>
-          <X size={14} />
+          <X size={16} />
         </button>
       </div>
 
-      <div className="vx-plugins__tabs" role="tablist">
-        {([
-          ["active", "Active"],
-          ["catalog", "Plugins"],
-          ["connectors", "Connectors"],
-        ] as const).map(([key, label]) => (
-          <button
-            key={key}
-            role="tab"
-            aria-selected={tab === key}
-            className={`vx-right__tab${tab === key ? " is-active" : ""}`}
-            onClick={() => setTab(key)}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="vx-market__toolbar">
+        <div className="vx-market__tabs" role="tablist">
+          {(
+            [
+              ["marketplace", "Marketplace"],
+              ["yours", "Yours"],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              role="tab"
+              aria-selected={tab === key}
+              className={`vx-market__tab${tab === key ? " is-active" : ""}`}
+              onClick={() => setTab(key)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="vx-market__toolbar-right">
+          <div className="vx-market__filter-wrap">
+            <button
+              className={`vx-market__filter${categoryFilter ? " is-active" : ""}`}
+              aria-label="Filter by category"
+              aria-expanded={filterOpen}
+              onClick={() => setFilterOpen((o) => !o)}
+            >
+              <SlidersHorizontal size={16} />
+            </button>
+            {filterOpen && (
+              <div className="vx-market__menu" role="menu">
+                <button
+                  className={`vx-market__menu-item${categoryFilter === null ? " is-active" : ""}`}
+                  onClick={() => {
+                    setCategoryFilter(null);
+                    setFilterOpen(false);
+                  }}
+                >
+                  All categories
+                </button>
+                {categories.map((c) => (
+                  <button
+                    key={c}
+                    className={`vx-market__menu-item${categoryFilter === c ? " is-active" : ""}`}
+                    onClick={() => {
+                      setCategoryFilter(c);
+                      setFilterOpen(false);
+                    }}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="vx-market__search">
+            <Search size={15} />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search plugins"
+              aria-label="Search plugins"
+            />
+          </div>
+        </div>
       </div>
 
-      {notice && <div className="vx-plugins__notice">{notice}</div>}
+      {notice && <div className="vx-market__notice">{notice}</div>}
 
-      <div className="vx-plugins__body">
-        {error && <div className="vx-files__empty">Failed to load plugins: {error}</div>}
+      <div className="vx-market__body">
+        {tab === "marketplace" && (
+          <>
+            {marketErrors.map((m) => (
+              <div key={m} className="vx-market__error">
+                <AlertTriangle size={14} />
+                <span>{m}</span>
+              </div>
+            ))}
+            {loading && marketErrors.length === 0 && <div className="vx-market__empty">Loading…</div>}
+            {!loading && visible.length === 0 && marketErrors.length === 0 && (
+              <div className="vx-market__empty">
+                {query || categoryFilter ? "Nothing matches that." : "The catalog is empty."}
+              </div>
+            )}
 
-        {!error && tab === "active" && (
-          <ActiveTab inv={inv} onBrowse={() => setTab("catalog")} />
+            {categories.map((category) => {
+              const rows = visible.filter((i) => i.category === category);
+              if (rows.length === 0) return null;
+              const isOpen = expanded.has(category) || Boolean(query);
+              const shown = isOpen ? rows : rows.slice(0, COLLAPSED_ROWS);
+              const hidden = rows.length - shown.length;
+              return (
+                <section key={category} className="vx-market__section">
+                  <div className="vx-market__section-label">{category}</div>
+                  <div className="vx-market__grid">
+                    {shown.map((item) =>
+                      item.kind === "plugin" ? (
+                        <PluginRow
+                          key={item.key}
+                          item={item.plugin}
+                          busy={busy.has(`plugin:${item.plugin.name}`)}
+                          onAdd={() => installPlugin(item.plugin)}
+                        />
+                      ) : (
+                        <ConnectorRow
+                          key={item.key}
+                          spec={item.spec}
+                          added={configuredIds.has(item.spec.id)}
+                          busy={busy.has(`connector:${item.spec.id}`)}
+                          formOpen={openForm === item.spec.id}
+                          draft={drafts[item.spec.id] ?? {}}
+                          onOpenForm={() => setOpenForm(openForm === item.spec.id ? null : item.spec.id)}
+                          onDraft={(env, value) =>
+                            setDrafts((d) => ({
+                              ...d,
+                              [item.spec.id]: { ...(d[item.spec.id] ?? {}), [env]: value },
+                            }))
+                          }
+                          onAdd={() => addConnector(item.spec)}
+                        />
+                      ),
+                    )}
+                  </div>
+                  {hidden > 0 && (
+                    <button
+                      className="vx-market__more"
+                      onClick={() => setExpanded((prev) => new Set(prev).add(category))}
+                    >
+                      Show {hidden} more
+                    </button>
+                  )}
+                </section>
+              );
+            })}
+          </>
         )}
 
-        {!error && tab === "catalog" && (
-          <PluginCatalogTab
-            plugins={catalog}
-            busy={busy}
-            onInstall={installPlugin}
-            onEnable={(p) => setPolicy(p, "on")}
-            onDisable={(p) => setPolicy(p, "off")}
-            onRemove={uninstallPlugin}
-          />
-        )}
-
-        {!error && tab === "connectors" && (
-          <ConnectorsTab
+        {tab === "yours" && (
+          <YoursTab
+            inventory={inventory}
+            catalog={catalog}
             connectors={connectors}
-            catalog={connectorCatalog}
-            catalogById={catalogById}
-            configuredIds={configuredIds}
             probes={probes}
             busy={busy}
-            onAdd={addConnector}
-            onToggle={toggleConnector}
-            onRemove={removeConnector}
-            onProbe={probeConnector}
+            onBrowse={() => setTab("marketplace")}
+            onEnable={(p) => setPolicy(p, "on")}
+            onDisable={(p) => setPolicy(p, "off")}
+            onRemovePlugin={removePlugin}
+            onToggleConnector={toggleConnector}
+            onRemoveConnector={removeConnector}
+            onProbeConnector={probeConnector}
           />
         )}
       </div>
@@ -341,400 +513,381 @@ export function PluginsView({ daemonUrl, path, onClose }: PluginsViewProps) {
   );
 }
 
-// ── Active ───────────────────────────────────────────────────────────────────
+// ── Rows ─────────────────────────────────────────────────────────────────────
 
-function ActiveTab({ inv, onBrowse }: { inv: Inventory | null; onBrowse: () => void }) {
-  if (inv === null) return <div className="vx-files__empty">Loading…</div>;
-  if (inv.total === 0) {
-    return (
-      <div className="vx-files__empty">
-        Nothing is extending the agent in this workspace yet.
-        <div className="vx-plugins__hint">
-          The Plugins tab has skills and rules you can install in one click, and Connectors
-          adds MCP servers. Bundles built elsewhere still install with{" "}
-          <code>vibecli plugin install</code>.
-        </div>
-        <button className="vx-plugins__cta" onClick={onBrowse}>
-          Browse plugins
-        </button>
-      </div>
-    );
-  }
+/**
+ * A monogram tile, not a vendor logo.
+ *
+ * Shipping Intercom's or AWS's mark would put someone else's trademark in our
+ * binary, and fetching it at runtime would make an offline panel depend on the
+ * network to render. The letter and a hue derived from the id give each row a
+ * stable, recognisable shape without either problem.
+ */
+function Icon({ id, label }: { id: string; label: string }) {
+  const hue = useMemo(() => {
+    // Small stable hash — same id, same colour, every launch.
+    let h = 0;
+    for (let i = 0; i < id.length; i += 1) h = (h * 31 + id.charCodeAt(i)) % 360;
+    return h;
+  }, [id]);
   return (
-    <>
-      {SECTIONS.map(({ key, label, icon: Icon, blurb }) => {
-        const rows = inv[key] ?? [];
-        if (rows.length === 0) return null;
-        return (
-          <section key={key} className="vx-plugins__section">
-            <div className="vx-plugins__section-head">
-              <Icon size={13} />
-              <span className="vx-plugins__section-label">{label}</span>
-              <span className="vx-plugins__section-count">{rows.length}</span>
-            </div>
-            <div className="vx-plugins__blurb">{blurb}</div>
-            <ul className="vx-plugins__list">
-              {rows.map((c, i) => (
-                <li key={`${c.plugin}/${c.name}/${i}`} className="vx-plugins__row">
-                  <span className="vx-plugins__name">{c.name}</span>
-                  {c.event && <span className="vx-plugins__event">{c.event}</span>}
-                  <span className="vx-plugins__from">from {c.plugin}</span>
-                  {/* "required" is admin-pinned and can't be turned off here. */}
-                  <span className={`vx-plugins__policy vx-plugins__policy--${c.policy}`}>
-                    {c.policy}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        );
-      })}
-    </>
+    <span
+      className="vx-market__icon"
+      aria-hidden="true"
+      style={{
+        background: `hsl(${hue} 45% 22%)`,
+        color: `hsl(${hue} 70% 78%)`,
+        borderColor: `hsl(${hue} 40% 32%)`,
+      }}
+    >
+      {label.slice(0, 1).toUpperCase()}
+    </span>
   );
 }
 
-// ── Plugin catalog ───────────────────────────────────────────────────────────
-
-function PluginCatalogTab({
-  plugins,
-  busy,
-  onInstall,
-  onEnable,
-  onDisable,
-  onRemove,
-}: {
-  plugins: CatalogPlugin[] | null;
-  busy: ReadonlySet<string>;
-  onInstall: (p: CatalogPlugin) => void;
-  onEnable: (p: CatalogPlugin) => void;
-  onDisable: (p: CatalogPlugin) => void;
-  onRemove: (p: CatalogPlugin) => void;
-}) {
-  if (plugins === null) return <div className="vx-files__empty">Loading…</div>;
-  if (plugins.length === 0) return <div className="vx-files__empty">The catalog is empty.</div>;
-
-  return (
-    <div className="vx-plugins__cards">
-      {plugins.map((p) => {
-        const working = busy.has(`plugin:${p.name}`);
-        const pinned = p.policy === "required";
-        return (
-          <article key={p.name} className="vx-plugins__card">
-            <header className="vx-plugins__card-head">
-              <span className="vx-plugins__card-title">{p.title}</span>
-              <span className="vx-plugins__card-version">v{p.version}</span>
-              {p.installed && (
-                <span className={`vx-plugins__policy vx-plugins__policy--${p.policy}`}>
-                  {p.policy}
-                </span>
-              )}
-            </header>
-            <p className="vx-plugins__card-desc">{p.description}</p>
-            <div className="vx-plugins__chips">
-              {p.components.map((c) => (
-                <span key={`${c.kind}/${c.name}`} className="vx-plugins__chip">
-                  {c.kind} · {c.name}
-                </span>
-              ))}
-            </div>
-            <footer className="vx-plugins__card-actions">
-              {!p.installed && (
-                <button className="vx-plugins__btn" disabled={working} onClick={() => onInstall(p)}>
-                  {working ? <Loader2 size={12} className="vx-spin" /> : <Download size={12} />}
-                  Install
-                </button>
-              )}
-              {p.installed && p.policy === "on" && (
-                <button className="vx-plugins__btn" disabled={working} onClick={() => onDisable(p)}>
-                  <Power size={12} />
-                  Disable
-                </button>
-              )}
-              {p.installed && p.policy === "off" && (
-                <button className="vx-plugins__btn" disabled={working} onClick={() => onEnable(p)}>
-                  <Power size={12} />
-                  Enable
-                </button>
-              )}
-              {p.installed && !pinned && (
-                <button
-                  className="vx-plugins__btn vx-plugins__btn--danger"
-                  disabled={working}
-                  onClick={() => onRemove(p)}
-                >
-                  <Trash2 size={12} />
-                  Remove
-                </button>
-              )}
-              {pinned && (
-                <span className="vx-plugins__note">
-                  Pinned by an administrator — change it with <code>vibecli plugin</code>.
-                </span>
-              )}
-            </footer>
-          </article>
-        );
-      })}
-    </div>
-  );
-}
-
-// ── Connectors ───────────────────────────────────────────────────────────────
-
-function ConnectorsTab({
-  connectors,
-  catalog,
-  catalogById,
-  configuredIds,
-  probes,
+function PluginRow({
+  item,
   busy,
   onAdd,
-  onToggle,
-  onRemove,
-  onProbe,
 }: {
-  connectors: Connector[] | null;
-  catalog: ConnectorSpec[] | null;
-  catalogById: Map<string, ConnectorSpec>;
-  configuredIds: ReadonlySet<string>;
-  probes: Record<string, ProbeRecord>;
-  busy: ReadonlySet<string>;
-  onAdd: (spec: ConnectorSpec, credentials: Record<string, string>) => void;
-  onToggle: (c: Connector) => void;
-  onRemove: (c: Connector) => void;
-  onProbe: (c: Connector) => void;
+  item: CatalogPlugin;
+  busy: boolean;
+  onAdd: () => void;
 }) {
-  if (connectors === null || catalog === null) return <div className="vx-files__empty">Loading…</div>;
-
-  const available = catalog.filter((c) => !configuredIds.has(c.id));
-
   return (
-    <>
-      <section className="vx-plugins__section">
-        <div className="vx-plugins__section-head">
-          <PlugZap size={13} />
-          <span className="vx-plugins__section-label">Configured</span>
-          <span className="vx-plugins__section-count">{connectors.length}</span>
-        </div>
-        <div className="vx-plugins__blurb">
-          MCP servers this workspace can talk to. Credentials are stored encrypted in the
-          workspace, never in a file. Reachable from <code>vibecli</code>&rsquo;s{" "}
-          <code>/mcp</code> command — agent runs do not use MCP tools yet.
-        </div>
-        {connectors.length === 0 && (
-          <div className="vx-plugins__note">None yet — add one below.</div>
-        )}
-        <div className="vx-plugins__cards">
-          {connectors.map((c) => (
-            <ConnectorRow
-              key={c.id}
-              connector={c}
-              spec={c.catalog_id ? catalogById.get(c.catalog_id) : undefined}
-              probe={probes[c.id]}
-              busy={busy.has(`connector:${c.id}`)}
-              onToggle={onToggle}
-              onRemove={onRemove}
-              onProbe={onProbe}
-            />
-          ))}
-        </div>
-      </section>
-
-      <section className="vx-plugins__section">
-        <div className="vx-plugins__section-head">
-          <Server size={13} />
-          <span className="vx-plugins__section-label">Available</span>
-          <span className="vx-plugins__section-count">{available.length}</span>
-        </div>
-        <div className="vx-plugins__blurb">
-          Adding one records the command and any credential. It does not check that the
-          server runs — press Test afterwards, which launches it for real.
-        </div>
-        <div className="vx-plugins__cards">
-          {available.map((spec) => (
-            <ConnectorOffer
-              key={spec.id}
-              spec={spec}
-              busy={busy.has(`connector:${spec.id}`)}
-              onAdd={onAdd}
-            />
-          ))}
-        </div>
-      </section>
-    </>
+    <div className="vx-market__row">
+      <Icon id={item.name} label={item.title} />
+      <div className="vx-market__row-text">
+        <div className="vx-market__row-title">{item.title}</div>
+        <div className="vx-market__row-desc">{item.description}</div>
+      </div>
+      {item.installed ? (
+        <span className="vx-market__added">
+          <Check size={14} /> Added
+        </span>
+      ) : (
+        <button className="vx-market__add" disabled={busy} onClick={onAdd}>
+          {busy ? <Loader2 size={13} className="vx-spin" /> : null}
+          Add
+        </button>
+      )}
+    </div>
   );
 }
 
 function ConnectorRow({
-  connector,
   spec,
-  probe,
+  added,
   busy,
-  onToggle,
-  onRemove,
-  onProbe,
+  formOpen,
+  draft,
+  onOpenForm,
+  onDraft,
+  onAdd,
 }: {
-  connector: Connector;
-  spec?: ConnectorSpec;
-  probe?: ProbeRecord;
+  spec: ConnectorSpec;
+  added: boolean;
   busy: boolean;
-  onToggle: (c: Connector) => void;
-  onRemove: (c: Connector) => void;
-  onProbe: (c: Connector) => void;
+  formOpen: boolean;
+  draft: Record<string, string>;
+  onOpenForm: () => void;
+  onDraft: (env: string, value: string) => void;
+  onAdd: () => void;
 }) {
-  const missing = connector.missing_credentials;
+  const incomplete = spec.credentials.some((f) => !(draft[f.env] ?? "").trim());
   return (
-    <article className="vx-plugins__card">
-      <header className="vx-plugins__card-head">
-        <span className="vx-plugins__card-title">{connector.title}</span>
-        <span className={`vx-plugins__policy vx-plugins__policy--${connector.enabled ? "on" : "off"}`}>
-          {connector.enabled ? "enabled" : "disabled"}
+    <div className={`vx-market__row${formOpen ? " is-expanded" : ""}`}>
+      <Icon id={spec.id} label={spec.title} />
+      <div className="vx-market__row-text">
+        <div className="vx-market__row-title">{spec.title}</div>
+        <div className="vx-market__row-desc">{spec.description}</div>
+
+        {formOpen && (
+          <div className="vx-market__form">
+            <code className="vx-market__cmd">
+              {spec.command} {spec.args.join(" ")}
+            </code>
+            {!spec.runtime_available && (
+              <div className="vx-market__warn">
+                <AlertTriangle size={12} />
+                <span>
+                  <code>{spec.runtime_program}</code> is not on this machine&rsquo;s PATH. You can
+                  add this now, but it will not start until that is installed.
+                </span>
+              </div>
+            )}
+            {spec.credentials.map((field) => (
+              <label key={field.env} className="vx-market__field">
+                <span className="vx-market__field-label">{field.label}</span>
+                <input
+                  type="password"
+                  autoComplete="off"
+                  placeholder={field.env}
+                  value={draft[field.env] ?? ""}
+                  onChange={(e) => onDraft(field.env, e.target.value)}
+                />
+                <span className="vx-market__field-help">{field.help}</span>
+              </label>
+            ))}
+            <div className="vx-market__form-actions">
+              <button className="vx-market__add" disabled={busy || incomplete} onClick={onAdd}>
+                {busy ? <Loader2 size={13} className="vx-spin" /> : null}
+                {spec.credentials.length > 0 ? "Save and add" : "Add"}
+              </button>
+              <a className="vx-market__docs" href={spec.docs_url} target="_blank" rel="noreferrer">
+                Docs
+              </a>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {added ? (
+        <span className="vx-market__added">
+          <Check size={14} /> Added
         </span>
-      </header>
-      <code className="vx-plugins__cmd">
-        {connector.command} {connector.args.join(" ")}
-      </code>
-
-      {missing.length > 0 && (
-        <div className="vx-plugins__warn">
-          <AlertTriangle size={12} />
-          Missing credential{missing.length === 1 ? "" : "s"}: {missing.join(", ")} — remove and
-          add it again to supply {missing.length === 1 ? "it" : "them"}.
-        </div>
+      ) : spec.credentials.length === 0 && !formOpen ? (
+        <button className="vx-market__add" disabled={busy} onClick={onAdd}>
+          {busy ? <Loader2 size={13} className="vx-spin" /> : null}
+          Add
+        </button>
+      ) : (
+        <button className="vx-market__add" onClick={onOpenForm}>
+          {formOpen ? "Cancel" : "Add"}
+        </button>
       )}
-
-      {spec && !spec.runtime_available && (
-        <div className="vx-plugins__warn">
-          <AlertTriangle size={12} />
-          <code>{spec.runtime_program}</code> is not on this machine&rsquo;s PATH, so this
-          connector cannot start until it is installed.
-        </div>
-      )}
-
-      <ProbeLine probe={probe} />
-
-      <footer className="vx-plugins__card-actions">
-        <button className="vx-plugins__btn" disabled={busy} onClick={() => onProbe(connector)}>
-          {busy ? <Loader2 size={12} className="vx-spin" /> : <PlugZap size={12} />}
-          Test
-        </button>
-        <button className="vx-plugins__btn" disabled={busy} onClick={() => onToggle(connector)}>
-          <Power size={12} />
-          {connector.enabled ? "Disable" : "Enable"}
-        </button>
-        <button
-          className="vx-plugins__btn vx-plugins__btn--danger"
-          disabled={busy}
-          onClick={() => onRemove(connector)}
-        >
-          <Trash2 size={12} />
-          Remove
-        </button>
-      </footer>
-    </article>
+    </div>
   );
 }
 
-/** The last measured outcome, or an explicit "not checked" — never a guess
- *  inferred from having a credential. */
-function ProbeLine({ probe }: { probe?: ProbeRecord }) {
-  if (!probe) {
-    return <div className="vx-plugins__note">Not checked yet.</div>;
+// ── Yours ────────────────────────────────────────────────────────────────────
+
+function YoursTab({
+  inventory,
+  catalog,
+  connectors,
+  probes,
+  busy,
+  onBrowse,
+  onEnable,
+  onDisable,
+  onRemovePlugin,
+  onToggleConnector,
+  onRemoveConnector,
+  onProbeConnector,
+}: {
+  inventory: Loaded<Inventory>;
+  catalog: Loaded<CatalogPlugin[]>;
+  connectors: Loaded<{ connectors: Connector[]; catalog: ConnectorSpec[] }>;
+  probes: Record<string, ProbeRecord>;
+  busy: ReadonlySet<string>;
+  onBrowse: () => void;
+  onEnable: (p: CatalogPlugin) => void;
+  onDisable: (p: CatalogPlugin) => void;
+  onRemovePlugin: (p: CatalogPlugin) => void;
+  onToggleConnector: (c: Connector) => void;
+  onRemoveConnector: (c: Connector) => void;
+  onProbeConnector: (c: Connector) => void;
+}) {
+  const installed = catalog.state === "ready" ? catalog.value.filter((p) => p.installed) : [];
+  const mine = connectors.state === "ready" ? connectors.value.connectors : [];
+  const specs = connectors.state === "ready" ? connectors.value.catalog : [];
+  const total = inventory.state === "ready" ? inventory.value.total : null;
+
+  if (installed.length === 0 && mine.length === 0 && catalog.state !== "loading") {
+    return (
+      <div className="vx-market__empty">
+        Nothing is extending the agent in this workspace yet.
+        <div className="vx-market__empty-sub">
+          The Marketplace has skills and rules that install in one click, and MCP servers you
+          can connect. Bundles built elsewhere still install with{" "}
+          <code>vibecli plugin install</code>.
+        </div>
+        <button className="vx-market__cta" onClick={onBrowse}>
+          Browse the marketplace
+        </button>
+      </div>
+    );
   }
-  const when = new Date(probe.checked_at).toLocaleTimeString();
-  switch (probe.result.state) {
+
+  return (
+    <>
+      {installed.length > 0 && (
+        <section className="vx-market__section">
+          <div className="vx-market__section-label">
+            Plugins
+            {total !== null && (
+              <span className="vx-market__section-count">
+                {total} live component{total === 1 ? "" : "s"}
+              </span>
+            )}
+          </div>
+          <div className="vx-market__list">
+            {installed.map((p) => {
+              const working = busy.has(`plugin:${p.name}`);
+              return (
+                <div key={p.name} className="vx-market__manage">
+                  <Icon id={p.name} label={p.title} />
+                  <div className="vx-market__row-text">
+                    <div className="vx-market__row-title">
+                      {p.title}
+                      <span className={`vx-market__pill vx-market__pill--${p.policy}`}>{p.policy}</span>
+                    </div>
+                    <div className="vx-market__row-desc">
+                      {p.components.map((c) => `${c.kind} · ${c.name}`).join("   ")}
+                    </div>
+                  </div>
+                  <div className="vx-market__actions">
+                    {p.policy === "required" ? (
+                      <span className="vx-market__note">
+                        Pinned by an administrator — change it with <code>vibecli plugin</code>.
+                      </span>
+                    ) : (
+                      <>
+                        <button
+                          className="vx-market__btn"
+                          disabled={working}
+                          onClick={() => (p.policy === "on" ? onDisable(p) : onEnable(p))}
+                        >
+                          {p.policy === "on" ? "Disable" : "Enable"}
+                        </button>
+                        <button
+                          className="vx-market__btn vx-market__btn--danger"
+                          disabled={working}
+                          onClick={() => onRemovePlugin(p)}
+                        >
+                          Remove
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {mine.length > 0 && (
+        <section className="vx-market__section">
+          <div className="vx-market__section-label">
+            Connectors
+            <span className="vx-market__section-count">
+              reachable from <code>vibecli</code>&rsquo;s <code>/mcp</code>; agent runs do not use
+              MCP tools yet
+            </span>
+          </div>
+          <div className="vx-market__list">
+            {mine.map((c) => {
+              const working = busy.has(`connector:${c.id}`);
+              const spec = c.catalog_id ? specs.find((s) => s.id === c.catalog_id) : undefined;
+              return (
+                <div key={c.id} className="vx-market__manage">
+                  <Icon id={c.id} label={c.title} />
+                  <div className="vx-market__row-text">
+                    <div className="vx-market__row-title">
+                      {c.title}
+                      <span className={`vx-market__pill vx-market__pill--${c.enabled ? "on" : "off"}`}>
+                        {c.enabled ? "enabled" : "disabled"}
+                      </span>
+                    </div>
+                    <code className="vx-market__cmd">
+                      {c.command} {c.args.join(" ")}
+                    </code>
+                    {c.missing_credentials.length > 0 && (
+                      <div className="vx-market__warn">
+                        <AlertTriangle size={12} />
+                        <span>
+                          Missing {c.missing_credentials.join(", ")} — remove and add it again to
+                          supply {c.missing_credentials.length === 1 ? "it" : "them"}.
+                        </span>
+                      </div>
+                    )}
+                    {spec && !spec.runtime_available && (
+                      <div className="vx-market__warn">
+                        <AlertTriangle size={12} />
+                        <span>
+                          <code>{spec.runtime_program}</code> is not on PATH, so this cannot start.
+                        </span>
+                      </div>
+                    )}
+                    <ProbeLine record={probes[c.id]} />
+                  </div>
+                  <div className="vx-market__actions">
+                    <button
+                      className="vx-market__btn"
+                      disabled={working}
+                      onClick={() => onProbeConnector(c)}
+                    >
+                      {working ? <Loader2 size={13} className="vx-spin" /> : null}
+                      Test
+                    </button>
+                    <button
+                      className="vx-market__btn"
+                      disabled={working}
+                      onClick={() => onToggleConnector(c)}
+                    >
+                      {c.enabled ? "Disable" : "Enable"}
+                    </button>
+                    <button
+                      className="vx-market__btn vx-market__btn--danger"
+                      disabled={working}
+                      onClick={() => onRemoveConnector(c)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {inventory.state === "error" && (
+        <div className="vx-market__error">
+          <AlertTriangle size={14} />
+          <span>Could not read what is live: {inventory.message}</span>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** The last measured outcome, or an explicit "not checked". Never a guess. */
+function ProbeLine({ record }: { record?: ProbeRecord }) {
+  if (!record) return <div className="vx-market__note">Not tested yet.</div>;
+  const when = new Date(record.checked_at).toLocaleTimeString();
+  switch (record.result.state) {
     case "ok":
       return (
-        <div className="vx-plugins__ok">
+        <div className="vx-market__ok">
           <Check size={12} />
-          Started at {when}: {probe.result.tools.length} tool
-          {probe.result.tools.length === 1 ? "" : "s"}
-          {probe.result.tools.length > 0 && ` — ${probe.result.tools.slice(0, 6).join(", ")}`}
-          {probe.result.tools.length > 6 && "…"}
+          <span>
+            Started at {when}: {record.result.tools.length} tool
+            {record.result.tools.length === 1 ? "" : "s"}
+            {record.result.tools.length > 0 && ` — ${record.result.tools.slice(0, 6).join(", ")}`}
+            {record.result.tools.length > 6 && "…"}
+          </span>
         </div>
       );
     case "timedout":
       return (
-        <div className="vx-plugins__warn">
+        <div className="vx-market__warn">
           <AlertTriangle size={12} />
-          Started but silent for {probe.result.after_secs}s (checked {when}).
+          <span>
+            Started but silent for {record.result.after_secs}s (checked {when}).
+          </span>
         </div>
       );
     case "failed":
       return (
-        <div className="vx-plugins__warn">
+        <div className="vx-market__warn">
           <AlertTriangle size={12} />
-          Failed at {when}: {probe.result.error}
+          <span>
+            Failed at {when}: {record.result.error}
+          </span>
         </div>
       );
   }
-}
-
-function ConnectorOffer({
-  spec,
-  busy,
-  onAdd,
-}: {
-  spec: ConnectorSpec;
-  busy: boolean;
-  onAdd: (spec: ConnectorSpec, credentials: Record<string, string>) => void;
-}) {
-  const [values, setValues] = useState<Record<string, string>>({});
-  const incomplete = spec.credentials.some((f) => !(values[f.env] ?? "").trim());
-
-  return (
-    <article className="vx-plugins__card">
-      <header className="vx-plugins__card-head">
-        <span className="vx-plugins__card-title">{spec.title}</span>
-        <span className="vx-plugins__card-version">{spec.runtime}</span>
-      </header>
-      <p className="vx-plugins__card-desc">{spec.description}</p>
-      <code className="vx-plugins__cmd">
-        {spec.command} {spec.args.join(" ")}
-      </code>
-
-      {!spec.runtime_available && (
-        <div className="vx-plugins__warn">
-          <AlertTriangle size={12} />
-          <code>{spec.runtime_program}</code> is not on PATH. You can still add this, but it
-          will not start until that is installed.
-        </div>
-      )}
-
-      {spec.credentials.map((field) => (
-        <label key={field.env} className="vx-plugins__field">
-          <span className="vx-plugins__field-label">{field.label}</span>
-          <input
-            type="password"
-            className="vx-plugins__input"
-            autoComplete="off"
-            value={values[field.env] ?? ""}
-            onChange={(e) => setValues((v) => ({ ...v, [field.env]: e.target.value }))}
-            placeholder={field.env}
-          />
-          <span className="vx-plugins__field-help">{field.help}</span>
-        </label>
-      ))}
-
-      <footer className="vx-plugins__card-actions">
-        <button
-          className="vx-plugins__btn"
-          disabled={busy || incomplete}
-          onClick={() => onAdd(spec, values)}
-        >
-          {busy ? <Loader2 size={12} className="vx-spin" /> : <Download size={12} />}
-          Add
-        </button>
-        <a
-          className="vx-plugins__btn vx-plugins__btn--link"
-          href={spec.docs_url}
-          target="_blank"
-          rel="noreferrer"
-        >
-          <ExternalLink size={12} />
-          Docs
-        </a>
-      </footer>
-    </article>
-  );
 }

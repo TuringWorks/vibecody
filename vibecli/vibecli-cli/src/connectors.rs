@@ -77,6 +77,10 @@ pub struct ConnectorSpec {
     pub id: &'static str,
     pub title: &'static str,
     pub description: &'static str,
+    /// Marketplace section this appears under. Free text rather than an enum:
+    /// the section list is presentation, and a new entry should not need a
+    /// type change and a frontend update to be filed somewhere sensible.
+    pub category: &'static str,
     pub runtime: Runtime,
     pub command: &'static str,
     pub args: &'static [&'static str],
@@ -86,11 +90,18 @@ pub struct ConnectorSpec {
 
 /// The connector catalog.
 ///
-/// Every entry launches a real, published MCP server. None of them is verified
-/// to work on this machine by being listed here — the package may not exist for
-/// the installed runtime, the version may have moved, the network may be down.
-/// That is what [`probe`] is for, and why nothing here reports a connector as
-/// working until it has been run.
+/// Every entry launches a real, published MCP server — the reference servers
+/// from `modelcontextprotocol/servers` plus this binary's own. None of them is
+/// verified to work on this machine by being listed here: the package may have
+/// moved, the runtime may be missing, the network may be down. That is what
+/// [`probe`] is for, and why nothing here reports a connector as working until
+/// it has been run.
+///
+/// Args may contain `{secret:NAME}`, resolved from the encrypted store at
+/// launch. That is how a connection string reaches a server that takes it as an
+/// argument without the string itself ever being stored in the definition —
+/// `postgres://user:password@host/db` is a credential wearing an argument's
+/// clothes.
 pub const CATALOG: &[ConnectorSpec] = &[
     ConnectorSpec {
         id: "vibecli",
@@ -98,17 +109,20 @@ pub const CATALOG: &[ConnectorSpec] = &[
         description: "This machine's own VibeCLI, exposed over MCP: file read/write, \
                       directory listing, shell, search and agent runs. No install and \
                       no credentials — it is the binary already running.",
+        category: "VibeCody",
         runtime: Runtime::Builtin,
         command: "vibecli",
         args: &["--mcp-server"],
         credentials: &[],
         docs_url: "https://github.com/TuringWorks/vibecody",
     },
+    // ── Files and code ───────────────────────────────────────────────────
     ConnectorSpec {
         id: "filesystem",
         title: "Filesystem",
-        description: "Read and write files under this workspace through the reference \
-                      filesystem MCP server. Scoped to the workspace root.",
+        description: "Read and write files under this workspace. Scoped to the \
+                      workspace root, so it cannot reach the rest of the disk.",
+        category: "Files And Code",
         runtime: Runtime::Npx,
         command: "npx",
         args: &[
@@ -122,8 +136,9 @@ pub const CATALOG: &[ConnectorSpec] = &[
     ConnectorSpec {
         id: "git",
         title: "Git",
-        description: "Inspect this repository's history, diffs and branches through the \
-                      reference git MCP server.",
+        description: "Read this repository's history, diffs, branches and blame \
+                      without shelling out.",
+        category: "Files And Code",
         runtime: Runtime::Uvx,
         command: "uvx",
         args: &["mcp-server-git", "--repository", WORKSPACE_PLACEHOLDER],
@@ -131,33 +146,11 @@ pub const CATALOG: &[ConnectorSpec] = &[
         docs_url: "https://github.com/modelcontextprotocol/servers",
     },
     ConnectorSpec {
-        id: "fetch",
-        title: "Fetch",
-        description: "Fetch a URL and convert it to Markdown. Reaches the network — \
-                      anything it retrieves is untrusted input.",
-        runtime: Runtime::Uvx,
-        command: "uvx",
-        args: &["mcp-server-fetch"],
-        credentials: &[],
-        docs_url: "https://github.com/modelcontextprotocol/servers",
-    },
-    ConnectorSpec {
-        id: "memory",
-        title: "Memory",
-        description: "A knowledge graph the model can write to and read back across \
-                      sessions, held in the reference memory MCP server.",
-        runtime: Runtime::Npx,
-        command: "npx",
-        args: &["-y", "@modelcontextprotocol/server-memory"],
-        credentials: &[],
-        docs_url: "https://github.com/modelcontextprotocol/servers",
-    },
-    ConnectorSpec {
         id: "github",
         title: "GitHub",
         description: "Issues, pull requests, code search and file contents on GitHub. \
-                      Needs a personal access token; the token is stored encrypted in \
-                      this workspace, never in a file.",
+                      The token is stored encrypted in this workspace, never in a file.",
+        category: "Files And Code",
         runtime: Runtime::Npx,
         command: "npx",
         args: &["-y", "@modelcontextprotocol/server-github"],
@@ -167,6 +160,224 @@ pub const CATALOG: &[ConnectorSpec] = &[
             help: "github.com → Settings → Developer settings → Personal access tokens. \
                    Grant only the scopes you want the agent to have.",
         }],
+        docs_url: "https://github.com/modelcontextprotocol/servers",
+    },
+    ConnectorSpec {
+        id: "gitlab",
+        title: "GitLab",
+        description: "Projects, issues, merge requests and file contents on GitLab, \
+                      including a self-hosted instance.",
+        category: "Files And Code",
+        runtime: Runtime::Npx,
+        command: "npx",
+        args: &["-y", "@modelcontextprotocol/server-gitlab"],
+        credentials: &[
+            CredentialField {
+                env: "GITLAB_PERSONAL_ACCESS_TOKEN",
+                label: "Personal access token",
+                help: "GitLab → Preferences → Access tokens, with the `api` scope.",
+            },
+            CredentialField {
+                env: "GITLAB_API_URL",
+                label: "API URL",
+                help: "https://gitlab.com/api/v4 for gitlab.com, or your instance's \
+                       equivalent.",
+            },
+        ],
+        docs_url: "https://github.com/modelcontextprotocol/servers",
+    },
+    // ── Web and search ───────────────────────────────────────────────────
+    ConnectorSpec {
+        id: "fetch",
+        title: "Fetch",
+        description: "Retrieve a URL and convert it to Markdown. Reaches the network — \
+                      whatever it returns is untrusted input.",
+        category: "Web And Search",
+        runtime: Runtime::Uvx,
+        command: "uvx",
+        args: &["mcp-server-fetch"],
+        credentials: &[],
+        docs_url: "https://github.com/modelcontextprotocol/servers",
+    },
+    ConnectorSpec {
+        id: "brave-search",
+        title: "Brave Search",
+        description: "Web and local search through Brave's API, for questions the \
+                      model cannot answer from the repository.",
+        category: "Web And Search",
+        runtime: Runtime::Npx,
+        command: "npx",
+        args: &["-y", "@modelcontextprotocol/server-brave-search"],
+        credentials: &[CredentialField {
+            env: "BRAVE_API_KEY",
+            label: "API key",
+            help: "brave.com/search/api — the free tier is enough for occasional use.",
+        }],
+        docs_url: "https://github.com/modelcontextprotocol/servers",
+    },
+    ConnectorSpec {
+        id: "puppeteer",
+        title: "Puppeteer",
+        description: "Drive a headless browser: navigate, click, fill forms and \
+                      screenshot. Launches Chromium on this machine.",
+        category: "Web And Search",
+        runtime: Runtime::Npx,
+        command: "npx",
+        args: &["-y", "@modelcontextprotocol/server-puppeteer"],
+        credentials: &[],
+        docs_url: "https://github.com/modelcontextprotocol/servers",
+    },
+    ConnectorSpec {
+        id: "google-maps",
+        title: "Google Maps",
+        description: "Geocoding, places, directions and distance matrix through the \
+                      Google Maps Platform.",
+        category: "Web And Search",
+        runtime: Runtime::Npx,
+        command: "npx",
+        args: &["-y", "@modelcontextprotocol/server-google-maps"],
+        credentials: &[CredentialField {
+            env: "GOOGLE_MAPS_API_KEY",
+            label: "API key",
+            help: "Google Cloud console → APIs & Services → Credentials, with the \
+                   Maps Platform APIs you need enabled.",
+        }],
+        docs_url: "https://github.com/modelcontextprotocol/servers",
+    },
+    // ── Databases ────────────────────────────────────────────────────────
+    ConnectorSpec {
+        id: "postgres",
+        title: "PostgreSQL",
+        description: "Read-only schema inspection and queries against a Postgres \
+                      database. The connection string is stored encrypted.",
+        category: "Databases",
+        runtime: Runtime::Npx,
+        command: "npx",
+        args: &[
+            "-y",
+            "@modelcontextprotocol/server-postgres",
+            // Substituted from the encrypted store at launch: the string carries
+            // the password, so it must not sit in the connector definition.
+            "{secret:POSTGRES_URL}",
+        ],
+        credentials: &[CredentialField {
+            env: "POSTGRES_URL",
+            label: "Connection string",
+            help: "postgresql://user:password@host:5432/database — point it at a \
+                   read-only role if you have one.",
+        }],
+        docs_url: "https://github.com/modelcontextprotocol/servers",
+    },
+    ConnectorSpec {
+        id: "sqlite",
+        title: "SQLite",
+        description: "Query and inspect a SQLite database file on this machine.",
+        category: "Databases",
+        runtime: Runtime::Uvx,
+        command: "uvx",
+        args: &["mcp-server-sqlite", "--db-path", "{secret:SQLITE_DB_PATH}"],
+        credentials: &[CredentialField {
+            env: "SQLITE_DB_PATH",
+            label: "Database path",
+            help: "Absolute path to the .db file. Stored with the other workspace \
+                   secrets so it travels with the connector, not in a config file.",
+        }],
+        docs_url: "https://github.com/modelcontextprotocol/servers",
+    },
+    // ── Agent memory ─────────────────────────────────────────────────────
+    ConnectorSpec {
+        id: "memory",
+        title: "Memory",
+        description: "A knowledge graph the model can write to and read back across \
+                      sessions.",
+        category: "Agent Memory",
+        runtime: Runtime::Npx,
+        command: "npx",
+        args: &["-y", "@modelcontextprotocol/server-memory"],
+        credentials: &[],
+        docs_url: "https://github.com/modelcontextprotocol/servers",
+    },
+    ConnectorSpec {
+        id: "sequential-thinking",
+        title: "Sequential Thinking",
+        description: "A scratchpad for multi-step reasoning the model can revise as \
+                      it goes, rather than committing to its first plan.",
+        category: "Agent Memory",
+        runtime: Runtime::Npx,
+        command: "npx",
+        args: &["-y", "@modelcontextprotocol/server-sequential-thinking"],
+        credentials: &[],
+        docs_url: "https://github.com/modelcontextprotocol/servers",
+    },
+    // ── Collaboration and observability ──────────────────────────────────
+    ConnectorSpec {
+        id: "slack",
+        title: "Slack",
+        description: "Read channels and threads, post messages, and look up users in \
+                      a Slack workspace.",
+        category: "Inbox And Collaboration",
+        runtime: Runtime::Npx,
+        command: "npx",
+        args: &["-y", "@modelcontextprotocol/server-slack"],
+        credentials: &[
+            CredentialField {
+                env: "SLACK_BOT_TOKEN",
+                label: "Bot token",
+                help: "A `xoxb-` token from your Slack app's OAuth & Permissions page.",
+            },
+            CredentialField {
+                env: "SLACK_TEAM_ID",
+                label: "Team ID",
+                help: "The `T…` workspace id, from the Slack admin URL.",
+            },
+        ],
+        docs_url: "https://github.com/modelcontextprotocol/servers",
+    },
+    ConnectorSpec {
+        id: "sentry",
+        title: "Sentry",
+        description: "Pull an issue's stack trace, breadcrumbs and frequency straight \
+                      into the conversation.",
+        category: "Observability",
+        runtime: Runtime::Uvx,
+        command: "uvx",
+        args: &[
+            "mcp-server-sentry",
+            "--auth-token",
+            "{secret:SENTRY_AUTH_TOKEN}",
+        ],
+        credentials: &[CredentialField {
+            env: "SENTRY_AUTH_TOKEN",
+            label: "Auth token",
+            help: "Sentry → Settings → Auth Tokens, with `project:read` and \
+                   `event:read`.",
+        }],
+        docs_url: "https://github.com/modelcontextprotocol/servers",
+    },
+    // ── Utilities ────────────────────────────────────────────────────────
+    ConnectorSpec {
+        id: "time",
+        title: "Time And Timezones",
+        description: "Current time and timezone conversion — the two things a model \
+                      cannot work out for itself and routinely guesses wrong.",
+        category: "Utilities",
+        runtime: Runtime::Uvx,
+        command: "uvx",
+        args: &["mcp-server-time"],
+        credentials: &[],
+        docs_url: "https://github.com/modelcontextprotocol/servers",
+    },
+    ConnectorSpec {
+        id: "everything",
+        title: "Everything (test server)",
+        description: "The reference server that exercises every part of the protocol. \
+                      Useful for checking that MCP works here at all before blaming a \
+                      real connector.",
+        category: "Utilities",
+        runtime: Runtime::Npx,
+        command: "npx",
+        args: &["-y", "@modelcontextprotocol/server-everything"],
+        credentials: &[],
         docs_url: "https://github.com/modelcontextprotocol/servers",
     },
 ];
@@ -382,6 +593,21 @@ pub fn missing_credentials(store: &WorkspaceStore, c: &Connector) -> Result<Vec<
         .collect())
 }
 
+/// Substitute `{secret:NAME}` in one argument from the resolved secrets.
+///
+/// A missing secret leaves the placeholder verbatim rather than blanking it.
+/// The server then fails with `{secret:POSTGRES_URL}` in its message — which
+/// names the problem — where an empty argument fails with something about
+/// malformed connection strings, and a plausible default would fail by quietly
+/// connecting somewhere nobody asked for.
+fn substitute_secrets(arg: &str, secrets: &HashMap<String, String>) -> String {
+    let mut out = arg.to_string();
+    for (name, value) in secrets {
+        out = out.replace(&format!("{{secret:{name}}}"), value);
+    }
+    out
+}
+
 /// Build launchable MCP configs for every enabled connector.
 ///
 /// Credentials are decrypted here and nowhere else. A connector whose secret
@@ -408,7 +634,7 @@ pub fn resolve_mcp_configs(
             args: c
                 .args
                 .iter()
-                .map(|a| a.replace(WORKSPACE_PLACEHOLDER, &workspace))
+                .map(|a| substitute_secrets(&a.replace(WORKSPACE_PLACEHOLDER, &workspace), &env))
                 .collect(),
             env,
         });
@@ -780,6 +1006,81 @@ mod tests {
             matches!(result, ProbeResult::Failed { .. }),
             "{result:?} — a server that cannot start is not working"
         );
+    }
+
+    #[test]
+    fn an_argument_secret_is_substituted_at_launch_and_never_stored() {
+        // Postgres takes its connection string as an argument, and the string
+        // carries the password. It must reach the process without ever sitting
+        // in the connector definition.
+        let (dir, store) = temp_store();
+        let url = "postgresql://app:FIXTURE-PW@db.internal:5432/widgets";
+        add_from_catalog(&store, "postgres", &creds(&[("POSTGRES_URL", url)]), 0).expect("add");
+
+        let raw = store
+            .setting_get(SETTING_KEY)
+            .expect("setting")
+            .expect("present");
+        assert!(
+            !raw.contains("FIXTURE-PW"),
+            "the password was stored in the clear: {raw}"
+        );
+        assert!(raw.contains("{secret:POSTGRES_URL}"), "{raw}");
+
+        let cfg = &resolve_mcp_configs(dir.path(), &store).expect("resolve")[0];
+        assert!(cfg.args.iter().any(|a| a == url), "{:?}", cfg.args);
+    }
+
+    #[test]
+    fn a_missing_argument_secret_leaves_the_placeholder_rather_than_blanking_it() {
+        let (dir, store) = temp_store();
+        add_from_catalog(
+            &store,
+            "sqlite",
+            &creds(&[("SQLITE_DB_PATH", "/tmp/x.db")]),
+            0,
+        )
+        .expect("add");
+        store
+            .secret_delete(&secret_key("sqlite", "SQLITE_DB_PATH"))
+            .expect("delete");
+
+        let cfg = &resolve_mcp_configs(dir.path(), &store).expect("resolve")[0];
+        assert!(
+            cfg.args.iter().any(|a| a == "{secret:SQLITE_DB_PATH}"),
+            "an unresolved secret must name itself in the failure, not vanish: {:?}",
+            cfg.args
+        );
+    }
+
+    #[test]
+    fn every_catalog_entry_is_filed_under_a_category() {
+        // The marketplace groups by this. An entry with no category would land
+        // in a section named after nothing and be impossible to find.
+        for c in CATALOG {
+            assert!(!c.category.trim().is_empty(), "{} has no category", c.id);
+        }
+    }
+
+    #[test]
+    fn an_argument_placeholder_has_a_credential_that_fills_it() {
+        // A `{secret:NAME}` with no matching credential field can never be
+        // filled: the panel would not prompt for it, and the server would
+        // launch with the literal placeholder every time.
+        for c in CATALOG {
+            for arg in c.args {
+                let Some(rest) = arg.strip_prefix("{secret:") else {
+                    continue;
+                };
+                let name = rest.trim_end_matches('}');
+                assert!(
+                    c.credentials.iter().any(|f| f.env == name),
+                    "{}: `{}` is never prompted for",
+                    c.id,
+                    name
+                );
+            }
+        }
     }
 
     #[test]

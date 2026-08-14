@@ -3321,6 +3321,7 @@ async fn vibedesk_plugin_catalog(
                     "title": p.title,
                     "version": p.version,
                     "description": p.description,
+                    "category": p.category,
                     "components": p.components.iter().map(|c| serde_json::json!({
                         "kind": c.kind(),
                         "name": c.name(),
@@ -3504,6 +3505,7 @@ async fn vibedesk_connectors(
                     "id": c.id,
                     "title": c.title,
                     "description": c.description,
+                    "category": c.category,
                     "command": c.command,
                     "args": c.args,
                     "runtime": c.runtime,
