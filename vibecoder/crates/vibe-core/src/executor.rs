@@ -34,6 +34,137 @@ impl CommandExecutor {
         Ok(output)
     }
 
+    /// Execute a shell command, killing it once it goes quiet or outlives the
+    /// hard cap.
+    ///
+    /// `execute_in` waits forever, so an agent that starts a server — `python3
+    /// server.py`, `npm run dev` — pins the whole run: the tool call never
+    /// returns, the loop never takes another turn, and every watchdog that
+    /// checks between turns becomes unreachable. Observed directly: greenfield
+    /// runs that had already built a complete, working application sat until
+    /// the harness killed them, four times in five.
+    ///
+    /// The bound is on **idle time, not total time**, because that is what
+    /// actually separates the two cases. A build or a test suite emits output
+    /// continuously; a server prints its startup line and then goes silent. A
+    /// flat total limit has to choose between killing real builds (this
+    /// workspace's `cargo build` takes nine minutes) and leaving a hang to
+    /// burn most of a run. Idle time needs no such compromise. `hard_cap`
+    /// remains as a backstop for a command that is both endless and chatty.
+    pub fn execute_in_bounded(
+        command: &str,
+        cwd: &Path,
+        idle_limit: std::time::Duration,
+        hard_cap: std::time::Duration,
+    ) -> Result<Output> {
+        use std::io::Read;
+        use std::sync::atomic::{AtomicU64, Ordering};
+        use std::sync::{Arc, Mutex};
+
+        let mut child = if cfg!(target_os = "windows") {
+            Command::new("cmd")
+                .args(["/C", command])
+                .current_dir(cwd)
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped())
+                .spawn()?
+        } else {
+            Command::new("sh")
+                .arg("-c")
+                .arg(command)
+                .current_dir(cwd)
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::piped())
+                .spawn()?
+        };
+
+        let started = std::time::Instant::now();
+        // Milliseconds since `started` at which output was last seen.
+        let last_output_ms = Arc::new(AtomicU64::new(0));
+        let stdout_buf = Arc::new(Mutex::new(Vec::new()));
+        let stderr_buf = Arc::new(Mutex::new(Vec::new()));
+
+        let mut readers = Vec::new();
+        for (pipe, buf) in [
+            (
+                child.stdout.take().map(|p| Box::new(p) as Box<dyn Read + Send>),
+                Arc::clone(&stdout_buf),
+            ),
+            (
+                child.stderr.take().map(|p| Box::new(p) as Box<dyn Read + Send>),
+                Arc::clone(&stderr_buf),
+            ),
+        ] {
+            let Some(mut pipe) = pipe else { continue };
+            let stamp = Arc::clone(&last_output_ms);
+            readers.push(std::thread::spawn(move || {
+                let mut chunk = [0u8; 8192];
+                loop {
+                    match pipe.read(&mut chunk) {
+                        Ok(0) | Err(_) => return,
+                        Ok(n) => {
+                            stamp.store(started.elapsed().as_millis() as u64, Ordering::Relaxed);
+                            if let Ok(mut b) = buf.lock() {
+                                b.extend_from_slice(&chunk[..n]);
+                            }
+                        }
+                    }
+                }
+            }));
+        }
+
+        let collect = |stdout_buf: &Arc<Mutex<Vec<u8>>>, stderr_buf: &Arc<Mutex<Vec<u8>>>| {
+            (
+                stdout_buf.lock().map(|b| b.clone()).unwrap_or_default(),
+                stderr_buf.lock().map(|b| b.clone()).unwrap_or_default(),
+            )
+        };
+
+        loop {
+            if let Some(status) = child.try_wait()? {
+                for r in readers {
+                    let _ = r.join();
+                }
+                let (stdout, stderr) = collect(&stdout_buf, &stderr_buf);
+                return Ok(Output {
+                    status,
+                    stdout,
+                    stderr,
+                });
+            }
+
+            let idle = started
+                .elapsed()
+                .saturating_sub(std::time::Duration::from_millis(
+                    last_output_ms.load(Ordering::Relaxed),
+                ));
+            let expired = idle >= idle_limit || started.elapsed() >= hard_cap;
+            if expired {
+                let _ = child.kill();
+                let _ = child.wait();
+                let (stdout, mut stderr) = collect(&stdout_buf, &stderr_buf);
+                stderr.extend_from_slice(
+                    format!(
+                        "\n[command produced no output for {}s and was terminated after {}s. \
+                         If this is a server or another long-running process, start it in the \
+                         background instead — `<command> &` — so the session can continue.]",
+                        idle.as_secs(),
+                        started.elapsed().as_secs()
+                    )
+                    .as_bytes(),
+                );
+                // Non-zero: reporting success here would tell the agent its
+                // server had exited cleanly.
+                return Ok(Output {
+                    status: failed_status(),
+                    stdout,
+                    stderr,
+                });
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+    }
+
     /// Execute inside an OS-level sandbox when possible.
     ///
     /// - **macOS**: uses `sandbox-exec` with a restrictive profile that denies
@@ -354,5 +485,101 @@ mod tests {
         };
         let s = CommandExecutor::output_to_string(&output);
         assert_eq!(s, "[no output]");
+    }
+}
+
+/// A non-zero `ExitStatus` for commands we terminated ourselves.
+fn failed_status() -> std::process::ExitStatus {
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt;
+        std::process::ExitStatus::from_raw(9)
+    }
+    #[cfg(not(unix))]
+    {
+        // Any non-zero code; the message in stderr carries the detail.
+        std::process::Command::new("cmd")
+            .args(["/C", "exit 1"])
+            .status()
+            .unwrap_or_default()
+    }
+}
+
+#[cfg(test)]
+mod bounded_tests {
+    use super::*;
+    use std::time::Duration;
+
+    #[test]
+    fn a_command_that_finishes_returns_its_output() {
+        let out = CommandExecutor::execute_in_bounded(
+            "echo hello",
+            std::path::Path::new("."),
+            Duration::from_secs(10),
+            Duration::from_secs(30),
+        )
+        .expect("should run");
+        assert!(out.status.success());
+        assert!(String::from_utf8_lossy(&out.stdout).contains("hello"));
+    }
+
+    #[test]
+    fn a_silent_command_is_killed_and_reported_as_failed() {
+        // The shape that pinned entire agent runs: a server started in the
+        // foreground never returns, so the tool call never returned either.
+        let start = std::time::Instant::now();
+        let out = CommandExecutor::execute_in_bounded(
+            "sleep 30",
+            std::path::Path::new("."),
+            Duration::from_secs(1),
+            Duration::from_secs(60),
+        )
+        .expect("should return rather than hang");
+        assert!(
+            start.elapsed() < Duration::from_secs(10),
+            "must not wait for the child"
+        );
+        assert!(!out.status.success(), "an abandoned command is not a success");
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        assert!(stderr.contains("no output"), "{stderr}");
+        assert!(
+            stderr.contains("background"),
+            "should tell the agent what to do instead"
+        );
+    }
+
+    #[test]
+    fn a_slow_but_talking_command_is_not_killed() {
+        // The whole reason the bound is on idle time rather than total time: a
+        // build or test suite runs long *and* keeps printing. A flat total
+        // limit would have to choose between killing those and letting a hang
+        // burn most of a run.
+        let out = CommandExecutor::execute_in_bounded(
+            "for i in 1 2 3 4 5 6; do echo tick; sleep 0.4; done",
+            std::path::Path::new("."),
+            Duration::from_secs(2),
+            Duration::from_secs(60),
+        )
+        .expect("should run");
+        assert!(
+            out.status.success(),
+            "a command that keeps producing output must survive an idle bound: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        assert_eq!(String::from_utf8_lossy(&out.stdout).matches("tick").count(), 6);
+    }
+
+    #[test]
+    fn an_endless_but_chatty_command_still_hits_the_hard_cap() {
+        let start = std::time::Instant::now();
+        let out = CommandExecutor::execute_in_bounded(
+            "while true; do echo noise; sleep 0.1; done",
+            std::path::Path::new("."),
+            Duration::from_secs(30),
+            Duration::from_secs(2),
+        )
+        .expect("should return");
+        assert!(start.elapsed() < Duration::from_secs(20));
+        assert!(!out.status.success());
     }
 }

@@ -80,6 +80,19 @@ pub struct ShellEnvPolicy {
     pub set: HashMap<String, String>,
 }
 
+/// How long a `bash` tool call may go **silent** before it is killed.
+///
+/// The bound is on idle time, not total time. A build or test suite runs long
+/// and keeps printing; a server prints its startup line and then goes quiet
+/// forever. A flat total limit would have to choose between killing real
+/// builds — `cargo build` on this workspace takes nine minutes — and letting a
+/// hung server burn most of a run. Idle time separates them cleanly.
+const BASH_IDLE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(90);
+
+/// Backstop for a command that is endless *and* chatty (`tail -f`, a watch
+/// loop). Long enough that no honest build reaches it.
+const BASH_HARD_CAP: std::time::Duration = std::time::Duration::from_secs(900);
+
 impl ShellEnvPolicy {
     /// Build the environment map for a subprocess.
     pub fn build_env(&self) -> HashMap<String, String> {
@@ -786,7 +799,16 @@ impl ToolExecutor {
                     .output()
                     .map_err(anyhow::Error::from)
             } else {
-                CommandExecutor::execute_in(&owned_command, &owned_cwd)
+                // Bounded. An unbounded wait here pinned the entire agent run
+                // whenever the model started a server — the tool call never
+                // returned, so the loop never took another turn and every
+                // between-turn watchdog was unreachable.
+                CommandExecutor::execute_in_bounded(
+                    &owned_command,
+                    &owned_cwd,
+                    BASH_IDLE_TIMEOUT,
+                    BASH_HARD_CAP,
+                )
             }
         })
         .await

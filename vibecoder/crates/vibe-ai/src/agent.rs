@@ -721,6 +721,12 @@ fn is_retryable_error(error: &str) -> bool {
 /// waiting. What this catches is the unbounded case — silence forever.
 pub const DEFAULT_STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(180);
 
+/// Ceiling on a single streamed response.
+///
+/// Generous — a long file or a careful explanation can legitimately take
+/// minutes — but finite, so one runaway generation cannot consume a run.
+pub const DEFAULT_MAX_TURN_DURATION: Duration = Duration::from_secs(240);
+
 /// Build the brief handed to a successor agent when a degrading one is retired.
 ///
 /// Deliberately thin. Everything here is read off the run that actually
@@ -920,6 +926,14 @@ pub struct AgentLoop {
     /// every thread parked, well past the provider's own 300 s timeout, which
     /// never fired.
     pub stream_idle_timeout: Duration,
+    /// Ceiling on how long a single response may stream.
+    ///
+    /// Distinct from `stream_idle_timeout`, which bounds the gap *between*
+    /// chunks. A model that keeps talking satisfies the idle bound forever, so
+    /// without this a single generation can spend the whole run — and because
+    /// the turn never completes, nothing that checks between turns can
+    /// intervene.
+    pub max_turn_duration: Duration,
     /// Enable circuit breaker for stall/spin/degradation detection.
     pub circuit_breaker_enabled: bool,
     /// Enable pre-completion double-check (re-read files, run build, run tests).
@@ -994,6 +1008,7 @@ impl AgentLoop {
             policy: AdminPolicy::default(),
             max_context_tokens: None,
             stream_idle_timeout: DEFAULT_STREAM_IDLE_TIMEOUT,
+            max_turn_duration: DEFAULT_MAX_TURN_DURATION,
             circuit_breaker_enabled: true,
             double_check_enabled: false,
             atomic_commits: false,
@@ -1577,7 +1592,28 @@ impl AgentLoop {
                     // provider's own timeout does not reach here (see
                     // `stream_idle_timeout`).
                     let idle_limit = self.stream_idle_timeout;
+                    // A *total* bound as well as the per-chunk one. The idle
+                    // timeout only catches a stream that goes silent; a model
+                    // that keeps emitting never trips it, so one unbounded
+                    // generation can consume an entire run. Observed: three
+                    // greenfield runs produced a single continuous stream of
+                    // planning prose for 900s — no tool call, not even a
+                    // closed <thinking> tag — and were killed mid-word. The
+                    // turn never ended, so every between-turn watchdog was
+                    // unreachable.
+                    let turn_started = std::time::Instant::now();
                     loop {
+                        if turn_started.elapsed() > self.max_turn_duration {
+                            tracing::warn!(
+                                secs = turn_started.elapsed().as_secs(),
+                                chars = accumulated.len(),
+                                "One response exceeded the per-turn limit — cutting it off"
+                            );
+                            // Kept, not discarded: the partial text becomes an
+                            // ordinary prose turn, which the re-prompt and the
+                            // stall walls already know how to handle.
+                            break;
+                        }
                         let next = match tokio::time::timeout(idle_limit, stream.next()).await {
                             Ok(next) => next,
                             Err(_) => {
@@ -4841,6 +4877,33 @@ mod circuit_breaker_tests {
             .with_circuit_breaker(false);
         assert_eq!(agent.max_context_tokens, Some(50_000));
         assert!(!agent.circuit_breaker_enabled);
+    }
+
+    #[test]
+    fn a_single_response_has_a_ceiling_as_well_as_an_idle_bound() {
+        // The two bound different failure modes and neither substitutes for
+        // the other: `stream_idle_timeout` catches a provider that goes
+        // silent, `max_turn_duration` catches a model that will not stop
+        // talking. Three greenfield runs streamed planning prose for 900s
+        // without one tool call, satisfying the idle bound the whole way.
+        let provider: Arc<dyn crate::provider::AIProvider> =
+            Arc::new(crate::providers::ollama::OllamaProvider::new(
+                crate::provider::ProviderConfig::default(),
+            ));
+        let exec: Arc<dyn ToolExecutorTrait> = Arc::new(DummyExecutor);
+        let agent = AgentLoop::new(provider, ApprovalPolicy::Suggest, exec);
+
+        assert_eq!(agent.stream_idle_timeout, DEFAULT_STREAM_IDLE_TIMEOUT);
+        assert_eq!(agent.max_turn_duration, DEFAULT_MAX_TURN_DURATION);
+        assert!(
+            agent.max_turn_duration > agent.stream_idle_timeout,
+            "a turn must be allowed to outlast a single quiet gap, or a slow \
+             provider would be cut off mid-answer"
+        );
+        assert!(
+            agent.max_turn_duration.as_secs() > 0,
+            "an unbounded turn is what let one generation consume a whole run"
+        );
     }
 
     #[test]
