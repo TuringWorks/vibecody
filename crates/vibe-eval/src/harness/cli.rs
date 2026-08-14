@@ -86,12 +86,26 @@ impl Harness for CliHarness {
 
     fn describe(&self) -> String {
         let model = self.config.model.as_deref().unwrap_or("(provider default)");
-        format!(
-            "cli {} · provider={} model={}",
-            self.config.binary.display(),
-            self.config.provider,
-            model
-        )
+        // Report the binary that will actually run, not the name that was
+        // asked for. The bare default resolves off PATH, so an installed copy
+        // shadows the checkout silently: two rounds of stall measurements here
+        // scored a binary two days older than the fix under test and read as
+        // "the fix does not work". A report that cannot say what it measured
+        // is not evidence, and the resolved path is the only thing that
+        // distinguishes the two.
+        let binary = match self.resolve_binary() {
+            Some(path) => {
+                let from_path = self.config.binary.components().count() == 1
+                    && !self.config.binary.is_absolute();
+                if from_path {
+                    format!("{} (resolved on PATH)", path.display())
+                } else {
+                    path.display().to_string()
+                }
+            }
+            None => format!("{} (unresolved)", self.config.binary.display()),
+        };
+        format!("cli {} · provider={} model={}", binary, self.config.provider, model)
     }
 
     async fn preflight(&self) -> Preflight {
@@ -592,6 +606,36 @@ mod tests {
             }
             Preflight::Ready => panic!("should not be ready"),
         }
+    }
+
+    #[test]
+    fn describe_names_the_resolved_binary_not_the_requested_one() {
+        // An explicit path is echoed back absolute…
+        let dir = tempfile::tempdir().expect("tempdir");
+        let bin = dir.path().join("vibecli");
+        std::fs::write(&bin, "#!/bin/sh\n").expect("write");
+        let h = CliHarness::new(CliConfig {
+            binary: bin.clone(),
+            ..CliConfig::default()
+        });
+        let described = h.describe();
+        assert!(
+            described.contains(&bin.canonicalize().unwrap().display().to_string()),
+            "explicit path should appear in full: {described}"
+        );
+        assert!(!described.contains("resolved on PATH"), "{described}");
+
+        // …and a bare name says so, because that is the case where an
+        // installed copy can silently shadow the checkout under test.
+        let bare = CliHarness::new(CliConfig {
+            binary: PathBuf::from("vibecli-not-installed-xyzzy"),
+            ..CliConfig::default()
+        });
+        assert!(
+            bare.describe().contains("unresolved"),
+            "a name that resolves to nothing must not read as a real binary: {}",
+            bare.describe()
+        );
     }
 
     #[test]
