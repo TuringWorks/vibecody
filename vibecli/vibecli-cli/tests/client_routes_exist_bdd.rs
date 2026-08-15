@@ -66,7 +66,15 @@ fn normalise(path: &str) -> String {
     let p = dollar.replace_all(&p, "{}");
     let p = colon.replace_all(&p, "{}");
     let p = p.trim_end_matches('/').to_string();
-    let p = p.strip_suffix("{}").unwrap_or(&p).trim_end_matches('/').to_string();
+    // A trailing hole is a query suffix only when it was glued straight onto a
+    // segment (`${base}/v1/goals${qs}`). After a slash it is a real parameter
+    // segment — `/stream/{session_id}` is a route, and stripping it collapsed
+    // that to `/stream`, which would have matched nothing and reported a bug
+    // in the daemon that did not exist.
+    let p = match p.strip_suffix("{}") {
+        Some(head) if !head.ends_with('/') => head.trim_end_matches('/').to_string(),
+        _ => p,
+    };
     if p.is_empty() { "/".to_string() } else { p }
 }
 
@@ -128,10 +136,38 @@ fn called_paths(client: &Client, router: &Router) -> HashSet<String> {
     let declaration = Regex::new(r#"\.route\(\s*"[^"]+""#).unwrap();
     let text = declaration.replace_all(&text, "");
 
+    // Anchored at the quote so the path slice of an absolute URL cannot match:
+    // `https://api.line.me/v2/...` and `https://discord.com/api/v10/...` are
+    // third-party endpoints this client also talks to, and their `/api/...`
+    // tail was being read as a daemon route that does not exist.
     let literal = Regex::new(r#"[`"'](?:\$\{[^}]*\})?(/[A-Za-z0-9/_{}$.:%-]*)[`"']"#).unwrap();
-    literal
-        .captures_iter(&text)
-        .map(|c| c[1].to_string())
+
+    // A daemon call goes through one of these. Requiring a marker nearby is
+    // what separates a real call from a path that merely looks like one — and
+    // VibeCoder is full of the latter: it *generates* scaffolding, so its
+    // command file contains `app.get('/api/users', handler)` and
+    // `VITE_API_URL || '/api'` as string data. Those are code samples the app
+    // writes into a new project, not routes it calls, and every earlier
+    // version of this scan reported them as missing daemon routes.
+    const MARKERS: &[&str] = &[
+        "daemon_get", "daemon_post", "daemon_delete",
+        "baseUrl", "base_url", "authedFetch", "daemonFetch",
+        "send_authed", "reqwest", "http.get", "http.post", "_request",
+    ];
+
+    text.lines()
+        .enumerate()
+        .flat_map(|(i, line)| {
+            // The URL is regularly on its own line, one or two below the call.
+            let start = i.saturating_sub(2);
+            let window: String = text.lines().skip(start).take(i - start + 1).collect::<Vec<_>>().join("\n");
+            let near_call = MARKERS.iter().any(|m| window.contains(m));
+            literal
+                .captures_iter(line)
+                .map(|c| c[1].to_string())
+                .filter(move |_| near_call)
+                .collect::<Vec<_>>()
+        })
         .filter(|p| {
             p.split('/')
                 .nth(1)
