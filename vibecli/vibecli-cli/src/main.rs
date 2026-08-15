@@ -2319,6 +2319,8 @@ fn build_worker_agent_context(
     // the dir-tree in the system prompt. None when no graph handle is init'd
     // (e.g. a worker subprocess) — falls back to the dir-tree repo map.
     let graph_summary = crate::graph_index::current_summary(&workspace_root);
+    // Computed before the literal moves `workspace_root` out.
+    let plugin_skill_dirs = crate::plugin_runtime::enabled_skill_dirs_for(&workspace_root);
 
     AgentContext {
         workspace_root,
@@ -2327,13 +2329,19 @@ fn build_worker_agent_context(
         git_diff_summary: None,
         flow_context: None,
         approved_plan: None,
-        extra_skill_dirs: vec![],
+        // A subprocess worker must not see fewer signals than the in-REPL
+        // agent for the same workspace — plugins included.
+        extra_skill_dirs: plugin_skill_dirs,
         parent_session_id: None,
         depth: 0,
         active_agent_counter: None,
         team_bus: None,
         team_agent_id: None,
         project_summary,
+        plugin_rules: assembled
+            .get("plugin_rules")
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string()),
         task_context_files,
         memory_context,
         graph_summary,
@@ -18778,14 +18786,19 @@ async fn run_agent_repl_with_context(
         }
     }
 
-    // Collect skill directories from installed plugins.
-    let plugin_skill_dirs = PluginLoader::new()
+    // Collect skill directories from installed plugins. Two plugin systems
+    // contribute and neither subsumes the other: `PluginLoader` reads the
+    // global `~/.vibecli/plugins` tree, while `plugin_runtime` reads the
+    // workspace's signed, policy-governed `.vibecli/plugins` — the one the
+    // VibeDesk Plugins panel installs into.
+    let mut plugin_skill_dirs = PluginLoader::new()
         .all_skill_paths()
         .into_iter()
         .filter_map(|p| p.parent().map(|d| d.to_path_buf()))
         .collect::<std::collections::HashSet<_>>()
         .into_iter()
         .collect::<Vec<_>>();
+    plugin_skill_dirs.extend(crate::plugin_runtime::enabled_skill_dirs_for(&workspace));
 
     // Route project profile + OpenMemory through the Context Assembler so the
     // CodingAgent per-section budget applies. task_context_files stays outside
@@ -18835,6 +18848,12 @@ async fn run_agent_repl_with_context(
         approved_plan,
         extra_skill_dirs: plugin_skill_dirs,
         project_summary,
+        // Taken from the assembler's own section so the CLI and the daemon
+        // admit exactly the same rules under exactly the same budget.
+        plugin_rules: assembled
+            .get("plugin_rules")
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string()),
         task_context_files,
         memory_context,
         // Without this the `--resume` path loaded the prior conversation,
@@ -21382,11 +21401,12 @@ async fn run_watch_mode(
             let ctx = vibe_ai::AgentContext {
                 workspace_root: workspace_root.clone(),
                 open_files: vec![],
+                plugin_rules: crate::context_assembler::plugin_rules_body(&workspace_root),
                 git_branch: None,
                 git_diff_summary: None,
                 flow_context: None,
                 approved_plan: None,
-                extra_skill_dirs: vec![],
+                extra_skill_dirs: crate::plugin_runtime::enabled_skill_dirs_for(&workspace_root),
                 parent_session_id: None,
                 depth: 0,
                 active_agent_counter: None,
