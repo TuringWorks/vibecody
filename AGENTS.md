@@ -1094,6 +1094,49 @@ std::fs::create_dir_all(&dir).unwrap();
 let store = ProfileStore::open_with(&dir.join("test.db"), [42u8; 32]).unwrap();
 ```
 
+### Test the joins, not just the parts
+
+**The bugs that reach users here are not inside components. They are between
+them.** Every recent one lived on a seam where two sides agree by convention
+and nothing verifies the agreement:
+
+| Join | Held together by | What `tsc`/`rustc` see |
+|---|---|---|
+| `LazyPanels` → panel props | a prop name | nothing — passing a prop a component doesn't declare is legal TS, React drops it |
+| `invoke("x")` → `generate_handler!` | a string | nothing — a literal on one side, an unimported list on the other |
+| eval harness → binary | `PATH` lookup | nothing — the name resolves to whatever is installed |
+| agent loop → tool call | an await outside the loop | nothing — the deadline check is in a loop the call never returns to |
+
+Unit tests do not catch these, and adding more of them does not help. A test
+written from inside a component reproduces that component's assumptions:
+`ArenaPanel` shipped a provider bug **while it had a passing BDD suite**,
+because all eight cases rendered `<ArenaPanel />` with no props. The suite
+encoded the defect as the expected usage.
+
+So when a change crosses a boundary, write the test **at the boundary**:
+
+- Mount the component the way the app mounts it — with the props the real
+  caller passes, not the ones the component happens to declare.
+- Assert on **what leaves** (the request payload, the invoke argument), not on
+  what renders. A panel that displays one provider and sends another passes a
+  render assertion and fails the user.
+- Pick fixture values that no fallback could coincide with. If the panel's old
+  default was `ollama`, testing with `ollama` proves nothing.
+- For string-keyed joins, enumerate both sides and assert containment
+  (`invokeHandlerParity.test.ts` is the template).
+
+### A test that has never failed is a claim, not a check
+
+**Before a test counts as done, watch it fail.** Revert the fix, or mutate the
+thing it guards, and confirm it goes red for the right reason. This is not
+ceremony — a passing new test is the single easiest thing to write by
+accident, and the parser bug that hides a real failure (comment prose read as
+a registered command name) is exactly the kind that ships inside a green
+suite.
+
+State it in the commit: what you reverted, and what the test said when it
+broke. "Verified to fail before passing" is evidence; "added tests" is not.
+
 ---
 
 ## Evaluations — measuring the product, not just testing it
