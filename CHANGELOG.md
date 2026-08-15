@@ -1,20 +1,14 @@
 # Changelog
 
-All notable changes to this project are documented here.
-Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+**The maintained changelog is [docs/CHANGELOG.md](docs/CHANGELOG.md).**
+
+This file is the pre-0.5.6 history, kept for the phase-numbered entries
+(`0.6.0`–`0.9.0`) that predate the current scheme and are not repeated there.
+It stopped tracking releases at 0.5.5 while `docs/` carried on, so for three
+releases the repository root advertised a version three behind — and the two
+files' `Unreleased` sections drifted apart. Write new entries in `docs/`.
 
 ---
-
-## [Unreleased]
-
-### Security
-
-- **Patched 3 Dependabot advisories** (vulnerable code paths all unused in-repo; bumped for defense-in-depth): `transformers` 5.3.0 → 5.14.1 (CVE-2026-5241, ACE in LightGlue model load), `torch` 2.11.0 → 2.13.0 (CVE-2025-3000, `torch.jit.script` memory corruption), `serde_with` 3.20.0 → 3.21.0 (GHSA-7gcf-g7xr-8hxj, `KeyValueMap` empty-entry panic).
-
-### Fixed
-
-- **VibeCoder editor stuck on "Loading…"** — `@monaco-editor/react` was loading the Monaco engine from a `cdn.jsdelivr.net` script blocked by the Tauri CSP (`script-src 'self'`), so the editor never mounted for any file. Monaco and its web workers now ship in the app bundle (`loader.config({ monaco })` + Vite `?worker` imports).
-- **Ollama Cloud models missing from the model dropdown** — the registry now unconditionally unions cloud + locally-pulled + the full static catalog (deduped), so `*-cloud` entries always appear regardless of whether `ollama serve` is running; the model-registry cache key is versioned so a stale cache no longer hides newly-added models for up to its TTL.
 
 ## [0.5.5] — 2026-04-17
 

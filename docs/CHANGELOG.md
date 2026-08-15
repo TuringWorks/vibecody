@@ -59,6 +59,9 @@ by a test that fails when it comes back.
 
 ### Fixed
 
+- **VibeCoder editor stuck on "Loading…"** — `@monaco-editor/react` was loading the Monaco engine from a `cdn.jsdelivr.net` script blocked by the Tauri CSP (`script-src 'self'`), so the editor never mounted for any file. Monaco and its web workers now ship in the app bundle (`loader.config({ monaco })` + Vite `?worker` imports).
+- **Ollama Cloud models missing from the model dropdown** — the registry now unconditionally unions cloud + locally-pulled + the full static catalog (deduped), so `*-cloud` entries always appear regardless of whether `ollama serve` is running; the model-registry cache key is versioned so a stale cache no longer hides newly-added models for up to its TTL.
+
 - **The agent could report work it had not done.** `--exec` now double-checks with the project's own build and test before accepting `task_complete`, bounded so a check that can never pass cannot spin the run to death — and a check that fails to spawn is reported as unverified rather than mapped onto pass, which is the success-assuming fallback the verification step existed to catch.
 - **A run could not be bounded from inside its own loops.** Every guard was checked between turns or between chunks, so each depended on some inner loop coming back round; four separate stalls slipped past. The run is now bounded from outside, with elapsed-time walls for "nothing has changed on disk" and "no tool has run at all", and a prose-loop wall for a model that only reasons.
 - **A finished agent no longer burns its budget.** Stall detection counts mutations rather than any successful call, ignores byte-identical rewrites, and concludes the run itself when the agent has stopped changing anything — reported as `Partial`, because "it stopped" is not the same claim as "it finished".
@@ -102,6 +105,10 @@ by a test that fails when it comes back.
 - **Whole-response work stopped running on every streamed chunk.** Thinking-tag stripping and tool-call parsing were re-run over the accumulated response per chunk, so a long answer cost quadratic work.
 - **Regexes hoisted out of hot paths and one HTTP client shared per timeout.** `strip_thinking` alone cost 27 MB of allocation per streamed chunk before its patterns were compiled once.
 - **Input-sized allocations are bounded before they are made**, rather than after — a bogus length header used to allocate before the body arrived.
+
+### Security
+
+- **Patched 3 Dependabot advisories** (vulnerable code paths all unused in-repo; bumped for defense-in-depth): `transformers` 5.3.0 → 5.14.1 (CVE-2026-5241, ACE in LightGlue model load), `torch` 2.11.0 → 2.13.0 (CVE-2025-3000, `torch.jit.script` memory corruption), `serde_with` 3.20.0 → 3.21.0 (GHSA-7gcf-g7xr-8hxj, `KeyValueMap` empty-entry panic).
 
 ## [0.5.8] — 2026-08-10
 
