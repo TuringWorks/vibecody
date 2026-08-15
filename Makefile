@@ -214,6 +214,12 @@ lint-vibedesk: vibedesk/node_modules ## Run VibeDesk no-inline-edit lint guard
 parity-vibedesk: vibedesk/node_modules ## Check every invoke() has a registered Tauri handler
 	cd vibedesk && $(NPM) run lint:invoke-parity
 
+# Needs a browser binary (`npx playwright install chromium`), so it is a local
+# target rather than a CI matrix entry — the layout it guards only exists once a
+# real engine has laid the box out.
+lint-welcome: vibecoder/node_modules ## Check the welcome heading is not clipped on a short window
+	cd vibecoder && $(NPM) run lint:welcome-layout
+
 # ── Desktop apps aggregate (the three Tauri shells) ───────────────────────────
 
 # Built one at a time, staging artifacts between each.
