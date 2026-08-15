@@ -1162,6 +1162,26 @@ impl AgentLoop {
     /// This wrapper is the backstop. It depends on nothing inside the loop.
     /// The grace period lets the in-loop checks win when they can, so the
     /// good message stays the common case and this stays the floor.
+    ///
+    /// **This bound is unit-tested but NOT confirmed end-to-end. Do not treat
+    /// it as a guarantee.** Two greenfield eval samples run against a binary
+    /// containing it still reached the harness's 900s budget rather than
+    /// stopping at 600s + grace. Established while chasing it:
+    ///
+    ///   * the binary did contain this code, and `--exec` does reach it
+    ///     (`main.rs` → `ci::run_ci` → `AgentLoop::run`);
+    ///   * the process was idle at 0% CPU, parked at an await inside
+    ///     `run_inner`, with its threads in `__psynch`;
+    ///   * `safe_exit` calls `std::process::exit`, so a late exit is not the
+    ///     runtime waiting on the blocking pool — `run()` genuinely had not
+    ///     returned;
+    ///   * the agent is healthy on the same path with a working provider: an
+    ///     equivalent `--exec --full-auto` task finished correctly in 23s.
+    ///
+    /// The stalling runs used the eval's default `provider=ollama` with no
+    /// model pinned, against an idle 30B model, so the provider is a strong
+    /// suspect — but that does not explain why the ceiling failed to fire, and
+    /// nothing here should be read as saying it does.
     pub async fn run(
         &self,
         task: &str,
