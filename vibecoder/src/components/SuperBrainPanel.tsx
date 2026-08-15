@@ -234,18 +234,51 @@ const S = {
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export function SuperBrainPanel() {
+export function SuperBrainPanel({ provider: toolbarProvider }: { provider?: string } = {}) {
   const { providers: registryProviders, modelsForProvider } = useModelRegistry();
   const [mode, setMode] = useState("router");
+  // Which providers start enabled was `p === "claude" || p === "openai"`, so
+  // SuperBrain ran on those two regardless of the selection it was handed by
+  // LazyPanels via createComposite (AGENTS.md → Provider-Agnostic Panels —
+  // STRICT). The toolbar's provider is the one that starts enabled now; the
+  // rest are one click away, as before.
+  const seedProvider = toolbarProvider || getDefaultProvider();
   const [providers, setProviders] = useState<ProviderConfig[]>(() =>
     registryProviders.map(p => ({
-      enabled: p === "claude" || p === "openai",
+      enabled: p === seedProvider,
       provider: p,
       model: PROVIDER_DEFAULT_MODEL[p] ?? "",
     }))
   );
-  const [judgeProvider, setJudgeProvider] = useState(getDefaultProvider());
-  const [judgeModel, setJudgeModel] = useState(PROVIDER_DEFAULT_MODEL[getDefaultProvider()] ?? "");
+  const [judgeProvider, setJudgeProvider] = useState(seedProvider);
+  const [judgeModel, setJudgeModel] = useState(PROVIDER_DEFAULT_MODEL[seedProvider] ?? "");
+
+  // The registry resolves asynchronously and the initializer above runs once,
+  // so a first render with an empty registry left the provider list empty for
+  // good. Rebuild when the set of known providers changes, carrying over the
+  // rows the user has already toggled. Keyed on the joined names because the
+  // hook hands back a fresh array each render, which as a dependency would
+  // re-run this forever.
+  const registryKey = registryProviders.join(",");
+  useEffect(() => {
+    if (registryProviders.length === 0) return;
+    setProviders(prev => {
+      const existing = new Map(prev.map(p => [p.provider, p]));
+      const next = registryProviders.map(
+        p =>
+          existing.get(p) ?? {
+            enabled: p === seedProvider,
+            provider: p,
+            model: PROVIDER_DEFAULT_MODEL[p] ?? "",
+          }
+      );
+      // Returning `prev` unchanged keeps this from looping on itself.
+      const same =
+        next.length === prev.length && next.every((p, i) => p === prev[i]);
+      return same ? prev : next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [registryKey, seedProvider]);
   const [prompt, setPrompt] = useState("");
   const [thinking, setThinking] = useState(false);
   const [progress, setProgress] = useState("");

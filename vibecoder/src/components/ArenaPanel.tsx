@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useModelRegistry, PROVIDER_DEFAULT_MODEL, getDefaultProvider } from "../hooks/useModelRegistry";
 
@@ -113,12 +113,32 @@ function BlindResponseCard({ content, side, error }: { content: string; side: "A
 
 // -- Main Panel ---------------------------------------------------------------
 
-export function ArenaPanel() {
-  // Provider / model selection
-  const [providerA, setProviderA] = useState("ollama");
-  const [modelA, setModelA] = useState(PROVIDER_DEFAULT_MODEL.ollama ?? "");
+export function ArenaPanel({ provider: toolbarProvider }: { provider?: string } = {}) {
+  // Provider / model selection.
+  //
+  // Side A is the toolbar's selection: the panel is handed `provider` by
+  // LazyPanels via createComposite, and pinning side A to ollama meant the
+  // arena ignored it (AGENTS.md → Provider-Agnostic Panels — STRICT). Side B
+  // stays on the registry default so the two sides start out different, which
+  // is the entire point of a comparison. Both remain editable.
+  const seedA = toolbarProvider || getDefaultProvider();
+  const [providerA, setProviderA] = useState(seedA);
+  const [modelA, setModelA] = useState(PROVIDER_DEFAULT_MODEL[seedA] ?? "");
   const [providerB, setProviderB] = useState(getDefaultProvider());
   const [modelB, setModelB] = useState(PROVIDER_DEFAULT_MODEL[getDefaultProvider()] ?? "");
+
+  // The toolbar can change after mount; side A follows it, unless the user has
+  // already moved side A somewhere else.
+  const lastSeededA = useRef(seedA);
+  useEffect(() => {
+    if (!toolbarProvider || toolbarProvider === lastSeededA.current) return;
+    setProviderA(prev => {
+      if (prev !== lastSeededA.current) return prev; // user-chosen: leave it
+      setModelA(PROVIDER_DEFAULT_MODEL[toolbarProvider] ?? "");
+      lastSeededA.current = toolbarProvider;
+      return toolbarProvider;
+    });
+  }, [toolbarProvider]);
 
   // Prompt
   const [prompt, setPrompt] = useState("");

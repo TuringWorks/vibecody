@@ -94,10 +94,15 @@ function ProviderSelector({
  );
 }
 
-export function MultiModelPanel() {
+export function MultiModelPanel({ provider: toolbarProvider }: { provider?: string } = {}) {
  const [prompt, setPrompt] = useState("");
- const [providerA, setProviderA] = useState("ollama");
- const [modelA, setModelA] = useState(PROVIDER_DEFAULT_MODEL.ollama ?? "");
+ // Side A follows the toolbar. Pinning it to ollama meant Compare ignored the
+ // selection it is handed by LazyPanels via createComposite (AGENTS.md →
+ // Provider-Agnostic Panels — STRICT). Side B stays on the registry default so
+ // the two sides start out different, which is the point of a comparison.
+ const seedA = toolbarProvider || getDefaultProvider();
+ const [providerA, setProviderA] = useState(seedA);
+ const [modelA, setModelA] = useState(PROVIDER_DEFAULT_MODEL[seedA] ?? "");
  const [providerB, setProviderB] = useState(getDefaultProvider());
  const [modelB, setModelB] = useState(PROVIDER_DEFAULT_MODEL[getDefaultProvider()] ?? "");
  const [result, setResult] = useState<CompareResult | null>(null);
