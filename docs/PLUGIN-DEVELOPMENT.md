@@ -34,7 +34,7 @@ VibeCody has a **five-layer extensibility architecture**:
 |-------|------|---------|----------|
 | **Skills** | Markdown with YAML front-matter | Loaded at startup, matched by trigger keywords | `~/.vibecli/skills/` or `<workspace>/.vibecli/skills/` |
 | **Hooks** | Shell scripts, LLM prompts, or HTTP webhooks | Fired on agent events (pre/post tool use, file save, etc.) | Configured in `~/.vibecli/config.toml` |
-| **Plugins** | Bundles of skills + hooks + commands | Installed to `~/.vibecli/plugins/<name>/` | Registry at `https://registry.vibecody.dev/api/v1` |
+| **Plugins** | Bundles of skills + hooks + commands | Installed to `~/.vibecli/plugins/<name>/` | Built-in catalog, or a signed bundle you install from disk — there is no hosted registry yet |
 | **WASM Extensions** | Sandboxed WebAssembly modules | Loaded by VibeCoder (Tauri desktop app) | `~/.vibecoder/extensions/` |
 | **MCP/ACP** | JSON-RPC over stdio or HTTP | Bidirectional tool integration | Configured in `config.toml` or via `--mcp-server` flag |
 
