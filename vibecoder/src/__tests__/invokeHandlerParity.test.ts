@@ -133,9 +133,17 @@ describe("Given the frontend invokes Tauri commands", () => {
 
     const missing = literal
       .filter(i => !registered.has(i.command))
-      // Tauri's own plugin commands are namespaced and never appear in the
-      // app's handler list.
-      .filter(i => !i.command.startsWith("plugin"));
+      // Tauri's own plugin commands are namespaced — `invoke("plugin:dialog|open")`
+      // — and the scan above captures them as the bare word `plugin`, which is
+      // never in the handler list.
+      //
+      // Exactly `"plugin"`, not `startsWith("plugin")`: the prefix form also
+      // skipped every app command whose name begins with the word —
+      // `plugin_catalog_list`, `plugin_install_from_catalog`,
+      // `plugin_set_policy`, `plugin_list_installed`, `plugin_uninstall`. That
+      // is the plugin surface entire, and it is where the invoked-but-not-
+      // registered bug this test exists to catch has actually happened.
+      .filter(i => i.command !== "plugin");
 
     const detail = missing
       .map(i => `  ${i.command}  (${i.file})`)

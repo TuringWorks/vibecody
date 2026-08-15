@@ -193,7 +193,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        check: [typecheck, no-inline-edit]
+        check: [typecheck, no-inline-edit, invoke-parity]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -213,6 +213,13 @@ jobs:
       - name: No-inline-edit guard
         if: matrix.check == 'no-inline-edit'
         run: npm run lint:no-inline-edit
+
+      # The frontend↔Tauri join. `tsc` cannot see it: a command name is a bare
+      # string on one side and a handler list nobody imports on the other, so an
+      # unregistered command compiles clean and fails when a user clicks.
+      - name: Invoke-handler parity
+        if: matrix.check == 'invoke-parity'
+        run: npm run lint:invoke-parity
 
   # ─── Agent SDK: TypeScript ─────────────────────────────────────────────
   agent-sdk-checks:

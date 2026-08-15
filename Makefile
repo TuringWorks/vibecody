@@ -203,13 +203,16 @@ vibedesk: vibedesk/node_modules ## Run VibeDesk in dev mode
 build-vibedesk: vibedesk/node_modules ## Build VibeDesk for production (Tauri bundle)
 	cd vibedesk && $(NPM) run tauri:build
 
-test-vibedesk: check-vibedesk lint-vibedesk ## Test VibeDesk (typecheck + no-inline-edit guard)
+test-vibedesk: check-vibedesk lint-vibedesk parity-vibedesk ## Test VibeDesk (typecheck + guards)
 
 check-vibedesk: vibedesk/node_modules ## Type-check VibeDesk (tsc --noEmit)
 	cd vibedesk && npx tsc --noEmit
 
 lint-vibedesk: vibedesk/node_modules ## Run VibeDesk no-inline-edit lint guard
 	cd vibedesk && $(NPM) run lint:no-inline-edit
+
+parity-vibedesk: vibedesk/node_modules ## Check every invoke() has a registered Tauri handler
+	cd vibedesk && $(NPM) run lint:invoke-parity
 
 # ── Desktop apps aggregate (the three Tauri shells) ───────────────────────────
 
