@@ -14,7 +14,131 @@ curl -fsSL https://raw.githubusercontent.com/TuringWorks/vibecody/main/install.s
 
 ---
 
-## v0.5.8 — Latest
+## v0.5.9 — Latest
+
+**Released:** August 14, 2026 &middot; [Release notes](https://github.com/TuringWorks/vibecody/releases/tag/v0.5.9) &middot; [Changelog](https://github.com/TuringWorks/vibecody/compare/v0.5.8...v0.5.9)
+
+64 commits since v0.5.8. An evaluation harness, a plugin marketplace that can
+actually install something, connectors as first-class MCP integrations, and a
+run of agent-reliability work that came out of watching real runs stall and
+then claim success.
+
+### Highlights
+
+- **`vibecli eval`** — an evaluation harness covering coding, agentic tool use, knowledge work, safety, and per-surface transport conformance across all fourteen clients. Four verdicts kept apart: `pass`, `fail`, `error` (the harness could not decide) and `skipped` (did not apply), with the last two outside the pass-rate denominator. `make eval-check` validates the suites with no provider and no agent.
+- **A plugin marketplace, and connectors.** The Plugins panel used to name a CLI command; it now searches, categorises and installs. Eleven core plugins and seventeen connectors ship in the binary, with connector credentials encrypted in the workspace store. **Bundles** — Engineering, On-call, Security review, Data work, Research — install a set of plugins and set up the connectors that job assumes.
+- **Runs are bounded from outside their own loops.** Every previous guard was checked between turns or between chunks, so each depended on some inner loop coming back round. Elapsed-time walls now cover "nothing has changed on disk" and "no tool has run at all", and a finished-but-silent agent is concluded rather than left to burn its budget.
+- **The agent stopped claiming work it had not done.** `--exec` double-checks with the project's own build and test before accepting completion — and a check that fails to spawn is reported as unverified rather than counted as a pass.
+- **Secrets no longer leave in the agent's own words.** Credential files are redacted on the way *in*, so the model never receives the value; redacting only its output could not survive paraphrase.
+- **`/goal <what you want>`** in the CLI, and a VibeCoder panel that shows what a goal is doing and keeps failures on screen.
+
+### Notable fixes
+
+- 27 Tauri commands VibeCoder panels were already calling did not exist — every one of those clicks was a guaranteed rejection, and the panels looked finished.
+- Ghost text, ⌘., Counsel, Arena, SuperBrain, Compare, Automations and Code Transforms each ignored the model you selected in the toolbar.
+- Code Transforms scanned three different roots, one of which was the app's own working directory, and reported "0 files to transform".
+- VibeCoder's Connectors panel reported every connector as connected without a credential and lost them all on restart.
+- An autonomous run can no longer remove an authorization guard to make a test pass.
+- The welcome screen's heading was sliced off the top on a short window.
+
+Each of the first four is now covered by a test that fails when it comes back —
+see [why](https://github.com/TuringWorks/vibecody/blob/main/AGENTS.md).
+
+macOS signing is unchanged from v0.5.8; see [Code signing](#code-signing) to
+check what you downloaded.
+
+
+### Highlights
+
+- **Voice input everywhere** — one daemon route (`POST /voice/transcribe`) and one shared React hook behind mic buttons in all three desktop shells, VibeMobile, and the VS Code / JetBrains / Neovim plugins. Groq Whisper with a local whisper.cpp fallback, so it works offline.
+- **Choose your embedding model** — semantic search and `@codebase:` now run on Ollama, OpenAI (or any OpenAI-compatible endpoint), Voyage, Cohere, Gemini, or an in-process local model. Indexes are kept per-model, so switching is instant and switching back never re-embeds. See [Embedding Models]({{ site.baseurl }}/embeddings/).
+- **SkillForge** — analyse and train agent-skill documents (SkillLens + SkillOpt) from a VibeCoder panel, the REPL, the TUI, and ten daemon routes.
+- **Code graph (kodegraph)** — a tree-sitter → SQLite knowledge graph built in the background on daemon start, feeding a compact repo summary into the agent prompt in place of a flat directory tree.
+- **Goal-driven loops** — `/loop goal <id>` runs until a goal's `success_criteria` verifiably hold, judged by a separate validator turn rather than the worker's own opinion.
+- **VibeDesk ships for the first time**, alongside VibeCoder and VibeAIChat.
+
+### Notable fixes
+
+- macOS artifacts can now be **Developer ID signed** end to end, `vibecli` included — see [Code signing](#code-signing) to check what you downloaded.
+- The code index no longer writes API keys to disk; pre-existing indexes are migrated and the credential dropped.
+- Switching embedding model used to return silently wrong results; indexes and memory rows now carry the model that produced them.
+- VibeAIChat now autostarts the daemon like the other shells, and all three recover from a rotated bearer token instead of looping on 401.
+- VibeCoder chat renders markdown — tables, headings, emphasis — instead of raw text.
+- Theme tokens: two names referenced across 33 sites were never defined, so those borders and button fills never rendered.
+
+### VibeCLI — Terminal AI Assistant
+
+| Platform | Download |
+|----------|----------|
+| macOS (Apple Silicon) | [`vibecli-aarch64-apple-darwin.tar.gz`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/vibecli-aarch64-apple-darwin.tar.gz) |
+| Linux (arm64) | [`vibecli-aarch64-linux.tar.gz`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/vibecli-aarch64-linux.tar.gz) |
+| Docker image (tarball) | [`vibecli-docker-v0.5.9.tar.gz`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/vibecli-docker-v0.5.9.tar.gz) |
+| macOS (Intel) | [`vibecli-x86_64-apple-darwin.tar.gz`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/vibecli-x86_64-apple-darwin.tar.gz) |
+| Linux (x86_64) | [`vibecli-x86_64-linux.tar.gz`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/vibecli-x86_64-linux.tar.gz) |
+| Windows (x86_64) | [`vibecli-x86_64-windows.zip`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/vibecli-x86_64-windows.zip) |
+
+### VibeCoder — Desktop Code Editor
+
+| Platform | Download |
+|----------|----------|
+| macOS (Apple Silicon, .app) | [`VibeCoder-macOS-arm64.app.zip`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeCoder-macOS-arm64.app.zip) |
+| macOS (Intel, .app) | [`VibeCoder-macOS-x64.app.zip`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeCoder-macOS-x64.app.zip) |
+| Linux (arm64, AppImage) | [`VibeCoder_0.5.9_aarch64.AppImage`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeCoder_0.5.9_aarch64.AppImage) |
+| macOS (Apple Silicon) | [`VibeCoder_0.5.9_aarch64.dmg`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeCoder_0.5.9_aarch64.dmg) |
+| Linux (x86_64, AppImage) | [`VibeCoder_0.5.9_amd64.AppImage`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeCoder_0.5.9_amd64.AppImage) |
+| Linux (x86_64, deb) | [`VibeCoder_0.5.9_amd64.deb`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeCoder_0.5.9_amd64.deb) |
+| Linux (arm64, deb) | [`VibeCoder_0.5.9_arm64.deb`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeCoder_0.5.9_arm64.deb) |
+| Windows (installer) | [`VibeCoder_0.5.9_x64-setup.exe`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeCoder_0.5.9_x64-setup.exe) |
+| macOS (Intel) | [`VibeCoder_0.5.9_x64.dmg`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeCoder_0.5.9_x64.dmg) |
+| Windows (MSI) | [`VibeCoder_0.5.9_x64_en-US.msi`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeCoder_0.5.9_x64_en-US.msi) |
+
+### VibeAIChat — Desktop AI Assistant
+
+| Platform | Download |
+|----------|----------|
+| Linux (arm64, AppImage) | [`VibeAIChat_0.5.9_aarch64.AppImage`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeAIChat_0.5.9_aarch64.AppImage) |
+| macOS (Apple Silicon) | [`VibeAIChat_0.5.9_aarch64.dmg`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeAIChat_0.5.9_aarch64.dmg) |
+| Linux (x86_64, AppImage) | [`VibeAIChat_0.5.9_amd64.AppImage`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeAIChat_0.5.9_amd64.AppImage) |
+| Linux (x86_64, deb) | [`VibeAIChat_0.5.9_amd64.deb`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeAIChat_0.5.9_amd64.deb) |
+| Linux (arm64, deb) | [`VibeAIChat_0.5.9_arm64.deb`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeAIChat_0.5.9_arm64.deb) |
+| Windows (installer) | [`VibeAIChat_0.5.9_x64-setup.exe`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeAIChat_0.5.9_x64-setup.exe) |
+| macOS (Intel) | [`VibeAIChat_0.5.9_x64.dmg`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeAIChat_0.5.9_x64.dmg) |
+| Windows (MSI) | [`VibeAIChat_0.5.9_x64_en-US.msi`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeAIChat_0.5.9_x64_en-US.msi) |
+
+### VibeDesk — Desktop Task Shell
+
+| Platform | Download |
+|----------|----------|
+| Linux (arm64, AppImage) | [`VibeDesk_0.5.9_aarch64.AppImage`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeDesk_0.5.9_aarch64.AppImage) |
+| macOS (Apple Silicon) | [`VibeDesk_0.5.9_aarch64.dmg`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeDesk_0.5.9_aarch64.dmg) |
+| Linux (x86_64, AppImage) | [`VibeDesk_0.5.9_amd64.AppImage`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeDesk_0.5.9_amd64.AppImage) |
+| Linux (x86_64, deb) | [`VibeDesk_0.5.9_amd64.deb`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeDesk_0.5.9_amd64.deb) |
+| Linux (arm64, deb) | [`VibeDesk_0.5.9_arm64.deb`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeDesk_0.5.9_arm64.deb) |
+| Windows (installer) | [`VibeDesk_0.5.9_x64-setup.exe`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeDesk_0.5.9_x64-setup.exe) |
+| macOS (Intel) | [`VibeDesk_0.5.9_x64.dmg`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeDesk_0.5.9_x64.dmg) |
+| Windows (MSI) | [`VibeDesk_0.5.9_x64_en-US.msi`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeDesk_0.5.9_x64_en-US.msi) |
+
+### VibeMobile — Flutter Companion
+
+| Platform | Download |
+|----------|----------|
+| Android (AAB) | [`VibeCody-Mobile-v0.5.9-android.aab`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeCody-Mobile-v0.5.9-android.aab) |
+| Android (APK) | [`VibeCody-Mobile-v0.5.9-android.apk`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeCody-Mobile-v0.5.9-android.apk) |
+| iOS (unsigned — sideload via AltStore / Sideloadly) | [`VibeCody-Mobile-v0.5.9-ios.ipa`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeCody-Mobile-v0.5.9-ios.ipa) |
+
+### VibeWatch — Apple Watch & Wear OS
+
+| Platform | Download |
+|----------|----------|
+| watchOS 10+ (unsigned — sideload via Xcode) | [`VibeCody-WatchOS-v0.5.9.app.zip`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeCody-WatchOS-v0.5.9.app.zip) |
+| Wear OS 3+ (AAB) | [`VibeCody-Wear-v0.5.9.aab`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeCody-Wear-v0.5.9.aab) |
+| Wear OS 3+ (APK) | [`VibeCody-Wear-v0.5.9.apk`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeCody-Wear-v0.5.9.apk) |
+
+[SHA256SUMS.txt](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/SHA256SUMS.txt)
+
+---
+
+## v0.5.8
 
 **Released:** August 10, 2026 &middot; [Release notes](https://github.com/TuringWorks/vibecody/releases/tag/v0.5.8) &middot; [Changelog](https://github.com/TuringWorks/vibecody/compare/v0.5.7...v0.5.8)
 

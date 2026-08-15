@@ -7,9 +7,12 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag (e.g. v0.5.5)"
+        description: "Release tag (e.g. v0.5.9)"
         required: true
-        default: "v0.5.5"
+        # Deliberately no `default:`. This input is only read on a manual
+        # dispatch, and a default is a one-click re-release of whatever was
+        # current when the file was last touched — it sat at v0.5.5 for four
+        # releases. Required with no default forces the tag to be typed.
 
 permissions:
   contents: write

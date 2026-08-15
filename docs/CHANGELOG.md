@@ -10,7 +10,36 @@ All notable changes to VibeCody are documented here. This project follows [Seman
 
 ## [Unreleased]
 
+## [0.5.9] — 2026-08-14
+
+64 commits since v0.5.8. An evaluation harness that refuses to report a result
+it did not measure, a plugin marketplace where a workspace can actually install
+something, connectors as first-class MCP integrations with encrypted
+credentials, and a run of agent-reliability work that came out of watching real
+runs stall and lie about it.
+
+The theme underneath most of it is the same: a green build proves less than it
+looks like. Several fixes here are not new features going in but old features
+that never worked — panels calling Tauri commands nobody had registered, a
+connector list that reported "connected" without a credential, a transform that
+scanned the app's working directory instead of your project. Each is now covered
+by a test that fails when it comes back.
+
 ### Added
+
+- **`vibecli eval` — an evaluation harness — `crates/vibe-eval`, [evals/README.md](https://github.com/TuringWorks/vibecody/blob/main/evals/README.md).** Coding, agentic tool use, knowledge work, safety, and per-surface transport conformance across all fourteen clients. Four verdicts kept strictly apart — `pass`, `fail`, `error` (the harness could not decide), `skipped` (did not apply) — with errors and skips outside the pass-rate denominator, because "the agent regressed" and "python3 isn't installed" are different sentences. `--benchmark` runs the real harness rather than a parallel code path, `make eval-check` validates the suites with no provider and no agent, and `vibecli --eval gate` exits 1 on regression against a baseline.
+  - A grader with no assertions is an error, not a pass — `Suite::validate` rejects one at load time, so a vacuous task cannot ship.
+  - Adding a `Surface` variant without a conformance task fails the suite tests.
+
+- **Plugins and connectors are installable from the app — `vibecli/vibecli-cli/src/plugin_catalog.rs`, `connectors.rs`, [API reference](api-reference.md#plugins--connectors--apivibedeskplugins-apivibedeskconnectors).** The Plugins panel used to say "No plugin components are enabled for this workspace" above a pointer to a CLI command, because the only way to get a plugin was to author, sign and pack an MCPB bundle by hand. It is a marketplace now — search, categories, and one-click install — backed by five new daemon routes.
+  - **A core catalog compiled into the binary**: eleven plugins across engineering practice, security, performance, operations and design. Skills and rules only, because those are the component kinds existing loaders actually read; hooks and plugin MCP servers would have been rows that look live and do nothing.
+  - **Seventeen connectors** — the `modelcontextprotocol/servers` reference set plus VibeCLI's own — with credentials encrypted in the workspace store and never returned by any route. Arguments support `{secret:NAME}`, so a Postgres connection string reaches the server without being stored in the definition.
+  - **Bundles**: a plugin can install other plugins and set up the connectors a job assumes. Engineering, On-call, Security review, Data work and Research ship. A bundle adds every connector that needs no credential and reports the rest as `needs_credentials` with the field names — never as configured.
+  - **Connector health is measured, never inferred.** Nothing reports a connector as working until Test has launched it and listed its tools; no probe result is persisted, because a stored "ok" is a claim about the past presented as a claim about now.
+
+- **`/goal <what you want>` in the CLI**, and a VibeCoder panel that shows what a goal is doing and keeps failures on screen instead of clearing them.
+
+- **Agent hand-off on degradation.** A run whose context has degraded past compaction retires the agent and briefs a successor rather than trimming again.
 
 - **BugBot now proposes committable fixes, not just comments — `vibecli/vibecli-cli/src/bugbot_autofix.rs`, [docs/bugbot.md](bugbot.md).** Every competing PR-review bot ends its review with a fix a reviewer applies in one click; BugBot ended its review with prose. It now emits GitHub ```` ```suggestion ```` blocks.
   - **Anchors come from the diff, never from the model.** GitHub applies a suggestion by replacing the exact lines the comment is anchored to, so an off-by-one anchor silently destroys code. A new `PostImage` index maps `path → new-line → text` from the diff's own context and added lines; a proposal that cannot be located there is refused, not guessed. Seven typed refusals (`AnchorMissing`, `SpanTooLarge`, `EmptyReplacement`, `Unchanged`, `FenceInReplacement`, `ModelDeclined`, `Unparseable`) are printed with the finding rather than swallowed.
@@ -29,6 +58,20 @@ All notable changes to VibeCody are documented here. This project follows [Seman
   - Pointers to files outside the skill tree (the source-map vault note, `docs/capability-routing-matrix.md`, `tools/capability-router.html`, the `examples/*.py` helpers) were already dangling at the source and are reworded rather than shipped as dead ends.
 
 ### Fixed
+
+- **The agent could report work it had not done.** `--exec` now double-checks with the project's own build and test before accepting `task_complete`, bounded so a check that can never pass cannot spin the run to death — and a check that fails to spawn is reported as unverified rather than mapped onto pass, which is the success-assuming fallback the verification step existed to catch.
+- **A run could not be bounded from inside its own loops.** Every guard was checked between turns or between chunks, so each depended on some inner loop coming back round; four separate stalls slipped past. The run is now bounded from outside, with elapsed-time walls for "nothing has changed on disk" and "no tool has run at all", and a prose-loop wall for a model that only reasons.
+- **A finished agent no longer burns its budget.** Stall detection counts mutations rather than any successful call, ignores byte-identical rewrites, and concludes the run itself when the agent has stopped changing anything — reported as `Partial`, because "it stopped" is not the same claim as "it finished".
+- **Secrets could leave in the agent's own words.** Asked to summarise a `.env`, the agent reproduced a database password verbatim, then paraphrased it once output redaction was added. Credential files are redacted on the way *in*, so the model never receives the value, and `redact_secrets` grew the shapes it was missing: `SECRET_KEY=`, URL authority credentials, `sk_live_`.
+- **An autonomous run cannot remove an authorization guard.** Told to make a failing test pass against a test asserting anonymous access should succeed, the agent deleted the auth check in 2 of 3 sampled runs. Guard-bearing files are snapshotted and restored on any content change, unless the task explicitly asked for that file.
+- **27 Tauri commands VibeCoder panels were already calling did not exist.** Every one of those calls was a guaranteed runtime rejection; the panels looked finished and did nothing. Now implemented and registered, with a contract test that fails when an invoked command is not in `generate_handler!`.
+- **Panels that ignored the toolbar's provider.** Ghost text, ⌘., Counsel, Arena, SuperBrain, Compare, Automations and Code Transforms each ran on something other than the model you selected — one of them on a hard-coded vendor. A contract test now covers all 155 panels that receive a provider.
+- **Code Transforms scanned three different roots** — `localStorage` for detection, the app's workspace for planning, and `std::env::current_dir()` when that was empty. After a restart the last was the bundle directory, so it reported "0 files to transform", which reads as "nothing needs transforming".
+- **VibeCoder's Connectors panel was a facade**: it recorded every connector as connected without a credential, tested them by checking a `Vec`, and lost everything on restart. It drives the real connector store now.
+- **The welcome heading was sliced off the top on a short window** — centring pushed the overflow out of both ends, and the half above the top edge cannot be scrolled back to.
+- **`vibecli --eval --help` started an evaluation run** instead of printing help, and the eval report named the binary it was asked for rather than the one that ran.
+- **A silent provider could hang a run** — the wait for streaming chunks is bounded.
+- **Diffs whose blank context lines lost their leading space** now apply; chat no longer shows the same reply twice; reasoning tags no longer leak into the transcript.
 
 - **Opening a different folder in VibeCoder left search scoped to the previous one.** `openWorkspacePath` replaces the frontend's workspace (`setWorkspaceFolders([path])`), but the Tauri command behind it called `Workspace::add_folder`, which *appends*. After opening B, the file tree showed B while `folders().first()` still returned A — and the sidebar search sends no path at all, so its scope is entirely that value. So did the `@` context picker, `search_workspace_symbols`, `get_git_status`, `resolve_at_references`, the agent's workspace root, and `safe_resolve_path_in` (which kept the old root's files readable and writable). 43 call sites, all pinned to the first folder opened in the session; only an app restart reset it. `remove_folder` existed but had no command and no caller.
   - **The opened folder is now the only root** — `Workspace::set_root_folder` clears the folder list, the old root's `notify` watchers (which had been accumulating one per folder ever opened, each with a live forwarding task emitting events for folders the user had left), and its open buffers. `add_workspace_folder` is renamed `set_workspace_folder`, since a name that says "add" while replacing is the reason this was hard to see. Validation, `reject_sensitive_path` and the LRU recents are unchanged.
@@ -53,6 +96,12 @@ All notable changes to VibeCody are documented here. This project follows [Seman
 - **The GitHub App webhook secret could not be stored encrypted.** `GithubAppConfig::resolve_webhook_secret` reads the ProfileStore key `github_app_webhook_secret` first, per Zero-Config First — but `vibecli set-key` validates the name against a fixed list that omitted it, so the command answered *unknown provider*. The only reachable paths were a plaintext `config.toml` field and an environment variable, both of which the same rule forbids for a secret. `vibecli set-key github_app_webhook_secret <secret>` now works, and `list-keys` shows it.
 
 - **`[github_app] auto_fix` was a dead flag.** It was documented ("push auto-fixes to PR branch"), serialised, defaulted, and covered by three tests — and read by no production code path. It now drives the suggestion pass, and its documentation says what it actually does: it attaches committable suggestions and never pushes a commit. The webhook response gained an honest `fixes_proposed` count, which excludes findings the fixer declined.
+
+### Performance
+
+- **Whole-response work stopped running on every streamed chunk.** Thinking-tag stripping and tool-call parsing were re-run over the accumulated response per chunk, so a long answer cost quadratic work.
+- **Regexes hoisted out of hot paths and one HTTP client shared per timeout.** `strip_thinking` alone cost 27 MB of allocation per streamed chunk before its patterns were compiled once.
+- **Input-sized allocations are bounded before they are made**, rather than after — a bogus length header used to allocate before the body arrived.
 
 ## [0.5.8] — 2026-08-10
 

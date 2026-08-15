@@ -8,15 +8,19 @@ permalink: /vibecli/
 
 VibeCLI provides two interaction modes: a rich **Terminal UI (TUI)** powered by Ratatui, and a **REPL** mode for quick, scriptable use. It also runs as an HTTP daemon (`--serve`) that powers VibeCoder, VibeMobile, and the new native VibeWatch clients.
 
-### What's new in 0.5.8
+### What's new in 0.5.9
 
-- **Voice on every client, not just the REPL** — `POST /voice/transcribe` (bearer auth, 16 MB body limit) and `GET /voice/status` expose the `VoiceDispatcher` stack — Groq Whisper with a local whisper.cpp fallback — that was previously reachable only from the REPL. `voice_status` reports what the machine can actually do, including a `can_transcribe` that accounts for a downloaded model with no runtime to run it.
-- **Provider-agnostic embeddings — `crates/vibe-embed`** — one trait and one model catalog across six providers, replacing a two-variant enum with a hard-coded Ollama address. Dimension is measured from a vector the model actually returned rather than assumed, indexes are per-model and coexist, and `[index]` config (`embedding_provider` / `embedding_model`) is finally wired — an unrecognised provider errors instead of silently falling back to Ollama. Routes: `/embeddings/models`, `/embeddings/embed`, `/index/status`, `/index/build`; `/index-status` in the REPL.
-- **Goal-driven loops — `/loop goal <id-prefix>`** — joins `/goal`'s durable intent to `/loop`'s run-until-done engine. The stop condition is the goal's success criteria checked by a separate validator turn, not the worker model's own opinion, and **only confirmed success writes back** — an exhausted iteration budget leaves the goal's status untouched. Bounded by `--max-iter` / `--max-duration`; a mistyped bound errors rather than silently defaulting.
-- **SkillForge — `/v1/skilllens/*` + `/v1/skillopt/*`** — analyse and train agent-skill docs. SkillOpt treats a skill markdown doc as the trainable state of a frozen agent and accepts an edit **only when a held-out validation score strictly improves**. Ten routes plus an SSE training stream; see [SkillForge](/vibecody/skillforge/).
-- **Signed macOS binaries** — `vibecli` previously shipped with no signature at all. Signing is not notarization; see [Release notes](/vibecody/release/) § Code signing for the one-line check.
+- **`vibecli eval` — an evaluation harness (`crates/vibe-eval`)** — coding, agentic tool use, knowledge work, safety, and per-surface transport conformance across all fourteen clients. Four verdicts kept strictly apart: `pass`, `fail`, `error` (the harness could not decide) and `skipped` (did not apply), with errors and skips outside the pass-rate denominator — "the agent regressed" and "python3 isn't installed" are different sentences. `make eval-check` validates the suites with no provider and no agent; `vibecli --eval gate latest --baseline <run-id>` exits 1 on regression.
+- **`/goal <what you want>`** — states a goal and works on it, rather than requiring the goal to be created first and referenced by id.
+- **Runs are bounded from outside their own loops** — every previous guard was checked between turns or between chunks, so each depended on some inner loop returning. Elapsed-time walls now cover "nothing changed on disk" and "no tool ran at all"; a silent provider can no longer hang a run; and an agent that finished but never said so is concluded rather than left to burn its budget.
+- **`--exec` verifies before it reports** — the project's own build and test run before a completion claim is accepted, and a check that fails to spawn is reported as unverified rather than counted as a pass.
+- **Credential files are redacted on the way in** — asked to summarise a `.env`, the agent used to reproduce the password, then paraphrase it once output redaction was added. The model no longer receives the value.
+- **An autonomous run cannot strip an authorization guard** to make a failing test pass; the file is restored and the run is told why.
+- **Connectors reach `/mcp`** — MCP servers configured in the desktop Plugins panel are launchable from the CLI, with credentials from the encrypted workspace store.
 
-**Fixed:** the code index used to persist cloud API keys in plaintext (`.vibecli/index.json` contained the key; v1 indexes now migrate and drop it), changing embedding model silently returned nonsense instead of failing, and the JetBrains and Neovim plugins sent no bearer token — a silent 100% 401 on every route.
+**Fixed:** `--eval --help` started an evaluation run instead of printing help; the eval report named the binary it was asked for rather than the one that ran; `a` at the approval prompt did not approve all.
+
+Earlier: 0.5.8 brought voice on every client, provider-agnostic embeddings, goal-driven loops, SkillForge and signed macOS binaries.
 
 
 ## Installation

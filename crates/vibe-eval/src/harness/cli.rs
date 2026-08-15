@@ -105,7 +105,10 @@ impl Harness for CliHarness {
             }
             None => format!("{} (unresolved)", self.config.binary.display()),
         };
-        format!("cli {} · provider={} model={}", binary, self.config.provider, model)
+        format!(
+            "cli {} · provider={} model={}",
+            binary, self.config.provider, model
+        )
     }
 
     async fn preflight(&self) -> Preflight {

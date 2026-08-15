@@ -49,7 +49,8 @@ fn repo_root() -> PathBuf {
 fn strip_comments(text: &str) -> String {
     let block = Regex::new(r"(?s)/\*.*?\*/").unwrap();
     let line = Regex::new(r"(?m)^\s*(///|//).*$").unwrap();
-    line.replace_all(&block.replace_all(text, ""), "").into_owned()
+    line.replace_all(&block.replace_all(text, ""), "")
+        .into_owned()
 }
 
 /// Collapse every language's parameter hole to `{}`, and drop a trailing hole
@@ -75,7 +76,11 @@ fn normalise(path: &str) -> String {
         Some(head) if !head.ends_with('/') => head.trim_end_matches('/').to_string(),
         _ => p,
     };
-    if p.is_empty() { "/".to_string() } else { p }
+    if p.is_empty() {
+        "/".to_string()
+    } else {
+        p
+    }
 }
 
 struct Router {
@@ -107,7 +112,10 @@ fn routers() -> Router {
             paths.insert(normalise(raw));
         }
     }
-    Router { paths, first_segments }
+    Router {
+        paths,
+        first_segments,
+    }
 }
 
 struct Client {
@@ -119,16 +127,32 @@ struct Client {
 }
 
 const CLIENTS: &[Client] = &[
-    Client { name: "vibedesk", file: "vibedesk/src-tauri/src/commands.rs", floor: 10 },
-    Client { name: "vibecoder", file: "vibecoder/src-tauri/src/commands.rs", floor: 10 },
-    Client { name: "vscode", file: "vscode-extension/src/api-client.ts", floor: 20 },
-    Client { name: "mobile", file: "vibemobile/lib/services/api_client.dart", floor: 20 },
+    Client {
+        name: "vibedesk",
+        file: "vibedesk/src-tauri/src/commands.rs",
+        floor: 10,
+    },
+    Client {
+        name: "vibecoder",
+        file: "vibecoder/src-tauri/src/commands.rs",
+        floor: 10,
+    },
+    Client {
+        name: "vscode",
+        file: "vscode-extension/src/api-client.ts",
+        floor: 20,
+    },
+    Client {
+        name: "mobile",
+        file: "vibemobile/lib/services/api_client.dart",
+        floor: 20,
+    },
 ];
 
 fn called_paths(client: &Client, router: &Router) -> HashSet<String> {
     let file = repo_root().join(client.file);
-    let text = std::fs::read_to_string(&file)
-        .unwrap_or_else(|e| panic!("read {}: {e}", file.display()));
+    let text =
+        std::fs::read_to_string(&file).unwrap_or_else(|e| panic!("read {}: {e}", file.display()));
     let text = strip_comments(&text);
 
     // A client file may also *declare* routes — VibeCoder hosts its own chat
@@ -150,9 +174,18 @@ fn called_paths(client: &Client, router: &Router) -> HashSet<String> {
     // writes into a new project, not routes it calls, and every earlier
     // version of this scan reported them as missing daemon routes.
     const MARKERS: &[&str] = &[
-        "daemon_get", "daemon_post", "daemon_delete",
-        "baseUrl", "base_url", "authedFetch", "daemonFetch",
-        "send_authed", "reqwest", "http.get", "http.post", "_request",
+        "daemon_get",
+        "daemon_post",
+        "daemon_delete",
+        "baseUrl",
+        "base_url",
+        "authedFetch",
+        "daemonFetch",
+        "send_authed",
+        "reqwest",
+        "http.get",
+        "http.post",
+        "_request",
     ];
 
     text.lines()
@@ -160,7 +193,12 @@ fn called_paths(client: &Client, router: &Router) -> HashSet<String> {
         .flat_map(|(i, line)| {
             // The URL is regularly on its own line, one or two below the call.
             let start = i.saturating_sub(2);
-            let window: String = text.lines().skip(start).take(i - start + 1).collect::<Vec<_>>().join("\n");
+            let window: String = text
+                .lines()
+                .skip(start)
+                .take(i - start + 1)
+                .collect::<Vec<_>>()
+                .join("\n");
             let near_call = MARKERS.iter().any(|m| window.contains(m));
             literal
                 .captures_iter(line)
@@ -187,7 +225,10 @@ fn given_the_daemon_declares_routes_then_the_scan_finds_them() {
         "router parse found only {} paths — the extractor is broken, not the daemon",
         router.paths.len()
     );
-    assert!(router.paths.contains("/health"), "known route missing from parse");
+    assert!(
+        router.paths.contains("/health"),
+        "known route missing from parse"
+    );
 }
 
 #[test]
@@ -211,7 +252,10 @@ fn given_a_client_calls_the_daemon_then_the_route_exists() {
 
         for path in called {
             if !router.paths.contains(&path) {
-                failures.push(format!("  {:<10} calls {} — no such route", client.name, path));
+                failures.push(format!(
+                    "  {:<10} calls {} — no such route",
+                    client.name, path
+                ));
             }
         }
     }
@@ -233,7 +277,10 @@ fn given_a_route_is_renamed_then_the_check_notices() {
     assert!(!router.paths.contains("/v1/loops-renamed-does-not-exist"));
 
     assert_eq!(normalise("/v1/goals/${goalId}/start"), "/v1/goals/{}/start");
-    assert_eq!(normalise("/mobile/dispatch/$taskId/cancel"), "/mobile/dispatch/{}/cancel");
+    assert_eq!(
+        normalise("/mobile/dispatch/$taskId/cancel"),
+        "/mobile/dispatch/{}/cancel"
+    );
     assert_eq!(normalise("/watch/goals/:id/start"), "/watch/goals/{}/start");
     assert_eq!(normalise("/stream/{session_id}"), "/stream/{}");
     // A trailing hole is a query suffix, not a segment.

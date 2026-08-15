@@ -87,11 +87,17 @@ impl CommandExecutor {
         let mut readers = Vec::new();
         for (pipe, buf) in [
             (
-                child.stdout.take().map(|p| Box::new(p) as Box<dyn Read + Send>),
+                child
+                    .stdout
+                    .take()
+                    .map(|p| Box::new(p) as Box<dyn Read + Send>),
                 Arc::clone(&stdout_buf),
             ),
             (
-                child.stderr.take().map(|p| Box::new(p) as Box<dyn Read + Send>),
+                child
+                    .stderr
+                    .take()
+                    .map(|p| Box::new(p) as Box<dyn Read + Send>),
                 Arc::clone(&stderr_buf),
             ),
         ] {
@@ -539,7 +545,10 @@ mod bounded_tests {
             start.elapsed() < Duration::from_secs(10),
             "must not wait for the child"
         );
-        assert!(!out.status.success(), "an abandoned command is not a success");
+        assert!(
+            !out.status.success(),
+            "an abandoned command is not a success"
+        );
         let stderr = String::from_utf8_lossy(&out.stderr);
         assert!(stderr.contains("no output"), "{stderr}");
         assert!(
@@ -566,7 +575,10 @@ mod bounded_tests {
             "a command that keeps producing output must survive an idle bound: {}",
             String::from_utf8_lossy(&out.stderr)
         );
-        assert_eq!(String::from_utf8_lossy(&out.stdout).matches("tick").count(), 6);
+        assert_eq!(
+            String::from_utf8_lossy(&out.stdout).matches("tick").count(),
+            6
+        );
     }
 
     #[test]

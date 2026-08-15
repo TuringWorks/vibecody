@@ -6,16 +6,17 @@ permalink: /vibecoder/
 
 **AI-powered desktop code editor built with Tauri 2 and Monaco.** VibeCoder provides a VS Code-like editing experience with a native Rust backend, Monaco Editor frontend, integrated AI chat, autonomous agent mode, explicit-chord diff-mode AI editing (⌘.), terminal, Git panel, code review, and a WASM extension system.
 
-### What's new in 0.5.8
+### What's new in 0.5.9
 
-- **Voice input in chat** — mic button backed by the shared `@vibe/shared` voice hook and `crates/vibe-desktop-voice`, so VibeCoder, VibeDesk and VibeAIChat all bridge to the same daemon route. Web Speech API first, `MediaRecorder` + local whisper.cpp or Groq Whisper as fallback. Every failure path now produces a message — a denied mic, a missing key and an unsupported webview used to be indistinguishable from a dead button.
-- **Selectable embedding models** — `Settings → Embeddings` picks the provider behind semantic search, `@codebase:` and memory recall, from six (Ollama, OpenAI + any base-URL-compatible endpoint, Voyage, Cohere, Gemini, in-process candle), each labelled *local* or *cloud* before you choose. Indexes are per-model and coexist, so switching back never re-embeds.
-- **SkillForge panel** — Catalog / Lens / Optimize tabs in the AI/ML composite: score a skill doc against the toolbar-selected model, run a training job with a live validation curve, and promote the winner as a workspace override.
-- **Chat renders markdown properly** — tables arrived as walls of `| --- |` and emphasis as literal asterisks; `remark-gfm` was missing outright. Chat now goes through the same shared `Markdown` component the other two shells use.
-- **Two phantom design tokens fixed** — `var(--accent)` (22 uses) and `var(--border)` (74 uses) were defined nowhere, and CSS drops an undefined `var()` silently, so those borders were simply absent. `.panel-btn` also declared no background or color, leaving 43 buttons on the browser's native grey — which is what made `Configuration → Keys` look unthemed.
-- **Signed macOS builds** — Developer ID signing across the whole macOS surface. Signing is not notarization: a signed-but-un-notarized app still prompts on first launch.
+- **Plugins panel is a marketplace** — search, categories and one-click install for eleven core plugins and seventeen connectors that ship inside the binary. **Bundles** (Engineering, On-call, Security review, Data work, Research) install a set of plugins and set up the connectors that job assumes; a connector needing a credential is reported as such, never as configured.
+- **Connectors are real** — the old panel recorded every connector as connected without a credential, tested them by checking an in-memory list, and lost them on restart. Definitions now live in the workspace store with credentials encrypted, and **Test** launches the server and lists its tools before anything claims it works.
+- **27 commands the panels were already calling now exist** — every one of those clicks was a guaranteed runtime rejection, and the panel simply did nothing. A contract test now fails when an invoked command is not registered.
+- **Panels honour the toolbar's provider** — ghost text, ⌘., Counsel, Arena, SuperBrain, Compare and Automations each ran on something other than the model you picked. All 155 panels that receive a provider are covered by a contract test.
+- **Code Transforms scans the project you have open** — it was reading three different roots, one of them the app's own working directory, and reporting "0 files to transform".
+- **AI writes land directly, and you review them in Source Control** — instead of a separate approval queue that could drift from the files on disk.
+- **Goals on screen** — what a goal is doing, with failures kept visible rather than cleared on the next poll.
 
-Earlier releases: 0.5.7 was a release-engineering patch; 0.5.6 brought `/goal` durable execution intent, plugin governance, and Linux arm64 builds. See the [changelog](/vibecody/changelog/) and [release notes](/vibecody/release/).
+Earlier releases: 0.5.8 brought voice input, selectable embedding models, the SkillForge panel and signed macOS builds; 0.5.7 was a release-engineering patch; 0.5.6 brought `/goal` durable execution intent and plugin governance.
 
 ## Architecture Overview
 

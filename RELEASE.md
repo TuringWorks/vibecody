@@ -1,77 +1,92 @@
-# VibeCody v0.5.8 Release
+# VibeCody v0.5.9 Release
 
-**The largest release so far — 410 commits since v0.5.7.**
+**64 commits since v0.5.8.**
 
 ---
 
-## What's in v0.5.8
+## What's in v0.5.9
 
-Voice input on every client, SkillForge, the kodegraph code-graph substrate,
-goal-driven loops, a provider-agnostic embedding layer, and the
-VibeApp → VibeAIChat rename that brings **VibeDesk** in as a third desktop
-shell. Developer ID code signing is wired end to end for macOS for the first
-time — including the `vibecli` binary, which had no signature at all.
+An evaluation harness that refuses to report a result it did not measure, a
+plugin marketplace where a workspace can actually install something, connectors
+as first-class MCP integrations with encrypted credentials, and a run of
+agent-reliability work that came out of watching real runs stall and then claim
+success.
+
+Much of what follows is not a new feature going in but an old one that never
+worked: panels calling commands nobody had registered, a connector list that
+reported "connected" without a credential, a transform that scanned the app's
+working directory instead of your project. Each is now covered by a test that
+fails when it comes back.
 
 ### Headline features
 
-- **Voice input everywhere.** One daemon route (`POST /voice/transcribe`,
-  `GET /voice/status`) and one shared React hook behind mic buttons in
-  VibeCoder, VibeAIChat, VibeDesk, VibeMobile, and the VS Code / JetBrains /
-  Neovim plugins. Groq Whisper with a local whisper.cpp fallback, so dictation
-  works offline. Previously the whole voice stack was reachable only from the
-  REPL and the daemon had no voice route at all.
+- **`vibecli eval` — an evaluation harness (`crates/vibe-eval`).** Coding,
+  agentic tool use, knowledge work, safety, and per-surface transport
+  conformance across all fourteen clients. Four verdicts are kept strictly
+  apart — `pass`, `fail`, `error` (the harness could not decide) and `skipped`
+  (did not apply) — with errors and skips outside the pass-rate denominator,
+  because "the agent regressed" and "python3 isn't installed" are different
+  sentences. A grader with no assertions is an error, not a pass, rejected at
+  load time. `make eval-check` validates the suites with no provider and no
+  agent; `vibecli --eval gate latest --baseline <run-id>` exits 1 on regression.
 
-- **Pick your embedding model.** Semantic search, `@codebase:` and memory
-  recall run on Ollama, OpenAI (or any OpenAI-compatible endpoint — Azure,
-  LiteLLM, vLLM, TEI), Voyage, Cohere, Gemini, or an in-process local model.
-  Indexes are kept **per model** and coexist on disk, so trying a different
-  model is instant and switching back never re-embeds. Models not in the
-  shipped catalog work too — `ollama pull` anything. See
-  [docs/embeddings.md](docs/embeddings.md).
+- **A plugin marketplace, and connectors.** The Plugins panel used to read "No
+  plugin components are enabled for this workspace" above a pointer to a CLI
+  command — true, and useless, because the only way to get a plugin was to
+  author, sign and pack an MCPB bundle by hand. Eleven core plugins and
+  seventeen connectors now ship inside the binary, installable in one click,
+  offline. Connector credentials are encrypted in the workspace store and are
+  never returned by any route.
 
-- **SkillForge.** Analyse and train agent-skill documents (SkillLens +
-  SkillOpt) from a VibeCoder panel, the REPL, the TUI, and ten daemon routes,
-  with per-epoch SSE streaming and true cancellation.
+- **Bundles.** A plugin can install other plugins and set up the connectors a
+  job assumes — Engineering, On-call, Security review, Data work, Research. A
+  bundle adds every connector that needs no credential and reports the rest as
+  `needs_credentials` with the field names. It never reports one as configured
+  that you have not supplied a token for.
 
-- **Code graph (kodegraph).** A tree-sitter → SQLite knowledge graph built in
-  the background on daemon start, feeding a compact god-node / community
-  summary into the agent prompt in place of a flat directory tree. Eight
-  `/v1/graph/*` routes, fanned out to seven clients.
+- **Connector health is measured, never inferred.** Nothing says a connector
+  works until **Test** has launched the server and listed its tools. No probe
+  result is persisted: a stored "ok" is a claim about the past presented as a
+  claim about now.
 
-- **Goal-driven loops.** `/loop goal <id>` runs until a goal's
-  `success_criteria` verifiably hold — judged by a separate validator turn, not
-  by the worker's own opinion. Only confirmed success writes back; an exhausted
-  budget is not evidence of completion.
-
-- **VibeDesk ships for the first time**, alongside VibeCoder and VibeAIChat.
+- **`/goal <what you want>`** states a goal and works on it, and a VibeCoder
+  panel shows what a goal is doing with failures kept on screen.
 
 ### Notable fixes
 
-- **The code index persisted API keys in plaintext.** The provider struct was
-  serialized whole into `.vibecli/index.json`, key included. Index headers now
-  store a model reference only; pre-existing indexes migrate and the credential
-  is dropped.
-- **Changing embedding model silently returned nonsense.** No dimension or
-  format version was recorded, TurboQuant's dimension error was discarded at
-  both call sites, and `vibe-memory` had no model column — so a dimension
-  change made every existing memory unreachable while the rows sat in the
-  database. All three now carry and check the model identity.
-- **VibeAIChat never started the daemon.** It had no autostart path at all, so
-  launching it on its own produced a blanket 401. It now uses the same shared
-  `daemon_bootstrap` as VibeCoder and VibeDesk.
-- **Stale bearer tokens caused a permanent 401 loop.** The token rotates on
-  every daemon start; VibeDesk retried on none of its 20 daemon calls, and the
-  shared voice module on neither of its two. Both now retry once with a freshly
-  read token.
-- **VibeCoder chat rendered markdown as raw text** — tables arrived as walls of
-  `| --- |`. It now renders through the same shared component as the other two
-  shells.
-- **Two design tokens were referenced but never defined** (`--accent`,
-  `--border`, across 33 sites), so those button fills and borders never
-  rendered; and `.panel-btn` declared no background, so 43 buttons fell through
-  to native OS chrome on a dark theme.
+- **The agent could report work it had not done.** `--exec` now double-checks
+  with the project's own build and test before accepting `task_complete`,
+  bounded so a check that can never pass cannot spin the run to death. A check
+  that fails to spawn is reported as unverified rather than mapped onto pass —
+  the verification step had contained the exact fallback it existed to catch.
 
----
+- **A run could not be bounded from inside its own loops.** Every guard was
+  checked between turns or between chunks, so each depended on some inner loop
+  coming back round; four separate stalls slipped past. Runs are now bounded
+  from outside, with elapsed-time walls for "nothing has changed on disk" and
+  "no tool has run at all".
+
+- **Secrets could leave in the agent's own words.** Asked to summarise a
+  `.env`, it reproduced a database password verbatim — and paraphrased it once
+  output redaction was added. Credential files are redacted on the way *in*, so
+  the model never receives the value.
+
+- **An autonomous run cannot remove an authorization guard.** Told to make a
+  failing test pass against a test asserting anonymous access should succeed,
+  the agent deleted the auth check in 2 of 3 sampled runs. Guard-bearing files
+  are restored unless the task explicitly asked for that file.
+
+- **27 Tauri commands VibeCoder panels were already calling did not exist**, so
+  those buttons did nothing. **Eight panels ignored the toolbar's provider.**
+  **Code Transforms scanned three different roots**, one of them the app's own
+  working directory. **VibeCoder's Connectors panel was a facade.** All four are
+  now covered by contract tests over the joins that `tsc` and `rustc` cannot
+  see.
+
+- Python MCP connectors were all broken against the current SDK and the reason
+  was thrown away — `McpClient` opened the server's stderr as `/dev/null`, so a
+  traceback surfaced as "EOF while parsing". Both fixed.
+
 
 ## Downloads
 
@@ -84,52 +99,52 @@ time — including the `vibecli` binary, which had no signature at all.
 | Linux x86_64 (static musl) | `vibecli-x86_64-linux.tar.gz` |
 | Linux ARM64 (static musl) | `vibecli-aarch64-linux.tar.gz` |
 | Windows x64 | `vibecli-x86_64-windows.zip` |
-| Docker | `vibecli-docker-v0.5.8.tar.gz` |
+| Docker | `vibecli-docker-v0.5.9.tar.gz` |
 
 ### VibeCoder — Desktop Code Editor
 
 | Platform | File |
 |----------|------|
-| macOS (Apple Silicon) | `VibeCoder_0.5.8_aarch64.dmg` |
-| macOS (Intel) | `VibeCoder_0.5.8_x64.dmg` |
+| macOS (Apple Silicon) | `VibeCoder_0.5.9_aarch64.dmg` |
+| macOS (Intel) | `VibeCoder_0.5.9_x64.dmg` |
 | macOS (`.app`) | `VibeCoder-macOS-{arm64,x64}.app.zip` |
-| Linux x64 / arm64 (`.deb`) | `VibeCoder_0.5.8_{amd64,arm64}.deb` |
-| Linux x64 / arm64 (`.AppImage`) | `VibeCoder_0.5.8_{amd64,aarch64}.AppImage` |
-| Windows x64 | `VibeCoder_0.5.8_x64_en-US.msi` · `VibeCoder_0.5.8_x64-setup.exe` |
+| Linux x64 / arm64 (`.deb`) | `VibeCoder_0.5.9_{amd64,arm64}.deb` |
+| Linux x64 / arm64 (`.AppImage`) | `VibeCoder_0.5.9_{amd64,aarch64}.AppImage` |
+| Windows x64 | `VibeCoder_0.5.9_x64_en-US.msi` · `VibeCoder_0.5.9_x64-setup.exe` |
 
 ### VibeAIChat — Desktop AI Assistant
 
 | Platform | File |
 |----------|------|
-| macOS (Apple Silicon) | `VibeAIChat_0.5.8_aarch64.dmg` |
-| macOS (Intel) | `VibeAIChat_0.5.8_x64.dmg` |
-| Linux x64 / arm64 (`.deb`) | `VibeAIChat_0.5.8_{amd64,arm64}.deb` |
-| Linux x64 / arm64 (`.AppImage`) | `VibeAIChat_0.5.8_{amd64,aarch64}.AppImage` |
-| Windows x64 | `VibeAIChat_0.5.8_x64_en-US.msi` · `VibeAIChat_0.5.8_x64-setup.exe` |
+| macOS (Apple Silicon) | `VibeAIChat_0.5.9_aarch64.dmg` |
+| macOS (Intel) | `VibeAIChat_0.5.9_x64.dmg` |
+| Linux x64 / arm64 (`.deb`) | `VibeAIChat_0.5.9_{amd64,arm64}.deb` |
+| Linux x64 / arm64 (`.AppImage`) | `VibeAIChat_0.5.9_{amd64,aarch64}.AppImage` |
+| Windows x64 | `VibeAIChat_0.5.9_x64_en-US.msi` · `VibeAIChat_0.5.9_x64-setup.exe` |
 
-### VibeDesk — Desktop Task Shell *(new)*
+### VibeDesk — Desktop Task Shell
 
 | Platform | File |
 |----------|------|
-| macOS (Apple Silicon) | `VibeDesk_0.5.8_aarch64.dmg` |
-| macOS (Intel) | `VibeDesk_0.5.8_x64.dmg` |
-| Linux x64 / arm64 (`.deb`) | `VibeDesk_0.5.8_{amd64,arm64}.deb` |
-| Linux x64 / arm64 (`.AppImage`) | `VibeDesk_0.5.8_{amd64,aarch64}.AppImage` |
-| Windows x64 | `VibeDesk_0.5.8_x64_en-US.msi` · `VibeDesk_0.5.8_x64-setup.exe` |
+| macOS (Apple Silicon) | `VibeDesk_0.5.9_aarch64.dmg` |
+| macOS (Intel) | `VibeDesk_0.5.9_x64.dmg` |
+| Linux x64 / arm64 (`.deb`) | `VibeDesk_0.5.9_{amd64,arm64}.deb` |
+| Linux x64 / arm64 (`.AppImage`) | `VibeDesk_0.5.9_{amd64,aarch64}.AppImage` |
+| Windows x64 | `VibeDesk_0.5.9_x64_en-US.msi` · `VibeDesk_0.5.9_x64-setup.exe` |
 
 ### VibeCody Mobile
 
 | Platform | File |
 |----------|------|
-| iOS (unsigned `.ipa`) | `VibeCody-Mobile-v0.5.8-ios.ipa` |
-| Android | `VibeCody-Mobile-v0.5.8-android.apk` · `.aab` |
+| iOS (unsigned `.ipa`) | `VibeCody-Mobile-v0.5.9-ios.ipa` |
+| Android | `VibeCody-Mobile-v0.5.9-android.apk` · `.aab` |
 
 ### VibeCody Watch
 
 | Platform | File |
 |----------|------|
-| watchOS 10+ (unsigned `.app.zip`) | `VibeCody-WatchOS-v0.5.8.app.zip` |
-| Wear OS 3+ | `VibeCody-Wear-v0.5.8.apk` · `.aab` |
+| watchOS 10+ (unsigned `.app.zip`) | `VibeCody-WatchOS-v0.5.9.app.zip` |
+| Wear OS 3+ | `VibeCody-Wear-v0.5.9.apk` · `.aab` |
 
 ---
 
@@ -140,20 +155,20 @@ time — including the `vibecli` binary, which had no signature at all.
 curl -fsSL https://raw.githubusercontent.com/TuringWorks/vibecody/main/install.sh | sh
 
 # Docker (air-gapped / on-prem)
-docker load < vibecli-docker-v0.5.8.tar.gz
-docker run -p 7878:7878 vibecli:v0.5.8
+docker load < vibecli-docker-v0.5.9.tar.gz
+docker run -p 7878:7878 vibecli:v0.5.9
 
 # Verify
-vibecli --version   # Should print: vibecli 0.5.8
+vibecli --version   # Should print: vibecli 0.5.9
 ```
 
 ---
 
 ## macOS code signing
 
-v0.5.8 adds Developer ID signing across the whole macOS surface. The `vibecli`
-binary previously shipped with **no signature at all**; the three app bundles
-were ad-hoc.
+Developer ID signing has covered the whole macOS surface since v0.5.8, the
+`vibecli` binary included; before that it shipped with **no signature at all**
+and the three app bundles were ad-hoc. Nothing about signing changed in v0.5.9.
 
 Whether a given download is signed depends on the build that produced it — the
 release workflow signs only when the signing secrets are configured, and says
@@ -184,7 +199,7 @@ Full details, including the maintainer credential list, in
 
 ## Upgrade Guide
 
-### From v0.5.7
+### From v0.5.8
 
 No breaking API changes. Drop-in replace the binary and restart:
 
@@ -192,30 +207,27 @@ No breaking API changes. Drop-in replace the binary and restart:
 curl -fsSL https://raw.githubusercontent.com/TuringWorks/vibecody/main/install.sh | sh
 ```
 
-Three things to know:
+Two things to know:
 
-1. **Existing semantic indexes migrate on first use.** A pre-existing
-   `.vibecli/index.json` is moved to `.vibecli/index/index__<provider>__<model>.json`
-   and the API key that the old format stored in plaintext is discarded. If you
-   built an index against a cloud provider before v0.5.8, **rotate that key** —
-   it was on disk in cleartext.
-2. **Memory rows written before v0.5.8 carry no embedding-model tag.** They are
-   treated as comparable when their vector length matches the active model, so
-   existing memories keep working. Change the embedding model and they are
-   excluded from search rather than silently mis-scored — the daemon logs how
-   many were skipped.
-3. **`[index] embedding_provider` is now enforced.** It was previously dead
-   config read only by tests. An unrecognised provider name is now a startup
-   error instead of a silent fallback to Ollama.
+1. **The daemon must be restarted for the plugin and connector routes to
+   exist.** The desktop shells autostart it, but an already-running daemon from
+   a previous install keeps serving the old route set — the Plugins panel then
+   reports that the daemon is an older build than the app, with the command to
+   fix it.
+2. **Connector definitions are per workspace.** They live in
+   `<workspace>/.vibecli/workspace.db` with credentials encrypted; nothing is
+   read from or written to a plaintext config file, and removing a connector
+   deletes its stored credentials with it.
 
-### From v0.5.6 or earlier
+### From v0.5.7 or earlier
 
-See the [v0.5.7 release notes](https://github.com/TuringWorks/vibecody/releases/tag/v0.5.7)
-for the intermediate delta — every entry there applies.
+See the [v0.5.8 release notes](https://github.com/TuringWorks/vibecody/releases/tag/v0.5.8)
+for the intermediate delta — every entry there applies, including the semantic
+index migration that discards the plaintext API key the old format stored.
 
 ---
 
 ## Full Changelog
 
 See [docs/CHANGELOG.md](docs/CHANGELOG.md) for the complete history.
-See [compare view](../../compare/v0.5.7...v0.5.8) for the v0.5.8 diff.
+See [compare view](../../compare/v0.5.8...v0.5.9) for the v0.5.9 diff.
