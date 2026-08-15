@@ -222,7 +222,7 @@ description too.
 ### Secrets
 
 Both the webhook secret and the GitHub token resolve through the encrypted
-[ProfileStore](./settings.md) first, per
+[ProfileStore](/vibecody/settings/) first, per
 [Zero-Config First](https://github.com/TuringWorks/vibecody/blob/main/AGENTS.md#zero-config-first--the-user-experience-contract):
 
 ```bash
@@ -266,5 +266,5 @@ Two different tools, kept separate on purpose:
 | Output | Findings + committable suggestions | Scored report, markdown or JSON |
 | Best for | Pre-push and PR gating | Release readiness, architecture review |
 
-See [Code Review & Analysis](./FEATURE-MATRIX.md#code-review--analysis) for the
+See [Code Review & Analysis](https://github.com/TuringWorks/vibecody/blob/main/docs/FEATURE-MATRIX.md#code-review--analysis) for the
 full detector list behind `--review`.

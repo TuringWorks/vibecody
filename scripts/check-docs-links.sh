@@ -63,6 +63,26 @@ if [ -n "$dangling" ]; then
   fail=1
 fi
 
+# ── 3. `*.md` links inside a published page ──────────────────────────────────
+# Jekyll serves a published page at its permalink, not as a file, so
+# `](./settings.md)` from /vibecody/bugbot/ asks for /vibecody/settings.md and
+# 404s. The same link is correct in an unpublished design doc read on GitHub,
+# which is why this only looks inside files that declare a `permalink:`.
+md_links=$(
+  for f in $(grep -rlE '^permalink:' docs/ 2>/dev/null); do
+    grep -noE '\]\([^)[:space:]]+\.md(#[^)[:space:]]*)?\)' "$f" 2>/dev/null \
+      | grep -v '](http' | sed "s#^#${f}:#" || true
+  done
+)
+
+if [ -n "$md_links" ]; then
+  echo "Links to *.md inside published pages (Jekyll serves permalinks, not files):"
+  echo "$md_links" | sed 's/^/  /'
+  echo "  → use the target's permalink, or link to GitHub if it is not a published page."
+  echo
+  fail=1
+fi
+
 if [ "$fail" -ne 0 ]; then
   echo "Fix the links above, or add the missing page."
   exit 1
