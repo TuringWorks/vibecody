@@ -982,7 +982,7 @@ VibeCody compiles to a single ARM binary that runs on Raspberry Pi. Use it as a 
 
 ```bash
 # Install on Raspberry Pi
-curl -fsSL https://vibecody.dev/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/TuringWorks/vibecody/main/install.sh | sh
 vibecli --provider ollama --model tinyllama:1.1b
 ```
 

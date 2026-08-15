@@ -609,7 +609,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 ### Protocol
 
 - Transport: **stdio** (newline-delimited JSON-RPC 2.0)
-- Spec: [https://spec.modelcontextprotocol.io/](https://spec.modelcontextprotocol.io/)
+- Spec: [https://modelcontextprotocol.io/](https://modelcontextprotocol.io/)
 
 ### Connecting to External MCP Servers
 

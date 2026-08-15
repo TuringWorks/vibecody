@@ -120,7 +120,7 @@ An alphabetical reference of terms used throughout VibeCody's documentation and 
 
 **SWE-bench** — A benchmark suite for evaluating AI coding assistants on real-world software engineering tasks. VibeCody can import it (`vibecli --eval datasets import swebench_verified`) and grade it with the held-out-test-patch grader. Scores produced this way are for tracking VibeCody against itself; they are not leaderboard-comparable, because the official numbers come from per-instance Docker images with pinned dependency sets.
 
-**Eval harness** — `vibecli --eval`, backed by the `vibe-eval` crate and the suites in `evals/`. Measures coding, agentic tool use, knowledge work, safety, and per-surface transport conformance. Keeps `pass`/`fail`/`error`/`skipped` strictly apart so an unmeasured task never reads as a failing one. See [evals/README.md](https://github.com/ravituringworks/vibecody/blob/main/evals/README.md).
+**Eval harness** — `vibecli --eval`, backed by the `vibe-eval` crate and the suites in `evals/`. Measures coding, agentic tool use, knowledge work, safety, and per-surface transport conformance. Keeps `pass`/`fail`/`error`/`skipped` strictly apart so an unmeasured task never reads as a failing one. See [evals/README.md](https://github.com/TuringWorks/vibecody/blob/main/evals/README.md).
 
 **Tauri** — The framework used to build VibeCoder. Tauri v2 combines a Rust backend with a web frontend (React/TypeScript), producing lightweight, secure desktop applications that use the system WebView.
 

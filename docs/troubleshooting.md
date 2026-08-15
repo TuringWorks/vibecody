@@ -700,7 +700,7 @@ The API only returns pages explicitly shared with the integration.
 vibecli --version
 
 # If not found, install it
-curl -fsSL https://vibecody.github.io/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/TuringWorks/vibecody/main/install.sh | sh
 
 # Or add to PATH in your shell profile (~/.zshrc / ~/.bashrc):
 export PATH="$HOME/.local/bin:$PATH"

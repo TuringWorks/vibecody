@@ -201,7 +201,7 @@ deliberately not in CI: that spends tokens.
 ## Adding your own tasks
 
 Suites are YAML under `evals/suites/`. See
-[evals/README.md](https://github.com/ravituringworks/vibecody/blob/main/evals/README.md)
+[evals/README.md](https://github.com/TuringWorks/vibecody/blob/main/evals/README.md)
 for the task format and the grader reference.
 
 Before adding one, ask the question that matters: **how could this be passed
