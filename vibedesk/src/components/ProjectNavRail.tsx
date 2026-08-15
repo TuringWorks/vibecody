@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MessageSquarePlus, FolderPlus, Search, Sparkles, Plug, Workflow, Folder, Settings, PanelLeftClose, Trash2, Archive, AlertTriangle } from "lucide-react";
+import { MessageSquarePlus, FolderPlus, Search, Sparkles, Plug, Cable, Workflow, Folder, Settings, PanelLeftClose, Trash2, Archive, AlertTriangle } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
 import type { Task } from "../hooks/useTasks";
 
@@ -24,6 +24,7 @@ interface ProjectNavRailProps {
   onOpenSearch: () => void;
   onOpenSkills: () => void;
   onOpenPlugins: () => void;
+  onOpenConnectors: () => void;
   onOpenAutomations: () => void;
   onOpenTrash: () => void;
   onOpenSettings: () => void;
@@ -32,7 +33,7 @@ interface ProjectNavRailProps {
 
 /**
  * VX-102 — left project/chat navigator (Codex screenshots 1, 4, 8).
- * Fixed top items (New chat / New project / Search / Skills / Plugins /
+ * Fixed top items (New chat / New project / Search / Skills / Plugins / Connectors /
  * Automations), then a Projects→chats tree grouped from live tasks, then
  * Settings pinned at the bottom. Rows are clickable; "New project" opens a
  * native folder picker and scopes the next task to it.
@@ -88,6 +89,7 @@ export function ProjectNavRail({
   onOpenSearch,
   onOpenSkills,
   onOpenPlugins,
+  onOpenConnectors,
   onOpenAutomations,
   onOpenTrash,
   onOpenSettings,
@@ -149,6 +151,12 @@ export function ProjectNavRail({
           <button className="vx-nav__item" aria-label="Plugins" onClick={onOpenPlugins}>
             <Plug size={15} />
             <span>Plugins</span>
+          </button>
+        </li>
+        <li>
+          <button className="vx-nav__item" aria-label="Connectors" onClick={onOpenConnectors}>
+            <Cable size={15} />
+            <span>Connectors</span>
           </button>
         </li>
         <li>

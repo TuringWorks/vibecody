@@ -12,6 +12,7 @@ import { ChatSearch } from "../components/ChatSearch";
 import { SkillsView } from "../components/SkillsView";
 import { SideChatPanel } from "../components/SideChatPanel";
 import { PluginsView } from "../components/PluginsView";
+import { ConnectorsView } from "../components/ConnectorsView";
 import { TerminalView } from "../components/TerminalView";
 import { AutomationsView } from "../components/AutomationsView";
 import { BrowserView } from "../components/BrowserView";
@@ -24,7 +25,7 @@ import type { Task, useTasks } from "../hooks/useTasks";
 import type { Attachment } from "../lib/attachments";
 
 type TasksApi = ReturnType<typeof useTasks>;
-type Overlay = null | "review" | "files" | "settings" | "trash" | "skills" | "plugins" | "terminal" | "automations" | "browser";
+type Overlay = null | "review" | "files" | "settings" | "trash" | "skills" | "plugins" | "connectors" | "terminal" | "automations" | "browser";
 
 interface ShellLayoutProps {
   daemonUrl: string;
@@ -354,6 +355,7 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
             onOpenSearch={() => setSearchOpen(true)}
             onOpenSkills={() => setOverlay("skills")}
             onOpenPlugins={() => setOverlay("plugins")}
+            onOpenConnectors={() => setOverlay("connectors")}
             onOpenAutomations={() => setOverlay("automations")}
             onOpenTrash={() => setOverlay("trash")}
             onOpenSettings={() => setOverlay("settings")}
@@ -385,6 +387,8 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
           <TerminalView daemonUrl={daemonUrl} path={scopePath} onClose={() => setOverlay(null)} />
         ) : overlay === "plugins" ? (
           <PluginsView daemonUrl={daemonUrl} path={scopePath} onClose={() => setOverlay(null)} />
+        ) : overlay === "connectors" ? (
+          <ConnectorsView daemonUrl={daemonUrl} path={scopePath} onClose={() => setOverlay(null)} />
         ) : overlay === "skills" ? (
           <SkillsView
             daemonUrl={daemonUrl}
