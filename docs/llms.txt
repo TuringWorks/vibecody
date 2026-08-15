@@ -44,14 +44,14 @@ provider -- no native function-calling API required.
 
 ## Docs
 
-- [Quickstart](/)
-- [VibeCLI Reference](/vibecli/)
-- [VibeCoder Reference](/vibecoder/)
-- [Configuration](/configuration/)
-- [Architecture](/architecture/)
-- [Plugin Development](/PLUGIN-DEVELOPMENT/)
-- [Tutorials](/tutorials/)
-- [Contributing](/contributing/)
+- [Quickstart](https://turingworks.github.io/vibecody/)
+- [VibeCLI Reference](https://turingworks.github.io/vibecody/vibecli/)
+- [VibeCoder Reference](https://turingworks.github.io/vibecody/vibecoder/)
+- [Configuration](https://turingworks.github.io/vibecody/configuration/)
+- [Architecture](https://turingworks.github.io/vibecody/architecture/)
+- [Plugin Development](https://turingworks.github.io/vibecody/plugin-development/)
+- [Tutorials](https://turingworks.github.io/vibecody/tutorials/)
+- [Contributing](https://turingworks.github.io/vibecody/contributing/)
 
 ## Providers
 

@@ -834,7 +834,7 @@ The following Tauri commands are available for the VibeCoder frontend via `invok
 
 Back the Plugin Governance panel. Workspace plugins — signed bundles under
 `<workspace>/.vibecli/plugins/`, distinct from the user-level plugins in
-[Plugin Development](/plugin-development/).
+[Plugin Development](/vibecody/plugin-development/).
 
 | Command | Arguments | Returns |
 |---------|-----------|---------|
@@ -1009,7 +1009,7 @@ workspace root.
 Plugins here are the **workspace** plugin system — signed bundles under
 `<workspace>/.vibecli/plugins/`, policed per workspace. That is a different
 system from the user-level `~/.vibecli/plugins/` bundles described in
-[Plugin Development](/plugin-development/); the two do not share a manifest
+[Plugin Development](/vibecody/plugin-development/); the two do not share a manifest
 format or an install directory.
 
 | Method | Path | Purpose |

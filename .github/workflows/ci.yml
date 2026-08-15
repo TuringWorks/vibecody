@@ -305,6 +305,14 @@ jobs:
         if: matrix.check == 'version'
         run: ./scripts/check-docs-version.sh
 
+      # The site is a project site under /vibecody/, so a link written as
+      # `](/ghost-text/)` resolves to the domain root and 404s while the page
+      # itself is fine. It renders correctly and reads correctly in the diff;
+      # only clicking it fails. Fifteen shipped that way.
+      - name: Check docs links resolve
+        if: matrix.check == 'version'
+        run: ./scripts/check-docs-links.sh
+
       - name: Setup Node
         if: matrix.check == 'lint'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0

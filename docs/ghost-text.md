@@ -8,7 +8,7 @@ permalink: /ghost-text/
 
 Ghost text is VibeCody's short-form AI completion. It renders inline at the cursor and accepts with Tab — the ergonomics people expect from a modern editor — but it is **explicit-trigger only**: nothing is requested, and nothing appears, while you type.
 
-For a larger change you want to review hunk-by-hunk, use [Diffcomplete (⌘.)](/diffcomplete/) instead.
+For a larger change you want to review hunk-by-hunk, use [Diffcomplete (⌘.)](/vibecody/diffcomplete/) instead.
 
 ---
 
@@ -111,4 +111,4 @@ Leading whitespace is deliberately preserved: at a cursor sitting at column 0 of
 
 - **Source:** [`vibecoder/crates/vibe-ai/src/ghost.rs`](https://github.com/TuringWorks/vibecody/blob/main/vibecoder/crates/vibe-ai/src/ghost.rs) · [`vibecoder/src/lib/ghostText.ts`](https://github.com/TuringWorks/vibecody/blob/main/vibecoder/src/lib/ghostText.ts) · [`vscode-extension/src/ghost-text.ts`](https://github.com/TuringWorks/vibecody/blob/main/vscode-extension/src/ghost-text.ts)
 - **Route:** `POST /v1/ghost/complete` (requires the daemon bearer token)
-- **Companion surface:** [Diffcomplete (⌘.)](/diffcomplete/)
+- **Companion surface:** [Diffcomplete (⌘.)](/vibecody/diffcomplete/)

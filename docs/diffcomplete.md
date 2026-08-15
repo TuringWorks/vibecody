@@ -8,7 +8,7 @@ permalink: /diffcomplete/
 
 Diffcomplete is VibeCody's AI code-editing surface for changes worth reviewing. It deliberately replaces *keystroke-driven* inline completions with an explicit-trigger, diff-output flow — better for review and better for safety than FIM / next-edit / ghost-text systems.
 
-It is no longer the only AI editing surface: [Ghost text (⌥\)](/ghost-text/) adds a short inline completion at the cursor. Both are explicit-trigger — neither fires while you type — but they differ in output and review: diffcomplete returns a reviewable diff, ghost text returns a suggestion you accept with Tab.
+It is no longer the only AI editing surface: [Ghost text (⌥\)](/vibecody/ghost-text/) adds a short inline completion at the cursor. Both are explicit-trigger — neither fires while you type — but they differ in output and review: diffcomplete returns a reviewable diff, ghost text returns a suggestion you accept with Tab.
 
 ---
 
@@ -22,7 +22,7 @@ It is no longer the only AI editing surface: [Ghost text (⌥\)](/ghost-text/) a
 6. Per hunk: **Accept** keeps the change, **Reject** drops it, **Edit** lets you tweak the proposed text in place.
 7. Click **Apply** to write the accepted hunks back to the file.
 
-That's it. The only other AI editing surface is [ghost text](/ghost-text/), which you must also press a key to summon. If a suggestion appears that you did *not* ask for, it isn't AI — it's LSP IntelliSense, a static lint, or a formatting hint.
+That's it. The only other AI editing surface is [ghost text](/vibecody/ghost-text/), which you must also press a key to summon. If a suggestion appears that you did *not* ask for, it isn't AI — it's LSP IntelliSense, a static lint, or a formatting hint.
 
 ---
 
@@ -212,7 +212,7 @@ User content (instruction text, file paths) is **not** logged at any level — o
 
 For clarity (and because we removed these on purpose):
 
-- **Not** ghost text of any kind. VibeCody does register an inline-completions provider (see [ghost text](/ghost-text/)), but it answers only the editor's *explicit* trigger kind — typing never reaches it.
+- **Not** ghost text of any kind. VibeCody does register an inline-completions provider (see [ghost text](/vibecody/ghost-text/)), but it answers only the editor's *explicit* trigger kind — typing never reaches it.
 - **Not** FIM (fill-in-middle). The model receives prefix + selection + suffix as discrete labeled regions, not a single FIM template.
 - **Not** next-edit prediction. The model only sees the current file state, never your past edits.
 - **Not** auto-retrieval. Files in context come from your explicit picker. There is no embedding search, no call-graph walker, no symbol-server probe.

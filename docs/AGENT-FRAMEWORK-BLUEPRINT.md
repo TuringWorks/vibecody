@@ -15,7 +15,7 @@
 
 ## Architecture Diagram
 
-![Agent Framework Architecture](/agent-framework.svg)
+![Agent Framework Architecture](/vibecody/agent-framework.svg)
 
 ## 1. Executive Summary
 
