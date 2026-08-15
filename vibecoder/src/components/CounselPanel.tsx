@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { errorMessage } from "../utils/errorMessage";
 import { listen } from "@tauri-apps/api/event";
@@ -60,11 +60,24 @@ const ROLE_COLORS: Record<string, string> = {
   Custom: "var(--text-secondary)",
 };
 
-const DEFAULT_PARTICIPANTS: Participant[] = [
-  { provider: "claude", model: "claude-sonnet-4-6", role: "Expert" },
-  { provider: "openai", model: "gpt-4o", role: "Skeptic" },
-  { provider: "gemini", model: "gemini-2.5-flash", role: "Creative" },
-];
+/// The roles a fresh council starts with. Roles are the panel's own idea;
+/// which model plays them is the user's.
+const DEFAULT_ROLES = ["Expert", "Skeptic", "Creative"] as const;
+
+/// Seed a new council from the toolbar selection.
+///
+/// This used to be a constant naming claude, openai and gemini outright, so a
+/// new session ran on those three whatever the toolbar said — the panel was
+/// handed `provider` and dropped it. Selecting a model and watching Claude
+/// answer anyway is exactly the failure the provider-agnostic rule exists to
+/// prevent (AGENTS.md → Provider-Agnostic Panels — STRICT).
+///
+/// Returns `[]` when nothing is selected, which renders the "pick a model"
+/// empty state. Guessing a provider here is what caused the bug.
+function seedParticipants(provider: string | undefined, model: string): Participant[] {
+  if (!provider || !model) return [];
+  return DEFAULT_ROLES.map(role => ({ provider, model, role }));
+}
 
 // ── Styles ───────────────────────────────────────────────────────────────────
 
@@ -90,8 +103,14 @@ const S = {
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export function CounselPanel() {
+export function CounselPanel({ provider: toolbarProvider }: { provider?: string } = {}) {
   const { providers, modelsForProvider } = useModelRegistry();
+  // The toolbar carries the provider; the model is whatever that provider
+  // leads with. `LazyPanels` has no model to forward.
+  const toolbarModel = useMemo(
+    () => (toolbarProvider ? (modelsForProvider(toolbarProvider)[0] ?? "") : ""),
+    [toolbarProvider, modelsForProvider]
+  );
   const [sessionList, setSessionList] = useState<SessionSummary[]>([]);
   const [activeSession, setActiveSession] = useState<CounselSession | null>(null);
   const [showSetup, setShowSetup] = useState(true);
@@ -99,8 +118,20 @@ export function CounselPanel() {
 
   // Setup state
   const [topic, setTopic] = useState("");
-  const [participants, setParticipants] = useState<Participant[]>([...DEFAULT_PARTICIPANTS]);
+  const [participants, setParticipants] = useState<Participant[]>(() =>
+    seedParticipants(toolbarProvider, toolbarModel)
+  );
   const [moderatorIdx, setModeratorIdx] = useState(0);
+
+  // The model registry resolves asynchronously, so the first render often has
+  // no model yet and the initial seed comes back empty. Fill it in when the
+  // selection arrives — but only while the list is still empty, so seats the
+  // user has edited or removed are never overwritten underneath them.
+  useEffect(() => {
+    setParticipants(prev =>
+      prev.length === 0 ? seedParticipants(toolbarProvider, toolbarModel) : prev
+    );
+  }, [toolbarProvider, toolbarModel]);
 
   // Toggle participant selection
   const toggleParticipantSelection = (idx: number) => {
@@ -215,7 +246,11 @@ export function CounselPanel() {
   }, [activeSession, loadSession]);
 
   const addParticipant = () => {
-    setParticipants(prev => [...prev, { provider: "ollama", model: "llama3.2", role: "Expert" }]);
+    setParticipants(prev => [
+      ...prev,
+      // A new seat follows the toolbar too, not a pinned local model.
+      { provider: toolbarProvider ?? "", model: toolbarModel, role: "Expert" },
+    ]);
   };
 
   const removeParticipant = (idx: number) => {
@@ -260,7 +295,7 @@ export function CounselPanel() {
     setActiveSession(null);
     setShowSetup(true);
     setTopic("");
-    setParticipants([...DEFAULT_PARTICIPANTS]);
+    setParticipants(seedParticipants(toolbarProvider, toolbarModel));
     setModeratorIdx(0);
   };
 
@@ -349,6 +384,12 @@ export function CounselPanel() {
                 </button>
               )}
             </div>
+            {participants.length === 0 && (
+              <div style={{ ...S.card, color: "var(--text-secondary)" }}>
+                No model selected. Pick a provider and model in the toolbar and the
+                council will seat them — or add participants individually below.
+              </div>
+            )}
             {participants.map((p, i) => {
               const models = modelsForProvider(p.provider);
               return (
