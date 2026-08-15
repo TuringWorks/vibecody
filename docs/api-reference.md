@@ -1053,6 +1053,10 @@ that asks for nothing and it cannot invent a token; reporting that as configured
 would be the feature lying at the moment it is most believed. The panel prompts
 for those and says the setup is incomplete until they are supplied.
 
+Removing a bundle removes the bundle, not its members: another bundle may share
+one, and silently uninstalling a plugin the user is still relying on is worse
+than leaving a row they can remove themselves. `Yours` lists them individually.
+
 | Bundle | Installs | Expects |
 |---|---|---|
 | `bundle-engineering` | review standards, test first, debugging | filesystem, git, github |
