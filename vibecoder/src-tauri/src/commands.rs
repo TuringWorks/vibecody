@@ -28485,18 +28485,61 @@ pub async fn detect_transform(workspace: String) -> Result<Vec<String>, String> 
     Ok(transforms)
 }
 
+/// The project a transform reads and rewrites.
+///
+/// Order: the workspace the panel was rendered with, then the app's active
+/// workspace, then an error.
+///
+/// The last step used to be `std::env::current_dir()`. For a packaged app that
+/// is not a project — it is `/` or the bundle — so a plan would walk somewhere
+/// nobody asked about and report "0 files to transform", which reads as
+/// "nothing here needs transforming" rather than "I did not look at your code".
+/// Nothing restores the workspace into `AppState` at launch, so this was the
+/// normal state after a restart, not an edge case.
+async fn resolve_transform_root(
+    requested: Option<&str>,
+    state: &tauri::State<'_, AppState>,
+) -> Result<PathBuf, String> {
+    if let Some(path) = requested.map(str::trim).filter(|p| !p.is_empty()) {
+        // Same gate as every other path-taking command: a transform rewrites
+        // files, so it must not be pointed at a credential directory.
+        return reject_sensitive_path(path);
+    }
+    let folders = state.workspace.lock().await.folders().to_vec();
+    match folders.first() {
+        Some(f) => Ok(PathBuf::from(f)),
+        None => Err(
+            "No project is open — open a folder first, and Transforms will scan that.".to_string(),
+        ),
+    }
+}
+
 #[tauri::command]
 pub async fn plan_transform(
     transform_type: String,
+    workspace: Option<String>,
+    provider: Option<String>,
+    model: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<TransformPlanResult, String> {
-    let engine = state.chat_engine.lock().await;
-    let llm = engine.active_provider().ok_or("No active AI provider")?;
-    let workspace_folders = state.workspace.lock().await.folders().to_vec();
-    let ws = workspace_folders
-        .first()
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+    let ws = resolve_transform_root(workspace.as_deref(), &state).await?;
+    // The panel's provider selection, not whatever the chat engine happens to
+    // have active. Both were being sent by the frontend and dropped on the
+    // floor here, so a transform ran on a provider the user had not chosen —
+    // and failed outright for anyone whose active engine had no key.
+    let llm: Arc<dyn vibe_ai::provider::AIProvider> = match (provider.as_deref(), model.as_deref())
+    {
+        (Some(p), Some(m)) if !p.is_empty() && !m.is_empty() => build_temp_provider(p, m)
+            .ok_or_else(|| format!("Provider `{p}` is not configured — add its API key"))?,
+        _ => {
+            let engine = state.chat_engine.lock().await;
+            // Cloned so the engine lock is not held across the LLM call below.
+            engine
+                .active_provider()
+                .ok_or("No active AI provider")?
+                .clone()
+        }
+    };
 
     // Find files matching the transform type
     let extensions: Vec<&str> = match transform_type.as_str() {
@@ -28609,17 +28652,11 @@ pub async fn plan_transform(
 pub async fn execute_transform(
     transform_type: String,
     files: Vec<String>,
+    workspace: Option<String>,
     state: tauri::State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<TransformExecResult, String> {
-    // Resolve workspace root while holding the lock briefly
-    let ws = {
-        let workspace_folders = state.workspace.lock().await.folders().to_vec();
-        workspace_folders
-            .first()
-            .map(std::path::PathBuf::from)
-            .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
-    };
+    let ws = resolve_transform_root(workspace.as_deref(), &state).await?;
 
     let total = files.len();
     let mut modified = 0;
@@ -63180,8 +63217,10 @@ pub async fn scan_project_profile(workspace_path: String) -> Result<ProjectProfi
 
     let mut languages: Vec<String> = present.iter().map(|r| r.language.to_string()).collect();
     languages.dedup();
-    let mut package_managers: Vec<String> =
-        present.iter().map(|r| r.package_manager.to_string()).collect();
+    let mut package_managers: Vec<String> = present
+        .iter()
+        .map(|r| r.package_manager.to_string())
+        .collect();
     package_managers.dedup();
 
     let build_commands = present
@@ -63235,11 +63274,17 @@ pub async fn scan_project_profile(workspace_path: String) -> Result<ProjectProfi
         }
     }
 
-    let entry_points = ["src/main.rs", "src/main.ts", "src/index.ts", "main.py", "main.go"]
-        .iter()
-        .filter(|p| root.join(p).is_file())
-        .map(|p| p.to_string())
-        .collect::<Vec<_>>();
+    let entry_points = [
+        "src/main.rs",
+        "src/main.ts",
+        "src/index.ts",
+        "main.py",
+        "main.go",
+    ]
+    .iter()
+    .filter(|p| root.join(p).is_file())
+    .map(|p| p.to_string())
+    .collect::<Vec<_>>();
 
     // Env var *names* only. Reading `.env` values into a panel that renders
     // them would put secrets on screen and into any screenshot of it.
@@ -63573,10 +63618,9 @@ pub async fn voice_vocab_build(
         if skip {
             continue;
         }
-        let is_source = path
-            .extension()
-            .and_then(|e| e.to_str())
-            .is_some_and(|e| matches!(e, "rs" | "ts" | "tsx" | "js" | "py" | "go" | "swift" | "kt"));
+        let is_source = path.extension().and_then(|e| e.to_str()).is_some_and(|e| {
+            matches!(e, "rs" | "ts" | "tsx" | "js" | "py" | "go" | "swift" | "kt")
+        });
         if !is_source {
             continue;
         }
@@ -63962,10 +64006,7 @@ pub async fn ide_bridge_context(
 ) -> Result<BridgeContext, String> {
     let workspace_root = {
         let workspace = state.workspace.lock().await;
-        workspace
-            .folders()
-            .first()
-            .map(|p| p.display().to_string())
+        workspace.folders().first().map(|p| p.display().to_string())
     };
     Ok(BridgeContext {
         open_files: Vec::new(),
@@ -64048,13 +64089,25 @@ pub async fn auto_deploy_plan(
     };
 
     if !profile.build_commands.is_empty() {
-        push("Build", "build", vec![profile.build_commands[0].command.clone()]);
+        push(
+            "Build",
+            "build",
+            vec![profile.build_commands[0].command.clone()],
+        );
     }
     if !profile.test_commands.is_empty() {
-        push("Test", "test", vec![profile.test_commands[0].command.clone()]);
+        push(
+            "Test",
+            "test",
+            vec![profile.test_commands[0].command.clone()],
+        );
     }
     if !profile.lint_commands.is_empty() {
-        push("Lint", "lint", vec![profile.lint_commands[0].command.clone()]);
+        push(
+            "Lint",
+            "lint",
+            vec![profile.lint_commands[0].command.clone()],
+        );
     }
     if root.join("Dockerfile").is_file() {
         push("Container image", "package", vec!["Dockerfile".to_string()]);
@@ -64151,7 +64204,10 @@ pub async fn semindex_callgraph(query: String) -> Result<Vec<CallEdge>, String> 
     // neighbour lookup is by name, so asking twice returns the same edges.
     let unique_seeds: Vec<String> = {
         let mut seen = std::collections::BTreeSet::new();
-        seeds.into_iter().filter(|s| seen.insert(s.clone())).collect()
+        seeds
+            .into_iter()
+            .filter(|s| seen.insert(s.clone()))
+            .collect()
     };
 
     let mut edges = Vec::new();
@@ -64177,7 +64233,9 @@ pub async fn semindex_callgraph(query: String) -> Result<Vec<CallEdge>, String> 
             continue;
         };
         for item in items.iter().take(MAX_EDGES_PER_SEED) {
-            let Some(sym) = item.get("Symbol") else { continue };
+            let Some(sym) = item.get("Symbol") else {
+                continue;
+            };
             let (Some(name), Some(file)) = (
                 sym.get("name").and_then(|v| v.as_str()),
                 sym.get("file_path").and_then(|v| v.as_str()),
@@ -64188,10 +64246,7 @@ pub async fn semindex_callgraph(query: String) -> Result<Vec<CallEdge>, String> 
                 caller: seed.clone(),
                 callee: name.to_string(),
                 file: file.to_string(),
-                line: sym
-                    .get("line_start")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0) as u32,
+                line: sym.get("line_start").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
             });
         }
     }

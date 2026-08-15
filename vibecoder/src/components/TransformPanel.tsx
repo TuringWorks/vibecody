@@ -12,6 +12,15 @@ import { STATIC_MODELS, parseProviderSelection, ALL_PROVIDERS } from "../hooks/u
 
 interface TransformPanelProps {
   provider: string;
+  /**
+   * The project to scan. Forwarded by `createComposite` like every other panel.
+   *
+   * This panel used to read `localStorage["vibecoder_workspace"]` for detection
+   * while the backend planned against `AppState.workspace` — two roots that
+   * agree only until you switch projects or restart the app, at which point the
+   * cards lit up from one folder and the plan scanned another.
+   */
+  workspacePath?: string | null;
 }
 
 interface TransformDef {
@@ -115,7 +124,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 const CATEGORY_ORDER = ["legacy", "dotnet", "java", "javascript", "python", "mobile", "systems", "web", "universal"];
 
-export function TransformPanel({ provider }: TransformPanelProps) {
+export function TransformPanel({ provider, workspacePath }: TransformPanelProps) {
   const [detectedIds, setDetectedIds] = useState<string[]>([]);
   const [selectedTransform, setSelectedTransform] = useState<string | null>(null);
   const [plan, setPlan] = useState<PlanResult | null>(null);
@@ -124,6 +133,7 @@ export function TransformPanel({ provider }: TransformPanelProps) {
   const [planning, setPlanning] = useState(false);
   const [executing, setExecuting] = useState(false);
   const [error, setError] = useState("");
+  const [detectError, setDetectError] = useState("");
   const [search, setSearch] = useState("");
   const [showAll, setShowAll] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
@@ -160,20 +170,36 @@ export function TransformPanel({ provider }: TransformPanelProps) {
     return () => { unlisten.then(f => f()); };
   }, []);
 
-  // Detect transforms for workspace
+  // Detect what this project contains. Keyed on the workspace, so switching
+  // projects re-scans — the old effect ran once on mount with `[]` deps and
+  // kept showing the previous project's detections for the rest of the session.
   useEffect(() => {
+    if (!workspacePath) {
+      setDetectedIds([]);
+      setDetectError("");
+      setLoading(false);
+      return;
+    }
+    let alive = true;
     (async () => {
+      setLoading(true);
+      setDetectError("");
       try {
-        setLoading(true);
-        const wp = localStorage.getItem("vibecoder_workspace") || "";
-        if (wp) {
-          const detected = await invoke<string[]>("detect_transform", { workspace: wp });
-          if (mountedRef.current) setDetectedIds(detected);
+        const detected = await invoke<string[]>("detect_transform", { workspace: workspacePath });
+        if (alive) setDetectedIds(detected);
+      } catch (e) {
+        // Was a bare `catch {}` commented "no workspace", so a failed scan and
+        // an empty project looked identical: no badges, no explanation.
+        if (alive) {
+          setDetectedIds([]);
+          setDetectError(errorMessage(e) || "Could not scan the project");
         }
-      } catch { /* no workspace */ }
-      if (mountedRef.current) setLoading(false);
+      } finally {
+        if (alive) setLoading(false);
+      }
     })();
-  }, []);
+    return () => { alive = false; };
+  }, [workspacePath]);
 
   const handlePlan = useCallback(async (transformId: string) => {
     setSelectedTransform(transformId);
@@ -182,7 +208,12 @@ export function TransformPanel({ provider }: TransformPanelProps) {
     setError("");
     setPlanning(true);
     try {
-      const result = await invoke<PlanResult>("plan_transform", { transformType: transformId, provider: effectiveProvider || undefined, model: effectiveModel || undefined });
+      const result = await invoke<PlanResult>("plan_transform", {
+        transformType: transformId,
+        workspace: workspacePath || undefined,
+        provider: effectiveProvider || undefined,
+        model: effectiveModel || undefined,
+      });
       if (mountedRef.current) {
         setPlan(result);
         setSelectedFiles(new Set(result.files.map(f => f.file)));
@@ -205,6 +236,7 @@ export function TransformPanel({ provider }: TransformPanelProps) {
       const result = await invoke<ExecResult>("execute_transform", {
         transformType: selectedTransform,
         files: Array.from(selectedFiles),
+        workspace: workspacePath || undefined,
         provider: effectiveProvider || undefined,
         model: effectiveModel || undefined,
       });
@@ -307,8 +339,24 @@ export function TransformPanel({ provider }: TransformPanelProps) {
         </div>
 
         <div style={{ flex: 1, overflow: "auto", padding: "8px 16px" }}>
+          {/* Three states that used to look the same: no project open, a scan
+              that failed, and a project with nothing to transform. Only the
+              third means "nothing to do here". */}
+          {!workspacePath && (
+            <div style={{ color: "var(--warning-color)", fontSize: "var(--font-size-base)", padding: 12, lineHeight: 1.5 }}>
+              No project open. Transforms scan the folder you have loaded — open one and
+              this list will show what it found.
+            </div>
+          )}
+          {workspacePath && detectError && (
+            <div style={{ color: "var(--error-color)", fontSize: "var(--font-size-base)", padding: 12, lineHeight: 1.5 }}>
+              Could not scan {workspacePath}: {detectError}
+            </div>
+          )}
           {loading ? (
-            <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)", padding: 12 }}>Scanning workspace...</div>
+            <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)", padding: 12 }}>
+              Scanning {workspacePath ?? "workspace"}…
+            </div>
           ) : grouped.length === 0 ? (
             <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)", padding: 12 }}>
               No matching transforms found.{!showAll && " Enable \"Show all\" to see all available transforms."}
