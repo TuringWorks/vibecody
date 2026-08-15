@@ -45,7 +45,6 @@ struct JsonRpcRequest {
 
 #[derive(Deserialize)]
 struct JsonRpcResponse {
-    #[allow(dead_code)]
     id: Option<Value>,
     result: Option<Value>,
     error: Option<RpcError>,
@@ -198,23 +197,7 @@ impl McpClient {
         writeln!(self.stdin, "{}", line)?;
         self.stdin.flush()?;
 
-        let mut resp_line = String::new();
-        self.stdout
-            .read_line(&mut resp_line)
-            .context("MCP server closed unexpectedly")?;
-
-        let resp: JsonRpcResponse = serde_json::from_str(resp_line.trim())
-            .with_context(|| format!("invalid MCP response: {}", resp_line.trim()))?;
-
-        if let Some(e) = resp.error {
-            anyhow::bail!(
-                "MCP error {} from '{}': {}",
-                e.code,
-                self.server_name,
-                e.message
-            );
-        }
-        Ok(resp.result.unwrap_or(Value::Null))
+        read_response(&mut self.stdout, &json!(req.id), &self.server_name)
     }
 
     fn notify(&mut self, method: &str, params: Value) -> Result<()> {
@@ -296,6 +279,155 @@ impl McpClient {
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
+
+
+/// How many messages that are not this request's reply we will read past.
+///
+/// Notifications are legitimate and a busy server can send several, so this is
+/// generous. It exists only so a server that streams notifications forever
+/// cannot hold a call open indefinitely.
+const MAX_SKIPPED_MESSAGES: usize = 64;
+
+/// Read lines until the reply to `want_id` arrives.
+///
+/// JSON-RPC lets a server send notifications whenever it likes, including
+/// between a request and its response, and lets responses arrive in any order.
+/// This used to read exactly one line and parse it as the reply, which made
+/// any server that spoke first look like it had answered with nothing:
+/// `@modelcontextprotocol/server-everything` emits
+/// `notifications/tools/list_changed` before answering `tools/list`, so its 13
+/// tools were read as 0 — and, because the empty list is a valid result,
+/// `probe` reported the connector working. A wrong answer that validates is
+/// worse than an error.
+///
+/// Notifications carry no `id`; a response to an earlier request carries a
+/// different one. Neither is this call's answer, and returning either would
+/// hand the caller data it cannot tell is wrong.
+fn read_response<R: BufRead>(reader: &mut R, want_id: &Value, server: &str) -> Result<Value> {
+    for _ in 0..MAX_SKIPPED_MESSAGES {
+        let mut line = String::new();
+        let read = reader
+            .read_line(&mut line)
+            .context("MCP server closed unexpectedly")?;
+        if read == 0 {
+            anyhow::bail!("MCP server '{server}' closed without answering");
+        }
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        let resp: JsonRpcResponse = serde_json::from_str(trimmed)
+            .with_context(|| format!("invalid MCP response: {trimmed}"))?;
+
+        match resp.id.as_ref() {
+            // A notification, or a reply to something else. Keep reading.
+            None => continue,
+            Some(id) if id != want_id => continue,
+            Some(_) => {}
+        }
+
+        if let Some(e) = resp.error {
+            anyhow::bail!("MCP error {} from '{}': {}", e.code, server, e.message);
+        }
+        return Ok(resp.result.unwrap_or(Value::Null));
+    }
+    anyhow::bail!(
+        "MCP server '{server}' sent {MAX_SKIPPED_MESSAGES} messages without answering the request"
+    )
+}
+
+#[cfg(test)]
+mod response_matching_tests {
+    use super::*;
+
+    /// The bug this exists for, reproduced from a real server.
+    ///
+    /// `@modelcontextprotocol/server-everything` emits
+    /// `notifications/tools/list_changed` *before* it answers `tools/list`.
+    /// `send` used to read exactly one line and parse it as the reply, so the
+    /// notification was consumed as the response: it has no `result`, the tool
+    /// array came back empty, and `probe` reported the connector **ok with
+    /// zero tools**. Measured against the live server: 13 tools, reported 0.
+    ///
+    /// Any server that speaks before answering hits this, so it is not one
+    /// connector's quirk.
+    #[test]
+    fn a_notification_before_the_reply_is_not_mistaken_for_it() {
+        let stream = concat!(
+            r#"{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}"#,
+            "\n",
+            r#"{"jsonrpc":"2.0","id":7,"result":{"tools":[{"name":"echo"}]}}"#,
+            "\n"
+        );
+        let mut reader = BufReader::new(stream.as_bytes());
+        let result = read_response(&mut reader, &json!(7), "everything").expect("should match id 7");
+        assert_eq!(result["tools"][0]["name"], "echo");
+    }
+
+    #[test]
+    fn several_notifications_are_skipped() {
+        let stream = concat!(
+            r#"{"jsonrpc":"2.0","method":"notifications/message","params":{"level":"info"}}"#, "\n",
+            r#"{"jsonrpc":"2.0","method":"notifications/progress"}"#, "\n",
+            r#"{"jsonrpc":"2.0","id":3,"result":{"ok":true}}"#, "\n"
+        );
+        let mut reader = BufReader::new(stream.as_bytes());
+        let result = read_response(&mut reader, &json!(3), "srv").expect("should match id 3");
+        assert_eq!(result["ok"], json!(true));
+    }
+
+    /// A reply to an *earlier* request is not this request's reply. Returning
+    /// it would hand the caller another call's data, which is worse than an
+    /// error because nothing downstream can tell.
+    #[test]
+    fn a_response_for_a_different_id_is_not_accepted() {
+        let stream = concat!(
+            r#"{"jsonrpc":"2.0","id":1,"result":{"stale":true}}"#, "\n",
+            r#"{"jsonrpc":"2.0","id":2,"result":{"fresh":true}}"#, "\n"
+        );
+        let mut reader = BufReader::new(stream.as_bytes());
+        let result = read_response(&mut reader, &json!(2), "srv").expect("should skip id 1");
+        assert_eq!(result["fresh"], json!(true));
+    }
+
+    #[test]
+    fn an_error_reply_is_reported_not_swallowed() {
+        let stream = concat!(
+            r#"{"jsonrpc":"2.0","id":5,"error":{"code":-32601,"message":"no such method"}}"#,
+            "\n"
+        );
+        let mut reader = BufReader::new(stream.as_bytes());
+        let err = read_response(&mut reader, &json!(5), "srv").expect_err("error must surface");
+        assert!(err.to_string().contains("no such method"), "{err}");
+    }
+
+    /// Closing without answering must not read as an empty-but-fine result —
+    /// that is how a dead server became a connector with no tools.
+    #[test]
+    fn a_stream_that_ends_without_the_reply_is_an_error() {
+        let stream = concat!(
+            r#"{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}"#,
+            "\n"
+        );
+        let mut reader = BufReader::new(stream.as_bytes());
+        let err = read_response(&mut reader, &json!(9), "srv").expect_err("EOF must error");
+        assert!(
+            err.to_string().contains("without answering") || err.to_string().contains("closed"),
+            "{err}"
+        );
+    }
+
+    /// A chatty server must not be able to hold the call open forever.
+    #[test]
+    fn an_endless_notification_stream_gives_up() {
+        let noise = r#"{"jsonrpc":"2.0","method":"notifications/progress"}"#.to_string() + "\n";
+        let stream = noise.repeat(MAX_SKIPPED_MESSAGES + 5);
+        let mut reader = BufReader::new(stream.as_bytes());
+        let err = read_response(&mut reader, &json!(1), "chatty").expect_err("must give up");
+        assert!(err.to_string().contains("without answering"), "{err}");
+    }
+}
 
 #[cfg(test)]
 mod tests {
