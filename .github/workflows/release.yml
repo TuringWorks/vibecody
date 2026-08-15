@@ -536,7 +536,7 @@ jobs:
 
   # ─── VibeCLI desktop app (Tauri) ───────────────────────────────────────
   build-vibeaichat:
-    name: VibeCLI App · ${{ matrix.label }}
+    name: VibeAIChat · ${{ matrix.label }}
     needs: audit
     runs-on: ${{ matrix.os }}
     strategy:
@@ -703,7 +703,7 @@ jobs:
           ls -lhR dist/ || echo "dist/ is empty"
         shell: bash
 
-      - name: Upload VibeCLI App artifacts
+      - name: Upload VibeAIChat artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: vibeaichat-${{ matrix.label }}
@@ -1419,7 +1419,7 @@ jobs:
         working-directory: vibecoder/src-tauri
         run: cargo check --release
 
-      - name: Check VibeCLI App Tauri crate
+      - name: Check VibeAIChat Tauri crate
         working-directory: vibeaichat/src-tauri
         run: cargo check --release
 
@@ -1592,11 +1592,11 @@ jobs:
             | Linux arm64 | `.deb` / `.AppImage` |
             | Windows x64 | `.msi` / `.exe` installer |
 
-            #### VibeCLI App — Desktop AI Assistant
+            #### VibeAIChat — Desktop AI Assistant
 
             | Platform | Download |
             |----------|----------|
-            | macOS | `.dmg` |
+            | macOS | `VibeAIChat_*.dmg` |
             | Linux x64 | `.deb` / `.AppImage` |
             | Linux arm64 | `.deb` / `.AppImage` |
             | Windows | `.msi` / `.exe` installer |
@@ -1691,7 +1691,7 @@ jobs:
             |---------|:-----------:|:---------:|:---------:|:-----------:|:-----------:|:-------:|:---:|:-------:|:-------:|:------:|
             | VibeCLI | x | x | x | x | x | | | | | x |
             | VibeCoder | x | x | x | x | x | | | | | |
-            | VibeCLI App | x | x | x | x | x | | | | | |
+            | VibeAIChat | x | x | x | x | x | | | | | |
             | VibeCody Mobile | | | | | | x | x | | | |
             | VibeCody Watch | | | | | | | | x | x | |
           files: |

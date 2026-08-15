@@ -28,7 +28,7 @@ Treats a skill markdown doc as the trainable state of a frozen agent. Scored **r
 
 Open the **SkillForge** tab in the AI/ML composite. Three views:
 
-1. **Catalog** — the ~710 skills as a table (name, category, cached coverage/evolvability, source). No LLM call. Click a row to open it in Lens.
+1. **Catalog** — the ~1,140 skills as a table (name, category, cached coverage/evolvability, source). No LLM call. Click a row to open it in Lens.
 2. **Lens** — pick a skill → **Score** against the toolbar-selected model → three metric cards (Trigger Coverage, Target Evolvability, Extraction Efficacy) with progress bars.
 3. **Optimize** — configure `TrainConfig` (epochs / val split / textual LR / patience / seed + env kind `repo`|`static`|`history`), launch a train job, watch the **validation curve** (inline SVG sparkline) update as epochs complete, see accepted/rejected counts + a spent-tokens meter, expand the trained `best_skill.md`, then **Promote**.
 

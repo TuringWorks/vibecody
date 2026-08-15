@@ -9,7 +9,7 @@ VibeCody is a monorepo that provides a full family of AI-assisted development su
 
 - **[VibeCLI](./vibecli/)** — terminal-first AI coding assistant with a rich TUI + REPL
 - **[VibeCoder](./vibecoder/)** — AI-powered desktop code editor (Tauri + Monaco, 293+ panels)
-- **[VibeCLI App](./release/)** — dedicated desktop chat companion (Tauri)
+- **[VibeAIChat](./release/)** — dedicated desktop chat companion (Tauri)
 - **[VibeMobile](./vibemobile/)** — Flutter companion for iOS, Android, macOS, Linux, Windows, Web
 - **[VibeWatch](./watch-integration/)** — native Apple Watch (SwiftUI, watchOS 10+) and Wear OS (Compose, Wear OS 3+) clients
 - **[Zero-config connectivity](./connectivity/)** — mDNS LAN, Tailscale Funnel, ngrok auto-detect; devices race all reachable paths

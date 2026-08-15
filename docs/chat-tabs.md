@@ -5,7 +5,7 @@ permalink: /chat-tabs/
 ---
 
 
-The chat tab manager is the heart of VibeCody's conversation UX in VibeCoder and VibeCLI App. It owns multiple concurrent chat sessions, per-tab provider overrides, session history, recap-on-close, and Watch active-session sync. This page documents the user-facing surface; the cross-client `Recap` shape lives in [`docs/recap`]({{ site.baseurl }}/recap/).
+The chat tab manager is the heart of VibeCody's conversation UX in VibeCoder and VibeAIChat. It owns multiple concurrent chat sessions, per-tab provider overrides, session history, recap-on-close, and Watch active-session sync. This page documents the user-facing surface; the cross-client `Recap` shape lives in [`docs/recap`]({{ site.baseurl }}/recap/).
 
 ---
 

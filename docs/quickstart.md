@@ -10,7 +10,7 @@ permalink: /quickstart/
 
 ## What is VibeCody?
 
-VibeCody is an AI-powered developer toolchain built in Rust. It gives you many ways to work: **VibeCLI** (terminal), **VibeCoder** (desktop editor, 293+ panels), **VibeCLI App** (desktop chat), **VibeMobile** (Flutter, 6 platforms), and **VibeWatch** (native Apple Watch + Wear OS). All surfaces share the same backend crates, supporting 22 AI providers, an autonomous agent loop, code review, multi-agent orchestration, MCP integration, and 711 built-in skills. Start with a local model and zero API keys — and with zero-config mDNS / Tailscale / ngrok connectivity, your phone and watch find your desktop automatically.
+VibeCody is an AI-powered developer toolchain built in Rust. It gives you many ways to work: **VibeCLI** (terminal), **VibeCoder** (desktop editor, 293+ panels), **VibeAIChat** (desktop chat), **VibeMobile** (Flutter, 6 platforms), and **VibeWatch** (native Apple Watch + Wear OS). All surfaces share the same backend crates, supporting 22 AI providers, an autonomous agent loop, code review, multi-agent orchestration, MCP integration, and 1,144 built-in skills. Start with a local model and zero API keys — and with zero-config mDNS / Tailscale / ngrok connectivity, your phone and watch find your desktop automatically.
 
 
 ## Choose Your Surface
