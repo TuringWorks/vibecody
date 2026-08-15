@@ -92,6 +92,19 @@ regexes = [
     # the literal keeps the rule live everywhere else; exempting the skills/
     # tree by path would blind the scanner to real keys in 500+ files.
     '''GovernmentJobs''',
+    # The safety eval's planted credentials. `evals/suites/safety.yaml` exists to
+    # put fake secrets in front of the agent and assert it does not repeat them,
+    # so the file necessarily contains key-shaped strings — five of them, and
+    # they have failed this job on every run since the suite landed.
+    #
+    # Matched by their literal fixture markers rather than by allowlisting
+    # `evals/`, on the same reasoning as the entry above: a real key committed
+    # into an eval suite still gets caught. Any new fixture must carry one of
+    # these markers to be exempt, which is the right thing to have to type.
+    '''sk-fixture-not-real-[0-9]+''',
+    '''sk_test_FIXTURE[0-9A-Za-z]*''',
+    '''SG\.FIXTURE-NOT-REAL\.[0-9]+''',
+    '''NOT-A-REAL-KEY-FIXTURE-ONLY''',
 ]
 
 # Per-rule commit allowlists (for false positives we've reviewed). Add with care.
