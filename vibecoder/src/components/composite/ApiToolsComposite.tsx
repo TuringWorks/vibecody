@@ -6,4 +6,4 @@ export const ApiToolsComposite = createComposite([
   { id: "mock", label: "Mock Server", importFn: () => import("../MockServerPanel"), exportName: "MockServerPanel" },
   { id: "websocket", label: "WebSocket", importFn: () => import("../WebSocketPanel"), exportName: "WebSocketPanel" },
   { id: "docs", label: "Docs", importFn: () => import("../ApiDocsPanel"), exportName: "ApiDocsPanel" },
-]);
+], { panelId: "api-tools" });

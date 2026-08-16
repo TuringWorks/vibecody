@@ -1,0 +1,358 @@
+/**
+ * Every panel and the subfeature tabs it contains.
+ *
+ * Pure data on purpose. Settings needs to list all 234 subfeatures across
+ * 45 panels without pulling in the panels themselves —
+ * importing the composites to read their tab lists would defeat the code
+ * splitting that keeps startup cheap, loading every panel in the app the
+ * moment someone opens Settings.
+ *
+ * The cost of a hand-maintained copy is drift, so it is not hand-maintained:
+ * `panelCatalog.contract.test.ts` reads the composite sources and fails if
+ * this file disagrees with them.
+ *
+ * GENERATED — do not edit. Run `npm run gen:panel-catalog` after adding,
+ * removing or renaming a tab.
+ */
+
+export interface SubfeatureMeta {
+  id: string;
+  label: string;
+}
+
+/** Panel id -> its tabs, in the order the composite declares them. */
+export const PANEL_CATALOG: Record<string, SubfeatureMeta[]> = {
+  "chat": [
+    { id: "chat", label: "Chat" },
+    { id: "sandbox", label: "Sandbox" },
+  ],
+  "agent-os": [
+    { id: "dashboard", label: "Dashboard" },
+    { id: "agent", label: "Agent" },
+    { id: "modes", label: "Modes" },
+    { id: "host", label: "Host" },
+    { id: "branch", label: "Branch" },
+    { id: "browser", label: "Browser" },
+    { id: "orchestration", label: "Orchestration" },
+    { id: "workflows", label: "Workflows" },
+    { id: "loops", label: "Loops" },
+  ],
+  "ai-teams": [
+    { id: "teams", label: "Teams" },
+    { id: "agentteams", label: "Hierarchy" },
+    { id: "subagents", label: "Sub-Agents" },
+    { id: "cloud", label: "Cloud" },
+    { id: "cibot", label: "CI Bot" },
+    { id: "agentmodes", label: "Modes" },
+    { id: "spawnagent", label: "Spawn" },
+    { id: "agenthost", label: "Host" },
+  ],
+  "ai-playground": [
+    { id: "counsel", label: "Counsel" },
+    { id: "superbrain", label: "SuperBrain" },
+    { id: "compare", label: "Compare" },
+    { id: "arena", label: "Arena" },
+  ],
+  "ai-context": [
+    { id: "icontext", label: "Infinite Context" },
+    { id: "bundles", label: "Bundles" },
+    { id: "openmemory", label: "Open Memory" },
+    { id: "memory-projections", label: "Projections" },
+    { id: "fastcontext", label: "Fast Context" },
+    { id: "semanticindex", label: "Semantic" },
+    { id: "webgrounding", label: "Web Search" },
+    { id: "sessionmemory", label: "Session Memory" },
+    { id: "artifacts", label: "Artifacts" },
+    { id: "long-context", label: "Long Context" },
+  ],
+  "ai-generation": [
+    { id: "batchbuilder", label: "Batch Builder" },
+    { id: "imagegen", label: "Image Gen" },
+    { id: "autoresearch", label: "Research" },
+    { id: "transform", label: "Transform" },
+  ],
+  "marketplace": [
+
+  ],
+  "sandbox-chat": [
+
+  ],
+  "project-hub": [
+    { id: "workmgmt", label: "Projects" },
+    { id: "dashboard", label: "Dashboard" },
+    { id: "steering", label: "Steering" },
+    { id: "soul", label: "Soul" },
+    { id: "rules", label: "Rules" },
+  ],
+  "planning": [
+    { id: "specs", label: "Specs" },
+    { id: "plandoc", label: "Plan Doc" },
+    { id: "workflow", label: "Workflow" },
+    { id: "orchestration", label: "Tasks" },
+    { id: "clarify", label: "Clarify" },
+    { id: "codesearch", label: "Search" },
+    { id: "nexttask", label: "Next Task" },
+    { id: "docsync", label: "Doc Sync" },
+  ],
+  "goals": [
+
+  ],
+  "observability": [
+    { id: "traces", label: "Traces" },
+    { id: "recording", label: "Recording" },
+    { id: "demo", label: "Demo" },
+    { id: "proactive", label: "Proactive" },
+  ],
+  "design": [
+    { id: "hub", label: "Hub" },
+    { id: "import", label: "Import" },
+    { id: "design", label: "Design" },
+    { id: "annotations", label: "Annotations" },
+    { id: "sketch", label: "Sketch" },
+    { id: "img2app", label: "Screenshot to App" },
+  ],
+  "security": [
+    { id: "review", label: "Review" },
+    { id: "redteam", label: "Red Team" },
+    { id: "blueteam", label: "Blue Team" },
+    { id: "purpleteam", label: "Purple Team" },
+    { id: "securityscan", label: "Scanner" },
+  ],
+  "testing": [
+    { id: "tests", label: "Tests" },
+    { id: "coverage", label: "Coverage" },
+    { id: "bugbot", label: "BugBot" },
+    { id: "autofix", label: "Autofix" },
+    { id: "cloudautofix", label: "Cloud Fix" },
+    { id: "qa-validation", label: "QA" },
+    { id: "visualverify", label: "Visual Verify" },
+    { id: "mctsrepair", label: "MCTS Repair" },
+    { id: "swebench", label: "SWE-Bench" },
+    { id: "visualtest", label: "Visual Test" },
+  ],
+  "code-analysis": [
+    { id: "metrics", label: "Metrics" },
+    { id: "astedit", label: "AST Edit" },
+    { id: "editpredict", label: "Predict" },
+    { id: "snippets", label: "Snippets" },
+    { id: "healthscore", label: "Health Score" },
+    { id: "intentrefactor", label: "Refactor" },
+    { id: "reviewprotocol", label: "Review" },
+    { id: "aicodereview", label: "AI Review" },
+  ],
+  "architecture": [
+    { id: "archspec", label: "Architecture" },
+    { id: "policy", label: "Policy Engine" },
+  ],
+  "version-control": [
+    { id: "history", label: "History" },
+    { id: "checkpoints", label: "Checkpoints" },
+    { id: "bisect", label: "Bisect" },
+  ],
+  "github": [
+    { id: "github", label: "Sync" },
+    { id: "ghactions", label: "Actions" },
+    { id: "triage", label: "Triage" },
+  ],
+  "collaboration": [
+    { id: "collab-chat", label: "Collab Chat" },
+    { id: "collab", label: "Collab" },
+    { id: "remotecontrol", label: "Remote" },
+    { id: "gateway-sandbox", label: "Msg Gateway" },
+  ],
+  "build-deploy": [
+    { id: "build", label: "Build" },
+    { id: "deploy", label: "Deploy" },
+    { id: "scaffold", label: "Scaffold" },
+    { id: "appbuilder", label: "App Builder" },
+    { id: "fullstack", label: "Full Stack" },
+    { id: "worktreepool", label: "Worktrees" },
+    { id: "auto-deploy", label: "Auto Deploy" },
+  ],
+  "containers": [
+    { id: "docker", label: "Docker" },
+    { id: "k8s", label: "K8s" },
+    { id: "sandbox", label: "Sandbox" },
+    { id: "cloudsandbox", label: "Cloud Sandbox" },
+  ],
+  "ci-cd": [
+    { id: "pipeline", label: "Pipeline" },
+    { id: "status", label: "Status" },
+    { id: "gates", label: "Gates" },
+  ],
+  "cloud-platform": [
+    { id: "providers", label: "Providers" },
+    { id: "env", label: "Environment" },
+    { id: "health", label: "Health" },
+    { id: "idp", label: "IDP" },
+  ],
+  "ai-ml": [
+    { id: "workflow", label: "Workflow" },
+    { id: "wizard", label: "Wizard" },
+    { id: "training", label: "Training" },
+    { id: "inference", label: "Inference" },
+    { id: "quantum", label: "Quantum" },
+    { id: "rlcef", label: "RLCEF" },
+    { id: "skilldistill", label: "Distillation" },
+    { id: "skillforge", label: "SkillForge" },
+    { id: "selfimproving", label: "Self-Improving" },
+    { id: "on-device", label: "On-Device" },
+    { id: "voice-vocab", label: "Voice Vocab" },
+  ],
+  "rl-os": [
+    { id: "training", label: "Training" },
+    { id: "environments", label: "Environments" },
+    { id: "eval", label: "Evaluation" },
+    { id: "optimization", label: "Optimization" },
+    { id: "deployment", label: "Deployment" },
+    { id: "comparison", label: "Compare" },
+    { id: "lineage", label: "Lineage" },
+    { id: "multiagent", label: "Multi-Agent" },
+    { id: "rewards", label: "Rewards" },
+    { id: "rlhf", label: "RLHF" },
+  ],
+  "database": [
+    { id: "connections", label: "Connections" },
+    { id: "migrations", label: "Migrations" },
+    { id: "vectordb", label: "Vector DB" },
+    { id: "turboquant", label: "TurboQuant" },
+  ],
+  "api-tools": [
+    { id: "http", label: "HTTP" },
+    { id: "graphql", label: "GraphQL" },
+    { id: "mock", label: "Mock Server" },
+    { id: "websocket", label: "WebSocket" },
+    { id: "docs", label: "Docs" },
+  ],
+  "data-pipeline": [
+    { id: "streaming", label: "Streaming" },
+    { id: "ingest", label: "Ingest" },
+    { id: "crawler", label: "Crawler" },
+  ],
+  "system-monitor": [
+    { id: "processes", label: "Processes" },
+    { id: "profiler", label: "Profiler" },
+    { id: "debug", label: "Debug" },
+    { id: "observeact", label: "Observe-Act" },
+    { id: "desktop", label: "Desktop" },
+  ],
+  "terminal": [
+    { id: "scripts", label: "Scripts" },
+    { id: "ssh", label: "SSH" },
+    { id: "notebook", label: "Notebook" },
+    { id: "logs", label: "Logs" },
+    { id: "voicelocal", label: "Voice" },
+  ],
+  "diagnostics": [
+    { id: "deps", label: "Deps" },
+    { id: "network", label: "Network" },
+    { id: "loadtest", label: "Load Test" },
+    { id: "renderopt", label: "Render" },
+    { id: "resilience", label: "Resilience" },
+    { id: "smartdeps", label: "Smart Deps" },
+  ],
+  "converters": [
+    { id: "encoding", label: "Encoding" },
+    { id: "numbers", label: "Numbers" },
+    { id: "colorconv", label: "Colors" },
+    { id: "units", label: "Units" },
+    { id: "unicode", label: "Unicode" },
+    { id: "timestamp", label: "Timestamp" },
+  ],
+  "formatters": [
+    { id: "regex", label: "Regex" },
+    { id: "jwt", label: "JWT" },
+    { id: "jsontools", label: "JSON" },
+    { id: "cron", label: "Cron" },
+    { id: "csv", label: "CSV" },
+    { id: "cidr", label: "CIDR" },
+    { id: "datagen", label: "Data Gen" },
+    { id: "utils", label: "Utils" },
+  ],
+  "editors": [
+    { id: "difftool", label: "Diff" },
+    { id: "markdown", label: "Markdown" },
+    { id: "canvas", label: "Canvas" },
+    { id: "colors", label: "Palette" },
+  ],
+  "config": [
+    { id: "keys", label: "Keys" },
+    { id: "models", label: "Models" },
+    { id: "settings", label: "Settings" },
+    { id: "security", label: "Security" },
+    { id: "hooks", label: "Hooks" },
+    { id: "markers", label: "Bookmarks" },
+    { id: "jobs", label: "Jobs" },
+  ],
+  "integrations": [
+    { id: "mcp", label: "MCP" },
+    { id: "acpprotocol", label: "ACP" },
+    { id: "webhooks", label: "Webhooks" },
+    { id: "connectors", label: "Connectors" },
+    { id: "a2a", label: "A2A" },
+    { id: "langgraph", label: "LangGraph" },
+    { id: "ide-bridge", label: "IDE Bridge" },
+  ],
+  "administration": [
+    { id: "admin", label: "Admin" },
+    { id: "auth", label: "Auth" },
+    { id: "governance", label: "Governance" },
+    { id: "sessions", label: "Sessions" },
+    { id: "manager", label: "Manager" },
+    { id: "analytics", label: "Analytics" },
+    { id: "trust", label: "Trust" },
+    { id: "compliance", label: "Compliance" },
+  ],
+  "billing": [
+    { id: "cost", label: "Cost" },
+    { id: "usagemetering", label: "Usage" },
+    { id: "costrouter", label: "Router" },
+  ],
+  "tools-settings": [
+    { id: "automations", label: "Automations" },
+    { id: "selfreview", label: "Self-Review" },
+    { id: "artifacts", label: "Artifacts" },
+  ],
+  "productivity": [
+    { id: "productivity", label: "Productivity" },
+  ],
+  "company": [
+    { id: "company-dashboard", label: "Dashboard" },
+    { id: "company-org", label: "Org Chart" },
+    { id: "company-agents", label: "Agents" },
+    { id: "company-goals", label: "Agent Goals" },
+    { id: "company-tasks", label: "Agent Tasks" },
+    { id: "company-approvals", label: "Approvals" },
+    { id: "company-budget", label: "Budget" },
+    { id: "company-secrets", label: "Secrets" },
+    { id: "company-routines", label: "Routines" },
+    { id: "company-heartbeats", label: "Heartbeats" },
+    { id: "company-docs", label: "Agent Docs" },
+    { id: "company-portability", label: "Import/Export" },
+    { id: "company-adapters", label: "Adapters" },
+    { id: "workspace-config", label: "Workspace Config" },
+    { id: "priority-map", label: "Priority Map" },
+  ],
+  "agent-intelligence": [
+    { id: "env-dispatch", label: "Env Dispatch" },
+    { id: "nested-agents", label: "Nested Agents" },
+    { id: "thought-stream", label: "Thought Stream" },
+    { id: "hard-problem", label: "Hard Problem" },
+    { id: "repro-agent", label: "Repro Agent" },
+  ],
+  "enterprise-governance": [
+    { id: "mcp-governance", label: "MCP Governance" },
+    { id: "security-posture", label: "Security Posture" },
+    { id: "plugin-governance", label: "Plugin Governance" },
+    { id: "msaf", label: "MSAF" },
+    { id: "team-onboarding", label: "Team Onboarding" },
+  ],
+  "watch": [
+
+  ],
+};
+
+/** Panels that render a single view and have no subfeature tabs. */
+export const SINGLE_VIEW_PANELS: string[] = Object.entries(PANEL_CATALOG)
+  .filter(([, tabs]) => tabs.length === 0)
+  .map(([panel]) => panel);

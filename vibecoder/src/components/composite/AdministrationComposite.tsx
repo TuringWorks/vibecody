@@ -9,4 +9,4 @@ export const AdministrationComposite = createComposite([
   { id: "analytics", label: "Analytics", importFn: () => import("../AnalyticsPanel"), exportName: "AnalyticsPanel" },
   { id: "trust", label: "Trust", importFn: () => import("../TrustPanel"), exportName: "TrustPanel" },
   { id: "compliance", label: "Compliance", importFn: () => import("../CompliancePanel"), exportName: "CompliancePanel" },
-]);
+], { panelId: "administration" });

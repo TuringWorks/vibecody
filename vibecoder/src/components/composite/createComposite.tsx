@@ -10,6 +10,13 @@ const Loading = () => (
 export interface CompositeOptions {
   /** Optional banner rendered above each tab's content (e.g. Simulation Mode notice). */
   banner?: ReactNode;
+  /**
+   * The panel this composite renders, e.g. `"security"`. Settings keys tab
+   * order and visibility by it. Tab ids are not unique across panels —
+   * "dashboard" appears in several — so the panel is what keeps hiding one
+   * from hiding its namesakes elsewhere.
+   */
+  panelId?: string;
 }
 
 /** Definition for a single tab in a composite panel */
@@ -43,6 +50,10 @@ export interface CompositeProps {
  * ```
  */
 export function createComposite(tabs: TabDef[], options: CompositeOptions = {}) {
+  // `panelId` identifies whose tabs these are, so Settings can order and hide
+  // them per panel. It is optional because a composite that never declares one
+  // still has to render: an unnamed composite simply shows its shipped tabs.
+  const panelId = options.panelId;
   // Pre-create lazy components once (not on every render)
   const lazyComponents = tabs.map((tab) => {
     const LazyComp = lazy(() =>
@@ -63,8 +74,12 @@ export function createComposite(tabs: TabDef[], options: CompositeOptions = {}) 
 
   return function CompositePanel(props: CompositeProps) {
     const wp = props.workspacePath ?? null;
+    // Ordering and hiding live in TabbedPanel, which is the one component both
+    // this factory and the hand-built composites render through. Duplicating
+    // the rule here would be a second copy to keep true.
     return (
       <TabbedPanel
+        panelId={panelId}
         tabs={lazyComponents.map((t) => ({
           id: t.id,
           label: t.label,

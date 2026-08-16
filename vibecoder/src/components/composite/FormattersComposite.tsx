@@ -9,4 +9,4 @@ export const FormattersComposite = createComposite([
   { id: "cidr", label: "CIDR", importFn: () => import("../CidrPanel"), exportName: "CidrPanel" },
   { id: "datagen", label: "Data Gen", importFn: () => import("../DataGenPanel"), exportName: "DataGenPanel" },
   { id: "utils", label: "Utils", importFn: () => import("../UtilitiesPanel"), exportName: "UtilitiesPanel" },
-]);
+], { panelId: "formatters" });

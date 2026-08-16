@@ -4,4 +4,4 @@ export const BillingComposite = createComposite([
   { id: "cost", label: "Cost", importFn: () => import("../CostPanel"), exportName: "CostPanel" },
   { id: "usagemetering", label: "Usage", importFn: () => import("../UsageMeteringPanel"), exportName: "UsageMeteringPanel" },
   { id: "costrouter", label: "Router", importFn: () => import("../CostRouterPanel"), exportName: "CostRouterPanel" },
-]);
+], { panelId: "billing" });

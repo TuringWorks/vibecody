@@ -11,4 +11,4 @@ export const TestingComposite = createComposite([
   { id: "mctsrepair", label: "MCTS Repair", importFn: () => import("../MctsRepairPanel"), exportName: "MctsRepairPanel" },
   { id: "swebench", label: "SWE-Bench", importFn: () => import("../SweBenchPanel"), exportName: "SweBenchPanel" },
   { id: "visualtest", label: "Visual Test", importFn: () => import("../VisualTestPanel") },
-]);
+], { panelId: "testing" });

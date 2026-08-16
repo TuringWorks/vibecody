@@ -6,4 +6,4 @@ export const SystemMonitorComposite = createComposite([
   { id: "debug", label: "Debug", importFn: () => import("../DebugModePanel") },
   { id: "observeact", label: "Observe-Act", importFn: () => import("../ObserveActPanel"), exportName: "ObserveActPanel" },
   { id: "desktop", label: "Desktop", importFn: () => import("../DesktopAgentPanel"), exportName: "DesktopAgentPanel" },
-]);
+], { panelId: "system-monitor" });

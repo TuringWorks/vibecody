@@ -54,6 +54,7 @@ export function ChatComposite({
       <PinnedGoalBanner workspacePath={workspacePath ?? null} />
       <div style={{ flex: 1, minHeight: 0 }}>
         <TabbedPanel
+          panelId="chat"
           activeTab={activeTab}
           onTabChange={setActiveTab}
           tabs={[

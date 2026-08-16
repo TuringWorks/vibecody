@@ -11,4 +11,4 @@ export const AiContextComposite = createComposite([
   { id: "sessionmemory", label: "Session Memory", importFn: () => import("../SessionMemoryPanel"), exportName: "SessionMemoryPanel" },
   { id: "artifacts", label: "Artifacts", importFn: () => import("../ArtifactsPanel"), exportName: "ArtifactsPanel" },
   { id: "long-context", label: "Long Context", importFn: () => import("../LongContextPanel"), exportName: "LongContextPanel" },
-]);
+], { panelId: "ai-context" });

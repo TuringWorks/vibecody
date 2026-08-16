@@ -14,4 +14,4 @@ export const DesignComposite = createComposite([
   { id: "annotations", label: "Annotations", importFn: () => import("../DesignAnnotationsPanel"), exportName: "DesignAnnotationsPanel" },
   { id: "sketch", label: "Sketch", importFn: () => import("../SketchCanvasPanel"), exportName: "SketchCanvasPanel" },
   { id: "img2app", label: "Screenshot to App", importFn: () => import("../ScreenshotToApp"), exportName: "ScreenshotToApp" },
-]);
+], { panelId: "design" });

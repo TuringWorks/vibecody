@@ -14,4 +14,4 @@ export const EnterpriseGovernanceComposite = createComposite([
   { id: "plugin-governance", label: "Plugin Governance", importFn: () => import("../PluginGovernancePanel"), exportName: "PluginGovernancePanel" },
   { id: "msaf", label: "MSAF", importFn: () => import("../MsafPanel"), exportName: "MsafPanel" },
   { id: "team-onboarding", label: "Team Onboarding", importFn: () => import("../TeamOnboardingPanel"), exportName: "TeamOnboardingPanel" },
-]);
+], { panelId: "enterprise-governance" });

@@ -6,4 +6,4 @@ export const SecurityComposite = createComposite([
   { id: "blueteam", label: "Blue Team", importFn: () => import("../BlueTeamPanel"), exportName: "BlueTeamPanel" },
   { id: "purpleteam", label: "Purple Team", importFn: () => import("../PurpleTeamPanel"), exportName: "PurpleTeamPanel" },
   { id: "securityscan", label: "Scanner", importFn: () => import("../SecurityScanPanel") },
-]);
+], { panelId: "security" });

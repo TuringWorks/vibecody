@@ -9,4 +9,4 @@ export const AiTeamsComposite = createComposite([
   { id: "agentmodes", label: "Modes", importFn: () => import("../AgentModesPanel") },
   { id: "spawnagent", label: "Spawn", importFn: () => import("../SpawnAgentPanel") },
   { id: "agenthost", label: "Host", importFn: () => import("../AgentHostPanel"), exportName: "AgentHostPanel" },
-]);
+], { panelId: "ai-teams" });

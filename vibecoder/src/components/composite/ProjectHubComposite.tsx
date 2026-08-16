@@ -6,4 +6,4 @@ export const ProjectHubComposite = createComposite([
   { id: "steering", label: "Steering", importFn: () => import("../SteeringPanel") },
   { id: "soul", label: "Soul", importFn: () => import("../SoulPanel"), exportName: "SoulPanel" },
   { id: "rules", label: "Rules", importFn: () => import("../MemoryPanel"), exportName: "MemoryPanel" },
-]);
+], { panelId: "project-hub" });

@@ -12,6 +12,7 @@
     "tauri:build": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri build",
     "test": "vitest run",
     "lint:welcome-layout": "node scripts/check-welcome-layout.mjs",
+    "gen:panel-catalog": "node scripts/gen-panel-catalog.mjs",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",

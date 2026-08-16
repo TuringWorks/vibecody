@@ -15,20 +15,21 @@ vi.mock('@tauri-apps/api/event', () => ({
 
 // ── Mock lucide-react icons ────────────────────────────────────────────────
 
-vi.mock('lucide-react', () => {
+// Every icon lucide exports, stubbed.
+//
+// The list used to be written out by hand, which meant the suite broke the
+// moment the panel rendered one more — adding the Panels & Tabs section pulled
+// in `tabMeta` and its forty-odd icons. Taking the names from the real module
+// keeps the stub complete by construction, and vitest still sees a static set
+// of named exports.
+vi.mock('lucide-react', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
   const icon = (name: string) => {
     const Component = (props: Record<string, unknown>) => <span data-testid={`icon-${name}`} {...props} />;
     Component.displayName = name;
     return Component;
   };
-  const names = [
-    'User', 'Palette', 'LogIn', 'Save', 'Key', 'X', 'Check', 'Upload', 'Download',
-    'RotateCcw', 'Sun', 'Moon', 'Eye', 'EyeOff', 'ChevronRight', 'CheckCircle',
-    'MinusCircle', 'AlertCircle', 'Loader2', 'Zap', 'Plug', 'Mail', 'CalendarDays',
-    'ClipboardList', 'MessageSquare', 'Search', 'Mic', 'Home', 'Server',
-    'AlertTriangle', 'Inbox', 'Briefcase', 'Boxes',
-  ];
-  return Object.fromEntries(names.map(n => [n, icon(n)]));
+  return Object.fromEntries(Object.keys(actual).map(n => [n, icon(n)]));
 });
 
 // ── Import after mocks ────────────────────────────────────────────────────

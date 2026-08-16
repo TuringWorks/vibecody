@@ -8,4 +8,4 @@ export const BuildDeployComposite = createComposite([
   { id: "fullstack", label: "Full Stack", importFn: () => import("../FullStackGenPanel") },
   { id: "worktreepool", label: "Worktrees", importFn: () => import("../WorktreePoolPanel"), exportName: "WorktreePoolPanel" },
   { id: "auto-deploy", label: "Auto Deploy", importFn: () => import("../AutoDeployPanel"), exportName: "AutoDeployPanel" },
-]);
+], { panelId: "build-deploy" });

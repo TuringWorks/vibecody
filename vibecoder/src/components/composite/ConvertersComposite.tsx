@@ -7,4 +7,4 @@ export const ConvertersComposite = createComposite([
   { id: "units", label: "Units", importFn: () => import("../UnitConverterPanel"), exportName: "UnitConverterPanel" },
   { id: "unicode", label: "Unicode", importFn: () => import("../UnicodePanel"), exportName: "UnicodePanel" },
   { id: "timestamp", label: "Timestamp", importFn: () => import("../TimestampPanel"), exportName: "TimestampPanel" },
-]);
+], { panelId: "converters" });

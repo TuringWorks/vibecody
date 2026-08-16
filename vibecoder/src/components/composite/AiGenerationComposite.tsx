@@ -5,4 +5,4 @@ export const AiGenerationComposite = createComposite([
   { id: "imagegen", label: "Image Gen", importFn: () => import("../ImageGenPanel") },
   { id: "autoresearch", label: "Research", importFn: () => import("../AutoResearchPanel"), exportName: "AutoResearchPanel" },
   { id: "transform", label: "Transform", importFn: () => import("../TransformPanel"), exportName: "TransformPanel" },
-]);
+], { panelId: "ai-generation" });

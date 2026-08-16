@@ -8,4 +8,4 @@ export const AgentIntelligenceComposite = createComposite([
   { id: "thought-stream", label: "Thought Stream", importFn: () => import("../ThoughtStreamPanel"), exportName: "ThoughtStreamPanel" },
   { id: "hard-problem", label: "Hard Problem", importFn: () => import("../HardProblemPanel"), exportName: "HardProblemPanel" },
   { id: "repro-agent", label: "Repro Agent", importFn: () => import("../ReproAgentPanel"), exportName: "ReproAgentPanel" },
-]);
+], { panelId: "agent-intelligence" });

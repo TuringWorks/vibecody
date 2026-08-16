@@ -8,4 +8,4 @@ export const ConfigComposite = createComposite([
   { id: "hooks", label: "Hooks", importFn: () => import("../HooksPanel"), exportName: "HooksPanel" },
   { id: "markers", label: "Bookmarks", importFn: () => import("../BookmarkPanel"), exportName: "BookmarkPanel" },
   { id: "jobs", label: "Jobs", importFn: () => import("../BackgroundJobsPanel"), exportName: "BackgroundJobsPanel" },
-]);
+], { panelId: "config" });

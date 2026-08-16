@@ -109,4 +109,4 @@ export const CompanyComposite = createComposite([
     importFn: () => import("../CompanyPriorityMapPanel"),
     exportName: "CompanyPriorityMapPanel",
   },
-]);
+], { panelId: "company" });

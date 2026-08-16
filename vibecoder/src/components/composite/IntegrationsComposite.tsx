@@ -8,4 +8,4 @@ export const IntegrationsComposite = createComposite([
   { id: "a2a", label: "A2A", importFn: () => import("../A2aPanel"), exportName: "A2aPanel" },
   { id: "langgraph", label: "LangGraph", importFn: () => import("../LangGraphPanel"), exportName: "LangGraphPanel" },
   { id: "ide-bridge", label: "IDE Bridge", importFn: () => import("../IdeBridgePanel"), exportName: "IdeBridgePanel" },
-]);
+], { panelId: "integrations" });

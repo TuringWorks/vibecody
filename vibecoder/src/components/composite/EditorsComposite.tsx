@@ -5,4 +5,4 @@ export const EditorsComposite = createComposite([
   { id: "markdown", label: "Markdown", importFn: () => import("../MarkdownPanel"), exportName: "MarkdownPanel" },
   { id: "canvas", label: "Canvas", importFn: () => import("../CanvasPanel") },
   { id: "colors", label: "Palette", importFn: () => import("../ColorPalettePanel"), exportName: "ColorPalettePanel" },
-]);
+], { panelId: "editors" });

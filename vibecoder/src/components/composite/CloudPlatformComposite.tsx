@@ -5,4 +5,4 @@ export const CloudPlatformComposite = createComposite([
   { id: "env", label: "Environment", importFn: () => import("../EnvPanel"), exportName: "EnvPanel" },
   { id: "health", label: "Health", importFn: () => import("../HealthMonitorPanel"), exportName: "HealthMonitorPanel" },
   { id: "idp", label: "IDP", importFn: () => import("../IdpPanel"), exportName: "IdpPanel" },
-]);
+], { panelId: "cloud-platform" });

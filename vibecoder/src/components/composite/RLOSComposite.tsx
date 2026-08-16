@@ -35,5 +35,6 @@ export const RLOSComposite = createComposite(
         tooltip="Backend is real but the workstream is still maturing — heavy compute (RLHF / MARL / distillation) needs `uv sync --extra X` and the API may shift before GA."
       />
     ),
+    panelId: "rl-os",
   }
 );

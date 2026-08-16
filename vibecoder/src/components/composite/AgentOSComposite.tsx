@@ -12,4 +12,4 @@ export const AgentOSComposite = createComposite([
   { id: "orchestration", label: "Orchestration", importFn: () => import("../OrchestrationPanel"), exportName: "OrchestrationPanel" },
   { id: "workflows", label: "Workflows", importFn: () => import("../WorkflowsPanel"), exportName: "WorkflowsPanel" },
   { id: "loops", label: "Loops", importFn: () => import("../LoopJobsPanel"), exportName: "LoopJobsPanel" },
-]);
+], { panelId: "agent-os" });

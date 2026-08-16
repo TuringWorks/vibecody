@@ -9,4 +9,4 @@ export const PlanningComposite = createComposite([
   { id: "codesearch", label: "Search", importFn: () => import("../ConversationalSearchPanel") },
   { id: "nexttask", label: "Next Task", importFn: () => import("../NextTaskPanel"), exportName: "NextTaskPanel" },
   { id: "docsync", label: "Doc Sync", importFn: () => import("../DocSyncPanel"), exportName: "DocSyncPanel" },
-]);
+], { panelId: "planning" });

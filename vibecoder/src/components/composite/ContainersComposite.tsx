@@ -5,4 +5,4 @@ export const ContainersComposite = createComposite([
   { id: "k8s", label: "K8s", importFn: () => import("../K8sPanel") },
   { id: "sandbox", label: "Sandbox", importFn: () => import("../SandboxPanel"), exportName: "SandboxPanel" },
   { id: "cloudsandbox", label: "Cloud Sandbox", importFn: () => import("../CloudSandboxPanel") },
-]);
+], { panelId: "containers" });
