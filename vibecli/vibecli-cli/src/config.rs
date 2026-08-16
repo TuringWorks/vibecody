@@ -164,6 +164,29 @@ pub struct Config {
     /// has always pointed at `inference.poolside.ai/v1` and shipped Laguna.
     pub poolside: Option<ProviderConfig>,
 
+    /// vLLM's OpenAI-compatible server, on this machine or your own host.
+    ///
+    /// ```toml
+    /// [vllm]
+    /// api_url = "http://localhost:8000/v1"   # default
+    /// model = "meta-llama/Llama-3.1-8B-Instruct"
+    /// ```
+    ///
+    /// No key is needed unless the server was started with `--api-key`; set it
+    /// with `vibecli set-key vllm <key>` or `VLLM_API_KEY` — not in this file.
+    pub vllm: Option<ProviderConfig>,
+
+    /// LM Studio's local server (Developer tab → Start Server).
+    ///
+    /// ```toml
+    /// [lmstudio]
+    /// api_url = "http://localhost:1234/v1"   # default
+    /// model = "qwen2.5-coder-7b-instruct"
+    /// ```
+    ///
+    /// LM Studio accepts any bearer token, so a key is optional.
+    pub lmstudio: Option<ProviderConfig>,
+
     /// Provider failover chain — try providers in order.
     ///
     /// ```toml

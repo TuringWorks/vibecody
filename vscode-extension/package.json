@@ -107,7 +107,9 @@
             "minimax",
             "sambanova",
             "poolside",
-            "vibecli-mistralrs"
+            "vibecli-mistralrs",
+            "vllm",
+            "lmstudio"
           ],
           "description": "AI provider to use. Must be a provider the daemon can build (matches vibe-ai::catalog / create_provider). Set the provider's API key via the app or the daemon; ollama needs no key."
         },

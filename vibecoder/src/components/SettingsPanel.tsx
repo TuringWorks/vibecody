@@ -16,15 +16,16 @@ import {
   Sun, Moon, Eye, EyeOff, ChevronRight, CheckCircle, MinusCircle, AlertCircle,
   Loader2, Zap, Plug,
   Mail, CalendarDays, ClipboardList, MessageSquare, Search, Mic, Home, Server,
-  Briefcase, Boxes,
+  Briefcase, Boxes, LayoutList,
 } from "lucide-react";
 import { THEMES, applyThemeById, type ThemeDef } from "../theme/themes";
 import { EmbeddingModelPicker } from "./EmbeddingModelPicker";
+import { LayoutSection } from "./settings/LayoutSection";
 import { ExperimentalBadge } from "./ExperimentalBadge";
 
 /* ── Types ──────────────────────────────────────────────────────────── */
 
-type SettingsSection = "profile" | "appearance" | "oauth" | "customizations" | "apikeys" | "embeddings" | "integrations" | "sessions" | "jobs";
+type SettingsSection = "profile" | "appearance" | "layout" | "oauth" | "customizations" | "apikeys" | "embeddings" | "integrations" | "sessions" | "jobs";
 
 interface SessionsSettings {
   recapOnTabClose: boolean;
@@ -104,6 +105,8 @@ interface ApiKeySettings {
   fireworks_api_key: string;
   sambanova_api_key: string;
   poolside_api_key: string;
+  vllm_api_key: string;
+  lmstudio_api_key: string;
   ollama_api_key: string;
   ollama_api_url: string;
   claude_model: string;
@@ -1006,6 +1009,8 @@ function ApiKeysSection() {
     vercel_ai_api_key: "", vercel_ai_api_url: "", minimax_api_key: "", perplexity_api_key: "",
     together_api_key: "", fireworks_api_key: "", sambanova_api_key: "",
     poolside_api_key: "",
+    vllm_api_key: "",
+    lmstudio_api_key: "",
     ollama_api_key: "", ollama_api_url: "",
     claude_model: "claude-3-5-sonnet-latest", openai_model: "gpt-4o", openrouter_model: "",
   });
@@ -1312,6 +1317,10 @@ function ApiKeysSection() {
       <div style={{ marginBottom: 20 }}>
         {renderSectionHeader("Poolside AI")}
         {renderSecretField("API Key", "poolside_api_key", "sky_...", "poolside")}
+        {/* Optional for both: local servers that usually accept no credential.
+            Shown so a server started with --api-key has somewhere to go. */}
+        {renderSecretField("API Key (optional)", "vllm_api_key", "only if --api-key was set", "vllm")}
+        {renderSecretField("API Key (optional)", "lmstudio_api_key", "usually blank", "lmstudio")}
         <p style={modelsHintStyle}>
           Models: Laguna S 2.1, Laguna XS 2.1, Laguna M.1 (purpose-built coding models)
         </p>
@@ -1865,6 +1874,7 @@ function JobsSection() {
 const SECTIONS: { key: SettingsSection; label: string; icon: React.ReactNode }[] = [
   { key: "profile", label: "Profile", icon: <User size={16} /> },
   { key: "appearance", label: "Appearance", icon: <Palette size={16} /> },
+  { key: "layout", label: "Panels & Tabs", icon: <LayoutList size={16} /> },
   { key: "oauth", label: "OAuth Login", icon: <LogIn size={16} /> },
   { key: "customizations", label: "Customizations", icon: <Save size={16} /> },
   { key: "apikeys", label: "API Keys", icon: <Key size={16} /> },
@@ -1906,6 +1916,7 @@ export function SettingsPanel({ onClose, workspacePath }: { onClose?: () => void
       <div style={{ flex: 1, padding: 24, overflowY: "auto" }}>
         {section === "profile" && <ProfileSection />}
         {section === "appearance" && <AppearanceSection />}
+        {section === "layout" && <LayoutSection />}
         {section === "oauth" && <OAuthSection />}
         {section === "customizations" && <CustomizationsSection />}
         {section === "apikeys" && <ApiKeysSection />}

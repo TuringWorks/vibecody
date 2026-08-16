@@ -212,6 +212,30 @@ const VIBECLI_MISTRALRS: &[&str] = &[
     "microsoft/Phi-3.5-mini-instruct",
 ];
 
+/// Models commonly served by a local **vLLM** instance. vLLM serves whatever
+/// the operator passed to `vllm serve`, so this is a starting list rather than
+/// a claim about any particular machine — the pickers all accept a typed-in id,
+/// and `/v1/models` on the running server is the authority.
+const VLLM: &[&str] = &[
+    "meta-llama/Llama-3.1-8B-Instruct",
+    "meta-llama/Llama-3.3-70B-Instruct",
+    "Qwen/Qwen2.5-Coder-32B-Instruct",
+    "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "mistralai/Mistral-7B-Instruct-v0.3",
+    "microsoft/Phi-3.5-mini-instruct",
+];
+
+/// Models commonly loaded in **LM Studio**. Same caveat as vLLM: the server
+/// serves whatever the user loaded in the UI, and its `/v1/models` is the
+/// authority.
+const LM_STUDIO: &[&str] = &[
+    "qwen2.5-coder-7b-instruct",
+    "qwen2.5-coder-14b-instruct",
+    "meta-llama-3.1-8b-instruct",
+    "mistral-7b-instruct-v0.3",
+    "phi-3.5-mini-instruct",
+];
+
 /// `(provider_id, models)` for every non-ollama provider the daemon supports.
 /// Provider ids are the canonical (first) alias of each `create_provider` arm.
 pub const PROVIDER_MODELS: &[(&str, &[&str])] = &[
@@ -235,6 +259,8 @@ pub const PROVIDER_MODELS: &[(&str, &[&str])] = &[
     ("sambanova", SAMBANOVA),
     ("poolside", POOLSIDE),
     ("vibecli-mistralrs", VIBECLI_MISTRALRS),
+    ("vllm", VLLM),
+    ("lmstudio", LM_STUDIO),
 ];
 
 #[cfg(test)]
@@ -245,6 +271,8 @@ mod tests {
     /// Provider ids must be aliases the daemon's `create_provider` can build,
     /// so a selected model round-trips back to a real provider.
     const KNOWN_PROVIDER_IDS: &[&str] = &[
+        "vllm",
+        "lmstudio",
         "claude",
         "openai",
         "gemini",

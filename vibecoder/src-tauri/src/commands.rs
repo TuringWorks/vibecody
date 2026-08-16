@@ -17897,6 +17897,11 @@ fn build_temp_provider_with_effort(
         "together" => std::env::var("TOGETHER_API_KEY").ok(),
         "fireworks" => std::env::var("FIREWORKS_API_KEY").ok(),
         "poolside" => std::env::var("POOLSIDE_API_KEY").ok(),
+        // Local servers: usually no credential at all, so an absent key is
+        // normal rather than misconfiguration. Read anyway for the case where
+        // the user started one with `--api-key`.
+        "vllm" => std::env::var("VLLM_API_KEY").ok(),
+        "lmstudio" => std::env::var("LMSTUDIO_API_KEY").ok(),
         "ollama" => std::env::var("OLLAMA_API_KEY").ok(),
         // These two don't follow the `{PROVIDER}_API_KEY` convention — Copilot
         // authenticates with a GitHub token, Bedrock with an AWS secret key.
@@ -17992,6 +17997,8 @@ fn build_temp_provider_with_effort(
         "mistral" => Arc::new(providers::MistralProvider::new(cfg)),
         "deepseek" => Arc::new(providers::DeepSeekProvider::new(cfg)),
         "cerebras" => Arc::new(providers::CerebrasProvider::new(cfg)),
+        "vllm" => Arc::new(providers::CompatProvider::new(providers::VLLM, cfg)),
+        "lmstudio" => Arc::new(providers::CompatProvider::new(providers::LM_STUDIO, cfg)),
         "openrouter" => Arc::new(providers::OpenRouterProvider::new(cfg)),
         "perplexity" => Arc::new(providers::PerplexityProvider::new(cfg)),
         "together" => Arc::new(providers::TogetherProvider::new(cfg)),

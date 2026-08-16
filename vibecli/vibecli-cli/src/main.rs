@@ -1566,6 +1566,8 @@ const KEY_PROVIDERS: &[&str] = &[
     "fireworks",
     "sambanova",
     "poolside",
+    "vllm",
+    "lmstudio",
     "ollama",
     // Third-party non-AI tokens that gate features the daemon ships.
     // huggingface: required to pull gated meta-llama/* repos. Daemon
@@ -19659,11 +19661,58 @@ fn create_raw_provider(
     use vibe_ai::providers::{
         azure_openai, bedrock, cerebras, claude, copilot, deepseek, fireworks, gemini, grok, groq,
         minimax, mistral, openai, openrouter, perplexity, poolside, sambanova, together, vercel_ai,
-        vibecli_mistralrs, zhipu,
+        compat, vibecli_mistralrs, zhipu,
     };
 
     match provider_name.to_lowercase().as_str() {
         // ── VibeCLI in-process mistralrs (Ollama wire + X-VibeCLI-Backend pin) ─
+        // ── vLLM / LM Studio (local OpenAI-compatible servers) ────────────────
+        // Both speak the same protocol as the hosted providers, so they are the
+        // shared `CompatProvider` with a different spec rather than another
+        // pair of near-identical files. Neither needs a key by default; one is
+        // sent only if the user configured a server that wants it.
+        "vllm" | "lmstudio" => {
+            let (spec, pc, env_url, env_key, fallback_model) = if provider_name == "vllm" {
+                (
+                    compat::VLLM,
+                    cfg.vllm.as_ref(),
+                    "VLLM_BASE_URL",
+                    "VLLM_API_KEY",
+                    "meta-llama/Llama-3.1-8B-Instruct",
+                )
+            } else {
+                (
+                    compat::LM_STUDIO,
+                    cfg.lmstudio.as_ref(),
+                    "LMSTUDIO_BASE_URL",
+                    "LMSTUDIO_API_KEY",
+                    "qwen2.5-coder-7b-instruct",
+                )
+            };
+            let api_url = pc
+                .and_then(|c| c.api_url.clone())
+                .or_else(|| std::env::var(env_url).ok())
+                .unwrap_or_else(|| spec.default_base_url.to_string());
+            let model = model
+                .or_else(|| pc.and_then(|c| c.model.clone()))
+                .unwrap_or_else(|| fallback_model.to_string());
+            let api_key = pc
+                .and_then(|c| c.api_key.clone())
+                .or_else(|| std::env::var(env_key).ok());
+            Ok(Arc::new(compat::CompatProvider::new(
+                spec,
+                ProviderConfig {
+                    provider_type: provider_name.to_string(),
+                    api_url: Some(api_url),
+                    model,
+                    api_key,
+                    max_tokens: None,
+                    temperature: None,
+                    ..Default::default()
+                },
+            )))
+        }
+
         "vibecli-mistralrs" | "vibecli_mistralrs" => {
             let pc = cfg.vibecli_mistralrs.as_ref();
             let api_url = pc

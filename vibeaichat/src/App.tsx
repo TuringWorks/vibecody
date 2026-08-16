@@ -99,6 +99,8 @@ const PROVIDER_LABELS: Record<string, string> = {
   claude: "Claude",
   openai: "OpenAI",
   ollama: "Ollama (local + cloud)",
+  vllm: "vLLM (local)",
+  lmstudio: "LM Studio (local)",
   gemini: "Gemini",
   grok: "Grok (xAI)",
   groq: "Groq",

@@ -5,7 +5,7 @@ permalink: /providers/
 ---
 
 
-VibeCody supports 22 AI providers, covering cloud APIs, local models, inference platforms, and specialized services, plus a failover wrapper that chains them. This page provides a comparison and links to individual setup guides.
+VibeCody supports 24 AI providers, covering cloud APIs, local models, inference platforms, and specialized services, plus a failover wrapper that chains them. This page provides a comparison and links to individual setup guides.
 
 
 ## Quick Start
@@ -42,6 +42,8 @@ VibeCody supports 22 AI providers, covering cloud APIs, local models, inference 
 | [SambaNova](sambanova/) | Inference | `SAMBANOVA_API_KEY` | `Meta-Llama-3.1-70B-Instruct` | Yes (limited) | Yes |
 | [Poolside](poolside/) | Cloud | `POOLSIDE_API_KEY` | `poolside/laguna-s-2.1` | No | Yes |
 | [VibeCLI mistral.rs](vibecli-mistralrs/) | Local | None (daemon token) | `Qwen/Qwen2.5-Coder-7B-Instruct` | Yes (fully free) | Yes |
+| [vLLM](vllm/) | Local | None (`VLLM_API_KEY` optional) | `meta-llama/Llama-3.1-8B-Instruct` | Yes (fully free) | Yes |
+| [LM Studio](lmstudio/) | Local | None (`LMSTUDIO_API_KEY` optional) | `qwen2.5-coder-7b-instruct` | Yes (fully free) | Yes |
 | LocalEdit | Local | None | Local model | Yes (fully free) | Yes |
 | [Failover](failover/) | Wrapper | N/A | N/A | N/A | Yes |
 
@@ -51,6 +53,10 @@ VibeCody supports 22 AI providers, covering cloud APIs, local models, inference 
 **For beginners:** Start with [Ollama](ollama/) -- it is free, runs locally, and requires no API key. Pull `qwen3-coder` or `llama3.2` and you are ready.
 
 **For local with nothing to install:** [VibeCLI mistral.rs](vibecli-mistralrs/) runs models inside the daemon you are already running -- no Ollama, no sidecar. On by default in macOS builds; a build-time feature elsewhere.
+
+**For your own GPU at throughput:** [vLLM](vllm/) serves one open-weight model with batching and paged attention — the option when you are driving a workstation or a shared box rather than a laptop.
+
+**For local models with a GUI:** [LM Studio](lmstudio/) browses, downloads and swaps models in a desktop app, then exposes them on a local OpenAI-compatible port.
 
 **For code-specific models:** [Poolside](poolside/) trains its Laguna models for software engineering rather than adapting a general chat model.
 
@@ -82,6 +88,13 @@ vibecli --provider ollama "Explain the borrow checker"
 
 # In-process mistral.rs — no Ollama, no key (uses the daemon's own token)
 vibecli --provider vibecli-mistralrs "Explain the borrow checker"
+
+# vLLM on your own GPU — start it, then point at it (no key by default)
+vllm serve meta-llama/Llama-3.1-8B-Instruct
+vibecli --provider vllm "Explain the borrow checker"
+
+# LM Studio — load a model, Developer tab -> Start Server
+vibecli --provider lmstudio "Explain the borrow checker"
 
 # ── Cloud APIs ────────────────────────────────────────────────────
 export ANTHROPIC_API_KEY="sk-ant-..."

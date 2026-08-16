@@ -39,6 +39,8 @@ const PROVIDER_LABELS: &[(&str, &str)] = &[
     ("fireworks", "Fireworks AI"),
     ("sambanova", "SambaNova"),
     ("poolside", "Poolside AI"),
+    ("vllm", "vLLM"),
+    ("lmstudio", "LM Studio"),
     ("ollama", "Ollama"),
     ("vibecli_mistralrs", "VibeCLI mistralrs (local)"),
 ];
@@ -158,6 +160,14 @@ fn build_provider(
         "poolside" => Some(Arc::new(
             vibe_ai::providers::poolside::PoolsideProvider::new(config),
         )),
+        "vllm" => Some(Arc::new(vibe_ai::providers::compat::CompatProvider::new(
+            vibe_ai::providers::compat::VLLM,
+            config,
+        ))),
+        "lmstudio" => Some(Arc::new(vibe_ai::providers::compat::CompatProvider::new(
+            vibe_ai::providers::compat::LM_STUDIO,
+            config,
+        ))),
         "ollama" => Some(Arc::new(vibe_ai::providers::ollama::OllamaProvider::new(
             config,
         ))),
@@ -189,6 +199,11 @@ fn resolve_env_key(name: &str) -> Option<String> {
         "fireworks" => "FIREWORKS_API_KEY",
         "sambanova" => "SAMBANOVA_API_KEY",
         "poolside" => "POOLSIDE_API_KEY",
+        // Optional for both: the servers run locally and usually accept no
+        // credential. Named so a user who started one with `--api-key` has a
+        // documented place to put it.
+        "vllm" => "VLLM_API_KEY",
+        "lmstudio" => "LMSTUDIO_API_KEY",
         "ollama" => "OLLAMA_API_KEY",
         "vibecli_mistralrs" | "vibecli-mistralrs" => "VIBECLI_DAEMON_TOKEN",
         _ => return None,
@@ -226,6 +241,8 @@ pub const AI_PROVIDER_NAMES: &[&str] = &[
     "fireworks",
     "sambanova",
     "poolside",
+    "vllm",
+    "lmstudio",
     "ollama",
     "vibecli_mistralrs",
 ];

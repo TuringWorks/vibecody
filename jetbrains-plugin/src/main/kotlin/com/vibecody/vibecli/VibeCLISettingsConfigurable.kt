@@ -51,6 +51,8 @@ class VibeCLISettingsConfigurable : Configurable {
             "sambanova",
             "poolside",
             "vibecli-mistralrs",
+            "vllm",
+            "lmstudio",
         )
     }
 

@@ -92,6 +92,24 @@ export const STATIC_MODELS: Record<string, string[]> = {
   // NOTE: meta-llama/* repos are gated — first-time download requires the
   // user to accept Meta's community license on the model page and supply
   // an HF_TOKEN. Qwen and Phi repos are fully open.
+  // vLLM and LM Studio serve whatever the operator loaded, so these are
+  // starting points rather than claims about any machine — both pickers accept
+  // a typed-in id, and each server's own /v1/models is the authority.
+  vllm: [
+    "meta-llama/Llama-3.1-8B-Instruct",
+    "meta-llama/Llama-3.3-70B-Instruct",
+    "Qwen/Qwen2.5-Coder-32B-Instruct",
+    "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "mistralai/Mistral-7B-Instruct-v0.3",
+    "microsoft/Phi-3.5-mini-instruct",
+  ],
+  lmstudio: [
+    "qwen2.5-coder-7b-instruct",
+    "qwen2.5-coder-14b-instruct",
+    "meta-llama-3.1-8b-instruct",
+    "mistral-7b-instruct-v0.3",
+    "phi-3.5-mini-instruct",
+  ],
   "vibecli-mistralrs": [
     "meta-llama/Llama-3.1-8B-Instruct",
     "meta-llama/Llama-3.2-3B-Instruct",
@@ -206,6 +224,8 @@ export const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
   bedrock:      "anthropic.claude-opus-5",
   copilot:      "gpt-4o",
   ollama:       "devstral-2",
+  vllm: "meta-llama/Llama-3.1-8B-Instruct",
+  lmstudio: "qwen2.5-coder-7b-instruct",
   "vibecli-mistralrs": "meta-llama/Llama-3.1-8B-Instruct",
   zhipu:        "glm-5.2",
   vercel_ai:    "",
