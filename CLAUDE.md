@@ -35,9 +35,10 @@ cd vibecoder && npm install && npm run tauri:dev   # VibeCoder dev
 
 # Mobile + watch (platform-gated — iOS/watchOS targets require macOS + Xcode)
 make mobile-ios                # Flutter iOS build (unsigned)
-make mobile-android            # Flutter Android APK + AAB
+make mobile-android            # Flutter Android APK only — the .aab is a
+make mobile-android-bundle     #   separate target, and the release ships both
 make watch-ios                 # watchOS Simulator build (Xcode)
-make watch-wear                # Wear OS APK (gradlew)
+make watch-wear                # Wear OS APK; watch-wear-bundle for the .aab
 make build-all                 # what CI builds — Rust + Tauri + Mobile + Watch
 ```
 
