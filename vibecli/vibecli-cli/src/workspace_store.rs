@@ -277,6 +277,23 @@ pub struct WorkspaceStore {
     workspace_path: PathBuf,
 }
 
+/// Hand-written so the key cannot be printed.
+///
+/// `WorkspaceStore` had no `Debug` at all, which is safe but awkward: any
+/// struct holding one — a test world, an error context — cannot derive `Debug`
+/// either. Deriving it here would be worse than awkward, because `key` is the
+/// workspace encryption key and a derived impl puts all 32 bytes into every
+/// log line that formats the store. This reports what identifies the store and
+/// says the key is present without saying what it is.
+impl std::fmt::Debug for WorkspaceStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WorkspaceStore")
+            .field("workspace_path", &self.workspace_path)
+            .field("key", &"<redacted>")
+            .finish_non_exhaustive()
+    }
+}
+
 impl WorkspaceStore {
     /// Open (or create) the workspace store for the given workspace directory.
     pub fn open(workspace_path: &Path) -> Result<Self, String> {
@@ -647,6 +664,30 @@ fn row_to_meta(r: &rusqlite::Row) -> rusqlite::Result<WorkspaceSecretMeta> {
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod debug_redaction_tests {
+    use super::*;
+
+    /// The whole reason this impl is hand-written. A derived `Debug` prints
+    /// `key: [17, 42, ...]` — the workspace encryption key, in whatever log
+    /// swallowed the struct.
+    #[test]
+    fn debug_never_prints_the_key() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let key = [7u8; 32];
+        let store = WorkspaceStore::open_with(&dir.path().join("ws.db"), key)
+            .expect("store should open");
+
+        let rendered = format!("{store:?}");
+        assert!(rendered.contains("<redacted>"), "{rendered}");
+        assert!(
+            !rendered.contains(&format!("{}", key[0])) || !rendered.contains('['),
+            "the key bytes must not appear: {rendered}"
+        );
+        assert!(!rendered.contains("7, 7, 7"), "key bytes leaked: {rendered}");
+    }
+}
 
 #[cfg(test)]
 mod tests {
