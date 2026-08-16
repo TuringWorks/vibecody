@@ -99,6 +99,15 @@ impl CompatProvider {
         }
     }
 
+    /// The configuration this provider was built with.
+    ///
+    /// Public because callers legitimately ask what model and limits a
+    /// constructed provider carries — the per-provider test suites did exactly
+    /// that against the field when it lived in their own module.
+    pub fn config(&self) -> &ProviderConfig {
+        &self.config
+    }
+
     pub fn base_url(&self) -> String {
         self.config
             .api_url
@@ -342,4 +351,93 @@ mod tests {
         let p = CompatProvider::new(VLLM, cfg);
         assert!(!p.is_available().await);
     }
+}
+
+/// Declare an OpenAI-compatible provider as a named type over [`CompatProvider`].
+///
+/// The twelve hand-written providers each exposed a concrete type —
+/// `CerebrasProvider`, `GroqProvider` — that callers and their own test suites
+/// name directly. Replacing them with `CompatProvider` everywhere would be a
+/// wide, mechanical edit across the workspace *and* would throw away those
+/// suites, which are the only evidence the migration preserved behaviour.
+///
+/// So the name stays and the body goes. Each provider keeps its type and its
+/// tests; what it loses is ~150 lines that differed from its neighbour's by a
+/// dozen.
+#[macro_export]
+macro_rules! openai_compat_provider {
+    ($ty:ident, $label:literal, $base:expr, $env:literal) => {
+        /// The provider's identity, as data. Public so the daemon can describe
+        /// it without constructing one.
+        pub const SPEC: $crate::providers::compat::CompatSpec =
+            $crate::providers::compat::CompatSpec::cloud($label, $base, $env);
+
+        #[doc = concat!("`", $label, "`, an OpenAI-compatible provider.")]
+        pub struct $ty($crate::providers::compat::CompatProvider);
+
+        impl $ty {
+            pub fn new(config: $crate::provider::ProviderConfig) -> Self {
+                Self($crate::providers::compat::CompatProvider::new(SPEC, config))
+            }
+        }
+
+        // Gives the inherent helpers — `base_url`, `chat_url`, `api_key` — which
+        // the existing test suites call directly.
+        impl std::ops::Deref for $ty {
+            type Target = $crate::providers::compat::CompatProvider;
+            fn deref(&self) -> &Self::Target {
+                &self.0
+            }
+        }
+
+        #[async_trait::async_trait]
+        impl $crate::provider::AIProvider for $ty {
+            fn name(&self) -> &str {
+                $crate::provider::AIProvider::name(&self.0)
+            }
+            async fn is_available(&self) -> bool {
+                self.0.is_available().await
+            }
+            async fn complete(
+                &self,
+                context: &$crate::provider::CodeContext,
+            ) -> anyhow::Result<$crate::provider::CompletionResponse> {
+                self.0.complete(context).await
+            }
+            async fn stream_complete(
+                &self,
+                context: &$crate::provider::CodeContext,
+            ) -> anyhow::Result<$crate::provider::CompletionStream> {
+                self.0.stream_complete(context).await
+            }
+            async fn chat_response(
+                &self,
+                messages: &[$crate::provider::Message],
+                context: Option<String>,
+            ) -> anyhow::Result<$crate::provider::CompletionResponse> {
+                self.0.chat_response(messages, context).await
+            }
+            async fn chat(
+                &self,
+                messages: &[$crate::provider::Message],
+                context: Option<String>,
+            ) -> anyhow::Result<String> {
+                self.0.chat(messages, context).await
+            }
+            async fn stream_chat(
+                &self,
+                messages: &[$crate::provider::Message],
+            ) -> anyhow::Result<$crate::provider::CompletionStream> {
+                self.0.stream_chat(messages).await
+            }
+            async fn chat_with_images(
+                &self,
+                messages: &[$crate::provider::Message],
+                images: &[$crate::provider::ImageAttachment],
+                context: Option<String>,
+            ) -> anyhow::Result<String> {
+                self.0.chat_with_images(messages, images, context).await
+            }
+        }
+    };
 }
