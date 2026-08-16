@@ -5835,6 +5835,9 @@ pub async fn start_agent_task(
     let context = AgentContext {
         workspace_root: workspace_root.clone(),
         open_files: vec![],
+        // Plugins are a property of the workspace, not of the client that
+        // opened it, so a workspace set up in VibeDesk behaves the same here.
+        plugin_rules: vibecli_cli::context_assembler::plugin_rules_body(&workspace_root),
         git_branch,
         git_diff_summary: git_diff,
         flow_context: None,
@@ -6468,6 +6471,7 @@ pub async fn start_parallel_agent_task(
             let context = AgentContext {
                 workspace_root: agent_workspace.clone(),
                 open_files: vec![],
+                plugin_rules: vibecli_cli::context_assembler::plugin_rules_body(&agent_workspace),
                 git_branch,
                 git_diff_summary: None,
                 flow_context: None,
@@ -10635,6 +10639,7 @@ pub async fn start_parallel_agents(
             let context = AgentContext {
                 workspace_root: root2.clone(),
                 open_files: vec![],
+                plugin_rules: vibecli_cli::context_assembler::plugin_rules_body(&root2),
                 git_branch,
                 git_diff_summary: None,
                 flow_context: None,
@@ -61480,14 +61485,35 @@ pub async fn msaf_validate_token(token: String) -> Result<MsafTokenResultView, S
 
 // ─── Team Onboarding ─────────────────────────────────────────────────────────
 
+/// One commit author in the open folder's history.
+///
+/// Named for where it comes from. This used to be `TeamMemberView`, with a
+/// `sessions` count and a `Member`/`New` status — none of which was measured:
+/// `sessions` was the commit count and the status was `commits < 5`. Opening
+/// any checkout of someone else's project filled the panel with that project's
+/// contributors, presented as colleagues who had been using the product. The
+/// numbers were always right; every word around them was wrong.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TeamMemberView {
+pub struct TeamContributorView {
     pub user_id: String,
     pub name: String,
     pub email: String,
-    pub sessions: u32,
-    pub is_new_member: bool,
-    pub joined_at: String,
+    /// Non-merge commits authored in this repository.
+    pub commits: u32,
+    /// Date of their earliest commit here — not when they joined anything.
+    pub first_commit: String,
+}
+
+/// The contributor list plus the repository it was read from.
+///
+/// The source travels with the data because the panel is otherwise unable to
+/// answer the first question anyone asks of it: who are these people. They are
+/// whoever committed to whatever folder happens to be open.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TeamContributorsView {
+    /// Absolute path of the folder `git log` was run in.
+    pub repo: String,
+    pub contributors: Vec<TeamContributorView>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61500,12 +61526,31 @@ pub struct TeamKnowledgeGapView {
     pub impact_score: u8,
 }
 
+/// One frequently-changed file.
+///
+/// `access_count` was the old name for `commits`, and nothing here ever
+/// observed an access: the number is how many commits touched the file. The
+/// `complexity` field is gone with it — it was derived from the file
+/// extension, so every `.rs` file in every repository was "high".
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TeamHotspotView {
     pub file_path: String,
-    pub access_count: u32,
+    /// Commits touching this file, within the scanned window.
+    pub commits: u32,
     pub contributor_count: u32,
-    pub complexity: String,
+}
+
+/// Hotspots plus the window they were computed over.
+///
+/// `commits` is a count within the last `scanned_commits` commits, not over
+/// all history, and a ranking is misread without knowing how far back it
+/// looked. The window ships with the data so the label cannot drift from the
+/// query that produced it.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TeamHotspotsView {
+    pub repo: String,
+    pub scanned_commits: u32,
+    pub files: Vec<TeamHotspotView>,
 }
 
 async fn team_workspace_root(state: &tauri::State<'_, AppState>) -> PathBuf {
@@ -61540,9 +61585,10 @@ fn format_unix_date(ts_secs: u64) -> String {
 #[tauri::command]
 pub async fn team_onboarding_members(
     state: tauri::State<'_, AppState>,
-) -> Result<Vec<TeamMemberView>, String> {
+) -> Result<TeamContributorsView, String> {
     let ws = team_workspace_root(&state).await;
-    let members = tokio::task::spawn_blocking(move || -> Vec<TeamMemberView> {
+    let repo = ws.display().to_string();
+    let contributors = tokio::task::spawn_blocking(move || -> Vec<TeamContributorView> {
         let out = std::process::Command::new("git")
             .args([
                 "log",
@@ -61586,9 +61632,9 @@ pub async fn team_onboarding_members(
             entry.sessions += 1;
         }
 
-        let mut members: Vec<TeamMemberView> = by_email
+        let mut contributors: Vec<TeamContributorView> = by_email
             .into_iter()
-            .map(|(email, agg)| TeamMemberView {
+            .map(|(email, agg)| TeamContributorView {
                 user_id: email.clone(),
                 name: if agg.name.is_empty() {
                     email.clone()
@@ -61596,17 +61642,16 @@ pub async fn team_onboarding_members(
                     agg.name
                 },
                 email,
-                sessions: agg.sessions,
-                is_new_member: agg.sessions < 5,
-                joined_at: format_unix_date(agg.first_ts),
+                commits: agg.sessions,
+                first_commit: format_unix_date(agg.first_ts),
             })
             .collect();
-        members.sort_by(|a, b| b.sessions.cmp(&a.sessions));
-        members
+        contributors.sort_by(|a, b| b.commits.cmp(&a.commits));
+        contributors
     })
     .await
     .map_err(|e| e.to_string())?;
-    Ok(members)
+    Ok(TeamContributorsView { repo, contributors })
 }
 
 #[tauri::command]
@@ -61617,25 +61662,24 @@ pub async fn team_onboarding_gaps() -> Result<Vec<TeamKnowledgeGapView>, String>
     Ok(Vec::new())
 }
 
-fn complexity_from_ext(path: &str) -> &'static str {
-    let ext = std::path::Path::new(path)
-        .extension()
-        .and_then(|s| s.to_str())
-        .unwrap_or("");
-    match ext {
-        "rs" | "cpp" | "cc" | "c" | "h" | "hpp" | "scala" | "hs" => "high",
-        "ts" | "tsx" | "js" | "jsx" | "py" | "go" | "java" | "kt" | "swift" => "medium",
-        "md" | "json" | "toml" | "yaml" | "yml" | "txt" | "lock" | "css" | "html" => "low",
-        _ => "medium",
-    }
-}
+// `complexity_from_ext` lived here: it mapped a file extension to
+// "high"/"medium"/"low" and shipped that as a per-file complexity score, so
+// every `.rs` file in every repository was equally "high". Nothing rendered
+// it, and nothing should have — a language is not a measurement of the file
+// written in it. Deleted rather than relabelled; there is no honest label for
+// a number that was never taken.
+
+/// How far back `team_onboarding_hotspots` looks. Reported in its payload so
+/// the panel's wording and this query cannot drift apart.
+const HOTSPOT_SCAN_COMMITS: u32 = 1000;
 
 #[tauri::command]
 pub async fn team_onboarding_hotspots(
     state: tauri::State<'_, AppState>,
-) -> Result<Vec<TeamHotspotView>, String> {
+) -> Result<TeamHotspotsView, String> {
     let ws = team_workspace_root(&state).await;
-    let hotspots = tokio::task::spawn_blocking(move || -> Vec<TeamHotspotView> {
+    let repo = ws.display().to_string();
+    let files = tokio::task::spawn_blocking(move || -> Vec<TeamHotspotView> {
         let out = std::process::Command::new("git")
             .args([
                 "log",
@@ -61643,7 +61687,7 @@ pub async fn team_onboarding_hotspots(
                 "--name-only",
                 "--pretty=format:\x1fA\x1f%ae",
                 "-n",
-                "1000",
+                &HOTSPOT_SCAN_COMMITS.to_string(),
             ])
             .current_dir(&ws)
             .output();
@@ -61654,7 +61698,7 @@ pub async fn team_onboarding_hotspots(
         let stdout = String::from_utf8_lossy(&out.stdout);
 
         struct FileAgg {
-            access_count: u32,
+            commits: u32,
             contributors: std::collections::HashSet<String>,
         }
         let mut by_path: HashMap<String, FileAgg> = HashMap::new();
@@ -61669,10 +61713,10 @@ pub async fn team_onboarding_hotspots(
                 continue;
             }
             let entry = by_path.entry(line.to_string()).or_insert_with(|| FileAgg {
-                access_count: 0,
+                commits: 0,
                 contributors: std::collections::HashSet::new(),
             });
-            entry.access_count += 1;
+            entry.commits += 1;
             if !current_author.is_empty() {
                 entry.contributors.insert(current_author.clone());
             }
@@ -61681,88 +61725,170 @@ pub async fn team_onboarding_hotspots(
         let mut hotspots: Vec<TeamHotspotView> = by_path
             .into_iter()
             .map(|(path, agg)| TeamHotspotView {
-                complexity: complexity_from_ext(&path).to_string(),
                 file_path: path,
-                access_count: agg.access_count,
+                commits: agg.commits,
                 contributor_count: agg.contributors.len() as u32,
             })
             .collect();
-        hotspots.sort_by(|a, b| b.access_count.cmp(&a.access_count));
+        hotspots.sort_by(|a, b| b.commits.cmp(&a.commits));
         hotspots.truncate(30);
         hotspots
     })
     .await
     .map_err(|e| e.to_string())?;
-    Ok(hotspots)
+    Ok(TeamHotspotsView {
+        repo,
+        scanned_commits: HOTSPOT_SCAN_COMMITS,
+        files,
+    })
+}
+
+/// Commits scanned when building one contributor's guide. Larger than the
+/// hotspot window because this one filters down to a single author, so a
+/// contributor far from the tip needs more history in view to have anything.
+const GUIDE_SCAN_COMMITS: u32 = 2000;
+
+/// One contributor's guide, plus what it could and could not establish.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TeamGuideView {
+    pub repo: String,
+    /// Display name where git had one, otherwise the address it was keyed by.
+    pub contributor: String,
+    pub scanned_commits: u32,
+    /// `Some` only when git itself could not be read. A contributor with no
+    /// commits in the window is a successful answer, not an error — the two
+    /// used to render the same sentence, so "git is not installed" and "this
+    /// person has never committed here" were indistinguishable.
+    pub error: Option<String>,
+    pub markdown: String,
 }
 
 #[tauri::command]
 pub async fn team_onboarding_guide(
     user_id: String,
     state: tauri::State<'_, AppState>,
-) -> Result<String, String> {
+) -> Result<TeamGuideView, String> {
     let ws = team_workspace_root(&state).await;
+    let repo = ws.display().to_string();
     let email = user_id.clone();
-    let guide = tokio::task::spawn_blocking(move || -> String {
+    let guide = tokio::task::spawn_blocking(move || -> TeamGuideView {
+        let bail = |error: String| TeamGuideView {
+            repo: ws.display().to_string(),
+            contributor: email.clone(),
+            scanned_commits: GUIDE_SCAN_COMMITS,
+            error: Some(error),
+            markdown: String::new(),
+        };
+
+        // `--author` is a *regex substring* match against "Name <email>", so
+        // filtering there was wrong twice over: a GitHub noreply address like
+        // `89218912+time-attack@…` is a valid regex whose `+` means "one or
+        // more", and a substring match hands one contributor another's
+        // commits whenever one address contains the other. Read every author
+        // and compare exactly here instead — the same shape
+        // `team_onboarding_hotspots` already uses.
         let out = std::process::Command::new("git")
             .args([
                 "log",
                 "--no-merges",
                 "--name-only",
-                "--pretty=format:",
-                "--author",
-                &email,
+                "--pretty=format:\x1fA\x1f%ae\x1f%an",
                 "-n",
-                "200",
+                &GUIDE_SCAN_COMMITS.to_string(),
             ])
             .current_dir(&ws)
             .output();
-        let Ok(out) = out else {
-            return format!(
-                "# Onboarding Guide for {}\n\nNo git history available for this user.\n",
-                email
-            );
+        let out = match out {
+            Ok(o) => o,
+            Err(e) => return bail(format!("could not run git: {e}")),
         };
         if !out.status.success() {
-            return format!(
-                "# Onboarding Guide for {}\n\nNo git history available for this user.\n",
-                email
-            );
+            let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+            return bail(if stderr.is_empty() {
+                "git log failed".to_string()
+            } else {
+                stderr
+            });
         }
-        let stdout = String::from_utf8_lossy(&out.stdout);
 
+        let stdout = String::from_utf8_lossy(&out.stdout);
         let mut by_path: HashMap<String, u32> = HashMap::new();
+        let mut display_name: Option<String> = None;
+        let mut mine = false;
         for raw in stdout.lines() {
-            let line = raw.trim();
-            if line.is_empty() {
+            let line = raw.trim_end_matches('\r');
+            if let Some(rest) = line.strip_prefix("\x1fA\x1f") {
+                let mut parts = rest.splitn(2, '\x1f');
+                let author = parts.next().unwrap_or("");
+                let name = parts.next().unwrap_or("");
+                mine = author == email;
+                if mine && display_name.is_none() && !name.is_empty() {
+                    display_name = Some(name.to_string());
+                }
+                continue;
+            }
+            if !mine || line.trim().is_empty() {
                 continue;
             }
             *by_path.entry(line.to_string()).or_insert(0) += 1;
         }
+
         let mut top: Vec<(String, u32)> = by_path.into_iter().collect();
-        top.sort_by(|a, b| b.1.cmp(&a.1));
+        top.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
         top.truncate(10);
 
-        let mut md = format!("# Onboarding Guide for {}\n\n", email);
-        md.push_str("## Your Top Touched Files\n");
+        let contributor = display_name.unwrap_or_else(|| email.clone());
+        // Titled by name: the address was masked in the table one tab over,
+        // and this block is meant to be copied and pasted.
+        let mut md = format!("# Onboarding guide for {contributor}\n\n");
+        md.push_str(&format!(
+            "## Most-touched files in the last {GUIDE_SCAN_COMMITS} commits\n"
+        ));
         if top.is_empty() {
-            md.push_str("_No commits found for this author in the workspace._\n");
+            md.push_str(&format!(
+                "_No commits by this contributor in the last {GUIDE_SCAN_COMMITS} commits. \
+                 They may have contributed earlier than that._\n"
+            ));
         } else {
             for (i, (path, n)) in top.iter().enumerate() {
-                md.push_str(&format!("{}. `{}` — {} commits\n", i + 1, path, n));
+                md.push_str(&format!(
+                    "{}. `{}` — {} commit{}\n",
+                    i + 1,
+                    path,
+                    n,
+                    if *n == 1 { "" } else { "s" }
+                ));
             }
         }
-        md.push_str(
-            "\n## Suggested Next Steps\n\
-             - [ ] Review recent commits on your top files\n\
-             - [ ] Read CLAUDE.md and AGENTS.md for project conventions\n\
-             - [ ] Pair with a veteran contributor on a hotspot file\n",
-        );
-        md
+
+        md.push_str("\n## Suggested next steps\n");
+        md.push_str("- [ ] Review recent commits on those files\n");
+        // Only suggest reading a convention file that is actually here. The
+        // list used to name CLAUDE.md and AGENTS.md unconditionally, in any
+        // repository, including ones that have neither.
+        let conventions: Vec<&str> = ["AGENTS.md", "CLAUDE.md", "CONTRIBUTING.md"]
+            .into_iter()
+            .filter(|f| ws.join(f).is_file())
+            .collect();
+        if !conventions.is_empty() {
+            md.push_str(&format!(
+                "- [ ] Read {} for project conventions\n",
+                conventions.join(" and ")
+            ));
+        }
+        md.push_str("- [ ] Pair with another contributor on a hotspot file\n");
+
+        TeamGuideView {
+            repo: ws.display().to_string(),
+            contributor,
+            scanned_commits: GUIDE_SCAN_COMMITS,
+            error: None,
+            markdown: md,
+        }
     })
     .await
     .map_err(|e| e.to_string())?;
-    Ok(guide)
+    Ok(TeamGuideView { repo, ..guide })
 }
 
 // ── Recap & Resume — F2.2 + F2.3 daemon bridges ────────────────────────────

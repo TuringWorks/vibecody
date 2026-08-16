@@ -1697,6 +1697,19 @@ fn build_agent_context_from_request(
         Some(memory_pieces.join("\n\n---\n\n"))
     };
 
+    // The assembler already collected, budget-bounded and dropped-on-error the
+    // rules of every admitted plugin. Taking the section from here rather than
+    // re-reading the files keeps this path's rules identical to the ones the
+    // assembler's other consumers see, budget included.
+    let plugin_rules = assembled
+        .get("plugin_rules")
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
+
+    // Skills are directories, not text, so they never had a section to come
+    // from; the loader reads them at prompt-build time.
+    let extra_skill_dirs = crate::plugin_runtime::enabled_skill_dirs_for(&workspace);
+
     // kodegraph repo-map summary (god nodes / communities). Refreshes the
     // graph if files changed since the last build, then renders a few hundred
     // tokens that replace the dir-tree in the system prompt. Computed before
@@ -1710,13 +1723,14 @@ fn build_agent_context_from_request(
         git_diff_summary: None,
         flow_context: None,
         approved_plan: None,
-        extra_skill_dirs: vec![],
+        extra_skill_dirs,
         parent_session_id: None,
         depth: 0,
         active_agent_counter: None,
         team_bus: None,
         team_agent_id: None,
         project_summary,
+        plugin_rules,
         // kodegraph repo-map summary (god nodes / communities). Refreshes the
         // graph if files changed since the last build, then renders a few
         // hundred tokens that replace the dir-tree in the system prompt.
@@ -1734,6 +1748,65 @@ fn build_agent_context_from_request(
         reasoning_budget_tokens: None,
         prior_messages: Vec::new(),
     })
+}
+
+/// The `AgentContext` the `/agent` route runs with, for both shapes of
+/// request and for an assembler that failed.
+///
+/// Extracted from `start_agent` so the plugin contributions below can be
+/// asserted without standing up a socket. They were three inline literals
+/// before, and the two that VibeDesk actually reaches were the two that
+/// silently carried neither — which is the kind of divergence a function with
+/// one exit does not have.
+///
+/// Plugin skills and rules are applied *after* the branch, so they hold
+/// whichever way the context was built. VibeDesk sends no `context_request`,
+/// so anything populated only inside the assembler branch is, for VibeDesk,
+/// not populated at all. They are read per call rather than cached: enabling
+/// or disabling a plugin must take effect on the next task, which is what the
+/// Plugins panel's Enable/Disable buttons promise.
+pub fn build_start_agent_context(
+    workspace_root: &std::path::Path,
+    task: &str,
+    session_id: &str,
+    ctx_request: Option<&ContextRequest>,
+    git_branch: Option<String>,
+    reasoning_budget: Option<u32>,
+) -> AgentContext {
+    let bare = || AgentContext {
+        workspace_root: workspace_root.to_path_buf(),
+        git_branch: git_branch.clone(),
+        reasoning_budget_tokens: reasoning_budget,
+        graph_summary: crate::graph_index::render_current_summary(),
+        skill_health: crate::skillforge_index::render_health_line(),
+        ..Default::default()
+    };
+
+    let mut context = match ctx_request {
+        // Phase 7 S3: when the client supplied a context_request, route memory
+        // through the assembler. When None (VibeDesk and every existing
+        // mobile/IDE client today), keep the prior empty-context behaviour so
+        // this is purely additive.
+        Some(cr) => build_agent_context_from_request(
+            workspace_root.to_path_buf(),
+            task,
+            session_id,
+            cr,
+            git_branch.clone(),
+        )
+        .unwrap_or_else(|_| bare()),
+        None => bare(),
+    };
+
+    // `build_agent_context_from_request` takes its rules from the assembler,
+    // which has already budget-bounded them; only fill what is still empty.
+    if context.plugin_rules.is_none() {
+        context.plugin_rules = crate::context_assembler::plugin_rules_body(workspace_root);
+    }
+    if context.extra_skill_dirs.is_empty() {
+        context.extra_skill_dirs = crate::plugin_runtime::enabled_skill_dirs_for(workspace_root);
+    }
+    context
 }
 
 /// Rebuild a conversation from a session's durable `job_events` log so a
@@ -2100,65 +2173,14 @@ async fn start_agent(
 
         let git_branch = vibe_core::git::get_current_branch(&workspace_root).ok();
 
-        // Phase 7 S3: when the client supplied a context_request, route
-        // memory through the assembler. When None (every existing
-        // mobile/IDE client today), keep the prior empty-context
-        // behavior so this is purely additive.
-        let mut context = match ctx_request {
-            Some(ref cr) => match build_agent_context_from_request(
-                workspace_root.clone(),
-                &task,
-                &sid,
-                cr,
-                git_branch.clone(),
-            ) {
-                Ok(c) => c,
-                Err(_) => AgentContext {
-                    workspace_root: workspace_root.clone(),
-                    open_files: vec![],
-                    git_branch: git_branch.clone(),
-                    git_diff_summary: None,
-                    flow_context: None,
-                    approved_plan: None,
-                    extra_skill_dirs: vec![],
-                    parent_session_id: None,
-                    depth: 0,
-                    active_agent_counter: None,
-                    team_bus: None,
-                    team_agent_id: None,
-                    project_summary: None,
-                    task_context_files: vec![],
-                    memory_context: None,
-                    auto_commit: false,
-                    reasoning_budget_tokens: reasoning_budget,
-                    prior_messages: Vec::new(),
-                    graph_summary: crate::graph_index::render_current_summary(),
-                    skill_health: crate::skillforge_index::render_health_line(),
-                },
-            },
-            None => AgentContext {
-                workspace_root: workspace_root.clone(),
-                open_files: vec![],
-                git_branch,
-                git_diff_summary: None,
-                flow_context: None,
-                approved_plan: None,
-                extra_skill_dirs: vec![],
-                parent_session_id: None,
-                depth: 0,
-                active_agent_counter: None,
-                team_bus: None,
-                team_agent_id: None,
-                project_summary: None,
-                task_context_files: vec![],
-                memory_context: None,
-                auto_commit: false,
-                reasoning_budget_tokens: reasoning_budget,
-                prior_messages: Vec::new(),
-                graph_summary: crate::graph_index::render_current_summary(),
-                skill_health: crate::skillforge_index::render_health_line(),
-            },
-        };
+        let mut context = build_start_agent_context(
+            &workspace_root,
+            &task,
+            &sid,
+            ctx_request.as_ref(),
+            git_branch,
+            reasoning_budget,
+        );
 
         // G7.1 — inject a pinned-goal preamble (title + statement +
         // success criteria + current plan) into `approved_plan` when

@@ -901,6 +901,16 @@ pub struct AgentContext {
     /// context. Empty for fresh sessions.
     #[serde(default)]
     pub prior_messages: Vec<Message>,
+    /// Markdown rules contributed by installed plugins whose workspace policy
+    /// is `On` or `Required`, already budget-bounded by the caller.
+    ///
+    /// A plugin's rule files are the whole of what a rule-only plugin does, so
+    /// this field is the difference between the Plugins panel listing a rule
+    /// and the agent obeying one. Populated by the daemon and the CLI from
+    /// `context_assembler::plugin_rules_body`; `None` when no plugin
+    /// contributes, which is the common case.
+    #[serde(default)]
+    pub plugin_rules: Option<String>,
 }
 
 // ── Tool Executor Trait ───────────────────────────────────────────────────────
@@ -1269,7 +1279,7 @@ impl AgentLoop {
             None
         };
 
-        let system_content = build_system_prompt(&context, &self.approval);
+        let system_content = build_system_prompt(&context, &self.approval, task);
         let mut messages: Vec<Message> = vec![Message {
             role: MessageRole::System,
             content: system_content,
@@ -3811,7 +3821,7 @@ mod context_tests {
         let mut context = AgentContext::default();
         context.workspace_root = std::path::PathBuf::from("/nonexistent-vibe-test");
         context.skill_health = Some("7 skills, 3 scored, top evolvability 0.82".to_string());
-        let prompt = build_system_prompt(&context, &ApprovalPolicy::FullAuto);
+        let prompt = build_system_prompt(&context, &ApprovalPolicy::FullAuto, "a task");
         assert!(
             prompt.contains("## Skill Health"),
             "expected a ## Skill Health section, got:\n{prompt}"
@@ -3824,10 +3834,79 @@ mod context_tests {
         let mut context = AgentContext::default();
         context.workspace_root = std::path::PathBuf::from("/nonexistent-vibe-test");
         // skill_health defaults to None — the auto-gate path.
-        let prompt = build_system_prompt(&context, &ApprovalPolicy::FullAuto);
+        let prompt = build_system_prompt(&context, &ApprovalPolicy::FullAuto, "a task");
         assert!(
             !prompt.contains("## Skill Health"),
             "skill-health section must not appear when skill_health is None"
+        );
+    }
+
+    // A rule-only plugin does nothing at all unless its body reaches the
+    // system prompt: the Plugins panel listing it and the agent obeying it are
+    // two different claims, and only this one is about the run.
+    #[test]
+    fn system_prompt_includes_plugin_rules_when_set() {
+        let mut context = AgentContext::default();
+        context.workspace_root = std::path::PathBuf::from("/nonexistent-vibe-test");
+        context.plugin_rules = Some("### acme/no-secrets\n\nNever echo a token.".to_string());
+        let prompt = build_system_prompt(&context, &ApprovalPolicy::FullAuto, "a task");
+        assert!(
+            prompt.contains("## Plugin Rules (admin-approved)"),
+            "expected a plugin-rules section, got:\n{prompt}"
+        );
+        assert!(prompt.contains("Never echo a token."));
+    }
+
+    #[test]
+    fn system_prompt_omits_plugin_rules_when_absent_or_empty() {
+        let mut context = AgentContext::default();
+        context.workspace_root = std::path::PathBuf::from("/nonexistent-vibe-test");
+        let none = build_system_prompt(&context, &ApprovalPolicy::FullAuto, "a task");
+        assert!(!none.contains("## Plugin Rules"));
+
+        // An empty string is "no plugin contributed", not "a plugin
+        // contributed nothing" — an empty header would read as the latter.
+        context.plugin_rules = Some(String::new());
+        let empty = build_system_prompt(&context, &ApprovalPolicy::FullAuto, "a task");
+        assert!(!empty.contains("## Plugin Rules"));
+    }
+
+    // The trigger words a skill author writes describe the job, so the task is
+    // the text most likely to contain them. Before this, the daemon path
+    // matched only `open_files` (empty) and the branch name.
+    #[test]
+    fn skills_activate_on_task_text_from_an_extra_dir() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let skills = dir.path().join("skills");
+        std::fs::create_dir_all(&skills).unwrap();
+        std::fs::write(
+            skills.join("test-first.md"),
+            "---\nname: test-first\ndescription: Test-first discipline\ntriggers: [\"write a test\"]\n---\n\nWatch it fail first.\n",
+        )
+        .unwrap();
+
+        let context = AgentContext {
+            workspace_root: dir.path().to_path_buf(),
+            extra_skill_dirs: vec![skills],
+            ..Default::default()
+        };
+
+        let matched = build_system_prompt(
+            &context,
+            &ApprovalPolicy::FullAuto,
+            "please write a test for the parser",
+        );
+        assert!(
+            matched.contains("### Skill: test-first"),
+            "task text must reach the skill matcher, got:\n{matched}"
+        );
+        assert!(matched.contains("Watch it fail first."));
+
+        let unmatched =
+            build_system_prompt(&context, &ApprovalPolicy::FullAuto, "rename a variable");
+        assert!(
+            !unmatched.contains("### Skill: test-first"),
+            "a non-matching task must not activate the skill"
         );
     }
 }
@@ -3938,7 +4017,12 @@ fn build_repo_map(root: &std::path::Path) -> String {
     lines.join("\n")
 }
 
-fn build_system_prompt(context: &AgentContext, approval: &ApprovalPolicy) -> String {
+/// `task` is the user's request for this run. It joins the skill trigger match
+/// text: a skill whose triggers describe the job ("write a test", "incident")
+/// only ever matched the open-file list and the branch name before, so on the
+/// daemon path — where `open_files` is empty and the branch is `main` — no
+/// skill could activate at all, however well its triggers were written.
+fn build_system_prompt(context: &AgentContext, approval: &ApprovalPolicy, task: &str) -> String {
     let mut extras = String::new();
 
     // Auto-mode guidance: when running fully autonomous, inject behavioral rules
@@ -4026,10 +4110,14 @@ fn build_system_prompt(context: &AgentContext, approval: &ApprovalPolicy) -> Str
         }
         skill_dirs.extend(context.extra_skill_dirs.iter().cloned());
         let loader = SkillLoader::with_dirs(skill_dirs);
-        // Match against open files list and any context text
-        let context_text = context.open_files.join(" ")
-            + context.git_branch.as_deref().unwrap_or("")
-            + context.flow_context.as_deref().unwrap_or("");
+        // Match against the task, the open files list and any context text.
+        let context_text = [
+            task,
+            &context.open_files.join(" "),
+            context.git_branch.as_deref().unwrap_or(""),
+            context.flow_context.as_deref().unwrap_or(""),
+        ]
+        .join(" ");
         let skills = loader.matching(&context_text);
         if !skills.is_empty() {
             extras.push_str("\n\n## Active Skills");
@@ -4041,6 +4129,17 @@ fn build_system_prompt(context: &AgentContext, approval: &ApprovalPolicy) -> Str
                 extras.push('\n');
                 extras.push_str(&skill.content);
             }
+        }
+    }
+
+    // Rules from plugins the workspace policy admits. They sit above the
+    // project summary because they are instructions, not description, and they
+    // say so in the header — a rule the operator installed deliberately should
+    // not read to the model like an auto-detected fact.
+    if let Some(rules) = &context.plugin_rules {
+        if !rules.is_empty() {
+            extras.push_str("\n\n## Plugin Rules (admin-approved)\n");
+            extras.push_str(rules);
         }
     }
 

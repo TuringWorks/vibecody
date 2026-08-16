@@ -409,6 +409,27 @@ fn collect_agent_sections(
 /// the file body, separated by blank lines. The whole section is
 /// budget-bounded by `ContextBudget` like every other section.
 fn collect_plugin_rules(workspace: &Path) -> Option<ContextSection> {
+    let body = plugin_rules_body(workspace)?;
+    Some(ContextSection {
+        name: "plugin_rules",
+        content: body,
+        priority: 1,
+        truncated: false,
+    })
+}
+
+/// The plugin-rules block on its own, for callers that inject it into an agent
+/// prompt rather than into an assembled context map.
+///
+/// Two callers need this text and they reach the agent by different routes —
+/// the daemon's `/agent` handler builds an `AgentContext` directly and never
+/// runs the assembler, while the assembler's own consumers read a section map.
+/// Both go through this function so a rule cannot be admitted on one path and
+/// dropped on the other.
+///
+/// `None` means no plugin contributed a readable rule. That is distinct from
+/// `Some("")`, which this never returns.
+pub fn plugin_rules_body(workspace: &Path) -> Option<String> {
     let store = crate::workspace_store::WorkspaceStore::open(workspace).ok()?;
     let rules = crate::plugin_runtime::enabled_rules(workspace, &store).ok()?;
     if rules.is_empty() {
@@ -439,12 +460,7 @@ fn collect_plugin_rules(workspace: &Path) -> Option<ContextSection> {
     if !any_loaded {
         return None;
     }
-    Some(ContextSection {
-        name: "plugin_rules",
-        content: body,
-        priority: 1,
-        truncated: false,
-    })
+    Some(body)
 }
 
 /// Render the agent scratchpad for a session as a human-readable block,

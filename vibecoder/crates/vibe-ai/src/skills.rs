@@ -284,24 +284,63 @@ fn load_skill_file(path: &Path) -> anyhow::Result<Skill> {
     let mut fm_config: HashMap<String, String> = HashMap::new();
     let mut fm_webhook_trigger: Option<String> = None;
 
+    // The list key whose block-form items are currently being collected.
+    //
+    // YAML allows a list to be written inline (`triggers: [a, b]`) or as
+    // indented `- item` lines, and the second form is the one most authors
+    // reach for. Only the inline form was understood here, so a skill written
+    // the ordinary way loaded with an empty trigger list and could never
+    // activate — silently, because an empty list is also what "this skill
+    // declares no triggers" looks like. Every skill in the shipped plugin
+    // catalog was in that state.
+    let mut open_list: Option<&str> = None;
+
     for line in &front_matter_lines {
         let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+
+        if let Some(item) = line.strip_prefix("- ") {
+            let item = item.trim().trim_matches('"').trim_matches('\'');
+            if !item.is_empty() {
+                match open_list {
+                    Some("triggers") => fm_triggers.push(item.to_string()),
+                    Some("tools_allowed") => fm_tools_allowed.push(item.to_string()),
+                    Some("requires.bins") => fm_requires_bins.push(item.to_string()),
+                    Some("requires.env") => fm_requires_env.push(item.to_string()),
+                    Some("requires.os") => fm_requires_os.push(item.to_string()),
+                    // An item under a key this parser does not model, or a
+                    // stray dash. Skipped, like any unknown key.
+                    _ => {}
+                }
+            }
+            continue;
+        }
+        // Any non-item line ends the block.
+        open_list = None;
+
         if let Some(rest) = line.strip_prefix("name:") {
             fm_name = rest.trim().trim_matches('"').to_string();
         } else if let Some(rest) = line.strip_prefix("description:") {
             fm_description = rest.trim().trim_matches('"').to_string();
         } else if let Some(rest) = line.strip_prefix("triggers:") {
             fm_triggers = parse_yaml_list(rest.trim());
+            open_list = list_continues("triggers", rest);
         } else if let Some(rest) = line.strip_prefix("tools_allowed:") {
             fm_tools_allowed = parse_yaml_list(rest.trim());
+            open_list = list_continues("tools_allowed", rest);
         } else if let Some(rest) = line.strip_prefix("version:") {
             fm_version = Some(rest.trim().trim_matches('"').to_string());
         } else if let Some(rest) = line.strip_prefix("requires.bins:") {
             fm_requires_bins = parse_yaml_list(rest.trim());
+            open_list = list_continues("requires.bins", rest);
         } else if let Some(rest) = line.strip_prefix("requires.env:") {
             fm_requires_env = parse_yaml_list(rest.trim());
+            open_list = list_continues("requires.env", rest);
         } else if let Some(rest) = line.strip_prefix("requires.os:") {
             fm_requires_os = parse_yaml_list(rest.trim());
+            open_list = list_continues("requires.os", rest);
         } else if let Some(rest) = line.strip_prefix("webhook_trigger:") {
             fm_webhook_trigger = Some(rest.trim().trim_matches('"').to_string());
         } else if let Some(rest) = line.strip_prefix("install.brew:") {
@@ -364,6 +403,12 @@ fn load_skill_file(path: &Path) -> anyhow::Result<Skill> {
         config: fm_config,
         webhook_trigger: fm_webhook_trigger,
     })
+}
+
+/// `Some(key)` when a list key's value is empty, meaning its items follow as
+/// indented `- item` lines; `None` when the value was inline and complete.
+fn list_continues(key: &'static str, rest: &str) -> Option<&'static str> {
+    rest.trim().is_empty().then_some(key)
 }
 
 /// Parse a YAML-style inline list: `[foo, bar, "baz"]` → `["foo","bar","baz"]`.
@@ -466,6 +511,58 @@ mod tests {
         assert_eq!(skill.name, "my-skill");
         assert_eq!(skill.triggers, vec!["test", "unit"]);
         assert!(skill.content.contains("Always write tests"));
+    }
+
+    // Every skill in the shipped plugin catalog is written this way, and every
+    // one of them loaded with an empty trigger list — so none could ever
+    // activate, while still being counted as a live component by the panel.
+    #[test]
+    fn load_skill_file_reads_block_form_lists() {
+        let dir = tempfile::tempdir().unwrap();
+        let skill_path = dir.path().join("test-first.md");
+        std::fs::write(
+            &skill_path,
+            "---\ncategory: testing\ntriggers:\n  - write a test\n  - failing test\nrequires.bins:\n  - cargo\n---\n\n# Test first\n\nWatch it fail.",
+        )
+        .unwrap();
+
+        let skill = load_skill_file(&skill_path).unwrap();
+        // No `name:` in front matter — the stem is authoritative.
+        assert_eq!(skill.name, "test-first");
+        assert_eq!(skill.triggers, vec!["write a test", "failing test"]);
+        assert_eq!(skill.requires_bins, vec!["cargo"]);
+        assert!(skill.matches("please write a test for the parser"));
+        assert!(!skill.matches("rename a variable"));
+    }
+
+    #[test]
+    fn load_skill_file_block_list_ends_at_the_next_key() {
+        let dir = tempfile::tempdir().unwrap();
+        let skill_path = dir.path().join("scoped.md");
+        std::fs::write(
+            &skill_path,
+            "---\ntriggers:\n  - alpha\ndescription: not a trigger\ntools_allowed:\n  - read_file\n---\nbody",
+        )
+        .unwrap();
+
+        let skill = load_skill_file(&skill_path).unwrap();
+        assert_eq!(skill.triggers, vec!["alpha"], "a later key must close the list");
+        assert_eq!(skill.description, "not a trigger");
+        assert_eq!(skill.tools_allowed, vec!["read_file"]);
+    }
+
+    #[test]
+    fn load_skill_file_still_reads_inline_lists() {
+        let dir = tempfile::tempdir().unwrap();
+        let skill_path = dir.path().join("inline.md");
+        std::fs::write(
+            &skill_path,
+            "---\nname: inline\ntriggers: [alpha, \"beta gamma\"]\n---\nbody",
+        )
+        .unwrap();
+
+        let skill = load_skill_file(&skill_path).unwrap();
+        assert_eq!(skill.triggers, vec!["alpha", "beta gamma"]);
     }
 
     #[test]

@@ -632,7 +632,12 @@ fn setup_connector(store: &WorkspaceStore, id: &str, now_ms: i64) -> ConnectorOu
 /// Split out so tests can install without `publisher_key` reaching for the
 /// developer's real `~/.vibecli/profile_settings.db` — the store that would
 /// otherwise gain a signing key every time the suite runs.
-fn install_signed_with(
+///
+/// Public for integration tests in `tests/`, which live in a separate crate
+/// and so cannot reach a private item. Product code wants [`install`], which
+/// supplies the machine key and also handles a bundle's includes and
+/// connectors; this installs exactly the one plugin named.
+pub fn install_signed_with(
     workspace: &Path,
     store: &WorkspaceStore,
     name: &str,

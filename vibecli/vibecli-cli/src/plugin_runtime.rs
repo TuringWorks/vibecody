@@ -130,6 +130,56 @@ pub fn enabled_rules(
     Ok(enabled_components(workspace, store)?.rules)
 }
 
+/// Directories to hand `vibe_ai::skills::SkillLoader` as extra search paths,
+/// one per directory that holds at least one enabled plugin skill.
+///
+/// The loader takes directories, not files, while a manifest declares files —
+/// so this is the join, and it is the only thing standing between an installed
+/// skill plugin and an agent run that has never heard of it. Deduplicated
+/// (several skills usually share one `skills/` directory) and ordered, so the
+/// prompt a workspace produces does not depend on directory-walk order.
+///
+/// Errors are not swallowed here: the callers differ in what they can do about
+/// one, and a caller that logs beats a helper that silently returns nothing.
+pub fn enabled_skill_dirs(
+    workspace: &Path,
+    store: &WorkspaceStore,
+) -> Result<Vec<PathBuf>, crate::workspace_store::PolicyError> {
+    let mut seen = std::collections::BTreeSet::new();
+    for skill in enabled_skills(workspace, store)? {
+        if let Some(dir) = skill.absolute_path.parent() {
+            seen.insert(dir.to_path_buf());
+        }
+    }
+    Ok(seen.into_iter().collect())
+}
+
+/// Same as [`enabled_skill_dirs`] but opening the workspace store itself, for
+/// callers that hold only a path. A store that will not open means no policy
+/// table, which means no plugin is admitted — an empty list, logged.
+pub fn enabled_skill_dirs_for(workspace: &Path) -> Vec<PathBuf> {
+    let store = match WorkspaceStore::open(workspace) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!(
+                "plugin skills: workspace store unavailable ({}), no plugin skill dirs",
+                e
+            );
+            return Vec::new();
+        }
+    };
+    match enabled_skill_dirs(workspace, &store) {
+        Ok(dirs) => dirs,
+        Err(e) => {
+            tracing::warn!(
+                "plugin skills: enabled_skill_dirs failed ({:?}), no plugin skill dirs",
+                e
+            );
+            Vec::new()
+        }
+    }
+}
+
 /// Subagents-only convenience for the subagent loader.
 pub fn enabled_subagents(
     workspace: &Path,
