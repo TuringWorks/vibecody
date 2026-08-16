@@ -386,6 +386,16 @@ path = "tests/plugin_bundle_bdd.rs"
 harness = false
 
 [[test]]
+name = "vibedesk_plugins_bdd"
+path = "tests/vibedesk_plugins_bdd.rs"
+harness = false
+
+[[test]]
+name = "vibedesk_connectors_bdd"
+path = "tests/vibedesk_connectors_bdd.rs"
+harness = false
+
+[[test]]
 name = "long_session_bdd"
 path = "tests/long_session_bdd.rs"
 harness = false
