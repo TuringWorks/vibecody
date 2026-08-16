@@ -46,6 +46,14 @@ const CONTRIBUTORS = {
   ],
 };
 
+const GUIDE = {
+  repo: '/src/git-oss/gbrain',
+  contributor: 'Garry Tan',
+  scanned_commits: 2000,
+  error: null as string | null,
+  markdown: '# Onboarding guide for Garry Tan\n\n1. `src/main.rs` — 12 commits\n',
+};
+
 const HOTSPOTS = {
   repo: '/src/git-oss/gbrain',
   scanned_commits: 1000,
@@ -57,7 +65,7 @@ function daemon(over: Record<string, unknown> = {}) {
     team_onboarding_members: CONTRIBUTORS,
     team_onboarding_gaps: [],
     team_onboarding_hotspots: HOTSPOTS,
-    team_onboarding_guide: '',
+    team_onboarding_guide: GUIDE,
     ...over,
   };
   // Resolve rather than reject on an unknown command: a stray call from a
@@ -188,6 +196,54 @@ describe('Given a repository with hotspots', () => {
     expect(line.textContent).toContain('gbrain');
     // "accesses" implied the file was read. Nothing observed a read.
     expect(screen.queryByText(/accesses/)).toBeNull();
+  });
+});
+
+describe("Given a contributor's guide", () => {
+  it('When it is built, Then it is titled by name, not by address', async () => {
+    daemon();
+    render(<TeamOnboardingPanel />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'guide' }));
+
+    // The address was masked one tab over, and this block exists to be copied
+    // and pasted somewhere else.
+    const pre = await screen.findByText(/Onboarding guide for Garry Tan/);
+    expect(pre.textContent).not.toContain('garrytan@gmail.com');
+  });
+
+  it('When git cannot be read, Then it says so instead of blaming the contributor', async () => {
+    daemon({
+      team_onboarding_guide: {
+        ...GUIDE,
+        error: 'could not run git: No such file or directory',
+        markdown: '',
+      },
+    });
+    render(<TeamOnboardingPanel />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'guide' }));
+
+    const line = await findWholeText(/Could not read this repository/);
+    expect(line.textContent).toContain('could not run git');
+    // The old code returned "No git history available for this user" for a
+    // failed spawn, which asserts a fact about the person from a fact about
+    // the machine.
+    expect(screen.queryByText(/No git history available/)).toBeNull();
+  });
+});
+
+describe('Given a knowledge-gaps engine with no data source', () => {
+  it('When the panel renders, Then there is no gaps tab to mislead anyone', async () => {
+    daemon();
+    render(<TeamOnboardingPanel />);
+
+    await screen.findByText('Garry Tan');
+    // `team_onboarding_gaps` returns an empty list unconditionally, so the tab
+    // could only ever say "No knowledge gaps identified" — a finding, not the
+    // absence of one.
+    expect(screen.queryByRole('button', { name: 'gaps' })).toBeNull();
+    expect(screen.queryByText(/knowledge gaps/i)).toBeNull();
   });
 });
 

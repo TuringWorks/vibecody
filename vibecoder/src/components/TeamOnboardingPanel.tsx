@@ -23,13 +23,14 @@ interface Contributors {
   contributors: Contributor[];
 }
 
-interface KnowledgeGap {
-  id: string;
-  topic: string;
-  description: string;
-  impact: "low" | "medium" | "high";
-  affected_users: string[];
-  impact_score: number;
+interface Guide {
+  repo: string;
+  contributor: string;
+  scanned_commits: number;
+  /** Set only when git could not be read — never when someone simply has no
+   *  commits in the window. Those two rendered the same sentence before. */
+  error: string | null;
+  markdown: string;
 }
 
 interface Hotspot {
@@ -48,8 +49,7 @@ interface Hotspots {
 export function TeamOnboardingPanel() {
   const [tab, setTab] = useState("contributors");
   const [contributors, setContributors] = useState<Contributors | null>(null);
-  const [gaps, setGaps] = useState<KnowledgeGap[]>([]);
-  const [guide, setGuide] = useState<string>("");
+  const [guide, setGuide] = useState<Guide | null>(null);
   const [hotspots, setHotspots] = useState<Hotspots | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,16 +65,14 @@ export function TeamOnboardingPanel() {
       setLoading(true);
       setError(null);
       try {
-        const [contributorsRes, gapsRes, hotspotsRes] = await Promise.all([
+        const [contributorsRes, hotspotsRes] = await Promise.all([
           invoke<Contributors>("team_onboarding_members"),
-          invoke<KnowledgeGap[]>("team_onboarding_gaps"),
           invoke<Hotspots>("team_onboarding_hotspots"),
         ]);
         const cs = Array.isArray(contributorsRes?.contributors)
           ? contributorsRes.contributors
           : [];
         setContributors({ repo: contributorsRes?.repo ?? "", contributors: cs });
-        setGaps(Array.isArray(gapsRes) ? gapsRes : []);
         setHotspots(
           Array.isArray(hotspotsRes?.files)
             ? hotspotsRes
@@ -94,8 +92,7 @@ export function TeamOnboardingPanel() {
     if (!userId) return;
     setLoadingGuide(true);
     try {
-      const res = await invoke<string>("team_onboarding_guide", { userId });
-      setGuide(typeof res === "string" ? res : "");
+      setGuide(await invoke<Guide>("team_onboarding_guide", { userId }));
     } catch (e) {
       setError(String(e));
     } finally {
@@ -127,19 +124,19 @@ export function TeamOnboardingPanel() {
     return `${email[0]}•••${email.slice(at)}`;
   };
 
-  const impactColor = (impact: string) => {
-    if (impact === "high") return "var(--error-color)";
-    if (impact === "medium") return "var(--warning-color)";
-    return "var(--text-muted)";
-  };
-
   const maxCommits = Math.max(...(hotspots?.files ?? []).map(h => h.commits), 1);
 
   return (
     <div className="panel-container">
       <div className="panel-header"><h3>Team Onboarding</h3></div>
       <div className="panel-tab-bar" style={{ flexWrap: "wrap" }}>
-        {["contributors", "gaps", "guide", "hotspots"].map(t => (
+        {/* No `gaps` tab. `team_onboarding_gaps` returns an empty list
+            unconditionally — the gap engine needs per-user usage records that
+            nothing collects — so the tab could only ever render its empty
+            state, which reads as "your team has no knowledge gaps" rather than
+            "this was never measured". The command and its types are still
+            here; add the string back when there is something behind it. */}
+        {["contributors", "guide", "hotspots"].map(t => (
           <button className={`panel-tab${tab === t ? " active" : ""}`} key={t} onClick={() => setTab(t)}>{t}</button>
         ))}
       </div>
@@ -195,32 +192,6 @@ export function TeamOnboardingPanel() {
         </div>
       )}
 
-      {!loading && tab === "gaps" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {gaps.length === 0 && <div style={{ color: "var(--text-muted)" }}>No knowledge gaps identified.</div>}
-          {gaps.sort((a, b) => b.impact_score - a.impact_score).map(gap => (
-            <div key={gap.id} style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", borderLeft: `3px solid ${impactColor(gap.impact)}`, padding: "12px 16px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                <span style={{ fontSize: "var(--font-size-md)", fontWeight: 600 }}>{gap.topic}</span>
-                <span style={{ fontSize: "var(--font-size-sm)", padding: "1px 8px", borderRadius: "var(--radius-sm-alt)", background: impactColor(gap.impact) + "22", color: impactColor(gap.impact), fontWeight: 600 }}>{gap.impact}</span>
-              </div>
-              <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-muted)", marginBottom: 8 }}>{gap.description}</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ flex: 1, height: 5, background: "var(--bg-primary)", borderRadius: 3 }}>
-                  <div style={{ height: "100%", width: `${gap.impact_score}%`, background: impactColor(gap.impact), borderRadius: 3 }} />
-                </div>
-                <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", minWidth: 35 }}>{gap.impact_score}%</span>
-              </div>
-              {gap.affected_users.length > 0 && (
-                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", marginTop: 6 }}>
-                  Affects: {gap.affected_users.join(", ")}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
       {!loading && tab === "guide" && (
         <div>
           <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 14 }}>
@@ -234,9 +205,19 @@ export function TeamOnboardingPanel() {
               {loadingGuide ? "Loading…" : "Refresh"}
             </button>
           </div>
-          <pre style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", padding: 16, fontSize: "var(--font-size-base)", lineHeight: 1.7, whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text-primary)", margin: 0, minHeight: 200 }}>
-            {guide || "Select a user to view their onboarding guide."}
-          </pre>
+          {/* A guide that could not be built is not an empty guide. Git
+              failing to run used to render the same sentence as a contributor
+              with no commits, so "git is not installed" read as a fact about
+              the person. */}
+          {guide?.error ? (
+            <div style={{ color: "var(--error-color)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm-alt)", padding: 16 }}>
+              Could not read this repository&rsquo;s history: {guide.error}
+            </div>
+          ) : (
+            <pre style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", padding: 16, fontSize: "var(--font-size-base)", lineHeight: 1.7, whiteSpace: "pre-wrap", wordBreak: "break-word", color: "var(--text-primary)", margin: 0, minHeight: 200 }}>
+              {guide?.markdown || "Select a contributor to view their guide."}
+            </pre>
+          )}
         </div>
       )}
 
