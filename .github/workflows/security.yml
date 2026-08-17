@@ -305,7 +305,7 @@ jobs:
       # Requires security-events: write (already granted above).
       - name: Upload Semgrep SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@fca7ace96b7d713c7035871441bd52efbe39e27e # v3.28.19
+        uses: github/codeql-action/upload-sarif@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
         with:
           sarif_file: semgrep.sarif
 
