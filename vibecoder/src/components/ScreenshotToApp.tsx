@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 /** Extract a human-readable message from raw API error strings. */
@@ -27,6 +27,10 @@ interface GeneratedFile {
   path: string;
   content: string;
   language: string;
+  /** True when the response carried no `// FILE:` marker and `path` is a
+   *  placeholder the parser invented. Those get an editable destination rather
+   *  than being written to an invented name nothing imports. */
+  path_inferred?: boolean;
 }
 
 const FRAMEWORKS = [
@@ -51,10 +55,14 @@ export function ScreenshotToApp({ workspacePath, provider: propProvider }: { wor
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [writeStatus, setWriteStatus] = useState<Record<number, string>>({});
+  // Destination overrides, keyed by index — only set for files the user retargets.
+  const [pathEdits, setPathEdits] = useState<Record<number, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
 
   const ACCEPTED = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
+
+  const unnamedCount = useMemo(() => files.filter(f => f.path_inferred).length, [files]);
 
   const loadImage = useCallback((file: File) => {
     if (!ACCEPTED.includes(file.type)) {
@@ -112,6 +120,7 @@ export function ScreenshotToApp({ workspacePath, provider: propProvider }: { wor
     setError(null);
     setFiles([]);
     setWriteStatus({});
+    setPathEdits({});
     setExpandedIdx(null);
     try {
       const result = await invoke<GeneratedFile[]>("generate_app_from_image", {
@@ -129,24 +138,38 @@ export function ScreenshotToApp({ workspacePath, provider: propProvider }: { wor
     }
   };
 
+  /** Where a file will actually be written: the user's override if they typed
+   *  one, otherwise the path parsed out of the response. */
+  const destinationFor = useCallback(
+    (idx: number) => (pathEdits[idx] ?? files[idx].path).trim(),
+    [pathEdits, files]
+  );
+
+  const writeOne = useCallback(async (idx: number, root: string) => {
+    const destination = destinationFor(idx);
+    if (!destination) {
+      setWriteStatus(prev => ({ ...prev, [idx]: "error" }));
+      setError("Give the file a destination path before writing it.");
+      return;
+    }
+    const fullPath = root.endsWith("/") ? root + destination : root + "/" + destination;
+    try {
+      setWriteStatus(prev => ({ ...prev, [idx]: "writing" }));
+      await invoke("write_file", { path: fullPath, content: files[idx].content });
+      setWriteStatus(prev => ({ ...prev, [idx]: "done" }));
+    } catch (e: unknown) {
+      setWriteStatus(prev => ({ ...prev, [idx]: "error" }));
+      setError(`Failed to write ${destination}: ${String(e)}`);
+    }
+  }, [destinationFor, files]);
+
   const handleWriteFile = async (idx: number) => {
     if (!workspacePath) {
       setError("No workspace folder open.");
       return;
     }
-    const file = files[idx];
-    const fullPath = workspacePath.endsWith("/")
-      ? workspacePath + file.path
-      : workspacePath + "/" + file.path;
-    try {
-      setWriteStatus(prev => ({ ...prev, [idx]: "writing" }));
-      await invoke("write_file", { path: fullPath, content: file.content });
-      setWriteStatus(prev => ({ ...prev, [idx]: "done" }));
-      window.dispatchEvent(new Event("vibecoder:refresh-files"));
-    } catch (e: unknown) {
-      setWriteStatus(prev => ({ ...prev, [idx]: "error" }));
-      setError(`Failed to write ${file.path}: ${String(e)}`);
-    }
+    await writeOne(idx, workspacePath);
+    window.dispatchEvent(new Event("vibecoder:refresh-files"));
   };
 
   const handleWriteAll = async () => {
@@ -155,18 +178,7 @@ export function ScreenshotToApp({ workspacePath, provider: propProvider }: { wor
       return;
     }
     for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const fullPath = workspacePath.endsWith("/")
-        ? workspacePath + file.path
-        : workspacePath + "/" + file.path;
-      try {
-        setWriteStatus(prev => ({ ...prev, [i]: "writing" }));
-        await invoke("write_file", { path: fullPath, content: file.content });
-        setWriteStatus(prev => ({ ...prev, [i]: "done" }));
-      } catch (e: unknown) {
-        setWriteStatus(prev => ({ ...prev, [i]: "error" }));
-        setError(`Failed to write ${file.path}: ${String(e)}`);
-      }
+      await writeOne(i, workspacePath);
     }
     window.dispatchEvent(new Event("vibecoder:refresh-files"));
   };
@@ -177,6 +189,7 @@ export function ScreenshotToApp({ workspacePath, provider: propProvider }: { wor
     setFiles([]);
     setError(null);
     setWriteStatus({});
+    setPathEdits({});
     setExpandedIdx(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -379,6 +392,18 @@ export function ScreenshotToApp({ workspacePath, provider: propProvider }: { wor
             </button>
           </div>
 
+          {unnamedCount > 0 && (
+            <div style={{
+              color: "var(--text-secondary)", marginBottom: "8px",
+              fontSize: "var(--font-size-sm)", lineHeight: "1.5",
+            }}>
+              {unnamedCount} file{unnamedCount !== 1 ? "s" : ""} came back without a path
+              and {unnamedCount !== 1 ? "were" : "was"} named after the code
+              {unnamedCount !== 1 ? " they declare" : " it declares"}. Edit any name
+              before writing, or rename later.
+            </div>
+          )}
+
           {files.map((file, idx) => (
             <div
               key={idx}
@@ -409,9 +434,25 @@ export function ScreenshotToApp({ workspacePath, provider: propProvider }: { wor
                 }}>
                   {file.language.toUpperCase()}
                 </span>
-                <span style={{ color: "var(--text-primary)", fontSize: "var(--font-size-base)", flex: 1 }}>
-                  {file.path}
-                </span>
+                {file.path_inferred ? (
+                  <input
+                    value={destinationFor(idx)}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => setPathEdits(prev => ({ ...prev, [idx]: e.target.value }))}
+                    placeholder="path/to/file.tsx"
+                    title="Named after what the code declares — edit to retarget an existing file"
+                    style={{
+                      flex: 1, minWidth: 0, background: "var(--bg-primary)",
+                      color: "var(--text-primary)", fontFamily: "var(--font-mono)",
+                      fontSize: "var(--font-size-sm)", padding: "2px 6px",
+                      border: "1px solid var(--border-color)", borderRadius: "3px",
+                    }}
+                  />
+                ) : (
+                  <span style={{ color: "var(--text-primary)", fontSize: "var(--font-size-base)", flex: 1 }}>
+                    {file.path}
+                  </span>
+                )}
                 <button
                   onClick={(e) => { e.stopPropagation(); handleWriteFile(idx); }}
                   disabled={!workspacePath || writeStatus[idx] === "writing"}

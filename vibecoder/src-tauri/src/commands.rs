@@ -20632,28 +20632,47 @@ mod tests {
     // ── infer_file_info ─────────────────────────────────────────────────────
 
     #[test]
-    fn infer_file_info_tsx() {
-        let (path, lang) = infer_file_info("tsx", 1);
+    fn infer_file_info_tsx_uses_the_component_name() {
+        let (path, lang) = infer_file_info("tsx", "export default function NavBar() {}", 1);
+        assert_eq!(path, "src/NavBar.tsx");
+        assert_eq!(lang, "tsx");
+    }
+
+    #[test]
+    fn infer_file_info_tsx_without_a_declaration() {
+        let (path, lang) = infer_file_info("tsx", "<div/>", 1);
         assert_eq!(path, "src/Component1.tsx");
         assert_eq!(lang, "tsx");
     }
 
     #[test]
     fn infer_file_info_html_first_block() {
-        let (path, lang) = infer_file_info("html", 1);
+        let (path, lang) = infer_file_info("html", "<h1>Home</h1>", 1);
         assert_eq!(path, "index.html");
         assert_eq!(lang, "html");
     }
 
     #[test]
-    fn infer_file_info_html_second_block() {
-        let (path, _lang) = infer_file_info("html", 2);
-        assert_eq!(path, "index2.html");
+    fn infer_file_info_html_second_block_uses_its_title() {
+        let (path, _lang) = infer_file_info("html", "<title>About Us</title>", 2);
+        assert_eq!(path, "about-us.html");
+    }
+
+    #[test]
+    fn infer_file_info_html_second_block_without_a_title() {
+        let (path, _lang) = infer_file_info("html", "<div/>", 2);
+        assert_eq!(path, "page2.html");
+    }
+
+    #[test]
+    fn infer_file_info_css_second_block_uses_its_first_selector() {
+        let (path, _lang) = infer_file_info("css", ".hero-banner { color: red; }", 2);
+        assert_eq!(path, "hero-banner.css");
     }
 
     #[test]
     fn infer_file_info_unknown_gives_txt() {
-        let (path, lang) = infer_file_info("brainfuck", 1);
+        let (path, lang) = infer_file_info("brainfuck", "+++.", 1);
         assert_eq!(path, "src/file1.txt");
         assert_eq!(lang, "text");
     }
@@ -21105,6 +21124,189 @@ mod tests {
         assert_eq!(files.len(), 1);
         assert_eq!(files[0].language, "typescript");
         assert!(files[0].content.contains("const x = 1"));
+        assert!(files[0].path_inferred, "an unnamed block must say so");
+    }
+
+    /// The regression this whole parser exists for: models put the `FILE:`
+    /// marker on the first line *inside* the fence, and the old parser only
+    /// looked above it — so real paths became `src/Component4.tsx` and the
+    /// existing file was never updated.
+    #[test]
+    fn parse_generated_files_marker_inside_the_fence() {
+        let input = "```tsx\n// FILE: src/components/WhatYoullGet.tsx\nexport const A = 1;\n```\n";
+        let files = parse_generated_files(input).unwrap();
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "src/components/WhatYoullGet.tsx");
+        assert!(!files[0].path_inferred);
+        assert!(!files[0].content.contains("FILE:"), "marker is consumed");
+        assert!(files[0].content.contains("export const A"));
+    }
+
+    #[test]
+    fn parse_generated_files_accepts_every_comment_syntax() {
+        let input = concat!(
+            "```python\n# FILE: app/main.py\nx = 1\n```\n",
+            "```css\n/* FILE: src/app.css */\nbody { margin: 0; }\n```\n",
+            "```html\n<!-- FILE: public/index.html -->\n<h1>Hi</h1>\n```\n",
+            "```sql\n-- FILE: db/schema.sql\nSELECT 1;\n```\n",
+            "**File: docs/readme.md**\n```md\nhi\n```\n",
+        );
+        let files = parse_generated_files(input).unwrap();
+        let paths: Vec<&str> = files.iter().map(|f| f.path.as_str()).collect();
+        assert_eq!(
+            paths,
+            vec![
+                "app/main.py",
+                "src/app.css",
+                "public/index.html",
+                "db/schema.sql",
+                "docs/readme.md",
+            ]
+        );
+        assert!(files.iter().all(|f| !f.path_inferred));
+    }
+
+    #[test]
+    fn parse_generated_files_reads_path_from_the_fence_info() {
+        let input = "```tsx src/App.tsx\nconst a = 1;\n```\n```ts:src/db.ts\nconst b = 2;\n```\n";
+        let files = parse_generated_files(input).unwrap();
+        assert_eq!(files[0].path, "src/App.tsx");
+        assert_eq!(files[0].language, "tsx");
+        assert_eq!(files[1].path, "src/db.ts");
+        assert_eq!(files[1].language, "typescript");
+    }
+
+    /// A named block and an unnamed one in the same response: the old parser
+    /// took the all-or-nothing branch and lost every real path as soon as one
+    /// block was named.
+    #[test]
+    fn parse_generated_files_mixes_named_and_unnamed_blocks() {
+        let input = "// FILE: src/App.tsx\n```tsx\nconst a = 1;\n```\nAnd a snippet:\n```tsx\nconst b = 2;\n```\n";
+        let files = parse_generated_files(input).unwrap();
+        assert_eq!(files.len(), 2);
+        assert_eq!(files[0].path, "src/App.tsx");
+        assert!(!files[0].path_inferred);
+        assert!(files[1].path_inferred);
+    }
+
+    #[test]
+    fn parse_generated_files_refuses_escaping_paths() {
+        for path in ["../../etc/passwd", "/etc/passwd", "~/.ssh/config"] {
+            let input = format!("```ts\n// FILE: {path}\nconst x = 1;\n```\n");
+            let files = parse_generated_files(&input).unwrap();
+            assert!(
+                files[0].path_inferred,
+                "{path} must not be used as a destination"
+            );
+        }
+    }
+
+    #[test]
+    fn name_pattern_count_is_stable() {
+        assert_eq!(
+            name_patterns().len(),
+            NAME_PATTERN_SOURCES.len(),
+            "a naming pattern failed to compile"
+        );
+    }
+
+    /// The screenshot generator's React files declare prop types and data
+    /// tables before the component, so source order would name the file after a
+    /// helper. The default export decides.
+    #[test]
+    fn unnamed_block_is_named_after_its_default_export() {
+        let input = concat!(
+            "```tsx\n",
+            "interface Feature { icon: string; }\n",
+            "const features: ReadonlyArray<Feature> = [];\n",
+            "function buildSectionStyles() { return {}; }\n",
+            "const WhatYoullGet: React.FC = () => <div/>;\n",
+            "export default WhatYoullGet;\n",
+            "```\n"
+        );
+        let files = parse_generated_files(input).unwrap();
+        assert_eq!(files[0].path, "src/WhatYoullGet.tsx");
+        assert!(files[0].path_inferred);
+    }
+
+    #[test]
+    fn unnamed_block_is_named_after_its_scope() {
+        let cases = [
+            // (fence language, source, expected path)
+            ("tsx", "export default class HeroBanner extends React.Component {}", "src/HeroBanner.tsx"),
+            ("tsx", "const PricingTable = ({ rows }) => <table/>;", "src/PricingTable.tsx"),
+            ("typescript", "export function formatCurrency(n: number) { return n; }", "src/formatCurrency.ts"),
+            ("typescript", "export interface UserProfile { id: string }", "src/UserProfile.ts"),
+            ("python", "def send_invoice(order):\n    pass", "send_invoice.py"),
+            ("rust", "pub fn parse_config(raw: &str) {}", "src/parse_config.rs"),
+            ("vue", "export default { name: 'AppHeader' }", "src/AppHeader.vue"),
+        ];
+        for (lang, source, expected) in cases {
+            let input = format!("```{lang}\n{source}\n```\n");
+            let files = parse_generated_files(&input).unwrap();
+            assert_eq!(files[0].path, expected, "for a {lang} block");
+        }
+    }
+
+    /// Camel, snake and Pascal all mean the same scope — only the file naming
+    /// convention differs by language.
+    #[test]
+    fn inferred_name_follows_the_language_convention() {
+        let component = "```tsx\nexport default function what_youll_get() { return null; }\n```\n";
+        assert_eq!(
+            parse_generated_files(component).unwrap()[0].path,
+            "src/WhatYoullGet.tsx"
+        );
+        let module = "```python\ndef SendInvoice():\n    pass\n```\n";
+        assert_eq!(
+            parse_generated_files(module).unwrap()[0].path,
+            "send_invoice.py"
+        );
+    }
+
+    #[test]
+    fn markup_blocks_keep_their_conventional_first_name() {
+        let input = "```html\n<title>Landing</title>\n```\n```css\n.hero { color: red; }\n```\n";
+        let files = parse_generated_files(input).unwrap();
+        assert_eq!(files[0].path, "index.html");
+        assert_eq!(files[1].path, "styles.css");
+    }
+
+    #[test]
+    fn inferred_names_never_collide() {
+        let same_twice = "```tsx\nexport default function Header() {}\n```\n```tsx\nexport default function Header() {}\n```\n";
+        let files = parse_generated_files(same_twice).unwrap();
+        assert_eq!(files[0].path, "src/Header.tsx");
+        assert_eq!(files[1].path, "src/Header-2.tsx");
+    }
+
+    /// A derived name must never land on a path the model explicitly asked for,
+    /// even when the unnamed block is parsed first.
+    #[test]
+    fn inferred_name_yields_to_an_explicit_path() {
+        let input = concat!(
+            "```tsx\nexport default function Header() {}\n```\n",
+            "// FILE: src/Header.tsx\n```tsx\nexport const real = 1;\n```\n"
+        );
+        let files = parse_generated_files(input).unwrap();
+        assert_eq!(files[1].path, "src/Header.tsx");
+        assert_eq!(files[0].path, "src/Header-2.tsx");
+    }
+
+    #[test]
+    fn a_block_declaring_nothing_still_gets_a_name() {
+        let input = "```tsx\n<div>hello</div>\n```\n";
+        let files = parse_generated_files(input).unwrap();
+        assert_eq!(files[0].path, "src/Component1.tsx");
+        assert!(files[0].path_inferred);
+    }
+
+    #[test]
+    fn parse_generated_files_ignores_prose_mentioning_a_file() {
+        let input = "The file: src/App.tsx stays as it is.\n```ts\nconst x = 1;\n```\n";
+        let files = parse_generated_files(input).unwrap();
+        assert_eq!(files.len(), 1);
+        assert!(files[0].path_inferred);
     }
 
     #[test]
@@ -29043,6 +29245,10 @@ pub struct GeneratedFile {
     pub path: String,
     pub content: String,
     pub language: String,
+    /// True when no `FILE:` marker named this block and `path` is a placeholder
+    /// the parser invented. Callers must ask the user where it goes rather than
+    /// writing a `Component4.tsx` nobody imports.
+    pub path_inferred: bool,
 }
 
 /// Generate a complete app from a screenshot image.
@@ -29082,10 +29288,12 @@ pub async fn generate_app_from_image(
         - Use the exact colors, fonts, and spacing visible in the screenshot\n\
         - Make the app responsive\n\
         - Each file must be in its own fenced code block\n\
-        - Before each code block, write a comment line: // FILE: <relative-path>\n\
+        - The FIRST line inside every code block must be a comment naming the file: // FILE: <relative-path>\n\
+        - Use the project-relative path (no leading / and no ../). If the file already exists in the project, \
+        repeat its exact existing path so the file is updated in place instead of duplicated\n\
         - Example:\n\
-          // FILE: src/App.tsx\n\
           ```tsx\n\
+          // FILE: src/App.tsx\n\
           // code here\n\
           ```\n\n\
         Generate the complete app now."
@@ -29125,113 +29333,202 @@ pub async fn generate_app_from_image(
 
 /// Parse AI response text into a list of `GeneratedFile` entries.
 ///
-/// Looks for patterns like:
-///   // FILE: src/App.tsx
-///   ```tsx
-///   <content>
-///   ```
+/// A block's destination comes from a `FILE:` marker. Models write that marker
+/// in whichever comment syntax the language uses, and put it either above the
+/// fence or on the first line inside it — every one of these is read the same
+/// way:
+///
+///   // FILE: src/App.tsx      <!-- FILE: index.html -->     ```python
+///   ```tsx                    ```html                       # FILE: main.py
+///   ...                       ...                           ...
+///   ```                       ```                           ```
+///
+/// A path in the fence info string (```` ```tsx src/App.tsx ```` or
+/// ```` ```tsx:src/App.tsx ````) counts too.
+///
+/// A block with no readable path is named after what it declares — its default
+/// export, class, component, type, or function — by `infer_file_info`, and
+/// carries `path_inferred: true`. The flag stays because the name was read off
+/// the code rather than stated by the model, which is a weaker claim about
+/// where the file belongs.
 fn parse_generated_files(response: &str) -> Result<Vec<GeneratedFile>, String> {
-    let mut files: Vec<GeneratedFile> = Vec::new();
     let lines: Vec<&str> = response.lines().collect();
+    // (path, fence language, content) — path stays absent until a marker is found.
+    let mut blocks: Vec<(Option<String>, String, String)> = Vec::new();
     let mut i = 0;
 
     while i < lines.len() {
-        let line = lines[i].trim();
-
-        // Detect a FILE marker
-        let file_path = if line.starts_with("// FILE:") {
-            Some(line.trim_start_matches("// FILE:").trim().to_string())
-        } else if line.starts_with("<!-- FILE:") {
-            // HTML variant: <!-- FILE: index.html -->
-            let inner = line
-                .trim_start_matches("<!-- FILE:")
-                .trim_end_matches("-->")
-                .trim()
-                .to_string();
-            Some(inner)
-        } else {
-            None
-        };
-
-        if let Some(path) = file_path {
-            // Advance past the FILE marker line
+        // A marker on its own line names the block that follows it.
+        let marker_path = parse_file_marker(lines[i]);
+        if marker_path.is_some() {
             i += 1;
-
-            // Skip blank lines between FILE marker and code fence
             while i < lines.len() && lines[i].trim().is_empty() {
                 i += 1;
             }
-
-            // Expect a code fence
-            if i < lines.len() && lines[i].trim().starts_with("```") {
-                let fence_lang = lines[i].trim().trim_start_matches('`').trim().to_string();
-                i += 1;
-
-                // Collect lines until closing fence
-                let mut content_lines: Vec<&str> = Vec::new();
-                while i < lines.len() && !lines[i].trim().starts_with("```") {
-                    content_lines.push(lines[i]);
-                    i += 1;
-                }
-                // Skip closing fence
-                if i < lines.len() {
-                    i += 1;
-                }
-
-                let content = content_lines.join("\n");
-                let language = detect_language_from_path_or_fence(&path, &fence_lang);
-
-                files.push(GeneratedFile {
-                    path,
-                    content,
-                    language,
-                });
+            if i >= lines.len() || !is_fence(lines[i]) {
+                continue; // A marker with no code block has nothing to write.
             }
-        } else {
+        } else if !is_fence(lines[i]) {
+            i += 1;
+            continue;
+        }
+
+        let (fence_lang, fence_path) = parse_fence_info(lines[i]);
+        i += 1;
+
+        let mut content_lines: Vec<&str> = Vec::new();
+        while i < lines.len() && !is_fence(lines[i]) {
+            content_lines.push(lines[i]);
             i += 1;
         }
-    }
-
-    // Fallback: if no FILE markers were found, try to extract any fenced code blocks
-    if files.is_empty() {
-        let mut idx = 0;
-        let mut block_num = 0u32;
-        while idx < lines.len() {
-            if lines[idx].trim().starts_with("```") {
-                let fence_lang = lines[idx].trim().trim_start_matches('`').trim().to_string();
-                idx += 1;
-                let mut content_lines: Vec<&str> = Vec::new();
-                while idx < lines.len() && !lines[idx].trim().starts_with("```") {
-                    content_lines.push(lines[idx]);
-                    idx += 1;
-                }
-                if idx < lines.len() {
-                    idx += 1;
-                }
-                let content = content_lines.join("\n");
-                if !content.trim().is_empty() {
-                    block_num += 1;
-                    let (path, language) = infer_file_info(&fence_lang, block_num);
-                    files.push(GeneratedFile {
-                        path,
-                        content,
-                        language,
-                    });
-                }
-            } else {
-                idx += 1;
-            }
+        if i < lines.len() {
+            i += 1; // Skip the closing fence.
         }
+
+        // Third place the path hides: the first line *inside* the fence. It is
+        // dropped from the content once claimed, so the marker is not written
+        // into the file twice.
+        let inline_marker = content_lines
+            .iter()
+            .position(|l| !l.trim().is_empty())
+            .and_then(|idx| parse_file_marker(content_lines[idx]).map(|path| (idx, path)));
+        let inline_path = inline_marker.map(|(idx, path)| {
+            content_lines.remove(idx);
+            path
+        });
+
+        let path = marker_path.or(fence_path).or(inline_path);
+
+        let content = content_lines.join("\n");
+        if path.is_none() && content.trim().is_empty() {
+            continue; // A stray empty fence is not a file.
+        }
+        blocks.push((path, fence_lang, content));
     }
 
-    if files.is_empty() {
+    if blocks.is_empty() {
         return Err(
             "No code blocks found in AI response. Try again or use a different provider."
                 .to_string(),
         );
     }
 
+    // Seed the claimed set with every path the model stated, so a name derived
+    // from code never lands on top of one the model asked for.
+    let mut used: std::collections::HashSet<String> =
+        blocks.iter().filter_map(|(path, _, _)| path.clone()).collect();
+    // Per-language ordinals: an HTML block and a CSS block in the same response
+    // are each the first of their kind, and `index.html` / `styles.css` are the
+    // conventional names for exactly that.
+    let mut ordinals: HashMap<&'static str, u32> = HashMap::new();
+    let files = blocks
+        .into_iter()
+        .map(|(path, fence_lang, content)| match path {
+            Some(path) => {
+                let language = detect_language_from_path_or_fence(&path, &fence_lang);
+                GeneratedFile {
+                    path,
+                    content,
+                    language,
+                    path_inferred: false,
+                }
+            }
+            None => {
+                let ext = lang_conventions(&fence_lang).0;
+                let ordinal = *ordinals
+                    .entry(ext)
+                    .and_modify(|n| *n += 1)
+                    .or_insert(1);
+                let (path, language) = infer_file_info(&fence_lang, &content, ordinal);
+                GeneratedFile {
+                    path: unique_path(path, &mut used),
+                    content,
+                    language,
+                    path_inferred: true,
+                }
+            }
+        })
+        .collect();
+
     Ok(files)
+}
+
+/// True for a line that opens or closes a fenced code block.
+fn is_fence(line: &str) -> bool {
+    line.trim_start().starts_with("```")
+}
+
+/// Read a `FILE:` marker written in whichever comment syntax the model chose.
+///
+/// `// FILE: a.tsx`, `# FILE: a.py`, `<!-- FILE: a.html -->`, `/* FILE: a.css */`
+/// and `**File: a.tsx**` all yield the path; every other line yields `None`.
+fn parse_file_marker(raw: &str) -> Option<String> {
+    // Every comment opener in play is built from these, so one trim covers all.
+    let body = raw
+        .trim()
+        .trim_start_matches(|c: char| matches!(c, '/' | '*' | '#' | '-' | '<' | '!' | ';' | '%'))
+        .trim_start();
+    let rest = body
+        .get(..5)
+        .filter(|kw| kw.eq_ignore_ascii_case("file:"))
+        .map(|_| &body[5..])?;
+    let path = rest
+        .trim()
+        .trim_end_matches(|c: char| matches!(c, '-' | '>' | '*' | '/' | '`' | '"' | '\''))
+        .trim_start_matches(|c: char| matches!(c, '`' | '"' | '\''));
+    sanitize_generated_path(path)
+}
+
+/// Split a fence line into its language tag and, when the model put one there,
+/// the file path. ```` ```tsx ````, ```` ```tsx src/App.tsx ````,
+/// ```` ```tsx:src/App.tsx ```` and a bare ```` ```src/App.tsx ```` all parse.
+fn parse_fence_info(line: &str) -> (String, Option<String>) {
+    let info = line.trim().trim_start_matches('`').trim();
+    match info.find([' ', '\t', ':']) {
+        Some(idx) => (
+            info[..idx].to_string(),
+            looks_like_path(info[idx + 1..].trim()),
+        ),
+        // A lone token is either a language tag or a path, never both.
+        None => match looks_like_path(info) {
+            Some(path) => (String::new(), Some(path)),
+            None => (info.to_string(), None),
+        },
+    }
+}
+
+/// A fence-info token is a path only when it carries a directory separator or a
+/// dot-extension: `tsx` is a language tag, `src/App.tsx` and `App.tsx` are not.
+fn looks_like_path(token: &str) -> Option<String> {
+    let token = token.trim_matches(|c: char| matches!(c, '`' | '"' | '\''));
+    let has_extension = token
+        .rsplit('.')
+        .next()
+        .is_some_and(|ext| !ext.is_empty() && ext != token);
+    (token.contains('/') || has_extension)
+        .then(|| sanitize_generated_path(token))
+        .flatten()
+}
+
+/// Normalise a model-supplied path to a workspace-relative one, or refuse it.
+///
+/// Absolute and drive-qualified paths, `..` traversal, and anything containing
+/// whitespace (which is prose that happened to follow the word "file:", not a
+/// path) are all rejected — the caller then treats the block as unnamed rather
+/// than writing somewhere the user did not ask for.
+fn sanitize_generated_path(raw: &str) -> Option<String> {
+    let normalised = raw.trim().replace('\\', "/");
+    let path = normalised.trim_start_matches("./").trim();
+    if path.is_empty() || path.chars().any(char::is_whitespace) {
+        return None;
+    }
+    if path.starts_with('/') || path.starts_with('~') || path.chars().nth(1) == Some(':') {
+        return None;
+    }
+    if path.split('/').any(|seg| seg == ".." || seg.is_empty()) {
+        return None;
+    }
+    Some(path.to_string())
 }
 
 /// Detect the language string from a file path extension or code-fence language tag.
@@ -29256,43 +29553,210 @@ fn detect_language_from_path_or_fence(path: &str, fence_lang: &str) -> String {
     "text".to_string()
 }
 
-/// Infer a sensible file path and language when no FILE marker was present.
-fn infer_file_info(fence_lang: &str, block_num: u32) -> (String, String) {
+/// The declarations a block can be named after, in priority order — first match
+/// wins.
+///
+/// Order is the whole design. A React file declares its prop types and data
+/// tables long before the component itself, so `interface Feature` would win on
+/// source order and name the file after a helper; an explicit default export is
+/// the block saying what it is, so it outranks everything.
+///
+/// A pattern that fails to compile is dropped rather than panicking in a
+/// command path; `name_pattern_count_is_stable` pins the count so a typo shows
+/// up as a failing test instead of a quietly worse name.
+const NAME_PATTERN_SOURCES: &[&str] = &[
+    // `export default class Foo`, `export default function Foo`, `export default Foo;`
+    r"(?m)^\s*export\s+default\s+(?:abstract\s+)?class\s+([A-Za-z_][A-Za-z0-9_]*)",
+    r"(?m)^\s*export\s+default\s+(?:async\s+)?function\s+([A-Za-z_][A-Za-z0-9_]*)",
+    r"(?m)^\s*export\s+default\s+([A-Za-z_][A-Za-z0-9_]*)\s*;",
+    // `class Foo`, `export class Foo`, `public final class Foo`
+    r"(?m)^\s*(?:export\s+)?(?:public\s+|final\s+|abstract\s+)*class\s+([A-Za-z_][A-Za-z0-9_]*)",
+    // `const Foo: React.FC = (…) =>`, `const foo = function`, `const Foo = memo(`.
+    // The right-hand side must look callable, so a `const rows = [...]` table
+    // declared above the component does not claim the file.
+    r"(?m)^\s*(?:export\s+)?const\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?::[^=\n]+)?=\s*(?:async\s*)?(?:\(|function\b|memo\(|forwardRef|React\.)",
+    // `function foo`, `export async function foo` — the verb-named case
+    r"(?m)^\s*(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_][A-Za-z0-9_]*)",
+    // Type-only blocks: `interface Foo`, `type Foo =`, `enum Foo`, `struct Foo`
+    r"(?m)^\s*(?:export\s+)?(?:pub\s+)?(?:interface|type|enum|struct|trait|union)\s+([A-Za-z_][A-Za-z0-9_]*)",
+    // Rust and Python verbs
+    r"(?m)^\s*(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?fn\s+([A-Za-z_][A-Za-z0-9_]*)",
+    r"(?m)^\s*(?:async\s+)?def\s+([A-Za-z_][A-Za-z0-9_]*)",
+    // Vue's `defineComponent({ name: 'Foo' })`, inline or on its own line
+    r#"\bname\s*:\s*["']([A-Za-z_][A-Za-z0-9_-]*)["']"#,
+];
+
+fn name_patterns() -> &'static [regex::Regex] {
+    static R: OnceLock<Vec<regex::Regex>> = OnceLock::new();
+    R.get_or_init(|| {
+        NAME_PATTERN_SOURCES
+            .iter()
+            .filter_map(|src| regex::Regex::new(src).ok())
+            .collect()
+    })
+}
+
+/// Extension, language label, and directory prefix for a fence language tag.
+fn lang_conventions(fence_lang: &str) -> (&'static str, &'static str, &'static str) {
     match fence_lang {
-        "tsx" => (format!("src/Component{}.tsx", block_num), "tsx".to_string()),
-        "jsx" => (format!("src/Component{}.jsx", block_num), "jsx".to_string()),
-        "typescript" | "ts" => (
-            format!("src/file{}.ts", block_num),
-            "typescript".to_string(),
-        ),
-        "javascript" | "js" => (
-            format!("src/file{}.js", block_num),
-            "javascript".to_string(),
-        ),
-        "vue" => (format!("src/Component{}.vue", block_num), "vue".to_string()),
-        "svelte" => (
-            format!("src/Component{}.svelte", block_num),
-            "svelte".to_string(),
-        ),
-        "html" => {
-            let suffix = if block_num == 1 {
-                String::new()
-            } else {
-                block_num.to_string()
-            };
-            (format!("index{}.html", suffix), "html".to_string())
-        }
-        "css" => {
-            let suffix = if block_num == 1 {
-                String::new()
-            } else {
-                block_num.to_string()
-            };
-            (format!("styles{}.css", suffix), "css".to_string())
-        }
-        "json" => (format!("file{}.json", block_num), "json".to_string()),
-        _ => (format!("src/file{}.txt", block_num), "text".to_string()),
+        "tsx" => ("tsx", "tsx", "src/"),
+        "jsx" => ("jsx", "jsx", "src/"),
+        "typescript" | "ts" => ("ts", "typescript", "src/"),
+        "javascript" | "js" => ("js", "javascript", "src/"),
+        "vue" => ("vue", "vue", "src/"),
+        "svelte" => ("svelte", "svelte", "src/"),
+        "html" => ("html", "html", ""),
+        "css" => ("css", "css", ""),
+        "scss" | "sass" => ("scss", "scss", ""),
+        "json" => ("json", "json", ""),
+        "python" | "py" => ("py", "python", ""),
+        "rust" | "rs" => ("rs", "rust", "src/"),
+        "go" => ("go", "go", ""),
+        "sql" => ("sql", "sql", ""),
+        "bash" | "sh" | "shell" => ("sh", "bash", ""),
+        "yaml" | "yml" => ("yml", "yaml", ""),
+        "markdown" | "md" => ("md", "markdown", ""),
+        _ => ("txt", "text", "src/"),
     }
+}
+
+/// The identifier a code block is built around: its default export, class,
+/// component, type, or function. `None` when the block declares nothing.
+fn derive_declaration_name(content: &str) -> Option<String> {
+    name_patterns()
+        .iter()
+        .find_map(|re| re.captures(content))
+        .and_then(|caps| caps.get(1))
+        .map(|m| m.as_str().to_string())
+        .filter(|name| name.len() > 1)
+}
+
+/// Split an identifier into its lowercase words, whichever convention it used:
+/// `WhatYoullGet`, `what_youll_get` and `what-youll-get` all give the same list.
+fn identifier_words(name: &str) -> Vec<String> {
+    let spaced = name.chars().fold(String::new(), |mut acc, c| {
+        if c == '_' || c == '-' || c == ' ' {
+            acc.push(' ');
+        } else {
+            if c.is_uppercase() && !acc.ends_with(' ') && !acc.is_empty() {
+                acc.push(' ');
+            }
+            acc.push(c);
+        }
+        acc
+    });
+    spaced
+        .split_whitespace()
+        .map(|w| w.to_lowercase())
+        .collect()
+}
+
+fn to_pascal_case(name: &str) -> String {
+    identifier_words(name)
+        .iter()
+        .map(|w| {
+            let mut chars = w.chars();
+            match chars.next() {
+                Some(first) => first.to_uppercase().chain(chars).collect::<String>(),
+                None => String::new(),
+            }
+        })
+        .collect()
+}
+
+fn to_snake_case(name: &str) -> String {
+    identifier_words(name).join("_")
+}
+
+fn to_kebab_case(name: &str) -> String {
+    identifier_words(name).join("-")
+}
+
+/// Re-case a declaration name to the convention of the file it will live in.
+fn stem_for_extension(name: &str, ext: &str) -> String {
+    match ext {
+        "tsx" | "jsx" | "vue" | "svelte" => to_pascal_case(name),
+        "py" | "rs" | "go" | "sh" | "sql" => to_snake_case(name),
+        "css" | "scss" | "html" | "md" | "yml" => to_kebab_case(name),
+        // TS/JS modules keep the identifier's own casing: `formatDate.ts`.
+        _ => name.to_string(),
+    }
+}
+
+/// First heading or title of an HTML document, as a slug.
+fn html_stem(content: &str) -> Option<String> {
+    ["<title>", "<h1>"].iter().find_map(|open| {
+        let start = content.to_lowercase().find(open)? + open.len();
+        let rest = &content[start..];
+        let end = rest.find('<')?;
+        let text = re_html_tag().replace_all(&rest[..end], "");
+        let slug = to_kebab_case(text.trim());
+        (!slug.is_empty()).then_some(slug)
+    })
+}
+
+/// First class or id selector of a stylesheet, as a slug.
+fn css_stem(content: &str) -> Option<String> {
+    content
+        .lines()
+        .map(str::trim)
+        .find_map(|line| line.strip_prefix('.').or_else(|| line.strip_prefix('#')))
+        .map(|rest| {
+            rest.split(|c: char| !(c.is_alphanumeric() || c == '_' || c == '-'))
+                .next()
+                .unwrap_or(rest)
+        })
+        .map(to_kebab_case)
+        .filter(|slug| slug.len() > 1)
+}
+
+/// Name a block that carried no `FILE:` marker after what the code actually is
+/// — its class, component, type, or function — in the target language's
+/// convention. `WhatYoullGet.tsx`, not `Component4.tsx`.
+///
+/// A name is always produced. Stopping to ask the user for a path mid-generation
+/// costs more than a rename does, and `path_inferred` still tells the caller the
+/// name was read off the code rather than stated by the model.
+fn infer_file_info(fence_lang: &str, content: &str, block_num: u32) -> (String, String) {
+    let (ext, language, dir) = lang_conventions(fence_lang);
+
+    // Markup and data files rarely declare a name, and their first block has a
+    // conventional one worth keeping.
+    let stem = match ext {
+        "html" => html_stem(content).filter(|_| block_num > 1),
+        "css" | "scss" => css_stem(content).filter(|_| block_num > 1),
+        "json" => None,
+        _ => derive_declaration_name(content).map(|name| stem_for_extension(&name, ext)),
+    };
+
+    // Last resort: the block declares nothing this parser recognises.
+    let stem = stem.unwrap_or_else(|| match (ext, block_num) {
+        ("html", 1) => "index".to_string(),
+        ("css" | "scss", 1) => "styles".to_string(),
+        ("html", n) => format!("page{n}"),
+        ("css" | "scss", n) => format!("styles{n}"),
+        ("tsx" | "jsx" | "vue" | "svelte", n) => format!("Component{n}"),
+        (_, n) => format!("file{n}"),
+    });
+
+    (format!("{dir}{stem}.{ext}"), language.to_string())
+}
+
+/// Keep two unnamed blocks off the same file: `Header.tsx`, `Header-2.tsx`, …
+/// `used` holds every path already claimed in this batch, the model's explicit
+/// ones included, so a derived name never silently overwrites a stated one.
+fn unique_path(path: String, used: &mut std::collections::HashSet<String>) -> String {
+    if used.insert(path.clone()) {
+        return path;
+    }
+    let (stem, ext) = match path.rsplit_once('.') {
+        Some((stem, ext)) => (stem.to_string(), format!(".{ext}")),
+        None => (path.clone(), String::new()),
+    };
+    (2..)
+        .map(|n| format!("{stem}-{n}{ext}"))
+        .find(|candidate| used.insert(candidate.clone()))
+        .unwrap_or(path)
 }
 
 // ── Phase 8.13: Local Edit Model Configuration ──────────────────────────
