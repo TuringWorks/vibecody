@@ -182,21 +182,44 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [log]);
 
+  /**
+   * What to actually run, in precedence order: an explicit custom command, then
+   * the build system the user picked.
+   *
+   * Sending `undefined` here is not "use the default" — `run_build` re-detects
+   * and takes the *first* system, so a Rust project with a Makefile always ran
+   * cargo no matter what the dropdown said. The selection is only real if it
+   * reaches the backend.
+   *
+   * `undefined` survives for the case where nothing was detected: there is no
+   * command to name, and inventing one would guess at a project nobody
+   * identified.
+   */
+  const commandFor = useCallback(
+    (kind: "build" | "run"): string | undefined => {
+      const custom = (kind === "build" ? customBuildCmd : customRunCmd).trim();
+      if (custom) return custom;
+      const system = systems[selectedIdx];
+      if (!system) return undefined;
+      return kind === "build" ? system.build_command : system.run_command;
+    },
+    [customBuildCmd, customRunCmd, systems, selectedIdx]
+  );
+
   const handleBuild = useCallback(async () => {
     if (!effectiveDir) return;
     setStatus("building");
     setLog([`[pwd] ${effectiveDir}`]);
     setResult(null);
     try {
-      const cmd = customBuildCmd.trim() || undefined;
-      const r = await invoke<BuildResult>("run_build", { workspace: effectiveDir, command: cmd });
+      const r = await invoke<BuildResult>("run_build", { workspace: effectiveDir, command: commandFor("build") });
       setResult(r);
       setStatus(r.success ? "success" : "error");
     } catch (e) {
       setStatus("error");
       setLog(prev => [...prev, `Build failed: ${e}`]);
     }
-  }, [effectiveDir, customBuildCmd]);
+  }, [effectiveDir, commandFor]);
 
   const handleRun = useCallback(async () => {
     if (!effectiveDir) return;
@@ -204,15 +227,14 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
     setLog([`[pwd] ${effectiveDir}`]);
     setResult(null);
     try {
-      const cmd = customRunCmd.trim() || undefined;
-      const r = await invoke<BuildResult>("run_app", { workspace: effectiveDir, command: cmd });
+      const r = await invoke<BuildResult>("run_app", { workspace: effectiveDir, command: commandFor("run") });
       setResult(r);
       setStatus(r.success ? "success" : "error");
     } catch (e) {
       setStatus("error");
       setLog(prev => [...prev, `Run failed: ${e}`]);
     }
-  }, [effectiveDir, customRunCmd]);
+  }, [effectiveDir, commandFor]);
 
   const handleBuildAndRun = useCallback(async () => {
     if (!effectiveDir) return;
@@ -220,23 +242,21 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
     setLog([`[pwd] ${effectiveDir}`]);
     setResult(null);
     try {
-      const buildCmd = customBuildCmd.trim() || undefined;
-      const buildResult = await invoke<BuildResult>("run_build", { workspace: effectiveDir, command: buildCmd });
+      const buildResult = await invoke<BuildResult>("run_build", { workspace: effectiveDir, command: commandFor("build") });
       if (!buildResult.success) {
         setResult(buildResult);
         setStatus("error");
         return;
       }
       setStatus("running");
-      const runCmd = customRunCmd.trim() || undefined;
-      const runResult = await invoke<BuildResult>("run_app", { workspace: effectiveDir, command: runCmd });
+      const runResult = await invoke<BuildResult>("run_app", { workspace: effectiveDir, command: commandFor("run") });
       setResult(runResult);
       setStatus(runResult.success ? "success" : "error");
     } catch (e) {
       setStatus("error");
       setLog(prev => [...prev, `Failed: ${e}`]);
     }
-  }, [effectiveDir, customBuildCmd, customRunCmd]);
+  }, [effectiveDir, commandFor]);
 
   const selected = systems[selectedIdx];
   const errorCount = result?.errors.filter(e => e.severity === "error").length ?? 0;
@@ -289,6 +309,7 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
         {/* Build system selector */}
         {systems.length > 1 && (
           <select
+            aria-label="Build system"
             style={{ fontSize: "var(--font-size-sm)", padding: "2px 8px", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)" }}
             value={selectedIdx}
             onChange={e => setSelectedIdx(Number(e.target.value))}
@@ -326,6 +347,7 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
           <span style={{ color: "var(--text-secondary)", flexShrink: 0 }}>Build:</span>
           <input
             style={{ flex: 1, minWidth: 0, padding: "3px 8px", fontSize: "var(--font-size-sm)", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)" }}
+            aria-label="Custom build command"
             value={customBuildCmd}
             onChange={e => setCustomBuildCmd(e.target.value)}
             placeholder={selected?.build_command || "auto-detect"}
@@ -333,6 +355,7 @@ export function BuildPanel({ workspacePath, currentFile, onOpenFile }: BuildPane
           <span style={{ color: "var(--text-secondary)", flexShrink: 0 }}>Run:</span>
           <input
             style={{ flex: 1, minWidth: 0, padding: "3px 8px", fontSize: "var(--font-size-sm)", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)" }}
+            aria-label="Custom run command"
             value={customRunCmd}
             onChange={e => setCustomRunCmd(e.target.value)}
             placeholder={selected?.run_command || "auto-detect"}
