@@ -7,8 +7,6 @@
 //! three values that made it Groq rather than a neighbour, and keeps the
 //! test suite that proves the migration changed nothing.
 
-use super::openai_compat::{self, ChatRequest};
-use crate::provider::{AIProvider, Message, ProviderConfig};
 
 pub const GROQ_BASE_URL: &str = "https://api.groq.com/openai/v1";
 
@@ -17,6 +15,8 @@ crate::openai_compat_provider!(GroqProvider, "Groq", GROQ_BASE_URL, "GROQ_API_KE
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::provider::{AIProvider, Message, ProviderConfig};
+    use crate::providers::openai_compat::{self, ChatRequest};
     use openai_compat::{ChatMessage, ChatResponse, StreamResponse};
 
     fn test_config() -> ProviderConfig {

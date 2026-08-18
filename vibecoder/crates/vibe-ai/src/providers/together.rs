@@ -6,8 +6,6 @@
 //! three values that made it Together AI rather than a neighbour, and keeps the
 //! test suite that proves the migration changed nothing.
 
-use super::openai_compat::{self, ChatRequest};
-use crate::provider::{AIProvider, Message, ProviderConfig};
 
 pub const TOGETHER_BASE_URL: &str = "https://api.together.xyz/v1";
 
@@ -16,6 +14,8 @@ crate::openai_compat_provider!(TogetherProvider, "Together AI", TOGETHER_BASE_UR
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::provider::{AIProvider, Message, ProviderConfig};
+    use crate::providers::openai_compat::{self, ChatRequest};
     use openai_compat::{ChatMessage, ChatResponse, StreamResponse};
 
     fn test_config() -> ProviderConfig {

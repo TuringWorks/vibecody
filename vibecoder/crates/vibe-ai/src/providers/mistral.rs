@@ -7,8 +7,6 @@
 //! three values that made it Mistral rather than a neighbour, and keeps the
 //! test suite that proves the migration changed nothing.
 
-use super::openai_compat::{self, ChatRequest};
-use crate::provider::{AIProvider, Message, ProviderConfig};
 
 pub const MISTRAL_BASE_URL: &str = "https://api.mistral.ai/v1";
 
@@ -17,6 +15,8 @@ crate::openai_compat_provider!(MistralProvider, "Mistral", MISTRAL_BASE_URL, "MI
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::provider::{AIProvider, Message, ProviderConfig};
+    use crate::providers::openai_compat::{self, ChatRequest};
     use openai_compat::{ChatMessage, ChatResponse, StreamResponse};
 
     fn test_config() -> ProviderConfig {

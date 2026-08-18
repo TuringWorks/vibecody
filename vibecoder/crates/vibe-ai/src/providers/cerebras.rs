@@ -4,8 +4,6 @@
 //! three things that made it Cerebras rather than any of its neighbours, and
 //! keeps the test suite that proves the migration changed nothing.
 
-use super::openai_compat::{self, ChatRequest};
-use crate::provider::{AIProvider, Message, ProviderConfig};
 
 pub const CEREBRAS_BASE_URL: &str = "https://api.cerebras.ai/v1";
 
@@ -19,6 +17,8 @@ crate::openai_compat_provider!(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::provider::{AIProvider, Message, ProviderConfig};
+    use crate::providers::openai_compat::{self, ChatRequest};
     use openai_compat::{ChatMessage, ChatResponse, StreamResponse};
 
     fn test_config() -> ProviderConfig {

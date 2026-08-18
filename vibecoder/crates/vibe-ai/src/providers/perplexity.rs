@@ -6,8 +6,6 @@
 //! three values that made it Perplexity rather than a neighbour, and keeps the
 //! test suite that proves the migration changed nothing.
 
-use super::openai_compat::{self, ChatRequest};
-use crate::provider::{AIProvider, Message, ProviderConfig};
 
 pub const PERPLEXITY_BASE_URL: &str = "https://api.perplexity.ai";
 
@@ -16,6 +14,8 @@ crate::openai_compat_provider!(PerplexityProvider, "Perplexity", PERPLEXITY_BASE
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::provider::{AIProvider, Message, ProviderConfig};
+    use crate::providers::openai_compat::{self, ChatRequest};
     use openai_compat::{ChatMessage, ChatResponse, StreamResponse};
 
     fn test_config() -> ProviderConfig {

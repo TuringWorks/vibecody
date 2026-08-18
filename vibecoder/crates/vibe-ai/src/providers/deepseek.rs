@@ -6,8 +6,6 @@
 //! three values that made it DeepSeek rather than a neighbour, and keeps the
 //! test suite that proves the migration changed nothing.
 
-use super::openai_compat::{self, ChatRequest};
-use crate::provider::{AIProvider, Message, ProviderConfig};
 
 pub const DEEPSEEK_BASE_URL: &str = "https://api.deepseek.com/v1";
 
@@ -16,6 +14,8 @@ crate::openai_compat_provider!(DeepSeekProvider, "DeepSeek", DEEPSEEK_BASE_URL, 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::provider::{AIProvider, Message, ProviderConfig};
+    use crate::providers::openai_compat::{self, ChatRequest};
     use openai_compat::{ChatMessage, ChatResponse, StreamResponse};
 
     fn test_config() -> ProviderConfig {
