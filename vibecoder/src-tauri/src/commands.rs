@@ -16135,9 +16135,13 @@ pub async fn write_auth_scaffold(
 #[derive(serde::Serialize)]
 pub struct GitHubSyncStatus {
     pub repo_url: Option<String>,
-    pub branch: String,
-    pub ahead: usize,
-    pub behind: usize,
+    /// `None` when HEAD cannot be read (unborn branch, bare repo). Naming the
+    /// branch "main" in that case asserts something nobody checked.
+    pub branch: Option<String>,
+    /// `None` when the branch tracks nothing: "no upstream" is not "in sync",
+    /// and rendering both as 0 hid a missing upstream behind a green badge.
+    pub ahead: Option<usize>,
+    pub behind: Option<usize>,
     pub has_remote: bool,
     pub last_synced: Option<String>,
 }
@@ -16253,118 +16257,54 @@ pub async fn git_dismiss_repo_suggestion(workspace_path: String) -> Result<(), S
 pub async fn get_github_sync_status(workspace_path: String) -> Result<GitHubSyncStatus, String> {
     use vibe_core::git;
     let ws = reject_sensitive_path(&workspace_path)?;
-    if !git::is_git_repo(&ws) {
+    // `is_git_repo` opens the path *as* a repository, so it answers "no" for
+    // every subdirectory of an ordinary checkout — walk up instead.
+    let Some(root) = git::discover_repo_root(&ws) else {
         return Ok(GitHubSyncStatus {
             repo_url: None,
-            branch: "main".to_string(),
-            ahead: 0,
-            behind: 0,
+            branch: None,
+            ahead: None,
+            behind: None,
             has_remote: false,
             last_synced: None,
         });
-    }
-    let branch = git::get_current_branch(&ws).unwrap_or_else(|_| "main".to_string());
+    };
+    let branch = git::get_current_branch(&root).ok();
 
-    // Get remote URL via git command
-    let remote_output = std::process::Command::new("git")
-        .args(["-C", &workspace_path, "remote", "get-url", "origin"])
-        .output()
-        .ok();
-    let repo_url = remote_output
-        .filter(|o| o.status.success())
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .map(|s| s.trim().to_string());
+    let git_out = |args: &[&str]| -> Option<String> {
+        std::process::Command::new("git")
+            .arg("-C")
+            .arg(&root)
+            .args(args)
+            .output()
+            .ok()
+            .filter(|o| o.status.success())
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    };
 
-    // ahead/behind via git rev-list
-    let ahead_output = std::process::Command::new("git")
-        .args(["-C", &workspace_path, "rev-list", "--count", "@{u}..HEAD"])
-        .output()
-        .ok();
-    let ahead = ahead_output
-        .filter(|o| o.status.success())
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .and_then(|s| s.trim().parse::<usize>().ok())
-        .unwrap_or(0);
-
-    let behind_output = std::process::Command::new("git")
-        .args(["-C", &workspace_path, "rev-list", "--count", "HEAD..@{u}"])
-        .output()
-        .ok();
-    let behind = behind_output
-        .filter(|o| o.status.success())
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .and_then(|s| s.trim().parse::<usize>().ok())
-        .unwrap_or(0);
+    let repo_url = git_out(&["remote", "get-url", "origin"]);
+    // `rev-list @{u}` fails when the branch tracks nothing, and that failure is
+    // the answer — it stays `None` rather than collapsing into 0.
+    let count = |range: &str| {
+        git_out(&["rev-list", "--count", range]).and_then(|s| s.parse::<usize>().ok())
+    };
 
     Ok(GitHubSyncStatus {
         has_remote: repo_url.is_some(),
         repo_url,
         branch,
-        ahead,
-        behind,
+        ahead: count("@{u}..HEAD"),
+        behind: count("HEAD..@{u}"),
         last_synced: None,
     })
 }
 
-#[tauri::command]
-pub async fn github_sync_push(
-    workspace_path: String,
-    commit_message: String,
-) -> Result<(), String> {
-    // DREAD #2 category-3 — `workspace_path` is WebView-controlled and
-    // fed to `git -C`. Without validation, `git add -A` on `~/.vibecli`
-    // would stage `profile_settings.db`, and the subsequent `push`
-    // would exfiltrate it to whatever remote that directory was
-    // configured with. The deny-list refuses credential-store paths
-    // categorically.
-    let repo = reject_sensitive_path(&workspace_path)?;
-    let repo_str = repo
-        .to_str()
-        .ok_or_else(|| "workspace path is not valid UTF-8".to_string())?;
-
-    // git add -A && git commit -m ... && git push
-    let status = std::process::Command::new("git")
-        .args(["-C", repo_str, "add", "-A"])
-        .status()
-        .map_err(|e| e.to_string())?;
-    if !status.success() {
-        return Err("git add failed".to_string());
-    }
-
-    let status = std::process::Command::new("git")
-        .args(["-C", repo_str, "commit", "-m", &commit_message])
-        .status()
-        .map_err(|e| e.to_string())?;
-    if !status.success() {
-        return Err("git commit failed (nothing to commit?)".to_string());
-    }
-
-    let out = std::process::Command::new("git")
-        .args(["-C", repo_str, "push"])
-        .output()
-        .map_err(|e| e.to_string())?;
-    if !out.status.success() {
-        return Err(String::from_utf8_lossy(&out.stderr).to_string());
-    }
-    Ok(())
-}
-
-#[tauri::command]
-pub async fn github_sync_pull(workspace_path: String) -> Result<(), String> {
-    // DREAD #2 — see github_sync_push for the deny-list rationale.
-    let repo = reject_sensitive_path(&workspace_path)?;
-    let repo_str = repo
-        .to_str()
-        .ok_or_else(|| "workspace path is not valid UTF-8".to_string())?;
-    let out = std::process::Command::new("git")
-        .args(["-C", repo_str, "pull", "--ff-only"])
-        .output()
-        .map_err(|e| e.to_string())?;
-    if !out.status.success() {
-        return Err(String::from_utf8_lossy(&out.stderr).to_string());
-    }
-    Ok(())
-}
+// `github_sync_push` / `github_sync_pull` lived here. They were a second,
+// blanket `git add -A && commit && push` path that duplicated the Source
+// Control sidebar; the GitHub panel no longer offers commits, so the commands
+// are gone rather than left callable from the WebView.
 
 #[derive(serde::Serialize)]
 pub struct RepoInfo {

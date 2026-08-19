@@ -150,7 +150,7 @@ export const PANEL_CATALOG: Record<string, SubfeatureMeta[]> = {
     { id: "bisect", label: "Bisect" },
   ],
   "github": [
-    { id: "github", label: "Sync" },
+    { id: "github", label: "Remote" },
     { id: "ghactions", label: "Actions" },
     { id: "triage", label: "Triage" },
   ],

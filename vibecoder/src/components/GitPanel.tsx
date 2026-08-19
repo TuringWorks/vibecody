@@ -19,6 +19,17 @@ interface GitStatus {
  file_statuses: Record<string, string>;
 }
 
+/** Mirrors `GitHubSyncStatus` in src-tauri/src/commands.rs. `ahead`/`behind`
+ *  are null when the branch tracks nothing — that is not "level with origin",
+ *  so it renders as "no upstream" rather than 0/0. */
+interface UpstreamStatus {
+ repo_url: string | null;
+ branch: string | null;
+ ahead: number | null;
+ behind: number | null;
+ has_remote: boolean;
+}
+
 interface CommitInfo {
  hash: string;
  author: string;
@@ -38,6 +49,7 @@ interface GitRepoSuggestion {
 export function GitPanel({ workspacePath, onCompareFile, selectedProvider }: GitPanelProps) {
  const { toasts, toast, dismiss } = useToast();
  const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
+ const [upstream, setUpstream] = useState<UpstreamStatus | null>(null);
  const [commitMessage, setCommitMessage] = useState('');
  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
  const [isLoading, setIsLoading] = useState(false);
@@ -98,6 +110,13 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider }: Git
  } catch (e) {
  const msg = String(e);
  setGitError(msg);
+ }
+ // Ahead/behind belongs next to the Push button, not in a second panel.
+ if (!workspacePath) return;
+ try {
+ setUpstream(await invoke<UpstreamStatus>('get_github_sync_status', { workspacePath }));
+ } catch {
+ setUpstream(null);
  }
  };
 
@@ -511,6 +530,16 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider }: Git
  <button className="panel-btn btn-secondary" onClick={handleShowHistory} style={{ fontSize: '12px', padding: '4px 8px' }}>
  History
  </button>
+ {upstream?.has_remote && (
+ <span
+ title={upstream.repo_url ?? undefined}
+ style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: '11px', color: 'var(--text-secondary)' }}
+ >
+ {upstream.ahead != null && upstream.behind != null
+ ? `↑ ${upstream.ahead} ↓ ${upstream.behind}`
+ : 'no upstream'}
+ </span>
+ )}
  </div>
 
  {/* One scroll region for everything below the branch header.

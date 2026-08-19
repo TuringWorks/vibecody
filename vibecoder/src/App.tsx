@@ -212,6 +212,23 @@ function App() {
     return () => window.removeEventListener("vibecoder:refresh-files", handler);
   });
 
+  // Panels that deliberately do NOT duplicate a sidebar feature (the GitHub
+  // Remote panel sends every commit/push here) ask the shell to reveal the
+  // owning tab.
+  useEffect(() => {
+    const tabs = ["explorer", "search", "git", "testing", "project", "infra", "ai", "security"] as const;
+    const isTab = (v: unknown): v is typeof tabs[number] =>
+      typeof v === "string" && (tabs as readonly string[]).includes(v);
+    const handler = (e: Event) => {
+      const tab = (e as CustomEvent<unknown>).detail;
+      if (!isTab(tab)) return;
+      setShowSidebar(true);
+      setActiveSidebarTab(tab);
+    };
+    window.addEventListener("vibecoder:open-sidebar-tab", handler);
+    return () => window.removeEventListener("vibecoder:open-sidebar-tab", handler);
+  }, []);
+
   // Derived state for active file
   const activeFile = openFiles.find(f => f.path === activeFilePath);
   const editorContent = activeFile?.content || "";

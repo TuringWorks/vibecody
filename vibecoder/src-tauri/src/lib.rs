@@ -639,8 +639,6 @@ pub fn run() {
             commands::has_github_token,
             commands::save_github_token,
             commands::get_github_sync_status,
-            commands::github_sync_push,
-            commands::github_sync_pull,
             commands::list_github_repos,
             commands::github_create_repo,
             // Phase 27: Steering Files
