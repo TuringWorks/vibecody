@@ -313,6 +313,76 @@ function groupBy<T>(items: T[], keyFn: (item: T) => string): Record<string, T[]>
   return result;
 }
 
+// -- Handing findings to chat -------------------------------------------------
+
+/**
+ * How many findings one hand-off carries. A scan of a real workspace returns
+ * thousands; pasting all of them into the composer produces a request no model
+ * can act on. Every button label names the cap and the true count, so a capped
+ * hand-off can never read as the whole set.
+ */
+const FIX_BATCH_LIMIT = 25;
+
+/**
+ * The change request handed to chat. It names the existing path and line
+ * explicitly: an edit request that does not is the fastest way to get a second
+ * copy of the file back instead of a fix. It also says these are scanner
+ * candidates, not confirmed bugs — this scanner is pattern-based and a fix
+ * applied to a false positive is a regression, not a fix.
+ */
+function fixRequest(findings: Finding[], total: number): string {
+  const blocks = Object.entries(groupBy(findings, (f) => f.file)).map(([file, fs]) => {
+    const items = fs.map((f) => {
+      const remediation = f.remediation ? `\n  Suggested fix: ${f.remediation}` : "";
+      return `- [${f.severity}] line ${f.line} — ${f.title} (${f.cwe}): ${f.description}${remediation}`;
+    });
+    return [`${file}:`, ...items].join("\n");
+  });
+
+  const opening =
+    total > findings.length
+      ? `Fix these ${findings.length} security scanner findings. They are the first ${findings.length} of ${total}; the remaining ${total - findings.length} are not listed here.`
+      : findings.length === 1
+        ? `Fix this security scanner finding in ${findings[0].file}:${findings[0].line}.`
+        : `Fix these ${findings.length} security scanner findings.`;
+
+  return [
+    opening,
+    "",
+    ...blocks,
+    "",
+    "Edit each file in place at the path given above — do not create a new file.",
+    "Check each finding against the real code first: these are pattern-matched candidates, not confirmed vulnerabilities. Say so and change nothing where it is a false positive.",
+    "Keep each change minimal and leave unrelated behaviour alone.",
+  ].join("\n");
+}
+
+/** Hand a change request to the active chat tab's composer. The user sends it. */
+function sendToChat(findings: Finding[], total: number) {
+  window.dispatchEvent(
+    new CustomEvent("vibecoder:inject-context", { detail: fixRequest(findings, total) })
+  );
+}
+
+/** Button label, naming the cap whenever it bites. */
+function fixLabel(count: number): string {
+  if (count > FIX_BATCH_LIMIT) return `Fix first ${FIX_BATCH_LIMIT} of ${count} with AI`;
+  return count === 1 ? "Fix with AI" : `Fix all ${count} with AI`;
+}
+
+/** Shared look for the hand-off buttons — an outline, never a primary action. */
+const fixButtonStyle: React.CSSProperties = {
+  padding: "2px 8px",
+  fontSize: "var(--font-size-xs)",
+  borderRadius: 3,
+  border: "1px solid var(--accent-blue)",
+  background: "none",
+  color: "var(--accent-blue)",
+  cursor: "pointer",
+  flexShrink: 0,
+  whiteSpace: "nowrap",
+};
+
 // -- Component ----------------------------------------------------------------
 
 const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, onOpenFile }) => {
@@ -330,6 +400,9 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [patternClassFilter, setPatternClassFilter] = useState<string>("All");
   const [patternSearch, setPatternSearch] = useState("");
+  // Which hand-off buttons have fired. The composer can be behind another tab,
+  // so the button itself has to say the request was written.
+  const [sentFixes, setSentFixes] = useState<Record<string, boolean>>({});
 
   const tabs: TabName[] = ["Findings", "Summary", "Patterns", "History"];
 
@@ -366,6 +439,7 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
     }
     setScanning(true);
     setError(null);
+    setSentFixes({});
     const startTime = Date.now();
     try {
       const enabledPatterns = patterns.filter((p) => p.enabled).map((p) => p.id);
@@ -427,6 +501,17 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
       setFindings((prev) => prev.map((f) => f.cwe === cwe ? { ...f, suppressed: false } : f));
     }
   }
+
+  /**
+   * Write a batch of findings into the chat composer. Nothing is edited here —
+   * the user reads the request and presses send, which is the rule this panel
+   * shares with the Review tab.
+   */
+  const handOffToChat = (key: string, batch: Finding[]) => {
+    if (batch.length === 0) return;
+    sendToChat(batch.slice(0, FIX_BATCH_LIMIT), batch.length);
+    setSentFixes((prev) => ({ ...prev, [key]: true }));
+  };
 
   const togglePattern = (id: string) => {
     setPatterns((prev) => prev.map((p) => p.id === id ? { ...p, enabled: !p.enabled } : p));
@@ -522,6 +607,13 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
           </div>
         </div>
         <button
+          onClick={(e) => { e.stopPropagation(); handOffToChat(`finding:${f.id}`, [f]); }}
+          style={fixButtonStyle}
+          title="Write a fix request for this finding into the chat composer"
+        >
+          {sentFixes[`finding:${f.id}`] ? "Sent to chat \u2713" : "Fix with AI"}
+        </button>
+        <button
           onClick={(e) => { e.stopPropagation(); toggleSuppress(f); }}
           style={{
             padding: "2px 8px", fontSize: "var(--font-size-xs)", borderRadius: 3,
@@ -606,6 +698,16 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
             </button>
           )}
           <span style={{ flex: 1 }} />
+          <button
+            onClick={() => handOffToChat("visible", filteredFindings)}
+            disabled={filteredFindings.length === 0}
+            style={{ ...fixButtonStyle, opacity: filteredFindings.length === 0 ? 0.5 : 1, cursor: filteredFindings.length === 0 ? "default" : "pointer" }}
+            title={filterSeverity === "All"
+              ? "Write a fix request for the findings shown into the chat composer"
+              : `Write a fix request for the ${filterSeverity} findings shown into the chat composer`}
+          >
+            {sentFixes.visible ? "Sent to chat \u2713" : fixLabel(filteredFindings.length)}
+          </button>
           <select
             value={groupMode}
             onChange={(e) => { setGroupMode(e.target.value as GroupMode); setCollapsedGroups(new Set()); }}
@@ -686,6 +788,15 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
                     }}>
                       {groupFindings.length}
                     </span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handOffToChat(`group:${groupMode}:${groupKey}`, groupFindings); }}
+                      style={fixButtonStyle}
+                      title={groupFindings.length > FIX_BATCH_LIMIT
+                        ? `Write a fix request for the first ${FIX_BATCH_LIMIT} of these ${groupFindings.length} findings into the chat composer`
+                        : "Write a fix request for these findings into the chat composer"}
+                    >
+                      {sentFixes[`group:${groupMode}:${groupKey}`] ? "Sent to chat \u2713" : fixLabel(groupFindings.length)}
+                    </button>
                     {groupMode === "cwe" && (
                       <button
                         onClick={(e) => { e.stopPropagation(); suppressCwe(groupKey); }}
