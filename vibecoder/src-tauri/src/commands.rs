@@ -18158,6 +18158,153 @@ pub async fn security_review_file(
         .collect())
 }
 
+
+/// Directories a workspace security review never descends into — build output
+/// and vendored dependencies, whose findings are not the user's to fix.
+const SECURITY_REVIEW_SKIP_DIRS: &[&str] = &[
+    "node_modules",
+    ".git",
+    "target",
+    "dist",
+    "build",
+    ".next",
+    "vendor",
+    "__pycache__",
+    ".venv",
+    "venv",
+    ".gradle",
+    "out",
+    ".cache",
+];
+
+/// Largest file a review will read. The prompt has to hold the whole file, so a
+/// bigger one would be silently truncated into a review of its first half.
+const SECURITY_REVIEW_MAX_BYTES: u64 = 400_000;
+
+/// Default and hard ceilings on files per run. Each file is one LLM call, so an
+/// unbounded workspace sweep is an unbounded bill.
+const SECURITY_REVIEW_DEFAULT_LIMIT: usize = 40;
+const SECURITY_REVIEW_MAX_LIMIT: usize = 400;
+
+/// Extensions worth a security review: source and configuration, but not
+/// documentation or stylesheets, which cost a call each and yield nothing.
+fn is_security_reviewable(ext: &str) -> bool {
+    !matches!(
+        ext_to_language(ext),
+        None | Some("Markdown") | Some("CSS")
+    )
+}
+
+/// The files a workspace security review will read.
+#[derive(Debug, serde::Serialize)]
+pub struct SecurityReviewTargets {
+    /// Workspace-relative paths, sorted, capped at `limit`.
+    pub files: Vec<String>,
+    /// How many files matched before the cap — `matched > files.len()` means
+    /// the run does not cover the workspace, and the panel says so.
+    pub matched: usize,
+    pub limit: usize,
+}
+
+/// Resolve a security review's scope to a concrete file list.
+///
+/// `pattern` is what the user typed. Empty reviews the whole workspace; a file
+/// path reviews that file; a directory reviews its subtree; anything else is a
+/// glob matched against workspace-relative paths (`src/*`, `**/*.rs`) — `*`
+/// crosses `/`, so `src/*` covers the whole subtree.
+///
+/// Returning the list rather than reviewing it here is deliberate: the caller
+/// drives one LLM call per file, so it can show progress, keep partial findings,
+/// and stop.
+#[tauri::command]
+pub async fn security_review_targets(
+    workspace: String,
+    pattern: Option<String>,
+    limit: Option<usize>,
+) -> Result<SecurityReviewTargets, String> {
+    let root = reject_sensitive_path(&workspace)?;
+    let limit = limit
+        .unwrap_or(SECURITY_REVIEW_DEFAULT_LIMIT)
+        .clamp(1, SECURITY_REVIEW_MAX_LIMIT);
+    let pattern = pattern.unwrap_or_default().trim().to_string();
+
+    // A pattern that names something real is taken literally — a file is itself,
+    // a directory is its subtree. Only the rest is treated as a glob.
+    let (scope_root, glob) = match pattern.as_str() {
+        "" => (root.clone(), None),
+        p => {
+            let candidate = root.join(p.trim_start_matches("./"));
+            if candidate.is_file() {
+                let rel = relative_to(&root, &candidate);
+                return Ok(SecurityReviewTargets {
+                    files: rel.into_iter().collect(),
+                    matched: 1,
+                    limit,
+                });
+            } else if candidate.is_dir() {
+                (candidate, None)
+            } else {
+                (root.clone(), Some(p.trim_start_matches("./").to_string()))
+            }
+        }
+    };
+
+    let mut files: Vec<String> = walkdir::WalkDir::new(&scope_root)
+        .follow_links(false)
+        .max_depth(12)
+        .into_iter()
+        .filter_map(Result::ok)
+        .filter(|entry| entry.file_type().is_file())
+        .filter(|entry| {
+            !entry.path().ancestors().any(|a| {
+                a.file_name()
+                    .and_then(|n| n.to_str())
+                    .is_some_and(|n| SECURITY_REVIEW_SKIP_DIRS.contains(&n))
+            })
+        })
+        .filter(|entry| {
+            entry
+                .path()
+                .extension()
+                .and_then(|e| e.to_str())
+                .map(str::to_lowercase)
+                .is_some_and(|ext| is_security_reviewable(&ext))
+        })
+        .filter(|entry| {
+            entry
+                .metadata()
+                .is_ok_and(|m| m.len() > 0 && m.len() <= SECURITY_REVIEW_MAX_BYTES)
+        })
+        .filter_map(|entry| relative_to(&root, entry.path()))
+        .filter(|rel| match &glob {
+            Some(pattern) => vibecli_cli::mcp_lazy::glob_match(pattern, rel),
+            None => true,
+        })
+        .collect();
+
+    files.sort();
+    let matched = files.len();
+    files.truncate(limit);
+
+    Ok(SecurityReviewTargets {
+        files,
+        matched,
+        limit,
+    })
+}
+
+/// A path expressed relative to the workspace root, with `/` separators so the
+/// glob and the frontend see the same string on every platform.
+fn relative_to(root: &Path, path: &Path) -> Option<String> {
+    let rel = path.strip_prefix(root).ok()?;
+    let joined = rel
+        .components()
+        .filter_map(|c| c.as_os_str().to_str())
+        .collect::<Vec<_>>()
+        .join("/");
+    (!joined.is_empty()).then_some(joined)
+}
+
 /// Parse the WebMCP tool descriptors a page advertises.
 /// Pure parsing; consumer invocation is gated separately behind the origin-trial
 /// flag and surfaced for explicit user confirmation.
@@ -20627,6 +20774,128 @@ mod tests {
             detect_language_from_path_or_fence("file.unknown", ""),
             "text"
         );
+    }
+
+    // ── security_review_targets ─────────────────────────────────────────────
+
+    /// A small workspace: reviewable source, an ignored build dir, a doc file,
+    /// and an oversized file.
+    fn security_review_fixture() -> tempfile::TempDir {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        for (rel, body) in [
+            ("src/main.rs", "fn main() {}"),
+            ("src/auth/login.rs", "fn login() {}"),
+            ("src/app.ts", "export const a = 1;"),
+            ("README.md", "# docs"),
+            ("styles.css", "body { margin: 0; }"),
+            ("node_modules/pkg/index.js", "module.exports = 1;"),
+            ("target/debug/build.rs", "fn main() {}"),
+        ] {
+            let path = root.join(rel);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(&path, body).unwrap();
+        }
+        std::fs::write(
+            root.join("huge.rs"),
+            "x".repeat(SECURITY_REVIEW_MAX_BYTES as usize + 1),
+        )
+        .unwrap();
+        std::fs::write(root.join("empty.rs"), "").unwrap();
+        tmp
+    }
+
+    async fn targets(root: &std::path::Path, pattern: Option<&str>, limit: Option<usize>) -> SecurityReviewTargets {
+        security_review_targets(
+            root.to_string_lossy().to_string(),
+            pattern.map(str::to_string),
+            limit,
+        )
+        .await
+        .unwrap()
+    }
+
+    /// The panel used to take a single file path, so `src/*` produced
+    /// "No such file or directory". An empty pattern now means the workspace.
+    #[tokio::test]
+    async fn security_review_targets_covers_the_whole_workspace() {
+        let tmp = security_review_fixture();
+        let found = targets(tmp.path(), None, None).await;
+        assert_eq!(
+            found.files,
+            vec!["src/app.ts", "src/auth/login.rs", "src/main.rs"]
+        );
+        assert_eq!(found.matched, 3);
+    }
+
+    #[tokio::test]
+    async fn security_review_targets_skips_vendor_docs_and_unreadable_sizes() {
+        let tmp = security_review_fixture();
+        let found = targets(tmp.path(), None, None).await;
+        for excluded in [
+            "README.md",       // documentation
+            "styles.css",      // stylesheet
+            "node_modules/pkg/index.js",
+            "target/debug/build.rs",
+            "huge.rs",         // larger than the prompt can hold
+            "empty.rs",        // nothing to review
+        ] {
+            assert!(
+                !found.files.iter().any(|f| f == excluded),
+                "{excluded} should not be reviewed"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn security_review_targets_accepts_a_directory() {
+        let tmp = security_review_fixture();
+        let found = targets(tmp.path(), Some("src/auth"), None).await;
+        assert_eq!(found.files, vec!["src/auth/login.rs"]);
+    }
+
+    #[tokio::test]
+    async fn security_review_targets_accepts_a_glob() {
+        let tmp = security_review_fixture();
+        // `*` crosses `/`, so `src/*` means the whole subtree.
+        let subtree = targets(tmp.path(), Some("src/*"), None).await;
+        assert_eq!(subtree.matched, 3);
+        let rust_only = targets(tmp.path(), Some("*.rs"), None).await;
+        assert_eq!(rust_only.files, vec!["src/auth/login.rs", "src/main.rs"]);
+    }
+
+    #[tokio::test]
+    async fn security_review_targets_accepts_a_single_file() {
+        let tmp = security_review_fixture();
+        let found = targets(tmp.path(), Some("src/main.rs"), None).await;
+        assert_eq!(found.files, vec!["src/main.rs"]);
+        assert_eq!(found.matched, 1);
+    }
+
+    /// The cap must stay visible: a run that covers 1 of 3 files reports 3
+    /// matched, so the panel can say the workspace is not covered.
+    #[tokio::test]
+    async fn security_review_targets_reports_what_the_cap_dropped() {
+        let tmp = security_review_fixture();
+        let found = targets(tmp.path(), None, Some(1)).await;
+        assert_eq!(found.files.len(), 1);
+        assert_eq!(found.matched, 3);
+        assert_eq!(found.limit, 1);
+    }
+
+    #[tokio::test]
+    async fn security_review_targets_clamps_an_absurd_limit() {
+        let tmp = security_review_fixture();
+        let found = targets(tmp.path(), None, Some(usize::MAX)).await;
+        assert_eq!(found.limit, SECURITY_REVIEW_MAX_LIMIT);
+    }
+
+    #[tokio::test]
+    async fn security_review_targets_returns_nothing_for_an_unmatched_glob() {
+        let tmp = security_review_fixture();
+        let found = targets(tmp.path(), Some("*.zig"), None).await;
+        assert!(found.files.is_empty());
+        assert_eq!(found.matched, 0);
     }
 
     // ── infer_file_info ─────────────────────────────────────────────────────

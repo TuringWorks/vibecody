@@ -429,6 +429,7 @@ pub fn run() {
             commands::embedding_embed_texts,
             commands::design_emit_diff,
             commands::security_review_file,
+            commands::security_review_targets,
             commands::webmcp_parse_tools,
             commands::webmcp_publish_panels,
             commands::webmcp_build_invocation,

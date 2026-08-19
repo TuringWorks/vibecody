@@ -454,8 +454,13 @@ impl LazyToolRegistry {
     }
 }
 
-/// Simple glob matching supporting `*` (any sequence) and `?` (single char).
-fn glob_match(pattern: &str, text: &str) -> bool {
+/// Simple glob matching supporting `*` (any sequence, `/` included) and `?`
+/// (single char).
+///
+/// Public because this is the workspace's one shared glob: VibeCoder's security
+/// review resolves its file pattern with it. Three private copies of this
+/// function already exist in the crate — do not add a fourth.
+pub fn glob_match(pattern: &str, text: &str) -> bool {
     let pat: Vec<char> = pattern.chars().collect();
     let txt: Vec<char> = text.chars().collect();
     glob_match_inner(&pat, &txt, 0, 0)
