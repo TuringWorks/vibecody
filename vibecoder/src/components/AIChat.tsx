@@ -336,21 +336,25 @@ function extractThinking(content: string): [string, string] {
     }
   }
 
-  const last = proseIdx[proseIdx.length - 1];
-  if (last !== undefined) {
-    const orphanOpen = cleanedSegments[last].match(
-      new RegExp(`<${NS}think(?:ing)?>([\\s\\S]*)$`),
-    );
-    if (orphanOpen) {
-      parts.push(orphanOpen[1].trim());
-      cleanedSegments[last] = cleanedSegments[last].slice(
-        0,
-        cleanedSegments[last].length - orphanOpen[0].length,
-      );
-    }
+  // An unclosed opening tag means everything after it is reasoning — the rest
+  // of that run and every run after it, code spans included. So it is anchored
+  // to the *first* prose run that still holds one. Anchored to the last run
+  // instead, a `<thinking>` opened before an inline code span was never found
+  // at all, and the tag rendered verbatim at the top of the message.
+  const openRe = new RegExp(`<${NS}think(?:ing)?>([\\s\\S]*)$`);
+  const openIdx = proseIdx.find((i) => openRe.test(cleanedSegments[i]));
+
+  if (openIdx === undefined) {
+    return [cleanedSegments.join("").trim(), parts.filter(Boolean).join("\n")];
   }
 
-  return [cleanedSegments.join("").trim(), parts.filter(Boolean).join("\n")];
+  const opened = cleanedSegments[openIdx].match(openRe);
+  parts.push([opened?.[1] ?? "", ...cleanedSegments.slice(openIdx + 1)].join("").trim());
+  const kept = cleanedSegments.map((text, i) =>
+    i < openIdx ? text : i === openIdx ? text.replace(openRe, "") : "",
+  );
+
+  return [kept.join("").trim(), parts.filter(Boolean).join("\n")];
 }
 
 /**

@@ -448,7 +448,10 @@ Diff:
 
     let response = llm.chat(&messages, None).await?;
 
-    // Strip markdown fences
+    // Reasoning first, fences second. The summary and issue descriptions parsed
+    // out of this are written into review output, so a reasoning block that
+    // survives here is read by whoever gets the review.
+    let response = vibe_ai::tools::strip_thinking(&response);
     let raw = response.trim();
     let json_str = if raw.starts_with("```") {
         raw.lines()
@@ -822,6 +825,8 @@ Diff:
 
 #[allow(dead_code)]
 fn parse_perspective_response(response: &str) -> (Vec<ReviewIssue>, Vec<ReviewSuggestion>, String) {
+    // Reasoning first — see `review_chunk`; this text ends up in review output.
+    let response = vibe_ai::tools::strip_thinking(response);
     let raw = response.trim();
     let json_str = if raw.starts_with("```") {
         raw.lines()
@@ -1661,6 +1666,15 @@ diff --git a/README.md b/README.md\n+added readme\n";
     #[test]
     fn perspective_all_has_five() {
         assert_eq!(ReviewPerspective::ALL.len(), 5);
+    }
+
+    #[test]
+    fn parse_perspective_response_ignores_a_reasoning_block() {
+        let raw = "<thinking>The hash looks weak, but let me check {the callers}.</thinking>\n\
+                   {\"summary\": \"Good code\", \"issues\": [], \"suggestions\": []}";
+        let (issues, _suggestions, summary) = parse_perspective_response(raw);
+        assert_eq!(summary, "Good code");
+        assert!(issues.is_empty());
     }
 
     #[test]

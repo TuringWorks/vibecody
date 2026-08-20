@@ -489,7 +489,15 @@ Diff:
 }
 
 /// Extract the findings array from a model reply.
+///
+/// Reasoning comes off first. A model that deliberates before answering writes
+/// brackets while it does — "[1] the missing null check" — and this scans from
+/// the first `[` to the last `]`, so the deliberation could become the payload.
+/// What survives is posted verbatim as a PR review comment, where a leaked
+/// `<thinking>` tag is not untidy but permanent.
 fn parse_reports(response: &str) -> Vec<BugReport> {
+    let visible = vibe_ai::tools::strip_thinking(response);
+    let response = visible.as_str();
     let Some(start) = response.find('[') else {
         return vec![];
     };
@@ -1296,6 +1304,25 @@ mod tests {
     fn a_reply_with_no_array_yields_no_findings() {
         assert!(parse_reports("I found nothing.").is_empty());
         assert!(parse_reports("").is_empty());
+    }
+
+    #[test]
+    fn reasoning_is_not_mistaken_for_the_findings_array() {
+        // The reasoning numbers its candidates, so it holds a `[` earlier than
+        // the real array and a `]` the scan would otherwise stop at.
+        let reply = "<thinking>Candidates: [1] the null check, [2] the retry.</thinking>\n\
+                     [{\"file\":\"a.rs\",\"line\":1,\"severity\":\"error\",\"message\":\"m\"}]";
+        let reports = parse_reports(reply);
+        assert_eq!(reports.len(), 1);
+        assert_eq!(reports[0].file, "a.rs");
+        assert!(!reports[0].message.contains("thinking"));
+    }
+
+    #[test]
+    fn an_unclosed_reasoning_block_yields_no_findings() {
+        // Cut off mid-reasoning: there is no answer in here, and posting the
+        // deliberation as a review comment would be worse than posting nothing.
+        assert!(parse_reports("<thinking>Looking at [1] the null check").is_empty());
     }
 
     #[test]

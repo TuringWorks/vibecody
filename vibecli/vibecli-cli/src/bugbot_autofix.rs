@@ -537,6 +537,11 @@ Return ONLY a JSON object:
 
 /// Pull the first JSON object out of a model reply.
 fn parse_raw_fix(reply: &str) -> Option<RawFix> {
+    // Reasoning first: it is full of braces, and this takes the first `{` to
+    // the last `}`. The rationale parsed out of here becomes a review comment
+    // on someone's pull request.
+    let visible = vibe_ai::tools::strip_thinking(reply);
+    let reply = visible.as_str();
     let start = reply.find('{')?;
     let end = reply.rfind('}')? + 1;
     if start >= end {
@@ -873,6 +878,23 @@ diff --git a/a.rs b/a.rs
         assert_eq!(json["start_line"], 2);
         assert_eq!(json["start_side"], "RIGHT");
         assert_eq!(json["line"], 3);
+    }
+
+    // ── parse_raw_fix ────────────────────────────────────────────────────────
+
+    #[test]
+    fn reasoning_braces_are_not_mistaken_for_the_fix_object() {
+        let reply = "<thinking>Maybe { start_line: 4 }? No — the guard is at 7.</thinking>\n\
+                     {\"start_line\":7,\"end_line\":7,\"replacement\":\"let x = 1;\",\
+                     \"rationale\":\"Guard the index.\",\"skip\":false}";
+        let fix = parse_raw_fix(reply).expect("the object after the reasoning");
+        assert_eq!(fix.start_line, 7);
+        assert_eq!(fix.rationale, "Guard the index.");
+    }
+
+    #[test]
+    fn an_unclosed_reasoning_block_parses_to_no_fix() {
+        assert!(parse_raw_fix("<thinking>maybe { start_line: 4 }").is_none());
     }
 
     // ── apply_to_content ─────────────────────────────────────────────────────

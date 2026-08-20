@@ -60,27 +60,14 @@ pub fn parse_thinking_blocks(raw: &str) -> Vec<ThinkingBlock> {
     blocks
 }
 
+/// Remove reasoning blocks from a model reply.
+///
+/// Delegates to [`vibe_ai::tools::strip_thinking`], which is the copy that
+/// knows every spelling models actually emit — `<think>` (GLM/Qwen/R1) and
+/// namespaced forms like `<mm:think>` as well as `<thinking>`. This function
+/// used to match `<thinking>` alone, so a `<think>` block went out verbatim.
 pub fn strip_thinking_from(raw: &str) -> String {
-    let mut result = String::with_capacity(raw.len());
-    let mut rest = raw;
-    loop {
-        match rest.find("<thinking>") {
-            None => {
-                result.push_str(rest);
-                break;
-            }
-            Some(start) => {
-                result.push_str(&rest[..start]);
-                rest = &rest[start + "<thinking>".len()..];
-                if let Some(end) = rest.find("</thinking>") {
-                    rest = &rest[end + "</thinking>".len()..];
-                } else {
-                    break;
-                }
-            }
-        }
-    }
-    result.trim().to_string()
+    vibe_ai::tools::strip_thinking(raw).trim().to_string()
 }
 
 pub fn token_budget_for_complexity(complexity: u8) -> ReasoningBudget {
@@ -162,6 +149,15 @@ mod tests {
         let resp = build_reasoning_response(raw, &config);
         assert_eq!(resp.response, "answer");
         assert_eq!(resp.thinking_blocks.len(), 1);
+    }
+
+    #[test]
+    fn strips_the_other_reasoning_spellings_too() {
+        // This used to match `<thinking>` alone, so a GLM/Qwen `<think>` block
+        // went out verbatim.
+        assert_eq!(strip_thinking_from("<think>plan</think>answer"), "answer");
+        assert_eq!(strip_thinking_from("<mm:think>plan</mm:think>answer"), "answer");
+        assert_eq!(strip_thinking_from("answer<thinking>cut off"), "answer");
     }
 
     #[test]

@@ -211,6 +211,30 @@ describe('AIChat', () => {
     expect(screen.getByRole('button', { name: /Work · thinking/ })).toBeInTheDocument();
   });
 
+  // A reasoning model that is cut off mid-block leaves the opening tag with no
+  // closing one. When the reply also contains an inline code span — a line
+  // number, an identifier, a type — the unclosed-tag rule used to look only at
+  // the *last* prose run, and the tag sat in the first one. Result: a message
+  // that opened with a literal "<thinking>" on screen.
+  it('collapses an unclosed reasoning block that opens before a code span', () => {
+    const msgs: Message[] = [
+      {
+        role: 'assistant',
+        content:
+          '<thinking>The changes were applied successfully. Let me verify the key changes:\n\n' +
+          '1. Line 637: `next_oid: Arc<AtomicI32>,` - field added to struct\n' +
+          '2. Line 751: `next_oid:` initialised',
+        timestamp: Date.now(),
+      },
+    ];
+    const { container } = render(<AIChat provider="ollama" messages={msgs} onMessagesChange={vi.fn()} />);
+
+    expect(container.textContent).not.toContain('<thinking>');
+    expect(screen.getByRole('button', { name: /Work · thinking/ })).toBeInTheDocument();
+    // The reasoning is behind the disclosure, code span and all.
+    expect(screen.queryByText(/field added to struct/)).not.toBeInTheDocument();
+  });
+
   it('leaves tags inside a code block alone', () => {
     const msgs: Message[] = [
       {
