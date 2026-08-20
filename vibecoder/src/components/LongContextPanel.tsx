@@ -19,6 +19,22 @@ interface ModelEntry {
   supports_long_context: boolean;
 }
 
+/**
+ * What the router last said, as one value.
+ *
+ * A failure carries the token count it was about. "No configured model has a
+ * context window large enough for 1,010,000 tokens" is a statement about
+ * 1,010,000 tokens and about nothing else: once the slider moves, nobody has
+ * checked the new number, and leaving the banner up asserts a result that was
+ * never measured. Kept as separate `routing` / `result` / `error` flags it
+ * outlived both the input it described and the tab it belonged to.
+ */
+type RouteState =
+  | { kind: "idle" }
+  | { kind: "routing" }
+  | { kind: "chosen"; result: RouteResult }
+  | { kind: "failed"; message: string; tokenCount: number };
+
 interface IngestProgress {
   file_path: string;
   total_chunks: number;
@@ -33,8 +49,7 @@ export function LongContextPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tokenCount, setTokenCount] = useState(32000);
-  const [routeResult, setRouteResult] = useState<RouteResult | null>(null);
-  const [routing, setRouting] = useState(false);
+  const [route, setRoute] = useState<RouteState>({ kind: "idle" });
   const [filePath, setFilePath] = useState("");
   const [ingestProgress, setIngestProgress] = useState<IngestProgress | null>(null);
   const [ingesting, setIngesting] = useState(false);
@@ -56,15 +71,14 @@ export function LongContextPanel() {
   }, []);
 
   async function runRoute() {
-    setRouting(true);
-    setRouteResult(null);
+    setRoute({ kind: "routing" });
     try {
       const res = await invoke<RouteResult>("long_context_route", { tokenCount });
-      setRouteResult(res ?? null);
+      // A command that answers with nothing chose nothing — that is idle, not
+      // a choice and not a failure.
+      setRoute(res ? { kind: "chosen", result: res } : { kind: "idle" });
     } catch (e) {
-      setError(String(e));
-    } finally {
-      setRouting(false);
+      setRoute({ kind: "failed", message: String(e), tokenCount });
     }
   }
 
@@ -94,6 +108,9 @@ export function LongContextPanel() {
       </div>
       <div className="panel-body">
       {loading && <div className="panel-loading">Loading...</div>}
+      {/* Only the model list's own failure belongs to the whole panel. A
+          routing failure shown here followed the reader onto the models and
+          ingest tabs, where it described nothing on screen. */}
       {error && <div className="panel-error"><span>{error}</span></div>}
 
       {!loading && tab === "routing" && (
@@ -108,19 +125,25 @@ export function LongContextPanel() {
               <span>1k</span><span>2M</span>
             </div>
           </div>
-          <button className="panel-btn" onClick={runRoute} disabled={routing}
-            style={{ padding: "8px 24px", borderRadius: "var(--radius-sm)", cursor: routing ? "not-allowed" : "pointer", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-md)", fontWeight: 600, opacity: routing ? 0.6 : 1, marginBottom: 20 }}>
-            {routing ? "Routing…" : "Find Best Model"}
+          <button className="panel-btn" onClick={runRoute} disabled={route.kind === "routing"}
+            style={{ padding: "8px 24px", borderRadius: "var(--radius-sm)", cursor: route.kind === "routing" ? "not-allowed" : "pointer", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-md)", fontWeight: 600, opacity: route.kind === "routing" ? 0.6 : 1, marginBottom: 20 }}>
+            {route.kind === "routing" ? "Routing…" : "Find Best Model"}
           </button>
-          {routeResult && (
+          {/* The failure is shown only while the slider still reads the number
+              it was about; move the slider and it is a claim about a count
+              nobody routed. */}
+          {route.kind === "failed" && route.tokenCount === tokenCount && (
+            <div className="panel-error" style={{ marginBottom: 20 }}><span>{route.message}</span></div>
+          )}
+          {route.kind === "chosen" && (
             <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)", padding: 16 }}>
-              <div style={{ fontSize: "var(--font-size-md)", fontWeight: 700, color: "var(--accent-color)", marginBottom: 10 }}>{routeResult.chosen_model}</div>
+              <div style={{ fontSize: "var(--font-size-md)", fontWeight: 700, color: "var(--accent-color)", marginBottom: 10 }}>{route.result.chosen_model}</div>
               <div style={{ display: "grid", gridTemplateColumns: "130px 1fr", rowGap: 8, fontSize: "var(--font-size-base)" }}>
                 {[
-                  ["Provider", routeResult.provider],
-                  ["Input Tokens", formatTokens(routeResult.input_tokens)],
-                  ["Cost Estimate", `$${routeResult.cost_estimate_usd.toFixed(4)}`],
-                  ["Reason", routeResult.reason],
+                  ["Provider", route.result.provider],
+                  ["Input Tokens", formatTokens(route.result.input_tokens)],
+                  ["Cost Estimate", `$${route.result.cost_estimate_usd.toFixed(4)}`],
+                  ["Reason", route.result.reason],
                 ].map(([label, value]) => (
                   <>
                     <span key={`l-${label}`} style={{ color: "var(--text-muted)" }}>{label}</span>
