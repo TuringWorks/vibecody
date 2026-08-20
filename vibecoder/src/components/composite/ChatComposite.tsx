@@ -55,6 +55,9 @@ export function ChatComposite({
       <div style={{ flex: 1, minHeight: 0 }}>
         <TabbedPanel
           panelId="chat"
+          // Chat's own tabs are not movable — they take props no generic host
+          // can supply — but Chat can still host a tab moved in from elsewhere.
+          hostProps={{ workspacePath: workspacePath ?? null, provider: defaultProvider }}
           activeTab={activeTab}
           onTabChange={setActiveTab}
           tabs={[

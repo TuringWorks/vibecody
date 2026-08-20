@@ -10,7 +10,14 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   applyLayout,
+  applyPanelMoves,
   moveWithin,
+  movePanelToGroup,
+  moveTabToPanel,
+  resolveGroups,
+  splitTabKey,
+  tabHost,
+  tabsMovedInto,
   toggleHidden,
   tabKey,
   loadLayoutPrefs,
@@ -18,6 +25,7 @@ import {
   resetLayoutPrefs,
   subscribeLayoutPrefs,
   EMPTY_PREFS,
+  type LayoutPrefs,
 } from "../layoutPrefs";
 
 const id = (s: string) => s;
@@ -124,12 +132,33 @@ describe("storage", () => {
   beforeEach(() => localStorage.clear());
 
   it("round-trips", () => {
-    const prefs = {
+    const prefs: LayoutPrefs = {
       order: { groups: ["AI"], panels: { AI: ["chat"] }, tabs: { chat: ["sandbox"] } },
       hidden: { groups: [], panels: ["billing"], tabs: ["chat/sandbox"] },
+      moves: { panels: { billing: "AI" }, tabs: { "design/sketch": "security" } },
     };
     saveLayoutPrefs(prefs);
     expect(loadLayoutPrefs()).toEqual(prefs);
+  });
+
+  it("reads preferences written before moves existed as nothing moved", () => {
+    localStorage.setItem(
+      "vibecoder-layout-prefs:v1",
+      JSON.stringify({ hidden: { panels: ["billing"] } }),
+    );
+    // Not a crash and not a reset: a v1 payload keeps working and simply has
+    // no moves in it.
+    const got = loadLayoutPrefs();
+    expect(got.hidden.panels).toEqual(["billing"]);
+    expect(got.moves).toEqual({ panels: {}, tabs: {} });
+  });
+
+  it("drops a move whose destination is not a string", () => {
+    localStorage.setItem(
+      "vibecoder-layout-prefs:v1",
+      JSON.stringify({ moves: { tabs: { "design/sketch": 7, "design/hub": "security" } } }),
+    );
+    expect(loadLayoutPrefs().moves.tabs).toEqual({ "design/hub": "security" });
   });
 
   it("returns the shipped layout when nothing is stored", () => {
@@ -173,5 +202,154 @@ describe("storage", () => {
     expect(seen).toHaveLength(2);
     expect((seen[0] as typeof EMPTY_PREFS).hidden.panels).toEqual(["billing"]);
     expect(seen[1]).toEqual(EMPTY_PREFS);
+  });
+});
+
+// ── Moves ───────────────────────────────────────────────────────────────────
+
+const GROUPS = [
+  { label: "AI", tabs: ["chat", "agent-os"] },
+  { label: "Code Quality", tabs: ["security", "testing"] },
+];
+
+const prefsWith = (moves: Partial<LayoutPrefs["moves"]>): LayoutPrefs => ({
+  ...EMPTY_PREFS,
+  moves: { panels: {}, tabs: {}, ...moves },
+});
+
+describe("applyPanelMoves", () => {
+  it("leaves the shipped grouping alone when nothing moved", () => {
+    expect(applyPanelMoves(GROUPS, {})).toEqual([
+      { label: "AI", tabs: ["chat", "agent-os"] },
+      { label: "Code Quality", tabs: ["security", "testing"] },
+    ]);
+  });
+
+  it("re-homes a panel into another group", () => {
+    expect(applyPanelMoves(GROUPS, { security: "AI" })).toEqual([
+      { label: "AI", tabs: ["chat", "agent-os", "security"] },
+      { label: "Code Quality", tabs: ["testing"] },
+    ]);
+  });
+
+  it("ignores a destination group that no longer exists", () => {
+    // A group renamed or dropped in a later release must leave the panel where
+    // it ships. A panel nobody can reach is worse than a move that stopped
+    // applying.
+    expect(applyPanelMoves(GROUPS, { security: "Retired Group" })).toEqual([
+      { label: "AI", tabs: ["chat", "agent-os"] },
+      { label: "Code Quality", tabs: ["security", "testing"] },
+    ]);
+  });
+});
+
+describe("movePanelToGroup", () => {
+  it("records the destination", () => {
+    const next = movePanelToGroup(EMPTY_PREFS, "security", "AI", "Code Quality");
+    expect(next.moves.panels).toEqual({ security: "AI" });
+  });
+
+  it("clears the entry when the panel goes back where it ships", () => {
+    // Preferences are a diff. An entry saying a panel is where it already
+    // belongs would pin it there if a later release regrouped it.
+    const moved = movePanelToGroup(EMPTY_PREFS, "security", "AI", "Code Quality");
+    const back = movePanelToGroup(moved, "security", "Code Quality", "Code Quality");
+    expect(back.moves.panels).toEqual({});
+  });
+});
+
+describe("moveTabToPanel", () => {
+  it("keys the move by where the tab ships, not where it lands", () => {
+    const next = moveTabToPanel(EMPTY_PREFS, "design", "sketch", "security");
+    expect(next.moves.tabs).toEqual({ "design/sketch": "security" });
+  });
+
+  it("moves the same tab on again without losing track of it", () => {
+    const once = moveTabToPanel(EMPTY_PREFS, "design", "sketch", "security");
+    const twice = moveTabToPanel(once, "design", "sketch", "testing");
+    expect(twice.moves.tabs).toEqual({ "design/sketch": "testing" });
+  });
+
+  it("clears the entry when the tab goes home", () => {
+    const moved = moveTabToPanel(EMPTY_PREFS, "design", "sketch", "security");
+    expect(moveTabToPanel(moved, "design", "sketch", "design").moves.tabs).toEqual({});
+  });
+
+  it("keeps the rank the tab held, so moving it away and back restores it", () => {
+    // The stale entry is inert — `applyLayout` ranks only the items it is
+    // handed — and it is what puts the tab back where it was on the return
+    // trip instead of at the end of the list.
+    const start: LayoutPrefs = {
+      ...EMPTY_PREFS,
+      order: { ...EMPTY_PREFS.order, tabs: { design: ["sketch", "hub"] } },
+    };
+    const away = moveTabToPanel(start, "design", "sketch", "security");
+    expect(away.order.tabs.design).toEqual(["sketch", "hub"]);
+
+    const back = moveTabToPanel(away, "design", "sketch", "design");
+    expect(back.moves.tabs).toEqual({});
+    expect(
+      applyLayout(
+        [{ key: "design/hub" }, { key: "design/sketch" }],
+        (t) => t.key,
+        back.order.tabs.design.map((id) => `design/${id}`),
+        [],
+      ).map((t) => t.key),
+    ).toEqual(["design/sketch", "design/hub"]);
+  });
+});
+
+describe("tabHost / tabsMovedInto", () => {
+  it("answers with the shipping panel when nothing moved", () => {
+    expect(tabHost("design/sketch", {})).toBe("design");
+  });
+
+  it("answers with the destination once moved", () => {
+    expect(tabHost("design/sketch", { "design/sketch": "security" })).toBe("security");
+  });
+
+  it("lists only tabs that came from somewhere else", () => {
+    const moves = { "design/sketch": "security", "security/scan": "security" };
+    // `security/scan` names its own panel as the destination, which is not a
+    // move — counting it would render the tab twice.
+    expect(tabsMovedInto("security", moves)).toEqual(["design/sketch"]);
+  });
+});
+
+describe("splitTabKey", () => {
+  it("splits at the first slash", () => {
+    expect(splitTabKey("design/sketch")).toEqual({ panelId: "design", tabId: "sketch" });
+  });
+
+  it("treats a bare id as having no panel", () => {
+    // Order lists written before moves existed hold bare tab ids.
+    expect(splitTabKey("sketch")).toEqual({ panelId: "", tabId: "sketch" });
+  });
+});
+
+describe("resolveGroups", () => {
+  it("applies moves, then order, then hiding", () => {
+    const prefs: LayoutPrefs = {
+      ...prefsWith({ panels: { security: "AI" } }),
+      order: { groups: ["Code Quality"], panels: { AI: ["security"] }, tabs: {} },
+      hidden: { groups: [], panels: ["agent-os"], tabs: [] },
+    };
+    expect(resolveGroups(GROUPS, prefs)).toEqual([
+      { label: "Code Quality", tabs: ["testing"] },
+      { label: "AI", tabs: ["security", "chat"] },
+    ]);
+  });
+
+  it("keeps hidden entries listed for the settings screen", () => {
+    const prefs: LayoutPrefs = {
+      ...EMPTY_PREFS,
+      hidden: { groups: ["AI"], panels: ["testing"], tabs: [] },
+    };
+    // Settings is where you go to switch something back on, so it cannot be
+    // the one screen that stops showing it.
+    expect(resolveGroups(GROUPS, prefs, { includeHidden: true })).toEqual([
+      { label: "AI", tabs: ["chat", "agent-os"] },
+      { label: "Code Quality", tabs: ["security", "testing"] },
+    ]);
   });
 });

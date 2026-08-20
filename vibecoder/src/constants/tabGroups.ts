@@ -20,7 +20,8 @@ export const TAB_GROUPS: TabGroup[] = [
   },
   {
     label: "Source Control",
-    tabs: ["version-control", "github", "collaboration"],
+    // "github" is not here: its tabs render inside the Git sidebar panel.
+    tabs: ["version-control", "collaboration"],
   },
   {
     label: "Infrastructure",

@@ -20,7 +20,7 @@ interface Props {
 export function DiagnosticsComposite({ workspacePath, provider, onOpenFile }: Props) {
   const wp = workspacePath;
   return (
-    <TabbedPanel panelId="diagnostics" tabs={[
+    <TabbedPanel panelId="diagnostics" hostProps={{ workspacePath: wp, provider, onOpenFile }} tabs={[
       { id: "deps", label: "Deps", content: <Suspense fallback={<Loading />}><DepsPanel workspacePath={wp} onOpenFile={onOpenFile} /></Suspense> },
       { id: "network", label: "Network", content: <Suspense fallback={<Loading />}><NetworkPanel /></Suspense> },
       { id: "loadtest", label: "Load Test", content: <Suspense fallback={<Loading />}><LoadTestPanel provider={provider} /></Suspense> },

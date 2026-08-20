@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { TAB_GROUPS } from "../constants/tabGroups";
-import { applyLayout } from "../lib/layoutPrefs";
+import { resolveGroups } from "../lib/layoutPrefs";
 import { useLayoutPrefs } from "../hooks/useLayoutPrefs";
 import { TAB_META, DEFAULT_TAB_META } from "../constants/tabMeta";
 import { Search, ChevronDown, ChevronRight, PanelLeftClose } from "lucide-react";
@@ -23,28 +23,15 @@ export function GroupedTabBar({ activeTab, onTabChange, onCollapse }: Props) {
     activeRef.current?.scrollIntoView({ block: "nearest" });
   }, [activeTab]);
 
-  // Settings can reorder the groups and hide either a whole group or single
-  // panels within one. Applied before the search filter so a hidden panel
-  // cannot be surfaced by typing its name.
-  const visibleGroups = useMemo(() => {
-    const ordered = applyLayout(
-      TAB_GROUPS,
-      (g) => g.label,
-      prefs.order.groups,
-      prefs.hidden.groups,
-    );
-    return ordered
-      .map((g) => ({
-        ...g,
-        tabs: applyLayout(
-          g.tabs,
-          (t) => t,
-          prefs.order.panels[g.label] ?? [],
-          prefs.hidden.panels,
-        ),
-      }))
-      .filter((g) => g.tabs.length > 0);
-  }, [prefs]);
+  // Settings can move a panel into another group, reorder groups and panels,
+  // and hide either. `resolveGroups` is that whole rule, shared with the
+  // settings screen so the nav and the editor of the nav cannot disagree.
+  // Applied before the search filter so a hidden panel cannot be surfaced by
+  // typing its name.
+  const visibleGroups = useMemo(
+    () => resolveGroups(TAB_GROUPS, prefs).filter((g) => g.tabs.length > 0),
+    [prefs],
+  );
 
   const filteredGroups = useMemo(() => {
     if (!search.trim()) return visibleGroups;

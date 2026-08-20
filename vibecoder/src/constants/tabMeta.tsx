@@ -3,7 +3,7 @@ import {
   MessageSquare, Brain, UsersRound, Swords, Layers, Factory, Store,
   ClipboardList, Ruler, Activity, Palette,
   Shield, TestTube, TrendingUp, Network,
-  GitBranch, GitPullRequest, Users,
+  GitBranch, Users,
   Hammer, Container, RefreshCw, CloudCog, Workflow, Cpu,
   Database, Globe, Radio,
   Cog, TerminalSquare, Wrench,
@@ -45,7 +45,6 @@ export const TAB_META: Record<string, TabMeta> = {
 
   // --- Source Control ---
   "version-control": { icon: GitBranch,    label: "Version Control",   aliases: ["history", "checkpoints", "bisect"] },
-  github:            { icon: GitPullRequest, label: "GitHub",           aliases: ["ghactions", "gh sync", "github actions"] },
   collaboration:     { icon: Users,        label: "Collaboration",     aliases: ["collab", "compliance", "gateway", "gateway-sandbox", "msg gateway", "telegram", "slack", "discord", "messaging", "webhook bot"] },
 
   // --- Infrastructure ---

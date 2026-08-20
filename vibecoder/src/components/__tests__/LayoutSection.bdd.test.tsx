@@ -50,9 +50,10 @@ describe("Given the shipped layout", () => {
       expect(screen.getByLabelText(`Show the ${group.label} group`)).toBeTruthy();
     }
     // The summary counts what is on, so "all of them" is visible at a glance.
-    // 42 panels are reachable from the nav; three more render without a nav
-    // entry and are not listed here.
-    const summary = screen.getByText((_c, el) => /42 of 42 panels/.test(el?.textContent ?? ""), {
+    // 41 panels are reachable from the nav; four more render without a nav
+    // entry and are not listed here — including "github", whose tabs moved
+    // into the Source Control sidebar.
+    const summary = screen.getByText((_c, el) => /41 of 41 panels/.test(el?.textContent ?? ""), {
       selector: "p",
     });
     expect(summary).toBeTruthy();
@@ -229,5 +230,120 @@ describe("Given a customised layout", () => {
     settings.unmount();
     renderNav();
     expect(navGroupOrder()).toEqual(TAB_GROUPS.map((g) => g.label));
+  });
+});
+
+describe("Given a panel the user looks for in another group", () => {
+  it("When it is moved, Then Settings lists it under the new group", () => {
+    render(<LayoutSection />);
+    fireEvent.change(screen.getByLabelText("Group that shows the Billing panel"), {
+      target: { value: "AI" },
+    });
+
+    // Settings is where you go to find something, so it has to agree with
+    // where the thing now is — listing it under its old group would be a
+    // second place to look.
+    const section = screen.getByLabelText("Show the Billing panel").closest("section");
+    expect(section?.textContent?.startsWith("AI")).toBe(true);
+    expect(loadLayoutPrefs().moves.panels).toEqual({ billing: "AI" });
+  });
+
+  it("When it is moved, Then the nav shows it in the new group and nowhere else", () => {
+    const settings = render(<LayoutSection />);
+    fireEvent.change(screen.getByLabelText("Group that shows the Billing panel"), {
+      target: { value: "AI" },
+    });
+    settings.unmount();
+
+    renderNav();
+    // Exactly one Billing entry: moved, not copied.
+    expect(screen.getAllByText("Billing")).toHaveLength(1);
+  });
+
+  it("When it is moved back to where it ships, Then no preference is left behind", () => {
+    render(<LayoutSection />);
+    const select = () => screen.getByLabelText("Group that shows the Billing panel");
+    fireEvent.change(select(), { target: { value: "AI" } });
+    fireEvent.change(select(), { target: { value: "Settings" } });
+
+    // Preferences are a diff. An entry pinning a panel to the group it already
+    // ships in would survive a later release that regrouped it.
+    expect(loadLayoutPrefs().moves.panels).toEqual({});
+  });
+});
+
+describe("Given a tab the user wants in a different panel", () => {
+  /** Open a panel's tab list in Settings. */
+  function expandPanel(label: string) {
+    fireEvent.click(screen.getByLabelText(`Show the tabs in ${label}`));
+  }
+
+  it("When it is moved, Then Settings lists it under the destination panel", () => {
+    render(<LayoutSection />);
+    expandPanel("Design");
+    fireEvent.change(screen.getByLabelText("Panel that shows the Sketch tab"), {
+      target: { value: "security" },
+    });
+
+    expect(loadLayoutPrefs().moves.tabs).toEqual({ "design/sketch": "security" });
+    // Gone from Design…
+    expect(screen.queryByLabelText("Show the Sketch tab in Design")).toBeNull();
+    // …and listed under Security, labelled with where it came from.
+    expandPanel("Security");
+    expect(screen.getByLabelText("Show the Sketch tab in Security")).toBeTruthy();
+    expect(screen.getByText("from Design")).toBeTruthy();
+  });
+
+  it("When it is moved, Then the panel it left stops rendering it", () => {
+    const settings = render(<LayoutSection />);
+    expandPanel("Design");
+    fireEvent.change(screen.getByLabelText("Panel that shows the Sketch tab"), {
+      target: { value: "security" },
+    });
+    settings.unmount();
+
+    render(
+      <TabbedPanel
+        panelId="design"
+        tabs={[
+          { id: "hub", label: "Hub", content: <div>hub body</div> },
+          { id: "sketch", label: "Sketch", content: <div>sketch body</div> },
+        ]}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Hub" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Sketch" })).toBeNull();
+  });
+
+  it("When every tab has left a panel, Then it says so instead of falling back", () => {
+    // Distinct from the all-hidden case: those tabs are somewhere else now, and
+    // re-showing them here would put the same tab in two panels at once.
+    saveLayoutPrefs({
+      ...EMPTY_PREFS,
+      moves: { panels: {}, tabs: { "design/hub": "security", "design/sketch": "security" } },
+    });
+    render(
+      <TabbedPanel
+        panelId="design"
+        tabs={[
+          { id: "hub", label: "Hub", content: <div>hub body</div> },
+          { id: "sketch", label: "Sketch", content: <div>sketch body</div> },
+        ]}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Hub" })).toBeNull();
+    expect(screen.getByText(/hosted somewhere else/)).toBeTruthy();
+  });
+
+  it("When a tab cannot be moved, Then the control says why rather than failing later", () => {
+    // Chat's tabs take props — its provider list, its pending-write callback —
+    // that no generic host can supply, so they are not in the tab registry.
+    render(<LayoutSection />);
+    fireEvent.click(screen.getByLabelText("Show the tabs in Chat"));
+
+    const select = screen.getByLabelText("Panel that shows the Sandbox tab") as HTMLSelectElement;
+    expect(select.disabled).toBe(true);
+    expect(select.title).toMatch(/cannot be moved/);
   });
 });

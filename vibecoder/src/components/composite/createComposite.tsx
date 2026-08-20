@@ -80,6 +80,9 @@ export function createComposite(tabs: TabDef[], options: CompositeOptions = {}) 
     return (
       <TabbedPanel
         panelId={panelId}
+        // A tab moved in from another panel is rendered by TabbedPanel, not by
+        // this factory, so it needs the standard props handed to it separately.
+        hostProps={{ workspacePath: wp, provider: props.provider, onOpenFile: props.onOpenFile }}
         tabs={lazyComponents.map((t) => ({
           id: t.id,
           label: t.label,

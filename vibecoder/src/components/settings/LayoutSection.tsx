@@ -2,20 +2,27 @@ import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, ArrowUp, ArrowDown, RotateCcw, Search } from "lucide-react";
 import { TAB_GROUPS } from "../../constants/tabGroups";
 import { TAB_META, DEFAULT_TAB_META } from "../../constants/tabMeta";
-import { PANEL_CATALOG } from "../../constants/panelCatalog";
+import { MOVABLE_TABS, PANEL_CATALOG } from "../../constants/panelCatalog";
 import {
   applyLayout,
+  moveTabToPanel,
+  movePanelToGroup,
   moveWithin,
   resetLayoutPrefs,
+  resolveGroups,
   saveLayoutPrefs,
+  splitTabKey,
+  tabHost,
   tabKey,
+  tabsMovedInto,
   toggleHidden,
   type LayoutPrefs,
 } from "../../lib/layoutPrefs";
 import { useLayoutPrefs } from "../../hooks/useLayoutPrefs";
 
 /**
- * Panels & Tabs — turn features off and put the rest in the order you use them.
+ * Panels & Tabs — turn features off, put the rest in the order you use them,
+ * and move them to where you look for them.
  *
  * The app ships 45 panels holding 234 subfeature tabs. That is a lot to leave
  * arranged by whichever order they happened to be written in, and most people
@@ -28,7 +35,11 @@ import { useLayoutPrefs } from "../../hooks/useLayoutPrefs";
  *
  * Reordering is ↑/↓ rather than drag: the result has to be reachable from the
  * keyboard, and dragging a row through a list of 45 is worse than pressing a
- * button twice.
+ * button twice. Moving between parents is a select for the same reason — a
+ * drop target three levels down a scrolling tree is not a keyboard control.
+ *
+ * A moved row is listed under its new parent, not its old one. Settings is
+ * where you go to find something, so it has to agree with where the thing is.
  */
 export function LayoutSection() {
   const prefs = useLayoutPrefs();
@@ -37,17 +48,54 @@ export function LayoutSection() {
 
   const update = (next: LayoutPrefs) => saveLayoutPrefs(next);
 
-  // Ordering with nothing filtered out. `applyLayout` drops hidden entries,
-  // which is right for the nav and wrong here — this is the screen where you
-  // go to un-hide something.
-  const groups = useMemo(
+  // Ordering with nothing filtered out. `resolveGroups` drops hidden entries by
+  // default, which is right for the nav and wrong here — this is the screen
+  // where you go to un-hide something.
+  const groups = useMemo(() => resolveGroups(TAB_GROUPS, prefs, { includeHidden: true }), [prefs]);
+
+  /** Where a panel ships, so a move back there clears the preference. */
+  const shippedGroup = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const g of TAB_GROUPS) for (const p of g.tabs) out[p] = g.label;
+    return out;
+  }, []);
+
+  /** Panels that can host a tab: the ones that render a tab strip at all. */
+  const destinations = useMemo(
     () =>
-      applyLayout(TAB_GROUPS, (g) => g.label, prefs.order.groups, []).map((g) => ({
-        ...g,
-        tabs: applyLayout(g.tabs, (t) => t, prefs.order.panels[g.label] ?? [], []),
-      })),
-    [prefs],
+      TAB_GROUPS.map((g) => ({
+        label: g.label,
+        panels: g.tabs.filter((p) => (PANEL_CATALOG[p] ?? []).length > 0),
+      })).filter((g) => g.panels.length > 0),
+    [],
   );
+
+  const movable = useMemo(() => new Set(MOVABLE_TABS), []);
+
+  /**
+   * The tabs a panel shows: its own minus those moved out, plus those moved in,
+   * in the stored order. Same rule `TabbedPanel` applies at runtime — both go
+   * through `tabHost` / `tabsMovedInto` rather than each deciding for itself.
+   */
+  const hostedTabs = useMemo(() => {
+    const metaOf = (key: string) => {
+      const { panelId, tabId } = splitTabKey(key);
+      const meta = (PANEL_CATALOG[panelId] ?? []).find((t) => t.id === tabId);
+      return meta ? { key, originPanel: panelId, tabId, label: meta.label } : null;
+    };
+    return (panelId: string) => {
+      const own = (PANEL_CATALOG[panelId] ?? [])
+        .map((t) => tabKey(panelId, t.id))
+        .filter((key) => tabHost(key, prefs.moves.tabs) === panelId);
+      const all = [...own, ...tabsMovedInto(panelId, prefs.moves.tabs)]
+        .map(metaOf)
+        .filter((t): t is NonNullable<ReturnType<typeof metaOf>> => t !== null);
+      const order = (prefs.order.tabs[panelId] ?? []).map((id) =>
+        id.includes("/") ? id : tabKey(panelId, id),
+      );
+      return applyLayout(all, (t) => t.key, order, []);
+    };
+  }, [prefs]);
 
   const q = query.trim().toLowerCase();
   const matches = (panelId: string, groupLabel: string) => {
@@ -57,7 +105,7 @@ export function LayoutSection() {
       panelId.includes(q) ||
       meta.label.toLowerCase().includes(q) ||
       groupLabel.toLowerCase().includes(q) ||
-      (PANEL_CATALOG[panelId] ?? []).some((t) => t.label.toLowerCase().includes(q))
+      hostedTabs(panelId).some((t) => t.label.toLowerCase().includes(q))
     );
   };
 
@@ -73,6 +121,7 @@ export function LayoutSection() {
       panelsOn: panels.filter((p) => !prefs.hidden.panels.includes(p)).length,
       tabs: tabs.length,
       tabsOn: tabs.filter((k) => !prefs.hidden.tabs.includes(k)).length,
+      moved: Object.keys(prefs.moves.panels).length + Object.keys(prefs.moves.tabs).length,
     };
   }, [prefs]);
 
@@ -95,18 +144,22 @@ export function LayoutSection() {
     });
   };
 
-  const moveTab = (panelId: string, tabId: string, delta: -1 | 1) => {
-    const current = applyLayout(
-      PANEL_CATALOG[panelId] ?? [],
-      (t) => t.id,
-      prefs.order.tabs[panelId] ?? [],
-      [],
-    ).map((t) => t.id);
+  const moveTab = (hostPanelId: string, key: string, delta: -1 | 1) => {
+    const current = hostedTabs(hostPanelId).map((t) => t.key);
     update({
       ...prefs,
-      order: { ...prefs.order, tabs: { ...prefs.order.tabs, [panelId]: moveWithin(current, tabId, delta) } },
+      order: {
+        ...prefs.order,
+        tabs: { ...prefs.order.tabs, [hostPanelId]: moveWithin(current, key, delta) },
+      },
     });
   };
+
+  const rehomePanel = (panelId: string, group: string) =>
+    update(movePanelToGroup(prefs, panelId, group, shippedGroup[panelId] ?? group));
+
+  const rehomeTab = (originPanel: string, tabId: string, destination: string) =>
+    update(moveTabToPanel(prefs, originPanel, tabId, destination));
 
   const setGroupHidden = (label: string, hide: boolean) =>
     update({ ...prefs, hidden: { ...prefs.hidden, groups: toggleHidden(prefs.hidden.groups, label, hide) } });
@@ -114,11 +167,8 @@ export function LayoutSection() {
   const setPanelHidden = (panelId: string, hide: boolean) =>
     update({ ...prefs, hidden: { ...prefs.hidden, panels: toggleHidden(prefs.hidden.panels, panelId, hide) } });
 
-  const setTabHidden = (panelId: string, tabId: string, hide: boolean) =>
-    update({
-      ...prefs,
-      hidden: { ...prefs.hidden, tabs: toggleHidden(prefs.hidden.tabs, tabKey(panelId, tabId), hide) },
-    });
+  const setTabHidden = (key: string, hide: boolean) =>
+    update({ ...prefs, hidden: { ...prefs.hidden, tabs: toggleHidden(prefs.hidden.tabs, key, hide) } });
 
   const toggleExpanded = (panelId: string) =>
     setExpanded((prev) => {
@@ -144,7 +194,8 @@ export function LayoutSection() {
       </div>
       <p style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", marginTop: 0 }}>
         {totals.panelsOn} of {totals.panels} panels and {totals.tabsOn} of {totals.tabs} tabs are
-        shown. Hidden features stay listed here so you can turn them back on.
+        shown{totals.moved > 0 ? `, and ${totals.moved} ${totals.moved === 1 ? "is" : "are"} moved from where ${totals.moved === 1 ? "it ships" : "they ship"}` : ""}.
+        Hidden features stay listed here so you can turn them back on.
       </p>
 
       <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "12px 0", padding: "4px 10px", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)" }}>
@@ -190,12 +241,7 @@ export function LayoutSection() {
             {group.tabs.map((panelId, pi) => {
               const meta = TAB_META[panelId] || DEFAULT_TAB_META;
               const panelHidden = prefs.hidden.panels.includes(panelId);
-              const subtabs = applyLayout(
-                PANEL_CATALOG[panelId] ?? [],
-                (t) => t.id,
-                prefs.order.tabs[panelId] ?? [],
-                [],
-              );
+              const subtabs = hostedTabs(panelId);
               const isOpen = expanded.has(panelId);
               return (
                 <div key={panelId} style={{ marginTop: 6, opacity: panelHidden ? 0.55 : 1 }}>
@@ -223,6 +269,20 @@ export function LayoutSection() {
                     <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>
                       {subtabs.length > 0 ? `${subtabs.length} tabs` : "single view"}
                     </span>
+                    <select
+                      className="panel-input"
+                      value={group.label}
+                      onChange={(e) => rehomePanel(panelId, e.target.value)}
+                      aria-label={`Group that shows the ${meta.label} panel`}
+                      style={selectStyle}
+                    >
+                      {TAB_GROUPS.map((g) => (
+                        <option key={g.label} value={g.label}>
+                          {g.label}
+                          {shippedGroup[panelId] === g.label ? " (default)" : ""}
+                        </option>
+                      ))}
+                    </select>
                     <Reorder
                       label={meta.label}
                       onUp={() => movePanel(group.label, panelId, -1)}
@@ -235,23 +295,54 @@ export function LayoutSection() {
 
                   {isOpen &&
                     subtabs.map((t, ti) => {
-                      const hidden = prefs.hidden.tabs.includes(tabKey(panelId, t.id));
+                      const hidden = prefs.hidden.tabs.includes(t.key);
+                      const canMove = movable.has(t.key);
+                      const homeLabel = (TAB_META[t.originPanel] || DEFAULT_TAB_META).label;
                       return (
                         <div
-                          key={t.id}
+                          key={t.key}
                           style={{ display: "flex", alignItems: "center", gap: 8, paddingLeft: 56, marginTop: 3, opacity: hidden ? 0.55 : 1 }}
                         >
                           <input
                             type="checkbox"
                             checked={!hidden}
-                            onChange={(e) => setTabHidden(panelId, t.id, !e.target.checked)}
+                            onChange={(e) => setTabHidden(t.key, !e.target.checked)}
                             aria-label={`Show the ${t.label} tab in ${meta.label}`}
                           />
                           <span style={{ fontSize: "var(--font-size-sm)" }}>{t.label}</span>
+                          {t.originPanel !== panelId && (
+                            <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
+                              from {homeLabel}
+                            </span>
+                          )}
+                          <select
+                            className="panel-input"
+                            value={panelId}
+                            disabled={!canMove}
+                            onChange={(e) => rehomeTab(t.originPanel, t.tabId, e.target.value)}
+                            aria-label={`Panel that shows the ${t.label} tab`}
+                            title={
+                              canMove
+                                ? undefined
+                                : `${t.label} needs settings only ${homeLabel} can give it, so it cannot be moved.`
+                            }
+                            style={{ ...selectStyle, marginLeft: "auto" }}
+                          >
+                            {destinations.map((g) => (
+                              <optgroup key={g.label} label={g.label}>
+                                {g.panels.map((p) => (
+                                  <option key={p} value={p}>
+                                    {(TAB_META[p] || DEFAULT_TAB_META).label}
+                                    {t.originPanel === p ? " (default)" : ""}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            ))}
+                          </select>
                           <Reorder
                             label={`${t.label} tab`}
-                            onUp={() => moveTab(panelId, t.id, -1)}
-                            onDown={() => moveTab(panelId, t.id, 1)}
+                            onUp={() => moveTab(panelId, t.key, -1)}
+                            onDown={() => moveTab(panelId, t.key, 1)}
                             first={ti === 0}
                             last={ti === subtabs.length - 1}
                             disabled={Boolean(q)}
@@ -268,6 +359,12 @@ export function LayoutSection() {
     </div>
   );
 }
+
+const selectStyle = {
+  fontSize: "var(--font-size-xs)",
+  padding: "1px 4px",
+  maxWidth: 160,
+} as const;
 
 /**
  * Move-up / move-down for one row.
@@ -293,7 +390,7 @@ function Reorder({
 }) {
   const style = { background: "none", border: "none", padding: 2, cursor: "pointer", color: "var(--text-secondary)" };
   return (
-    <span style={{ marginLeft: "auto", display: "flex", gap: 2 }}>
+    <span style={{ display: "flex", gap: 2 }}>
       <button
         className="panel-btn"
         style={style}

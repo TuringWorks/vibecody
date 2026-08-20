@@ -1,0 +1,4 @@
+{
+  "_comment": "Panels rendered somewhere other than the AI panel's lazy switch in LazyPanels.tsx. Both the catalog generator and panelCatalog.contract.test.ts read this file, so the two cannot disagree about which panels exist. Value is the composite module path, relative to src/components.",
+  "github": "composite/GitHubComposite"
+}

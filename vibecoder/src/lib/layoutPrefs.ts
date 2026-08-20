@@ -20,6 +20,12 @@
  * the preferences and returns the list to render. It touches no storage and no
  * React, so the ordering rules can be tested directly rather than through a
  * component that happens to call them.
+ *
+ * **A move is stored against the thing's original home, never its new one.**
+ * `moves.tabs["design/sketch"] = "security"` reads "the Sketch tab that ships
+ * in Design is hosted by Security". Re-keying it to its destination would make
+ * the identity move too, and then hiding it, ordering it, or moving it a second
+ * time would all be looking for a key that no longer exists.
  */
 
 /** Storage key. Versioned so a future incompatible shape can be migrated. */
@@ -31,7 +37,8 @@ export interface LayoutPrefs {
     groups: string[];
     /** Keyed by group label. */
     panels: Record<string, string[]>;
-    /** Keyed by panel id. */
+    /** Keyed by panel id. Entries are tab ids, or `panelId/tabId` keys for a
+     *  tab moved in from another panel. */
     tabs: Record<string, string[]>;
   };
   /** Ids the user switched off. Tabs are namespaced `panelId/tabId`. */
@@ -40,17 +47,35 @@ export interface LayoutPrefs {
     panels: string[];
     tabs: string[];
   };
+  /** Things re-homed somewhere other than where they ship. Keyed by the
+   *  original id, valued by the destination. */
+  moves: {
+    /** Panel id → the group label that now shows it. */
+    panels: Record<string, string>;
+    /** `panelId/tabId` → the panel id that now hosts that tab. */
+    tabs: Record<string, string>;
+  };
 }
 
 export const EMPTY_PREFS: LayoutPrefs = {
   order: { groups: [], panels: {}, tabs: {} },
   hidden: { groups: [], panels: [], tabs: [] },
+  moves: { panels: {}, tabs: {} },
 };
 
 /** A tab's key in `hidden.tabs`. Tab ids repeat across panels — "dashboard"
  *  appears in many — so hiding one must not hide its namesakes. */
 export function tabKey(panelId: string, tabId: string): string {
   return `${panelId}/${tabId}`;
+}
+
+/** The panel a tab key belongs to, and the tab's own id. */
+export function splitTabKey(key: string): { panelId: string; tabId: string } {
+  const at = key.indexOf("/");
+  // No separator means it is a bare tab id, which only happens for an order
+  // list written before moves existed. Those are always the host's own tabs.
+  if (at < 0) return { panelId: "", tabId: key };
+  return { panelId: key.slice(0, at), tabId: key.slice(at + 1) };
 }
 
 /**
@@ -107,6 +132,130 @@ export function toggleHidden(hidden: readonly string[], key: string, hide: boole
   return hide ? [...hidden, key] : hidden.filter(k => k !== key);
 }
 
+// ── Moves ───────────────────────────────────────────────────────────────────
+
+/**
+ * Record (or clear) where a thing is hosted.
+ *
+ * Setting the destination back to where it ships **deletes** the entry rather
+ * than storing an identity move. Preferences are a diff; an entry that says
+ * "Design's Sketch tab lives in Design" is not a preference, and keeping it
+ * would pin the tab to a group it might be moved out of in a later release.
+ */
+function setMove(
+  moves: Readonly<Record<string, string>>,
+  key: string,
+  destination: string,
+  shippedHome: string,
+): Record<string, string> {
+  const next = { ...moves };
+  if (destination === shippedHome) delete next[key];
+  else next[key] = destination;
+  return next;
+}
+
+/** Host `panelId` in `group`, or send it home by passing its shipped group. */
+export function movePanelToGroup(
+  prefs: LayoutPrefs,
+  panelId: string,
+  group: string,
+  shippedGroup: string,
+): LayoutPrefs {
+  return {
+    ...prefs,
+    moves: { ...prefs.moves, panels: setMove(prefs.moves.panels, panelId, group, shippedGroup) },
+  };
+}
+
+/**
+ * Host a tab in `destinationPanel`.
+ *
+ * The tab keeps its origin key, so its visibility and its position are still
+ * addressed the same way wherever it lands — and the rank it held in the panel
+ * it left is kept, not cleared, so moving it away and back puts it where it
+ * was. A rank naming a tab that is elsewhere is inert: `applyLayout` ranks only
+ * the items it is given.
+ */
+export function moveTabToPanel(
+  prefs: LayoutPrefs,
+  panelId: string,
+  tabId: string,
+  destinationPanel: string,
+): LayoutPrefs {
+  const key = tabKey(panelId, tabId);
+  return {
+    ...prefs,
+    moves: { ...prefs.moves, tabs: setMove(prefs.moves.tabs, key, destinationPanel, panelId) },
+  };
+}
+
+/** The panel currently hosting the tab named by `key`. */
+export function tabHost(key: string, moves: Readonly<Record<string, string>>): string {
+  return moves[key] ?? splitTabKey(key).panelId;
+}
+
+/** The keys of tabs moved *into* `panelId` from somewhere else. */
+export function tabsMovedInto(
+  panelId: string,
+  moves: Readonly<Record<string, string>>,
+): string[] {
+  return Object.entries(moves)
+    .filter(([key, dest]) => dest === panelId && splitTabKey(key).panelId !== panelId)
+    .map(([key]) => key);
+}
+
+/**
+ * Re-home panels according to `moves`, keeping each group's relative order.
+ *
+ * A destination that is not a real group is ignored. A stale preference — a
+ * group renamed or dropped in a later release — must leave the panel where it
+ * ships, not delete it from the layout: a panel nobody can reach is a worse
+ * outcome than a move that stopped applying.
+ */
+export function applyPanelMoves(
+  groups: readonly { label: string; tabs: readonly string[] }[],
+  moves: Readonly<Record<string, string>>,
+): { label: string; tabs: string[] }[] {
+  const known = new Set(groups.map((g) => g.label));
+  const homeOf = (panelId: string, shipped: string) => {
+    const dest = moves[panelId];
+    return dest && known.has(dest) ? dest : shipped;
+  };
+  const byGroup = new Map(groups.map((g) => [g.label, [] as string[]]));
+  for (const group of groups) {
+    for (const panelId of group.tabs) {
+      byGroup.get(homeOf(panelId, group.label))!.push(panelId);
+    }
+  }
+  return groups.map((g) => ({ label: g.label, tabs: byGroup.get(g.label) ?? [] }));
+}
+
+/**
+ * The groups to render: moves applied, then ordered, then hidden entries
+ * dropped.
+ *
+ * Shared by the sidebar and the settings screen so the two cannot disagree
+ * about what the layout is. They differ in one thing only: settings shows what
+ * is switched off, because it is where you go to switch it back on.
+ */
+export function resolveGroups(
+  groups: readonly { label: string; tabs: readonly string[] }[],
+  prefs: LayoutPrefs,
+  opts: { includeHidden?: boolean } = {},
+): { label: string; tabs: string[] }[] {
+  const hiddenGroups = opts.includeHidden ? [] : prefs.hidden.groups;
+  const hiddenPanels = opts.includeHidden ? [] : prefs.hidden.panels;
+  return applyLayout(
+    applyPanelMoves(groups, prefs.moves.panels),
+    (g) => g.label,
+    prefs.order.groups,
+    hiddenGroups,
+  ).map((g) => ({
+    label: g.label,
+    tabs: applyLayout(g.tabs, (t) => t, prefs.order.panels[g.label] ?? [], hiddenPanels),
+  }));
+}
+
 // ── Storage ─────────────────────────────────────────────────────────────────
 
 /**
@@ -126,6 +275,14 @@ function coerce(raw: unknown): LayoutPrefs {
       Object.entries(v as Record<string, unknown>).map(([k, val]) => [k, arr(val)]),
     );
   };
+  const strRec = (v: unknown): Record<string, string> => {
+    if (!v || typeof v !== "object") return {};
+    return Object.fromEntries(
+      Object.entries(v as Record<string, unknown>).filter(
+        (e): e is [string, string] => typeof e[1] === "string" && e[1].length > 0,
+      ),
+    );
+  };
   return {
     order: {
       groups: arr(o.order?.groups),
@@ -136,6 +293,10 @@ function coerce(raw: unknown): LayoutPrefs {
       groups: arr(o.hidden?.groups),
       panels: arr(o.hidden?.panels),
       tabs: arr(o.hidden?.tabs),
+    },
+    moves: {
+      panels: strRec(o.moves?.panels),
+      tabs: strRec(o.moves?.tabs),
     },
   };
 }
