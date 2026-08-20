@@ -893,7 +893,7 @@ and several hints need a platform choice first.
 | `save_mcp_servers(servers)` | Persist MCP server configurations |
 | `test_mcp_server(server)` | Test a server and list its tools |
 | `initiate_mcp_oauth(server_name, client_id, auth_url, token_url, redirect_uri, scopes)` | Build OAuth URL and open browser for authorization |
-| `complete_mcp_oauth(server_name, auth_code, client_id, token_url, redirect_uri)` | Exchange auth code for token, persist to `~/.vibecoder/mcp-tokens.json` |
+| `complete_mcp_oauth(server_name, auth_code, client_id, token_url, redirect_uri)` | Exchange auth code for token, persist encrypted in the ProfileStore under `mcp.oauth.<server>` |
 | `get_mcp_token_status(server_name)` | Check OAuth token status (connected/expired) |
 
 #### MCP OAuth Flow
@@ -903,7 +903,7 @@ The MCP panel supports OAuth 2.0 for authenticating with MCP servers:
 1. Click **OAuth**on a server → enter Client ID, Auth URL, Token URL, and Scopes
 2. Click **Open Browser** → authorize in your browser
 3. Paste the authorization code back into the modal
-4. Token is exchanged and stored at `~/.vibecoder/mcp-tokens.json`
+4. Token is exchanged and stored encrypted in the ProfileStore (`~/.vibecli/profile_settings.db`) under `mcp.oauth.<server>`. A pre-0.5.9 `~/.vibecoder/mcp-tokens.json` is migrated into the store and deleted on first read.
 
 Connected servers show a green **OAuth**badge.
 

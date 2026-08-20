@@ -167,12 +167,26 @@ fn cleanup_legacy(company_id: &str) {
     let _ = std::fs::remove_file(legacy_key_path(company_id));
 }
 
+/// Last-resort master-key storage for headless / CI hosts where neither the
+/// ProfileStore nor an OS keychain is available.
+///
+/// The file is the master key for every company secret, so it is restricted to
+/// the owner. A failure to restrict it is reported rather than swallowed: a
+/// world-readable master key is worth more to an attacker than any single
+/// secret it protects, and the caller can still decide to continue.
 fn write_key_file(company_id: &str, key: &[u8; 32]) -> Result<()> {
     let path = legacy_key_path(company_id);
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).ok();
     }
-    std::fs::write(&path, hex::encode(key)).context("writing master key file")
+    std::fs::write(&path, hex::encode(key)).context("writing master key file")?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))
+            .with_context(|| format!("restricting {} to mode 0600", path.display()))?;
+    }
+    Ok(())
 }
 
 // ── Encryption / Decryption ───────────────────────────────────────────────────

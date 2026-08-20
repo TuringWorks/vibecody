@@ -268,9 +268,14 @@ The CI/CD panel provides four views:
 
 ### Step 9: Configure pipeline alerts in config.toml
 
+The GitHub token is **not** part of this file — secrets never go in `config.toml`.
+Store it once with `vibecli set-key github ghp_...`, or in VibeCoder under
+**Settings → Integrations → Infrastructure**; both write to the encrypted
+ProfileStore and every GitHub feature reads from there (falling back to
+`GITHUB_TOKEN` / `GH_TOKEN` in the environment when nothing is stored).
+
 ```toml
 [cicd]
-github_token = "ghp_..."
 poll_interval_seconds = 30
 notify_on = ["failure", "cancelled"]
 

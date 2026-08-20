@@ -95,6 +95,11 @@ pub fn run() {
             vibe_desktop_settings::settings::setting_get_all,
             vibe_desktop_settings::settings::oauth_client_set,
             vibe_desktop_settings::settings::oauth_client_has,
+            // Remote-daemon bearer token, encrypted in the same store. Without
+            // these the settings field saves nowhere and every request to a
+            // remote daemon 401s.
+            vibe_desktop_settings::settings::daemon_token_set,
+            vibe_desktop_settings::settings::daemon_token_get,
             // Voice input. The composer's mic button calls `transcribe_audio`
             // via `tauriTranscriber()` in packages/vibe-ui-shared; without
             // these registrations the button records and then silently fails.

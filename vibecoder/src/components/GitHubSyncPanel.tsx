@@ -31,7 +31,6 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
  const [error, setError] = useState<string | null>(null);
  const [success, setSuccess] = useState<string | null>(null);
  const [activeTab, setActiveTab] = useState<"sync" | "repos" | "create">("sync");
- const [token, setToken] = useState("");
  const [tokenSaved, setTokenSaved] = useState(false);
 
  useEffect(() => {
@@ -41,8 +40,19 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
  // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [workspacePath]);
 
+ // Settings owns the token; re-read when it is saved or cleared there.
+ useEffect(() => {
+ const onChanged = (e: Event) => {
+ const detail = (e as CustomEvent<{ field?: string }>).detail;
+ if (detail?.field === "github_token") checkToken();
+ };
+ window.addEventListener("vibecoder:integration-token-changed", onChanged);
+ return () => window.removeEventListener("vibecoder:integration-token-changed", onChanged);
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [workspacePath]);
+
  if (!workspacePath) {
- return <div className="empty-state"><p>Open a workspace folder to use GitHub sync.</p></div>;
+ return <div className="empty-state"><p>Open a workspace folder to use the GitHub remote panel.</p></div>;
  }
 
  const checkToken = async () => {
@@ -59,10 +69,10 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
  } catch { /* not a git repo or no remote */ }
  };
 
- /** Commit/stage/push all live in the Source Control sidebar; this panel only
-  *  ever links there so there is one place that writes to the repo. */
- const openSourceControl = () =>
-   window.dispatchEvent(new CustomEvent("vibecoder:open-sidebar-tab", { detail: "git" }));
+ /** Staging, commits, push and pull are the Changes half of this same panel —
+  *  one place that writes to the repo. */
+ const openChanges = () =>
+   window.dispatchEvent(new CustomEvent("vibecoder:git-view", { detail: "changes" }));
 
  const createRepo = async () => {
  if (!newRepoName.trim()) { setError("Repository name required"); return; }
@@ -87,18 +97,12 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
  finally { setLoading(false); }
  };
 
- const saveToken = async () => {
- if (!token.trim()) return;
- setLoading(true);
- try {
- await invoke("save_github_token", { workspacePath, token });
- setTokenSaved(true);
- setToken("");
- setSuccess("GitHub token saved");
- await loadStatus();
- } catch (e) { setError(String(e)); }
- finally { setLoading(false); }
- };
+ /** The token lives in Settings → Integrations → Infrastructure, encrypted in
+  *  the profile store. This panel reads whether one is set and links there. */
+ const openTokenSettings = () =>
+   window.dispatchEvent(new CustomEvent("vibecoder:open-settings", {
+     detail: { section: "integrations", category: "infra" },
+   }));
 
  const statusBadgeBg = (n: number, type: "ahead" | "behind") =>
    n > 0 ? (type === "ahead" ? "var(--success-bg)" : "var(--error-bg)") : "var(--bg-secondary)";
@@ -139,12 +143,11 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
  </div>
 
  {!tokenSaved && (
- <div style={{ padding: "12px 12px", background: "var(--warning-bg)", borderBottom: "1px solid var(--border-color)" }}>
- <div style={{ fontSize: "var(--font-size-base)", marginBottom: "8px", color: "var(--warning-color)" }}>GitHub token required to list or create repositories</div>
- <div style={{ display: "flex", gap: "8px" }}>
- <input className="panel-input" style={{ flex: 1 }} type="password" placeholder="ghp_..." value={token} onChange={e => setToken(e.target.value)} />
- <button className="panel-btn panel-btn-primary" onClick={saveToken}>Save</button>
+ <div style={{ padding: "12px", background: "var(--warning-bg)", borderBottom: "1px solid var(--border-color)", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+ <div style={{ flex: 1, minWidth: "220px", fontSize: "var(--font-size-base)", color: "var(--warning-color)" }}>
+ No GitHub token set — listing and creating repositories needs one.
  </div>
+ <button className="panel-btn panel-btn-primary" onClick={openTokenSettings}>Add token in Settings</button>
  </div>
  )}
 
@@ -175,18 +178,19 @@ export function GitHubSyncPanel({ workspacePath }: { workspacePath: string | nul
  {status?.has_remote && (
  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
  <div className="panel-section" style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", lineHeight: 1.5 }}>
- Staging, commits, push and pull live in <strong>Source Control</strong> in the
- left sidebar — one place that writes to this repo. This panel covers the
- GitHub account side: token, repositories, and remote state.
+ Staging, commits, push and pull are in the <strong>Changes</strong> tab — one
+ place that writes to this repo. This tab covers the GitHub account side:
+ repositories and remote state. The access token lives in Settings →
+ Integrations → Infrastructure.
  </div>
  <div style={{ display: "flex", gap: "8px" }}>
- <button className="panel-btn panel-btn-primary" style={{ flex: 1 }} onClick={openSourceControl}>Open Source Control</button>
+ <button className="panel-btn panel-btn-primary" style={{ flex: 1 }} onClick={openChanges}>Go to Changes</button>
  <button className="panel-btn panel-btn-secondary" onClick={loadStatus} disabled={loading} aria-label="Refresh remote status">⟳</button>
  </div>
  {!tracked && (
  <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
  {status.branch ? `${status.branch} tracks no remote branch` : "HEAD is not on a branch"} — push once from
- Source Control to set the upstream, then ahead/behind counts appear here.
+ the Changes tab to set the upstream, then ahead/behind counts appear here.
  </div>
  )}
  {status.last_synced && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Last synced: {status.last_synced}</div>}

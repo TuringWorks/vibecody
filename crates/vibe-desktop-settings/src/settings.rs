@@ -227,3 +227,43 @@ pub async fn oauth_client_has(provider: String) -> Result<bool, String> {
         .get_provider_config(DEFAULT_PROFILE, &ns, "client_id")?
         .is_some())
 }
+
+// ── Daemon bearer token ─────────────────────────────────────────────────────
+//
+// The token a shell presents to a *remote* daemon. A local daemon needs none of
+// this: the backend reads `~/.vibecli/daemon.token` (mode 0600, rewritten on
+// every daemon start) when the field is blank.
+//
+// This lived in `localStorage` — a plaintext file in the webview's profile
+// directory, readable by any process running as the user and swept up by
+// backups and file sync. It is a bearer token for a machine's whole daemon API,
+// so it belongs in the encrypted store like every other credential.
+//
+// Unlike the provider API keys above, this one has a getter. The token is not
+// kept from the page: the page is what presents it on every request, so
+// returning it changes nothing about who can see it. What changes is that it is
+// no longer written to disk in the clear.
+
+/// ProfileStore provider key for the daemon bearer token.
+const DAEMON_TOKEN_KEY: &str = "__daemon__:bearer";
+
+/// Store the bearer token for a remote daemon. An empty value clears it —
+/// blanking the field must delete the stored token, not keep the old one alive.
+#[tauri::command]
+pub async fn daemon_token_set(token: String) -> Result<(), String> {
+    let s = store()?;
+    if token.trim().is_empty() {
+        s.delete_api_key(DEFAULT_PROFILE, DAEMON_TOKEN_KEY)
+    } else {
+        s.set_api_key(DEFAULT_PROFILE, DAEMON_TOKEN_KEY, token.trim())
+    }
+}
+
+/// The stored bearer token, or null when none is set (the local-daemon case).
+#[tauri::command]
+pub async fn daemon_token_get() -> Result<serde_json::Value, String> {
+    match store()?.get_api_key(DEFAULT_PROFILE, DAEMON_TOKEN_KEY)? {
+        Some(t) if !t.is_empty() => Ok(serde_json::Value::String(t)),
+        _ => Ok(serde_json::Value::Null),
+    }
+}

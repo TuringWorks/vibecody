@@ -65,12 +65,37 @@ interface Message {
 
 const DAEMON_URL_KEY   = "vibeaichat_daemon_url";
 const PROVIDER_KEY     = "vibeaichat_provider";
-const DAEMON_TOKEN_KEY = "vibeaichat_daemon_token";
 const MODEL_KEY        = "vibeaichat_model";
 const DEFAULT_URL      = "http://localhost:7878";
 
+/// Pre-encryption key for the daemon bearer token. Read once so an upgrading
+/// install keeps working, then removed — see `migrateDaemonToken` below.
+const LEGACY_DAEMON_TOKEN_KEY = "vibeaichat_daemon_token";
+
 function loadSetting(key: string, fallback: string): string {
   return localStorage.getItem(key) ?? fallback;
+}
+
+/**
+ * The bearer token for a remote daemon, from the encrypted ProfileStore.
+ *
+ * It used to be saved in `localStorage`, which is a plaintext file in the
+ * webview profile directory — a token for a machine's entire daemon API, on
+ * disk in the clear. A copy left there is migrated into the store and deleted.
+ */
+async function loadDaemonToken(): Promise<string> {
+  const stored = await invoke<string | null>("daemon_token_get");
+  if (typeof stored === "string" && stored.length > 0) {
+    localStorage.removeItem(LEGACY_DAEMON_TOKEN_KEY);
+    return stored;
+  }
+  const legacy = localStorage.getItem(LEGACY_DAEMON_TOKEN_KEY) ?? "";
+  if (!legacy) return "";
+  // Move it rather than drop it: the user would otherwise be 401ing against
+  // their remote daemon with no hint that we discarded the token.
+  await invoke("daemon_token_set", { token: legacy });
+  localStorage.removeItem(LEGACY_DAEMON_TOKEN_KEY);
+  return legacy;
 }
 
 // ── Model catalog — daemon is the single source of truth ─────────────────────
@@ -129,7 +154,9 @@ export default function App() {
   const [loading, setLoading]       = useState(false);
   const [daemonUrl, setDaemonUrl]   = useState(() => loadSetting(DAEMON_URL_KEY, DEFAULT_URL));
   const [provider, setProvider]     = useState(() => loadSetting(PROVIDER_KEY, "claude"));
-  const [daemonToken, setDaemonToken] = useState(() => loadSetting(DAEMON_TOKEN_KEY, ""));
+  // Hydrated from the encrypted store below, never from localStorage.
+  const [daemonToken, setDaemonToken] = useState("");
+  const [tokenError, setTokenError] = useState<string | null>(null);
   const [daemonOk, setDaemonOk]     = useState<boolean | null>(null);
   const [pinned, setPinned]         = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -138,6 +165,14 @@ export default function App() {
 
   const bottomRef   = useRef<HTMLDivElement>(null);
   const inputRef    = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadDaemonToken()
+      .then(token => { if (!cancelled && token) setDaemonToken(token); })
+      .catch(e => { if (!cancelled) setTokenError(`Could not read the saved API token: ${e}`); });
+    return () => { cancelled = true; };
+  }, []);
 
   // ── Daemon health-check + model discovery ───────────────────────────────
   useEffect(() => {
@@ -360,6 +395,7 @@ export default function App() {
             placeholder="read from ~/.vibecli/daemon.token when blank"
           />
         </label>
+        {tokenError && <p className="settings-hint" role="alert">{tokenError}</p>}
         <p className="settings-hint">
           Leave the token blank unless you are pointing at a daemon on another
           machine. The token is regenerated every time the daemon starts, so a
@@ -402,11 +438,20 @@ export default function App() {
   };
 
   // ── Save settings ────────────────────────────────────────────────────────
-  const saveSettings = () => {
+  const saveSettings = async () => {
     localStorage.setItem(DAEMON_URL_KEY, daemonUrl);
     localStorage.setItem(PROVIDER_KEY, provider);
-    localStorage.setItem(DAEMON_TOKEN_KEY, daemonToken);
     localStorage.setItem(MODEL_KEY, selectedModel);
+    // The token is the one secret here, so it goes to the encrypted store — and
+    // the panel stays open on a failure rather than reporting a save that did
+    // not happen.
+    try {
+      await invoke("daemon_token_set", { token: daemonToken });
+      setTokenError(null);
+    } catch (e) {
+      setTokenError(`Could not save the API token: ${e}`);
+      return;
+    }
     setShowSettings(false);
   };
 

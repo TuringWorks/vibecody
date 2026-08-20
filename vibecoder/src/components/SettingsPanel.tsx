@@ -25,7 +25,10 @@ import { ExperimentalBadge } from "./ExperimentalBadge";
 
 /* ── Types ──────────────────────────────────────────────────────────── */
 
-type SettingsSection = "profile" | "appearance" | "layout" | "oauth" | "customizations" | "apikeys" | "embeddings" | "integrations" | "sessions" | "jobs";
+export type SettingsSection = "profile" | "appearance" | "layout" | "oauth" | "customizations" | "apikeys" | "embeddings" | "integrations" | "sessions" | "jobs";
+
+/** Where a deep link (`vibecoder:open-settings`) should land. */
+export interface SettingsTarget { section: SettingsSection; category?: IntegrationCategory }
 
 interface SessionsSettings {
   recapOnTabClose: boolean;
@@ -1355,7 +1358,7 @@ function ApiKeysSection() {
 
 /* ── Integrations Section ──────────────────────────────────────────── */
 
-type IntegrationCategory = "email" | "calendar" | "projecttools" | "messaging" | "search" | "voice" | "smarthome" | "infra";
+export type IntegrationCategory = "email" | "calendar" | "projecttools" | "messaging" | "search" | "voice" | "smarthome" | "infra";
 
 interface IntegrationField { key: string; label: string; placeholder: string; url?: boolean }
 
@@ -1446,7 +1449,7 @@ const INTEGRATION_CATEGORIES: {
   },
   {
     id: "infra", label: "Infrastructure", icon: <Server size={14} strokeWidth={1.5} />,
-    description: "Container registry and OpenSandbox credentials.",
+    description: "GitHub, container registry, and OpenSandbox credentials. The GitHub token is what the GitHub Remote panel uses to list and create repositories; it takes precedence over a GITHUB_TOKEN in the environment, which is used only while this field is empty.",
     fields: [
       { key: "github_token", label: "GitHub Token", placeholder: "ghp_..." },
       { key: "open_sandbox_api_key", label: "OpenSandbox API Key", placeholder: "..." },
@@ -1458,8 +1461,9 @@ const INTEGRATION_CATEGORIES: {
   },
 ];
 
-function IntegrationsSection() {
-  const [activeCat, setActiveCat] = useState<IntegrationCategory>("email");
+function IntegrationsSection({ initialCategory }: { initialCategory?: IntegrationCategory }) {
+  const [activeCat, setActiveCat] = useState<IntegrationCategory>(initialCategory ?? "email");
+  useEffect(() => { if (initialCategory) setActiveCat(initialCategory); }, [initialCategory]);
   const [values, setValues] = useState<Record<string, string>>({});
   const [showField, setShowField] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
@@ -1482,6 +1486,9 @@ function IntegrationsSection() {
     setMessage(null);
     try {
       await invoke("integration_token_set", { category: activeCat, field, value: values[field] ?? "" });
+      // Panels that only *read* an integration token (GitHub Remote) re-check
+      // on this instead of polling or waiting for a remount.
+      window.dispatchEvent(new CustomEvent("vibecoder:integration-token-changed", { detail: { category: activeCat, field } }));
       setSaved(prev => ({ ...prev, [field]: true }));
       setMessage({ type: "success", text: `${field} saved encrypted.` });
       setTimeout(() => setSaved(prev => ({ ...prev, [field]: false })), 2000);
@@ -1494,6 +1501,7 @@ function IntegrationsSection() {
   const clearField = async (field: string) => {
     try {
       await invoke("integration_token_delete", { category: activeCat, field });
+      window.dispatchEvent(new CustomEvent("vibecoder:integration-token-changed", { detail: { category: activeCat, field } }));
       setValues(prev => ({ ...prev, [field]: "" }));
       setMessage({ type: "success", text: `${field} cleared.` });
     } catch (_e) {
@@ -1884,8 +1892,18 @@ const SECTIONS: { key: SettingsSection; label: string; icon: React.ReactNode }[]
   { key: "jobs", label: "Background Jobs", icon: <Briefcase size={16} /> },
 ];
 
-export function SettingsPanel({ onClose, workspacePath }: { onClose?: () => void; workspacePath?: string | null }) {
-  const [section, setSection] = useState<SettingsSection>("profile");
+export function SettingsPanel({ onClose, workspacePath, target }: {
+  onClose?: () => void;
+  workspacePath?: string | null;
+  /** Section (and Integrations category) to open on, for deep links from panels
+   *  that used to own a setting themselves. */
+  target?: SettingsTarget;
+}) {
+  const [section, setSection] = useState<SettingsSection>(target?.section ?? "profile");
+
+  // A deep link that arrives while Settings is already open still moves it.
+  // `target` is held as state by the caller, so this fires on a new link only.
+  useEffect(() => { if (target) setSection(target.section); }, [target]);
 
   return (
     <div className="panel-container" style={{
@@ -1921,7 +1939,7 @@ export function SettingsPanel({ onClose, workspacePath }: { onClose?: () => void
         {section === "customizations" && <CustomizationsSection />}
         {section === "apikeys" && <ApiKeysSection />}
         {section === "embeddings" && <EmbeddingModelPicker workspacePath={workspacePath ?? null} />}
-        {section === "integrations" && <IntegrationsSection />}
+        {section === "integrations" && <IntegrationsSection initialCategory={target?.category} />}
         {section === "sessions" && <SessionsSection />}
         {section === "jobs" && <JobsSection />}
       </div>

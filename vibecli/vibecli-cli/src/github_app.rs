@@ -330,27 +330,59 @@ pub async fn review_pull_request(
 
 // ── GitHub API helpers ───────────────────────────────────────────────────────
 
+/// ProfileStore keys a GitHub token can be stored under, in precedence order.
+///
+/// Two keys because two surfaces write it and both must be honoured: the
+/// desktop apps save what the user types in Settings → Integrations →
+/// Infrastructure, and the CLI saves `vibecli set-key github`. Reading only one
+/// of them meant a token entered in the app was invisible to bugbot and the
+/// vulnerability scanner, and vice versa, with nothing on screen to explain it.
+pub const GITHUB_TOKEN_STORE_KEYS: [&str; 2] = ["integration.infra.github_token", "github"];
+
 /// Single source of truth for resolving a GitHub OAuth / PAT token.
 ///
 /// Order (per AGENTS.md → Zero-Config First):
-///   0. ProfileStore key `github` — `vibecli set-key github gh_pat_...`
+///   0. ProfileStore, [`GITHUB_TOKEN_STORE_KEYS`] in order — encrypted, and
+///      what a user typed into an app or the CLI
 ///   1. `GITHUB_TOKEN` env var
 ///   2. `GH_TOKEN` env var (gh CLI compatibility)
+///
+/// What the user configured wins over the ambient environment: the other way
+/// round, editing the field changed nothing for anyone with the variable
+/// exported. The env vars stay as the last resort so CI and shell-configured
+/// setups keep working with nothing stored.
 ///
 /// Public so `bugbot.rs` and `vulnerability_db.rs` route through here
 /// instead of each re-implementing their own env-only resolution.
 pub fn resolve_github_token() -> Option<String> {
-    if let Ok(store) = crate::profile_store::ProfileStore::new() {
-        if let Ok(Some(t)) = store.get_api_key("default", "github") {
-            if !t.is_empty() {
-                return Some(t);
-            }
-        }
-    }
-    std::env::var("GITHUB_TOKEN")
-        .ok()
-        .filter(|s| !s.is_empty())
-        .or_else(|| std::env::var("GH_TOKEN").ok().filter(|s| !s.is_empty()))
+    let store = crate::profile_store::ProfileStore::new().ok();
+    pick_github_token(
+        &|key| {
+            store
+                .as_ref()
+                .and_then(|s| s.get_api_key("default", key).ok().flatten())
+        },
+        &|name| std::env::var(name).ok(),
+    )
+}
+
+/// The precedence rule on its own, with both sources injected.
+///
+/// Split out so the ordering is testable without a real profile DB or mutating
+/// the process environment — which is shared state, and the top cause of flaky
+/// tests in this repo.
+fn pick_github_token(
+    stored: &dyn Fn(&str) -> Option<String>,
+    env: &dyn Fn(&str) -> Option<String>,
+) -> Option<String> {
+    let non_empty = |s: String| {
+        let t = s.trim().to_string();
+        (!t.is_empty()).then_some(t)
+    };
+    GITHUB_TOKEN_STORE_KEYS
+        .iter()
+        .find_map(|key| stored(key).and_then(non_empty))
+        .or_else(|| ["GITHUB_TOKEN", "GH_TOKEN"].iter().find_map(|n| env(n).and_then(non_empty)))
 }
 
 /// Split `owner/repo` out of any GitHub remote URL form.
@@ -589,6 +621,56 @@ pub async fn handle_webhook(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Neither source has anything.
+    fn none(_: &str) -> Option<String> {
+        None
+    }
+
+    #[test]
+    fn stored_token_beats_the_environment() {
+        // The other way round, editing the field in Settings changed nothing
+        // for anyone with GITHUB_TOKEN exported, and the UI could not say why.
+        let token = pick_github_token(
+            &|key| (key == "integration.infra.github_token").then(|| "from-settings".into()),
+            &|_| Some("from-env".into()),
+        );
+        assert_eq!(token.as_deref(), Some("from-settings"));
+    }
+
+    #[test]
+    fn reads_the_cli_key_when_settings_is_empty() {
+        // `vibecli set-key github` and the desktop Settings field write to
+        // different keys; both have to be honoured or one surface goes blind.
+        let token = pick_github_token(
+            &|key| (key == "github").then(|| "from-cli".into()),
+            &none,
+        );
+        assert_eq!(token.as_deref(), Some("from-cli"));
+    }
+
+    #[test]
+    fn a_blank_stored_token_falls_through_to_the_environment() {
+        // A cleared field is not a token; treating "" as one would 401 every
+        // request while claiming a token was configured.
+        let token = pick_github_token(&|_| Some("   ".into()), &|name| {
+            (name == "GITHUB_TOKEN").then(|| "from-env".into())
+        });
+        assert_eq!(token.as_deref(), Some("from-env"));
+    }
+
+    #[test]
+    fn falls_back_to_gh_cli_variable_last() {
+        let token = pick_github_token(&none, &|name| {
+            (name == "GH_TOKEN").then(|| "from-gh".into())
+        });
+        assert_eq!(token.as_deref(), Some("from-gh"));
+    }
+
+    #[test]
+    fn nothing_configured_resolves_to_none() {
+        assert_eq!(pick_github_token(&none, &none), None);
+    }
 
     #[test]
     fn verify_valid_signature() {

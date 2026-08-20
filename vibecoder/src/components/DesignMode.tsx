@@ -3,8 +3,9 @@
  *
  * Tabs: Preview | Generate | Components | Inspector | Figma
  */
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { loadFigmaToken, saveFigmaToken, deleteFigmaToken } from "../lib/figmaToken";
 import { VisualEditor, SelectedElement } from "./VisualEditor";
 import { DrawioEditorPanel } from "./DrawioEditorPanel";
 import { PencilPanel } from "./PencilPanel";
@@ -107,12 +108,29 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
   const [generationResult, setGenerationResult] = useState("");
   const [previewSrcdoc, setPreviewSrcdoc] = useState<string | null>(null);
   const [figmaUrl, setFigmaUrl] = useState("");
-  const [figmaToken, setFigmaToken] = useState(() => localStorage.getItem("figma_token") ?? "");
-  const [figmaSaveToken, setFigmaSaveToken] = useState(() => !!localStorage.getItem("figma_token"));
+  // Hydrated from the encrypted ProfileStore below — never from localStorage,
+  // which is where this token used to live in the clear.
+  const [figmaToken, setFigmaToken] = useState("");
+  const [figmaSaveToken, setFigmaSaveToken] = useState(false);
+  const [figmaTokenError, setFigmaTokenError] = useState<string | null>(null);
   const [figmaResult, setFigmaResult] = useState<GeneratedFile[]>([]);
   const [figmaExpandedFile, setFigmaExpandedFile] = useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const iframeContainerRef = useRef<HTMLDivElement>(null);
+
+  // Read the stored Figma token once, and drain any plaintext localStorage
+  // copy into the store on the way (see lib/figmaToken.ts).
+  useEffect(() => {
+    let cancelled = false;
+    loadFigmaToken()
+      .then((token) => {
+        if (cancelled || !token) return;
+        setFigmaToken(token);
+        setFigmaSaveToken(true);
+      })
+      .catch((e) => { if (!cancelled) setFigmaTokenError(`Could not read the saved Figma token: ${e}`); });
+    return () => { cancelled = true; };
+  }, []);
 
   // Build an inline HTML document that renders the generated component
   const buildPreviewSrcdoc = useCallback((code: string) => {
@@ -363,8 +381,17 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
 
   const handleFigmaImport = async () => {
     if (!figmaUrl.trim() || !figmaToken.trim()) return;
-    if (figmaSaveToken) localStorage.setItem("figma_token", figmaToken);
-    else localStorage.removeItem("figma_token");
+    setFigmaTokenError(null);
+    try {
+      // "Remember" is the user's answer for the encrypted store; unchecking it
+      // deletes the stored copy rather than leaving one behind.
+      if (figmaSaveToken) await saveFigmaToken(figmaToken);
+      else await deleteFigmaToken();
+    } catch (e) {
+      // The import itself can still go ahead with the token in hand — say what
+      // failed instead of implying the token was kept.
+      setFigmaTokenError(`Could not save the Figma token: ${e}`);
+    }
     setIsGenerating(true);
     setFigmaResult([]);
     setFigmaExpandedFile(null);
@@ -684,6 +711,9 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
               />
               Remember token on this device
             </label>
+            {figmaTokenError && (
+              <div role="alert" style={{ fontSize: "var(--font-size-sm)", color: "var(--error-color)" }}>{figmaTokenError}</div>
+            )}
           </div>
         </div>
 

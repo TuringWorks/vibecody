@@ -35,7 +35,7 @@ Server records live in `~/.vibecoder/mcp.json` as a plain JSON array. Each entry
 }
 ```
 
-The panel writes this file via the `save_mcp_servers` Tauri command. **OAuth tokens** for servers that require auth go to `~/.vibecoder/mcp-tokens.json` separately — they are *not* stored alongside the config because tokens are sensitive material.
+The panel writes this file via the `save_mcp_servers` Tauri command. **OAuth tokens** for servers that require auth are *not* stored alongside the config: they are secrets, so each one is an encrypted row in the ProfileStore (`~/.vibecli/profile_settings.db`) under `mcp.oauth.<server>`. Before 0.5.9 they lived in a plaintext `~/.vibecoder/mcp-tokens.json`; that file is migrated into the store and deleted the first time the panel reads a token.
 
 ### Test before save
 
@@ -49,7 +49,7 @@ For servers that need OAuth (e.g. cloud APIs):
 2. Fill in client_id, auth_url, token_url, scopes, and the redirect URI (which the daemon listens on).
 3. Click **Initiate** — the system browser opens to the authorization page.
 4. After authorizing, the IDP redirects to the daemon's callback. Paste the resulting `code` back into the panel.
-5. The panel exchanges the code for a token via `complete_mcp_oauth` and stores the token under the server's name in `mcp-tokens.json`.
+5. The panel exchanges the code for a token via `complete_mcp_oauth` and stores it under the server's name in the encrypted ProfileStore.
 
 The token-status badge on each server row reflects connectivity *and* expiration — a stale token shows as disconnected even if the row's config looks fine.
 

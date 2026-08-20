@@ -41,7 +41,7 @@ const TARGETS: Target[] = [
   { file: "EditPredictionPanel.tsx", line: 141, desc: "close error message" },
   { file: "HealthScorePanel.tsx", line: 134, desc: "close error message" },
   { file: "ReviewProtocolPanel.tsx", line: 96, desc: "close error message" },
-  { file: "SettingsPanel.tsx", line: 1894, desc: "close settings panel" },
+  { file: "SettingsPanel.tsx", line: 1922, desc: "close settings panel" },
 ];
 
 // Locate a `<button` opening tag at or after `line` and return [startLine, endLine].

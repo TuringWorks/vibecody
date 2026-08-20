@@ -3,6 +3,7 @@
  *
  * Scenarios:
  *  1. Figma token loads from ProfileStore on mount, NOT from localStorage
+ *  1b. A leftover plaintext localStorage token is migrated into the store
  *  2. Saving a Figma token writes via profile_api_key_set, NOT localStorage
  *  3. Unchecking "Remember token" deletes the saved token via profile_api_key_delete
  *  4. Failed token import surfaces an error toast (not a swallowed catch)
@@ -98,10 +99,40 @@ describe('DesignHubPanel — Figma token security', () => {
       'profile_api_key_get',
       expect.objectContaining({ profile_id: 'default', provider: 'figma' }),
     );
+    // The store is authoritative, and the plaintext copy is a liability, so it
+    // is removed even though its value is not the one used.
+    await waitFor(() => expect(localStorage.getItem('figma_token')).toBeNull());
+  });
+
+  it('1b. migrates a leftover localStorage token into the store, then removes it', async () => {
+    // Store empty, localStorage holding a token from a pre-ProfileStore build.
+    mockInvoke.mockImplementation(defaultInvokeImpl);
+
+    renderPanel();
+    fireEvent.click(screen.getByRole('tab', { name: /^Figma$/ }));
+
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith(
+        'profile_api_key_set',
+        expect.objectContaining({
+          profile_id: 'default', provider: 'figma', api_key: 'TAINTED-LOCALSTORAGE-VALUE',
+        }),
+      );
+    });
+    // Moved, not copied: the plaintext original is gone once the write lands.
+    await waitFor(() => expect(localStorage.getItem('figma_token')).toBeNull());
+    // And the migrated token is what the field offers, so the user is not
+    // asked to paste a token they already gave us.
+    const tokenInput = screen.getByPlaceholderText('figd_…') as HTMLInputElement;
+    expect(tokenInput.value).toBe('TAINTED-LOCALSTORAGE-VALUE');
   });
 
   it('2. saves Figma token via profile_api_key_set, not localStorage', async () => {
     mockInvoke.mockImplementation(defaultInvokeImpl);
+    // Nothing stored anywhere: this scenario is the save path on its own.
+    // Migration of a leftover plaintext token is scenario 1b, and leaving one
+    // here would arrive with "Remember" already ticked.
+    localStorage.removeItem('figma_token');
 
     renderPanel();
     fireEvent.click(screen.getByRole('tab', { name: /^Figma$/ }));
@@ -126,8 +157,9 @@ describe('DesignHubPanel — Figma token security', () => {
         expect.objectContaining({ profile_id: 'default', provider: 'figma', api_key: 'NEW-TOKEN' }),
       );
     });
-    // localStorage must remain untouched (the original tainted value, never overwritten).
-    expect(localStorage.getItem('figma_token')).toBe('TAINTED-LOCALSTORAGE-VALUE');
+    // Nothing is ever written back to localStorage; the pre-existing plaintext
+    // value was migrated into the store on mount and removed.
+    expect(localStorage.getItem('figma_token')).toBeNull();
   });
 
   it('3. unchecking "Remember token" deletes via profile_api_key_delete', async () => {

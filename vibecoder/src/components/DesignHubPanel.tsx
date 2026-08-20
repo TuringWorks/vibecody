@@ -11,9 +11,12 @@
  * Security: the Figma personal access token is stored via Tauri profile_api_key_*
  * commands, which write through the encrypted ProfileStore. We never touch
  * localStorage for credential material — see AGENTS.md "Secure Settings Storage".
+ * Reads and writes go through `lib/figmaToken`, shared with DesignMode's Figma
+ * tab so the two panels cannot drift apart on where the token lives.
  */
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { loadFigmaToken, saveFigmaToken, deleteFigmaToken } from "../lib/figmaToken";
 import { Icon } from "./Icon";
 import { useToast } from "../hooks/useToast";
 import { usePanelSettings } from "../hooks/usePanelSettings";
@@ -25,9 +28,6 @@ interface DesignHubPanelProps {
 }
 
 type HubTab = "providers" | "tokens" | "audit" | "figma" | "settings";
-
-const PROFILE_ID = "default";
-const FIGMA_KEY_PROVIDER = "figma";
 
 const TAB_DEFS: { id: HubTab; label: string }[] = [
   { id: "providers", label: "Providers" },
@@ -91,19 +91,15 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
   const [figmaResult, setFigmaResult] = useState<Array<{ path: string; content: string }>>([]);
   const [figmaExpandedFile, setFigmaExpandedFile] = useState<string | null>(null);
 
-  // Hydrate the Figma token from the encrypted ProfileStore on mount.
+  // Hydrate the Figma token from the encrypted ProfileStore on mount. This
+  // also drains any plaintext localStorage copy left by an older build.
   useEffect(() => {
     let cancelled = false;
-    invoke<string | null>("profile_api_key_get", {
-      profile_id: PROFILE_ID, profileId: PROFILE_ID,
-      provider: FIGMA_KEY_PROVIDER,
-    })
+    loadFigmaToken()
       .then((value) => {
-        if (cancelled) return;
-        if (typeof value === "string" && value.length > 0) {
-          setFigmaToken(value);
-          setFigmaSaveToken(true);
-        }
+        if (cancelled || !value) return;
+        setFigmaToken(value);
+        setFigmaSaveToken(true);
       })
       .catch((e) => toast.error(`Failed to load Figma token: ${e}`));
     return () => { cancelled = true; };
@@ -169,18 +165,8 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
 
   const persistFigmaToken = async () => {
     try {
-      if (figmaSaveToken) {
-        await invoke("profile_api_key_set", {
-          profile_id: PROFILE_ID, profileId: PROFILE_ID,
-          provider: FIGMA_KEY_PROVIDER,
-          api_key: figmaToken, apiKey: figmaToken,
-        });
-      } else {
-        await invoke("profile_api_key_delete", {
-          profile_id: PROFILE_ID, profileId: PROFILE_ID,
-          provider: FIGMA_KEY_PROVIDER,
-        });
-      }
+      if (figmaSaveToken) await saveFigmaToken(figmaToken);
+      else await deleteFigmaToken();
     } catch (e) {
       toast.error(`Failed to persist Figma token: ${e}`);
     }

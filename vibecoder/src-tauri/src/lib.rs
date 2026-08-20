@@ -575,6 +575,7 @@ pub fn run() {
             // Test runner (Phase 43)
             commands::detect_test_framework,
             commands::run_tests,
+            commands::stop_tests,
             commands::generate_commit_message,
             // Symbol + codebase search
             commands::search_workspace_symbols,
@@ -637,7 +638,6 @@ pub fn run() {
             commands::git_dismiss_repo_suggestion,
             // Phase 26: GitHub Sync
             commands::has_github_token,
-            commands::save_github_token,
             commands::get_github_sync_status,
             commands::list_github_repos,
             commands::github_create_repo,
@@ -660,6 +660,10 @@ pub fn run() {
             commands::get_redteam_findings,
             commands::generate_redteam_report,
             commands::cancel_redteam_scan,
+            // Workspace red team — adversarial review of code and content
+            commands::redteam_workspace_targets,
+            commands::redteam_file,
+            commands::redteam_save_session,
             // Phase 43: CRDT Collab
             commands::create_collab_session,
             commands::join_collab_session,
