@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from "@tauri-apps/api/core";
+import { FixWithAIButton } from './FixWithAIButton';
+import type { FixItem } from '../lib/fixWithAI';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -47,6 +49,18 @@ const severityColors: Record<string, string> = {
   error: 'var(--error-color)',
   critical: 'var(--error-color)',
 };
+
+/** One finding as the shared chat hand-off carries it. */
+function toFixItem(f: Finding): FixItem {
+  return {
+    file: f.file ?? null,
+    line: f.line ?? null,
+    severity: f.severity,
+    title: f.check || null,
+    message: f.message,
+    suggestion: f.suggestion ?? null,
+  };
+}
 
 const checkIcons: Record<string, string> = {
   build: 'B', lint: 'L', test: 'T', security: 'S', format: 'F', typecheck: 'TC',
@@ -223,11 +237,27 @@ const SelfReviewPanel: React.FC = () => {
                 {/* Findings */}
                 {iter.checks.some(c => c.findings.length > 0) && (
                   <div style={{ fontSize: "var(--font-size-base)" }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', paddingBottom: 4 }}>
+                      <FixWithAIButton
+                        items={iter.checks.flatMap(c => c.findings).map(toFixItem)}
+                        source="self-review"
+                        resetKey={iterations}
+                        label={`Fix all ${iter.checks.flatMap(c => c.findings).length} with AI`}
+                        title="Write a fix request for this iteration's findings into the chat composer"
+                      />
+                    </div>
                     {iter.checks.filter(c => c.findings.length > 0).flatMap(c => c.findings).map((f, i) => (
                       <div key={i} style={{ display: 'flex', gap: 6, padding: '3px 0', borderBottom: '1px solid var(--border-color)' }}>
                         <span style={{ color: severityColors[f.severity], fontWeight: 600, fontSize: "var(--font-size-sm)", minWidth: 55 }}>{f.severity}</span>
                         <span style={{ color: 'var(--text-primary)' }}>{f.message}</span>
                         {f.file && <span style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', marginLeft: 'auto', fontSize: "var(--font-size-sm)" }}>{f.file}{f.line ? `:${f.line}` : ''}</span>}
+                        <FixWithAIButton
+                          items={[toFixItem(f)]}
+                          source="self-review"
+                          resetKey={iterations}
+                          style={{ marginLeft: f.file ? 0 : 'auto' }}
+                          title="Write a fix request for this finding into the chat composer"
+                        />
                       </div>
                     ))}
                   </div>

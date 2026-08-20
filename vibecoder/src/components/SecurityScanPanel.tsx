@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { parseProviderSelection } from "../hooks/useModelRegistry";
 import { getSelectedEffort } from "../utils/effort";
+import { FixWithAIButton } from "./FixWithAIButton";
+import { FIX_BATCH_LIMIT, type FixItem } from "../lib/fixWithAI";
 
 // -- Types --------------------------------------------------------------------
 
@@ -368,14 +370,6 @@ function groupBy<T>(items: T[], keyFn: (item: T) => string): Record<string, T[]>
 // -- Handing findings to chat -------------------------------------------------
 
 /**
- * How many findings one hand-off carries. A scan of a real workspace returns
- * thousands; pasting all of them into the composer produces a request no model
- * can act on. Every button label names the cap and the true count, so a capped
- * hand-off can never read as the whole set.
- */
-const FIX_BATCH_LIMIT = 25;
-
-/**
  * How many files one verification pass checks. Each file is one LLM call, so a
  * workspace sweep would otherwise be an unbounded bill fired automatically by a
  * scan. The cap is visible wherever it bites — the files it drops stay
@@ -384,77 +378,60 @@ const FIX_BATCH_LIMIT = 25;
 const VERIFY_FILE_LIMIT = 25;
 
 /**
- * The change request handed to chat. It names the existing path and line
- * explicitly: an edit request that does not is the fastest way to get a second
- * copy of the file back instead of a fix. It also says these are scanner
- * candidates, not confirmed bugs — this scanner is pattern-based and a fix
- * applied to a false positive is a regression, not a fix.
+ * One finding as the shared hand-off carries it.
+ *
+ * What is known about a candidate travels with it: a confirmed finding carries
+ * the evidence that confirmed it, an unverified one says plainly that nothing
+ * checked it. Without that the request reads as "this is a bug, fix it" for a
+ * line a substring matched, and a fix applied to a false positive is a
+ * regression rather than a fix.
  */
-function fixRequest(findings: Finding[], total: number): string {
-  const blocks = Object.entries(groupBy(findings, (f) => f.file)).map(([file, fs]) => {
-    const items = fs.map((f) => {
-      const remediation = f.remediation ? `\n  Suggested fix: ${f.remediation}` : "";
-      // What is known about this one travels with it. A confirmed finding
-      // carries the evidence that confirmed it; an unverified one says so, so
-      // the request can never read as "this is a bug, fix it" when nothing
-      // checked whether it is.
-      const reason = f.verificationReason ? ` ${f.verificationReason}` : "";
-      const status =
-        verificationOf(f) === "confirmed"
-          ? `\n  Verified against the code:${reason || " no reason recorded."}`
-          : `\n  NOT verified:${reason || " no model has checked this candidate."} Check it before changing anything.`;
-      return `- [${f.severity}] line ${f.line} — ${f.title} (${f.cwe}): ${f.description}${status}${remediation}`;
-    });
-    return [`${file}:`, ...items].join("\n");
-  });
-
-  const allConfirmed = findings.every((f) => verificationOf(f) === "confirmed");
-
-  const opening =
-    total > findings.length
-      ? `Fix these ${findings.length} security scanner findings. They are the first ${findings.length} of ${total}; the remaining ${total - findings.length} are not listed here.`
-      : findings.length === 1
-        ? `Fix this security scanner finding in ${findings[0].file}:${findings[0].line}.`
-        : `Fix these ${findings.length} security scanner findings.`;
-
-  return [
-    opening,
-    "",
-    ...blocks,
-    "",
-    "Edit each file in place at the path given above — do not create a new file.",
-    allConfirmed
-      ? "Each of these was checked against the surrounding code and the evidence is quoted above. Re-read it before editing, and say so and change nothing if the evidence does not hold."
-      : "Check every finding marked NOT verified against the real code first — those are pattern matches, not confirmed vulnerabilities. Say so and change nothing where it is a false positive.",
-    "Keep each change minimal and leave unrelated behaviour alone.",
-  ].join("\n");
+function toFixItem(f: Finding): FixItem {
+  const reason = f.verificationReason ? ` ${f.verificationReason}` : "";
+  const note =
+    verificationOf(f) === "confirmed"
+      ? `Verified against the code:${reason || " no reason recorded."}`
+      : `NOT verified:${reason || " no model has checked this candidate."} Check it before changing anything.`;
+  return {
+    file: f.file,
+    line: f.line,
+    severity: f.severity,
+    title: `${f.title} (${f.cwe})`,
+    message: f.description,
+    suggestion: f.remediation || null,
+    notes: [note],
+  };
 }
 
-/** Hand a change request to the active chat tab's composer. The user sends it. */
-function sendToChat(findings: Finding[], total: number) {
-  window.dispatchEvent(
-    new CustomEvent("vibecoder:inject-context", { detail: fixRequest(findings, total) })
+/** The instruction that depends on what verification concluded about the batch. */
+function fixInstructions(batch: Finding[]): string[] {
+  return batch.slice(0, FIX_BATCH_LIMIT).every((f) => verificationOf(f) === "confirmed")
+    ? [
+        "Each of these was checked against the surrounding code and the evidence is quoted above. Re-read it before editing, and say so and change nothing if the evidence does not hold.",
+      ]
+    : [
+        "Check every finding marked NOT verified against the real code first — those are pattern matches, not confirmed vulnerabilities. Say so and change nothing where it is a false positive.",
+      ];
+}
+
+/** The hand-off button, wired to this panel's findings. */
+function ScanFixButton({ batch, runId, style, title }: {
+  batch: Finding[];
+  runId: number;
+  style?: React.CSSProperties;
+  title?: string;
+}) {
+  return (
+    <FixWithAIButton
+      items={batch.map(toFixItem)}
+      source="security scanner"
+      instructions={fixInstructions(batch)}
+      resetKey={runId}
+      style={style}
+      title={title}
+    />
   );
 }
-
-/** Button label, naming the cap whenever it bites. */
-function fixLabel(count: number): string {
-  if (count > FIX_BATCH_LIMIT) return `Fix first ${FIX_BATCH_LIMIT} of ${count} with AI`;
-  return count === 1 ? "Fix with AI" : `Fix all ${count} with AI`;
-}
-
-/** Shared look for the hand-off buttons — an outline, never a primary action. */
-const fixButtonStyle: React.CSSProperties = {
-  padding: "2px 8px",
-  fontSize: "var(--font-size-xs)",
-  borderRadius: 3,
-  border: "1px solid var(--accent-blue)",
-  background: "none",
-  color: "var(--accent-blue)",
-  cursor: "pointer",
-  flexShrink: 0,
-  whiteSpace: "nowrap",
-};
 
 // -- Component ----------------------------------------------------------------
 
@@ -473,9 +450,9 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, pr
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [patternClassFilter, setPatternClassFilter] = useState<string>("All");
   const [patternSearch, setPatternSearch] = useState("");
-  // Which hand-off buttons have fired. The composer can be behind another tab,
-  // so the button itself has to say the request was written.
-  const [sentFixes, setSentFixes] = useState<Record<string, boolean>>({});
+  // Bumped by each scan so the hand-off buttons stop claiming the previous
+  // run's findings were sent.
+  const [runId, setRunId] = useState(0);
   // Verification progress, or null when nothing is being verified — one value
   // to switch on rather than parallel busy/done/total flags.
   const [verifying, setVerifying] = useState<{ done: number; total: number; current: string } | null>(null);
@@ -519,7 +496,7 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, pr
     }
     setScanning(true);
     setError(null);
-    setSentFixes({});
+    setRunId((n) => n + 1);
     const startTime = Date.now();
     let scanned: Finding[] = [];
     try {
@@ -675,17 +652,6 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, pr
     }
   }
 
-  /**
-   * Write a batch of findings into the chat composer. Nothing is edited here —
-   * the user reads the request and presses send, which is the rule this panel
-   * shares with the Review tab.
-   */
-  const handOffToChat = (key: string, batch: Finding[]) => {
-    if (batch.length === 0) return;
-    sendToChat(batch.slice(0, FIX_BATCH_LIMIT), batch.length);
-    setSentFixes((prev) => ({ ...prev, [key]: true }));
-  };
-
   const togglePattern = (id: string) => {
     setPatterns((prev) => prev.map((p) => p.id === id ? { ...p, enabled: !p.enabled } : p));
   };
@@ -795,13 +761,11 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, pr
             </span>
           </div>
         </div>
-        <button
-          onClick={(e) => { e.stopPropagation(); handOffToChat(`finding:${f.id}`, [f]); }}
-          style={fixButtonStyle}
+        <ScanFixButton
+          batch={[f]}
+          runId={runId}
           title="Write a fix request for this finding into the chat composer"
-        >
-          {sentFixes[`finding:${f.id}`] ? "Sent to chat \u2713" : "Fix with AI"}
-        </button>
+        />
         <button
           onClick={(e) => { e.stopPropagation(); toggleSuppress(f); }}
           style={{
@@ -918,16 +882,13 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, pr
             </button>
           )}
           <span style={{ flex: 1 }} />
-          <button
-            onClick={() => handOffToChat("visible", filteredFindings)}
-            disabled={filteredFindings.length === 0}
-            style={{ ...fixButtonStyle, opacity: filteredFindings.length === 0 ? 0.5 : 1, cursor: filteredFindings.length === 0 ? "default" : "pointer" }}
+          <ScanFixButton
+            batch={filteredFindings}
+            runId={runId}
             title={filterSeverity === "All"
               ? "Write a fix request for the findings shown into the chat composer"
               : `Write a fix request for the ${filterSeverity} findings shown into the chat composer`}
-          >
-            {sentFixes.visible ? "Sent to chat \u2713" : fixLabel(filteredFindings.length)}
-          </button>
+          />
           <select
             value={groupMode}
             onChange={(e) => { setGroupMode(e.target.value as GroupMode); setCollapsedGroups(new Set()); }}
@@ -1029,15 +990,13 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, pr
                     }}>
                       {groupFindings.length}
                     </span>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handOffToChat(`group:${groupMode}:${groupKey}`, groupFindings); }}
-                      style={fixButtonStyle}
+                    <ScanFixButton
+                      batch={groupFindings}
+                      runId={runId}
                       title={groupFindings.length > FIX_BATCH_LIMIT
                         ? `Write a fix request for the first ${FIX_BATCH_LIMIT} of these ${groupFindings.length} findings into the chat composer`
                         : "Write a fix request for these findings into the chat composer"}
-                    >
-                      {sentFixes[`group:${groupMode}:${groupKey}`] ? "Sent to chat \u2713" : fixLabel(groupFindings.length)}
-                    </button>
+                    />
                     {groupMode === "cwe" && (
                       <button
                         onClick={(e) => { e.stopPropagation(); suppressCwe(groupKey); }}

@@ -13,10 +13,12 @@
  * change request into the chat composer via `vibecoder:inject-context` — the
  * user still reads it and presses send. Nothing here edits a file.
  */
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { parseProviderSelection } from "../hooks/useModelRegistry";
 import { getSelectedEffort } from "../utils/effort";
+import { FixWithAIButton } from "./FixWithAIButton";
+import type { FixItem } from "../lib/fixWithAI";
 
 interface SecurityReviewPanelProps {
   workspacePath?: string | null;
@@ -69,44 +71,15 @@ function locationOf(f: SecurityFinding): string {
   return f.line != null ? `${f.file}:${f.line}` : f.file;
 }
 
-/**
- * The change request handed to chat. It names the existing path explicitly:
- * an edit request that does not is the fastest way to get a second copy of the
- * file back instead of a fix.
- */
-function fixRequest(findings: SecurityFinding[]): string {
-  const byFile = findings.reduce<Record<string, SecurityFinding[]>>((acc, f) => {
-    const key = f.file ?? "(unknown file)";
-    return { ...acc, [key]: [...(acc[key] ?? []), f] };
-  }, {});
-
-  const blocks = Object.entries(byFile).map(([file, fs]) => {
-    const items = fs.map(f => {
-      const line = f.line != null ? ` (line ${f.line})` : "";
-      const suggestion = f.suggestion ? `\n  Suggested fix: ${f.suggestion}` : "";
-      return `- [${f.severity}]${line} ${f.message}${suggestion}`;
-    });
-    return [`${file}:`, ...items].join("\n");
-  });
-
-  const count = findings.length;
-  return [
-    count === 1
-      ? `Fix this security finding in ${locationOf(findings[0])}.`
-      : `Fix these ${count} security findings.`,
-    "",
-    ...blocks,
-    "",
-    "Edit each file in place at the path given above — do not create a new file.",
-    "Keep each change minimal and leave unrelated behaviour alone.",
-  ].join("\n");
-}
-
-/** Hand a change request to the active chat tab's composer. The user sends it. */
-function sendToChat(findings: SecurityFinding[]) {
-  window.dispatchEvent(
-    new CustomEvent("vibecoder:inject-context", { detail: fixRequest(findings) })
-  );
+/** One finding as the shared hand-off carries it. */
+function toFixItem(f: SecurityFinding): FixItem {
+  return {
+    file: f.file,
+    line: f.line,
+    severity: f.severity,
+    message: f.message,
+    suggestion: f.suggestion,
+  };
 }
 
 export function SecurityReviewPanel({ workspacePath, provider, onOpenFile }: SecurityReviewPanelProps) {
@@ -115,7 +88,9 @@ export function SecurityReviewPanel({ workspacePath, provider, onOpenFile }: Sec
   const [failures, setFailures] = useState<ReviewFailure[]>([]);
   const [run, setRun] = useState<RunState>({ kind: "idle" });
   const [error, setError] = useState<string | null>(null);
-  const [sent, setSent] = useState<Record<string, boolean>>({});
+  // Bumped by each run so the hand-off buttons stop claiming the previous
+  // run's findings were sent.
+  const [runId, setRunId] = useState(0);
   const stopRef = useRef(false);
 
   // The toolbar hands down a display name ("Ollama (devstral-2)"); the command
@@ -132,10 +107,6 @@ export function SecurityReviewPanel({ workspacePath, provider, onOpenFile }: Sec
     [findings]
   );
 
-  const markSent = useCallback((key: string) => {
-    setSent(prev => ({ ...prev, [key]: true }));
-  }, []);
-
   const runReview = async () => {
     if (!workspacePath) {
       setError("Open a workspace folder first.");
@@ -149,7 +120,7 @@ export function SecurityReviewPanel({ workspacePath, provider, onOpenFile }: Sec
     setError(null);
     setFindings([]);
     setFailures([]);
-    setSent({});
+    setRunId((n) => n + 1);
     setRun({ kind: "resolving" });
 
     let targets: SecurityReviewTargets;
@@ -279,12 +250,13 @@ export function SecurityReviewPanel({ workspacePath, provider, onOpenFile }: Sec
           <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
             {findings.length} finding{findings.length === 1 ? "" : "s"}
           </span>
-          <button
-            onClick={() => { sendToChat(sortedFindings); markSent("all"); }}
-            style={{ padding: "4px 10px", fontSize: "var(--font-size-sm)", borderRadius: "var(--radius-sm)", border: "1px solid var(--accent-color)", background: "transparent", color: "var(--accent-color)", cursor: "pointer", whiteSpace: "nowrap" }}
-          >
-            {sent.all ? "Sent to chat ✓" : `Fix all ${findings.length} with AI`}
-          </button>
+          <FixWithAIButton
+            items={sortedFindings.map(toFixItem)}
+            source="security review"
+            resetKey={runId}
+            label={`Fix all ${findings.length} with AI`}
+            style={{ padding: "4px 10px", fontSize: "var(--font-size-sm)", borderRadius: "var(--radius-sm)", borderColor: "var(--accent-color)", color: "var(--accent-color)" }}
+          />
         </div>
       )}
 
@@ -313,12 +285,12 @@ export function SecurityReviewPanel({ workspacePath, provider, onOpenFile }: Sec
                   <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4 }}>↳ {f.suggestion}</div>
                 )}
                 <div style={{ marginTop: 8 }}>
-                  <button
-                    onClick={() => { sendToChat([f]); markSent(key); }}
-                    style={{ padding: "3px 10px", fontSize: "var(--font-size-sm)", borderRadius: "var(--radius-sm)", border: "1px solid var(--accent-color)", background: "transparent", color: "var(--accent-color)", cursor: "pointer" }}
-                  >
-                    {sent[key] ? "Sent to chat ✓" : "Fix with AI"}
-                  </button>
+                  <FixWithAIButton
+                    items={[toFixItem(f)]}
+                    source="security review"
+                    resetKey={runId}
+                    style={{ padding: "3px 10px", fontSize: "var(--font-size-sm)", borderRadius: "var(--radius-sm)", borderColor: "var(--accent-color)", color: "var(--accent-color)" }}
+                  />
                 </div>
               </div>
             );

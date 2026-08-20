@@ -6,6 +6,8 @@
  */
 import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { FixWithAIButton } from "./FixWithAIButton";
+import type { FixItem } from "../lib/fixWithAI";
 
 // ── Types (mirror sonar_rules.rs) ────────────────────────────────────────────
 
@@ -48,6 +50,18 @@ interface SonarRule {
   language: string;
   tags: string[];
   effort_minutes: number;
+}
+
+/** One issue as the shared chat hand-off carries it. */
+function toFixItem(issue: SonarIssue): FixItem {
+  return {
+    file: issue.file,
+    line: issue.line,
+    severity: issue.severity,
+    title: `${issue.rule_name} (${issue.rule_key})`,
+    message: issue.message,
+    suggestion: issue.how_to_fix || null,
+  };
 }
 
 // ── Severity helpers ──────────────────────────────────────────────────────────
@@ -171,10 +185,12 @@ function CodeBlock({
 
 // ── Issue Card ────────────────────────────────────────────────────────────────
 
-function IssueCard({ issue, expanded, onToggle }: {
+function IssueCard({ issue, expanded, onToggle, resetKey }: {
   issue: SonarIssue;
   expanded: boolean;
   onToggle: () => void;
+  /** Changes with each scan, so the button stops saying the last one was sent. */
+  resetKey: unknown;
 }) {
   const sev = SEVERITY_CONFIG[issue.severity] ?? SEVERITY_CONFIG.INFO;
   const shortFile = issue.file.split(/[/\\]/).slice(-2).join("/");
@@ -212,6 +228,12 @@ function IssueCard({ issue, expanded, onToggle }: {
             </span>
           </div>
         </div>
+        <FixWithAIButton
+          items={[toFixItem(issue)]}
+          source="code review"
+          resetKey={resetKey}
+          title="Write a fix request for this issue into the chat composer"
+        />
         <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", flexShrink: 0 }}>
           {expanded ? "▲" : "▼"}
         </span>
@@ -464,9 +486,18 @@ export default function AiCodeReviewPanel() {
                 </div>
               )}
 
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 6, flexShrink: 0 }}>
-                {filteredIssues.length} issue{filteredIssues.length !== 1 ? "s" : ""}
-                {(filterType !== "ALL" || filterSev !== "ALL") && ` (filtered from ${result.issues.length})`}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexShrink: 0 }}>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", flex: 1 }}>
+                  {filteredIssues.length} issue{filteredIssues.length !== 1 ? "s" : ""}
+                  {(filterType !== "ALL" || filterSev !== "ALL") && ` (filtered from ${result.issues.length})`}
+                </div>
+                <FixWithAIButton
+                  items={filteredIssues.map(toFixItem)}
+                  source="code review"
+                  resetKey={result}
+                  label={`Fix all ${filteredIssues.length} with AI`}
+                  title="Write a fix request for the issues shown into the chat composer"
+                />
               </div>
 
               {/* Scrollable issue list */}
@@ -485,6 +516,7 @@ export default function AiCodeReviewPanel() {
                       issue={issue}
                       expanded={expandedIds.has(uid)}
                       onToggle={() => toggleExpanded(uid)}
+                      resetKey={result}
                     />
                   );
                 })}
