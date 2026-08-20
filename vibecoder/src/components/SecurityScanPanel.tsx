@@ -1,11 +1,24 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { parseProviderSelection } from "../hooks/useModelRegistry";
+import { getSelectedEffort } from "../utils/effort";
 
 // -- Types --------------------------------------------------------------------
 
 type Severity = "Critical" | "High" | "Medium" | "Low" | "Info";
 type TabName = "Findings" | "Summary" | "Patterns" | "History";
 type GroupMode = "none" | "cwe" | "file" | "severity";
+
+/**
+ * What is known about a candidate.
+ *
+ * The pattern stage produces candidates, not findings: a substring match says a
+ * line *looks* like the vulnerability, which is a different claim from being
+ * one. `confirmed` and `refuted` are verdicts something reached by reading the
+ * code; `unverified` is the honest third state, and it is never rounded to
+ * either of the others.
+ */
+type Verification = "confirmed" | "refuted" | "unverified";
 
 interface Finding {
   id: string;
@@ -17,6 +30,15 @@ interface Finding {
   cwe: string;
   remediation: string;
   suppressed: boolean;
+  verification?: Verification;
+  verificationReason?: string | null;
+}
+
+/** One candidate's verdict, as `verify_security_findings` returns it. */
+interface Verdict {
+  id: string;
+  verification: Verification;
+  verificationReason: string;
 }
 
 interface ScanPattern {
@@ -38,6 +60,12 @@ interface ScanRun {
 
 interface SecurityScanPanelProps {
   workspacePath?: string;
+  /**
+   * The toolbar's provider selection, e.g. `"Ollama (devstral-2)"`. Verification
+   * runs on whatever is selected there — this panel hard-codes no provider, and
+   * with nothing selected it verifies nothing rather than quietly calling one.
+   */
+  provider?: string;
   onOpenFile?: (path: string, line?: number) => void;
 }
 
@@ -303,6 +331,30 @@ const severityColor = (s: Severity): string => {
 
 const severityOrder: Record<Severity, number> = { Critical: 0, High: 1, Medium: 2, Low: 3, Info: 4 };
 
+/**
+ * A candidate nobody has judged is `unverified` — including every result from a
+ * scan that ran before this panel could verify anything.
+ */
+const verificationOf = (f: Finding): Verification => f.verification ?? "unverified";
+
+/** What each verification state is called, spelled the same way everywhere. */
+const VERIFICATION_LABEL: Record<Verification, string> = {
+  confirmed: "verified",
+  unverified: "unverified",
+  refuted: "ruled out",
+};
+
+/** A badge that never lets a candidate pass for a checked finding. */
+const verificationBadgeStyle = (v: Verification): React.CSSProperties => ({
+  fontSize: "var(--font-size-xs)",
+  padding: "1px 4px",
+  borderRadius: 3,
+  background: "var(--bg-secondary)",
+  color: v === "confirmed" ? "var(--text-primary)" : "var(--text-secondary)",
+  border: v === "confirmed" ? "1px solid var(--border-color)" : "1px dashed var(--border-color)",
+  fontStyle: v === "confirmed" ? "normal" : "italic",
+});
+
 /** Group an array by a key function. */
 function groupBy<T>(items: T[], keyFn: (item: T) => string): Record<string, T[]> {
   const result: Record<string, T[]> = {};
@@ -324,6 +376,14 @@ function groupBy<T>(items: T[], keyFn: (item: T) => string): Record<string, T[]>
 const FIX_BATCH_LIMIT = 25;
 
 /**
+ * How many files one verification pass checks. Each file is one LLM call, so a
+ * workspace sweep would otherwise be an unbounded bill fired automatically by a
+ * scan. The cap is visible wherever it bites — the files it drops stay
+ * unverified and say so, and pressing Verify again takes the next batch.
+ */
+const VERIFY_FILE_LIMIT = 25;
+
+/**
  * The change request handed to chat. It names the existing path and line
  * explicitly: an edit request that does not is the fastest way to get a second
  * copy of the file back instead of a fix. It also says these are scanner
@@ -334,10 +394,21 @@ function fixRequest(findings: Finding[], total: number): string {
   const blocks = Object.entries(groupBy(findings, (f) => f.file)).map(([file, fs]) => {
     const items = fs.map((f) => {
       const remediation = f.remediation ? `\n  Suggested fix: ${f.remediation}` : "";
-      return `- [${f.severity}] line ${f.line} — ${f.title} (${f.cwe}): ${f.description}${remediation}`;
+      // What is known about this one travels with it. A confirmed finding
+      // carries the evidence that confirmed it; an unverified one says so, so
+      // the request can never read as "this is a bug, fix it" when nothing
+      // checked whether it is.
+      const reason = f.verificationReason ? ` ${f.verificationReason}` : "";
+      const status =
+        verificationOf(f) === "confirmed"
+          ? `\n  Verified against the code:${reason || " no reason recorded."}`
+          : `\n  NOT verified:${reason || " no model has checked this candidate."} Check it before changing anything.`;
+      return `- [${f.severity}] line ${f.line} — ${f.title} (${f.cwe}): ${f.description}${status}${remediation}`;
     });
     return [`${file}:`, ...items].join("\n");
   });
+
+  const allConfirmed = findings.every((f) => verificationOf(f) === "confirmed");
 
   const opening =
     total > findings.length
@@ -352,7 +423,9 @@ function fixRequest(findings: Finding[], total: number): string {
     ...blocks,
     "",
     "Edit each file in place at the path given above — do not create a new file.",
-    "Check each finding against the real code first: these are pattern-matched candidates, not confirmed vulnerabilities. Say so and change nothing where it is a false positive.",
+    allConfirmed
+      ? "Each of these was checked against the surrounding code and the evidence is quoted above. Re-read it before editing, and say so and change nothing if the evidence does not hold."
+      : "Check every finding marked NOT verified against the real code first — those are pattern matches, not confirmed vulnerabilities. Say so and change nothing where it is a false positive.",
     "Keep each change minimal and leave unrelated behaviour alone.",
   ].join("\n");
 }
@@ -385,7 +458,7 @@ const fixButtonStyle: React.CSSProperties = {
 
 // -- Component ----------------------------------------------------------------
 
-const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, onOpenFile }) => {
+const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, provider, onOpenFile }) => {
   const [tab, setTab] = useState<TabName>("Findings");
   const [findings, setFindings] = useState<Finding[]>([]);
   const [patterns, setPatterns] = useState<ScanPattern[]>(DEFAULT_PATTERNS);
@@ -403,6 +476,13 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
   // Which hand-off buttons have fired. The composer can be behind another tab,
   // so the button itself has to say the request was written.
   const [sentFixes, setSentFixes] = useState<Record<string, boolean>>({});
+  // Verification progress, or null when nothing is being verified — one value
+  // to switch on rather than parallel busy/done/total flags.
+  const [verifying, setVerifying] = useState<{ done: number; total: number; current: string } | null>(null);
+  const [ruledOutOpen, setRuledOutOpen] = useState(false);
+  /** Set when the per-run file cap left candidates unchecked. */
+  const [verifyNote, setVerifyNote] = useState<string | null>(null);
+  const stopRef = useRef(false);
 
   const tabs: TabName[] = ["Findings", "Summary", "Patterns", "History"];
 
@@ -441,12 +521,14 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
     setError(null);
     setSentFixes({});
     const startTime = Date.now();
+    let scanned: Finding[] = [];
     try {
       const enabledPatterns = patterns.filter((p) => p.enabled).map((p) => p.id);
       const result = await invoke<Finding[]>("run_security_scan", {
         workspacePath,
         patternIds: enabledPatterns,
       });
+      scanned = result;
       setFindings(result);
       setLastScanTime(new Date().toLocaleString());
 
@@ -469,6 +551,97 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
     } finally {
       setScanning(false);
     }
+
+    // A pattern match is a candidate. Verification is what makes it a finding,
+    // so it runs as part of a scan rather than as something to remember to do.
+    await verifyFindings(scanned);
+  }
+
+  /** Merge verdicts into the candidates they belong to. */
+  function applyVerdicts(verdicts: Verdict[]) {
+    const byId = new Map(verdicts.map((v) => [v.id, v]));
+    setFindings((prev) =>
+      prev.map((f) => {
+        const v = byId.get(f.id);
+        return v ? { ...f, verification: v.verification, verificationReason: v.verificationReason } : f;
+      })
+    );
+  }
+
+  /**
+   * Check candidates against the code they point at, one call per file.
+   *
+   * Files go one at a time so progress shows, partial verdicts are kept, and
+   * Stop stops. A candidate that could not be checked stays visible as
+   * unverified carrying the reason — the one thing this must never do is let
+   * "we could not tell" read as either a finding or a clean file.
+   */
+  async function verifyFindings(list: Finding[]) {
+    if (!workspacePath) return;
+    const { provider: providerId, model } = parseProviderSelection(provider ?? "");
+    // Nothing selected in the toolbar means nothing gets verified — never a
+    // silent fallback to some default provider.
+    if (!providerId || !model) return;
+
+    // Worst first: if the cap bites, it should bite the Info matches, not the
+    // Critical ones.
+    const ordered = Object.entries(
+      groupBy(list.filter((f) => verificationOf(f) === "unverified"), (f) => f.file)
+    ).sort(([, a], [, b]) => {
+      const worst = (fs: Finding[]) => Math.min(...fs.map((f) => severityOrder[f.severity]));
+      return worst(a) - worst(b) || b.length - a.length;
+    });
+    if (ordered.length === 0) return;
+
+    const byFile = ordered.slice(0, VERIFY_FILE_LIMIT);
+    setVerifyNote(
+      ordered.length > VERIFY_FILE_LIMIT
+        ? `Verifying the ${VERIFY_FILE_LIMIT} files with the most severe candidates; ${ordered.length - VERIFY_FILE_LIMIT} more file(s) are left unverified — press Verify again for the next batch.`
+        : null
+    );
+
+    stopRef.current = false;
+    const effort = getSelectedEffort();
+    let done = 0;
+    for (const [file, candidates] of byFile) {
+      if (stopRef.current) break;
+      setVerifying({ done, total: byFile.length, current: file });
+      try {
+        const verdicts = await invoke<Verdict[]>("verify_security_findings", {
+          provider: providerId,
+          model,
+          workspacePath,
+          file,
+          candidates: candidates.map((f) => ({
+            id: f.id,
+            title: f.title,
+            cwe: f.cwe,
+            line: f.line,
+            description: f.description,
+          })),
+          effort,
+        });
+        applyVerdicts(verdicts);
+      } catch (e) {
+        // A file the backend could not read comes back as unverified verdicts,
+        // so an exception here is the call itself failing — an unconfigured
+        // provider, say, which would fail the same way for every file left.
+        // Stop, and say plainly that the rest went unchecked.
+        setError(`Verification stopped: ${String(e)}`);
+        applyVerdicts(
+          byFile.slice(done).flatMap(([, rest]) =>
+            rest.map((f) => ({
+              id: f.id,
+              verification: "unverified" as const,
+              verificationReason: String(e),
+            }))
+          )
+        );
+        break;
+      }
+      done += 1;
+    }
+    setVerifying(null);
   }
 
   // Persist suppress/unsuppress to backend
@@ -525,8 +698,18 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
     });
   };
 
-  const activeFindings = findings.filter((f) => !f.suppressed);
+  // Refuted candidates leave the findings list entirely: a false positive that
+  // something checked and ruled out is not a finding, and reporting it as one
+  // is what makes a scanner useless. They stay reachable under "Ruled out",
+  // with the reason, so the list can be audited rather than trusted.
+  const unsuppressed = findings.filter((f) => !f.suppressed);
+  const activeFindings = unsuppressed.filter((f) => verificationOf(f) !== "refuted");
+  const ruledOut = unsuppressed.filter((f) => verificationOf(f) === "refuted");
   const suppressedFindings = findings.filter((f) => f.suppressed);
+  const confirmedCount = activeFindings.filter((f) => verificationOf(f) === "confirmed").length;
+  const unverifiedCount = activeFindings.length - confirmedCount;
+  const selection = parseProviderSelection(provider ?? "");
+  const canVerify = Boolean(selection.provider && selection.model);
 
   const filteredFindings = activeFindings
     .filter((f) => filterSeverity === "All" || f.severity === filterSeverity)
@@ -604,6 +787,12 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
                 {f.cwe}
               </span>
             )}
+            <span
+              style={verificationBadgeStyle(verificationOf(f))}
+              title={f.verificationReason || "No model has checked this candidate against the code."}
+            >
+              {VERIFICATION_LABEL[verificationOf(f)]}
+            </span>
           </div>
         </div>
         <button
@@ -628,6 +817,17 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
       {expandedId === f.id && (
         <div style={{ borderTop: "1px solid var(--bg-secondary)", padding: "12px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
           <div>
+            <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 3 }}>
+              {verificationOf(f) === "confirmed" ? "VERIFIED AGAINST THE CODE" : "NOT VERIFIED"}
+            </div>
+            <div style={{ fontSize: "var(--font-size-base)", lineHeight: 1.6, color: "var(--text-secondary)" }}>
+              {f.verificationReason ||
+                (canVerify
+                  ? "This candidate has not been checked against the code yet."
+                  : "Select a provider and model in the toolbar to check this candidate against the code.")}
+            </div>
+          </div>
+          <div>
             <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-secondary)", marginBottom: 3 }}>PROBLEM</div>
             <div style={{ fontSize: "var(--font-size-base)", lineHeight: 1.6 }}>{f.description}</div>
           </div>
@@ -648,16 +848,36 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
       <div className="panel-header">
         <h3>Security Scanner</h3>
         <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
-          {lastScanTime ? `Last scan: ${lastScanTime}` : "Static analysis for common vulnerabilities"}
+          {verifying
+            ? `Verifying ${verifying.done + 1}/${verifying.total}: ${verifying.current}`
+            : lastScanTime
+              ? `Last scan: ${lastScanTime}`
+              : "Pattern matching, then verification against the code"}
         </div>
-        <button
-          onClick={runScan}
-          disabled={scanning || !workspacePath}
-          className={`panel-btn ${scanning ? "panel-btn-secondary" : "panel-btn-primary"}`}
-          style={{ marginLeft: "auto" }}
-        >
-          {scanning ? "Scanning..." : "Run Scan"}
-        </button>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+          {verifying ? (
+            <button onClick={() => { stopRef.current = true; }} className="panel-btn panel-btn-secondary">
+              Stop verifying
+            </button>
+          ) : (
+            unverifiedCount > 0 && canVerify && !scanning && (
+              <button
+                onClick={() => verifyFindings(findings)}
+                className="panel-btn panel-btn-secondary"
+                title="Check the unverified candidates against the code they point at"
+              >
+                Verify {unverifiedCount}
+              </button>
+            )
+          )}
+          <button
+            onClick={runScan}
+            disabled={scanning || verifying !== null || !workspacePath}
+            className={`panel-btn ${scanning ? "panel-btn-secondary" : "panel-btn-primary"}`}
+          >
+            {scanning ? "Scanning..." : "Run Scan"}
+          </button>
+        </div>
       </div>
 
       <div className="panel-body">
@@ -722,6 +942,27 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
             <option value="file">Group by File</option>
             <option value="none">No grouping</option>
           </select>
+        </div>
+      )}
+
+      {/* What has and has not been checked. A count of findings means nothing
+          without it: the pattern stage matches text, and only verification
+          knows whether a match is a vulnerability. */}
+      {findings.length > 0 && (
+        <div
+          style={{
+            fontSize: "var(--font-size-sm)", color: "var(--text-secondary)",
+            padding: "6px 8px", borderRadius: "var(--radius-sm)",
+            background: "var(--bg-secondary)", lineHeight: 1.5,
+          }}
+        >
+          {confirmedCount} verified · {unverifiedCount} unverified · {ruledOut.length} ruled out
+          {unverifiedCount > 0 && (
+            canVerify
+              ? " — unverified candidates were not checked against the code; they may be false positives."
+              : " — select a provider and model in the toolbar to check the unverified candidates against the code."
+          )}
+          {verifyNote && <div style={{ marginTop: 4 }}>{verifyNote}</div>}
         </div>
       )}
 
@@ -816,6 +1057,44 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
               </div>
             ))}
 
+            {/* Ruled out by verification. Out of the findings list, still on
+                the page: a scanner whose false positives disappear without a
+                trace cannot be checked. */}
+            {ruledOut.length > 0 && (
+              <div style={{ marginTop: 12, padding: "8px 12px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)" }}>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setRuledOutOpen((v) => !v)}
+                  style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", userSelect: "none" }}
+                >
+                  <span style={{ fontSize: "var(--font-size-xs)", opacity: 0.6 }}>{ruledOutOpen ? "\u25BC" : "\u25B6"}</span>
+                  <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600, color: "var(--text-secondary)" }}>
+                    {ruledOut.length} ruled out as false positive(s)
+                  </span>
+                </div>
+                {ruledOutOpen && ruledOut.map((f) => (
+                  <div key={f.id} style={{ padding: "6px 0 6px 20px", borderBottom: "1px solid var(--bg-tertiary)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span
+                        onClick={() => handleFileClick(f.file, f.line)}
+                        style={{
+                          fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)",
+                          color: "var(--accent-blue)", cursor: onOpenFile ? "pointer" : "default",
+                        }}
+                      >
+                        {f.file}:{f.line}
+                      </span>
+                      <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{f.cwe}</span>
+                    </div>
+                    <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                      {f.verificationReason || "No reason recorded."}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* Suppressed findings section — grouped by CWE */}
             {suppressedFindings.length > 0 && (
               <div style={{ marginTop: 12, padding: "8px 12px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)" }}>
@@ -859,8 +1138,10 @@ const SecurityScanPanel: React.FC<SecurityScanPanelProps> = ({ workspacePath, on
           <div>
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
               {[
-                { label: "Total", value: findings.length, color: "var(--text-primary)" },
-                { label: "Active", value: activeFindings.length, color: "var(--success-color)" },
+                { label: "Candidates", value: findings.length, color: "var(--text-primary)" },
+                { label: "Verified", value: confirmedCount, color: "var(--accent-rose)" },
+                { label: "Unverified", value: unverifiedCount, color: "var(--accent-gold)" },
+                { label: "Ruled out", value: ruledOut.length, color: "var(--text-secondary)" },
                 { label: "Suppressed", value: suppressedFindings.length, color: "var(--text-secondary)" },
               ].map(({ label, value, color }) => (
                 <div key={label} style={{ background: "var(--bg-tertiary)", padding: "12px 16px", borderRadius: "var(--radius-sm)", textAlign: "center", minWidth: 80, border: "1px solid var(--border-color)" }}>

@@ -20838,6 +20838,166 @@ mod tests {
         assert_eq!(found.matched, 0);
     }
 
+    // ── Security scanner: matching and verification ─────────────────────────
+
+    fn candidate(id: &str, line: u32) -> SecScanCandidate {
+        SecScanCandidate {
+            id: id.to_string(),
+            title: "SQL Injection via string concatenation".to_string(),
+            cwe: "CWE-89".to_string(),
+            line,
+            description: "Query built by concatenation.".to_string(),
+        }
+    }
+
+    #[test]
+    fn word_patterns_do_not_match_inside_a_longer_word() {
+        // "des" inside "description" was a Medium-severity finding on every
+        // struct field named `description`.
+        assert!(!secscan_line_matches("    pub description: string,", "des"));
+        assert!(!secscan_line_matches("let checkmd5sum = 1;", "md5"));
+        assert!(secscan_line_matches("let h = md5(payload);", "md5"));
+        assert!(secscan_line_matches("cipher = des", "des"));
+    }
+
+    #[test]
+    fn punctuated_patterns_still_match_as_substrings() {
+        assert!(secscan_line_matches(
+            "let q = format!(\"select * from t where id = {}\", id);",
+            "format!(\"select"
+        ));
+    }
+
+    #[test]
+    fn a_constant_query_is_refuted_without_a_model() {
+        assert!(secscan_static_refutation(
+            "sql-inject",
+            "    let q = format!(\"SELECT 1 FROM users\");"
+        )
+        .is_some());
+    }
+
+    #[test]
+    fn an_interpolated_query_is_left_for_verification() {
+        assert!(secscan_static_refutation(
+            "sql-inject",
+            "    let q = format!(\"SELECT * FROM t WHERE id = {}\", id);"
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn a_query_continued_on_the_next_line_is_left_for_verification() {
+        // The interpolation could be on the line after the match; refuting here
+        // would hide a real injection.
+        assert!(secscan_static_refutation("sql-inject", "    let q = format!(\"SELECT * \\").is_none());
+    }
+
+    #[test]
+    fn static_refutation_only_speaks_for_the_rules_it_has() {
+        assert!(secscan_static_refutation("cmd-inject", "os.system(cmd);").is_none());
+    }
+
+    #[test]
+    fn verdicts_map_the_models_words_onto_three_outcomes() {
+        let cands = vec![candidate("SEC-0001", 10), candidate("SEC-0002", 20)];
+        let reply = r#"[
+            {"id": "SEC-0001", "verdict": "false_positive", "reason": "The table name is a constant."},
+            {"id": "SEC-0002", "verdict": "confirmed", "reason": "req.query.id reaches the query."}
+        ]"#;
+        let out = secscan_parse_verdicts(reply, &cands);
+        assert_eq!(out[0].verification, "refuted");
+        assert_eq!(out[0].verification_reason, "The table name is a constant.");
+        assert_eq!(out[1].verification, "confirmed");
+    }
+
+    #[test]
+    fn an_uncertain_verdict_is_unverified_not_a_finding() {
+        let cands = vec![candidate("SEC-0001", 10)];
+        let reply = r#"[{"id": "SEC-0001", "verdict": "uncertain", "reason": "The caller is not shown."}]"#;
+        let out = secscan_parse_verdicts(reply, &cands);
+        assert_eq!(out[0].verification, "unverified");
+        assert!(out[0].verification_reason.contains("The caller is not shown."));
+    }
+
+    #[test]
+    fn a_candidate_the_model_skipped_stays_unverified() {
+        let cands = vec![candidate("SEC-0001", 10), candidate("SEC-0002", 20)];
+        let reply = r#"[{"id": "SEC-0001", "verdict": "false_positive", "reason": "Literal."}]"#;
+        let out = secscan_parse_verdicts(reply, &cands);
+        assert_eq!(out.len(), 2);
+        assert_eq!(out[1].id, "SEC-0002");
+        assert_eq!(out[1].verification, "unverified");
+    }
+
+    #[test]
+    fn an_unparseable_reply_leaves_every_candidate_unverified() {
+        let cands = vec![candidate("SEC-0001", 10), candidate("SEC-0002", 20)];
+        let out = secscan_parse_verdicts("I could not analyse this file.", &cands);
+        assert_eq!(out.len(), 2);
+        assert!(out.iter().all(|v| v.verification == "unverified"));
+    }
+
+    #[test]
+    fn a_fenced_reply_is_still_parsed() {
+        let cands = vec![candidate("SEC-0001", 10)];
+        let reply = "Here you go:\n```json\n[{\"id\": \"SEC-0001\", \"verdict\": \"confirmed\", \"reason\": \"Tainted.\"}]\n```";
+        assert_eq!(secscan_parse_verdicts(reply, &cands)[0].verification, "confirmed");
+    }
+
+    #[test]
+    fn a_small_file_is_verified_whole() {
+        let contents = "line one\nline two\nline three\n";
+        let (excerpt, whole) = secscan_verify_excerpt(contents, &[candidate("SEC-0001", 2)]);
+        assert!(whole);
+        assert!(excerpt.contains("    1 | line one"));
+        assert!(excerpt.contains("    3 | line three"));
+    }
+
+    #[test]
+    fn a_large_file_is_verified_by_excerpt_around_each_candidate() {
+        let contents = (1..=4000)
+            .map(|i| format!("let v{i} = {i};"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(contents.len() > SECSCAN_VERIFY_MAX_CHARS);
+        let (excerpt, whole) =
+            secscan_verify_excerpt(&contents, &[candidate("SEC-0001", 100), candidate("SEC-0002", 3000)]);
+        assert!(!whole);
+        assert!(excerpt.contains("let v100 = 100;"));
+        assert!(excerpt.contains("let v3000 = 3000;"));
+        assert!(!excerpt.contains("let v2000 = 2000;"));
+        assert!(excerpt.contains("lines omitted"));
+    }
+
+    #[test]
+    fn the_prompt_says_when_it_only_carries_excerpts() {
+        let contents = (1..=4000)
+            .map(|i| format!("let v{i} = {i};"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let prompt = secscan_verify_prompt("src/db.rs", &contents, &[candidate("SEC-0001", 100)]);
+        assert!(prompt.contains("Only the code around each candidate"));
+        assert!(prompt.contains("uncertain"));
+        assert!(prompt.contains("SEC-0001"));
+        assert!(prompt.contains("src/db.rs"));
+    }
+
+    #[tokio::test]
+    async fn verification_refuses_to_run_without_a_model() {
+        let err = verify_security_findings(
+            String::new(),
+            String::new(),
+            "/tmp".to_string(),
+            "src/db.rs".to_string(),
+            vec![candidate("SEC-0001", 1)],
+            None,
+        )
+        .await
+        .unwrap_err();
+        assert!(err.contains("provider"));
+    }
+
     // ── infer_file_info ─────────────────────────────────────────────────────
 
     #[test]
@@ -37746,6 +37906,64 @@ fn secscan_is_suppressed(
     })
 }
 
+/// Does `hay` contain `needle` as a whole word?
+///
+/// The bare-identifier patterns ("md5", "sha1", "des", "rc4") are substrings of
+/// ordinary English and of ordinary identifiers: `des` matched every
+/// `DESCRIPTION`, `md5` every `checkMd5Sum`. The word boundary is the
+/// difference between naming the algorithm and spelling it by accident.
+fn secscan_contains_word(hay: &str, needle: &str) -> bool {
+    if needle.is_empty() {
+        return false;
+    }
+    let is_word = |c: char| c.is_alphanumeric() || c == '_';
+    hay.match_indices(needle).any(|(idx, _)| {
+        let before = hay[..idx].chars().next_back();
+        let after = hay[idx + needle.len()..].chars().next();
+        !before.is_some_and(is_word) && !after.is_some_and(is_word)
+    })
+}
+
+/// Whether a lowercased `line` matches a lowercased `pattern`.
+///
+/// A pattern made only of identifier characters is matched on word boundaries;
+/// one carrying punctuation (`format!("select`, `shell=true`) is specific
+/// enough to match as a plain substring.
+fn secscan_line_matches(line: &str, pattern: &str) -> bool {
+    if pattern.chars().all(|c| c.is_alphanumeric() || c == '_') {
+        secscan_contains_word(line, pattern)
+    } else {
+        line.contains(pattern)
+    }
+}
+
+/// Whether a `sql-inject` match is a complete, constant query expression: the
+/// statement ends on this line, and nothing is interpolated or concatenated
+/// into it. A continuation line (the interpolation could be on the next one)
+/// fails the first half and is left for verification to judge.
+fn secscan_is_constant_sql(line: &str) -> bool {
+    let trimmed = line.trim_end();
+    let statement_ends_here =
+        trimmed.ends_with(';') || trimmed.ends_with(')') || trimmed.ends_with(',');
+    statement_ends_here && !line.contains('{') && !line.contains('+')
+}
+
+/// Rule a candidate out from the matched line alone.
+///
+/// Only what the line *proves* belongs here. Anything needing the surrounding
+/// code is left to [`verify_security_findings`], which reads it — a rule that
+/// merely looks likely would hide a real vulnerability, the one error this
+/// scanner cannot trade away for a shorter list.
+fn secscan_static_refutation(pattern_id: &str, line: &str) -> Option<&'static str> {
+    match pattern_id {
+        "sql-inject" if secscan_is_constant_sql(line) => Some(
+            "Constant query: the SQL on this line is a literal with no interpolation \
+             or concatenation, so no input reaches it.",
+        ),
+        _ => None,
+    }
+}
+
 /// Security patterns with regex and metadata
 struct SecPattern {
     id: &'static str,
@@ -37913,7 +38131,7 @@ pub async fn run_security_scan(
                 let line_lower = line.to_lowercase();
                 for pat in pattern.patterns {
                     let pat_lower = pat.to_lowercase();
-                    if line_lower.contains(&pat_lower) {
+                    if secscan_line_matches(&line_lower, &pat_lower) {
                         // Skip if it's in a comment
                         let trimmed = line.trim();
                         if trimmed.starts_with("//")
@@ -37944,6 +38162,13 @@ pub async fn run_security_scan(
                         let suppressed =
                             secscan_is_suppressed(&suppressions, pattern.cwe, &rel_path, line_1);
 
+                        // A pattern match is a candidate, never a finding: the
+                        // line looks like the vulnerability, which is not the
+                        // same as being it. What the line itself disproves is
+                        // settled here; everything else stays `unverified`
+                        // until `verify_security_findings` reads the code.
+                        let refutation = secscan_static_refutation(pattern.id, line);
+
                         finding_id += 1;
                         findings.push(serde_json::json!({
                             "id": format!("SEC-{:04}", finding_id),
@@ -37955,6 +38180,8 @@ pub async fn run_security_scan(
                             "cwe": pattern.cwe,
                             "remediation": pattern.remediation,
                             "suppressed": suppressed,
+                            "verification": if refutation.is_some() { "refuted" } else { "unverified" },
+                            "verificationReason": refutation,
                         }));
                         break; // One finding per pattern per line
                     }
@@ -37987,6 +38214,305 @@ pub async fn run_security_scan(
     secscan_write_json("history.json", &history_val)?;
 
     Ok(serde_json::json!(findings))
+}
+
+// ── Verification ─────────────────────────────────────────────────────────────
+//
+// The pattern stage answers "does this line look like CWE-89?", which is not
+// the question the user asked. Verification answers the real one by reading the
+// code around the match: is attacker-controlled input actually reaching the
+// dangerous operation? Its three outcomes are kept strictly apart — `confirmed`
+// is a finding, `refuted` is a false positive, and `unverified` is a candidate
+// nobody decided. A candidate never becomes a finding by default, and a
+// verification that could not run never becomes a clean bill of health.
+
+/// A scanner candidate handed back for verification, as the panel holds it.
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SecScanCandidate {
+    pub id: String,
+    pub title: String,
+    pub cwe: String,
+    pub line: u32,
+    pub description: String,
+}
+
+/// What verification concluded about one candidate.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SecScanVerdict {
+    pub id: String,
+    /// `"confirmed"` · `"refuted"` · `"unverified"`.
+    pub verification: String,
+    /// Why — shown next to the finding, and the evidence a fix request carries.
+    pub verification_reason: String,
+}
+
+impl SecScanVerdict {
+    fn unverified(id: &str, reason: impl Into<String>) -> Self {
+        Self {
+            id: id.to_string(),
+            verification: "unverified".to_string(),
+            verification_reason: reason.into(),
+        }
+    }
+}
+
+/// How much of a file verification sends. A candidate is decided by the code
+/// around it — where the value comes from, what happens to it on the way — so
+/// the whole file goes whenever it fits in a prompt.
+const SECSCAN_VERIFY_MAX_CHARS: usize = 48_000;
+
+/// Lines kept either side of a candidate when the file does not fit whole.
+const SECSCAN_VERIFY_CONTEXT_LINES: usize = 40;
+
+/// The code verification shows the model, line-numbered so a verdict can name
+/// the line it is about. Returns the excerpt and whether it is the whole file —
+/// the prompt says which, because "I did not see enough" is a verdict the model
+/// can only give if it knows what it was given.
+fn secscan_verify_excerpt(contents: &str, candidates: &[SecScanCandidate]) -> (String, bool) {
+    let lines: Vec<&str> = contents.lines().collect();
+    let numbered = |range: std::ops::Range<usize>| -> String {
+        range
+            .filter_map(|i| lines.get(i).map(|l| format!("{:>5} | {l}", i + 1)))
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+
+    if contents.len() <= SECSCAN_VERIFY_MAX_CHARS {
+        return (numbered(0..lines.len()), true);
+    }
+
+    let mut windows: Vec<(usize, usize)> = candidates
+        .iter()
+        .map(|c| {
+            let idx = c.line.saturating_sub(1) as usize;
+            (
+                idx.saturating_sub(SECSCAN_VERIFY_CONTEXT_LINES),
+                (idx + SECSCAN_VERIFY_CONTEXT_LINES + 1).min(lines.len()),
+            )
+        })
+        .collect();
+    windows.sort_unstable();
+
+    // Overlapping windows are one excerpt, not two copies of the same code.
+    let merged = windows
+        .into_iter()
+        .fold(Vec::<(usize, usize)>::new(), |mut acc, (start, end)| {
+            match acc.last_mut() {
+                Some(last) if start <= last.1 => last.1 = last.1.max(end),
+                _ => acc.push((start, end)),
+            }
+            acc
+        });
+
+    let text = merged
+        .into_iter()
+        .map(|(start, end)| numbered(start..end))
+        .collect::<Vec<_>>()
+        .join("\n      | ... lines omitted ...\n");
+    (text, false)
+}
+
+/// The verification prompt for one file's candidates.
+fn secscan_verify_prompt(file: &str, contents: &str, candidates: &[SecScanCandidate]) -> String {
+    let (excerpt, whole_file) = secscan_verify_excerpt(contents, candidates);
+
+    let list = candidates
+        .iter()
+        .map(|c| {
+            format!(
+                "- id {}: line {} — {} ({}). The scanner's claim: {}",
+                c.id, c.line, c.title, c.cwe, c.description
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let scope = if whole_file {
+        "The whole file is below, with line numbers."
+    } else {
+        "Only the code around each candidate is below, with line numbers; omitted stretches are \
+         marked. If deciding a candidate needs code that is not shown, answer \"uncertain\"."
+    };
+
+    format!(
+        "You are checking the output of a substring-matching security scanner. Each candidate \
+below is one line that matched a pattern. A match is not a vulnerability. Decide, from the code \
+itself, whether each candidate is really exploitable.\n\n\
+File: {file}\n{scope}\n\n\
+Candidates:\n{list}\n\n\
+Code:\n{excerpt}\n\n\
+For each candidate answer exactly one of:\n\
+- \"confirmed\" — attacker-controlled input really reaches the dangerous operation and nothing \
+parameterises, escapes, or otherwise neutralises it. Name the input and how it gets there.\n\
+- \"false_positive\" — not exploitable as written. Say why: the value is a literal or a constant, \
+the query is parameterised, the input cannot be attacker-controlled, the API is not the dangerous \
+one, or the line is test data, documentation, or a scanner's own pattern list rather than code \
+that runs.\n\
+- \"uncertain\" — the code shown does not settle it. Prefer this over guessing either way.\n\n\
+Reply with a JSON array and nothing else:\n\
+[{{\"id\": \"<candidate id>\", \"verdict\": \"confirmed\" | \"false_positive\" | \"uncertain\", \
+\"reason\": \"<one sentence>\"}}]\n\
+Include every candidate id exactly once."
+    )
+}
+
+/// Map a model's verdict word onto an outcome. Only an unambiguous yes or no
+/// decides a candidate; everything else — "uncertain", "likely", a word the
+/// model invented, a missing field — leaves it unverified.
+fn secscan_verdict_word(word: &str) -> Option<&'static str> {
+    match word.trim().to_ascii_lowercase().replace([' ', '-'], "_").as_str() {
+        "confirmed" | "true_positive" | "vulnerable" | "exploitable" => Some("confirmed"),
+        "false_positive" | "refuted" | "not_vulnerable" | "not_exploitable" => Some("refuted"),
+        _ => None,
+    }
+}
+
+/// Turn a model reply into one verdict per candidate — always one per
+/// candidate, so a reply that skips a candidate leaves it unverified rather
+/// than silently dropping or silently keeping it.
+fn secscan_parse_verdicts(reply: &str, candidates: &[SecScanCandidate]) -> Vec<SecScanVerdict> {
+    let parsed: Vec<serde_json::Value> = extract_json_array(reply)
+        .and_then(|s| serde_json::from_str(s).ok())
+        .unwrap_or_default();
+
+    candidates
+        .iter()
+        .map(|c| {
+            let Some(entry) = parsed
+                .iter()
+                .find(|v| v.get("id").and_then(|i| i.as_str()) == Some(c.id.as_str()))
+            else {
+                return SecScanVerdict::unverified(
+                    &c.id,
+                    "The model's reply carried no verdict for this candidate.",
+                );
+            };
+
+            let reason = entry
+                .get("reason")
+                .and_then(|r| r.as_str())
+                .unwrap_or("")
+                .trim()
+                .to_string();
+            let word = entry.get("verdict").and_then(|v| v.as_str()).unwrap_or("");
+
+            match secscan_verdict_word(word) {
+                Some(verification) => SecScanVerdict {
+                    id: c.id.clone(),
+                    verification: verification.to_string(),
+                    verification_reason: if reason.is_empty() {
+                        "No reason given.".to_string()
+                    } else {
+                        reason
+                    },
+                },
+                None if reason.is_empty() => SecScanVerdict::unverified(
+                    &c.id,
+                    format!(
+                        "The model did not decide (verdict: {}).",
+                        if word.is_empty() { "missing" } else { word }
+                    ),
+                ),
+                None => SecScanVerdict::unverified(
+                    &c.id,
+                    format!("The model did not decide: {reason}"),
+                ),
+            }
+        })
+        .collect()
+}
+
+/// Write verdicts back into the persisted results, so reopening the panel shows
+/// what was verified rather than the raw pattern matches all over again.
+fn secscan_record_verdicts(verdicts: &[SecScanVerdict]) -> Result<(), String> {
+    let mut results = secscan_read_json("last_results.json");
+    let Some(items) = results.as_array_mut() else {
+        return Ok(());
+    };
+
+    let touched = items.iter_mut().fold(false, |touched, item| {
+        let id = item.get("id").and_then(|i| i.as_str()).unwrap_or("").to_string();
+        match verdicts.iter().find(|v| v.id == id).zip(item.as_object_mut()) {
+            Some((v, obj)) => {
+                obj.insert("verification".to_string(), serde_json::json!(v.verification));
+                obj.insert(
+                    "verificationReason".to_string(),
+                    serde_json::json!(v.verification_reason),
+                );
+                true
+            }
+            None => touched,
+        }
+    });
+
+    if touched {
+        secscan_write_json("last_results.json", &results)
+    } else {
+        Ok(())
+    }
+}
+
+/// Verify one file's scanner candidates against the code they point at.
+///
+/// One call per file: the panel drives the loop, so it can show progress, keep
+/// partial verdicts, and stop. Every candidate handed in comes back with a
+/// verdict — a file that cannot be read and a provider call that fails both
+/// return `unverified` carrying the reason, because "we could not check" is an
+/// answer the user has to see, not one to round to "clean".
+#[tauri::command]
+pub async fn verify_security_findings(
+    provider: String,
+    model: String,
+    workspace_path: String,
+    file: String,
+    candidates: Vec<SecScanCandidate>,
+    effort: Option<String>,
+) -> Result<Vec<SecScanVerdict>, String> {
+    use vibe_ai::provider::{Message, MessageRole};
+
+    if candidates.is_empty() {
+        return Ok(Vec::new());
+    }
+    if provider.trim().is_empty() || model.trim().is_empty() {
+        return Err("Select a provider and model first".to_string());
+    }
+
+    let root = reject_sensitive_path(&workspace_path)?;
+    let path = safe_resolve_path_in(&[root], &file)?;
+    let provider_inst = build_temp_provider_with_effort(&provider, &model, effort.as_deref())
+        .ok_or_else(|| format!("Provider '{provider}' is not configured"))?;
+
+    let all_unverified = |reason: String| -> Vec<SecScanVerdict> {
+        candidates
+            .iter()
+            .map(|c| SecScanVerdict::unverified(&c.id, reason.clone()))
+            .collect()
+    };
+
+    let verdicts = match std::fs::read_to_string(&path) {
+        Err(e) => all_unverified(format!("Could not read {file}: {e}")),
+        Ok(contents) => {
+            let prompt = secscan_verify_prompt(&file, &contents, &candidates);
+            match provider_inst
+                .chat(
+                    &[Message {
+                        role: MessageRole::User,
+                        content: prompt,
+                    }],
+                    None,
+                )
+                .await
+            {
+                Ok(reply) => secscan_parse_verdicts(&reply, &candidates),
+                Err(e) => all_unverified(format!("Verification call failed: {e}")),
+            }
+        }
+    };
+
+    secscan_record_verdicts(&verdicts)?;
+    Ok(verdicts)
 }
 
 #[tauri::command]

@@ -152,3 +152,156 @@ describe('SecurityScanPanel — Fix with AI', () => {
     expect(injected[0]).not.toContain('Critical one');
   });
 });
+
+// ── Verification ───────────────────────────────────────────────────────────
+//
+// The scanner matches substrings; only verification can tell a vulnerability
+// from a line that looks like one. These pin the three states apart: a refuted
+// candidate leaves the findings list, a confirmed one carries its evidence, and
+// one nobody could check stays visible as unverified rather than becoming
+// either of the other two.
+
+interface RawVerdict {
+  id: string;
+  verification: 'confirmed' | 'refuted' | 'unverified';
+  verificationReason: string;
+}
+
+/** Scan returns `results`; verification answers with `verdicts` per file. */
+function setupVerifyMocks(
+  results: RawFinding[],
+  verdicts: RawVerdict[] | ((file: string) => RawVerdict[]),
+) {
+  mockInvoke.mockImplementation(async (cmd: string, args: Record<string, unknown>) => {
+    if (cmd === 'run_security_scan') return results;
+    if (cmd === 'get_security_scan_results') return [];
+    if (cmd === 'get_security_scan_history') return [];
+    if (cmd === 'verify_security_findings') {
+      return typeof verdicts === 'function' ? verdicts(args.file as string) : verdicts;
+    }
+    return null;
+  });
+}
+
+async function renderVerified(
+  results: RawFinding[],
+  verdicts: RawVerdict[] | ((file: string) => RawVerdict[]),
+) {
+  setupVerifyMocks(results, verdicts);
+  render(<SecurityScanPanel workspacePath="/ws" provider="Ollama (devstral-2)" />);
+  fireEvent.click(screen.getByRole('button', { name: 'Run Scan' }));
+  await waitFor(() =>
+    expect(mockInvoke.mock.calls.some(([cmd]) => cmd === 'verify_security_findings')).toBe(true)
+  );
+}
+
+describe('SecurityScanPanel — verification', () => {
+  it('checks each candidate with the provider selected in the toolbar', async () => {
+    await renderVerified([finding()], [
+      { id: 'f-1', verification: 'confirmed', verificationReason: 'req.params.id reaches the query.' },
+    ]);
+
+    const call = mockInvoke.mock.calls.find(([cmd]) => cmd === 'verify_security_findings');
+    const args = call?.[1] as Record<string, unknown>;
+    expect(args.provider).toBe('ollama');
+    expect(args.model).toBe('devstral-2');
+    expect(args.file).toBe('orbit/server/src/protocols/cql/adapter.rs');
+    expect(args.candidates).toEqual([
+      expect.objectContaining({ id: 'f-1', line: 1148, cwe: 'CWE-89' }),
+    ]);
+  });
+
+  it('drops a refuted candidate from the findings list and keeps it under Ruled out', async () => {
+    await renderVerified([finding()], [
+      { id: 'f-1', verification: 'refuted', verificationReason: 'The table name is a compile-time constant.' },
+    ]);
+
+    await waitFor(() => expect(screen.getByText(/1 ruled out as false positive/)).toBeTruthy());
+    expect(screen.queryByText('SQL Injection via string concatenation')).toBeNull();
+
+    fireEvent.click(screen.getByText(/1 ruled out as false positive/));
+    expect(screen.getByText(/compile-time constant/)).toBeTruthy();
+  });
+
+  it('never reports a refuted candidate to chat', async () => {
+    await renderVerified(
+      [finding({ id: 'f-1' }), finding({ id: 'f-2', line: 1327 })],
+      [
+        { id: 'f-1', verification: 'confirmed', verificationReason: 'Tainted input reaches it.' },
+        { id: 'f-2', verification: 'refuted', verificationReason: 'Literal query.' },
+      ]
+    );
+
+    await waitFor(() => expect(screen.getByText(/1 verified · 0 unverified · 1 ruled out/)).toBeTruthy());
+    fireEvent.click(screen.getAllByRole('button', { name: 'Fix with AI' })[0]);
+
+    expect(injected).toHaveLength(1);
+    expect(injected[0]).toContain('line 1148');
+    expect(injected[0]).not.toContain('line 1327');
+    // A verified finding travels with the evidence that verified it.
+    expect(injected[0]).toContain('Tainted input reaches it.');
+  });
+
+  it('keeps a candidate the model could not decide, marked unverified', async () => {
+    await renderVerified([finding()], [
+      { id: 'f-1', verification: 'unverified', verificationReason: 'The caller is not shown.' },
+    ]);
+
+    await waitFor(() => expect(screen.getByText(/0 verified · 1 unverified · 0 ruled out/)).toBeTruthy());
+    expect(screen.getAllByText('SQL Injection via string concatenation').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('unverified').length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Fix with AI' })[0]);
+    expect(injected[0]).toContain('NOT verified');
+    expect(injected[0]).toContain('The caller is not shown.');
+  });
+
+  it('leaves every candidate unverified when the verification call fails', async () => {
+    mockInvoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'run_security_scan') return [finding({ id: 'f-1' }), finding({ id: 'f-2', file: 'other.rs' })];
+      if (cmd === 'get_security_scan_results') return [];
+      if (cmd === 'get_security_scan_history') return [];
+      if (cmd === 'verify_security_findings') throw new Error("Provider 'ollama' is not configured");
+      return null;
+    });
+    render(<SecurityScanPanel workspacePath="/ws" provider="Ollama (devstral-2)" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Run Scan' }));
+
+    await waitFor(() => expect(screen.getByText(/Verification stopped/)).toBeTruthy());
+    // Both files' candidates stay, and neither is claimed to be checked.
+    expect(screen.getByText(/0 verified · 2 unverified · 0 ruled out/)).toBeTruthy();
+    // One failing file does not mean a second call: the same call would fail.
+    expect(mockInvoke.mock.calls.filter(([cmd]) => cmd === 'verify_security_findings')).toHaveLength(1);
+  });
+
+  it('caps how many files one pass verifies, worst first, and says what it left', async () => {
+    // 30 files, one candidate each: 29 Medium and one Critical. The cap is 25.
+    const many = Array.from({ length: 30 }, (_, i) =>
+      finding({ id: `f-${i}`, file: `src/f${i}.rs`, severity: i === 29 ? 'Critical' : 'Medium' })
+    );
+    await renderVerified(many, (file) => [
+      { id: many.find((f) => f.file === file)!.id, verification: 'refuted', verificationReason: 'Literal.' },
+    ]);
+
+    await waitFor(() =>
+      expect(mockInvoke.mock.calls.filter(([cmd]) => cmd === 'verify_security_findings')).toHaveLength(25)
+    );
+    const verified = mockInvoke.mock.calls
+      .filter(([cmd]) => cmd === 'verify_security_findings')
+      .map(([, args]) => (args as { file: string }).file);
+    // The Critical one is checked, not dropped by the cap.
+    expect(verified).toContain('src/f29.rs');
+    // The cap is stated, and what it left over stays visible as unverified.
+    await waitFor(() => expect(screen.getByText(/5 more file\(s\) are left unverified/)).toBeTruthy());
+    expect(screen.getByText(/0 verified · 5 unverified · 25 ruled out/)).toBeTruthy();
+  });
+
+  it('verifies nothing when no model is selected, and says so', async () => {
+    setupMocks([finding()]);
+    render(<SecurityScanPanel workspacePath="/ws" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Run Scan' }));
+
+    await waitFor(() => expect(screen.getByText(/select a provider and model/i)).toBeTruthy());
+    expect(mockInvoke.mock.calls.filter(([cmd]) => cmd === 'verify_security_findings')).toHaveLength(0);
+  });
+});

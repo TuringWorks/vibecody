@@ -1086,6 +1086,7 @@ pub fn run() {
             commands::record_failure,
             // Security Scan
             commands::run_security_scan,
+            commands::verify_security_findings,
             commands::get_security_scan_results,
             commands::get_security_scan_history,
             commands::suppress_security_finding,
