@@ -19401,7 +19401,15 @@ async fn maybe_offer_commit(workspace: &std::path::Path, task: &str, llm: &dyn L
         )
         .await
     {
-        Ok(msg) => msg.trim().to_string(),
+        // The message is written into the repository verbatim: reasoning
+        // blocks and answer fences must not survive into `git log`.
+        Ok(msg) => match vibe_ai::tools::sanitize_commit_message(&msg) {
+            m if m.is_empty() => {
+                eprintln!("⚠️  Model returned no commit message.");
+                format!("agent: {}", &task.chars().take(60).collect::<String>())
+            }
+            m => m,
+        },
         Err(e) => {
             eprintln!("⚠️  Could not generate commit message: {}", e);
             format!("agent: {}", &task.chars().take(60).collect::<String>())

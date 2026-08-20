@@ -989,12 +989,45 @@ pub fn render_tool_call(name: &str, args: Option<&serde_json::Value>) -> String 
     format!("<tool_call name=\"{}\">{}</tool_call>", name, body)
 }
 
-/// Remove `<thinking>` / `<think>` reasoning blocks from a model response.
+/// A reasoning-tag family, compiled once.
 ///
-/// Reasoning routinely *quotes* the call the model is considering — including
-/// calls it then rejects — so tool parsing must run on the visible turn only.
-/// An unclosed block (the stream ended, or was gated, mid-reasoning) discards
-/// everything after the opening tag.
+/// Whatever the tag is called, reasoning arrives in the same three shapes — a
+/// closed block, an *orphan* close (the provider swallowed the opening tag
+/// into its own reasoning field), and an opening tag the stream never closed —
+/// so all four regexes are built from one name alternation.
+struct TagStripper {
+    block: Regex,
+    orphan: Regex,
+    unclosed: Regex,
+    tags: Regex,
+}
+
+impl TagStripper {
+    fn new(names: &str) -> Self {
+        let open = format!(r"<(?:[A-Za-z][\w.-]*:)?(?:{names})>");
+        let close = format!(r"</(?:[A-Za-z][\w.-]*:)?(?:{names})>");
+        let rx = |pattern: String| Regex::new(&pattern).expect("hardcoded regex is valid");
+        Self {
+            block: rx(format!("(?s){open}.*?{close}")),
+            orphan: rx(format!("(?s)^.*?{close}")),
+            unclosed: rx(format!("(?s){open}.*$")),
+            tags: rx(format!(r"</?(?:[A-Za-z][\w.-]*:)?(?:{names})>")),
+        }
+    }
+
+    /// Drop the reasoning, keep what surrounds it.
+    fn strip(&self, text: &str) -> String {
+        let stripped = self.block.replace_all(text, "");
+        let stripped = self.orphan.replace(&stripped, "").into_owned();
+        self.unclosed.replace(&stripped, "").into_owned()
+    }
+
+    /// Keep the text, drop only the tags.
+    fn unwrap(&self, text: &str) -> String {
+        self.tags.replace_all(text, "").trim().to_string()
+    }
+}
+
 /// Reasoning tag spellings we recognise.
 ///
 /// Models do not agree on this tag. `<think>` (GLM/Qwen/R1), `<thinking>`
@@ -1002,8 +1035,28 @@ pub fn render_tool_call(name: &str, args: Option<&serde_json::Value>) -> String 
 /// forms like minimax-m3's `<mm:think>` all occur. A stripper that misses one
 /// spelling leaks raw reasoning into the answer, which is what `</mm:think>`
 /// did — it appeared verbatim in the chat window, mid-sentence.
-const THINK_OPEN: &str = r"<(?:[A-Za-z][\w.-]*:)?think(?:ing)?>";
-const THINK_CLOSE: &str = r"</(?:[A-Za-z][\w.-]*:)?think(?:ing)?>";
+static THINK: LazyLock<TagStripper> = LazyLock::new(|| TagStripper::new(r"think(?:ing)?"));
+
+/// The wider reasoning family, for short one-shot answers.
+///
+/// Only for paths where the whole reply is a single short artifact (a commit
+/// message, a title) and *no* legitimate output contains these tags. The chat
+/// and tool-parsing paths must keep to [`THINK`]: a chat turn may quite
+/// reasonably contain an `<analysis>` element as content.
+static REASONING: LazyLock<TagStripper> = LazyLock::new(|| {
+    TagStripper::new(
+        r"think(?:ing)?|reason(?:ing)?|reflection|reflect|scratch_?pad|analysis|internal(?:_monologue)?|monologue",
+    )
+});
+
+/// Wrappers a model puts *around* its answer rather than around its reasoning.
+/// The text inside is the answer, so these lose their tags and keep their body.
+static ANSWER_TAGS: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)</?(?:[A-Za-z][\w.-]*:)?(?:final_?answer|answer|final|output|response|commit_?message|commit_?msg)>",
+    )
+    .expect("hardcoded regex is valid")
+});
 
 /// Remove reasoning *tags* while keeping the text inside them.
 ///
@@ -1016,31 +1069,61 @@ const THINK_CLOSE: &str = r"</(?:[A-Za-z][\w.-]*:)?think(?:ing)?>";
 /// Only for display paths. Tool parsing must keep using `strip_thinking`,
 /// because reasoning quotes calls the model then rejected.
 pub fn unwrap_thinking(text: &str) -> String {
-    static TAGS: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"</?(?:[A-Za-z][\w.-]*:)?think(?:ing)?>").expect("hardcoded regex is valid")
-    });
-    TAGS.replace_all(text, "").trim().to_string()
+    THINK.unwrap(text)
 }
 
+/// Remove `<thinking>` / `<think>` reasoning blocks from a model response.
+///
+/// Reasoning routinely *quotes* the call the model is considering — including
+/// calls it then rejects — so tool parsing must run on the visible turn only.
+/// An unclosed block (the stream ended, or was gated, mid-reasoning) discards
+/// everything after the opening tag.
 pub fn strip_thinking(text: &str) -> String {
-    static BLOCK: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(&format!("(?s){THINK_OPEN}.*?{THINK_CLOSE}")).expect("hardcoded regex is valid")
-    });
-    let stripped = BLOCK.replace_all(text, "");
+    THINK.strip(text)
+}
 
-    // An *orphan closing* tag: the provider consumed the opening tag into its
-    // own reasoning field, so everything before the close is still reasoning.
-    // Without this the tail of a model's thinking survives as prose — exactly
-    // how `</mm:think>` reached the screen.
-    static ORPHAN: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(&format!("(?s)^.*?{THINK_CLOSE}")).expect("hardcoded regex is valid")
-    });
-    let stripped = ORPHAN.replace(&stripped, "").into_owned();
+/// Remove a single wrapping ``` fence if the whole response is one.
+///
+/// Only strips when the response *starts* with a fence, so a reply that
+/// legitimately contains a fence (writing a doc comment, say) is untouched.
+pub fn strip_code_fence(raw: &str) -> &str {
+    let trimmed = raw.trim_matches('\n');
+    let Some(rest) = trimmed.strip_prefix("```") else {
+        return raw;
+    };
+    // Drop the info string (```rust) on the opening fence.
+    let after_open = match rest.find('\n') {
+        Some(nl) => &rest[nl + 1..],
+        // A fence with no newline has no body.
+        None => return "",
+    };
+    after_open
+        .rfind("```")
+        .map_or(after_open, |close| &after_open[..close])
+}
 
-    static UNCLOSED: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(&format!("(?s){THINK_OPEN}.*$")).expect("hardcoded regex is valid")
-    });
-    UNCLOSED.replace(&stripped, "").into_owned()
+/// Reduce a model's reply to the commit message it was asked for.
+///
+/// A commit message is written to the repository verbatim and read by everyone
+/// afterwards, so transport markup that is merely ugly in a chat window is
+/// permanent here: `<thinking>` blocks, deliberation about the message, and the
+/// fence the model wrapped it in have all been committed verbatim by this
+/// generator — see the reported subjects in the tests.
+///
+/// Returns an empty string when the reply held no message. Callers must treat
+/// that as a failure — committing an empty message is worse than not
+/// committing.
+pub fn sanitize_commit_message(raw: &str) -> String {
+    let stripped = REASONING.strip(raw);
+    // Nothing outside the block means the model put the whole message inside
+    // it. Keep the text and drop the tags rather than losing the message.
+    let body = if stripped.trim().is_empty() {
+        REASONING.unwrap(raw)
+    } else {
+        stripped
+    };
+    let body = ANSWER_TAGS.replace_all(&body, "");
+    strip_code_fence(body.trim()).trim().to_string()
 }
 
 /// Parse all `<tool_call>` blocks from a model response.
@@ -2086,6 +2169,103 @@ mod thinking_tests {
     fn unwrap_thinking_leaves_untagged_text_alone() {
         assert_eq!(unwrap_thinking("just an answer"), "just an answer");
         assert_eq!(unwrap_thinking("<think>a</think>b"), "ab");
+    }
+
+    // ── Commit-message sanitising ────────────────────────────────────────────
+    //
+    // The inputs below are shortened from two commit subjects a user reported
+    // (b846b47, ba57e7b in their repo): the model's whole deliberation, tags
+    // and all, was committed verbatim.
+
+    #[test]
+    fn commit_message_drops_a_leading_thinking_block() {
+        let raw = "<thinking>```\nx Pin GitHub Actions\n```\nWait, let's refine. \
+Subject: Pin GitHub Actions and escape HTML in benchmark reports\n\
+Let's output the message.</thinking>\n\
+Pin GitHub Actions and escape HTML in benchmark reports\n\n\
+- Pin action versions to specific commit SHAs";
+        assert_eq!(
+            sanitize_commit_message(raw),
+            "Pin GitHub Actions and escape HTML in benchmark reports\n\n\
+- Pin action versions to specific commit SHAs"
+        );
+    }
+
+    #[test]
+    fn commit_message_keeps_the_text_when_the_block_holds_everything() {
+        // ba57e7b: the model repeated itself, so stripping the block left the
+        // message — but a model that emits *only* the block must not produce
+        // an empty commit message.
+        assert_eq!(
+            sanitize_commit_message("<thinking>Add .vibecoder to .gitignore</thinking>"),
+            "Add .vibecoder to .gitignore"
+        );
+        assert_eq!(
+            sanitize_commit_message(
+                "<thinking>Add .vibecoder to .gitignore</thinking> Add .vibecoder to .gitignore"
+            ),
+            "Add .vibecoder to .gitignore"
+        );
+    }
+
+    #[test]
+    fn commit_message_handles_the_other_reasoning_spellings() {
+        for raw in [
+            "<think>deliberating</think>Fix the parser",
+            "<mm:think>deliberating</mm:think>Fix the parser",
+            "<reasoning>deliberating</reasoning>\nFix the parser",
+            "<analysis>deliberating</analysis>Fix the parser",
+            "<scratchpad>deliberating</scratchpad>Fix the parser",
+            "<reflection>deliberating</reflection>Fix the parser",
+            // Orphan close: the provider ate the opening tag.
+            "deliberating</think>Fix the parser",
+        ] {
+            assert_eq!(sanitize_commit_message(raw), "Fix the parser", "input: {raw}");
+        }
+    }
+
+    #[test]
+    fn commit_message_drops_an_unclosed_reasoning_tag() {
+        // The stream ended mid-block, so there is no closing tag to match on.
+        // The message still has to reach the repository without the tag —
+        // subjects reading "<thinking>Fix the parser" have been committed.
+        assert_eq!(
+            sanitize_commit_message("<thinking>Fix the parser"),
+            "Fix the parser"
+        );
+        assert_eq!(
+            sanitize_commit_message("Fix the parser\n\n<thinking>or should it be"),
+            "Fix the parser"
+        );
+    }
+
+    #[test]
+    fn commit_message_unwraps_answer_tags_and_a_whole_reply_fence() {
+        assert_eq!(
+            sanitize_commit_message("<answer>Fix the parser</answer>"),
+            "Fix the parser"
+        );
+        assert_eq!(
+            sanitize_commit_message("```\nFix the parser\n```"),
+            "Fix the parser"
+        );
+        assert_eq!(
+            sanitize_commit_message("```text\nFix the parser\n\n- one bullet\n```"),
+            "Fix the parser\n\n- one bullet"
+        );
+    }
+
+    #[test]
+    fn commit_message_leaves_a_clean_message_alone() {
+        let clean = "Fix the parser\n\n- one bullet\n- another <T> generic mention";
+        assert_eq!(sanitize_commit_message(clean), clean);
+    }
+
+    #[test]
+    fn commit_message_is_empty_when_the_reply_held_none() {
+        // Callers must fail rather than commit this.
+        assert_eq!(sanitize_commit_message("<thinking>"), "");
+        assert_eq!(sanitize_commit_message("   \n  "), "");
     }
 
     #[test]

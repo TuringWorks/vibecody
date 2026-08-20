@@ -29,6 +29,7 @@
 //! this one is for the short continuation where opening a modal is too heavy.
 
 use crate::provider::{AIProvider, Message, MessageRole};
+use crate::tools::strip_code_fence;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -163,25 +164,6 @@ pub fn sanitize_completion(raw: &str) -> (String, bool) {
     (joined.trim_end().to_string(), truncated)
 }
 
-/// Remove a single wrapping ``` fence if the whole response is one.
-///
-/// Only strips when the response *starts* with a fence, so a completion that
-/// legitimately contains a fence (writing a doc comment, say) is untouched.
-fn strip_code_fence(raw: &str) -> &str {
-    let trimmed = raw.trim_matches('\n');
-    let Some(rest) = trimmed.strip_prefix("```") else {
-        return raw;
-    };
-    // Drop the info string (```rust) on the opening fence.
-    let after_open = match rest.find('\n') {
-        Some(nl) => &rest[nl + 1..],
-        // A fence with no newline has no body.
-        None => return "",
-    };
-    after_open
-        .rfind("```")
-        .map_or(after_open, |close| &after_open[..close])
-}
 
 /// Generate a completion for the cursor position using the supplied provider.
 ///
