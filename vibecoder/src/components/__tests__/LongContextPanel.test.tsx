@@ -15,6 +15,11 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: (...args: unknown[]) => mockInvoke(...args),
 }));
 
+const mockOpen = vi.fn();
+vi.mock('@tauri-apps/plugin-dialog', () => ({
+  open: (...args: unknown[]) => mockOpen(...args),
+}));
+
 import { LongContextPanel } from '../LongContextPanel';
 
 const MODELS = [
@@ -39,7 +44,11 @@ const CHOSEN = {
 
 const TOO_BIG = 'No configured model has a context window large enough for 1010000 tokens';
 
-beforeEach(() => mockInvoke.mockReset());
+// Braced, not an expression body: `mockReset()` returns the mock, and a hook
+// that returns a function hands vitest a teardown — it then *calls the mock*
+// after every test. Harmless for `invoke`; for a mock whose implementation
+// throws, the teardown call fails the test that set it.
+beforeEach(() => { mockInvoke.mockReset(); });
 
 /** Render the panel with a model list, and wait for it to land. */
 async function panel(route: (tokenCount: number) => Promise<unknown> = async () => CHOSEN) {
@@ -124,5 +133,65 @@ describe('LongContextPanel — the model list', () => {
     render(<LongContextPanel />);
 
     await waitFor(() => expect(screen.getByText(/daemon unreachable/)).toBeTruthy());
+  });
+});
+
+/**
+ * The ingest tab took an absolute path typed by hand and nothing else, so the
+ * only way to find out a path was wrong was to run the ingest and read the
+ * failure. Browse… hands the path to the field from the OS dialog.
+ */
+describe('LongContextPanel — choosing the file to ingest', () => {
+  /** Open the panel on its ingest tab. */
+  async function ingestTab() {
+    await panel();
+    fireEvent.click(screen.getByRole('button', { name: 'ingest' }));
+    return screen.getByLabelText('File Path') as HTMLInputElement;
+  }
+
+  beforeEach(() => { mockOpen.mockReset(); });
+
+  it('puts the picked file into the path field', async () => {
+    mockOpen.mockResolvedValue('/Users/me/corpus/huge.txt');
+    const input = await ingestTab();
+
+    fireEvent.click(screen.getByRole('button', { name: /browse/i }));
+
+    await waitFor(() => expect(input.value).toBe('/Users/me/corpus/huge.txt'));
+    expect(screen.getByRole('button', { name: 'Start Ingest' })).not.toHaveProperty('disabled', true);
+  });
+
+  it('asks for a single file, not a directory', async () => {
+    mockOpen.mockResolvedValue(null);
+    await ingestTab();
+
+    fireEvent.click(screen.getByRole('button', { name: /browse/i }));
+
+    await waitFor(() => expect(mockOpen).toHaveBeenCalled());
+    const opts = mockOpen.mock.calls[0][0] as { multiple: boolean; directory: boolean };
+    expect(opts.multiple).toBe(false);
+    expect(opts.directory).toBe(false);
+  });
+
+  it('leaves a typed path alone when the dialog is cancelled', async () => {
+    mockOpen.mockResolvedValue(null);
+    const input = await ingestTab();
+    fireEvent.change(input, { target: { value: '/typed/by/hand.txt' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /browse/i }));
+
+    await waitFor(() => expect(mockOpen).toHaveBeenCalled());
+    expect(input.value).toBe('/typed/by/hand.txt');
+  });
+
+  it('says so when the dialog itself fails, rather than doing nothing', async () => {
+    mockOpen.mockImplementation(async () => { throw new Error('dialog plugin not registered'); });
+    await ingestTab();
+
+    fireEvent.click(screen.getByRole('button', { name: /browse/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('alert').textContent).toContain('dialog plugin not registered'),
+    );
   });
 });

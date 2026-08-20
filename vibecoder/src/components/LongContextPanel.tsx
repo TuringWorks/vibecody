@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 
 interface RouteResult {
   input_tokens: number;
@@ -53,6 +54,7 @@ export function LongContextPanel() {
   const [filePath, setFilePath] = useState("");
   const [ingestProgress, setIngestProgress] = useState<IngestProgress | null>(null);
   const [ingesting, setIngesting] = useState(false);
+  const [pickError, setPickError] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -79,6 +81,32 @@ export function LongContextPanel() {
       setRoute(res ? { kind: "chosen", result: res } : { kind: "idle" });
     } catch (e) {
       setRoute({ kind: "failed", message: String(e), tokenCount });
+    }
+  }
+
+  /**
+   * Pick the file to ingest from the OS file dialog.
+   *
+   * Typing an absolute path by hand was the only way in, so a typo surfaced as
+   * an ingest failure rather than as a file that was never there.
+   */
+  async function browseForFile() {
+    setPickError(null);
+    try {
+      const selected = await open({
+        multiple: false,
+        directory: false,
+        title: "Select a file to ingest",
+        filters: [
+          { name: "All Files", extensions: ["*"] },
+          { name: "Documents", extensions: ["txt", "md", "pdf", "csv", "json", "xml", "log", "html"] },
+          { name: "Code", extensions: ["rs", "py", "js", "ts", "tsx", "jsx", "go", "java", "c", "cpp", "rb", "swift", "kt", "sql", "yaml", "toml"] },
+        ],
+      });
+      // `null` is a cancelled dialog — leave whatever is already typed alone.
+      if (typeof selected === "string") setFilePath(selected);
+    } catch (e) {
+      setPickError(`Could not open the file dialog: ${e}`);
     }
   }
 
@@ -192,10 +220,19 @@ export function LongContextPanel() {
       {!loading && tab === "ingest" && (
         <div style={{ maxWidth: 520 }}>
           <div style={{ marginBottom: 14 }}>
-            <label style={{ display: "block", fontSize: "var(--font-size-base)", color: "var(--text-muted)", marginBottom: 6 }}>File Path</label>
-            <input value={filePath} onChange={e => setFilePath(e.target.value)}
-              placeholder="/path/to/large/document.txt"
-              style={{ width: "100%", padding: "8px 12px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", boxSizing: "border-box" }} />
+            <label htmlFor="long-context-file-path" style={{ display: "block", fontSize: "var(--font-size-base)", color: "var(--text-muted)", marginBottom: 6 }}>File Path</label>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input id="long-context-file-path" value={filePath} onChange={e => setFilePath(e.target.value)}
+                placeholder="/path/to/large/document.txt"
+                style={{ flex: 1, minWidth: 0, padding: "8px 12px", borderRadius: "var(--radius-sm)", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", boxSizing: "border-box" }} />
+              <button className="panel-btn" onClick={browseForFile} disabled={ingesting}
+                style={{ flex: "0 0 auto", padding: "8px 16px", borderRadius: "var(--radius-sm)", cursor: ingesting ? "not-allowed" : "pointer", background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)", opacity: ingesting ? 0.6 : 1 }}>
+                Browse…
+              </button>
+            </div>
+            {pickError && (
+              <div role="alert" style={{ marginTop: 6, fontSize: "var(--font-size-base)", color: "var(--error-color)" }}>{pickError}</div>
+            )}
           </div>
           <button className="panel-btn" onClick={runIngest} disabled={ingesting || !filePath.trim()}
             style={{ padding: "8px 24px", borderRadius: "var(--radius-sm)", cursor: ingesting || !filePath.trim() ? "not-allowed" : "pointer", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontSize: "var(--font-size-md)", fontWeight: 600, opacity: ingesting || !filePath.trim() ? 0.6 : 1, marginBottom: 20 }}>

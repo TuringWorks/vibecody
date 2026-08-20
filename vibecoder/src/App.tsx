@@ -24,7 +24,7 @@ import "./App.css";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { CommandPalette, Command } from "./components/CommandPalette";
 import Modal from "./components/Modal";
-import { GitPanel } from "./components/GitPanel";
+import { GitPanel, type GitPanelView } from "./components/GitPanel";
 import { MarkdownPreview } from "./components/MarkdownPreview";
 import { HtmlPreview } from "./components/HtmlPreview";
 import { DrawioPreview } from "./components/DrawioPreview";
@@ -41,8 +41,9 @@ import { MenuBar, MenuGroup } from "./components/MenuBar";
 import "./components/GroupedTabBar.css";
 import { PanelHost } from "./components/LazyPanels";
 import { useEditorTheme } from "./hooks/useEditorTheme";
-import { SettingsPanel } from "./components/SettingsPanel";
+import { SettingsPanel, type SettingsTarget } from "./components/SettingsPanel";
 import { TaintedConfirmationModal } from "./components/TaintedConfirmationModal";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ALL_TABS } from "./constants/tabGroups";
 import { globalShortcuts, editorShortcuts, renderShortcut } from "./constants/shortcuts";
 import { TAB_META, DEFAULT_TAB_META } from "./constants/tabMeta";
@@ -131,6 +132,11 @@ function App() {
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showTour, setShowTour] = useState(() => !localStorage.getItem('vibecoder-onboarding-complete'));
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  // Section Settings opens on. Null = wherever it last was (Profile).
+  const [settingsTarget, setSettingsTarget] = useState<SettingsTarget | null>(null);
+  // Which half of the Source Control sidebar shows — held here so nav entries
+  // elsewhere (Infrastructure → GitHub Actions) can land on the GitHub tabs.
+  const [gitPanelView, setGitPanelView] = useState<GitPanelView>("changes");
   const [appVersion, setAppVersion] = useState("0.0.0");
 
   const completeTour = useCallback(() => {
@@ -227,6 +233,18 @@ function App() {
     };
     window.addEventListener("vibecoder:open-sidebar-tab", handler);
     return () => window.removeEventListener("vibecoder:open-sidebar-tab", handler);
+  }, []);
+
+  // Panels that surface a setting they no longer own (the GitHub Remote panel
+  // and its token) deep-link into the Settings modal instead of duplicating it.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const target = (e as CustomEvent<SettingsTarget | undefined>).detail;
+      setSettingsTarget(target ?? null);
+      setShowSettingsModal(true);
+    };
+    window.addEventListener("vibecoder:open-settings", handler);
+    return () => window.removeEventListener("vibecoder:open-settings", handler);
   }, []);
 
   // Derived state for active file
@@ -1304,7 +1322,7 @@ function App() {
         { label: "API Tools", action: () => { setShowAIChat(true); setAiPanelTab("api-tools"); } },
         { label: "Terminal", shortcut: modKey + "`", action: () => setShowTerminal(true) },
         { separator: true, label: "" },
-        { label: "Settings", action: () => setShowSettingsModal(true) },
+        { label: "Settings", action: () => { setSettingsTarget(null); setShowSettingsModal(true); } },
       ],
     },
     {
@@ -1714,7 +1732,7 @@ function App() {
           <button className="activity-bar-item" title="Terminal" aria-label={`Terminal (${modKey}\`)`} onClick={() => setShowTerminal(prev => !prev)}>
             <Icon name="terminal" size={20} />
           </button>
-          <button className="activity-bar-item" title="Settings" aria-label="Settings" onClick={() => setShowSettingsModal(true)}>
+          <button className="activity-bar-item" title="Settings" aria-label="Settings" onClick={() => { setSettingsTarget(null); setShowSettingsModal(true); }}>
             <Icon name="settings" size={20} />
           </button>
         </div>
@@ -1722,7 +1740,21 @@ function App() {
         {/* Sidebar */}
         {showSidebar && (
           <aside className="sidebar" style={{ width: `${sidebarWidth}px` }}>
-            {/* Removed old tabs */}
+            {/* The sidebar renders full panels — Source Control mounts the AI
+              * code reviewer — and until this boundary existed a render error
+              * in any of them reached the root and replaced the whole window
+              * with the crash screen, editor and unsaved buffers included. A
+              * broken sidebar is a broken sidebar. */}
+            <ErrorBoundary
+              fallback={
+                <div className="empty-state" style={{ padding: 16 }}>
+                  <p>This sidebar view stopped working. The rest of the app is unaffected.</p>
+                  <button className="panel-btn" onClick={() => setActiveSidebarTab('explorer')}>
+                    Back to Explorer
+                  </button>
+                </div>
+              }
+            >
 
             {activeSidebarTab === 'explorer' && (
               <>
@@ -1863,7 +1895,7 @@ function App() {
               </div>
             )}
             {activeSidebarTab === 'git' && (
-              <GitPanel workspacePath={workspaceFolders[0] || null} onCompareFile={handleCompareFile} selectedProvider={selectedProvider} />
+              <GitPanel workspacePath={workspaceFolders[0] || null} onCompareFile={handleCompareFile} selectedProvider={selectedProvider} view={gitPanelView} onViewChange={setGitPanelView} />
             )}
 
             {activeSidebarTab === 'testing' && (
@@ -1937,13 +1969,19 @@ function App() {
                 {([
                   { label: "Build & Deploy", panel: "build-deploy" },
                   { label: "CI/CD Pipelines", panel: "ci-cd" },
-                  { label: "GitHub Actions", panel: "github" },
                 ] as const).map(({ label, panel }) => (
                   <button key={panel} className="sidebar-action-item"
                     onClick={() => { setShowAIChat(true); setAiPanelTab(panel); }}>
                     {label}
                   </button>
                 ))}
+                {/* GitHub Actions moved into Source Control with the rest of
+                  * the GitHub tabs, so this jumps there instead of opening a
+                  * panel that no longer exists. */}
+                <button className="sidebar-action-item"
+                  onClick={() => { setGitPanelView("github"); setShowSidebar(true); setActiveSidebarTab("git"); }}>
+                  GitHub Actions
+                </button>
                 <div className="sidebar-section-title" style={{ marginTop: 8 }}>Infrastructure</div>
                 {([
                   { label: "Containers", panel: "containers" },
@@ -2001,6 +2039,7 @@ function App() {
                 ))}
               </div>
             )}
+            </ErrorBoundary>
           </aside>
         )}
 
@@ -2617,7 +2656,7 @@ function App() {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }} onClick={() => setShowSettingsModal(false)}>
           <div style={{ width: 760, height: '80vh', maxHeight: 700 }} onClick={e => e.stopPropagation()}>
-            <SettingsPanel onClose={() => setShowSettingsModal(false)} workspacePath={workspaceFolders[0] || null} />
+            <SettingsPanel onClose={() => setShowSettingsModal(false)} workspacePath={workspaceFolders[0] || null} target={settingsTarget ?? undefined} />
           </div>
         </div>
       )}

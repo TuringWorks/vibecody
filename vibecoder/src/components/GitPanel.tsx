@@ -1,9 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { FolderOpen, AlertTriangle, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { ReviewPanel } from './ReviewPanel';
 import { useToast } from '../hooks/useToast';
 import { Toaster } from './Toaster';
+
+/** The GitHub tabs (Remote / Actions / Triage) render inside this panel rather
+ *  than in a second one on the right — lazily, so opening Source Control does
+ *  not pay for three panels nobody asked for. */
+const GitHubComposite = lazy(() =>
+ import('./composite/GitHubComposite').then(m => ({ default: m.GitHubComposite })));
+
+/** Which half of Source Control is showing. */
+export type GitPanelView = 'changes' | 'github';
 
 interface GitPanelProps {
  workspacePath: string | null;
@@ -12,6 +21,10 @@ interface GitPanelProps {
   *  the commit-message generator (and friends) use the user's selected model
   *  instead of whichever provider happens to be active in the chat engine. */
  selectedProvider?: string;
+ /** Controlled view. Omit to let the panel own it; pass both to drive it from
+  *  outside (the Infrastructure sidebar's "GitHub Actions" entry does). */
+ view?: GitPanelView;
+ onViewChange?: (view: GitPanelView) => void;
 }
 
 interface GitStatus {
@@ -46,10 +59,13 @@ interface GitRepoSuggestion {
  blocked_reason: string | null;
 }
 
-export function GitPanel({ workspacePath, onCompareFile, selectedProvider }: GitPanelProps) {
+export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view: viewProp, onViewChange }: GitPanelProps) {
  const { toasts, toast, dismiss } = useToast();
  const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
  const [upstream, setUpstream] = useState<UpstreamStatus | null>(null);
+ const [localView, setLocalView] = useState<GitPanelView>('changes');
+ const view = viewProp ?? localView;
+ const setView = (next: GitPanelView) => { setLocalView(next); onViewChange?.(next); };
  const [commitMessage, setCommitMessage] = useState('');
  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
  const [isLoading, setIsLoading] = useState(false);
@@ -101,6 +117,19 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider }: Git
  const id = setInterval(loadGitStatus, 30_000);
  return () => clearInterval(id);
  }, [workspacePath]);
+
+ // The embedded GitHub tabs send the user back here for anything that writes
+ // to the repo. Both halves are inside this panel, so no shell round-trip.
+ useEffect(() => {
+ const handler = (e: Event) => {
+ const next = (e as CustomEvent<unknown>).detail;
+ if (next !== 'changes' && next !== 'github') return;
+ setLocalView(next);
+ onViewChange?.(next);
+ };
+ window.addEventListener('vibecoder:git-view', handler);
+ return () => window.removeEventListener('vibecoder:git-view', handler);
+ }, [onViewChange]);
 
  const loadGitStatus = async () => {
  try {
@@ -443,6 +472,36 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider }: Git
  );
  }
 
+ const viewSwitch = (
+ <div role="tablist" aria-label="Source Control view" style={{ display: 'flex', gap: '4px', marginBottom: '12px' }}>
+ {([['changes', 'Changes'], ['github', 'GitHub']] as const).map(([id, label]) => (
+ <button
+ key={id}
+ role="tab"
+ aria-selected={view === id}
+ className={`panel-btn ${view === id ? 'btn-primary' : 'btn-secondary'}`}
+ style={{ flex: 1, fontSize: '12px', padding: '4px 8px', justifyContent: 'center' }}
+ onClick={() => setView(id)}
+ >
+ {label}
+ </button>
+ ))}
+ </div>
+ );
+
+ if (view === 'github') {
+ return (
+ <div className="panel-container" style={{ padding: '12px' }}>
+ {viewSwitch}
+ <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+ <Suspense fallback={<div style={{ padding: '12px', fontSize: '12px', color: 'var(--text-secondary)' }}>Loading GitHub…</div>}>
+ <GitHubComposite workspacePath={workspacePath} provider={selectedProvider} />
+ </Suspense>
+ </div>
+ </div>
+ );
+ }
+
  if (!gitStatus) {
  if (gitError) {
  // The backend is the authority on whether a repo encloses this folder;
@@ -453,6 +512,8 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider }: Git
   ? !repoSuggestion.in_repo
   : gitError.toLowerCase().includes('not a git repository') || gitError.toLowerCase().includes('not found');
  return (
+  <div className="panel-container" style={{ padding: '12px' }}>
+  {viewSwitch}
   <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-secondary)' }}>
   <div style={{ marginBottom: 8, display: "flex", justifyContent: "center", color: "var(--text-secondary)" }}>{isNotRepo ? <FolderOpen size={28} strokeWidth={1.5} /> : <AlertTriangle size={28} strokeWidth={1.5} />}</div>
   <div style={{ fontSize: "var(--font-size-md)", fontWeight: 500, marginBottom: 6 }}>
@@ -487,16 +548,20 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider }: Git
     <div style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)', opacity: 0.7, marginTop: 10 }}>
      {repoSuggestion?.declined
       ? 'You chose not to be asked again for this folder.'
-      : <>Creates a local repository. You can publish it to GitHub from the <strong>GitHub</strong> panel afterwards.</>}
+      : <>Creates a local repository. You can publish it to GitHub from the <strong>GitHub</strong> tab of this panel afterwards.</>}
     </div>
    </>
   )}
   </div>
+  </div>
  );
  }
  return (
+ <div className="panel-container" style={{ padding: '12px' }}>
+ {viewSwitch}
  <div className="empty-state">
  <p>Loading git status...</p>
+ </div>
  </div>
  );
  }
@@ -505,6 +570,7 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider }: Git
 
  return (
  <div className="panel-container" style={{ padding: '12px' }}>
+ {viewSwitch}
  <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
  <strong>Branch:</strong>
  <select

@@ -1,7 +1,11 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { errorMessage } from "../utils/errorMessage";
 import { CircleAlert, AlertTriangle, Info, CheckCircle2, Loader2, XCircle, ChevronDown, ChevronRight } from "lucide-react";
+import { parseProviderSelection } from "../hooks/useModelRegistry";
+import { getSelectedEffort } from "../utils/effort";
+import { FixWithAIButton } from "./FixWithAIButton";
+import type { FixItem } from "../lib/fixWithAI";
 
 // -- Types --------------------------------------------------------------------
 
@@ -52,6 +56,31 @@ interface Props {
   provider?: string;
   onOpenFile?: (path: string, line?: number) => void;
 }
+
+/** Which surface the red team is attacking. */
+type RedTeamMode = "workspace" | "website";
+
+interface RedTeamTargets {
+  files: string[];
+  matched: number;
+  limit: number;
+}
+
+/** A file the sweep could not review, kept so a partial run never reads clean. */
+interface ReviewFailure {
+  file: string;
+  error: string;
+}
+
+/**
+ * Workspace-run progress as one value, not parallel loading/error/data flags,
+ * so the render has a single thing to switch on.
+ */
+type WorkspaceRun =
+  | { kind: "idle" }
+  | { kind: "resolving" }
+  | { kind: "reviewing"; done: number; total: number; current: string }
+  | { kind: "finished"; reviewed: number; matched: number; limit: number; stopped: boolean };
 
 // -- Constants ----------------------------------------------------------------
 
@@ -111,7 +140,10 @@ function nowTimestamp(): string {
 
 // -- Component ----------------------------------------------------------------
 
-export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
+export function RedTeamPanel({ workspacePath, provider, onOpenFile }: Props) {
+  // Default to attacking the open project. A URL scan is the exception now, not
+  // the only thing on offer — the panel used to assume a running website.
+  const [mode, setMode] = useState<RedTeamMode>(workspacePath ? "workspace" : "website");
   const [targetUrl, setTargetUrl] = useState("http://localhost:3000");
   const [scanning, setScanning] = useState(false);
   const [stageStatuses, setStageStatuses] = useState<StageStatus[]>(
@@ -123,6 +155,19 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
   const [expandedFinding, setExpandedFinding] = useState<string | null>(null);
   const [expandedStage, setExpandedStage] = useState<string | null>(null);
   const [elapsedSecs, setElapsedSecs] = useState(0);
+
+  // ── Workspace mode ──
+  const [scopePattern, setScopePattern] = useState("");
+  const [wsRun, setWsRun] = useState<WorkspaceRun>({ kind: "idle" });
+  const [failures, setFailures] = useState<ReviewFailure[]>([]);
+  // Bumped each run so the Fix-with-AI button stops claiming the previous run's
+  // findings were already sent.
+  const [runId, setRunId] = useState(0);
+  const stopRef = useRef(false);
+
+  // The toolbar hands a display name ("Ollama (devstral-2)"); the command needs
+  // the id and model split out — the same lookup SecurityReviewPanel does.
+  const selection = useMemo(() => parseProviderSelection(provider ?? ""), [provider]);
 
   const mountedRef = useRef(true);
   const cancelRef = useRef(false);
@@ -303,6 +348,125 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
     }
   }, [targetUrl, workspacePath, addLog, updateStage, loadSessions]);
 
+  const runWorkspaceRedTeam = useCallback(async () => {
+    if (!workspacePath) return;
+    if (!selection.provider || !selection.model) {
+      setWsRun({ kind: "idle" });
+      addLog("error", "System", "Select a provider and model in the toolbar first");
+      return;
+    }
+    stopRef.current = false;
+    taskIdRef.current += 1;
+    const thisId = taskIdRef.current;
+
+    setActiveSession(null);
+    setExpandedFinding(null);
+    setFailures([]);
+    setLogs([]);
+    setRunId((n) => n + 1);
+    setWsRun({ kind: "resolving" });
+    setScanning(true);
+    addLog("info", "System", `Red-teaming ${scopePattern.trim() || "the whole workspace"}`);
+
+    let targets: RedTeamTargets;
+    try {
+      targets = await invoke<RedTeamTargets>("redteam_workspace_targets", {
+        workspace: workspacePath,
+        pattern: scopePattern.trim() || null,
+      });
+    } catch (e) {
+      addLog("error", "Recon", errorMessage(e) || "Could not resolve targets");
+      setWsRun({ kind: "idle" });
+      setScanning(false);
+      return;
+    }
+    if (thisId !== taskIdRef.current) return;
+
+    if (targets.files.length === 0) {
+      addLog("warning", "Recon", "No code or content files matched that scope");
+      setWsRun({ kind: "finished", reviewed: 0, matched: 0, limit: targets.limit, stopped: false });
+      setScanning(false);
+      return;
+    }
+    addLog("success", "Recon", `${targets.files.length} file(s) in scope`);
+    if (targets.matched > targets.files.length) {
+      addLog("warning", "Recon", `Scope has ${targets.matched} files — capped at ${targets.limit}. Narrow the scope to cover the rest.`);
+    }
+
+    const effort = getSelectedEffort();
+    const collected: VulnFinding[] = [];
+    let reviewed = 0;
+    for (const file of targets.files) {
+      if (stopRef.current || thisId !== taskIdRef.current) break;
+      setWsRun({ kind: "reviewing", done: reviewed, total: targets.files.length, current: file });
+      try {
+        const contents = await invoke<string>("read_file", { path: file });
+        const result = await invoke<VulnFinding[]>("redteam_file", {
+          provider: selection.provider,
+          model: selection.model,
+          file,
+          contents,
+          effort,
+        });
+        if (result.length > 0) {
+          collected.push(...result);
+          addLog("warning", "Analysis", `${file}: ${result.length} finding(s)`);
+        }
+      } catch (e) {
+        setFailures((prev) => [...prev, { file, error: errorMessage(e) || "review failed" }]);
+        addLog("error", "Analysis", `${file}: ${errorMessage(e) || "review failed"}`);
+      }
+      reviewed += 1;
+    }
+
+    if (thisId !== taskIdRef.current) return;
+
+    const sessionId = `rt-ws-${Date.now()}`;
+    const session: RedTeamSession = {
+      id: sessionId,
+      target_url: scopePattern.trim() || workspacePath,
+      current_stage: stopRef.current ? "Stopped" : "Report",
+      findings: collected,
+      started_at: new Date().toISOString(),
+      finished_at: new Date().toISOString(),
+    };
+    setActiveSession(session);
+    setWsRun({
+      kind: "finished",
+      reviewed,
+      matched: targets.matched,
+      limit: targets.limit,
+      stopped: stopRef.current,
+    });
+    setScanning(false);
+    addLog("success", "Report", `${collected.length} finding(s) across ${reviewed} file(s)`);
+
+    // Persist so the run shows in Previous Sessions and Export Report works.
+    try {
+      await invoke("redteam_save_session", { session });
+      loadSessions();
+    } catch {
+      // A save failure loses the history row, not the findings on screen.
+    }
+  }, [workspacePath, selection, scopePattern, addLog, loadSessions]);
+
+  const fixItems = useMemo<FixItem[]>(
+    () =>
+      (activeSession?.findings ?? []).map((f) => ({
+        file: f.source_file,
+        line: f.source_line,
+        severity: f.severity,
+        title: f.title,
+        message: f.description || f.title,
+        suggestion: f.remediation || null,
+        notes: [
+          f.attack_vector ? `Attack vector: ${f.attack_vector}` : "",
+          f.poc ? `Proof of concept: ${f.poc}` : "",
+        ].filter(Boolean),
+      })),
+    [activeSession],
+  );
+
   const downloadReport = useCallback(async (sessionId: string) => {
     try {
       const report = await invoke<string>("generate_redteam_report", { sessionId });
@@ -332,40 +496,113 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
     <div className="panel-container" style={{ fontFamily: "var(--font-family)" }}>
       {/* Header */}
       <div className="panel-header">
-        <h3>Red Team Security Scanner</h3>
+        <h3>Red Team</h3>
       </div>
 
       <div className="panel-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      {/* Target input */}
-      <div style={{ display: "flex", gap: 8 }}>
-        <input
-          value={targetUrl}
-          onChange={(e) => setTargetUrl(e.target.value)}
-          placeholder="http://localhost:3000"
-          disabled={scanning}
-          className="panel-input"
-          style={{ flex: 1 }}
-        />
-        {scanning ? (
-          <button onClick={handleSuspend} className="panel-btn panel-btn-danger">
-            Suspend
+      {/* Mode toggle — attack the workspace's code and content, or a URL. */}
+      <div style={{ display: "flex", gap: 4, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: 3 }}>
+        {(["workspace", "website"] as const).map((m) => (
+          <button
+            key={m}
+            onClick={() => !scanning && setMode(m)}
+            disabled={scanning}
+            aria-pressed={mode === m}
+            style={{
+              flex: 1, padding: "5px 10px", fontSize: "var(--font-size-sm)", borderRadius: "var(--radius-xs-plus)",
+              border: "none", cursor: scanning ? "default" : "pointer",
+              background: mode === m ? "var(--bg-primary)" : "transparent",
+              color: mode === m ? "var(--text-primary)" : "var(--text-secondary)",
+              fontWeight: mode === m ? 600 : 400,
+            }}
+          >
+            {m === "workspace" ? "Workspace (code & content)" : "Website (URL)"}
           </button>
-        ) : (
-          <button onClick={startScan} disabled={!targetUrl.trim()} className="panel-btn panel-btn-primary">
-            Start Scan
-          </button>
-        )}
+        ))}
       </div>
 
-      {/* Elapsed timer */}
-      {scanning && (
+      {mode === "workspace" ? (
+        <>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+            Adversarial review of this project's files with the model selected in the toolbar.
+            Leave the box empty for the whole workspace, or narrow to a folder, a glob
+            (<code>src/*</code>, <code>*.py</code>), or one file. Content — prompts, docs,
+            templates — is reviewed too, for injection and jailbreak risk. Nothing is edited;
+            "Fix with AI" writes the request into chat.
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              value={scopePattern}
+              onChange={(e) => setScopePattern(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !scanning) runWorkspaceRedTeam(); }}
+              placeholder={workspacePath ? "empty = whole workspace · src/ · src/* · *.py · path/to/file.ts" : "open a workspace folder first"}
+              disabled={scanning || !workspacePath}
+              className="panel-input"
+              style={{ flex: 1 }}
+            />
+            {scanning ? (
+              <button onClick={() => { stopRef.current = true; }} className="panel-btn panel-btn-danger">
+                Stop
+              </button>
+            ) : (
+              <button onClick={runWorkspaceRedTeam} disabled={!workspacePath} className="panel-btn panel-btn-primary">
+                Run Red Team
+              </button>
+            )}
+          </div>
+          {!workspacePath && (
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--warning-color)" }}>
+              Open a workspace folder to red-team its code and content.
+            </div>
+          )}
+        </>
+      ) : (
+        /* Target input — attack a running URL. */
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            value={targetUrl}
+            onChange={(e) => setTargetUrl(e.target.value)}
+            placeholder="http://localhost:3000"
+            disabled={scanning}
+            className="panel-input"
+            style={{ flex: 1 }}
+          />
+          {scanning ? (
+            <button onClick={handleSuspend} className="panel-btn panel-btn-danger">
+              Suspend
+            </button>
+          ) : (
+            <button onClick={startScan} disabled={!targetUrl.trim()} className="panel-btn panel-btn-primary">
+              Start Scan
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Workspace progress */}
+      {mode === "workspace" && wsRun.kind === "reviewing" && (
+        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
+          Reviewing {wsRun.done + 1} / {wsRun.total} — <code style={{ fontSize: "var(--font-size-xs)" }}>{wsRun.current}</code>
+        </div>
+      )}
+      {mode === "workspace" && wsRun.kind === "finished" && (
+        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
+          {wsRun.stopped ? "Stopped" : "Done"} — reviewed {wsRun.reviewed} file(s)
+          {wsRun.matched > wsRun.limit && `; scope had ${wsRun.matched}, capped at ${wsRun.limit}`}
+          {failures.length > 0 && `; ${failures.length} could not be read`}.
+        </div>
+      )}
+
+      {/* Elapsed timer (website staged scan) */}
+      {mode === "website" && scanning && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
           <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
           <span>Scanning... {formatElapsed(elapsedSecs)}</span>
         </div>
       )}
 
-      {/* Pipeline stages with details */}
+      {/* Pipeline stages with details (website staged scan only) */}
+      {mode === "website" && (
       <div style={{ marginBottom: 16 }}>
         {stageStatuses.map((ss, i) => {
           const isExpanded = expandedStage === ss.stage;
@@ -441,6 +678,7 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
           );
         })}
       </div>
+      )}
 
       {/* Live activity log */}
       {logs.length > 0 && (
@@ -484,6 +722,17 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
           <span style={{ color: "var(--warning-color)", fontWeight: 600 }}>{medium} Medium</span>
           <span style={{ color: "var(--accent-blue)", fontWeight: 600 }}>{low} Low</span>
           <span style={{ flex: 1 }} />
+          {fixItems.length > 0 && (
+            <FixWithAIButton
+              items={fixItems}
+              source="red team"
+              resetKey={runId}
+              instructions={[
+                "Each item is an attack an adversary could run against this file. Close the attack, do not just silence the finding.",
+                "The proof-of-concept shows how it triggers — the fix must make that input safe.",
+              ]}
+            />
+          )}
           <button onClick={() => downloadReport(activeSession.id)} style={{
             padding: "4px 12px", fontSize: "var(--font-size-sm)", borderRadius: 3, border: "1px solid var(--border-color)",
             background: "none", color: "var(--text-primary)", cursor: "pointer",
@@ -506,11 +755,13 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ display: "inline-flex" }}>{severityIcon(f.severity)}</span>
                 <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600, flex: 1 }}>{f.title}</span>
+                {/* CVSS only when one was actually computed (URL scans);
+                    workspace findings carry a severity, not a fabricated score. */}
                 <span style={{
                   fontSize: "var(--font-size-xs)", padding: "2px 8px", borderRadius: 3,
                   background: severityColor(f.severity), color: "var(--btn-primary-fg, #fff)", fontWeight: 600,
                 }}>
-                  CVSS {f.cvss_score.toFixed(1)}
+                  {f.cvss_score > 0 ? `CVSS ${f.cvss_score.toFixed(1)}` : f.severity.toUpperCase()}
                 </span>
                 {f.confirmed && (
                   <span style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", borderRadius: 3, background: "var(--error-color)", color: "var(--btn-primary-fg, #fff)" }}>
@@ -538,22 +789,34 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
 
               {expandedFinding === f.id && (
                 <div style={{ marginTop: 8, fontSize: "var(--font-size-base)", lineHeight: 1.6 }}>
-                  <div><strong>URL:</strong> <code style={{ fontSize: "var(--font-size-sm)" }}>{f.url}</code></div>
-                  <div><strong>Parameter:</strong> <code style={{ fontSize: "var(--font-size-sm)" }}>{f.location}</code></div>
+                  {/* URL findings name a URL + parameter; workspace findings a
+                      file + line. Show whichever this one has. */}
+                  {f.url ? (
+                    <>
+                      <div><strong>URL:</strong> <code style={{ fontSize: "var(--font-size-sm)" }}>{f.url}</code></div>
+                      <div><strong>Parameter:</strong> <code style={{ fontSize: "var(--font-size-sm)" }}>{f.location}</code></div>
+                    </>
+                  ) : (
+                    <div><strong>Location:</strong> <code style={{ fontSize: "var(--font-size-sm)" }}>{f.location}</code></div>
+                  )}
                   <div><strong>Vector:</strong> {f.attack_vector}</div>
                   <div style={{ marginTop: 4 }}><strong>Description:</strong> {f.description}</div>
-                  <div style={{ marginTop: 4 }}>
-                    <strong>PoC:</strong>
-                    <pre style={{
-                      margin: "4px 0", padding: 8, background: "var(--bg-primary)", borderRadius: 3,
-                      fontSize: "var(--font-size-sm)", overflow: "auto", whiteSpace: "pre-wrap",
-                    }}>
-                      {f.poc}
-                    </pre>
-                  </div>
-                  <div style={{ marginTop: 4, color: "var(--success-color)" }}>
-                    <strong>Remediation:</strong> {f.remediation}
-                  </div>
+                  {f.poc && (
+                    <div style={{ marginTop: 4 }}>
+                      <strong>PoC:</strong>
+                      <pre style={{
+                        margin: "4px 0", padding: 8, background: "var(--bg-primary)", borderRadius: 3,
+                        fontSize: "var(--font-size-sm)", overflow: "auto", whiteSpace: "pre-wrap",
+                      }}>
+                        {f.poc}
+                      </pre>
+                    </div>
+                  )}
+                  {f.remediation && (
+                    <div style={{ marginTop: 4, color: "var(--success-color)" }}>
+                      <strong>Remediation:</strong> {f.remediation}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -589,13 +852,21 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
       {!scanning && !activeSession && findings.length === 0 && sessions.length === 0 && logs.length === 0 && (
         <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text-secondary)" }}>
           <CircleAlert size={32} strokeWidth={1.5} style={{ color: "var(--text-secondary)", marginBottom: 12 }} />
-          <p style={{ fontSize: "var(--font-size-md)", margin: "0 0 8px" }}>No security scans yet</p>
-          <p style={{ fontSize: "var(--font-size-base)" }}>
-            Enter a target URL above and click <strong>Start Scan</strong> to run
-            an autonomous security assessment.
-          </p>
+          <p style={{ fontSize: "var(--font-size-md)", margin: "0 0 8px" }}>No red-team runs yet</p>
+          {mode === "workspace" ? (
+            <p style={{ fontSize: "var(--font-size-base)" }}>
+              Click <strong>Run Red Team</strong> to review this project's code and content
+              for attacks — injection and exploitation in code, prompt-injection and jailbreak
+              risk in prompts, docs, and templates.
+            </p>
+          ) : (
+            <p style={{ fontSize: "var(--font-size-base)" }}>
+              Enter a target URL above and click <strong>Start Scan</strong> to run
+              an autonomous security assessment.
+            </p>
+          )}
           <p style={{ fontSize: "var(--font-size-sm)", marginTop: 12, fontStyle: "italic" }}>
-            Only test applications you own and control.
+            Only test code and applications you own and control.
           </p>
         </div>
       )}

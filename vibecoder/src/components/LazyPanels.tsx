@@ -56,7 +56,6 @@ const SecurityComposite = lazy(() => import("./composite/SecurityComposite").the
 const TestingComposite = lazy(() => import("./composite/TestingComposite").then(m => ({ default: m.TestingComposite })));
 const CodeAnalysisComposite = lazy(() => import("./composite/CodeAnalysisComposite").then(m => ({ default: m.CodeAnalysisComposite })));
 const VersionControlComposite = lazy(() => import("./composite/VersionControlComposite").then(m => ({ default: m.VersionControlComposite })));
-const GitHubComposite = lazy(() => import("./composite/GitHubComposite").then(m => ({ default: m.GitHubComposite })));
 const CollaborationComposite = lazy(() => import("./composite/CollaborationComposite").then(m => ({ default: m.CollaborationComposite })));
 const BuildDeployComposite = lazy(() => import("./composite/BuildDeployComposite").then(m => ({ default: m.BuildDeployComposite })));
 const ContainersComposite = lazy(() => import("./composite/ContainersComposite").then(m => ({ default: m.ContainersComposite })));
@@ -152,7 +151,7 @@ export function PanelHost(props: PanelHostProps) {
     "ai-teams", "ai-playground", "ai-context", "ai-generation",
     "project-hub", "planning", "observability", "design",
     "security", "testing", "code-analysis",
-    "version-control", "github", "collaboration",
+    "version-control", "collaboration",
     "build-deploy", "containers", "ci-cd", "cloud-platform", "ai-ml", "rl-os",
     "database", "api-tools", "data-pipeline",
     "system-monitor", "terminal", "diagnostics",
@@ -192,7 +191,6 @@ export function PanelHost(props: PanelHostProps) {
 
       {/* --- Source Control --- */}
       {panel("version-control", <LazyPanel Component={VersionControlComposite} props={{ workspacePath: wp, onOpenFile }} />)}
-      {panel("github", <LazyPanel Component={GitHubComposite} props={{ workspacePath: wp, provider: selectedProvider, onOpenFile }} />)}
       {panel("collaboration", <LazyPanel Component={CollaborationComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
 
       {/* --- Infrastructure --- */}

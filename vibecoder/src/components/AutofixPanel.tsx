@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { formatElapsed } from "../lib/duration";
 
 interface AutofixResult {
  framework: string;
@@ -26,6 +27,7 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  const [error, setError] = useState<string | null>(null);
  const [message, setMessage] = useState<string | null>(null);
  const [showDiff, setShowDiff] = useState(true);
+ const [elapsedMs, setElapsedMs] = useState(0);
  const cancelRef = useRef(false);
  const taskIdRef = useRef(0);
 
@@ -48,6 +50,15 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  })
  .catch(() => setDetectedFw(null));
  }, [workspacePath]);
+
+ // Proof of life: `run_autofix` returns nothing until the fixer exits.
+ useEffect(() => {
+  if (!running) return;
+  const startedAt = Date.now();
+  setElapsedMs(0);
+  const id = setInterval(() => setElapsedMs(Date.now() - startedAt), 500);
+  return () => clearInterval(id);
+ }, [running]);
 
  const handleSuspend = () => {
  cancelRef.current = true;
@@ -112,150 +123,168 @@ export function AutofixPanel({ workspacePath }: { workspacePath: string | null }
  const diffLines = result?.diff.split("\n") ?? [];
 
  return (
- <div className="panel-container" style={{ padding: "12px", fontFamily: "var(--font-family)", fontSize: "var(--font-size-md)", flex: 1, minHeight: 0, overflowY: "auto" }}>
- <div style={{ fontWeight: "bold", marginBottom: "12px" }}>Codemod & Auto-Fix</div>
+  <div className="panel-container">
+   <div className="panel-header">
+    <h3>Codemod &amp; Auto-Fix</h3>
+    {detectedFw && (
+     <span style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", background: "color-mix(in srgb, var(--accent-blue) 20%, transparent)", color: "var(--text-info)", borderRadius: 3 }}>
+      detected: {detectedFw}
+     </span>
+    )}
+   </div>
 
- {/* Framework selector */}
- <div style={{ display: "flex", gap: "8px", marginBottom: "12px", flexWrap: "wrap" }}>
- <select
- value={selectedFw}
- onChange={e => setSelectedFw(e.target.value)}
- style={{ background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "4px 8px", fontFamily: "inherit", fontSize: "var(--font-size-base)", flex: 1 }}
- >
- <option value="">Auto-detect</option>
- {FRAMEWORKS.map(fw => (
- <option key={fw.value} value={fw.value}>{fw.label}</option>
- ))}
- </select>
- {detectedFw && (
- <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", alignSelf: "center" }}>
- detected: {detectedFw}
- </span>
- )}
- {running ? (
- <button className="panel-btn"
- onClick={handleSuspend}
- style={{
- background: "var(--error-color)",
- color: "var(--btn-primary-fg)", border: "none", borderRadius: "var(--radius-xs-plus)",
- padding: "4px 16px", cursor: "pointer",
- }}
- >
- Suspend
- </button>
- ) : (
- <button className="panel-btn"
- onClick={handleRun}
- disabled={!workspacePath}
- style={{
- background: "var(--accent-color)",
- color: "var(--btn-primary-fg)", border: "none", borderRadius: "var(--radius-xs-plus)",
- padding: "4px 16px", cursor: !workspacePath ? "default" : "pointer",
- }}
- >
- Run Autofix
- </button>
- )}
- </div>
+   {/* Everything scrolls inside .panel-body. Without a single wrapper, the
+       `.panel-container > div:last-child` catch-all in App.css lands on
+       whichever block happens to render last — while a run was in flight that
+       was the selector row, which then stretched to the full panel height. */}
+   <div className="panel-body">
+    {/* Framework selector */}
+    <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "12px", flexWrap: "wrap" }}>
+     <select
+      value={selectedFw}
+      onChange={e => setSelectedFw(e.target.value)}
+      aria-label="Autofix framework"
+      style={{ background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "4px 8px", fontFamily: "inherit", fontSize: "var(--font-size-base)", flex: "1 1 200px", minWidth: 0 }}
+     >
+      <option value="">Auto-detect</option>
+      {FRAMEWORKS.map(fw => (
+       <option key={fw.value} value={fw.value}>{fw.label}</option>
+      ))}
+     </select>
+     {running ? (
+      <button className="panel-btn"
+       onClick={handleSuspend}
+       style={{
+        background: "var(--error-color)",
+        color: "var(--btn-primary-fg)", border: "none", borderRadius: "var(--radius-xs-plus)",
+        padding: "4px 16px", cursor: "pointer", flex: "0 0 auto",
+       }}
+      >
+       Suspend
+      </button>
+     ) : (
+      <button className="panel-btn"
+       onClick={handleRun}
+       disabled={!workspacePath}
+       style={{
+        background: "var(--accent-color)",
+        color: "var(--btn-primary-fg)", border: "none", borderRadius: "var(--radius-xs-plus)",
+        padding: "4px 16px", cursor: !workspacePath ? "default" : "pointer", flex: "0 0 auto",
+       }}
+      >
+       Run Autofix
+      </button>
+     )}
+    </div>
 
- {/* Info box */}
- {!result && !running && !error && (
- <div style={{ background: "var(--bg-secondary)", padding: "12px", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", fontSize: "var(--font-size-base)", marginBottom: "12px" }}>
- <div style={{ marginBottom: "4px", fontWeight: "bold", color: "var(--text-secondary)" }}>What this does:</div>
- <ul style={{ margin: 0, paddingLeft: "16px", lineHeight: "1.6" }}>
- <li><b>clippy</b>: runs <code>cargo clippy --fix</code></li>
- <li><b>eslint</b>: runs <code>npx eslint --fix .</code></li>
- <li><b>ruff</b>: runs <code>ruff check --fix .</code></li>
- <li><b>gofmt</b>: runs <code>gofmt -w .</code></li>
- <li><b>prettier</b>: runs <code>npx prettier --write .</code></li>
- </ul>
- <div style={{ marginTop: "8px" }}>After running, review the diff and choose Apply or Revert.</div>
- </div>
- )}
+    {/* A run gives no output until it finishes, so the panel says what it is
+        waiting on rather than sitting blank. */}
+    {running && (
+     <div role="status" aria-live="polite" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "12px", color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>
+      <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--accent-color)", animation: "pulse 1.4s ease-in-out infinite", flex: "0 0 auto" }} />
+      <span>Running {selectedFw || detectedFw || "auto-detected fixer"} · {formatElapsed(elapsedMs)}</span>
+     </div>
+    )}
 
- {error && (
- <div role="alert" style={{ background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", color: "var(--error-color)", padding: "8px", borderRadius: "var(--radius-xs-plus)", marginBottom: "12px", whiteSpace: "pre-wrap", fontSize: "var(--font-size-base)" }}>
- {error}
- </div>
- )}
+    {/* Info box */}
+    {!result && !running && !error && (
+     <div style={{ background: "var(--bg-secondary)", padding: "12px", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", fontSize: "var(--font-size-base)", marginBottom: "12px" }}>
+      <div style={{ marginBottom: "4px", fontWeight: "bold", color: "var(--text-secondary)" }}>What this does:</div>
+      <ul style={{ margin: 0, paddingLeft: "16px", lineHeight: "1.6" }}>
+       <li><b>clippy</b>: runs <code>cargo clippy --fix</code></li>
+       <li><b>eslint</b>: runs <code>npx eslint --fix .</code></li>
+       <li><b>ruff</b>: runs <code>ruff check --fix .</code></li>
+       <li><b>gofmt</b>: runs <code>gofmt -w .</code></li>
+       <li><b>prettier</b>: runs <code>npx prettier --write .</code></li>
+      </ul>
+      <div style={{ marginTop: "8px" }}>After running, review the diff and choose Apply or Revert.</div>
+     </div>
+    )}
 
- {message && (
- <div style={{ background: "var(--success-bg)", color: "var(--success-color)", padding: "8px", borderRadius: "var(--radius-xs-plus)", marginBottom: "12px", fontSize: "var(--font-size-base)" }}>
- {message}
- </div>
- )}
+    {error && (
+     <div role="alert" style={{ background: "color-mix(in srgb, var(--accent-rose) 10%, transparent)", color: "var(--error-color)", padding: "8px", borderRadius: "var(--radius-xs-plus)", marginBottom: "12px", whiteSpace: "pre-wrap", fontSize: "var(--font-size-base)" }}>
+      {error}
+     </div>
+    )}
 
- {result && (
- <div>
- {/* Summary */}
- <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
- <div style={{ background: "var(--bg-secondary)", padding: "8px 12px", borderRadius: "var(--radius-xs-plus)" }}>
- <span style={{ color: result.files_changed > 0 ? "var(--success-color)" : "var(--text-secondary)", fontWeight: "bold" }}>
- {result.files_changed} file{result.files_changed !== 1 ? "s" : ""} changed
- </span>
- <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", marginLeft: "8px" }}>
- via {result.framework}
- </span>
- </div>
- {result.files_changed > 0 && (
- <>
- <button className="panel-btn"
- onClick={handleApply}
- disabled={applying}
- style={{ background: "var(--success-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", padding: "4px 16px", cursor: "pointer", fontSize: "var(--font-size-base)" }}
- >
- {applying ? "…" : "✓ Apply & Stage"}
- </button>
- <button className="panel-btn"
- onClick={handleRevert}
- disabled={reverting}
- style={{ background: "var(--error-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", padding: "4px 16px", cursor: "pointer", fontSize: "var(--font-size-base)" }}
- >
- {reverting ? "…" : "✕ Revert"}
- </button>
- </>
- )}
- <button
- onClick={() => setShowDiff(d => !d)}
- style={{ marginLeft: "auto", background: "var(--bg-secondary)", color: "var(--text-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "3px 8px", cursor: "pointer", fontSize: "var(--font-size-sm)" }}
- >
- {showDiff ? "Hide diff" : "Show diff"}
- </button>
- </div>
+    {message && (
+     <div style={{ background: "var(--success-bg)", color: "var(--success-color)", padding: "8px", borderRadius: "var(--radius-xs-plus)", marginBottom: "12px", fontSize: "var(--font-size-base)" }}>
+      {message}
+     </div>
+    )}
 
- {result.files_changed === 0 && (
- <div style={{ color: "var(--success-color)", fontSize: "var(--font-size-base)", marginBottom: "12px" }}>
- ✓ No issues found — code is already clean!
- </div>
- )}
+    {result && (
+     <div>
+      {/* Summary */}
+      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px", flexWrap: "wrap" }}>
+       <div style={{ background: "var(--bg-secondary)", padding: "8px 12px", borderRadius: "var(--radius-xs-plus)" }}>
+        <span style={{ color: result.files_changed > 0 ? "var(--success-color)" : "var(--text-secondary)", fontWeight: "bold" }}>
+         {result.files_changed} file{result.files_changed !== 1 ? "s" : ""} changed
+        </span>
+        <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", marginLeft: "8px" }}>
+         via {result.framework}
+        </span>
+       </div>
+       {result.files_changed > 0 && (
+        <>
+         <button className="panel-btn"
+          onClick={handleApply}
+          disabled={applying}
+          style={{ background: "var(--success-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", padding: "4px 16px", cursor: "pointer", fontSize: "var(--font-size-base)" }}
+         >
+          {applying ? "…" : "✓ Apply & Stage"}
+         </button>
+         <button className="panel-btn"
+          onClick={handleRevert}
+          disabled={reverting}
+          style={{ background: "var(--error-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", padding: "4px 16px", cursor: "pointer", fontSize: "var(--font-size-base)" }}
+         >
+          {reverting ? "…" : "✕ Revert"}
+         </button>
+        </>
+       )}
+       <button
+        onClick={() => setShowDiff(d => !d)}
+        style={{ marginLeft: "auto", background: "var(--bg-secondary)", color: "var(--text-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "3px 8px", cursor: "pointer", fontSize: "var(--font-size-sm)" }}
+       >
+        {showDiff ? "Hide diff" : "Show diff"}
+       </button>
+      </div>
 
- {showDiff && result.diff && (
- <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-xs-plus)", overflow: "auto", maxHeight: "400px", fontSize: "var(--font-size-sm)" }}>
- {diffLines.map((line, i) => {
- const color = line.startsWith("+") && !line.startsWith("+++") ? "rgba(76,175,80,0.15)" /* TODO: tokenize diff-add-bg */ :
- line.startsWith("-") && !line.startsWith("---") ? "color-mix(in srgb, var(--accent-rose) 15%, transparent)" :
- line.startsWith("@@") ? "rgba(33,150,243,0.15)" /* TODO: tokenize diff-hunk-bg */ : "transparent";
- const textColor = line.startsWith("+") && !line.startsWith("+++") ? "var(--success-color)" :
- line.startsWith("-") && !line.startsWith("---") ? "var(--error-color)" :
- line.startsWith("@@") ? "var(--accent-color)" :
- line.startsWith("diff ") || line.startsWith("---") || line.startsWith("+++") ? "var(--text-secondary)" :
- "var(--text-secondary)";
- return (
- <div key={i} style={{ background: color, color: textColor, padding: "1px 8px", whiteSpace: "pre", fontFamily: "var(--font-mono)" }}>
- {line || " "}
- </div>
- );
- })}
- </div>
- )}
+      {result.files_changed === 0 && (
+       <div style={{ color: "var(--success-color)", fontSize: "var(--font-size-base)", marginBottom: "12px" }}>
+        ✓ No issues found — code is already clean!
+       </div>
+      )}
 
- {showDiff && result.stdout && !result.diff && (
- <pre style={{ background: "var(--bg-secondary)", padding: "8px", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-sm)", overflow: "auto", maxHeight: "300px", whiteSpace: "pre-wrap" }}>
- {result.stdout}
- </pre>
- )}
- </div>
- )}
- </div>
+      {showDiff && result.diff && (
+       <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-xs-plus)", overflow: "auto", maxHeight: "400px", fontSize: "var(--font-size-sm)" }}>
+        {diffLines.map((line, i) => {
+         const color = line.startsWith("+") && !line.startsWith("+++") ? "rgba(76,175,80,0.15)" /* TODO: tokenize diff-add-bg */ :
+          line.startsWith("-") && !line.startsWith("---") ? "color-mix(in srgb, var(--accent-rose) 15%, transparent)" :
+          line.startsWith("@@") ? "rgba(33,150,243,0.15)" /* TODO: tokenize diff-hunk-bg */ : "transparent";
+         const textColor = line.startsWith("+") && !line.startsWith("+++") ? "var(--success-color)" :
+          line.startsWith("-") && !line.startsWith("---") ? "var(--error-color)" :
+          line.startsWith("@@") ? "var(--accent-color)" :
+          line.startsWith("diff ") || line.startsWith("---") || line.startsWith("+++") ? "var(--text-secondary)" :
+          "var(--text-secondary)";
+         return (
+          <div key={i} style={{ background: color, color: textColor, padding: "1px 8px", whiteSpace: "pre", fontFamily: "var(--font-mono)" }}>
+           {line || " "}
+          </div>
+         );
+        })}
+       </div>
+      )}
+
+      {showDiff && result.stdout && !result.diff && (
+       <pre style={{ background: "var(--bg-secondary)", padding: "8px", borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-sm)", overflow: "auto", maxHeight: "300px", whiteSpace: "pre-wrap" }}>
+        {result.stdout}
+       </pre>
+      )}
+     </div>
+    )}
+   </div>
+  </div>
  );
 }
