@@ -12,13 +12,15 @@ As of **v0.5.5** VibeMobile gained URL-only pairing, zero-config mDNS / Tailscal
 
 ---
 
-## What's new in 0.5.9
+## What's new in 0.5.10
 
 | Area | Improvement |
 |------|-------------|
-| Daemon | Every route the app calls is now covered by a test that fails when the route stops existing — a client calling a route the daemon does not serve used to surface as a blank screen |
-| Reliability | Agent runs started from the app are bounded from outside their loops, so a stalled or silent run ends with a report instead of hanging until the budget is spent |
-| Safety | Credential files are redacted before the model sees them, and an autonomous run cannot strip an authorization guard to make a test pass |
+| iOS build | The app builds through Flutter's Swift Package Manager path. CocoaPods is no longer needed for a clean iOS build; the Podfile stays for plugins that have not migrated |
+| Build targets | `make mobile-android` builds the **APK only** — the Play Store `.aab` is `make mobile-android-bundle`, and the release ships both. The docs said one target produced both |
+| Daemon | Nothing the app calls changed shape this release; the route-coverage tests from 0.5.9 still gate every one of them |
+
+Added in **0.5.9**: every daemon route the app calls covered by a test that fails when the route stops existing, agent runs bounded from outside their own loops, and credential files redacted before the model sees them.
 
 Added in **0.5.8**: mic in the chat and watch-chat composers (on-device recogniser first, `record` + upload fallback), a read-only SkillForge catalogue and training-job status, and `compileSdk` raised to **37** (see the note under Platform requirements).
 
@@ -52,13 +54,13 @@ Added in **0.5.5**: URL-only / URL + Bearer pairing (works on emulators), P-256 
 
 ### From release artifacts (fastest)
 
-See the [Releases page](/vibecody/release/) for the current build. For v0.5.9:
+See the [Releases page](/vibecody/release/) for the current build. For v0.5.10:
 
 | Platform | Artifact |
 |----------|----------|
-| iOS | [`VibeCody-Mobile-v0.5.9-ios.ipa`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeCody-Mobile-v0.5.9-ios.ipa) (unsigned — sideload via AltStore / Sideloadly) |
-| Android APK | [`VibeCody-Mobile-v0.5.9-android.apk`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeCody-Mobile-v0.5.9-android.apk) |
-| Android AAB | [`VibeCody-Mobile-v0.5.9-android.aab`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.9/VibeCody-Mobile-v0.5.9-android.aab) |
+| iOS | [`VibeCody-Mobile-v0.5.10-ios.ipa`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.10/VibeCody-Mobile-v0.5.10-ios.ipa) (unsigned — sideload via AltStore / Sideloadly) |
+| Android APK | [`VibeCody-Mobile-v0.5.10-android.apk`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.10/VibeCody-Mobile-v0.5.10-android.apk) |
+| Android AAB | [`VibeCody-Mobile-v0.5.10-android.aab`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.10/VibeCody-Mobile-v0.5.10-android.aab) |
 
 ### From source
 

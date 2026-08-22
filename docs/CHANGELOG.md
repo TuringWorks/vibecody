@@ -10,6 +10,48 @@ All notable changes to VibeCody are documented here. This project follows [Seman
 
 ## [Unreleased]
 
+## [0.5.10] — 2026-08-21
+
+32 commits since v0.5.9. The theme is the one this project keeps returning to:
+a feature that renders is not a feature that works. Four security panels now
+review the workspace you actually have open, and the findings they report are
+re-checked against the files they name before you see them. Alongside that, a
+run of fixes to features that looked finished — code written to the wrong
+filename, a build that ignored the build system you picked, a router verdict
+that outlived its question, and a model's private reasoning committed as a git
+subject line.
+
+### Added
+
+- **Workspace security review across four panels — Scanner, Red Team, Blue Team, Purple Team.** Each reviews the open project with the provider and model selected in the toolbar, and each asks its own question: red finds the exploit, blue names the missing or weak control and what would detect an attack, purple reports the residual risk — the attack that gets through what is already there. Content is in scope alongside code, so prompts, docs and templates are checked for missing guardrails. The three team prompts are pinned distinct by test; a refactor that collapsed them would quietly make "Blue Team" hunt exploits.
+- **Findings are verified before they are reported.** The security scanner re-checks each finding against the file it names and drops the ones it cannot substantiate, instead of forwarding the model's first answer.
+- **One "Fix with AI" hand-off, on every panel that reports something to fix.** The finding, the file and the requested change are written into chat; nothing is edited behind your back.
+- **Settings turns features off and reorders them.** Panels and tabs can be hidden and reordered, and a tab can be hosted in a panel other than the one it ships in.
+- **vLLM and LM Studio providers**, on the shared OpenAI-compatible implementation that eight existing providers were folded onto — a fix to one is now a fix to all of them.
+- **Team Onboarding reports contributor guides from real git history** rather than a generic template.
+- **VibeDesk: Connectors has its own menu entry**, with a working / not-working answer instead of a list that claims everything is connected.
+- `WorkspaceStore` gained a `Debug` implementation that redacts its key, so `{:?}` in a log line cannot print it.
+
+### Changed
+
+- **The last plaintext credentials moved into the encrypted stores** (`ProfileStore` / `WorkspaceStore`).
+- **iOS builds through Flutter's Swift Package Manager path**, following Flutter's CocoaPods → SPM migration. The Podfile stays for plugins that have not migrated.
+- Repository writes in VibeCoder go through one place, and upstream ahead/behind counts report what git actually says.
+
+### Fixed
+
+- **Generated code was written to `Component4.tsx`** instead of the file the model named.
+- **Build ran the first build system detected**, not the one selected in the dropdown.
+- **Reasoning tags reached user-visible output** — the chat window, review comments, and the subject line of AI-generated commit messages. Every spelling we have seen is stripped (`<think>`, `<thinking>`, namespaced forms like `<mm:think>`), an unclosed or orphaned tag included, and an empty result is reported rather than committed. Two commits in this repository's own history carry a `<thinking>` block in their subject.
+- **The long-context router's verdict outlived the question it answered** — "no model has a window large enough for 1,010,000 tokens" stayed on screen after the slider moved, and followed the reader onto tabs it described nothing on.
+- **The MCP client matched responses by order rather than by id**, so a server that spoke before it was spoken to was read as an empty reply — which surfaced as a connector with no tools.
+- **The test runner and the autofix panel showed no progress.** `run_tests` collected its output with a blocking call and emitted every line after the process exited, so a long suite left the panel showing one echoed command; it now streams line by line, with elapsed time, a line count, and a Suspend that kills the process group instead of only flipping a flag in the UI.
+- **A panel's controls could stretch to the full panel height** — the `.panel-container > div:last-child` catch-all in `App.css` lands on whichever block renders last, which during an autofix run was the framework selector row.
+- **The ingest tab took a hand-typed path only**; it now opens the OS file dialog.
+- **Documentation links that 404'd on the published site** — the installer URL, a wrong org in repository links, dead release assets, `.md` links that resolved to the domain root, and a plugin registry that was advertised but does not exist.
+- **The CLI build broke** after `AgentContext` gained `plugin_rules`, and the provider migration left file-scope imports behind.
+
+
 ## [0.5.9] — 2026-08-14
 
 64 commits since v0.5.8. An evaluation harness that refuses to report a result

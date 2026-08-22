@@ -8,19 +8,16 @@ permalink: /vibecli/
 
 VibeCLI provides two interaction modes: a rich **Terminal UI (TUI)** powered by Ratatui, and a **REPL** mode for quick, scriptable use. It also runs as an HTTP daemon (`--serve`) that powers VibeCoder, VibeMobile, and the new native VibeWatch clients.
 
-### What's new in 0.5.9
+### What's new in 0.5.10
 
-- **`vibecli eval` — an evaluation harness (`crates/vibe-eval`)** — coding, agentic tool use, knowledge work, safety, and per-surface transport conformance across all fourteen clients. Four verdicts kept strictly apart: `pass`, `fail`, `error` (the harness could not decide) and `skipped` (did not apply), with errors and skips outside the pass-rate denominator — "the agent regressed" and "python3 isn't installed" are different sentences. `make eval-check` validates the suites with no provider and no agent; `vibecli --eval gate latest --baseline <run-id>` exits 1 on regression.
-- **`/goal <what you want>`** — states a goal and works on it, rather than requiring the goal to be created first and referenced by id.
-- **Runs are bounded from outside their own loops** — every previous guard was checked between turns or between chunks, so each depended on some inner loop returning. Elapsed-time walls now cover "nothing changed on disk" and "no tool ran at all"; a silent provider can no longer hang a run; and an agent that finished but never said so is concluded rather than left to burn its budget.
-- **`--exec` verifies before it reports** — the project's own build and test run before a completion claim is accepted, and a check that fails to spawn is reported as unverified rather than counted as a pass.
-- **Credential files are redacted on the way in** — asked to summarise a `.env`, the agent used to reproduce the password, then paraphrase it once output redaction was added. The model no longer receives the value.
-- **An autonomous run cannot strip an authorization guard** to make a failing test pass; the file is restored and the run is told why.
-- **Connectors reach `/mcp`** — MCP servers configured in the desktop Plugins panel are launchable from the CLI, with credentials from the encrypted workspace store.
+- **vLLM and LM Studio** — two more OpenAI-compatible providers, selectable like any other. Eight existing providers moved onto the same shared implementation, so a fix to one is a fix to all of them.
+- **Generated commit messages are sanitised before they reach `git log`** — a model that reasons out loud used to commit its `<thinking>` block, and the fence it wrapped the message in, as the subject line. Reasoning tags in every spelling we have seen (`<think>`, `<thinking>`, `<mm:think>`) are stripped, and an empty result is reported rather than committed.
+- **The last plaintext credentials moved into the encrypted stores.** `WorkspaceStore`'s `Debug` implementation redacts its key, so a `{:?}` in a log line cannot print it.
+- **MCP responses are matched by id** — a server that speaks before it is spoken to was read as an empty reply, which surfaced as a connector with no tools.
 
-**Fixed:** `--eval --help` started an evaluation run instead of printing help; the eval report named the binary it was asked for rather than the one that ran; `a` at the approval prompt did not approve all.
+**Fixed:** documentation links that 404'd on the published site — the installer URL, a wrong org in several repository links, dead release assets, `.md` links that resolved to the domain root, and a plugin registry that was advertised but does not exist.
 
-Earlier: 0.5.8 brought voice on every client, provider-agnostic embeddings, goal-driven loops, SkillForge and signed macOS binaries.
+Earlier: 0.5.9 brought the `vibecli eval` harness, `/goal`, runs bounded from outside their own loops, `--exec` verification and credential redaction on the way in; 0.5.8 brought voice on every client, provider-agnostic embeddings, goal-driven loops, SkillForge and signed macOS binaries.
 
 
 ## Installation

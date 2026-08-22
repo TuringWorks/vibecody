@@ -155,7 +155,7 @@ This means if you start at home on Wi-Fi (mDNS wins), commute (ngrok or Tailscal
 {
   "machine_id": "a3f1c8e2b4d90571",
   "hostname": "my-mac",
-  "daemon_version": "0.5.9",
+  "daemon_version": "0.5.10",
   "port": 7878,
   "lan_ips": ["10.0.1.42"],
   "tailscale_ip": "100.64.1.2",

@@ -6,17 +6,17 @@ permalink: /vibecoder/
 
 **AI-powered desktop code editor built with Tauri 2 and Monaco.** VibeCoder provides a VS Code-like editing experience with a native Rust backend, Monaco Editor frontend, integrated AI chat, autonomous agent mode, explicit-chord diff-mode AI editing (⌘.), terminal, Git panel, code review, and a WASM extension system.
 
-### What's new in 0.5.9
+### What's new in 0.5.10
 
-- **Plugins panel is a marketplace** — search, categories and one-click install for eleven core plugins and seventeen connectors that ship inside the binary. **Bundles** (Engineering, On-call, Security review, Data work, Research) install a set of plugins and set up the connectors that job assumes; a connector needing a credential is reported as such, never as configured.
-- **Connectors are real** — the old panel recorded every connector as connected without a credential, tested them by checking an in-memory list, and lost them on restart. Definitions now live in the workspace store with credentials encrypted, and **Test** launches the server and lists its tools before anything claims it works.
-- **27 commands the panels were already calling now exist** — every one of those clicks was a guaranteed runtime rejection, and the panel simply did nothing. A contract test now fails when an invoked command is not registered.
-- **Panels honour the toolbar's provider** — ghost text, ⌘., Counsel, Arena, SuperBrain, Compare and Automations each ran on something other than the model you picked. All 155 panels that receive a provider are covered by a contract test.
-- **Code Transforms scans the project you have open** — it was reading three different roots, one of them the app's own working directory, and reporting "0 files to transform".
-- **AI writes land directly, and you review them in Source Control** — instead of a separate approval queue that could drift from the files on disk.
-- **Goals on screen** — what a goal is doing, with failures kept visible rather than cleared on the next poll.
+- **Security review of the whole workspace, from four panels** — Scanner, Red Team, Blue Team and Purple Team each review the project you have open with the model selected in the toolbar. Each team asks its own question: red finds the exploit, blue names the missing control and what would detect an attack, purple reports the attack that gets through what is already there. Prompts, docs and templates are reviewed too, not just code.
+- **Findings are verified before you see them** — the scanner re-checks each finding against the file it names and drops the ones it cannot stand up, instead of forwarding whatever the model said.
+- **"Fix with AI" on every panel that reports something to fix** — one hand-off that writes the finding, its file and the requested change into chat, rather than leaving you to retype it.
+- **Settings can turn features off and reorder them** — hide panels and tabs you do not use, reorder both, and host a tab in a panel other than the one it ships in.
+- **vLLM and LM Studio** join the provider list, on the shared OpenAI-compatible implementation that eight existing providers now share.
+- **Fixes to things that looked finished.** Generated code is written to the file the model names instead of `Component4.tsx`; Build runs the build system you selected rather than the first one detected; reasoning tags (`<thinking>`, `<think>`, namespaced variants) no longer reach the chat window, review comments, or a generated commit message; the long-context router's verdict disappears when you move the slider it was about, instead of describing a number nobody routed; the MCP client matches responses by id, so a server that speaks first is not read as an empty reply.
+- **The last plaintext credentials moved into the encrypted stores**, and `WorkspaceStore`'s `Debug` no longer prints its key.
 
-Earlier releases: 0.5.8 brought voice input, selectable embedding models, the SkillForge panel and signed macOS builds; 0.5.7 was a release-engineering patch; 0.5.6 brought `/goal` durable execution intent and plugin governance.
+Earlier releases: 0.5.9 brought the plugin marketplace, real connectors, and 27 Tauri commands the panels were already calling; 0.5.8 brought voice input, selectable embedding models, the SkillForge panel and signed macOS builds; 0.5.6 brought `/goal` durable execution intent and plugin governance.
 
 ## Architecture Overview
 
