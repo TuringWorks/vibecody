@@ -11,7 +11,7 @@ VibeCody is **not a single app**. It's a toolchain of ~14 clients that share one
 | # | Product | Path | Stack | Purpose | Talks to |
 |---|---------|------|-------|---------|----------|
 | 1 | **VibeCLI** (daemon + TUI + REPL) | `vibecli/vibecli-cli/` | Rust, Axum, Ratatui | Terminal AI assistant; `--serve` daemon is the **source of truth** for every other client. ~354 modules. | Providers direct · serves `/mobile/*` · `/watch/*` · `/api/*` |
-| 2 | **VibeCoder** (desktop editor) | `vibecoder/` | Tauri 2 + React/TS, Monaco | Full desktop code editor. **1,045+ Tauri commands**, ~293 panels + 42 composites. | Embeds VibeCLI crates · Tauri IPC to frontend |
+| 2 | **VibeCoder** (desktop editor) | `vibecoder/` | Tauri 2 + React/TS, Monaco | Full desktop code editor. **1,349 Tauri commands**, 246 panels + 42 composites. | Embeds VibeCLI crates · Tauri IPC to frontend |
 | 3 | **VibeDesk** (task-first companion) | `vibedesk/` | Tauri 2 + React/TS | Fast path: type a task, watch it happen. Three-column shell (project nav · conversation · Environment). Worktree-native; **no Cmd+K / no inline completion** — AI edits go through conversation+Review or ⌘. `DiffCompleteModal`, gated by `scripts/check-no-inline-edit.mjs`. Dev port 1422. | Own `src-tauri/src/commands.rs` bridge → HTTP/SSE to the daemon; never re-implements agent logic |
 | 4 | **VibeCLI App** (secondary Tauri shell) | `vibeaichat/` | Tauri 2 + React/TS | Lightweight desktop chat shell. Dev port 1421. | Same Tauri commands as VibeCoder (subset) |
 | 5 | **VibeMobile** | `vibemobile/` | Flutter (Dart) | Phone / tablet / web companion. 11 screens, 6 services. | HTTPS/SSE to VibeCLI daemon `/mobile/*` + `/watch/*` relay |
@@ -25,7 +25,7 @@ VibeCody is **not a single app**. It's a toolchain of ~14 clients that share one
 | 13 | **Agent SDK** | `packages/agent-sdk/` | TypeScript | Programmatic SDK for third-party integrations. | HTTP to VibeCLI daemon |
 | 14 | **vibe-indexer** | `vibe-indexer/` | Rust | Standalone code-indexing service (semantic search, embeddings). | Standalone HTTP service |
 
-**Shared crates** (`vibecoder/crates/`): `vibe-core` (buffers/FS/Git), `vibe-ai` (22 providers), `vibe-lsp`, `vibe-extensions` (Wasmtime), `vibe-collab` (CRDT).
+**Shared crates** (`vibecoder/crates/`): `vibe-core` (buffers/FS/Git), `vibe-ai` (23 provider backends + failover), `vibe-lsp`, `vibe-extensions` (Wasmtime), `vibe-collab` (CRDT).
 
 **Single source of truth**: the VibeCLI Rust daemon. If a client has drifted from the daemon's API, the client is wrong. Never fork protocol semantics into a client.
 

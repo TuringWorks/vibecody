@@ -85,12 +85,12 @@ VibeCody already possesses ~85% of the infrastructure needed to function as a fu
 - 18-platform messaging gateway (Telegram, Discord, Slack, Signal, Matrix, Teams, IRC, Twitch, WhatsApp, iMessage, etc.)
 
 ### 3.8 Memory & Context
-- **OpenMemory**: 5 cognitive sectors, HNSW index, AES-256-GCM encryption, bi-temporal knowledge graph
+- **OpenMemory**: 5 cognitive sectors, HNSW index, XOR obfuscation at rest (not cryptographic — see memory-guide), bi-temporal knowledge graph
 - **Infinite Context**: 5-level hierarchy with token budget eviction
 - **Context Bundles**: Named, shareable context sets with priority ordering
 - **Session persistence**: SQLite-backed with WAL mode
 
-### 3.9 Provider Ecosystem (18 providers)
+### 3.9 Provider Ecosystem (25 providers)
 - Claude, OpenAI, Gemini, Groq, Grok, Ollama, OpenRouter, Azure OpenAI, Bedrock, Copilot, Mistral, Cerebras, DeepSeek, Zhipu, Vercel AI, Perplexity, MiniMax, SambaNova
 - Failover provider with health-aware dynamic ordering
 - Universal XML tool calling (works with any provider)
@@ -318,7 +318,7 @@ API Enhancements
 
 | Capability | Perplexity Computer | OpenClaw | Operator | VibeCody Current | VibeCody Gap |
 |-----------|-------------------|----------|----------|-----------------|-------------|
-| **LLM Integration** | Single (internal) | Multi-provider | Single (GPT-4V) | **18 providers + failover** | None |
+| **LLM Integration** | Single (internal) | Multi-provider | Single (GPT-4V) | **25 providers + failover** | None |
 | **Tool Calling** | Internal tools | Plugin system | Built-in actions | **11 tools + MCP + plugins** | None |
 | **Code Execution** | Cloud sandbox | Local/Docker | Cloud VM | **Docker/Podman/OpenSandbox** | None |
 | **File Read/Write** | Yes | Yes | N/A | **Yes (ReadFile, WriteFile, ApplyPatch)** | None |
@@ -432,10 +432,10 @@ VibeCody is not merely a code editor — it is an **agent orchestration platform
 ### Strengths Observed
 VibeCody demonstrates impressive maturity with:
 - **Comprehensive multi-client architecture** (CLI, desktop UI, mobile, watch, IDE plugins)
-- **Extensive AI provider support** (20+ providers with failover mechanisms)
+- **Extensive AI provider support** (25 providers with failover mechanisms)
 - **Sophisticated memory systems** (OpenMemory with 5 cognitive sectors, SessionStore, JobManager)
 - **Robust security features** (SOC 2 controls, PII redaction, audit trails)
-- **Excellent test coverage** (11,000+ unit tests + 62 BDD harnesses)
+- **Excellent test coverage** (16,102 test functions + 89 BDD harnesses)
 - **Thoughtful cross-device synchronization** (mDNS/Tailscale/ngrok URL racing)
 
 ### Priority Improvements

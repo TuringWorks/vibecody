@@ -18,13 +18,13 @@ vibecody/                          ← Cargo workspace root
 │   └── vibecli-cli/               ← Binary: terminal assistant + HTTP daemon
 │       ├── src/                   ← ~354 Rust modules
 │       ├── tests/                 ← 62+ BDD / integration harnesses
-│       └── skills/                ← 1,143 skill files (154 categories)
+│       └── skills/                ← 1,144 skill files (155 categories)
 ├── vibecoder/
-│   ├── src/                       ← React + TypeScript frontend (~293 panels + 42 composites)
-│   ├── src-tauri/                 ← Binary: Tauri desktop app (1,045+ Tauri commands)
+│   ├── src/                       ← React + TypeScript frontend (246 panels + 41 composites)
+│   ├── src-tauri/                 ← Binary: Tauri desktop app (1,349 Tauri commands)
 │   └── crates/
 │       ├── vibe-core/             ← Library: editor primitives
-│       ├── vibe-ai/               ← Library: AI providers + agent (22 providers + openai_compat)
+│       ├── vibe-ai/               ← Library: AI providers + agent (23 backends + failover + openai_compat)
 │       ├── vibe-lsp/              ← Library: LSP client
 │       ├── vibe-extensions/       ← Library: WASM extensions
 │       └── vibe-collab/           ← Library: CRDT collaboration
@@ -222,7 +222,7 @@ let config = ProviderConfig::new("claude".into(), "claude-opus-5".into())
 
 ### Provider Implementations
 
-All 24 providers follow the same pattern (with shared OpenAI-compat helpers extracted into `providers/openai_compat.rs`):
+All 23 provider backends follow the same pattern (with shared OpenAI-compat helpers extracted into `providers/openai_compat.rs`):
 
 1. Send HTTP request to provider API using `reqwest`
 2. For `chat()`: wait for full response
@@ -632,12 +632,14 @@ See [`memory-architecture.md`]({{ site.baseurl }}/memory-architecture/) for comp
 
 ## Testing Strategy
 
-**11,000+ unit tests + 62 BDD / integration harnesses** across the workspace (0 failures in CI).
+**16,102 test functions + 89 BDD / integration harnesses** across the workspace (0 failures in CI).
+
+Counted at v0.5.10 by `#[test]` / `#[tokio::test]` attribute. A count is not a pass rate.
 
 | Crate | Tests | Key coverage areas |
 |-------|-------|--------------------|
 | `vibecli` | 5,500+ unit, 62+ BDD | session store, serve, config, review, workflow, REPL, redteam, gateway, channel daemon, branch agent, spec pipeline, VM orchestrator, transform, marketplace, background agents, TUI, security scan, automations, counsel, superbrain, web client, open memory, auto research, blue/purple team, IDP, watch auth / bridge / session relay, mDNS / Tailscale / ngrok, pairing, all feature modules |
-| `vibe-ai` | 1,020+ | 22 providers + openai_compat, tools, trace, hooks, policy, skills, agent, multi-agent, MCP, agent teams |
+| `vibe-ai` | 1,020+ | 23 provider backends + failover + openai_compat, tools, trace, hooks, policy, skills, agent, multi-agent, MCP, agent teams |
 | `vibe-core` | 370+ | buffer, git, diff, context, file system, workspace, search, terminal, index/embeddings, executor |
 | `vibe-coder` | 230+ | Tauri commands, coverage, cost, flow, agent executor, shadow workspace |
 | `vibe-lsp` | 74 | LSP client, features, manager |

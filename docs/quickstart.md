@@ -10,7 +10,7 @@ permalink: /quickstart/
 
 ## What is VibeCody?
 
-VibeCody is an AI-powered developer toolchain built in Rust. It gives you many ways to work: **VibeCLI** (terminal), **VibeCoder** (desktop editor, 293+ panels), **VibeAIChat** (desktop chat), **VibeMobile** (Flutter, 6 platforms), and **VibeWatch** (native Apple Watch + Wear OS). All surfaces share the same backend crates, supporting 22 AI providers, an autonomous agent loop, code review, multi-agent orchestration, MCP integration, and 1,144 built-in skills. Start with a local model and zero API keys — and with zero-config mDNS / Tailscale / ngrok connectivity, your phone and watch find your desktop automatically.
+VibeCody is an AI-powered developer toolchain built in Rust. It gives you many ways to work: **VibeCLI** (terminal), **VibeCoder** (desktop editor, 246 panels), **VibeAIChat** (desktop chat), **VibeMobile** (Flutter, 6 platforms), and **VibeWatch** (native Apple Watch + Wear OS). All surfaces share the same backend crates, supporting 25 AI providers, an autonomous agent loop, code review, multi-agent orchestration, MCP integration, and 1,144 built-in skills. Start with a local model and zero API keys — and with zero-config mDNS / Tailscale / ngrok connectivity, your phone and watch find your desktop automatically.
 
 
 ## Choose Your Surface
@@ -21,7 +21,7 @@ VibeCody is an AI-powered developer toolchain built in Rust. It gives you many w
 | **Interface** | TUI (Ratatui) or REPL | Desktop app (Tauri + Monaco) |
 | **Setup time** | 2 minutes | 5 minutes (needs Node.js) |
 | **Works headless** | Yes | No |
-| **AI features** | All 23 providers, agent, review, skills | All CLI features + visual panels |
+| **AI features** | All 25 providers, agent, review, skills | All CLI features + visual panels |
 
 **Recommendation:** Start with VibeCLI. You can add VibeCoder later -- they share the same config and crates.
 
@@ -209,7 +209,7 @@ Other providers use the same pattern:
 | Grok | `GROK_API_KEY` | `--provider grok` |
 | Ollama | *(none)* | `--provider ollama` |
 
-See the [Configuration Guide](/vibecody/configuration/) for all 23 providers.
+See the [Configuration Guide](/vibecody/configuration/) for all 25 providers.
 
 
 ## Your First Code Review

@@ -18,7 +18,7 @@ Yes. VibeCody is released under the MIT License. You bring your own API keys for
 
 **VibeCLI** is a terminal-based interface with a TUI (built on Ratatui) and a REPL. It is ideal for SSH sessions, CI pipelines, and developers who prefer the command line.
 
-**VibeCoder** is a desktop application built with Tauri 2, React, and Monaco Editor. It provides a graphical code editor with 187 integrated panels for AI interaction, debugging, deployment, security, and more.
+**VibeCoder** is a desktop application built with Tauri 2, React, and Monaco Editor. It provides a graphical code editor with 246 integrated panels for AI interaction, debugging, deployment, security, and more.
 
 Both share the same Rust backend crates (vibe-core, vibe-ai, vibe-lsp).
 
@@ -44,7 +44,7 @@ docker-compose up  # Starts VibeCLI + Ollama, no external calls
 
 ### How many AI providers does VibeCody support?
 
-VibeCody supports 23 AI providers: Ollama, Claude, OpenAI, Gemini, Grok, Groq, OpenRouter, Azure OpenAI, Bedrock, Copilot, LocalEdit, Mistral, Cerebras, DeepSeek, Zhipu, Vercel AI, MiniMax, Perplexity, Together AI, Fireworks AI, SambaNova, plus the FailoverProvider meta-provider.
+VibeCody offers 25 selectable AI providers: Ollama, vibecli-mistralrs, vLLM, LM Studio, Claude, Claude Code, OpenAI, Gemini, Grok, Groq, OpenRouter, Azure OpenAI, Bedrock, Copilot, Mistral, Cerebras, DeepSeek, Zhipu, Vercel AI, MiniMax, Perplexity, Together AI, Fireworks AI, SambaNova, and Poolside. Two more exist in the crate but are not in the model picker: LocalEdit, and the FailoverProvider meta-provider that chains backends and retries the next one on error.
 
 ### Can I use multiple providers at once?
 

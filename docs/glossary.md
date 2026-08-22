@@ -86,7 +86,7 @@ An alphabetical reference of terms used throughout VibeCody's documentation and 
 
 **Orchestration** — The workflow orchestration system that manages task tracking (`tasks/todo.md`), lessons learned (`tasks/lessons.md`), and complexity estimation. Context from orchestration is automatically injected into the agent loop.
 
-**Panel** — A UI component in VibeCoder that provides a focused interface for a specific feature. VibeCoder includes 187 panels covering AI, security, DevOps, development tools, and more.
+**Panel** — A UI component in VibeCoder that provides a focused interface for a specific feature. VibeCoder includes 246 panels covering AI, security, DevOps, development tools, and more.
 
 **Policy File** — A TOML configuration file (`.vibecli/policy.toml`) that enforces organizational restrictions such as allowed providers, blocked commands, and mandatory sandbox usage. Cannot be overridden by user configuration.
 

@@ -38,8 +38,8 @@ When using cloud providers, review their data retention policies. Most major pro
 **Recommendations:**
 
 - For sensitive codebases, use Ollama or an air-gapped deployment.
-- Use environment variables or `api_key_helper` for API keys rather than hardcoding them in config files.
-- Avoid committing `.vibecli/config.toml` to version control if it contains API keys.
+- Use `api_key_helper` or the encrypted ProfileStore for API keys. Never hardcode them in config files.
+- `.vibecli/config.toml` should contain no secrets at all, so committing it is safe; `profile_settings.db` and `workspace.db` never belong in version control.
 
 ## Approval Policies
 
@@ -64,7 +64,21 @@ approval_policy = "suggest"  # "suggest", "auto-edit", or "full-auto"
 
 ## Sandbox Isolation
 
-The sandbox executes agent commands inside a container, preventing access to the host system.
+> **VibeCody has two separate sandbox subsystems. This page documents the opt-in container
+> sandbox. It is not the same thing as the always-on Tier-0 native sandbox.**
+>
+> | | Container sandbox (this page) | Tier-0 native sandbox |
+> |---|---|---|
+> | Enabled | opt-in via `[sandbox] enabled = true` | always on for daemon-mediated tool calls |
+> | Isolation | full container namespace | per-OS process isolation |
+> | Requires | Docker, Podman, or OpenSandbox | nothing (`bwrap` on Linux for filesystem isolation) |
+> | Documented in | this page | [sandbox.md](./sandbox.md) |
+>
+> Tier-0 applies whether or not you enable the container sandbox, and its coverage is
+> uneven by platform — **macOS gets network isolation only**. Read
+> [sandbox.md](./sandbox.md) before relying on either.
+
+The container sandbox executes agent commands inside a container, preventing access to the host system.
 
 ### Container Runtimes
 
@@ -95,26 +109,44 @@ When `allow_network = false`, the container is started with `--network=none`, pr
 
 ### Storage Options
 
-API keys can be provided through multiple mechanisms, listed from most secure to least:
+> **Never put an API key in `config.toml`, `.env`, or any other plaintext file.** Earlier
+> revisions of this page listed the config file as a supported option. It is not one — the
+> encrypted stores replaced it, and any key still sitting in a config file should be moved
+> and then rotated.
 
-1. **api_key_helper** — A command that returns the key on stdout. Integrates with system keychains, Vault, or AWS Secrets Manager:
+API keys can be provided through three mechanisms, listed from most secure to least:
 
-```toml
-[provider]
-api_key_helper = "security find-generic-password -s vibecody-anthropic -w"
-```
+1. **api_key_helper** — a command that returns the key on stdout, so VibeCody persists
+   nothing at all. Integrates with system keychains, Vault, or AWS Secrets Manager:
 
-1. **Environment variables** — Set in your shell profile or CI environment:
+   ```toml
+   [provider]
+   api_key_helper = "security find-generic-password -s vibecody-anthropic -w"
+   ```
 
-```bash
-export ANTHROPIC_API_KEY="sk-ant-..."
-```
+2. **Encrypted stores** — the default persistent path, and where `vibecli set-key` and the
+   VibeCoder Settings → Keys tab write:
 
-1. **Config file** — Stored in `~/.vibecli/config.toml`. Ensure the file has restrictive permissions:
+   | Store | Path | Scope |
+   |---|---|---|
+   | ProfileStore | `~/.vibecli/profile_settings.db` | account-level keys |
+   | WorkspaceStore | `<workspace>/.vibecli/workspace.db` | project secrets |
 
-```bash
-chmod 600 ~/.vibecli/config.toml
-```
+   Both use **ChaCha20-Poly1305 (AEAD)** with a random 12-byte nonce prepended per record
+   (`crates/vibe-profile-store/src/lib.rs`). The ProfileStore is machine-bound by design —
+   do not commit it.
+
+   ```bash
+   vibecli set-key anthropic sk-ant-...
+   ```
+
+3. **Environment variables** — a compatibility fallback for CI and containers. Readable by
+   any process in the same environment and visible in process listings on some platforms,
+   so prefer one of the two options above on a workstation:
+
+   ```bash
+   export ANTHROPIC_API_KEY="sk-ant-..."
+   ```
 
 ### Key Rotation
 
@@ -305,8 +337,9 @@ Use this checklist when deploying VibeCody in production or sensitive environmen
 
 - [ ] Set approval policy to `suggest` or `auto-edit` (not `full-auto` without sandbox).
 - [ ] Enable sandbox with `allow_network = false`.
-- [ ] Use `api_key_helper` instead of plaintext API keys in config files.
-- [ ] Set `chmod 600` on `~/.vibecli/config.toml`.
+- [ ] Use `api_key_helper`, or `vibecli set-key` to write into the encrypted ProfileStore.
+- [ ] Confirm no API key remains in `~/.vibecli/config.toml` or any `.env` file — and rotate any key that was ever stored there.
+- [ ] Keep `~/.vibecli/profile_settings.db` out of version control (it is machine-bound).
 - [ ] Configure an admin policy file with `allowed_providers` and `blocked_commands`.
 - [ ] Review trace logs regularly for unexpected agent behavior.
 - [ ] Set `max_context_tokens` to limit memory usage per session.

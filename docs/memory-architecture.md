@@ -77,7 +77,7 @@ Each store is specialized for a different content type. They are **not duplicate
 | Store | Content Type | Location | Encryption | Role |
 |-------|-------------|----------|------------|------|
 | **ProjectMemory** | Static docs (`CLAUDE.md`, `AGENTS.md`, `VIBECLI.md`) | Hierarchical (system/user/project/dir) | None | Constant context floor |
-| **OpenMemory** | Extracted facts, preferences, user context | `~/.vibecli/openmemory/` + project-scoped | AES-256-GCM | Fact retriever (TF-IDF + sectors) |
+| **OpenMemory** | Extracted facts, preferences, user context | `~/.vibecli/openmemory/` + project-scoped | XOR obfuscation (not cryptographic) | Fact retriever (TF-IDF + sectors) |
 | **SessionStore** | Conversation transcripts | `~/.vibecli/sessions.db` | None (file-perm) | History retriever (FTS5) |
 | **JobManager** | Agent job state, scratchpad | `~/.vibecli/jobs.db` | ChaCha20-Poly1305 | Job retriever (durable working state) |
 | **vibe-indexer** | Code + symbols | Project `.vibecli/index/` | None | Code retriever (HNSW embeddings) |
@@ -781,7 +781,7 @@ auto_inject = true               # Inject into agent context
 max_context_tokens = 1200        # Cap on injected context
 decay_enabled = true             # Run salience decay
 consolidate_on_exit = false      # Run sleep-cycle consolidation
-encryption = false               # AES-256-GCM at rest
+encryption = false               # XOR obfuscation at rest — NOT cryptographic
 
 [context]
 # Per-agent-kind budgets (overrides defaults)

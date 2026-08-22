@@ -310,7 +310,7 @@ When working with Docker:
 1. `<workspace>/.vibecli/skills/` (project-specific)
 2. `~/.vibecli/skills/` (user-global)
 3. `~/.vibecli/plugins/*/skills/` (from installed plugins)
-4. `vibecli/vibecli-cli/skills/` (built-in, 568 skills)
+4. `vibecli/vibecli-cli/skills/` (built-in, 1,144 skills)
 
 Later sources do NOT override earlier ones. All matching skills are injected.
 
@@ -763,7 +763,7 @@ data: {"kind": "complete", "content": "Fixed the assertion on line 42"}
 
 ## AI Provider Trait
 
-All 17 AI providers implement the `AIProvider` trait:
+All 23 AI provider backends implement the `AIProvider` trait:
 
 ```rust
 #[async_trait]

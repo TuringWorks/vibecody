@@ -292,7 +292,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  setTask("");
  };
 
- /** Retry after error — preserves completed steps and work. */
+ /** Retry after error — re-runs the task from the start (no checkpoint); the step feed stays on screen. */
  const retry = async () => {
  if (!task.trim() || !provider) return;
  setStreaming("");

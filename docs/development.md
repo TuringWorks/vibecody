@@ -37,17 +37,17 @@ vibecody/
 │   ├── src/branch_agent.rs       # Agent-per-branch workflow
 │   ├── src/spec_pipeline.rs      # EARS spec-driven development
 │   ├── src/vm_orchestrator.rs    # Parallel VM agent orchestration
-│   └── skills/                   # 1,143 skill files
+│   └── skills/                   # 1,144 skill files
 ├── vibecoder/
 │   ├── src/                      # React + TypeScript frontend
 │   │   ├── App.tsx               # Root component, keyboard shortcuts
-│   │   └── components/           # 235+ panel components (plus 39 composites)
+│   │   └── components/           # 246 panel components (plus 41 composites)
 │   ├── src-tauri/src/
-│   │   ├── lib.rs                # Tauri command registration (1,045+ commands)
+│   │   ├── lib.rs                # Tauri command registration (1,349 commands)
 │   │   ├── commands.rs           # All Tauri command implementations
 │   │   └── agent_executor.rs     # Agent tool execution for VibeCoder
 │   └── crates/
-│       ├── vibe-ai/              # AIProvider trait, agent loop, 22 providers
+│       ├── vibe-ai/              # AIProvider trait, agent loop, 23 provider backends
 │       ├── vibe-core/            # Text buffer, filesystem, git, search
 │       ├── vibe-lsp/             # LSP client
 │       ├── vibe-extensions/      # WASM extension system
@@ -128,7 +128,7 @@ npm run typecheck    # TypeScript type checking
 ### Running Tests
 
 ```bash
-# Full workspace (~10,535 tests)
+# Full workspace (16,102 test functions)
 cargo test --workspace --exclude vibe-collab
 
 # Single crate with output
@@ -175,7 +175,7 @@ mod tests {
 
 ### AI Provider Trait
 
-All 22 AI providers implement `AIProvider` (in `vibe-ai/src/provider.rs`):
+All 23 AI provider backends implement `AIProvider` (in `vibe-ai/src/provider.rs`):
 
 ```rust
 #[async_trait]
@@ -222,7 +222,7 @@ Two executor implementations:
 
 ### Tauri Commands
 
-VibeCoder exposes 1,045+ Tauri commands. Each is a `#[tauri::command]` function in `commands.rs`:
+VibeCoder exposes 1,349 Tauri commands. Each is a `#[tauri::command]` function in `commands.rs`:
 
 ```rust
 #[tauri::command]

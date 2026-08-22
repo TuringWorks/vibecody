@@ -17,7 +17,7 @@ A single platform that:
 - Eliminates fragmentation between environment, training, evaluation, optimization, and deployment
 - Supports multi-agent, multi-environment, distributed RL at production scale
 - Bridges the research-to-production gap that plagues every existing RL tool
-- Leverages VibeCody's 18 AI providers, agent framework, sandbox, VibeCoder, and 106+ REPL commands
+- Leverages VibeCody's 25 AI providers, agent framework, sandbox, VibeCoder, and 142 REPL slash commands
 
 ---
 
@@ -68,7 +68,7 @@ A single platform that:
 │                                                                     │        
 ├────────────────────────────────────────────────────────-------──────┤  
 │                   VibeCody Integration Layer                        │        
-│  18 AI Providers │ Agent Framework │ Sandbox │ VibeCoder │ REPL     │ 
+│  25 AI providers │ Agent Framework │ Sandbox │ VibeCoder │ REPL     │ 
 └─────────────────────────────────────────────────────────────────────┘
 
                               ↕
@@ -814,7 +814,7 @@ spec:
 
 ### 4.7 RLHF Module (LLM Alignment)
 
-Leverages VibeCody's existing 18 AI providers and container sandbox.
+Leverages VibeCody's existing 25 AI providers and container sandbox.
 
 ```yaml
 # rlhf_config.yaml
@@ -967,7 +967,7 @@ spec:
 
 | VibeCody Module | RL-OS Integration |
 |----------------|-------------------|
-| `vibe-ai` (18 providers) | Reward models can use any provider; RLAIF via Claude/GPT/Gemini |
+| `vibe-ai` (23 provider backends) | Reward models can use any provider; RLAIF via Claude/GPT/Gemini |
 | `agent.rs` (Agent framework) | MARL agents use VibeCody's agent orchestration + A2A protocol |
 | `sandbox.rs` (Container sandbox) | RLEF: safe code execution for reward signals |
 | `knowledge_graph.rs` | Codebase-aware RL for code generation tasks |
@@ -995,7 +995,7 @@ spec:
 | **Edge runtime** | ONNX Runtime + WASM | Portable; no_std Rust for bare-metal |
 | **GPU compute** | CUDA + ROCm + Metal | Multi-vendor GPU support |
 | **Monitoring** | OpenTelemetry + custom RL metrics | Standards-based with RL-specific extensions |
-| **UI** | VibeCoder (React + Tauri) | Leverages existing 196+ panel infrastructure |
+| **UI** | VibeCoder (React + Tauri) | Leverages existing 246-panel infrastructure |
 
 ---
 
@@ -1095,4 +1095,4 @@ Analogous to:
 - **Databricks** standardized data/ML pipelines
 - **HuggingFace** standardized LLM lifecycle
 
-VibeCody RL-OS = **the RL lifecycle standard** — from research to production in one platform, backed by Rust performance, 18 AI providers, and the most comprehensive developer tooling in the industry.
+VibeCody RL-OS = **the RL lifecycle standard** — from research to production in one platform, backed by Rust performance, 25 AI providers, and the most comprehensive developer tooling in the industry.
