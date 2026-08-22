@@ -210,7 +210,10 @@ fn no_missing_credentials(world: &mut ConnectorWorld) {
 #[then(regex = r#"^the agent's resolved servers include "([^"]+)"$"#)]
 fn resolved_includes(world: &mut ConnectorWorld, id: String) {
     let names: Vec<String> = world.resolved().into_iter().map(|c| c.name).collect();
-    assert!(names.contains(&id), "`{id}` not handed to the agent: {names:?}");
+    assert!(
+        names.contains(&id),
+        "`{id}` not handed to the agent: {names:?}"
+    );
 }
 
 #[then(regex = r#"^the agent's resolved servers do not include "([^"]+)"$"#)]
@@ -280,7 +283,9 @@ fn env_carries(world: &mut ConnectorWorld, id: String, env: String) {
 #[then(regex = r#"^no file in the workspace contains "([^"]+)"$"#)]
 fn no_plaintext_secret(world: &mut ConnectorWorld, needle: String) {
     fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
-        let Ok(entries) = std::fs::read_dir(dir) else { return };
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_dir() {
@@ -298,10 +303,12 @@ fn no_plaintext_secret(world: &mut ConnectorWorld, needle: String) {
         let bytes = std::fs::read(&file).unwrap_or_default();
         // Bytes, not text: a secret sitting in a binary DB page is just as
         // readable as one in a config file.
-        let leaked = bytes
-            .windows(needle.len())
-            .any(|w| w == needle.as_bytes());
-        assert!(!leaked, "`{needle}` found in plaintext in {}", file.display());
+        let leaked = bytes.windows(needle.len()).any(|w| w == needle.as_bytes());
+        assert!(
+            !leaked,
+            "`{needle}` found in plaintext in {}",
+            file.display()
+        );
     }
 }
 

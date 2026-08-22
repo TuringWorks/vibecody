@@ -156,7 +156,10 @@ mod tests {
         // This used to match `<thinking>` alone, so a GLM/Qwen `<think>` block
         // went out verbatim.
         assert_eq!(strip_thinking_from("<think>plan</think>answer"), "answer");
-        assert_eq!(strip_thinking_from("<mm:think>plan</mm:think>answer"), "answer");
+        assert_eq!(
+            strip_thinking_from("<mm:think>plan</mm:think>answer"),
+            "answer"
+        );
         assert_eq!(strip_thinking_from("answer<thinking>cut off"), "answer");
     }
 

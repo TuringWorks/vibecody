@@ -280,7 +280,6 @@ impl McpClient {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-
 /// How many messages that are not this request's reply we will read past.
 ///
 /// Notifications are legitimate and a busy server can send several, so this is
@@ -361,16 +360,20 @@ mod response_matching_tests {
             "\n"
         );
         let mut reader = BufReader::new(stream.as_bytes());
-        let result = read_response(&mut reader, &json!(7), "everything").expect("should match id 7");
+        let result =
+            read_response(&mut reader, &json!(7), "everything").expect("should match id 7");
         assert_eq!(result["tools"][0]["name"], "echo");
     }
 
     #[test]
     fn several_notifications_are_skipped() {
         let stream = concat!(
-            r#"{"jsonrpc":"2.0","method":"notifications/message","params":{"level":"info"}}"#, "\n",
-            r#"{"jsonrpc":"2.0","method":"notifications/progress"}"#, "\n",
-            r#"{"jsonrpc":"2.0","id":3,"result":{"ok":true}}"#, "\n"
+            r#"{"jsonrpc":"2.0","method":"notifications/message","params":{"level":"info"}}"#,
+            "\n",
+            r#"{"jsonrpc":"2.0","method":"notifications/progress"}"#,
+            "\n",
+            r#"{"jsonrpc":"2.0","id":3,"result":{"ok":true}}"#,
+            "\n"
         );
         let mut reader = BufReader::new(stream.as_bytes());
         let result = read_response(&mut reader, &json!(3), "srv").expect("should match id 3");
@@ -383,8 +386,10 @@ mod response_matching_tests {
     #[test]
     fn a_response_for_a_different_id_is_not_accepted() {
         let stream = concat!(
-            r#"{"jsonrpc":"2.0","id":1,"result":{"stale":true}}"#, "\n",
-            r#"{"jsonrpc":"2.0","id":2,"result":{"fresh":true}}"#, "\n"
+            r#"{"jsonrpc":"2.0","id":1,"result":{"stale":true}}"#,
+            "\n",
+            r#"{"jsonrpc":"2.0","id":2,"result":{"fresh":true}}"#,
+            "\n"
         );
         let mut reader = BufReader::new(stream.as_bytes());
         let result = read_response(&mut reader, &json!(2), "srv").expect("should skip id 1");

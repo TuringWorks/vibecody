@@ -4,6 +4,7 @@ pub mod azure_openai;
 pub mod bedrock;
 pub mod cerebras;
 pub mod claude;
+pub mod compat;
 pub mod copilot;
 pub mod deepseek;
 pub mod failover;
@@ -16,7 +17,6 @@ pub mod minimax;
 pub mod mistral;
 pub mod ollama;
 pub mod openai;
-pub mod compat;
 pub mod openai_compat;
 pub mod openrouter;
 pub mod perplexity;
@@ -80,11 +80,11 @@ pub fn parse_display_name(display: &str) -> Option<(&'static str, &str)> {
         .map(|(_, provider_type)| (*provider_type, model))
 }
 
-pub use compat::{Auth, CompatProvider, CompatSpec, LM_STUDIO, VLLM};
 pub use azure_openai::AzureOpenAIProvider;
 pub use bedrock::BedrockProvider;
 pub use cerebras::CerebrasProvider;
 pub use claude::ClaudeProvider;
+pub use compat::{Auth, CompatProvider, CompatSpec, LM_STUDIO, VLLM};
 pub use copilot::CopilotProvider;
 pub use deepseek::DeepSeekProvider;
 pub use failover::FailoverProvider;

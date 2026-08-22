@@ -7,10 +7,14 @@
 //! three values that made it Mistral rather than a neighbour, and keeps the
 //! test suite that proves the migration changed nothing.
 
-
 pub const MISTRAL_BASE_URL: &str = "https://api.mistral.ai/v1";
 
-crate::openai_compat_provider!(MistralProvider, "Mistral", MISTRAL_BASE_URL, "MISTRAL_API_KEY");
+crate::openai_compat_provider!(
+    MistralProvider,
+    "Mistral",
+    MISTRAL_BASE_URL,
+    "MISTRAL_API_KEY"
+);
 
 #[cfg(test)]
 mod tests {

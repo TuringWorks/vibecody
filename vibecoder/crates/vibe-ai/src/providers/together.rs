@@ -6,10 +6,14 @@
 //! three values that made it Together AI rather than a neighbour, and keeps the
 //! test suite that proves the migration changed nothing.
 
-
 pub const TOGETHER_BASE_URL: &str = "https://api.together.xyz/v1";
 
-crate::openai_compat_provider!(TogetherProvider, "Together AI", TOGETHER_BASE_URL, "TOGETHER_API_KEY");
+crate::openai_compat_provider!(
+    TogetherProvider,
+    "Together AI",
+    TOGETHER_BASE_URL,
+    "TOGETHER_API_KEY"
+);
 
 #[cfg(test)]
 mod tests {

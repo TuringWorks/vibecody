@@ -6,10 +6,14 @@
 //! three values that made it SambaNova rather than a neighbour, and keeps the
 //! test suite that proves the migration changed nothing.
 
-
 pub const SAMBANOVA_BASE_URL: &str = "https://api.sambanova.ai/v1";
 
-crate::openai_compat_provider!(SambaNovaProvider, "SambaNova", SAMBANOVA_BASE_URL, "SAMBANOVA_API_KEY");
+crate::openai_compat_provider!(
+    SambaNovaProvider,
+    "SambaNova",
+    SAMBANOVA_BASE_URL,
+    "SAMBANOVA_API_KEY"
+);
 
 #[cfg(test)]
 mod tests {

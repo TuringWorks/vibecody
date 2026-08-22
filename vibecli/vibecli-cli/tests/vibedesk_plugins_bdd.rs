@@ -211,7 +211,10 @@ fn components_on_disk(world: &mut PluginWorld) {
             Err(e) => missing.push(format!("{plugin}/{sub}: {e}")),
         }
     }
-    assert!(missing.is_empty(), "component files not usable: {missing:#?}");
+    assert!(
+        missing.is_empty(),
+        "component files not usable: {missing:#?}"
+    );
 }
 
 #[then("the agent's skill loader parses every installed skill")]
@@ -269,10 +272,7 @@ fn skill_name_matches_stem(_world: &mut PluginWorld) {
                 .file_stem()
                 .map(|s| s.to_string_lossy().into_owned())
                 .expect("a stem");
-            assert_eq!(
-                &stem, name,
-                "{plugin}: skill name and file stem must match"
-            );
+            assert_eq!(&stem, name, "{plugin}: skill name and file stem must match");
         }
     }
 }
@@ -324,7 +324,10 @@ fn no_duplicate_component_names(_world: &mut PluginWorld) {
             clashes.push(format!("{name}: {first} and {plugin}"));
         }
     }
-    assert!(clashes.is_empty(), "component name collisions: {clashes:#?}");
+    assert!(
+        clashes.is_empty(),
+        "component name collisions: {clashes:#?}"
+    );
 }
 
 #[then("no catalog plugin ships an mcp server, hook or subagent")]
@@ -380,7 +383,11 @@ fn inventory_owner(world: &mut PluginWorld, plugin: String) {
 
 #[then(expr = "the plugin {string} is installed")]
 fn plugin_installed(world: &mut PluginWorld, name: String) {
-    let dir = world.workspace().join(".vibecli").join("plugins").join(&name);
+    let dir = world
+        .workspace()
+        .join(".vibecli")
+        .join("plugins")
+        .join(&name);
     assert!(
         dir.is_dir(),
         "{name} has no install directory at {}",

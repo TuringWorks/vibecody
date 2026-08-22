@@ -676,8 +676,8 @@ mod debug_redaction_tests {
     fn debug_never_prints_the_key() {
         let dir = tempfile::tempdir().expect("tempdir");
         let key = [7u8; 32];
-        let store = WorkspaceStore::open_with(&dir.path().join("ws.db"), key)
-            .expect("store should open");
+        let store =
+            WorkspaceStore::open_with(&dir.path().join("ws.db"), key).expect("store should open");
 
         let rendered = format!("{store:?}");
         assert!(rendered.contains("<redacted>"), "{rendered}");
@@ -685,7 +685,10 @@ mod debug_redaction_tests {
             !rendered.contains(&format!("{}", key[0])) || !rendered.contains('['),
             "the key bytes must not appear: {rendered}"
         );
-        assert!(!rendered.contains("7, 7, 7"), "key bytes leaked: {rendered}");
+        assert!(
+            !rendered.contains("7, 7, 7"),
+            "key bytes leaked: {rendered}"
+        );
     }
 }
 

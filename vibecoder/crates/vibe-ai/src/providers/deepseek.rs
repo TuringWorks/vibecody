@@ -6,10 +6,14 @@
 //! three values that made it DeepSeek rather than a neighbour, and keeps the
 //! test suite that proves the migration changed nothing.
 
-
 pub const DEEPSEEK_BASE_URL: &str = "https://api.deepseek.com/v1";
 
-crate::openai_compat_provider!(DeepSeekProvider, "DeepSeek", DEEPSEEK_BASE_URL, "DEEPSEEK_API_KEY");
+crate::openai_compat_provider!(
+    DeepSeekProvider,
+    "DeepSeek",
+    DEEPSEEK_BASE_URL,
+    "DEEPSEEK_API_KEY"
+);
 
 #[cfg(test)]
 mod tests {

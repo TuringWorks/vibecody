@@ -2220,7 +2220,11 @@ Pin GitHub Actions and escape HTML in benchmark reports\n\n\
             // Orphan close: the provider ate the opening tag.
             "deliberating</think>Fix the parser",
         ] {
-            assert_eq!(sanitize_commit_message(raw), "Fix the parser", "input: {raw}");
+            assert_eq!(
+                sanitize_commit_message(raw),
+                "Fix the parser",
+                "input: {raw}"
+            );
         }
     }
 

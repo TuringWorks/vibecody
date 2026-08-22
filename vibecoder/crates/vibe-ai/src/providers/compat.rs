@@ -127,9 +127,11 @@ impl CompatProvider {
     /// it through the ordinary config path.
     pub fn api_key(&self) -> Result<&str> {
         match self.spec.auth {
-            Auth::ApiKey { env_var } => self.config.api_key.as_deref().with_context(|| {
-                format!("{} API key not set ({})", self.spec.label, env_var)
-            }),
+            Auth::ApiKey { env_var } => self
+                .config
+                .api_key
+                .as_deref()
+                .with_context(|| format!("{} API key not set ({})", self.spec.label, env_var)),
             Auth::LocalOptional => Ok(self.config.api_key.as_deref().unwrap_or("")),
         }
     }
@@ -242,7 +244,8 @@ impl AIProvider for CompatProvider {
 mod tests {
     use super::*;
 
-    const CLOUD: CompatSpec = CompatSpec::cloud("Testly", "https://api.testly.ai/v1", "TESTLY_API_KEY");
+    const CLOUD: CompatSpec =
+        CompatSpec::cloud("Testly", "https://api.testly.ai/v1", "TESTLY_API_KEY");
 
     fn config(model: &str) -> ProviderConfig {
         ProviderConfig {
@@ -328,7 +331,11 @@ mod tests {
     /// one it is not, and must not be faked. This pins only the offline half.
     #[tokio::test]
     async fn a_cloud_provider_is_available_exactly_when_it_has_a_key() {
-        assert!(!CompatProvider::new(CLOUD, config("m-1")).is_available().await);
+        assert!(
+            !CompatProvider::new(CLOUD, config("m-1"))
+                .is_available()
+                .await
+        );
         assert!(
             CompatProvider::new(CLOUD, with_key("m-1", "sk-test"))
                 .is_available()

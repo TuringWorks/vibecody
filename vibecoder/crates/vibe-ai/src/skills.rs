@@ -546,7 +546,11 @@ mod tests {
         .unwrap();
 
         let skill = load_skill_file(&skill_path).unwrap();
-        assert_eq!(skill.triggers, vec!["alpha"], "a later key must close the list");
+        assert_eq!(
+            skill.triggers,
+            vec!["alpha"],
+            "a later key must close the list"
+        );
         assert_eq!(skill.description, "not a trigger");
         assert_eq!(skill.tools_allowed, vec!["read_file"]);
     }

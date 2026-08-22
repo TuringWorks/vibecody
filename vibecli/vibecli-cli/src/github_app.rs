@@ -382,7 +382,11 @@ fn pick_github_token(
     GITHUB_TOKEN_STORE_KEYS
         .iter()
         .find_map(|key| stored(key).and_then(non_empty))
-        .or_else(|| ["GITHUB_TOKEN", "GH_TOKEN"].iter().find_map(|n| env(n).and_then(non_empty)))
+        .or_else(|| {
+            ["GITHUB_TOKEN", "GH_TOKEN"]
+                .iter()
+                .find_map(|n| env(n).and_then(non_empty))
+        })
 }
 
 /// Split `owner/repo` out of any GitHub remote URL form.
@@ -642,10 +646,7 @@ mod tests {
     fn reads_the_cli_key_when_settings_is_empty() {
         // `vibecli set-key github` and the desktop Settings field write to
         // different keys; both have to be honoured or one surface goes blind.
-        let token = pick_github_token(
-            &|key| (key == "github").then(|| "from-cli".into()),
-            &none,
-        );
+        let token = pick_github_token(&|key| (key == "github").then(|| "from-cli".into()), &none);
         assert_eq!(token.as_deref(), Some("from-cli"));
     }
 

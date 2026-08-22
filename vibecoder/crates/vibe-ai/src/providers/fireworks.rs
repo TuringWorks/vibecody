@@ -6,10 +6,14 @@
 //! three values that made it Fireworks AI rather than a neighbour, and keeps the
 //! test suite that proves the migration changed nothing.
 
-
 pub const FIREWORKS_BASE_URL: &str = "https://api.fireworks.ai/inference/v1";
 
-crate::openai_compat_provider!(FireworksProvider, "Fireworks AI", FIREWORKS_BASE_URL, "FIREWORKS_API_KEY");
+crate::openai_compat_provider!(
+    FireworksProvider,
+    "Fireworks AI",
+    FIREWORKS_BASE_URL,
+    "FIREWORKS_API_KEY"
+);
 
 #[cfg(test)]
 mod tests {

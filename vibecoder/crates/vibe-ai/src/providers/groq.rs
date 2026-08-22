@@ -7,7 +7,6 @@
 //! three values that made it Groq rather than a neighbour, and keeps the
 //! test suite that proves the migration changed nothing.
 
-
 pub const GROQ_BASE_URL: &str = "https://api.groq.com/openai/v1";
 
 crate::openai_compat_provider!(GroqProvider, "Groq", GROQ_BASE_URL, "GROQ_API_KEY");

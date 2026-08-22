@@ -19667,9 +19667,9 @@ fn create_raw_provider(
     cfg: &Config,
 ) -> Result<Arc<dyn LLMProvider>> {
     use vibe_ai::providers::{
-        azure_openai, bedrock, cerebras, claude, copilot, deepseek, fireworks, gemini, grok, groq,
-        minimax, mistral, openai, openrouter, perplexity, poolside, sambanova, together, vercel_ai,
-        compat, vibecli_mistralrs, zhipu,
+        azure_openai, bedrock, cerebras, claude, compat, copilot, deepseek, fireworks, gemini,
+        grok, groq, minimax, mistral, openai, openrouter, perplexity, poolside, sambanova,
+        together, vercel_ai, vibecli_mistralrs, zhipu,
     };
 
     match provider_name.to_lowercase().as_str() {

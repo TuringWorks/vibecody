@@ -164,7 +164,6 @@ pub fn sanitize_completion(raw: &str) -> (String, bool) {
     (joined.trim_end().to_string(), truncated)
 }
 
-
 /// Generate a completion for the cursor position using the supplied provider.
 ///
 /// Callers must have established that the user explicitly asked for this — the

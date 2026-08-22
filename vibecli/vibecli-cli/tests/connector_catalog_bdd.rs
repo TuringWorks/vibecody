@@ -48,7 +48,11 @@ fn the_catalog_is_well_formed() {
             spec.id
         );
         assert!(!spec.title.is_empty(), "{}: empty title", spec.id);
-        assert!(!spec.description.is_empty(), "{}: empty description", spec.id);
+        assert!(
+            !spec.description.is_empty(),
+            "{}: empty description",
+            spec.id
+        );
         assert!(!spec.category.is_empty(), "{}: empty category", spec.id);
         assert!(
             !spec.command.is_empty(),
@@ -68,7 +72,9 @@ fn the_catalog_is_well_formed() {
                 spec.id
             );
             assert!(
-                cred.env.chars().all(|c| c.is_ascii_uppercase() || c == '_' || c.is_ascii_digit()),
+                cred.env
+                    .chars()
+                    .all(|c| c.is_ascii_uppercase() || c == '_' || c.is_ascii_digit()),
                 "{}: credential `{}` should be an ENV_STYLE name",
                 spec.id,
                 cred.env
@@ -166,7 +172,10 @@ fn every_credential_free_connector_starts_and_offers_tools() {
         }
     }
 
-    assert!(checked >= 8, "expected the catalog's credential-free connectors, checked {checked}");
+    assert!(
+        checked >= 8,
+        "expected the catalog's credential-free connectors, checked {checked}"
+    );
     assert!(
         failures.is_empty(),
         "connectors that do not work:\n  {}",

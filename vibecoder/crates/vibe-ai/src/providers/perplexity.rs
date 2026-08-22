@@ -6,10 +6,14 @@
 //! three values that made it Perplexity rather than a neighbour, and keeps the
 //! test suite that proves the migration changed nothing.
 
-
 pub const PERPLEXITY_BASE_URL: &str = "https://api.perplexity.ai";
 
-crate::openai_compat_provider!(PerplexityProvider, "Perplexity", PERPLEXITY_BASE_URL, "PERPLEXITY_API_KEY");
+crate::openai_compat_provider!(
+    PerplexityProvider,
+    "Perplexity",
+    PERPLEXITY_BASE_URL,
+    "PERPLEXITY_API_KEY"
+);
 
 #[cfg(test)]
 mod tests {
