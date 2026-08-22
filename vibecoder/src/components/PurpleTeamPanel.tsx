@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { errorMessage } from "../utils/errorMessage";
+import { WorkspaceReviewTab, type WorkspaceReviewConfig } from "./WorkspaceReviewTab";
 
 interface RawTactic {
   tactic?: string;
@@ -16,7 +17,32 @@ interface PurplePlan {
   success_criteria: string[]; required_resources: string[];
 }
 
-type PurpleTeamTab = "Exercises" | "ATT&CK Matrix" | "Simulations" | "Coverage Gaps" | "Reports";
+type PurpleTeamTab = "Workspace" | "Exercises" | "ATT&CK Matrix" | "Simulations" | "Coverage Gaps" | "Reports";
+
+/** The purple-team framing of a workspace review: attack paired with defence. */
+const PURPLE_TEAM_CONFIG: WorkspaceReviewConfig = {
+  kind: "purpleteam",
+  runLabel: "Run Purple Team",
+  intro: (
+    <>
+      Coverage review of this project's code and content with the model selected in the
+      toolbar. For each attack a file exposes it judges whether an existing defence stops
+      it and reports the residual risk — the gap between what an attacker could do and what
+      is already caught. Content is covered too. Nothing is edited; "Fix with AI" writes the
+      request into chat.
+    </>
+  ),
+  findingNoun: "coverage gaps",
+  evidenceLabel: "Attack that gets through",
+  fixLabel: "Close the gap",
+  vectorLabel: "Attack",
+  fixSource: "purple team",
+  fixInstructions: [
+    "Each item is an attack this file exposes that its current defences do not stop. Close the coverage gap.",
+    "Add both sides where it applies: the control that blocks the attack and the detection that catches an attempt.",
+  ],
+  emptyBody: "Run Purple Team to review attack-vs-defence coverage across this project — where an attack the code or content exposes has no, or insufficient, defence.",
+};
 
 interface Exercise {
   id: string;
@@ -59,7 +85,7 @@ interface CoverageGap {
   priority: string;
 }
 
-const TABS: PurpleTeamTab[] = ["Exercises", "ATT&CK Matrix", "Simulations", "Coverage Gaps", "Reports"];
+const TABS: PurpleTeamTab[] = ["Workspace", "Exercises", "ATT&CK Matrix", "Simulations", "Coverage Gaps", "Reports"];
 
 const COVERAGE_COLORS: Record<string, string> = {
   Detected: "var(--success-color)",
@@ -122,8 +148,14 @@ const formGroup: React.CSSProperties = {
   marginBottom: 10,
 };
 
-export function PurpleTeamPanel({ provider }: { provider?: string } = {}) {
-  const [activeTab, setActiveTab] = useState<PurpleTeamTab>("Exercises");
+export function PurpleTeamPanel({ workspacePath, provider, onOpenFile }: {
+  workspacePath?: string | null;
+  provider?: string;
+  onOpenFile?: (path: string, line?: number) => void;
+} = {}) {
+  // Default to the workspace tab — the reason to open Purple Team here is to
+  // measure coverage on *this* project, not to browse the ATT&CK matrix.
+  const [activeTab, setActiveTab] = useState<PurpleTeamTab>("Workspace");
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [matrix, setMatrix] = useState<MatrixCell[]>([]);
   const [simulations, setSimulations] = useState<Simulation[]>([]);
@@ -749,6 +781,15 @@ export function PurpleTeamPanel({ provider }: { provider?: string } = {}) {
 
   const renderTab = () => {
     switch (activeTab) {
+      case "Workspace":
+        return (
+          <WorkspaceReviewTab
+            workspacePath={workspacePath}
+            provider={provider}
+            onOpenFile={onOpenFile}
+            config={PURPLE_TEAM_CONFIG}
+          />
+        );
       case "Exercises": return renderExercises();
       case "ATT&CK Matrix": return renderATTACKMatrix();
       case "Simulations": return renderSimulations();
@@ -778,8 +819,9 @@ export function PurpleTeamPanel({ provider }: { provider?: string } = {}) {
             <button className="panel-btn" style={{ background: "none", border: "none", color: "var(--error-color)", cursor: "pointer", fontSize: "var(--font-size-lg)" }} onClick={() => setError(null)}>x</button>
           </div>
         )}
-        {loading && <div className="panel-loading">Loading...</div>}
-        {!loading && renderTab()}
+        {loading && activeTab !== "Workspace" && <div className="panel-loading">Loading...</div>}
+        {/* The workspace tab owns its own progress; exercise-data loading must not hide it. */}
+        {(activeTab === "Workspace" || !loading) && renderTab()}
       </div>
     </div>
   );

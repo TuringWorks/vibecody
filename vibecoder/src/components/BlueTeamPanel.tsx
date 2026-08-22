@@ -2,8 +2,34 @@ import React, { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { errorMessage } from "../utils/errorMessage";
 import { X, ChevronDown, ChevronUp } from "lucide-react";
+import { WorkspaceReviewTab, type WorkspaceReviewConfig } from "./WorkspaceReviewTab";
 
-type BlueTeamTab = "Incidents" | "IOCs" | "Detection Rules" | "Forensics" | "SIEM" | "Playbooks" | "Threat Hunt";
+type BlueTeamTab = "Workspace" | "Incidents" | "IOCs" | "Detection Rules" | "Forensics" | "SIEM" | "Playbooks" | "Threat Hunt";
+
+/** The blue-team framing of a workspace review: defence, not attack. */
+const BLUE_TEAM_CONFIG: WorkspaceReviewConfig = {
+  kind: "blueteam",
+  runLabel: "Run Blue Team",
+  intro: (
+    <>
+      Defensive review of this project's code and content with the model selected in the
+      toolbar. For each file it finds the missing or weak control — validation, authz,
+      audit logging, rate limiting, secret handling — and what would detect an attack.
+      Content is covered too: prompts, docs, and templates are checked for missing
+      guardrails. Nothing is edited; "Fix with AI" writes the request into chat.
+    </>
+  ),
+  findingNoun: "defensive gaps",
+  evidenceLabel: "Detection",
+  fixLabel: "Add this control",
+  vectorLabel: "Control area",
+  fixSource: "blue team",
+  fixInstructions: [
+    "Each item is a missing or weak defensive control in this file. Add the control; do not just acknowledge the gap.",
+    "Where a detection is given, wire it up — emit the log, add the rule or the test — so the attack is caught next time.",
+  ],
+  emptyBody: "Run Blue Team to review this project's defences — missing validation, authz, logging, and rate limiting in code, and missing guardrails in prompts, docs, and templates.",
+};
 
 interface Incident {
   id: string;
@@ -79,7 +105,7 @@ interface ThreatHunt {
   findings: string[];
 }
 
-const TABS: BlueTeamTab[] = ["Incidents", "IOCs", "Detection Rules", "Forensics", "SIEM", "Playbooks", "Threat Hunt"];
+const TABS: BlueTeamTab[] = ["Workspace", "Incidents", "IOCs", "Detection Rules", "Forensics", "SIEM", "Playbooks", "Threat Hunt"];
 
 const SEVERITY_COLORS: Record<string, string> = {
   P1: "var(--accent-rose)",
@@ -115,8 +141,16 @@ const formGroup: React.CSSProperties = {
   marginBottom: 10,
 };
 
-export function BlueTeamPanel() {
-  const [activeTab, setActiveTab] = useState<BlueTeamTab>("Incidents");
+interface BlueTeamPanelProps {
+  workspacePath?: string | null;
+  provider?: string;
+  onOpenFile?: (path: string, line?: number) => void;
+}
+
+export function BlueTeamPanel({ workspacePath, provider, onOpenFile }: BlueTeamPanelProps = {}) {
+  // Default to the workspace tab: the SOC console is generic, but the reason to
+  // open Blue Team here is to defend *this* project.
+  const [activeTab, setActiveTab] = useState<BlueTeamTab>("Workspace");
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [iocs, setIOCs] = useState<IOC[]>([]);
   const [rules, setRules] = useState<DetectionRule[]>([]);
@@ -766,6 +800,15 @@ export function BlueTeamPanel() {
 
   const renderTab = () => {
     switch (activeTab) {
+      case "Workspace":
+        return (
+          <WorkspaceReviewTab
+            workspacePath={workspacePath}
+            provider={provider}
+            onOpenFile={onOpenFile}
+            config={BLUE_TEAM_CONFIG}
+          />
+        );
       case "Incidents": return renderIncidents();
       case "IOCs": return renderIOCs();
       case "Detection Rules": return renderDetectionRules();
@@ -813,8 +856,9 @@ export function BlueTeamPanel() {
             </button>
           </div>
         )}
-        {loading && <div className="panel-loading">Loading...</div>}
-        {!loading && renderTab()}
+        {loading && activeTab !== "Workspace" && <div className="panel-loading">Loading...</div>}
+        {/* The workspace tab owns its own progress; SOC-data loading must not hide it. */}
+        {(activeTab === "Workspace" || !loading) && renderTab()}
       </div>
     </div>
   );

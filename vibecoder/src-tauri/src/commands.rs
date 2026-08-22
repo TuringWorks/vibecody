@@ -66973,6 +66973,39 @@ mod redteam_workspace_tests {
     }
 
     #[test]
+    fn the_three_teams_ask_different_questions() {
+        // The whole point of three commands: red attacks, blue defends, purple
+        // measures coverage. A refactor that collapsed them into one prompt
+        // would silently make "Blue Team" hunt exploits.
+        let red = build_redteam_prompt("f", "code");
+        let blue = build_blueteam_prompt("f", "code");
+        let purple = build_purpleteam_prompt("f", "code");
+
+        assert!(red.contains("red-team operator"));
+        assert!(blue.contains("blue-team") && blue.contains("assess DEFENCE"));
+        assert!(purple.contains("purple-team") && purple.contains("COVERAGE GAP"));
+        // Each is distinct — no two are the same string.
+        assert_ne!(red, blue);
+        assert_ne!(blue, purple);
+        assert_ne!(red, purple);
+    }
+
+    #[test]
+    fn blue_and_purple_replies_parse_with_the_shared_parser() {
+        // All three emit the same 7-field row, so one parser serves them. A
+        // blue-team detection lands in `poc`, a purple recommendation in
+        // `remediation` — the panel labels them per team.
+        let blue = parse_redteam_findings(
+            "src/api.ts",
+            "high|12|input validation|No schema check|Body trusted|log rejects|Validate with a schema",
+        );
+        assert_eq!(blue.len(), 1);
+        assert_eq!(blue[0].attack_vector, "input validation");
+        assert_eq!(blue[0].poc, "log rejects");
+        assert_eq!(blue[0].remediation, "Validate with a schema");
+    }
+
+    #[test]
     fn a_line_of_zero_leaves_the_finding_file_scoped() {
         let f = parse_redteam_findings("README.md", "high|0|prompt injection|Jailbreak framing|d|p|fix");
         assert_eq!(f[0].source_line, None);

@@ -664,6 +664,14 @@ pub fn run() {
             commands::redteam_workspace_targets,
             commands::redteam_file,
             commands::redteam_save_session,
+            // Workspace blue team — defensive review of code and content
+            commands::blueteam_workspace_targets,
+            commands::blueteam_file,
+            commands::blueteam_save_session,
+            // Workspace purple team — attack/defence coverage over the workspace
+            commands::purpleteam_workspace_targets,
+            commands::purpleteam_file,
+            commands::purpleteam_save_session,
             // Phase 43: CRDT Collab
             commands::create_collab_session,
             commands::join_collab_session,
