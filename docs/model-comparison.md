@@ -15,6 +15,7 @@ Three different execution shapes hide behind the model picker. Pick the row that
 
 > **`vibecli-mistralrs` — runs on your machine.**
 > Weights cached at `~/.cache/huggingface/hub`, forward passes execute on your CPU / Metal / CUDA. Nothing leaves the host. Limited to ~7B-class models on a laptop. Default for the privacy path.
+> **Shipped in the macOS downloads only** — on Linux and Windows the backend is not compiled in and answers `Unavailable` until you build from source ([why](#platform-support)).
 >
 > **`ollama` — runs locally OR on Ollama Cloud.**
 > Without an `ollama` API key, only models you've `ollama pull`-ed run (locally). With an API key, large cloud-hosted models (`devstral-2:123b-cloud`, `nemotron-3-super`, etc.) route to Ollama Cloud transparently. Open-weights only, scales up to 100B+ MoE.
@@ -390,6 +391,20 @@ their `:cloud` / `:<size>-cloud` suffix.
 ### VibeCLI mistralrs (`vibecli-mistralrs`)
 
 Embedded-in-daemon inference. Talks to the local VibeCLI daemon (`:7878` by default) and pins the in-process mistralrs backend via `X-VibeCLI-Backend`. Models here are HuggingFace repo IDs that lazy-load on first use.
+
+#### Platform support
+
+The backend is a build-time feature, not a runtime one, so which download you have decides whether it exists at all.
+
+| Platform | In the released binary | Notes |
+|---|---|---|
+| macOS (arm64) | ✅ Metal-accelerated | `build.rs` emits `cfg(mistralrs_enabled)` for every `target_os = "macos"` build; no flag to set. The only configuration exercised on a GPU in CI |
+| macOS (Intel) | ✅ compiled in | Same target block. Cross-compiled on an arm64 runner, and its Metal path is not executed in CI |
+| Linux (x86_64 / arm64) | ❌ | Build from source: `--features vibe-mistralrs` (CPU), `vibe-mistralrs-cuda` (NVIDIA), `vibe-mistralrs-flash-attn` (Ampere+, implies CUDA) |
+| Windows (x86_64) | ❌ | Same feature flags exist; no CI job builds them |
+| Docker image | ❌ | Linux base — as above |
+
+Where it is not compiled in, every call returns `BackendError::Unavailable` — *"mistralrs backend not built — recompile vibecli with `--features vibe-mistralrs`"*. The daemon and the `ollama` path are unaffected, so the local-inference route on those platforms is Ollama.
 
 VibeCody's default mistralrs model is **`meta-llama/Llama-3.1-8B-Instruct`** — Meta's most recent ~8B open-weights model with a 128k context window and tool-calling support.
 

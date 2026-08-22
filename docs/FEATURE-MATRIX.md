@@ -16,7 +16,7 @@
 | OpenAI | ✅ | ✅ | GPT-5.6 Sol / Terra / Luna, GPT-5.5, GPT-5.3-Codex |
 | Google Gemini | ✅ | ✅ | Gemini 3.6 Flash, 3.5 Flash / Flash-Lite, 3.1 Pro |
 | Ollama (local + Cloud/Turbo) | ✅ | ✅ | Any Ollama-served model, auto-detect; Cloud models (`*-cloud`) via bearer token |
-| mistral.rs (in-process local) | ✅ | ✅ | GGUF / quantised local inference — no server required |
+| mistral.rs (in-process local) | ✅ macOS · ⚙️ᴮ | ✅ macOS · ⚙️ᴮ | GGUF / quantised local inference — no server required. **In the macOS downloads only**; Linux / Windows need a source build ᴮ |
 | AWS Bedrock | ✅ | ✅ | Claude, Titan, Llama via Bedrock API + SigV4 |
 | Azure OpenAI | ✅ | ✅ | Custom deployment endpoint |
 | Groq | ✅ | ✅ | Ultra-fast inference |
@@ -43,6 +43,10 @@
 | Cost-optimized routing (heuristic) | ✅ | ⚙️ | `/route` + `cost_router.rs` |
 
 ᴬ **Registry append pending.** The provider integration works; these specific new model IDs are not yet listed in `useModelRegistry.ts`.
+
+ᴮ **mistral.rs is compiled into the macOS binaries only.** `vibecli`'s `build.rs` emits `cfg(mistralrs_enabled)` for any `target_os = "macos"` build, and a `[target.'cfg(target_os = "macos")'.dependencies]` block adds the Metal-accelerated backend — so the macOS artifacts (and VibeCoder, which links `vibecli`) carry it with no flag to remember. **The Linux, Windows and Docker artifacts do not.** Calling the backend there returns `BackendError::Unavailable` — *"mistralrs backend not built — recompile vibecli with `--features vibe-mistralrs`"* — while the daemon and the Ollama backend keep working. Build from source for CPU (`vibe-mistralrs`), NVIDIA (`vibe-mistralrs-cuda`) or Ampere+ flash-attention (`vibe-mistralrs-flash-attn`, implies CUDA).
+
+Coverage, so the ✅ is not read as more than it is: only **macOS arm64** runs this backend in CI (`metal-gpu-tests`, on both the precompiled-metallib and `MISTRALRS_METAL_PRECOMPILE=0` runtime-compile paths). Intel macOS compiles and ships but its Metal path is never executed there, and the Linux / Windows feature builds have no CI coverage at all.
 
 > ⚠ **Known issue:** the `gemini` provider default currently points at an unreleased model ID and will be corrected to `gemini-3.6-flash`.
 
