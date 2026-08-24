@@ -41,7 +41,10 @@ marl = [
 # dep — DPO loss is ~30 lines of math. Reward-model training (for PPO-
 # style alignment) is 7c-extras.
 rlhf = [
-    "transformers>=5.15.0,<6.0",  # >=5.5.0: CVE-2026-5241 (ACE in LightGlue model loading)
+    # The floor that matters for security is >=5.5.0 — CVE-2026-5241, ACE in
+    # LightGlue model loading. 5.15.0 is a routine bump above it, so lowering
+    # this pin is safe only as far as 5.5.0.
+    "transformers>=5.15.0,<6.0",
     "accelerate>=1.14.0,<2.0",
 ]
 dev = ["pytest>=9.1.1", "pytest-timeout>=2"]
