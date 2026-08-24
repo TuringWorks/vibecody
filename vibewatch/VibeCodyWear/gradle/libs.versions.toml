@@ -14,7 +14,7 @@ wearTiles = "1.6.2"
 playServicesWearable = "20.0.1"
 
 # OkHttp
-okhttp = "5.4.0"
+okhttp = "5.5.0"
 
 # Moshi
 moshi = "1.15.1"
