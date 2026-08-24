@@ -33,6 +33,15 @@ updates:
     labels:
       - dependencies
       - typescript
+    # monaco-editor is pinned on purpose. 0.56 rebases its `exports` map under
+    # `esm/vs`, which breaks every `monaco-editor/esm/vs/**` import including
+    # the five language workers, and strands
+    # `patches/monaco-editor+0.55.1.patch` unapplied. `tsc` stays green through
+    # both — only `vite build` catches it. Grouped as a "minor" this arrived
+    # twice in two days; see vibecoder/src/__tests__/monacoPin.test.ts for the
+    # checklist a real upgrade has to clear.
+    ignore:
+      - dependency-name: monaco-editor
     groups:
       vibecoder-minor:
         update-types: [minor, patch]
