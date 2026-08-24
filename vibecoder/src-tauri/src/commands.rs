@@ -44210,13 +44210,26 @@ pub async fn counsel_update_participant(
 // SuperBrain — Multi-Model Orchestration
 // ═══════════════════════════════════════════════════════════════════════════════
 
+/// Classify a prompt into a task category.
+///
+/// Returns the category only. Which model serves a category is the user's
+/// choice — the toolbar selection, or `[superbrain.routes]` in config.toml —
+/// never a vendor named in this binary. An unmatched prompt reports
+/// `category: null` rather than a guess dressed up as low confidence.
 #[tauri::command]
 pub async fn superbrain_route(prompt: String) -> Result<serde_json::Value, String> {
-    use vibecli_cli::superbrain::SmartRouter;
+    use vibecli_cli::superbrain::{category_rules, classify};
 
-    let rules = SmartRouter::default_rules();
-    let decision = SmartRouter::route(&prompt, &rules);
-    serde_json::to_value(&decision).map_err(|e| e.to_string())
+    let class = classify(&prompt, &category_rules());
+    Ok(serde_json::json!({
+        "category": class.as_ref().map(|c| c.category.clone()),
+        "reason": class
+            .as_ref()
+            .map(|c| c.reason.clone())
+            .unwrap_or_else(|| "no category keywords matched".to_string()),
+        "confidence": class.as_ref().map(|c| c.confidence).unwrap_or(0.0),
+        "matched": class.as_ref().map(|c| c.matched.clone()).unwrap_or_default(),
+    }))
 }
 
 #[tauri::command]
@@ -44298,15 +44311,40 @@ pub async fn superbrain_query(
 
     match mode.as_str() {
         "router" => {
-            let rules = SmartRouter::default_rules();
-            let decision = SmartRouter::route(&prompt, &rules);
+            // The category is classified; the *provider* is whichever the user
+            // enabled in the panel. Routing to a vendor named in this binary
+            // would ignore the toolbar selection entirely — which is what this
+            // arm used to do, and what AGENTS.md → Provider-Agnostic Panels
+            // forbids.
+            let class = classify(&prompt, &category_rules());
+            let target = provider_entries.first().ok_or_else(|| {
+                "Enable at least one provider — SuperBrain routes to the models you selected, \
+                 not to a built-in default."
+                    .to_string()
+            })?;
+            let category = class
+                .as_ref()
+                .map(|c| c.category.as_str())
+                .unwrap_or("unclassified");
 
             let _ = app.emit(
                 "superbrain:progress",
                 serde_json::json!({
-                    "step": "routing", "provider": decision.provider, "model": decision.model,
+                    "step": "routing", "provider": target.provider, "model": target.model,
+                    "category": category,
                 }),
             );
+
+            let decision = RoutingDecision {
+                provider: target.provider.clone(),
+                model: target.model.clone(),
+                category: category.to_string(),
+                reason: class
+                    .as_ref()
+                    .map(|c| c.reason.clone())
+                    .unwrap_or_else(|| "no category keywords matched".to_string()),
+                confidence: class.as_ref().map(|c| c.confidence).unwrap_or(0.0),
+            };
 
             let resp = call_provider(&decision.provider, &decision.model, &prompt).await;
             let tok = resp.tokens.unwrap_or(0) as usize;
@@ -62954,7 +62992,9 @@ pub async fn cache_advisory_analyze(
         0.0
     };
     Ok(serde_json::json!({
-        "model": model.unwrap_or_else(|| "claude-sonnet-4-6".into()),
+        // Absent stays absent. Echoing a model the caller never sent makes
+        // the advice look model-specific when it is not.
+        "model": model,
         "total_tokens": total,
         "cacheable_tokens": cacheable,
         "cache_ratio": ratio,

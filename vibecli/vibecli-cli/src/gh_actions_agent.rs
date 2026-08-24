@@ -130,7 +130,11 @@ impl GhActionsAgent {
     pub fn new() -> Self {
         Self {
             secrets: Vec::new(),
-            default_model: "claude-sonnet".to_string(),
+            // Empty means "whatever the workflow's own VIBECLI_MODEL says".
+            // A model named here is written into every generated workflow
+            // file, committing the user's CI to a paid vendor they never
+            // chose.
+            default_model: String::new(),
             default_max_turns: 10,
         }
     }
@@ -623,7 +627,7 @@ mod tests {
     #[test]
     fn test_new_agent() {
         let agent = GhActionsAgent::new();
-        assert_eq!(agent.default_model, "claude-sonnet");
+        assert!(agent.default_model.is_empty(), "generated CI must not name a vendor");
         assert_eq!(agent.default_max_turns, 10);
         assert!(agent.secrets.is_empty());
     }

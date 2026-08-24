@@ -26,15 +26,6 @@ impl std::fmt::Display for SuperBrainMode {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RoutingRule {
-    pub keywords: Vec<String>,
-    pub category: String,
-    pub provider: String,
-    pub model: String,
-    pub priority: u32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelContribution {
     pub provider: String,
     pub model: String,
@@ -58,7 +49,9 @@ pub struct SuperBrainResult {
 pub struct SuperBrainConfig {
     pub providers: Vec<ProviderEntry>,
     pub judge: Option<ProviderEntry>,
-    pub routing_rules: Vec<RoutingRule>,
+    /// Category routing rules. Vendor selection lives in
+    /// `[superbrain.routes]`, not here.
+    pub routing_rules: Vec<CategoryRule>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -78,163 +71,14 @@ pub struct RoutingDecision {
     pub confidence: f64,
 }
 
-pub struct SmartRouter;
-
-impl SmartRouter {
-    /// Default routing rules mapping task categories to providers.
-    pub fn default_rules() -> Vec<RoutingRule> {
-        vec![
-            RoutingRule {
-                keywords: vec![
-                    "implement".into(),
-                    "function".into(),
-                    "code".into(),
-                    "debug".into(),
-                    "fix".into(),
-                    "bug".into(),
-                    "refactor".into(),
-                    "class".into(),
-                    "struct".into(),
-                    "async".into(),
-                    "test".into(),
-                    "compile".into(),
-                    "error".into(),
-                    "rust".into(),
-                    "python".into(),
-                    "javascript".into(),
-                    "typescript".into(),
-                ],
-                category: "code".into(),
-                provider: "claude".into(),
-                model: "claude-3.5-sonnet".into(),
-                priority: 10,
-            },
-            RoutingRule {
-                keywords: vec![
-                    "calculate".into(),
-                    "equation".into(),
-                    "prove".into(),
-                    "solve".into(),
-                    "integral".into(),
-                    "derivative".into(),
-                    "matrix".into(),
-                    "algebra".into(),
-                    "theorem".into(),
-                    "probability".into(),
-                    "statistics".into(),
-                ],
-                category: "math".into(),
-                provider: "openai".into(),
-                model: "gpt-4o".into(),
-                priority: 10,
-            },
-            RoutingRule {
-                keywords: vec![
-                    "write a story".into(),
-                    "poem".into(),
-                    "creative".into(),
-                    "brainstorm".into(),
-                    "imagine".into(),
-                    "story".into(),
-                    "narrative".into(),
-                    "fiction".into(),
-                    "design".into(),
-                ],
-                category: "creative".into(),
-                provider: "gemini".into(),
-                model: "gemini-2.0-flash".into(),
-                priority: 10,
-            },
-            RoutingRule {
-                keywords: vec![
-                    "analyze".into(),
-                    "compare".into(),
-                    "evaluate".into(),
-                    "review".into(),
-                    "assess".into(),
-                    "critique".into(),
-                    "research".into(),
-                    "explain".into(),
-                ],
-                category: "analysis".into(),
-                provider: "claude".into(),
-                model: "claude-3.5-sonnet".into(),
-                priority: 8,
-            },
-            RoutingRule {
-                keywords: vec![
-                    "what is".into(),
-                    "define".into(),
-                    "who is".into(),
-                    "when did".into(),
-                    "where is".into(),
-                    "list".into(),
-                    "name".into(),
-                ],
-                category: "factual".into(),
-                provider: "groq".into(),
-                model: "llama-3.3-70b-versatile".into(),
-                priority: 5,
-            },
-        ]
-    }
-
-    /// Route a query to the best provider based on keyword matching.
-    pub fn route(query: &str, rules: &[RoutingRule]) -> RoutingDecision {
-        let lower = query.to_lowercase();
-        let mut best_score = 0u32;
-        let mut best_rule: Option<&RoutingRule> = None;
-        let mut matched_keywords: Vec<String> = Vec::new();
-
-        for rule in rules {
-            let mut score = 0u32;
-            let mut matches: Vec<String> = Vec::new();
-            for keyword in &rule.keywords {
-                if lower.contains(&keyword.to_lowercase()) {
-                    score += rule.priority;
-                    matches.push(keyword.clone());
-                }
-            }
-            if score > best_score {
-                best_score = score;
-                best_rule = Some(rule);
-                matched_keywords = matches;
-            }
-        }
-
-        if let Some(rule) = best_rule {
-            RoutingDecision {
-                provider: rule.provider.clone(),
-                model: rule.model.clone(),
-                category: rule.category.clone(),
-                reason: format!(
-                    "Matched {} keywords [{}] in category '{}'",
-                    matched_keywords.len(),
-                    matched_keywords.join(", "),
-                    rule.category
-                ),
-                confidence: (best_score as f64 / 30.0).min(1.0),
-            }
-        } else {
-            // Default fallback
-            RoutingDecision {
-                provider: "ollama".into(),
-                model: "llama3.2".into(),
-                category: "general".into(),
-                reason: "No specific category matched — using general-purpose model".into(),
-                confidence: 0.3,
-            }
-        }
-    }
-}
 
 // ── Category routing — which *kind* of task, not which vendor ────────────────
 
 /// A keyword rule that names a task category and nothing else.
 ///
-/// The older [`RoutingRule`] carries a provider and a model, which bakes a
+/// The rule this replaced carried a provider and a model, which baked a
 /// vendor choice into the classifier: "this looks like code" and "code means
-/// Claude" are different claims, and only the first one is something keyword
+/// Claude" are different claims, and only the first is something keyword
 /// matching can support. A category rule makes the second claim somebody
 /// else's job — see [`resolve_route`], which answers it from configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -261,19 +105,38 @@ pub struct RouteTarget {
     pub model: Option<String>,
 }
 
-/// The categories the router knows, with no vendor attached to any of them.
+/// The task categories the router knows.
 ///
-/// Keywords and priorities are the same ones [`SmartRouter::default_rules`]
-/// uses, so a prompt classifies identically on both paths.
+/// Keywords and a category. No provider, no model, no vendor of any kind —
+/// see [`resolve_route`], which answers "which model" from configuration.
 pub fn category_rules() -> Vec<CategoryRule> {
-    SmartRouter::default_rules()
-        .into_iter()
-        .map(|r| CategoryRule {
-            keywords: r.keywords,
-            category: r.category,
-            priority: r.priority,
-        })
-        .collect()
+    vec![
+        CategoryRule {
+            keywords: vec!["implement", "function", "code", "debug", "fix", "bug", "refactor", "class", "struct", "async", "test", "compile", "error", "rust", "python", "javascript", "typescript"].into_iter().map(String::from).collect(),
+            category: "code".into(),
+            priority: 10,
+        },
+        CategoryRule {
+            keywords: vec!["calculate", "equation", "prove", "solve", "integral", "derivative", "matrix", "algebra", "theorem", "probability", "statistics"].into_iter().map(String::from).collect(),
+            category: "math".into(),
+            priority: 10,
+        },
+        CategoryRule {
+            keywords: vec!["write a story", "poem", "creative", "brainstorm", "imagine", "story", "narrative", "fiction", "design"].into_iter().map(String::from).collect(),
+            category: "creative".into(),
+            priority: 10,
+        },
+        CategoryRule {
+            keywords: vec!["analyze", "compare", "evaluate", "review", "assess", "critique", "research", "explain"].into_iter().map(String::from).collect(),
+            category: "analysis".into(),
+            priority: 8,
+        },
+        CategoryRule {
+            keywords: vec!["what is", "define", "who is", "when did", "where is", "list", "name"].into_iter().map(String::from).collect(),
+            category: "factual".into(),
+            priority: 5,
+        },
+    ]
 }
 
 /// Classify a prompt into a task category by keyword weight.
@@ -594,53 +457,11 @@ pub fn available_modes() -> Vec<(&'static str, &'static str)> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_route_code_query() {
-        let rules = SmartRouter::default_rules();
-        let decision = SmartRouter::route("Implement a binary search function in Rust", &rules);
-        assert_eq!(decision.category, "code");
-        assert!(decision.confidence > 0.0);
-    }
 
-    #[test]
-    fn test_route_math_query() {
-        let rules = SmartRouter::default_rules();
-        let decision = SmartRouter::route("Solve this integral: ∫x²dx", &rules);
-        assert_eq!(decision.category, "math");
-    }
 
-    #[test]
-    fn test_route_creative_query() {
-        let rules = SmartRouter::default_rules();
-        let decision = SmartRouter::route("Write a story about a robot learning to paint", &rules);
-        assert_eq!(decision.category, "creative");
-    }
 
-    #[test]
-    fn test_route_factual_query() {
-        let rules = SmartRouter::default_rules();
-        let decision = SmartRouter::route("What is the capital of France?", &rules);
-        assert_eq!(decision.category, "factual");
-    }
 
-    #[test]
-    fn test_route_no_match_fallback() {
-        let rules = SmartRouter::default_rules();
-        let decision = SmartRouter::route("xyz 123 qqq", &rules);
-        assert_eq!(decision.category, "general");
-        assert!(decision.confidence < 0.5);
-    }
 
-    #[test]
-    fn test_route_multi_keyword() {
-        let rules = SmartRouter::default_rules();
-        let decision = SmartRouter::route(
-            "Debug this async function and fix the compile error",
-            &rules,
-        );
-        assert_eq!(decision.category, "code");
-        assert!(decision.confidence > 0.5);
-    }
 
     #[test]
     fn test_chain_relay_prompt_step0() {
@@ -787,16 +608,6 @@ mod tests {
         assert!(modes.iter().any(|(n, _)| *n == "Chain Relay"));
     }
 
-    #[test]
-    fn test_default_rules_coverage() {
-        let rules = SmartRouter::default_rules();
-        assert!(rules.len() >= 5);
-        let categories: Vec<&str> = rules.iter().map(|r| r.category.as_str()).collect();
-        assert!(categories.contains(&"code"));
-        assert!(categories.contains(&"math"));
-        assert!(categories.contains(&"creative"));
-        assert!(categories.contains(&"factual"));
-    }
 
     #[test]
     fn test_superbrain_mode_display() {
@@ -880,23 +691,4 @@ mod tests {
         assert_eq!(r.target.model, None, "an unset model must stay unset, not be invented");
     }
 
-    /// The classifier must agree with the legacy path, so switching a surface
-    /// over does not silently change which prompts are considered code.
-    #[test]
-    fn categories_match_the_legacy_router() {
-        for prompt in [
-            "Implement a binary search function in Rust",
-            "solve this integral",
-            "write a story about a robot",
-            "what is a monad",
-        ] {
-            let legacy = SmartRouter::route(prompt, &SmartRouter::default_rules());
-            let modern = classify(prompt, &category_rules());
-            assert_eq!(
-                Some(legacy.category.as_str()),
-                modern.as_ref().map(|c| c.category.as_str()),
-                "classification diverged for {prompt:?}"
-            );
-        }
-    }
 }

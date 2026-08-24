@@ -81,11 +81,26 @@ impl Default for SubAgentConfig {
         Self {
             max_concurrent: 5,
             max_context_files: 50,
-            default_model: "claude-opus-4-6".to_string(),
+            // No model. Sub-agents run on the session model unless the
+            // user names one; a default here would pick a paid vendor
+            // for work nobody asked to be billed for.
+            default_model: String::new(),
             enable_delegation: true,
             task_timeout_secs: 300,
         }
     }
+}
+
+/// How much model capability a role generally needs.
+///
+/// Deliberately not a model id: the mapping from tier to model is the user's,
+/// and naming one here would reintroduce the vendor default this replaced.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CapabilityTier {
+    /// Deep reasoning — architecture, security review, hard debugging.
+    Deep,
+    /// Everyday work — tests, docs, lookups.
+    Standard,
 }
 
 impl SubAgentRole {
@@ -246,18 +261,23 @@ impl SubAgentRole {
         }
     }
 
-    pub fn suggested_model(&self) -> &str {
+    /// How much capability this role generally needs.
+    ///
+    /// A *tier*, not a model: which model serves a tier is the user's
+    /// configuration. The previous version answered `claude-opus-4-6` here,
+    /// which chose a vendor — and a price — on the user's behalf.
+    pub fn capability_tier(&self) -> CapabilityTier {
         match self {
-            SubAgentRole::Oracle => "claude-opus-4-6",
-            SubAgentRole::Librarian => "claude-sonnet-4-20250514",
-            SubAgentRole::Implementer => "claude-opus-4-6",
-            SubAgentRole::Reviewer => "claude-opus-4-6",
-            SubAgentRole::Tester => "claude-sonnet-4-20250514",
-            SubAgentRole::Documenter => "claude-sonnet-4-20250514",
-            SubAgentRole::Architect => "claude-opus-4-6",
-            SubAgentRole::Debugger => "claude-opus-4-6",
-            SubAgentRole::Optimizer => "claude-sonnet-4-20250514",
-            SubAgentRole::SecurityExpert => "claude-opus-4-6",
+            SubAgentRole::Oracle
+            | SubAgentRole::Implementer
+            | SubAgentRole::Reviewer
+            | SubAgentRole::Architect
+            | SubAgentRole::Debugger
+            | SubAgentRole::SecurityExpert => CapabilityTier::Deep,
+            SubAgentRole::Librarian
+            | SubAgentRole::Tester
+            | SubAgentRole::Documenter
+            | SubAgentRole::Optimizer => CapabilityTier::Standard,
         }
     }
 
@@ -615,15 +635,25 @@ mod tests {
     }
 
     #[test]
-    fn test_role_suggested_model() {
-        assert_eq!(SubAgentRole::Oracle.suggested_model(), "claude-opus-4-6");
-        assert_eq!(
-            SubAgentRole::Tester.suggested_model(),
-            "claude-sonnet-4-20250514"
-        );
-        assert_eq!(
-            SubAgentRole::Implementer.suggested_model(),
-            "claude-opus-4-6"
+    fn roles_report_a_tier_not_a_vendor() {
+        assert_eq!(SubAgentRole::Oracle.capability_tier(), CapabilityTier::Deep);
+        assert_eq!(SubAgentRole::Tester.capability_tier(), CapabilityTier::Standard);
+    }
+
+    /// The whole point: the default config may not name a model, and every
+    /// role must answer with a tier rather than a vendor's model id.
+    #[test]
+    fn no_role_names_a_model_and_the_default_config_has_none() {
+        for role in SubAgentRole::all_variants() {
+            // A tier is one of two values; there is nowhere for a model id to
+            // hide. This is a compile-time guarantee restated as a runtime one
+            // so the intent survives a future edit.
+            let tier = role.capability_tier();
+            assert!(matches!(tier, CapabilityTier::Deep | CapabilityTier::Standard));
+        }
+        assert!(
+            SubAgentConfig::default().default_model.is_empty(),
+            "the default sub-agent config must not name a model"
         );
     }
 
@@ -891,7 +921,7 @@ mod tests {
         let config = SubAgentConfig::default();
         assert_eq!(config.max_concurrent, 5);
         assert_eq!(config.max_context_files, 50);
-        assert_eq!(config.default_model, "claude-opus-4-6");
+        assert!(config.default_model.is_empty());
         assert!(config.enable_delegation);
         assert_eq!(config.task_timeout_secs, 300);
     }
