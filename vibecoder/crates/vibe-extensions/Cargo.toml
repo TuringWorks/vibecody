@@ -17,7 +17,7 @@ tracing.workspace = true
 # WASM runtime for extensions.
 # Pinned >=47.0.3: RUSTSEC-2026-0222 (stores can mix up type indices between
 # engines) is unpatched in the 45.x line.
-wasmtime = "47.0.3"
+wasmtime = "48.0.0"
 
 # Home directory resolution
 dirs-next = "2.0"
