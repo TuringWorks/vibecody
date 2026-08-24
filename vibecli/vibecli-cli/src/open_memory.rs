@@ -4469,20 +4469,24 @@ mod tests {
 
     #[test]
     fn store_save_and_load() {
-        let dir = std::env::temp_dir().join(format!("vibecody-om-test-{}", epoch_secs()));
+        // A unique directory, not a timestamped one: `epoch_secs()` has
+        // second granularity, so two `cargo test` processes on one machine
+        // shared this path and each one's cleanup deleted the other's store
+        // between `save` and `load`. TempDir is unique by construction and
+        // removes itself even when the test panics.
+        let tmp = tempfile::TempDir::new().expect("temp dir");
+        let dir = tmp.path();
         {
-            let mut store = OpenMemoryStore::new(&dir, "user1");
+            let mut store = OpenMemoryStore::new(dir, "user1");
             store.add("persistent memory about Rust");
             store.add_fact("project", "lang", "Rust");
             store.save().expect("save should succeed");
         }
         {
-            let store = OpenMemoryStore::load(&dir, "user1").expect("load should succeed");
+            let store = OpenMemoryStore::load(dir, "user1").expect("load should succeed");
             assert_eq!(store.total_memories(), 1);
             assert_eq!(store.total_facts(), 1);
         }
-        // Cleanup
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     // ── Classifier online learning ───────────────────────────────────────
@@ -5324,9 +5328,10 @@ mod tests {
 
     #[test]
     fn persistence_roundtrip_with_waypoints_and_facts() {
-        let dir = std::env::temp_dir().join(format!("vibecody-om-persist-{}", epoch_secs()));
+        let tmp = tempfile::TempDir::new().expect("temp dir");
+        let dir = tmp.path();
         {
-            let mut store = OpenMemoryStore::new(&dir, "user1");
+            let mut store = OpenMemoryStore::new(dir, "user1");
             store.add_with_tags("Memory with tags", vec!["tag1".to_string()], HashMap::new());
             store.add_with_sector("Procedural memory", MemorySector::Procedural, vec![]);
             store.add_fact("project", "lang", "Rust");
@@ -5334,14 +5339,13 @@ mod tests {
             store.save().expect("save");
         }
         {
-            let store = OpenMemoryStore::load(&dir, "user1").expect("load");
+            let store = OpenMemoryStore::load(dir, "user1").expect("load");
             assert_eq!(store.total_memories(), 2);
             assert_eq!(store.total_facts(), 2);
             let facts = store.query_current_facts();
             assert!(facts.iter().any(|f| f.object == "Rust"));
             assert!(facts.iter().any(|f| f.object == "Tokio"));
         }
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     // ── Search by date (additional) ─────────────────────────────────────

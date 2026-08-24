@@ -2109,8 +2109,10 @@ mod exec_tests {
 
     #[test]
     fn command_scoring_actually_executes() {
-        let dir = std::env::temp_dir().join(format!("vibecody-eval-{}", now_unix()));
-        std::fs::create_dir_all(&dir).unwrap();
+        // Unique per test process — a second-granularity name is shared by
+        // any two `cargo test` runs that start in the same second.
+        let tmp = tempfile::TempDir::new().expect("temp dir");
+        let dir = tmp.path().to_path_buf();
 
         let pass = score(
             &Expectation::Command {
@@ -2136,8 +2138,6 @@ mod exec_tests {
             "should report the exit code: {}",
             fail.1
         );
-
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
