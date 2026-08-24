@@ -64,5 +64,5 @@ dependencies {
     //   vibemobile/android/app/src/main/kotlin/.../wear/WearDataLayerService.kt
     implementation("com.google.android.gms:play-services-wearable:20.0.1")
     // OkHttp powers the relay HTTP forwarding inside WearDataLayerService.
-    implementation("com.squareup.okhttp3:okhttp:5.4.0")
+    implementation("com.squareup.okhttp3:okhttp:5.5.0")
 }
