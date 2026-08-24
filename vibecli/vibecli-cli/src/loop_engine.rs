@@ -638,14 +638,15 @@ mod tests {
 
     #[test]
     fn persistence_roundtrip() {
-        let dir = std::env::temp_dir().join(format!("vibecli-loop-test-{}", job_id(42, 7)));
-        let path = dir.join("loops.json");
+        // `job_id(42, 7)` is a constant, so this path was identical in every
+        // process and every run — the worst of the shared-temp-dir family.
+        let tmp = tempfile::TempDir::new().expect("temp dir");
+        let path = tmp.path().join("loops.json");
         let spec = parse_loop_args("auto persist me").unwrap();
         let jobs = vec![LoopJob::new("loop-x".into(), spec, 123)];
         save_jobs(&path, &jobs).unwrap();
         let loaded = load_jobs(&path);
         assert_eq!(loaded, jobs);
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     // -- C1: WorkspaceStore secret injection --------------------------------
