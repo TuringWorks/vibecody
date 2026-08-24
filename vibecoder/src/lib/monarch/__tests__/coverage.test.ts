@@ -19,28 +19,54 @@ import { MONARCH_LANGUAGES } from "../languages";
 
 const packageRoot = join(__dirname, "..", "..", "..", "..");
 
+/**
+ * Where Monaco keeps one directory per language. It moved in 0.56 —
+ * `basic-languages/<id>/<id>.contribution.js` became
+ * `languages/definitions/<id>/register.js` — so both layouts are read.
+ */
+const MONACO_LANGUAGE_LAYOUTS = [
+  { dir: ["languages", "definitions"], file: (id: string) => `register.js` },
+  { dir: ["basic-languages"], file: (id: string) => `${id}.contribution.js` },
+] as const;
+
 /** Language ids Monaco ships, read from its own contribution files. */
 function monacoLanguageIds(): Set<string> {
-  const base = join(
+  const monacoRoot = join(
     packageRoot,
     "node_modules",
     "monaco-editor",
     "esm",
     "vs",
-    "basic-languages",
   );
   const ids = new Set<string>([
-    // The worker-backed languages live outside basic-languages.
+    // The worker-backed languages live outside the per-language directories.
     "typescript", "javascript", "json", "css", "scss", "less", "html",
     "handlebars", "razor", "plaintext",
   ]);
-  for (const dir of readdirSync(base)) {
-    const contribution = join(base, dir, `${dir}.contribution.js`);
-    if (!existsSync(contribution)) continue;
-    const source = readFileSync(contribution, "utf8");
-    for (const match of source.matchAll(/id:\s*["']([^"']+)["']/g)) {
-      ids.add(match[1]);
+  let found = 0;
+  for (const layout of MONACO_LANGUAGE_LAYOUTS) {
+    const base = join(monacoRoot, ...layout.dir);
+    if (!existsSync(base)) continue;
+    for (const dir of readdirSync(base)) {
+      const contribution = join(base, dir, layout.file(dir));
+      if (!existsSync(contribution)) continue;
+      const source = readFileSync(contribution, "utf8");
+      for (const match of source.matchAll(/id:\s*["']([^"']+)["']/g)) {
+        ids.add(match[1]);
+        found += 1;
+      }
     }
+  }
+  // Reading zero definitions means Monaco moved its files again, not that it
+  // ships no languages. Returning the ten hardcoded ids would let this test
+  // report "10 is not greater than 50" and send the next reader hunting
+  // through `languages.ts` for a bug that is not there.
+  if (found === 0) {
+    throw new Error(
+      `No Monaco language definitions found under ${MONACO_LANGUAGE_LAYOUTS.map(
+        (l) => join(...l.dir),
+      ).join(" or ")} — Monaco changed its layout again; update MONACO_LANGUAGE_LAYOUTS.`,
+    );
   }
   return ids;
 }
