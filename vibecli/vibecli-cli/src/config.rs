@@ -73,6 +73,24 @@ pub struct Config {
     #[serde(default)]
     pub otel: OtelConfig,
 
+    /// SuperBrain multi-model orchestration.
+    ///
+    /// Every entry is optional: with no `[superbrain]` section at all, the
+    /// router runs every category on whichever provider the session is
+    /// already using. It names no vendor of its own.
+    ///
+    /// ```toml
+    /// [superbrain.routes.code]
+    /// provider = "deepseek"
+    /// model = "deepseek-coder"        # omit to use that provider's default
+    ///
+    /// [[superbrain.panel]]            # used by consensus and chain modes
+    /// provider = "openai"
+    /// model = "gpt-4o"
+    /// ```
+    #[serde(default)]
+    pub superbrain: SuperBrainSettings,
+
     /// Ollama local/remote model provider.
     ///
     /// ```toml
@@ -2362,6 +2380,38 @@ impl Config {
     }
 }
 
+/// Where each task category should be sent, and which providers take part in
+/// the multi-model modes.
+///
+/// Deliberately empty by default. A shipped default here would be this
+/// binary telling the user which vendor is best at code, which is a claim it
+/// is in no position to make — and the one the previous hard-coded routing
+/// table made silently.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct SuperBrainSettings {
+    /// Task category (`code`, `math`, `creative`, `reasoning`, `factual`, …)
+    /// to the provider that should handle it.
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub routes: std::collections::BTreeMap<String, SuperBrainTarget>,
+
+    /// The providers consensus and chain modes consult, in order. Fewer than
+    /// two makes those modes meaningless, and they say so rather than running
+    /// a "consensus" of one.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub panel: Vec<SuperBrainTarget>,
+}
+
+/// One provider, and optionally a model on it.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SuperBrainTarget {
+    pub provider: String,
+    /// `None` means "that provider's configured default" — absent, not a
+    /// guess at which model the user wants.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3600,5 +3650,49 @@ language = \"en\"
     #[test]
     fn a_voice_key_that_is_not_a_table_is_reported_not_clobbered() {
         assert!(apply_voice_settings("voice = 1\n", Some("tiny"), None, None).is_err());
+    }
+    // ── SuperBrain routing config ──────────────────────────────────────────
+
+    /// Zero-config: no `[superbrain]` section is the normal case, and it must
+    /// parse to "no opinion", not to a shipped vendor preference.
+    #[test]
+    fn superbrain_defaults_to_no_routes_and_no_panel() {
+        let cfg: Config = toml::from_str("").expect("empty config parses");
+        assert!(cfg.superbrain.routes.is_empty());
+        assert!(cfg.superbrain.panel.is_empty());
+    }
+
+    #[test]
+    fn superbrain_routes_and_panel_parse() {
+        let cfg: Config = toml::from_str(
+            r#"
+[superbrain.routes.code]
+provider = "deepseek"
+model = "deepseek-coder"
+
+[superbrain.routes.math]
+provider = "openai"
+
+[[superbrain.panel]]
+provider = "openai"
+model = "gpt-4o"
+
+[[superbrain.panel]]
+provider = "gemini"
+"#,
+        )
+        .expect("superbrain config parses");
+
+        let code = cfg.superbrain.routes.get("code").expect("code route");
+        assert_eq!(code.provider, "deepseek");
+        assert_eq!(code.model.as_deref(), Some("deepseek-coder"));
+
+        // An omitted model stays omitted — the provider's own default is a
+        // real answer, and inventing a model id here would be a guess.
+        let math = cfg.superbrain.routes.get("math").expect("math route");
+        assert_eq!(math.model, None);
+
+        assert_eq!(cfg.superbrain.panel.len(), 2);
+        assert_eq!(cfg.superbrain.panel[1].model, None);
     }
 }

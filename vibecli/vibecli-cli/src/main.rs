@@ -16810,6 +16810,210 @@ async fn main() -> Result<()> {
                         }
 
                         // ── Phase 28: Cost Router ──
+                        // ── SuperBrain: multi-model orchestration ──────────────
+                        // The classifier decides the *category*; configuration
+                        // decides the vendor. See superbrain::resolve_route.
+                        "/superbrain" | "/sb" => {
+                            use vibecli_cli::superbrain::*;
+                            let (sub, rest) = match args.trim().split_once(char::is_whitespace) {
+                                Some((a, b)) => (a.to_ascii_lowercase(), b.trim().to_string()),
+                                None => (args.trim().to_ascii_lowercase(), String::new()),
+                            };
+                            let sb_cfg = Config::load().unwrap_or_default().superbrain;
+                            let routes: Vec<(String, RouteTarget)> = sb_cfg
+                                .routes
+                                .iter()
+                                .map(|(k, v)| {
+                                    (
+                                        k.clone(),
+                                        RouteTarget {
+                                            provider: v.provider.clone(),
+                                            model: v.model.clone(),
+                                        },
+                                    )
+                                })
+                                .collect();
+                            let session_target = RouteTarget {
+                                provider: active_provider.clone(),
+                                model: active_model.clone(),
+                            };
+                            let panel: Vec<RouteTarget> = sb_cfg
+                                .panel
+                                .iter()
+                                .map(|t| RouteTarget {
+                                    provider: t.provider.clone(),
+                                    model: t.model.clone(),
+                                })
+                                .collect();
+
+                            // Run one prompt on one target, reporting which
+                            // provider produced it rather than implying the
+                            // session provider did.
+                            async fn ask(
+                                target: &RouteTarget,
+                                messages: &[vibe_ai::provider::Message],
+                            ) -> Result<String, String> {
+                                let provider =
+                                    create_provider(&target.provider, target.model.clone())
+                                        .map_err(|e| format!("{e}"))?;
+                                provider
+                                    .chat(messages, None)
+                                    .await
+                                    .map_err(|e| format!("{e}"))
+                            }
+                            let user_msg = |q: &str| {
+                                vec![vibe_ai::provider::Message {
+                                    role: vibe_ai::provider::MessageRole::User,
+                                    content: q.to_string(),
+                                }]
+                            };
+                            let label = |t: &RouteTarget| match &t.model {
+                                Some(m) => format!("{}/{}", t.provider, m),
+                                None => t.provider.clone(),
+                            };
+
+                            match sub.as_str() {
+                                "routes" => {
+                                    println!("SuperBrain routing\n");
+                                    println!("  session provider : {}", label(&session_target));
+                                    if routes.is_empty() {
+                                        println!("  configured routes: none — every category runs on the session provider\n");
+                                        println!("  Add one in ~/.vibecli/config.toml:\n");
+                                        println!("    [superbrain.routes.code]");
+                                        println!("    provider = \"deepseek\"");
+                                        println!("    model    = \"deepseek-coder\"\n");
+                                    } else {
+                                        println!("  configured routes:");
+                                        for (cat, t) in &routes {
+                                            println!("    {:<10} → {}", cat, label(t));
+                                        }
+                                        println!();
+                                    }
+                                    let known: Vec<String> = category_rules()
+                                        .into_iter()
+                                        .map(|r| r.category)
+                                        .collect();
+                                    println!("  categories: {}\n", known.join(", "));
+                                }
+                                "explain" if !rest.is_empty() => {
+                                    let r = resolve_route(&rest, &category_rules(), &routes, &session_target);
+                                    println!("Route: {}\n  {}\n", label(&r.target), r.reason);
+                                }
+                                "consensus" | "chain" if rest.is_empty() => {
+                                    println!("Usage: /superbrain {sub} <prompt>\n");
+                                }
+                                // Both multi-model modes need a panel. Running
+                                // them with one provider would produce a
+                                // "consensus" of one, which is a claim about
+                                // agreement that nothing was measured for.
+                                "consensus" | "chain" if panel.len() < 2 => {
+                                    println!("{} needs at least two providers in [[superbrain.panel]] — {} configured.\n", sub, panel.len());
+                                    println!("Add them in ~/.vibecli/config.toml:\n");
+                                    println!("    [[superbrain.panel]]");
+                                    println!("    provider = \"openai\"");
+                                    println!("    model    = \"gpt-4o\"\n");
+                                    println!("    [[superbrain.panel]]");
+                                    println!("    provider = \"gemini\"\n");
+                                }
+                                "consensus" => {
+                                    println!("Consensus over {} providers…\n", panel.len());
+                                    let mut contributions: Vec<ModelContribution> = Vec::new();
+                                    for t in &panel {
+                                        let started = std::time::Instant::now();
+                                        match ask(t, &user_msg(&rest)).await {
+                                            Ok(text) => {
+                                                println!("  ✔ {}", label(t));
+                                                contributions.push(ModelContribution {
+                                                    provider: t.provider.clone(),
+                                                    model: t.model.clone().unwrap_or_default(),
+                                                    role: "contributor".into(),
+                                                    content: text,
+                                                    duration_ms: started.elapsed().as_millis() as u64,
+                                                    tokens: None,
+                                                });
+                                            }
+                                            // A provider that failed is
+                                            // reported and excluded, never
+                                            // counted as agreement.
+                                            Err(e) => println!("  ✘ {} — {}", label(t), e),
+                                        }
+                                    }
+                                    match contributions.len() {
+                                        0 => println!("\nNo provider answered — nothing to synthesise.\n"),
+                                        1 => println!(
+                                            "\nOnly {} answered; that is one opinion, not a consensus:\n\n{}\n",
+                                            contributions[0].provider, contributions[0].content
+                                        ),
+                                        n => {
+                                            println!("\nSynthesising {n} answers…\n");
+                                            let msgs = SuperBrainPrompts::consensus_prompt(&rest, &contributions);
+                                            match ask(&session_target, &msgs).await {
+                                                Ok(text) => println!("{text}\n"),
+                                                Err(e) => println!("Synthesis failed on {}: {}\n", label(&session_target), e),
+                                            }
+                                        }
+                                    }
+                                }
+                                "chain" => {
+                                    println!("Chain relay over {} providers…\n", panel.len());
+                                    let total = panel.len();
+                                    let mut contributions: Vec<ModelContribution> = Vec::new();
+                                    for (i, t) in panel.iter().enumerate() {
+                                        let msgs = SuperBrainPrompts::chain_relay_prompt(&rest, &contributions, i, total);
+                                        let started = std::time::Instant::now();
+                                        match ask(t, &msgs).await {
+                                            Ok(text) => {
+                                                println!("  ✔ step {}/{} {}", i + 1, total, label(t));
+                                                contributions.push(ModelContribution {
+                                                    provider: t.provider.clone(),
+                                                    model: t.model.clone().unwrap_or_default(),
+                                                    role: format!("step {}", i + 1),
+                                                    content: text,
+                                                    duration_ms: started.elapsed().as_millis() as u64,
+                                                    tokens: None,
+                                                });
+                                            }
+                                            // The chain refines the previous
+                                            // step, so a broken link means the
+                                            // rest is not the refinement it
+                                            // would claim to be.
+                                            Err(e) => {
+                                                println!("  ✘ step {}/{} {} — {}", i + 1, total, label(t), e);
+                                                println!("\nChain stopped at step {} of {}.\n", i + 1, total);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    match contributions.last() {
+                                        Some(last) => println!("\n{}\n", last.content),
+                                        None => println!("\nNo step completed.\n"),
+                                    }
+                                }
+                                "" | "help" => {
+                                    println!("SuperBrain — multi-model orchestration\n");
+                                    println!("  /superbrain <prompt>            Route by task category (Smart Router)");
+                                    println!("  /superbrain consensus <prompt>  Ask every panel provider, synthesise");
+                                    println!("  /superbrain chain <prompt>      Each provider refines the previous");
+                                    println!("  /superbrain explain <prompt>    Show the route without calling anything");
+                                    println!("  /superbrain routes              Show categories and configured routes\n");
+                                    println!("  Categories classify the task; ~/.vibecli/config.toml picks the provider.");
+                                    println!("  Unconfigured categories run on the session provider ({}).\n", label(&session_target));
+                                }
+                                // Anything else is the prompt itself, so
+                                // `/superbrain write a test` routes rather
+                                // than reporting an unknown subcommand.
+                                _ => {
+                                    let prompt = args.trim();
+                                    let r = resolve_route(prompt, &category_rules(), &routes, &session_target);
+                                    println!("[SmartRouter → {} → {}]\n  {}\n", r.category.as_deref().unwrap_or("unclassified"), label(&r.target), r.reason);
+                                    match ask(&r.target, &user_msg(prompt)).await {
+                                        Ok(text) => println!("{text}\n"),
+                                        Err(e) => println!("{} failed: {}\n", label(&r.target), e),
+                                    }
+                                }
+                            }
+                        }
+
                         "/route" => {
                             let sub = args.split_whitespace().next().unwrap_or("help");
                             match sub {
@@ -20563,6 +20767,12 @@ fn show_help() {
     println!("  /rewind list             - List saved checkpoints");
     println!("  /rewind <timestamp>      - Restore conversation to a checkpoint");
     println!("  /generate <prompt>       - Generate code from a description");
+    println!(
+        "  /superbrain <prompt>     - Route by task category to the provider configured for it"
+    );
+    println!(
+        "  /superbrain consensus|chain <prompt>  - Ask the configured panel; synthesise or refine"
+    );
     println!("  /diff <file>             - Show diff for a file");
     println!(
         "  /git-init [--github]     - Create a git repository here (and optionally on GitHub)"

@@ -228,6 +228,168 @@ impl SmartRouter {
     }
 }
 
+// ── Category routing — which *kind* of task, not which vendor ────────────────
+
+/// A keyword rule that names a task category and nothing else.
+///
+/// The older [`RoutingRule`] carries a provider and a model, which bakes a
+/// vendor choice into the classifier: "this looks like code" and "code means
+/// Claude" are different claims, and only the first one is something keyword
+/// matching can support. A category rule makes the second claim somebody
+/// else's job — see [`resolve_route`], which answers it from configuration.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CategoryRule {
+    pub keywords: Vec<String>,
+    pub category: String,
+    pub priority: u32,
+}
+
+/// What the classifier decided, with no provider attached.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Classification {
+    pub category: String,
+    pub matched: Vec<String>,
+    pub confidence: f64,
+    pub reason: String,
+}
+
+/// Where a category should be sent. `model: None` means "whatever that
+/// provider's configured default is" — absent, not guessed.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RouteTarget {
+    pub provider: String,
+    pub model: Option<String>,
+}
+
+/// The categories the router knows, with no vendor attached to any of them.
+///
+/// Keywords and priorities are the same ones [`SmartRouter::default_rules`]
+/// uses, so a prompt classifies identically on both paths.
+pub fn category_rules() -> Vec<CategoryRule> {
+    SmartRouter::default_rules()
+        .into_iter()
+        .map(|r| CategoryRule {
+            keywords: r.keywords,
+            category: r.category,
+            priority: r.priority,
+        })
+        .collect()
+}
+
+/// Classify a prompt into a task category by keyword weight.
+///
+/// Returns `None` when nothing matched. That is deliberately not a "general"
+/// category with a low confidence attached: an unmatched prompt is one the
+/// classifier has no opinion about, and reporting 0.3 confidence in a guess
+/// invites the caller to treat the guess as a weak signal rather than as no
+/// signal at all.
+pub fn classify(query: &str, rules: &[CategoryRule]) -> Option<Classification> {
+    let lower = query.to_lowercase();
+    let scored = rules.iter().filter_map(|rule| {
+        let matched: Vec<String> = rule
+            .keywords
+            .iter()
+            .filter(|k| lower.contains(&k.to_lowercase()))
+            .cloned()
+            .collect();
+        match matched.is_empty() {
+            true => None,
+            false => Some((matched.len() as u32 * rule.priority, rule, matched)),
+        }
+    });
+
+    let (score, rule, matched) = scored.max_by_key(|(score, _, _)| *score)?;
+    Some(Classification {
+        category: rule.category.clone(),
+        confidence: (f64::from(score) / 30.0).min(1.0),
+        reason: format!(
+            "matched {} keyword{} [{}] → category '{}'",
+            matched.len(),
+            if matched.len() == 1 { "" } else { "s" },
+            matched.join(", "),
+            rule.category
+        ),
+        matched,
+    })
+}
+
+/// Why a route ended up where it did — shown to the user so a surprising
+/// choice can be traced to the setting that caused it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RouteSource {
+    /// A `[superbrain.routes.<category>]` entry matched the classification.
+    ConfiguredCategory,
+    /// The prompt classified, but that category has no configured route.
+    SessionDefaultUnconfiguredCategory,
+    /// Nothing classified; the session's provider handles it.
+    SessionDefaultUnclassified,
+}
+
+/// The route a prompt resolves to, and the reason for it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ResolvedRoute {
+    pub target: RouteTarget,
+    pub category: Option<String>,
+    pub source: RouteSource,
+    pub reason: String,
+}
+
+/// Resolve a prompt to a provider and model.
+///
+/// The vendor comes from `routes` — the user's `[superbrain.routes]` config —
+/// or from `session`, the provider and model the REPL is already using. It
+/// never comes from a table compiled into this binary. That is the whole
+/// point: a router that always picks one vendor is not routing, and a default
+/// that names a vendor is a recommendation the user did not ask for.
+pub fn resolve_route(
+    query: &str,
+    rules: &[CategoryRule],
+    routes: &[(String, RouteTarget)],
+    session: &RouteTarget,
+) -> ResolvedRoute {
+    let lookup = |category: &str| {
+        routes
+            .iter()
+            .find(|(c, _)| c.eq_ignore_ascii_case(category))
+            .map(|(_, t)| t.clone())
+    };
+
+    match classify(query, rules) {
+        Some(class) => match lookup(&class.category) {
+            Some(target) => ResolvedRoute {
+                reason: format!(
+                    "{} → {}{}",
+                    class.reason,
+                    target.provider,
+                    target
+                        .model
+                        .as_deref()
+                        .map(|m| format!("/{m}"))
+                        .unwrap_or_default()
+                ),
+                target,
+                category: Some(class.category),
+                source: RouteSource::ConfiguredCategory,
+            },
+            None => ResolvedRoute {
+                reason: format!(
+                    "{}, which has no [superbrain.routes.{}] entry — using the session provider",
+                    class.reason, class.category
+                ),
+                target: session.clone(),
+                category: Some(class.category),
+                source: RouteSource::SessionDefaultUnconfiguredCategory,
+            },
+        },
+        None => ResolvedRoute {
+            target: session.clone(),
+            category: None,
+            source: RouteSource::SessionDefaultUnclassified,
+            reason: "no category keywords matched — using the session provider".into(),
+        },
+    }
+}
+
 // ── Prompt Builders for Each Mode ──
 
 pub struct SuperBrainPrompts;
@@ -641,5 +803,100 @@ mod tests {
         assert_eq!(SuperBrainMode::SmartRouter.to_string(), "Smart Router");
         assert_eq!(SuperBrainMode::BestOfN.to_string(), "Best-of-N");
         assert_eq!(SuperBrainMode::ChainRelay.to_string(), "Chain Relay");
+    }
+
+    // ── Category routing: classify the task, configure the vendor ───────────
+
+    fn session() -> RouteTarget {
+        RouteTarget { provider: "ollama".into(), model: Some("llama3.2".into()) }
+    }
+
+    #[test]
+    fn a_coding_prompt_classifies_as_code() {
+        let class = classify("Write a binary search in Rust", &category_rules())
+            .expect("a coding prompt must classify");
+        assert_eq!(class.category, "code");
+        assert!(class.matched.iter().any(|k| k == "rust"), "{:?}", class.matched);
+    }
+
+    /// The point of the whole exercise: the category is keyword-derived, the
+    /// vendor is not. Nothing in this crate may answer "code means Claude".
+    #[test]
+    fn no_category_rule_names_a_vendor() {
+        let json = serde_json::to_string(&category_rules()).expect("serialize");
+        for vendor in ["claude", "anthropic", "openai", "gpt", "gemini", "groq", "ollama"] {
+            assert!(
+                !json.to_lowercase().contains(vendor),
+                "category rules must not name '{vendor}': {json}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_configured_category_wins() {
+        let routes = vec![(
+            "code".to_string(),
+            RouteTarget { provider: "deepseek".into(), model: Some("deepseek-coder".into()) },
+        )];
+        let r = resolve_route("Write a binary search in Rust", &category_rules(), &routes, &session());
+        assert_eq!(r.source, RouteSource::ConfiguredCategory);
+        assert_eq!(r.target.provider, "deepseek");
+        assert_eq!(r.category.as_deref(), Some("code"));
+    }
+
+    /// Zero-config: a classified prompt with no route for its category runs on
+    /// whatever the session is already using, and says so. It must never fall
+    /// back to a vendor this binary picked.
+    #[test]
+    fn an_unconfigured_category_uses_the_session_provider() {
+        let r = resolve_route("Write a binary search in Rust", &category_rules(), &[], &session());
+        assert_eq!(r.source, RouteSource::SessionDefaultUnconfiguredCategory);
+        assert_eq!(r.target, session());
+        assert!(r.reason.contains("superbrain.routes.code"), "{}", r.reason);
+    }
+
+    #[test]
+    fn an_unclassified_prompt_uses_the_session_provider_and_no_category() {
+        let r = resolve_route("zzzz qqqq", &category_rules(), &[], &session());
+        assert_eq!(r.source, RouteSource::SessionDefaultUnclassified);
+        assert_eq!(r.category, None);
+        assert_eq!(r.target, session());
+    }
+
+    /// Unmatched is absent, not a low-confidence guess.
+    #[test]
+    fn nothing_matched_classifies_as_none() {
+        assert!(classify("zzzz qqqq", &category_rules()).is_none());
+    }
+
+    #[test]
+    fn category_lookup_ignores_case() {
+        let routes = vec![(
+            "CODE".to_string(),
+            RouteTarget { provider: "mistral".into(), model: None },
+        )];
+        let r = resolve_route("refactor this function", &category_rules(), &routes, &session());
+        assert_eq!(r.target.provider, "mistral");
+        assert_eq!(r.target.model, None, "an unset model must stay unset, not be invented");
+    }
+
+    /// The classifier must agree with the legacy path, so switching a surface
+    /// over does not silently change which prompts are considered code.
+    #[test]
+    fn categories_match_the_legacy_router() {
+        for prompt in [
+            "Implement a binary search function in Rust",
+            "solve this integral",
+            "write a story about a robot",
+            "what is a monad",
+        ] {
+            let legacy = SmartRouter::route(prompt, &SmartRouter::default_rules());
+            let modern = classify(prompt, &category_rules());
+            assert_eq!(
+                Some(legacy.category.as_str()),
+                modern.as_ref().map(|c| c.category.as_str()),
+                "classification diverged for {prompt:?}"
+            );
+        }
     }
 }

@@ -264,12 +264,41 @@ In REPL mode, the following slash commands are available:
 | `/counsel vote <id> <round> <participant> <+1\|-1>` | Vote on a participant's response |
 | `/counsel list` | List all counsel sessions |
 | `/counsel show <id>` | Show a counsel session's rounds and synthesis |
-| `/superbrain <query>` | Route a query to the best provider via keyword analysis (SmartRouter mode) |
-| `/superbrain consensus <query>` | All providers respond; synthesize majority view |
-| `/superbrain chain <query>` | Sequential refinement — each model builds on previous |
-| `/superbrain best <query>` | All providers respond; judge picks the best |
-| `/superbrain specialist <query>` | Decompose query into subtasks assigned to different models |
-| `/superbrain modes` | List available SuperBrain routing modes |
+| `/superbrain <query>` | Classify the query by task category, send it to the provider configured for that category (SmartRouter mode) |
+| `/superbrain consensus <query>` | Every provider in `[[superbrain.panel]]` responds; the session provider synthesizes |
+| `/superbrain chain <query>` | Sequential refinement — each panel provider builds on the previous |
+| `/superbrain explain <query>` | Show the route the query would take, without calling any provider |
+| `/superbrain routes` | Show the task categories and the configured route for each |
+
+`/sb` is accepted as a shorthand for `/superbrain`.
+
+**Which provider runs a query is configuration, never a built-in preference.**
+The keyword rules classify the *task* — `code`, `math`, `creative`,
+`reasoning`, `factual` — and `~/.vibecli/config.toml` maps a category to a
+provider:
+
+```toml
+[superbrain.routes.code]
+provider = "deepseek"
+model    = "deepseek-coder"   # omit to use that provider's own default
+
+[[superbrain.panel]]          # consensus and chain consult these, in order
+provider = "openai"
+model    = "gpt-4o"
+
+[[superbrain.panel]]
+provider = "gemini"
+```
+
+With no `[superbrain]` section, every category runs on the session's provider
+(the one `/model` reports) and `/superbrain explain` says so. A category with
+no route is not silently redirected to some default vendor.
+
+`consensus` and `chain` need at least two panel providers and refuse to run
+with fewer — a synthesis of one response is not a consensus. A provider that
+errors is reported and excluded rather than counted as agreement, and a broken
+link stops the chain instead of presenting an unrefined answer as the refined
+one.
 | `/config` | Display current configuration |
 | `/help` | Show command reference |
 | `/exit` or `/quit` | Exit VibeCLI |
