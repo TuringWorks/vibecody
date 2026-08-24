@@ -4,7 +4,6 @@ use anyhow::Result;
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use std::sync::mpsc::channel;
 use tokio::sync::broadcast;
 
 /// Represents a file or directory entry
@@ -118,45 +117,37 @@ impl FileSystem {
         Ok(entries)
     }
 
-    /// Watch a directory for changes
+    /// Watch a directory (recursively) for changes.
+    ///
+    /// Events are broadcast straight from `notify`'s own thread. The previous
+    /// version handed them to a `std::sync::mpsc` channel and drained it with
+    /// a blocking `recv()` inside `tokio::spawn` — a blocking call on an async
+    /// worker, which parks one runtime thread for as long as the watch lives.
+    /// `broadcast::Sender::send` is synchronous and non-blocking, so the
+    /// intermediate channel and its task buy nothing.
     pub fn watch_directory(&mut self, path: &Path) -> Result<()> {
-        let (tx, rx) = channel();
         let event_tx = self.event_tx.clone();
 
         let mut watcher = notify::recommended_watcher(move |res: Result<Event, _>| {
-            if let Ok(event) = res {
-                let _ = tx.send(event);
+            use notify::EventKind;
+            let Ok(event) = res else { return };
+            // Variant constructors share the `fn(PathBuf) -> FileChangeEvent`
+            // shape, so the kind chooses one and the paths are mapped through.
+            let build: fn(PathBuf) -> FileChangeEvent = match event.kind {
+                EventKind::Create(_) => FileChangeEvent::Created,
+                EventKind::Modify(_) => FileChangeEvent::Modified,
+                EventKind::Remove(_) => FileChangeEvent::Deleted,
+                _ => return,
+            };
+            for path in event.paths {
+                // `send` errs only when nothing is subscribed, which is the
+                // normal state for a headless workspace.
+                let _ = event_tx.send(build(path));
             }
         })?;
 
         watcher.watch(path, RecursiveMode::Recursive)?;
         self.watchers.push(watcher);
-
-        // Spawn a task to forward events
-        tokio::spawn(async move {
-            while let Ok(event) = rx.recv() {
-                use notify::EventKind;
-
-                match event.kind {
-                    EventKind::Create(_) => {
-                        for path in event.paths {
-                            let _ = event_tx.send(FileChangeEvent::Created(path));
-                        }
-                    }
-                    EventKind::Modify(_) => {
-                        for path in event.paths {
-                            let _ = event_tx.send(FileChangeEvent::Modified(path));
-                        }
-                    }
-                    EventKind::Remove(_) => {
-                        for path in event.paths {
-                            let _ = event_tx.send(FileChangeEvent::Deleted(path));
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        });
 
         Ok(())
     }
@@ -496,6 +487,46 @@ mod tests {
         let fs = FileSystem::default();
         // Verify it constructs without panic and has no watchers
         assert!(fs.watchers.is_empty());
+    }
+
+    /// The watcher had a subscriber-less broadcast channel for its whole life,
+    /// so this delivery path was never exercised: creating a file under a
+    /// watched folder must actually reach a subscriber. Without it the
+    /// explorer can only ever show files it created itself.
+    #[tokio::test]
+    async fn watching_a_directory_delivers_a_creation_to_a_subscriber() {
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        let mut fs = FileSystem::new();
+        let mut rx = fs.subscribe();
+        fs.watch_directory(dir.path()).expect("watch");
+
+        // FSEvents/inotify register asynchronously; a file written in the same
+        // instant as the watch call can be missed.
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        std::fs::write(dir.path().join("appeared.rs"), "fn main() {}").unwrap();
+
+        let deadline = std::time::Duration::from_secs(15);
+        let saw = tokio::time::timeout(deadline, async {
+            loop {
+                match rx.recv().await {
+                    Ok(FileChangeEvent::Created(p)) | Ok(FileChangeEvent::Modified(p)) => {
+                        if p.file_name().and_then(|n| n.to_str()) == Some("appeared.rs") {
+                            return true;
+                        }
+                    }
+                    Ok(_) => {}
+                    Err(broadcast::error::RecvError::Lagged(_)) => {}
+                    Err(broadcast::error::RecvError::Closed) => return false,
+                }
+            }
+        })
+        .await;
+
+        assert_eq!(
+            saw,
+            Ok(true),
+            "no event for the created file within {deadline:?}"
+        );
     }
 
     #[test]

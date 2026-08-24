@@ -24,6 +24,57 @@ use vibe_core::terminal::TerminalManager;
 use vibe_core::Workspace;
 use vibe_lsp::manager::LspManager;
 
+/// How long to coalesce a burst of file-system events before telling the
+/// webview to re-read the tree. Long enough that a build or an `npm install`
+/// produces one refresh, short enough that saving a file feels immediate.
+const FILE_EVENT_DEBOUNCE_MS: u64 = 400;
+
+/// Directory names whose contents are machine-owned churn, not edits the
+/// explorer should react to. A `cargo build` writes tens of thousands of files
+/// under `target/`; refreshing the tree for each one is pure waste.
+///
+/// This is a display filter only — the tree still *lists* these directories
+/// when the user expands them. It only decides whether a change inside one is
+/// worth a refresh. A project that genuinely keeps sources in a directory with
+/// one of these names still shows them; it just needs a manual Refresh.
+const NOISY_DIRS: &[&str] = &[
+    ".git",
+    // VibeCoder's own per-workspace store and caches — the app writing its
+    // bookkeeping must not wake the tree that is displaying it.
+    ".vibecli",
+    ".vibecoder",
+    "node_modules",
+    "target",
+    ".next",
+    ".turbo",
+    ".venv",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+];
+
+/// Should a file-system change wake the explorer?
+fn file_event_is_interesting(event: &vibe_core::file_system::FileChangeEvent) -> bool {
+    use vibe_core::file_system::FileChangeEvent as E;
+    match event {
+        E::Created(p) | E::Modified(p) | E::Deleted(p) => path_is_interesting(p),
+        E::Renamed { from, to } => path_is_interesting(from) || path_is_interesting(to),
+    }
+}
+
+fn path_is_interesting(path: &std::path::Path) -> bool {
+    let noisy = path.components().any(|c| {
+        c.as_os_str()
+            .to_str()
+            .is_some_and(|name| NOISY_DIRS.contains(&name))
+    });
+    let junk = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .is_some_and(|n| n == ".DS_Store" || n.ends_with('~'));
+    !noisy && !junk
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // ── Fix PATH for macOS .app bundles ──────────────────────────────────
@@ -154,6 +205,58 @@ pub fn run() {
                 .item(&edit_submenu)
                 .build()?;
             app.set_menu(menu)?;
+
+            // Forward workspace file-system changes to the webview.
+            //
+            // The recursive `notify` watcher has been started by
+            // `Workspace::add_folder` since the beginning, but nothing ever
+            // called `FileSystem::subscribe`, so every create/delete under the
+            // open folder was broadcast to zero receivers and dropped. The
+            // explorer only changed when the user clicked Refresh, and files
+            // written by the agent, the terminal, or another editor never
+            // appeared at all.
+            {
+                let app_handle = app.handle().clone();
+                let workspace = app.state::<AppState>().workspace.clone();
+                tauri::async_runtime::spawn(async move {
+                    use tauri::Emitter;
+                    use tokio::sync::broadcast::error::RecvError;
+
+                    // `event_tx` is created once in `Workspace::new` and
+                    // survives `set_root_folder` (which only drops watchers),
+                    // so one subscription covers every folder the user opens.
+                    let mut rx = workspace.lock().await.file_system().subscribe();
+
+                    loop {
+                        // Block until something changes; `Lagged` means a burst
+                        // overflowed the ring, which is itself a change.
+                        let mut interesting = match rx.recv().await {
+                            Ok(event) => file_event_is_interesting(&event),
+                            Err(RecvError::Lagged(_)) => true,
+                            Err(RecvError::Closed) => return,
+                        };
+
+                        // Coalesce the rest of the burst. A `cargo build` or
+                        // `npm install` emits thousands of events; one refresh
+                        // covers them all, and re-listing the tree per event
+                        // would peg the UI thread.
+                        let deadline = tokio::time::Instant::now()
+                            + std::time::Duration::from_millis(FILE_EVENT_DEBOUNCE_MS);
+                        loop {
+                            match tokio::time::timeout_at(deadline, rx.recv()).await {
+                                Ok(Ok(event)) => interesting |= file_event_is_interesting(&event),
+                                Ok(Err(RecvError::Lagged(_))) => interesting = true,
+                                Ok(Err(RecvError::Closed)) => return,
+                                Err(_) => break,
+                            }
+                        }
+
+                        if interesting {
+                            let _ = app_handle.emit("files:changed", ());
+                        }
+                    }
+                });
+            }
 
             // Auto-spawn the vibecli daemon in the background if it isn't already running.
             // This makes BackgroundJobs, Collab, and other HTTP-based panels work without
@@ -1950,6 +2053,55 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use vibe_ai::provider::ProviderConfig;
+
+    use super::{file_event_is_interesting, path_is_interesting};
+    use std::path::Path;
+    use vibe_core::file_system::FileChangeEvent;
+
+    // ── file-watcher event filter ─────────────────────────────────────────
+
+    #[test]
+    fn a_new_source_file_wakes_the_explorer() {
+        assert!(path_is_interesting(Path::new("/ws/src/components/New.tsx")));
+        assert!(file_event_is_interesting(&FileChangeEvent::Created(
+            "/ws/src/new_module.rs".into()
+        )));
+    }
+
+    #[test]
+    fn build_output_and_git_internals_do_not() {
+        for noisy in [
+            "/ws/target/debug/build/foo/out",
+            "/ws/node_modules/react/index.js",
+            "/ws/.git/index.lock",
+            "/ws/src/__pycache__/mod.cpython-312.pyc",
+            "/ws/.vibecli/workspace.db",
+        ] {
+            assert!(!path_is_interesting(Path::new(noisy)), "{noisy}");
+        }
+        assert!(!file_event_is_interesting(&FileChangeEvent::Modified(
+            "/ws/.DS_Store".into()
+        )));
+    }
+
+    #[test]
+    fn a_rename_counts_if_either_end_is_interesting() {
+        // Moving a file out of `target/` into the tree must refresh, and so
+        // must moving one out of the tree into `target/` — the explorer is
+        // wrong either way until it re-lists.
+        assert!(file_event_is_interesting(&FileChangeEvent::Renamed {
+            from: "/ws/target/tmp.rs".into(),
+            to: "/ws/src/real.rs".into(),
+        }));
+        assert!(file_event_is_interesting(&FileChangeEvent::Renamed {
+            from: "/ws/src/real.rs".into(),
+            to: "/ws/target/tmp.rs".into(),
+        }));
+        assert!(!file_event_is_interesting(&FileChangeEvent::Renamed {
+            from: "/ws/target/a".into(),
+            to: "/ws/target/b".into(),
+        }));
+    }
 
     // ── ProviderConfig defaults used in run() ─────────────────────────────
 

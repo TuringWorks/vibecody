@@ -9,12 +9,14 @@ import { Toaster } from "./components/Toaster";
 import { NotificationCenter } from "./components/NotificationCenter";
 import Editor, { DiffEditor, OnMount } from "@monaco-editor/react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getVersion } from "@tauri-apps/api/app";
 import { open } from "@tauri-apps/plugin-dialog";
 import { DiffCompleteModal } from "./components/DiffCompleteModal";
 import { Terminal } from "./components/Terminal";
 import { BrowserPanel } from "./components/BrowserPanel";
 import { detectLanguage, getFileIcon } from "./utils/fileUtils";
+import { mergeListings, missingDirs, pruneExpanded, visibleDirs } from "./utils/fileTree";
 import { createLspBridge, fileUri, type LspBridge, type LspLanguageSupport } from "./lib/lsp";
 import { LspStatus } from "./components/LspStatus";
 import { EFFORT_LEVELS, type EffortLevel, getSelectedEffort, setSelectedEffort, effortLabel } from "./utils/effort";
@@ -213,7 +215,7 @@ function App() {
 
   // Listen for file-tree refresh requests from child panels (e.g. Screenshot to App)
   useEffect(() => {
-    const handler = () => { if (currentDirectory) loadDirectory(currentDirectory); };
+    const handler = () => { void refreshTree(); };
     window.addEventListener("vibecoder:refresh-files", handler);
     return () => window.removeEventListener("vibecoder:refresh-files", handler);
   });
@@ -465,11 +467,8 @@ function App() {
     }
   };
 
-  // Lazy-load a directory's children for the tree explorer. Returns the
-  // entries (also writing them into the cache) so callers can chain.
-  const ensureDirContents = async (path: string): Promise<FileEntry[] | null> => {
-    const cached = dirContents.get(path);
-    if (cached) return cached;
+  // List a directory and write the result into the tree cache.
+  const listDirInto = async (path: string): Promise<FileEntry[] | null> => {
     try {
       const entries = await invoke<FileEntry[]>("list_directory", { path });
       setDirContents(prev => {
@@ -482,6 +481,28 @@ function App() {
       console.error("Failed to load directory:", e);
       return null;
     }
+  };
+
+  // Lazy-load a directory's children for the tree explorer. Returns the
+  // entries (also writing them into the cache) so callers can chain.
+  //
+  // A cache hit paints immediately and then re-lists in the background:
+  // the cache was previously trusted forever, so collapsing and re-expanding
+  // a folder — the obvious way to look again — replayed the stale listing and
+  // a file created since the first expand could never appear. Pass
+  // `revalidate: false` where the caller only needs the folder to exist
+  // (auto-reveal walks every ancestor and would otherwise re-list the whole
+  // chain on each file open).
+  const ensureDirContents = async (
+    path: string,
+    { revalidate = true }: { revalidate?: boolean } = {},
+  ): Promise<FileEntry[] | null> => {
+    const cached = dirContents.get(path);
+    if (cached) {
+      if (revalidate) void listDirInto(path);
+      return cached;
+    }
+    return listDirInto(path);
   };
 
   const toggleDir = async (path: string) => {
@@ -529,7 +550,7 @@ function App() {
     // Lazy-load every dir on the chain. ensureDirContents is a no-op when
     // already cached, so this is cheap on a hot path.
     for (const dir of chain) {
-      await ensureDirContents(dir);
+      await ensureDirContents(dir, { revalidate: false });
     }
     setExpandedDirs(prev => {
       const next = new Set(prev);
@@ -1000,21 +1021,85 @@ function App() {
   // (new file, new folder, delete, rename) so the tree updates in place
   // without collapsing other branches.
   const refreshDir = async (path: string) => {
-    try {
-      const entries = await invoke<FileEntry[]>("list_directory", { path });
-      setDirContents(prev => {
-        const next = new Map(prev);
-        next.set(path, entries);
-        return next;
-      });
-      // Keep the top-level `files` array in sync when the workspace root
-      // is the one being refreshed (covers the toolbar buttons).
-      if (path === currentDirectory) setFiles(entries);
-    } catch (e) {
-      console.error("Failed to refresh directory:", e);
-    }
+    const entries = await listDirInto(path);
+    // Keep the top-level `files` array in sync when the workspace root
+    // is the one being refreshed (covers the toolbar buttons).
+    if (entries && path === currentDirectory) setFiles(entries);
     fetchGitStatus();
   };
+
+  // Re-list every directory the tree is actually showing: the workspace root
+  // plus each expanded folder. This is what the Refresh button has to do —
+  // it used to re-list the root alone, so a file created inside any expanded
+  // subfolder stayed invisible however many times it was clicked, which read
+  // as "refresh is broken" rather than "refresh is shallow".
+  const refreshTree = async () => {
+    if (!currentDirectory) return;
+    const sep = currentDirectory.includes("\\") ? "\\" : "/";
+    const targets = visibleDirs(currentDirectory, expandedDirs);
+    const listed = await Promise.all(
+      targets.map(async (dir): Promise<readonly [string, FileEntry[] | null]> => {
+        try {
+          return [dir, await invoke<FileEntry[]>("list_directory", { path: dir })] as const;
+        } catch {
+          // Gone — deleted or renamed underneath us. Drop it instead of
+          // keeping a listing that renders children which no longer exist.
+          return [dir, null] as const;
+        }
+      }),
+    );
+
+    const missing = missingDirs(listed);
+    setDirContents(prev => mergeListings(prev, listed, missing, sep));
+    if (missing.length > 0) setExpandedDirs(prev => pruneExpanded(prev, missing, sep));
+
+    const root = listed.find(([dir]) => dir === currentDirectory)?.[1];
+    if (root) setFiles(root);
+    fetchGitStatus();
+  };
+
+  // Live tree updates. The Rust side subscribes to the workspace file watcher
+  // and forwards a debounced `files:changed`; before that subscription existed
+  // the explorer had no way to learn about a file it did not create itself, so
+  // anything written by the agent, the integrated terminal, `git checkout`, or
+  // another editor stayed invisible until the user re-opened the folder.
+  const refreshTreeRef = useRef(refreshTree);
+  refreshTreeRef.current = refreshTree;
+  useEffect(() => {
+    let unlisten: UnlistenFn | undefined;
+    let disposed = false;
+    // One refresh at a time. A burst that outlives the Rust-side debounce
+    // (a long `git checkout`) would otherwise stack overlapping listings and
+    // let an older one win the race and repaint stale entries.
+    let running = false;
+    let queued = false;
+    const run = async () => {
+      if (running) {
+        queued = true;
+        return;
+      }
+      running = true;
+      try {
+        await refreshTreeRef.current();
+      } finally {
+        running = false;
+        if (queued && !disposed) {
+          queued = false;
+          void run();
+        }
+      }
+    };
+    listen("files:changed", () => { void run(); })
+      .then(fn => {
+        if (disposed) fn();
+        else unlisten = fn;
+      })
+      .catch(e => console.error("Failed to listen for file changes:", e));
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
 
   const handleNewFile = (parentDir?: string) => {
     const targetDir = parentDir ?? currentDirectory;
@@ -1769,7 +1854,7 @@ function App() {
                     <button className="btn-icon" onClick={openFolder} title="Open Folder">
                       <Icon name="folder-open" size={16} />
                     </button>
-                    <button className="btn-icon" onClick={() => { if (currentDirectory) refreshDir(currentDirectory); }} title="Refresh" disabled={!currentDirectory}>
+                    <button className="btn-icon" onClick={() => { void refreshTree(); }} title="Refresh" disabled={!currentDirectory}>
                       <Icon name="refresh-cw" size={16} />
                     </button>
                     <button className="btn-icon" onClick={collapseAll} title="Collapse All" disabled={!currentDirectory}>
