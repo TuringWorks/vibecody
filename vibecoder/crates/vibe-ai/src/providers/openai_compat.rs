@@ -22,6 +22,25 @@ pub struct ChatRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<usize>,
     pub stream: bool,
+    /// Native tool schemas for this conversation, when it asked for tools.
+    ///
+    /// Every local OpenAI-compatible server (LM Studio, llama.cpp, vLLM, Jan)
+    /// speaks this schema. Describing tools only in the system prompt leaves a
+    /// tool-trained model nothing to call — it narrates its intent and returns
+    /// an empty turn. The response half of the round trip already exists:
+    /// native calls are transcribed back to `<tool_call>` markup.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<serde_json::Value>>,
+}
+
+impl ChatRequest {
+    /// The tools this conversation expects, or `None` for a plain chat.
+    ///
+    /// Providers call this instead of hand-writing the field so one rule —
+    /// `vibe_ai::tools::tool_definitions_for` — decides for all of them.
+    pub fn tools_for(messages: &[Message]) -> Option<Vec<serde_json::Value>> {
+        crate::tools::tool_definitions_for(messages.iter().map(|m| m.content.as_str()))
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -408,6 +427,7 @@ mod tests {
             temperature: Some(0.7),
             max_tokens: None,
             stream: false,
+            tools: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         assert!(json.contains("\"model\":\"gpt-4\""));
@@ -534,5 +554,39 @@ mod tests {
         let out =
             acc.push("data: not json\ndata: {\"choices\":[{\"delta\":{\"content\":\"ok\"}}]}\n");
         assert_eq!(out, "ok");
+    }
+
+    /// Both halves of the round trip live here: a chat conversation must go
+    /// out with tool schemas, and a plain one must not — an endpoint that is
+    /// handed tools it was never asked for answers with calls the panel has
+    /// nowhere to run.
+    #[test]
+    fn tools_ride_along_only_when_the_conversation_asked_for_them() {
+        let chat = [Message {
+            role: crate::provider::MessageRole::System,
+            content: format!("preamble\n{}\n- write_file", crate::tools::CHAT_TOOL_PROMPT_MARKER),
+        }];
+        let defs = ChatRequest::tools_for(&chat).expect("chat conversations carry tools");
+        assert_eq!(defs.len(), crate::tools::CHAT_TOOL_NAMES.len());
+
+        let plain = [Message {
+            role: crate::provider::MessageRole::User,
+            content: "what is a monad".to_string(),
+        }];
+        assert!(ChatRequest::tools_for(&plain).is_none());
+    }
+
+    #[test]
+    fn tools_are_omitted_from_the_wire_when_absent() {
+        let req = ChatRequest {
+            model: "m".into(),
+            messages: vec![],
+            temperature: None,
+            max_tokens: None,
+            stream: false,
+            tools: None,
+        };
+        let json = serde_json::to_string(&req).expect("serialize");
+        assert!(!json.contains("tools"), "None tools must not hit the wire: {json}");
     }
 }

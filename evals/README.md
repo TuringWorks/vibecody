@@ -127,8 +127,36 @@ the matrix exists.
 | `migrations` | Python 2→3, CommonJS→ESM, retiring a deprecated API | `python3`, `node` |
 | `vibecoder-panels` | every panel's commands exist and honour the toolbar provider | `python3` |
 | `continuity` | the conversation survives compaction, hand-off and being killed | `python3` |
+| `models` | whether a given model can be driven through the tool loop at all | nothing |
 
 All of it runs **offline**. Missing toolchains skip rather than fail.
+
+### `models` — a per-model question, not a per-agent one
+
+The capability suites ask how good the agent is. `models` asks something
+narrower that turned out to matter more once local models were in play: can
+this model be driven through the tool loop *at all*.
+
+```bash
+make eval-models MODEL=gpt-oss:20b            # or --provider/--model directly
+vibecli --eval run --suite models --provider ollama --model lfm2.5:latest
+```
+
+Every task was written from a failure measured against a local model, not from
+a guess:
+
+| task | the failure it guards |
+|---|---|
+| `calls-a-tool-instead-of-describing-one` | the model narrates the edit and writes nothing |
+| `file-content-is-not-json-escaped` | `write_file` content arrives as `"a\nb"` and a three-line file lands as one |
+| `an-edit-that-reports-success-changed-the-file` | a patch "applies", the verifier passes, the file is untouched |
+| `reads-before-answering` | the answer is invented instead of read |
+| `answers-instead-of-only-reasoning` | the whole turn arrives in `thinking` and the reply is empty |
+| `finishes-in-a-handful-of-steps` | the model cannot stop, and burns the budget on a one-line task |
+
+A model that fails these is not bad at coding — it is unreachable through our
+tool loop, which is a different problem with a different fix (usually: give it
+the tools as callable functions instead of as prose).
 
 ### Greenfield builds — and why they are scored as a ladder
 

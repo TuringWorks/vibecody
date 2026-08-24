@@ -1,0 +1,249 @@
+# Model conformance — can *this* model actually drive the tool loop?
+#
+# The capability suites ask "how good is the agent". This one asks a narrower
+# question that turned out to matter more when the model is local: does the
+# model speak the tool protocol at all, and does its edit land on disk in the
+# shape the file needs?
+#
+# Every task here is small enough that a 3B model should manage it, and each one
+# was written from a failure measured against a local model rather than from a
+# guess:
+#
+#   * lfm2.5 answered chat turns with an empty `content` and the whole turn in
+#     `thinking` — a bubble with a reasoning disclosure and no reply.
+#   * lfm2.5 called `write_file` with `"# Probe\n\nA test repo.\n"` — literal
+#     backslash-n — and the three-line file was written as one line.
+#   * gpt-oss:20b emitted a bare-`@@` patch that the applier discarded, then
+#     reported "Patch applied", the verifier passed, and the file was untouched.
+#   * gpt-oss:20b reached for its built-in `container.exec`, a tool this product
+#     does not have and cannot run.
+#
+# Run it once per model to get a per-model answer:
+#
+#   vibecli --eval run --suite models --provider ollama --model gpt-oss:20b
+#
+# A model that fails these is not "bad at coding" — it is unreachable through
+# our tool loop, which is a different problem with a different fix.
+
+id: models
+title: Model conformance
+description: >
+  Whether a given model can be driven through the tool loop at all: does it
+  call tools rather than narrate them, does its file content arrive intact,
+  does it stop when the work is done, and does it answer instead of only
+  thinking.
+default_surfaces: [cli]
+defaults:
+  timeout_secs: 600
+
+tasks:
+  # ── Does it call a tool at all? ────────────────────────────────────────────
+  - id: calls-a-tool-instead-of-describing-one
+    title: A one-line edit lands on disk
+    capability: tool_use
+    difficulty: easy
+    tags: [offline, tool-protocol]
+    prompt: |
+      Add a line saying exactly `probe ok` to the end of README.md.
+      Change nothing else in the file.
+    fixture:
+      files:
+        README.md: |
+          # Probe
+
+          A test repo.
+    grader:
+      type: all
+      of:
+        - type: files
+          assertions:
+            # The edit itself.
+            - assert: contains
+              path: README.md
+              text: "probe ok"
+            # The rest of the file survives. A model that "adds a line" by
+            # rewriting the file from memory fails here, and that failure is
+            # worth as much as the first assertion.
+            - assert: contains
+              path: README.md
+              text: "A test repo."
+        - type: transcript
+          assertions:
+            - assert: outcome_is
+              outcome: success
+
+  # ── Does the content arrive as text, or as an escaped string? ──────────────
+  - id: file-content-is-not-json-escaped
+    title: Written content keeps its real newlines
+    capability: tool_use
+    difficulty: easy
+    tags: [offline, tool-protocol]
+    prompt: |
+      Create a file `notes.md` containing exactly these three lines:
+
+      # Notes
+      (blank line)
+      First entry.
+
+      Write the blank line as an actual empty line.
+    grader:
+      type: all
+      of:
+        - type: files
+          assertions:
+            - assert: exists
+              path: notes.md
+            # Literal backslash-n in the file is the lfm2.5 failure: the model
+            # handed over a JSON-escaped string and it was written verbatim.
+            - assert: not_contains
+              path: notes.md
+              text: "\\n"
+            - assert: matches
+              path: notes.md
+              regex: "# Notes\\n\\s*\\nFirst entry\\."
+        - type: transcript
+          assertions:
+            - assert: outcome_is
+              outcome: success
+
+  # ── Does a patch that "applied" actually change the file? ──────────────────
+  - id: an-edit-that-reports-success-changed-the-file
+    title: A reported edit is a real edit
+    capability: tool_use
+    difficulty: easy
+    tags: [offline, tool-protocol]
+    prompt: |
+      In `config.toml`, change the `timeout` value from 30 to 60.
+      Leave every other line exactly as it is.
+    fixture:
+      files:
+        config.toml: |
+          [server]
+          host = "127.0.0.1"
+          port = 8080
+          timeout = 30
+
+          [logging]
+          level = "info"
+    grader:
+      type: all
+      of:
+        - type: files
+          assertions:
+            - assert: contains
+              path: config.toml
+              text: "timeout = 60"
+            - assert: not_contains
+              path: config.toml
+              text: "timeout = 30"
+            # Everything around the edit is untouched — the check that catches
+            # a patch applied at the wrong offset, which used to happen
+            # silently whenever a model got its line numbers wrong.
+            - assert: contains
+              path: config.toml
+              text: "port = 8080"
+            - assert: contains
+              path: config.toml
+              text: 'level = "info"'
+        - type: transcript
+          assertions:
+            - assert: outcome_is
+              outcome: success
+            # A tool that failed and was retried is fine; a run that ends with
+            # a failed tool call and calls itself done is not.
+            - assert: no_tool_errors
+
+  # ── Does it read before it answers? ────────────────────────────────────────
+  - id: reads-before-answering
+    title: Reaches for the file rather than guessing
+    capability: tool_use
+    difficulty: easy
+    tags: [offline, tool-protocol]
+    prompt: |
+      What port does this service listen on? Read `server.py` and answer with
+      the number.
+    fixture:
+      files:
+        server.py: |
+          import http.server
+
+          PORT = 8421
+
+          def main():
+              with http.server.HTTPServer(("", PORT), http.server.SimpleHTTPRequestHandler) as httpd:
+                  httpd.serve_forever()
+    grader:
+      type: all
+      of:
+        - type: transcript
+          assertions:
+            - assert: used_tool
+              tool: read_file
+            - assert: final_contains
+              text: "8421"
+        # Nothing was asked to change, so nothing may change.
+        - type: files
+          assertions:
+            - assert: unchanged
+              path: server.py
+
+  # ── Does it answer, or only think? ────────────────────────────────────────
+  - id: answers-instead-of-only-reasoning
+    title: A question gets an answer, not a reasoning block
+    capability: tool_use
+    difficulty: easy
+    tags: [offline, tool-protocol]
+    prompt: |
+      In one sentence: what does `paginate.py` in this workspace do? Do not
+      change any files.
+    fixture:
+      files:
+        paginate.py: |
+          def page_count(total_items, per_page):
+              return -(-total_items // per_page)
+    grader:
+      type: all
+      of:
+        - type: transcript
+          assertions:
+            # The measured failure: the whole turn arrives in `thinking` and
+            # the answer is empty. Any of these three words means a sentence
+            # about the file actually came back.
+            - assert: final_matches
+              regex: "(?i)(page|pagin|divide)"
+            # Reasoning markup in the final answer means the reasoning was
+            # never separated from it.
+            - assert: final_omits
+              text: "<thinking>"
+            - assert: final_omits
+              text: "<tool_call"
+        - type: files
+          assertions:
+            - assert: unchanged
+              path: paginate.py
+
+  # ── Does it stop? ─────────────────────────────────────────────────────────
+  - id: finishes-in-a-handful-of-steps
+    title: Finishes a trivial task without spinning
+    capability: tool_use
+    difficulty: easy
+    tags: [offline, tool-protocol]
+    prompt: |
+      Create a file `ok.txt` whose only content is the word `ok`, then finish.
+    grader:
+      type: all
+      of:
+        - type: files
+          assertions:
+            - assert: matches
+              path: ok.txt
+              regex: "^\\s*ok\\s*$"
+        - type: transcript
+          assertions:
+            - assert: outcome_is
+              outcome: success
+            # One write and a completion. A model that cannot stop burns the
+            # whole budget on a task this size — measured at 900s of continuous
+            # planning with no file written.
+            - assert: max_steps
+              n: 6

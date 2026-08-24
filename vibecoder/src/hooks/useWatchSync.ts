@@ -23,10 +23,16 @@ interface WatchSessionMessages {
   messages: WatchMessage[];
 }
 
+export interface WatchSyncHandle {
+  /** Advance the poll cursor past `id`, so rows this client wrote itself are
+   *  never re-imported. Ignores ids at or below the current cursor. */
+  skipPast: (id: number | null | undefined) => void;
+}
+
 export function useWatchSync(
   sessionId: string | undefined,
   onNewMessages: (msgs: WatchMessage[]) => void,
-) {
+): WatchSyncHandle {
   const lastIdRef = useRef<number>(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const onNewMessagesRef = useRef(onNewMessages);
@@ -70,6 +76,12 @@ export function useWatchSync(
     timerRef.current = interval;
     return () => clearInterval(interval);
   }, [sessionId, poll]);
+
+  const skipPast = useCallback((id: number | null | undefined) => {
+    if (typeof id === 'number' && id > lastIdRef.current) lastIdRef.current = id;
+  }, []);
+
+  return { skipPast };
 }
 
 // ── Watch active-session hook ─────────────────────────────────────────────────

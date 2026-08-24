@@ -106,6 +106,8 @@ interface ChatResponse {
  message: string;
  tool_output: string;
  pending_write?: PendingWrite;
+ /** Highest sessions.db row this turn wrote; the watch-sync cursor skips past it. */
+ session_msg_id?: number | null;
 }
 
 interface AIChatProps {
@@ -395,6 +397,48 @@ function withExtractedThinking(msg: Message): Message {
   return { ...msg, content: cleaned, thinking };
 }
 
+/**
+ * Return `msg` with any tool markup still in `content` lifted into `toolCalls`.
+ *
+ * `chat:complete` already parses the turn it just received, but a message can
+ * reach the panel by other roads — session history, the watch-sync poll, an
+ * agent event — and those carry the raw text. Parsing here, at the render
+ * boundary, is what stops `<tool_call name="write_file">…` from being shown to
+ * the user as literal markup whichever road it arrived by.
+ */
+function withParsedToolCalls(msg: Message): Message {
+  if (msg.toolCalls?.length || msg.isToolOutput || !msg.content) return msg;
+  if (!/<tool_call\s+name=|<write_file path=|<read_file path=|<list_dir path=|<build[\s/>]|<run[\s/>]/.test(msg.content)) {
+    return msg;
+  }
+  const [content, toolCalls] = parseToolCalls(msg.content);
+  if (toolCalls.length === 0) return msg;
+  return { ...msg, content, toolCalls, rawContent: msg.rawContent ?? msg.content };
+}
+
+/**
+ * Comparison key for "is this the same message we already have?".
+ *
+ * sessions.db stores the raw provider text; the bubble on screen has had its
+ * reasoning block and tool XML stripped. Both sides go through the same
+ * stripping here so the two forms compare equal.
+ */
+function dedupKey(content: string): string {
+  const [cleaned] = extractThinking(content);
+  const [withoutTools] = parseToolCalls(cleaned);
+  return withoutTools.replace(/\s+/g, " ").trim();
+}
+
+/** Decode the XML entities `render_tool_call` escapes on the Rust side. */
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&");
+}
+
 /** Parse tool XML tags from content into ToolCallInfo[], return cleaned content. */
 function parseToolCalls(content: string): [string, ToolCallInfo[]] {
   const tools: ToolCallInfo[] = [];
@@ -416,6 +460,36 @@ function parseToolCalls(content: string): [string, ToolCallInfo[]] {
   cleaned = cleaned.replace(/<list_dir path="([^"]+)"\s*\/>/g, (_m, path) => {
     tools.push({ tool: "list_dir", path, status: "success" });
     return "";
+  });
+
+  // Canonical <tool_call name="…"><param>…</param></tool_call> — what a native
+  // tool call is transcribed into, and what the chat prompt now asks for. Same
+  // cards as the tag dialect below, so a local model calling tools natively
+  // renders like every other model instead of leaking raw markup into the text.
+  cleaned = cleaned.replace(/<tool_call\s+name="([^"]+)">([\s\S]*?)<\/tool_call>/g, (_m, name, body) => {
+    const param = (key: string): string | undefined => {
+      const hit = new RegExp(`<${key}>([\\s\\S]*?)</${key}>`).exec(body);
+      return hit ? decodeEntities(hit[1].trim()) : undefined;
+    };
+    switch (name) {
+      case "write_file":
+        tools.push({ tool: "write_file", path: param("path"), status: "success", output: param("content") });
+        return "";
+      case "read_file":
+      case "list_dir":
+      case "list_directory":
+        tools.push({ tool: name === "read_file" ? "read_file" : "list_dir", path: param("path"), status: "success" });
+        return "";
+      case "build":
+      case "run":
+        tools.push({ tool: name, path: param("command"), status: "success" });
+        return "";
+      default:
+        // A tool this panel has no card for. Still not shown as raw markup —
+        // the name alone tells the user what the model reached for.
+        tools.push({ tool: name, status: "error" });
+        return "";
+    }
   });
 
   // <build /> or <build command="..." />
@@ -1096,23 +1170,31 @@ export function AIChat({
   // Watch → VibeCoder sync: poll sessions.db for messages sent from the Watch app.
   // When new messages arrive (role=user from Watch, role=assistant from daemon LLM),
   // append them to the chat history so both sides stay in sync.
-  useWatchSync(sessionId, (watchMsgs: WatchSyncMessage[]) => {
+  //
+  // This tab writes its *own* turns to that same table (see write_to_session_store
+  // on the Rust side), so the poll would otherwise hand every local reply straight
+  // back. Two guards: the cursor is advanced past our own rows on `chat:complete`
+  // (watchSync.skipPast), and anything that slips through the ~1s poll window is
+  // dropped by content match below.
+  const watchSync = useWatchSync(sessionId, (watchMsgs: WatchSyncMessage[]) => {
     setMessages(prev => {
-      // Deduplicate by DB message ID — content-based dedup collapses identical messages.
-      // We track which IDs are already reflected in the local message list by content
-      // match on the last N chars (local messages have no DB id, so exact-id match
-      // isn't possible). Fall back: only add messages whose content isn't already present
-      // in the last 20 messages to avoid surfacing truly new dupes while being safe.
-      const recentContents = new Set(prev.slice(-20).map(m => m.content.trim()));
+      // Content dedup, normalized: the DB row holds the raw provider text, while
+      // the rendered message has had its <thinking> block and tool XML lifted out.
+      // Comparing raw-vs-cleaned never matches, which is exactly how a reply with
+      // reasoning ended up on screen twice.
+      const recentContents = new Set(prev.slice(-20).map(m => dedupKey(m.content)));
       const newMsgs: Message[] = watchMsgs
-        .filter(wm => !recentContents.has(wm.content.trim()))
+        .filter(wm => !recentContents.has(dedupKey(wm.content)))
         .map(wm => ({
-          role: wm.role === 'assistant' ? 'assistant' : 'user',
+          role: wm.role === 'assistant' ? 'assistant' as const : 'user' as const,
           content: wm.content,
+          timestamp: wm.created_at || undefined,
         }));
       return newMsgs.length > 0 ? [...prev, ...newMsgs] : prev;
     });
   });
+  const watchSyncRef = useRef(watchSync);
+  watchSyncRef.current = watchSync;
 
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -1514,6 +1596,10 @@ export function AIChat({
       // chat:complete
       const u2 = await listen<ChatResponse>("chat:complete", (e) => {
         const response = e.payload;
+        // The backend persisted this turn to sessions.db before emitting. Move
+        // the watch-sync cursor past those rows so the poll doesn't hand our own
+        // reply back as a second bubble.
+        watchSyncRef.current.skipPast(response.session_msg_id);
         const [cleanedContent, thinkingText] = extractThinking(response.message);
         const [finalContent, toolCalls] = parseToolCalls(cleanedContent);
         const hasToolOutput = !!(response.tool_output && response.tool_output.trim());
@@ -2472,7 +2558,7 @@ export function AIChat({
             // parsed it — session restore, the watch bridge, any future
             // injector — and each one that forgets put `<thinking>` on screen.
             // One choke point here means no path can leak it.
-            const msg = withExtractedThinking(rawMsg);
+            const msg = withParsedToolCalls(withExtractedThinking(rawMsg));
             return (
             <div key={idx}>
             {msg.isSummary && (

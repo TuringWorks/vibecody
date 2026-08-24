@@ -1279,7 +1279,14 @@ impl AgentLoop {
             None
         };
 
-        let system_content = build_system_prompt(&context, &self.approval, task);
+        // A provider that puts the tool schemas on the wire does not also need
+        // the prompt's per-tool catalogue — see `tools::agent_system_prompt`.
+        let system_content = build_system_prompt(
+            &context,
+            &self.approval,
+            task,
+            self.provider.advertises_native_tools(),
+        );
         let mut messages: Vec<Message> = vec![Message {
             role: MessageRole::System,
             content: system_content,
@@ -3821,7 +3828,7 @@ mod context_tests {
         let mut context = AgentContext::default();
         context.workspace_root = std::path::PathBuf::from("/nonexistent-vibe-test");
         context.skill_health = Some("7 skills, 3 scored, top evolvability 0.82".to_string());
-        let prompt = build_system_prompt(&context, &ApprovalPolicy::FullAuto, "a task");
+        let prompt = build_system_prompt(&context, &ApprovalPolicy::FullAuto, "a task", false);
         assert!(
             prompt.contains("## Skill Health"),
             "expected a ## Skill Health section, got:\n{prompt}"
@@ -3834,7 +3841,7 @@ mod context_tests {
         let mut context = AgentContext::default();
         context.workspace_root = std::path::PathBuf::from("/nonexistent-vibe-test");
         // skill_health defaults to None — the auto-gate path.
-        let prompt = build_system_prompt(&context, &ApprovalPolicy::FullAuto, "a task");
+        let prompt = build_system_prompt(&context, &ApprovalPolicy::FullAuto, "a task", false);
         assert!(
             !prompt.contains("## Skill Health"),
             "skill-health section must not appear when skill_health is None"
@@ -3849,7 +3856,7 @@ mod context_tests {
         let mut context = AgentContext::default();
         context.workspace_root = std::path::PathBuf::from("/nonexistent-vibe-test");
         context.plugin_rules = Some("### acme/no-secrets\n\nNever echo a token.".to_string());
-        let prompt = build_system_prompt(&context, &ApprovalPolicy::FullAuto, "a task");
+        let prompt = build_system_prompt(&context, &ApprovalPolicy::FullAuto, "a task", false);
         assert!(
             prompt.contains("## Plugin Rules (admin-approved)"),
             "expected a plugin-rules section, got:\n{prompt}"
@@ -3861,13 +3868,13 @@ mod context_tests {
     fn system_prompt_omits_plugin_rules_when_absent_or_empty() {
         let mut context = AgentContext::default();
         context.workspace_root = std::path::PathBuf::from("/nonexistent-vibe-test");
-        let none = build_system_prompt(&context, &ApprovalPolicy::FullAuto, "a task");
+        let none = build_system_prompt(&context, &ApprovalPolicy::FullAuto, "a task", false);
         assert!(!none.contains("## Plugin Rules"));
 
         // An empty string is "no plugin contributed", not "a plugin
         // contributed nothing" — an empty header would read as the latter.
         context.plugin_rules = Some(String::new());
-        let empty = build_system_prompt(&context, &ApprovalPolicy::FullAuto, "a task");
+        let empty = build_system_prompt(&context, &ApprovalPolicy::FullAuto, "a task", false);
         assert!(!empty.contains("## Plugin Rules"));
     }
 
@@ -3895,6 +3902,7 @@ mod context_tests {
             &context,
             &ApprovalPolicy::FullAuto,
             "please write a test for the parser",
+            false,
         );
         assert!(
             matched.contains("### Skill: test-first"),
@@ -3903,7 +3911,7 @@ mod context_tests {
         assert!(matched.contains("Watch it fail first."));
 
         let unmatched =
-            build_system_prompt(&context, &ApprovalPolicy::FullAuto, "rename a variable");
+            build_system_prompt(&context, &ApprovalPolicy::FullAuto, "rename a variable", false);
         assert!(
             !unmatched.contains("### Skill: test-first"),
             "a non-matching task must not activate the skill"
@@ -4022,7 +4030,12 @@ fn build_repo_map(root: &std::path::Path) -> String {
 /// only ever matched the open-file list and the branch name before, so on the
 /// daemon path — where `open_files` is empty and the branch is `main` — no
 /// skill could activate at all, however well its triggers were written.
-fn build_system_prompt(context: &AgentContext, approval: &ApprovalPolicy, task: &str) -> String {
+fn build_system_prompt(
+    context: &AgentContext,
+    approval: &ApprovalPolicy,
+    task: &str,
+    native_tools: bool,
+) -> String {
     let mut extras = String::new();
 
     // Auto-mode guidance: when running fully autonomous, inject behavioral rules
@@ -4186,7 +4199,11 @@ fn build_system_prompt(context: &AgentContext, approval: &ApprovalPolicy, task: 
         }
     }
 
-    format!("{}{}", TOOL_SYSTEM_PROMPT, extras)
+    format!(
+        "{}{}",
+        crate::tools::agent_system_prompt(native_tools),
+        extras
+    )
 }
 
 #[cfg(test)]

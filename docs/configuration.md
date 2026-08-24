@@ -346,6 +346,26 @@ never send the Bearer, so they always run locally.
 
    Override the base URL with the `OLLAMA_HOST` env var if Ollama is running on a remote machine.
 
+**Tools.** VibeCody sends its tools to Ollama as callable functions, not only as
+prose in the system prompt — a model trained for native tool calling otherwise
+has nothing to call and answers with an empty turn. A model that rejects the
+`tools` field is detected from its first refusal and retried without it, once
+per model.
+
+**Context window.** VibeCody leaves `num_ctx` unset by default: Ollama 0.32 sizes
+the window from the model (measured — a 14,028-token prompt was evaluated whole),
+and pinning a large value costs KV-cache memory a small machine may not have.
+Older Ollama servers default to 4096 and silently drop the **front** of a longer
+prompt — the system prompt and tool contract first, which reads as a model that
+forgot how to use tools. Set `VIBECLI_OLLAMA_NUM_CTX` to raise it:
+
+   ```bash
+   VIBECLI_OLLAMA_NUM_CTX=32768 vibecli --tui
+   ```
+
+   A warning is logged whenever the server reports evaluating far fewer prompt
+   tokens than were sent, which is the only evidence of truncation Ollama gives.
+
 
 ### 2. Anthropic Claude — Claude 4 Sonnet/Opus
 

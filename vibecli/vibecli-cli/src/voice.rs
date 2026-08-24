@@ -130,8 +130,46 @@ pub fn is_model_downloaded(model: &WhisperModel) -> bool {
         .exists()
 }
 
-/// Download a Whisper GGML model from Hugging Face.
+/// Download a Whisper GGML model from Hugging Face, reporting progress to the
+/// terminal.
+///
+/// Thin wrapper over [`download_model_with_progress`] — the CLI wants a
+/// progress bar on stderr, a GUI wants the same bytes as an event, and neither
+/// should own a second copy of the download.
 pub async fn download_model(model: &WhisperModel) -> Result<PathBuf> {
+    download_model_with_progress(model, |downloaded, total| {
+        if total > 0 {
+            let pct = (downloaded as f64 / total as f64 * 100.0) as u32;
+            eprint!(
+                "\r  [{:>3}%] {:.1}/{:.1} MB",
+                pct,
+                downloaded as f64 / 1e6,
+                total as f64 / 1e6
+            );
+        } else {
+            eprint!("\r  {:.1} MB", downloaded as f64 / 1e6);
+        }
+    })
+    .await
+}
+
+/// Download a Whisper GGML model from Hugging Face.
+///
+/// `on_progress` is called with `(bytes_downloaded, total_bytes)` as the body
+/// streams in; `total_bytes` is `0` when the server sends no `Content-Length`,
+/// which is a fact about the response, not a percentage of zero — callers must
+/// render it as "unknown", never as 0%.
+///
+/// The download lands in a `.part` file that is renamed only after the last
+/// byte is flushed, so an interrupted download can never be mistaken for a
+/// complete model by [`is_model_downloaded`].
+pub async fn download_model_with_progress<F>(
+    model: &WhisperModel,
+    mut on_progress: F,
+) -> Result<PathBuf>
+where
+    F: FnMut(u64, u64),
+{
     let dir = models_dir();
     std::fs::create_dir_all(&dir).context("Failed to create models directory")?;
 
@@ -181,15 +219,7 @@ pub async fn download_model(model: &WhisperModel) -> Result<PathBuf> {
         let chunk = chunk.context("Download stream error")?;
         file.write_all(&chunk).await?;
         downloaded += chunk.len() as u64;
-        if total > 0 {
-            let pct = (downloaded as f64 / total as f64 * 100.0) as u32;
-            eprint!(
-                "\r  [{:>3}%] {:.1}/{:.1} MB",
-                pct,
-                downloaded as f64 / 1e6,
-                total as f64 / 1e6
-            );
-        }
+        on_progress(downloaded, total);
     }
     file.flush().await?;
     drop(file);
@@ -200,6 +230,26 @@ pub async fn download_model(model: &WhisperModel) -> Result<PathBuf> {
         .context("Failed to rename downloaded model")?;
     eprintln!("Saved to {}", dest.display());
     Ok(dest)
+}
+
+/// Delete a downloaded Whisper GGML model, freeing its disk space.
+///
+/// Returns `false` when there was nothing to delete — an absent model is the
+/// desired end state, not a failure, but the caller still needs to know it did
+/// not free anything.
+pub fn delete_model(model: &WhisperModel) -> Result<bool> {
+    let path = models_dir().join(format!("ggml-{}.bin", model.name()));
+    match std::fs::remove_file(&path) {
+        Ok(()) => Ok(true),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(e) => Err(e).with_context(|| format!("Failed to delete {}", path.display())),
+    }
+}
+
+/// Absolute path of a downloaded model, or `None` when it is not on disk.
+pub fn model_path(model: &WhisperModel) -> Option<PathBuf> {
+    let path = models_dir().join(format!("ggml-{}.bin", model.name()));
+    path.exists().then_some(path)
 }
 
 /// Transcribe an audio file with a locally installed Whisper runtime.

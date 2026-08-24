@@ -1,6 +1,6 @@
 //! Configuration management
 
-use anyhow::Result;
+use anyhow::{Context as _, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -740,6 +740,38 @@ impl Default for RedTeamCfg {
 /// disagreed exactly when nobody had configured anything: `whisper --language ""`
 /// on the local engine, and a 0-second silence timeout that ends mic capture
 /// the instant it starts.
+/// The document edit behind [`Config::set_voice_settings`], as a pure function
+/// so it can be tested without touching the developer's real `~/.vibecli`.
+///
+/// Uses `toml_edit` rather than a parse/serialise round-trip so comments,
+/// blank lines and key order survive, and so keys this function was not asked
+/// about are left byte-for-byte identical.
+fn apply_voice_settings(
+    text: &str,
+    local_model: Option<&str>,
+    language: Option<&str>,
+    prefer_local: Option<bool>,
+) -> Result<String> {
+    let mut doc: toml_edit::DocumentMut = text
+        .parse()
+        .context("~/.vibecli/config.toml is not valid TOML")?;
+
+    let voice = doc["voice"].or_insert(toml_edit::Item::Table(toml_edit::Table::new()));
+    let table = voice
+        .as_table_like_mut()
+        .ok_or_else(|| anyhow::anyhow!("[voice] in ~/.vibecli/config.toml is not a table"))?;
+    if let Some(v) = local_model {
+        table.insert("local_model", toml_edit::value(v));
+    }
+    if let Some(v) = language {
+        table.insert("language", toml_edit::value(v));
+    }
+    if let Some(v) = prefer_local {
+        table.insert("prefer_local", toml_edit::value(v));
+    }
+    Ok(doc.to_string())
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VoiceConfig {
     /// Groq API key for Whisper transcription (falls back to groq.api_key or GROQ_API_KEY).
@@ -2249,6 +2281,55 @@ impl Config {
             dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?;
         Ok(home.join(".vibecli").join("config.toml"))
     }
+
+    /// Write voice settings straight into the `[voice]` table of
+    /// `~/.vibecli/config.toml`, leaving every other key byte-for-byte alone.
+    ///
+    /// Deliberately *not* `load()` → mutate → `save()`. `load()` overlays the
+    /// encrypted ProfileStore on top of the TOML, so saving that struct back
+    /// would copy every provider API key into a plaintext file — the one thing
+    /// the storage rules forbid. Editing the on-disk document also preserves
+    /// the user's comments and ordering, which a full re-serialise loses.
+    ///
+    /// `None` means "leave this key as it is"; only the settings passed are
+    /// touched. Returns without writing when nothing was passed.
+    pub fn set_voice_settings(
+        local_model: Option<&str>,
+        language: Option<&str>,
+        prefer_local: Option<bool>,
+    ) -> Result<()> {
+        if local_model.is_none() && language.is_none() && prefer_local.is_none() {
+            return Ok(());
+        }
+        let config_path = Self::config_path()?;
+        if let Some(parent) = config_path.parent() {
+            fs::create_dir_all(parent)?;
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let _ = fs::set_permissions(parent, fs::Permissions::from_mode(0o700));
+            }
+        }
+
+        // A missing file is the zero-config first run, not an error — start
+        // from an empty document. A *corrupt* file is an error: silently
+        // replacing it would delete settings the user can see in their editor.
+        let text = match fs::read_to_string(&config_path) {
+            Ok(t) => t,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+            Err(e) => return Err(e).context("Failed to read ~/.vibecli/config.toml"),
+        };
+        let updated = apply_voice_settings(&text, local_model, language, prefer_local)?;
+
+        fs::write(&config_path, updated).context("Failed to write ~/.vibecli/config.toml")?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&config_path, fs::Permissions::from_mode(0o600))?;
+        }
+        Ok(())
+    }
+
     /// Derive approval policy string from boolean CLI flags.
     pub fn approval_from_flags(suggest: bool, auto_edit: bool, full_auto: bool) -> String {
         SafetyConfig::approval_policy_from_flags(suggest, auto_edit, full_auto)
@@ -3455,5 +3536,69 @@ chain = ["claude", "openai", "ollama"]
             derived.silence_timeout_ms > 0,
             "a 0 ms silence timeout ends capture instantly"
         );
+    }
+
+    // ── apply_voice_settings ────────────────────────────────────────────────
+    //
+    // The pure half of `Config::set_voice_settings`. Tested here rather than
+    // through the file API because `config_path()` resolves to the developer's
+    // real `~/.vibecli/config.toml`.
+
+    #[test]
+    fn voice_settings_are_written_into_an_empty_document() {
+        let out = apply_voice_settings("", Some("small"), Some("de"), Some(true))
+            .expect("empty document is the first-run case, not an error");
+        let parsed: Config = toml::from_str(&out).expect("output must round-trip");
+        assert_eq!(parsed.voice.local_model, "small");
+        assert_eq!(parsed.voice.language, "de");
+        assert!(parsed.voice.prefer_local);
+    }
+
+    #[test]
+    fn voice_settings_leave_every_other_key_untouched() {
+        // The regression this guards: `load()` overlays ProfileStore API keys
+        // into the struct, so a load→mutate→save would write this file *plus*
+        // every decrypted key. Editing the document can only touch [voice].
+        let before = "\
+# my settings
+[claude]
+api_key = \"sk-secret\"
+
+[voice]
+language = \"en\"
+";
+        let after = apply_voice_settings(before, Some("tiny"), None, None).expect("edit");
+        assert!(after.contains("# my settings"), "comments must survive");
+        assert!(
+            after.contains("api_key = \"sk-secret\""),
+            "other tables are untouched"
+        );
+        assert!(after.contains("local_model = \"tiny\""));
+        assert!(
+            after.contains("language = \"en\""),
+            "a None argument leaves the key alone"
+        );
+    }
+
+    #[test]
+    fn voice_settings_overwrite_only_what_was_passed() {
+        let before = "[voice]\nlocal_model = \"base\"\nlanguage = \"en\"\nprefer_local = false\n";
+        let after = apply_voice_settings(before, None, None, Some(true)).expect("edit");
+        let parsed: Config = toml::from_str(&after).expect("round-trip");
+        assert_eq!(parsed.voice.local_model, "base");
+        assert_eq!(parsed.voice.language, "en");
+        assert!(parsed.voice.prefer_local);
+    }
+
+    #[test]
+    fn invalid_toml_is_an_error_rather_than_a_silent_overwrite() {
+        // Replacing a file we could not parse would delete settings the user
+        // can still see in their editor.
+        assert!(apply_voice_settings("[voice", Some("tiny"), None, None).is_err());
+    }
+
+    #[test]
+    fn a_voice_key_that_is_not_a_table_is_reported_not_clobbered() {
+        assert!(apply_voice_settings("voice = 1\n", Some("tiny"), None, None).is_err());
     }
 }

@@ -1027,14 +1027,17 @@ impl SessionStore {
         Ok(())
     }
 
-    /// Append a message to a session.
-    pub fn insert_message(&self, session_id: &str, role: &str, content: &str) -> Result<()> {
+    /// Append a message to a session. Returns the new row's `id` so a writer
+    /// can tell its own rows apart from ones another client appended — a
+    /// desktop chat that polls this table would otherwise re-import the reply
+    /// it just wrote and render it twice.
+    pub fn insert_message(&self, session_id: &str, role: &str, content: &str) -> Result<i64> {
         let now = now_ms();
         self.conn.execute(
             "INSERT INTO messages (session_id, role, content, created_at) VALUES (?1, ?2, ?3, ?4)",
             params![session_id, role, content, now],
         )?;
-        Ok(())
+        Ok(self.conn.last_insert_rowid())
     }
 
     /// Append a tool-call step to a session.

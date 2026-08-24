@@ -1291,3 +1291,150 @@ describe('AIChat — agent terminal events', () => {
     expect(screen.queryByText(/weighing options/)).not.toBeInTheDocument();
   });
 });
+
+// ── Watch sync echo ─────────────────────────────────────────────────────────
+//
+// A session-tracked tab writes its own turns to sessions.db, which is the same
+// table useWatchSync polls for Watch/mobile messages. Both guards — the cursor
+// advance on chat:complete, and the normalized content match — must keep that
+// reply from coming back as a second bubble.
+
+describe('AIChat — watch sync does not echo the tab\'s own reply', () => {
+  const RAW = '<thinking>weighing options</thinking>Use a HashMap for constant-time lookups.';
+
+  function mockSessionRow(rowId: number) {
+    mockInvoke.mockImplementation((cmd: string, args?: Record<string, unknown>) => {
+      if (cmd === 'watch_get_session_messages') {
+        const after = (args?.afterId as number | null) ?? 0;
+        return Promise.resolve({
+          session_id: 's1',
+          messages: after < rowId
+            ? [{ id: rowId, role: 'assistant', content: RAW, created_at: 1700000000000 }]
+            : [],
+        });
+      }
+      return Promise.resolve(null);
+    });
+  }
+
+  function countReplies() {
+    return screen.getAllByText((_t, el) =>
+      el?.className === 'message-content' &&
+      (el.textContent ?? '').includes('constant-time lookups'),
+    ).length;
+  }
+
+  it('skips rows the backend reports it wrote for this turn', async () => {
+    vi.useFakeTimers();
+    try {
+      // Seed poll happens before the turn, so the row is not there yet.
+      mockInvoke.mockResolvedValue({ session_id: 's1', messages: [] });
+      render(<AIChat provider="ollama" sessionId="s1" />);
+      await act(async () => {});
+
+      mockSessionRow(7);
+      act(() => {
+        eventListeners['chat:complete']?.forEach((cb) =>
+          cb({ payload: { message: RAW, tool_output: '', session_msg_id: 7 } }));
+      });
+      await act(async () => { vi.advanceTimersByTime(2200); });
+      await act(async () => {});
+
+      expect(countReplies()).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('drops a raw echo that arrives before the cursor advances', async () => {
+    vi.useFakeTimers();
+    try {
+      mockInvoke.mockResolvedValue({ session_id: 's1', messages: [] });
+      render(<AIChat provider="ollama" sessionId="s1" />);
+      await act(async () => {});
+
+      // No session_msg_id — the poll wins the race, so only the content match
+      // stands between the raw DB row and a duplicate bubble.
+      mockSessionRow(7);
+      act(() => {
+        eventListeners['chat:complete']?.forEach((cb) =>
+          cb({ payload: { message: RAW, tool_output: '' } }));
+      });
+      await act(async () => { vi.advanceTimersByTime(2200); });
+      await act(async () => {});
+
+      expect(countReplies()).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+
+// ── Canonical tool-call markup ──────────────────────────────────────────────
+//
+// Local models emit native tool calls, which the provider transcribes into
+// `<tool_call name="…">` markup. The panel has to render those as tool cards —
+// before this, they reached the bubble as literal text.
+
+describe('AIChat — canonical tool_call blocks render as cards', () => {
+  /** Open the collapsed "Work" disclosure so the tool cards are visible. */
+  function expandWork() {
+    fireEvent.click(screen.getByRole('button', { name: /Work/ }));
+  }
+
+  it('shows a write_file card and no raw markup', () => {
+    const msgs: Message[] = [{
+      role: 'assistant',
+      content: 'Adding it now.\n<tool_call name="write_file"><path>src/main.rs</path>'
+        + '<content>fn main() {}</content></tool_call>',
+      timestamp: Date.now(),
+    }];
+    render(<AIChat provider="ollama" messages={msgs} onMessagesChange={vi.fn()} />);
+
+    expect(document.body.textContent).not.toContain('<tool_call');
+    expect(screen.getByText('Adding it now.')).toBeInTheDocument();
+    expect(screen.getByText('Work · 1 tool')).toBeInTheDocument();
+    expandWork();
+    expect(screen.getByText('src/main.rs')).toBeInTheDocument();
+  });
+
+  it('decodes escaped content in the card', () => {
+    const msgs: Message[] = [{
+      role: 'assistant',
+      content: '<tool_call name="read_file"><path>a &amp; b.txt</path></tool_call>',
+      timestamp: Date.now(),
+    }];
+    render(<AIChat provider="ollama" messages={msgs} onMessagesChange={vi.fn()} />);
+    expandWork();
+    expect(screen.getByText('a & b.txt')).toBeInTheDocument();
+  });
+
+  // A tool the panel has no card for still must not leak as markup — the user
+  // sees what the model reached for instead.
+  it('shows an unknown tool as a card rather than raw text', () => {
+    const msgs: Message[] = [{
+      role: 'assistant',
+      content: '<tool_call name="container.exec"><cmd>ls</cmd></tool_call>',
+      timestamp: Date.now(),
+    }];
+    render(<AIChat provider="ollama" messages={msgs} onMessagesChange={vi.fn()} />);
+    expect(document.body.textContent).not.toContain('<tool_call');
+    expandWork();
+    expect(screen.getByText(/container\.exec/)).toBeInTheDocument();
+  });
+
+  // The legacy dialect keeps working: cloud models mid-conversation, and every
+  // session already on disk, speak it.
+  it('still renders the tag dialect', () => {
+    const msgs: Message[] = [{
+      role: 'assistant',
+      content: 'Done.\n<write_file path="a.txt">hello</write_file>',
+      timestamp: Date.now(),
+    }];
+    render(<AIChat provider="ollama" messages={msgs} onMessagesChange={vi.fn()} />);
+    expect(document.body.textContent).not.toContain('<write_file');
+    expandWork();
+    expect(screen.getByText('a.txt')).toBeInTheDocument();
+  });
+});

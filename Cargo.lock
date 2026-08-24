@@ -12550,6 +12550,7 @@ dependencies = [
  "tokio-stream",
  "tokio-tungstenite 0.29.0",
  "toml 0.8.23",
+ "toml_edit 0.22.27",
  "tower 0.4.13",
  "tower-http 0.7.0",
  "tracing",

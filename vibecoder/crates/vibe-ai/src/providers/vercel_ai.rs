@@ -58,6 +58,7 @@ impl VercelAIProvider {
             temperature: self.config.temperature,
             max_tokens: self.config.max_tokens,
             stream,
+            tools: ChatRequest::tools_for(messages),
         }
     }
 }
@@ -256,6 +257,7 @@ mod tests {
             temperature: Some(0.25),
             max_tokens: Some(512),
             stream: true,
+            tools: None,
         };
         let json = serde_json::to_value(&req).unwrap();
         assert_eq!(json["model"], "gpt-4o");
@@ -308,6 +310,7 @@ mod tests {
             temperature: None,
             max_tokens: None,
             stream: false,
+            tools: None,
         };
         let json = serde_json::to_value(&req).unwrap();
         assert_eq!(json["model"], "claude-3-opus");
@@ -342,6 +345,7 @@ mod tests {
             temperature: Some(0.5),
             max_tokens: Some(4096),
             stream: true,
+            tools: None,
         };
         let json = serde_json::to_value(&req).unwrap();
         assert_eq!(json["messages"].as_array().unwrap().len(), 4);

@@ -148,6 +148,7 @@ impl CompatProvider {
             temperature: self.config.temperature,
             max_tokens: self.config.max_tokens,
             stream,
+            tools: ChatRequest::tools_for(messages),
         }
     }
 
@@ -215,6 +216,12 @@ impl AIProvider for CompatProvider {
 
     async fn chat(&self, messages: &[Message], context: Option<String>) -> Result<String> {
         Ok(self.chat_response(messages, context).await?.text)
+    }
+
+    /// Every provider built on this shape sends the schemas — see
+    /// `make_request`.
+    fn advertises_native_tools(&self) -> bool {
+        true
     }
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
@@ -444,6 +451,12 @@ macro_rules! openai_compat_provider {
                 context: Option<String>,
             ) -> anyhow::Result<String> {
                 self.0.chat_with_images(messages, images, context).await
+            }
+            /// Delegated like every other capability: the inner
+            /// `CompatProvider` is the one that builds the request, so it is
+            /// the one that knows whether schemas ride along.
+            fn advertises_native_tools(&self) -> bool {
+                self.0.advertises_native_tools()
             }
         }
     };

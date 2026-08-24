@@ -1418,63 +1418,223 @@ impl ToolExecutor {
     }
 }
 
-/// Apply a unified diff patch string to source text in-process.
-fn apply_unified_patch(original: &str, patch: &str) -> Result<String> {
-    let orig_lines: Vec<&str> = original.lines().collect();
-    let mut result: Vec<String> = Vec::new();
-    let mut orig_idx = 0usize;
+/// One hunk, reduced to the text it expects to find and the text that replaces
+/// it. Line numbers are kept only as a placement hint for a pure insertion.
+#[derive(Debug, PartialEq)]
+struct Hunk {
+    old_start: Option<usize>,
+    old: Vec<String>,
+    new: Vec<String>,
+}
 
-    for chunk in patch.split("\n@@") {
-        if chunk.trim().is_empty() || (!chunk.contains("@@") && result.is_empty()) {
-            continue;
-        }
-        let hunk_str = if chunk.starts_with("@@") {
-            chunk.to_string()
+/// Strip the `*** Begin Patch` envelope gpt-oss and codex-style models emit.
+///
+/// The envelope carries the filename, which the caller already knows from the
+/// tool call, so only the hunk body matters here.
+fn strip_patch_envelope(patch: &str) -> String {
+    patch
+        .lines()
+        .filter(|line| !line.trim_start().starts_with("***"))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Parse a `<<<<<<< SEARCH … ======= … >>>>>>> REPLACE` block, the third format
+/// models reach for. `None` when the text is not one.
+fn parse_search_replace(patch: &str) -> Option<Vec<Hunk>> {
+    if !patch.contains("<<<<<<<") || !patch.contains(">>>>>>>") {
+        return None;
+    }
+    let mut hunks = Vec::new();
+    let mut old: Vec<String> = Vec::new();
+    let mut new: Vec<String> = Vec::new();
+    let mut section = None; // Some(true) = SEARCH, Some(false) = REPLACE
+    for line in patch.lines() {
+        let trimmed = line.trim_end();
+        if trimmed.starts_with("<<<<<<<") {
+            (old, new, section) = (Vec::new(), Vec::new(), Some(true));
+        } else if trimmed.starts_with("=======") && section == Some(true) {
+            section = Some(false);
+        } else if trimmed.starts_with(">>>>>>>") {
+            if section.is_some() {
+                hunks.push(Hunk {
+                    old_start: None,
+                    old: std::mem::take(&mut old),
+                    new: std::mem::take(&mut new),
+                });
+            }
+            section = None;
         } else {
-            format!("@@{}", chunk)
-        };
-
-        let header_end = hunk_str.find('\n').unwrap_or(hunk_str.len());
-        let header = &hunk_str[..header_end];
-        let old_start = parse_hunk_start(header, '-')?;
-        let old_start_0 = old_start.saturating_sub(1);
-
-        while orig_idx < old_start_0 && orig_idx < orig_lines.len() {
-            result.push(orig_lines[orig_idx].to_string());
-            orig_idx += 1;
-        }
-
-        for line in hunk_str[header_end..].lines().skip(1) {
-            if line.starts_with('-') {
-                orig_idx += 1;
-            } else if let Some(added) = line.strip_prefix('+') {
-                result.push(added.to_string());
-            } else if line.starts_with(' ') || line.is_empty() {
-                if orig_idx < orig_lines.len() {
-                    result.push(orig_lines[orig_idx].to_string());
-                }
-                orig_idx += 1;
+            match section {
+                Some(true) => old.push(line.to_string()),
+                Some(false) => new.push(line.to_string()),
+                None => {}
             }
         }
     }
-
-    while orig_idx < orig_lines.len() {
-        result.push(orig_lines[orig_idx].to_string());
-        orig_idx += 1;
-    }
-
-    Ok(result.join("\n"))
+    Some(hunks).filter(|h: &Vec<Hunk>| !h.is_empty())
 }
 
-fn parse_hunk_start(header: &str, sign: char) -> Result<usize> {
-    for part in header.split_whitespace() {
-        if part.starts_with(sign) {
-            let nums = part.trim_start_matches(sign);
-            let start = nums.split(',').next().unwrap_or("1");
-            return Ok(start.parse::<usize>().unwrap_or(1));
+/// Split a unified diff into hunks.
+///
+/// Tolerant on purpose, because models are: the `@@` header may carry line
+/// numbers or not (gpt-oss emits a bare `@@`), and a context line may be
+/// missing its leading space. What is *not* tolerated is a patch that yields no
+/// hunks — see [`apply_unified_patch`].
+fn parse_unified_hunks(patch: &str) -> Vec<Hunk> {
+    let mut hunks: Vec<Hunk> = Vec::new();
+    let mut current: Option<Hunk> = None;
+    for line in patch.lines() {
+        if line.starts_with("@@") {
+            if let Some(hunk) = current.take() {
+                hunks.push(hunk);
+            }
+            current = Some(Hunk {
+                old_start: parse_hunk_start(line, '-'),
+                old: Vec::new(),
+                new: Vec::new(),
+            });
+            continue;
+        }
+        // File headers, not content.
+        if line.starts_with("--- ") || line.starts_with("+++ ") || line.starts_with("diff ") {
+            continue;
+        }
+        // `\ No newline at end of file` is a marker, not a line.
+        if line.starts_with('\\') {
+            continue;
+        }
+        let Some(hunk) = current.as_mut() else {
+            continue;
+        };
+        match line.chars().next() {
+            Some('+') => hunk.new.push(line[1..].to_string()),
+            Some('-') => hunk.old.push(line[1..].to_string()),
+            Some(' ') => {
+                hunk.old.push(line[1..].to_string());
+                hunk.new.push(line[1..].to_string());
+            }
+            // A context line whose leading space the model dropped, or a blank
+            // line. Either way it belongs to both sides.
+            _ => {
+                hunk.old.push(line.to_string());
+                hunk.new.push(line.to_string());
+            }
         }
     }
-    Ok(1)
+    hunks.extend(current);
+    hunks
+}
+
+/// Index of `needle` in `haystack` at or after `from`, matching whole lines.
+///
+/// Falls back to comparing lines with trailing whitespace ignored, which is the
+/// difference models most often introduce when they retype context.
+fn find_line_block(haystack: &[String], needle: &[String], from: usize) -> Option<usize> {
+    if needle.is_empty() || needle.len() > haystack.len() {
+        return None;
+    }
+    let exact = |window: &[String]| window == needle;
+    let loose = |window: &[String]| {
+        window
+            .iter()
+            .zip(needle)
+            .all(|(a, b)| a.trim_end() == b.trim_end())
+    };
+    let last = haystack.len() - needle.len();
+    // Search forward from the cursor first, then from the top: a model that
+    // emits hunks out of order still gets its patch applied.
+    let starts = (from..=last).chain(0..from.min(last + 1));
+    for start in starts.clone() {
+        if exact(&haystack[start..start + needle.len()]) {
+            return Some(start);
+        }
+    }
+    starts.into_iter().find(|&start| loose(&haystack[start..start + needle.len()]))
+}
+
+/// Apply a unified diff, a `*** Begin Patch` envelope, or a SEARCH/REPLACE
+/// block to source text in-process.
+///
+/// Hunks are located by **searching for their context**, not by trusting the
+/// line numbers in the header — models get those wrong routinely, and applying
+/// a hunk at the wrong offset corrupts the file while reporting success.
+///
+/// Errors rather than returning the original when the patch parses to no hunks,
+/// when a hunk's context is not in the file, or when the result is identical to
+/// the input. All three used to be silent no-ops reported as "Patch applied":
+/// measured with gpt-oss:20b, whose bare-`@@` patch left the file untouched
+/// while the agent announced the edit and its verifier passed.
+fn apply_unified_patch(original: &str, patch: &str) -> Result<String> {
+    let body = strip_patch_envelope(patch);
+    let hunks = match parse_search_replace(patch) {
+        Some(hunks) => hunks,
+        None => parse_unified_hunks(&body),
+    };
+    let hunks: Vec<Hunk> = hunks
+        .into_iter()
+        .filter(|h| !(h.old.is_empty() && h.new.is_empty()))
+        .collect();
+    if hunks.is_empty() {
+        anyhow::bail!(
+            "patch contains no hunks — expected a unified diff (`@@` … `+`/`-` lines), a \
+             `*** Begin Patch` block, or a SEARCH/REPLACE block"
+        );
+    }
+
+    let had_trailing_newline = original.ends_with('\n');
+    let mut lines: Vec<String> = original.lines().map(str::to_string).collect();
+    let mut cursor = 0usize;
+
+    for (index, hunk) in hunks.iter().enumerate() {
+        if hunk.old.is_empty() {
+            // A pure insertion. The header's line number is the only
+            // placement hint it carries, so an absent header means "append".
+            let at = hunk
+                .old_start
+                .map(|start| start.saturating_sub(1).min(lines.len()))
+                .unwrap_or(lines.len());
+            lines.splice(at..at, hunk.new.iter().cloned());
+            cursor = at + hunk.new.len();
+            continue;
+        }
+        let at = find_line_block(&lines, &hunk.old, cursor).ok_or_else(|| {
+            anyhow::anyhow!(
+                "hunk {} does not match the file — its context ({:?}) is not present. \
+                 Re-read the file and patch against what it actually contains.",
+                index + 1,
+                hunk.old.first().map(String::as_str).unwrap_or(""),
+            )
+        })?;
+        lines.splice(at..at + hunk.old.len(), hunk.new.iter().cloned());
+        cursor = at + hunk.new.len();
+    }
+
+    let mut patched = lines.join("\n");
+    // A patch must not silently strip the file's final newline.
+    if had_trailing_newline && !patched.is_empty() {
+        patched.push('\n');
+    }
+    if patched == original {
+        anyhow::bail!(
+            "patch applied cleanly but changed nothing — the file already contains what the \
+             patch adds, or the hunk had no `+`/`-` lines"
+        );
+    }
+    Ok(patched)
+}
+
+/// The `-`/`+` start line from a hunk header, when it carries one.
+///
+/// `None` for the bare `@@` header gpt-oss emits — the caller then places the
+/// hunk by searching for its context instead of guessing line 1, which is what
+/// silently misplaced patches before.
+fn parse_hunk_start(header: &str, sign: char) -> Option<usize> {
+    header
+        .split_whitespace()
+        .find(|part| part.starts_with(sign))
+        .and_then(|part| part.trim_start_matches(sign).split(',').next())
+        .and_then(|num| num.parse::<usize>().ok())
 }
 
 /// Very simple glob matching: only `*` wildcard supported.
@@ -2032,12 +2192,15 @@ mod tests {
         assert_eq!(parse_hunk_start(line, '+').unwrap(), 10);
     }
 
+    /// A header with no line numbers reports *absence*, not line 1. Guessing
+    /// 1 is what placed gpt-oss's bare-`@@` hunks at the top of the file (or,
+    /// via the old chunk split, nowhere at all) — the caller now searches for
+    /// the hunk's context instead.
     #[test]
-    fn parse_hunk_start_malformed_header() {
-        // No `-` or `+` token present — function returns Ok(1) as fallback
-        let line = "@@ some garbage @@";
-        assert_eq!(parse_hunk_start(line, '-').unwrap(), 1);
-        assert_eq!(parse_hunk_start(line, '+').unwrap(), 1);
+    fn parse_hunk_start_reports_a_missing_number_as_none() {
+        assert_eq!(parse_hunk_start("@@ some garbage @@", '-'), None);
+        assert_eq!(parse_hunk_start("@@", '-'), None);
+        assert_eq!(parse_hunk_start("@@ -1,3 +1,4 @@", '-'), Some(1));
     }
 
     // ── decode_html_entities additional tests ────────────────────────────────
@@ -2187,12 +2350,95 @@ mod tests {
         assert!(!result.contains("bbb"));
     }
 
+    /// An empty patch is a failed edit, not a successful no-op. Returning the
+    /// original made "Patch applied" true of a file nothing had touched.
     #[test]
-    fn apply_patch_empty_patch_returns_original() {
-        let original = "hello\nworld";
-        let patch = "";
-        let result = apply_unified_patch(original, patch).unwrap();
-        assert_eq!(result, original);
+    fn apply_patch_empty_patch_is_an_error() {
+        let err = apply_unified_patch("hello\nworld", "")
+            .expect_err("an empty patch must not report success");
+        assert!(err.to_string().contains("no hunks"), "{err}");
+    }
+
+    // ── The formats models actually emit ──────────────────────────────────
+    //
+    // Each of these was a silent no-op before: the patch parsed to nothing,
+    // `Ok(original)` came back, and the caller wrote the unchanged file and
+    // announced the edit.
+
+    /// Captured from gpt-oss:20b — a bare `@@` with no line numbers, whose
+    /// context sits at line 3.
+    #[test]
+    fn headerless_hunk_is_placed_by_its_context() {
+        let original = "# Probe\n\nA test repo.\n";
+        let patch = "--- a/README.md\n+++ b/README.md\n@@\n A test repo.\n+probe ok\n";
+        let result = apply_unified_patch(original, patch).expect("must apply");
+        assert_eq!(result, "# Probe\n\nA test repo.\nprobe ok\n");
+    }
+
+    #[test]
+    fn codex_begin_patch_envelope_applies() {
+        let original = "# Probe\n\nA test repo.\n";
+        let patch = "*** Begin Patch\n*** Update File: README.md\n@@\n A test repo.\n+probe ok\n*** End Patch\n";
+        let result = apply_unified_patch(original, patch).expect("must apply");
+        assert!(result.contains("probe ok"), "{result:?}");
+    }
+
+    #[test]
+    fn search_replace_block_applies() {
+        let original = "# Probe\n\nA test repo.\n";
+        let patch = "<<<<<<< SEARCH\nA test repo.\n=======\nA test repo.\nprobe ok\n>>>>>>> REPLACE\n";
+        let result = apply_unified_patch(original, patch).expect("must apply");
+        assert_eq!(result, "# Probe\n\nA test repo.\nprobe ok\n");
+    }
+
+    /// Wrong line numbers used to apply the hunk at the wrong offset. The
+    /// context is authoritative; the header is a hint.
+    #[test]
+    fn wrong_line_numbers_still_land_on_the_context() {
+        let original = "aaa\nbbb\nccc\n";
+        let patch = "@@ -40,2 +40,3 @@\n bbb\n+inserted\n";
+        let result = apply_unified_patch(original, patch).expect("must apply");
+        assert_eq!(result, "aaa\nbbb\ninserted\nccc\n");
+    }
+
+    /// Context that is nowhere in the file is a failed patch, not a no-op.
+    #[test]
+    fn context_that_does_not_match_is_an_error() {
+        let err = apply_unified_patch("aaa\nbbb\n", "@@\n zzz\n+new\n")
+            .expect_err("a hunk that matches nothing must fail");
+        assert!(err.to_string().contains("does not match"), "{err}");
+    }
+
+    /// The whole point of #4: a patch that changes nothing must say so.
+    #[test]
+    fn a_patch_that_changes_nothing_is_an_error() {
+        let err = apply_unified_patch("aaa\nbbb\n", "@@\n aaa\n bbb\n")
+            .expect_err("a no-op patch must not report success");
+        assert!(err.to_string().contains("changed nothing"), "{err}");
+    }
+
+    /// POSIX text files end with a newline. Every patch used to eat it.
+    #[test]
+    fn the_trailing_newline_survives() {
+        let with = apply_unified_patch("a\nb\n", "@@\n a\n+mid\n b\n").expect("must apply");
+        assert!(with.ends_with('\n'), "{with:?}");
+        let without = apply_unified_patch("a\nb", "@@\n a\n+mid\n b").expect("must apply");
+        assert!(!without.ends_with('\n'), "{without:?}");
+    }
+
+    /// Models retype context and lose trailing whitespace; that must not turn
+    /// into "context not found".
+    #[test]
+    fn trailing_whitespace_in_context_is_tolerated() {
+        let result = apply_unified_patch("fn a() {   \nbody\n", "@@\n fn a() {\n+// note\n")
+            .expect("must apply");
+        assert!(result.contains("// note"), "{result:?}");
+    }
+
+    #[test]
+    fn a_pure_insertion_without_context_appends() {
+        let result = apply_unified_patch("a\nb\n", "@@\n+c\n").expect("must apply");
+        assert_eq!(result, "a\nb\nc\n");
     }
 
     #[test]

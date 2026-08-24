@@ -229,6 +229,7 @@ mod tests {
             temperature: None,
             max_tokens: None,
             stream: false,
+            tools: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         let val: serde_json::Value = serde_json::from_str(&json).unwrap();
@@ -255,6 +256,7 @@ mod tests {
             temperature: Some(0.8),
             max_tokens: Some(512),
             stream: true,
+            tools: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         let val: serde_json::Value = serde_json::from_str(&json).unwrap();
@@ -351,6 +353,7 @@ mod tests {
             temperature: Some(0.0),
             max_tokens: Some(1),
             stream: false,
+            tools: None,
         };
         let val = serde_json::to_value(&req).unwrap();
         assert_eq!(val["model"], "llama3.1-8b");

@@ -115,12 +115,44 @@ The `ChatEngine` (from `vibe-ai`) manages provider instances. The provider `Arc<
 
 ### 2c. Build system prompt
 
-The system message is constructed with:
+One builder — `chat_system_prompt()` in `commands.rs` — serves both
+`send_chat_message` and `stream_chat_message`. The system message is
+constructed with:
 
-1. **Base instructions** — XML tool tags (`<write_file>`, `<read_file>`, `<list_dir>`, `<build />`, `<run />`)
-2. **AI Rules** — from `.vibe/rules.md` or `.vibecoder/rules.md` in workspace
-3. **File tree** — list of workspace files for context
-4. **Mode-specific** — planning mode adds "do NOT write code directly" instructions
+1. **Base instructions** — the canonical `<tool_call name="…">` form, plus the
+   legacy XML tags (`<write_file>`, `<read_file>`, `<list_dir>`, `<build />`,
+   `<run />`), which are still accepted
+2. **`## File Tools`** — the marker providers read to decide whether to send the
+   chat tool schemas natively (see [Native tool calling](#native-tool-calling))
+3. **AI Rules** — from `.vibe/rules.md` or `.vibecoder/rules.md` in workspace
+4. **File tree** — list of workspace files for context
+5. **Mode-specific** — planning mode adds "do NOT write code directly" instructions
+
+### Native tool calling
+
+Describing tools only in prose works for models that follow prose. A model
+trained for native tool calling has nothing to call: it narrates its intent and
+returns an empty turn. Measured across three local models (lfm2.5, gpt-oss:20b,
+ornith), *every* chat turn came back with an empty `content` and the whole turn
+in `thinking`, and gpt-oss reached for its own built-in `container.exec` — a
+tool this product does not have.
+
+So the chat path advertises its five tools as callable functions whenever the
+prompt carries the `## File Tools` marker
+(`vibe_ai::tools::tool_definitions_for`). What comes back is transcribed to
+`<tool_call name="…">` markup and rewritten into the tag dialect the executor
+scans for, so there is one wire format and two executors rather than two
+dialects.
+
+Two corrections run after the turn, each at most once:
+
+| condition | what happens |
+|---|---|
+| the turn called a tool this panel does not have | the model is told the real tool list and asked to retry |
+| the turn is reasoning and nothing else | the model is asked for the answer itself |
+
+Neither invents content: if the retry comes back empty too, the original turn
+stands.
 
 ### 2d. Resolve @-references
 
@@ -233,12 +265,20 @@ After streaming completes, the accumulated response is scanned for XML tool tags
 
 | Tag | Action |
 |-----|--------|
+| `<tool_call name="…">…</tool_call>` | Canonical form — rewritten into the tags below before execution |
 | `<read_file path="..." />` | Read file via workspace FileSystem |
 | `<write_file path="...">content</write_file>` | Write file to disk (creates parent dirs) |
 | `<list_dir path="..." />` | List directory entries |
 | `<build />` or `<build command="..." />` | Auto-detect build system or run custom command |
 | `<run />` or `<run command="..." />` | Auto-detect run command or run custom command |
 | `` ```path/to/file.ext `` (fenced code block) | Fallback: write code block content to file path |
+
+File content is normalised before it reaches disk
+(`vibe_ai::tools::normalize_file_content`): an enclosing ``` fence is removed, a
+stray `</think>` is dropped, and content that arrived JSON-escaped — no real
+newlines, two or more literal `\n` — is unescaped. lfm2.5 handed over
+`"# Probe\n\nA test repo.\n"` for a three-line file; written verbatim it
+became one line.
 
 ### Security
 
