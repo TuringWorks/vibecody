@@ -13468,8 +13468,14 @@ async fn main() -> Result<()> {
                                 "models" => {
                                     println!("Available Whisper models:\n");
                                     for model in voice_local::WhisperModel::all() {
-                                        let downloaded = voice::is_model_downloaded(&model);
-                                        let marker = if downloaded { "[downloaded]" } else { "" };
+                                        // The path is what a user needs to
+                                        // delete a model by hand or point
+                                        // another tool at it; absent means
+                                        // not downloaded, so say nothing.
+                                        let marker = match voice::model_path(&model) {
+                                            Some(path) => format!("[downloaded] {}", path.display()),
+                                            None => String::new(),
+                                        };
                                         println!(
                                             "  {:8} {:>5}MB  {}",
                                             model.name(),
@@ -13477,7 +13483,51 @@ async fn main() -> Result<()> {
                                             marker
                                         );
                                     }
-                                    println!("\nUse /voice download <model> to download.\n");
+                                    println!("\nUse /voice download <model> to download, /voice remove <model> to free the space.\n");
+                                }
+                                "remove" | "delete" => {
+                                    let model_name = if sub_args.is_empty() {
+                                        &vcfg.local_model
+                                    } else {
+                                        sub_args
+                                    };
+                                    match voice_local::WhisperModel::from_name(model_name) {
+                                        // `false` is "there was nothing to
+                                        // delete" — the end state the user
+                                        // wanted, but not disk space freed,
+                                        // and saying "removed" would claim
+                                        // work that did not happen.
+                                        Some(model) => match voice::delete_model(&model) {
+                                            Ok(true) => {
+                                                println!("Removed model '{}'.\n", model.name())
+                                            }
+                                            Ok(false) => println!(
+                                                "Model '{}' was not downloaded — nothing to remove.\n",
+                                                model.name()
+                                            ),
+                                            Err(e) => println!("Remove failed: {e}\n"),
+                                        },
+                                        None => {
+                                            println!("Unknown model '{}'. Available: tiny, base, small, medium, large\n", model_name);
+                                        }
+                                    }
+                                }
+                                "set" => {
+                                    match voice::parse_voice_setting(sub_args) {
+                                        Ok((local_model, language, prefer_local)) => {
+                                            match Config::set_voice_settings(
+                                                local_model.as_deref(),
+                                                language.as_deref(),
+                                                prefer_local,
+                                            ) {
+                                                Ok(()) => println!(
+                                                    "Saved to ~/.vibecli/config.toml — takes effect on the next /voice command.\n"
+                                                ),
+                                                Err(e) => println!("Could not save: {e}\n"),
+                                            }
+                                        }
+                                        Err(e) => println!("{e}\n"),
+                                    }
                                 }
                                 "status" => {
                                     println!("{}\n", dispatcher.status());
@@ -13488,7 +13538,9 @@ async fn main() -> Result<()> {
                                     println!("  speak <text>       Text-to-speech (cloud ElevenLabs or local)");
                                     println!("  listen             Record from mic and transcribe");
                                     println!("  download [model]   Download a Whisper model for offline use");
+                                    println!("  remove [model]     Delete a downloaded model and free its disk space");
                                     println!("  models             List available models");
+                                    println!("  set <key> <value>  Set model | language | prefer_local in config.toml");
                                     println!(
                                         "  status             Show voice engine configuration\n"
                                     );
