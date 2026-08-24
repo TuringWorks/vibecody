@@ -311,7 +311,7 @@ In REPL mode, the following slash commands are available:
 | `/openmemory export` | Dump all memories as markdown |
 | `/openmemory import [fmt] <file>` | Import from mem0 / Zep / native JSON (`auto` detects format) |
 | `/openmemory ingest <file>` | Chunk & store document as cognitive memories (400-char chunks) |
-| `/openmemory encrypt` | Enable AES-256-GCM encryption at rest |
+| `/openmemory encrypt` | Enable XOR obfuscation at rest (not cryptographic — see memory-guide.md) |
 | `/openmemory context [query]` | Preview the 4-layer context block the agent receives |
 | `/openmemory layered [query]` | Alias for `context` with explicit layer labels |
 | `/openmemory chunk <text\|file:path>` | Ingest text as verbatim 800-char chunks (MemPalace — no LLM summarisation) |
@@ -1078,7 +1078,7 @@ In VibeCoder, the **Tests** panel provides a richer experience with live streami
 
 ## Skills System
 
-VibeCody ships with **568 skill files** across 25+ categories covering finance, healthcare, security, cloud (AWS/Azure/GCP), data engineering, robotics, compliance, SRE, and more. Skills activate based on trigger keywords. Place custom `.md` files in `.vibecli/skills/` or `~/.vibecli/skills/`:
+VibeCody ships with **1,144 skill files** across 155 categories covering finance, healthcare, security, cloud (AWS/Azure/GCP), data engineering, robotics, compliance, SRE, and more. Skills activate based on trigger keywords. Place custom `.md` files in `.vibecli/skills/` or `~/.vibecli/skills/`:
 
 ```markdown
 name: rust-testing
@@ -1159,7 +1159,7 @@ Spans include session ID, task, tool name, and step metadata.
 ```
 vibecli/
 └── vibecli-cli/
-    ├── skills/             # 568 skill files (25+ categories)
+    ├── skills/             # 1,144 skill files (155 categories)
     └── src/
         ├── main.rs         # CLI argument parsing, command dispatch
         ├── config.rs       # Config loading/saving (TOML)

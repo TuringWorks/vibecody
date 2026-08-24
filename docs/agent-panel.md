@@ -40,7 +40,7 @@ While the agent is running, the panel shows:
 | `running` | Streaming card + step feed populated; Stop button visible |
 | `complete` | Reset button visible |
 | `partial` | Resume button visible (resumes from last checkpoint) + Reset |
-| `error` | Retry button (preserves completed steps) + Reset |
+| `error` | Retry button (re-runs the task from the start; the step feed stays on screen for reference) + Reset |
 
 Status changes are announced via a screen-reader-only `aria-live="polite"` region — AT users hear "Agent is running" / "Agent task complete" without visual cues.
 

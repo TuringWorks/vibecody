@@ -7,7 +7,7 @@
 
 ## AI Providers
 
-**24+ providers.** Model lists and per-provider defaults live in one file — `vibecoder/src/hooks/useModelRegistry.ts` (see [CLAUDE.md → Adding / updating providers and models](../CLAUDE.md)). Every panel that calls an LLM must honour the toolbar's provider/model selection; **no panel may hard-code a vendor** ([AGENTS.md → Provider-Agnostic Panels — STRICT](../AGENTS.md)).
+**25 providers.** Model lists and per-provider defaults live in one file — `vibecoder/src/hooks/useModelRegistry.ts` (see [CLAUDE.md → Adding / updating providers and models](../CLAUDE.md)). Every panel that calls an LLM must honour the toolbar's provider/model selection; **no panel may hard-code a vendor** ([AGENTS.md → Provider-Agnostic Panels — STRICT](../AGENTS.md)).
 
 | Provider | VibeCLI | VibeCoder | Notes (models current as of 2026-07-30) |
 |---|:---:|:---:|---|
@@ -16,7 +16,7 @@
 | OpenAI | ✅ | ✅ | GPT-5.6 Sol / Terra / Luna, GPT-5.5, GPT-5.3-Codex |
 | Google Gemini | ✅ | ✅ | Gemini 3.6 Flash, 3.5 Flash / Flash-Lite, 3.1 Pro |
 | Ollama (local + Cloud/Turbo) | ✅ | ✅ | Any Ollama-served model, auto-detect; Cloud models (`*-cloud`) via bearer token |
-| mistral.rs (in-process local) | ✅ | ✅ | GGUF / quantised local inference — no server required |
+| mistral.rs (in-process local) | ✅ macOS · ⚙️ᴮ | ✅ macOS · ⚙️ᴮ | GGUF / quantised local inference — no server required. **In the macOS downloads only**; Linux / Windows need a source build ᴮ |
 | AWS Bedrock | ✅ | ✅ | Claude, Titan, Llama via Bedrock API + SigV4 |
 | Azure OpenAI | ✅ | ✅ | Custom deployment endpoint |
 | Groq | ✅ | ✅ | Ultra-fast inference |
@@ -43,6 +43,10 @@
 | Cost-optimized routing (heuristic) | ✅ | ⚙️ | `/route` + `cost_router.rs` |
 
 ᴬ **Registry append pending.** The provider integration works; these specific new model IDs are not yet listed in `useModelRegistry.ts`.
+
+ᴮ **mistral.rs is compiled into the macOS binaries only.** `vibecli`'s `build.rs` emits `cfg(mistralrs_enabled)` for any `target_os = "macos"` build, and a `[target.'cfg(target_os = "macos")'.dependencies]` block adds the Metal-accelerated backend — so the macOS artifacts (and VibeCoder, which links `vibecli`) carry it with no flag to remember. **The Linux, Windows and Docker artifacts do not.** Calling the backend there returns `BackendError::Unavailable` — *"mistralrs backend not built — recompile vibecli with `--features vibe-mistralrs`"* — while the daemon and the Ollama backend keep working. Build from source for CPU (`vibe-mistralrs`), NVIDIA (`vibe-mistralrs-cuda`) or Ampere+ flash-attention (`vibe-mistralrs-flash-attn`, implies CUDA).
+
+Coverage, so the ✅ is not read as more than it is: only **macOS arm64** runs this backend in CI (`metal-gpu-tests`, on both the precompiled-metallib and `MISTRALRS_METAL_PRECOMPILE=0` runtime-compile paths). Intel macOS compiles and ships but its Metal path is never executed there, and the Linux / Windows feature builds have no CI coverage at all.
 
 > ⚠ **Known issue:** the `gemini` provider default currently points at an unreleased model ID and will be corrected to `gemini-3.6-flash`.
 
@@ -147,7 +151,7 @@
 | `.vibecoder.md` workspace rules | ❌ | ✅ | Injected into every AI prompt |
 | Semantic index (fast search) | ✅ | ✅ | Trigram + LRU cache |
 | Code Graph (kodegraph) | ✅ | ✅ | tree-sitter → SQLite graph at `.vibecli/codegraph.db`; god-node/community summary replaces the dir-tree repo map in the agent system prompt; TUI seeds `## Relevant Symbols` via blast-radius. Background build on daemon startup; `/graph/*` + `/watch/graph/*` routes; `/semindex` CLI (`build/query/node/callers/callees/hierarchy/stats`) |
-| SkillForge (skill optimisation) | ✅ | ✅ | `skilllensai-rs` (analyse: trajectory → extract → score) + `skilloptai-rs` (train: rollout → bounded edit → strict held-out gate → epoch) wired through one daemon bridge `skillforge_index.rs`; `/v1/skilllens/*` + `/v1/skillopt/*` + `/watch/skilllens/*` routes; VibeCoder `SkillForgePanel` (Catalog / Lens / Optimize) in `AiMlComposite`; full surface in VS Code + Agent SDK, read-only catalog/status on Flutter + Watch + Wear. Provider-agnostic (toolbar `selectedProvider`/`selectedModel`); promote writes `*.opt.md` (shipped 1,143 skills untouched) |
+| SkillForge (skill optimisation) | ✅ | ✅ | `skilllensai-rs` (analyse: trajectory → extract → score) + `skilloptai-rs` (train: rollout → bounded edit → strict held-out gate → epoch) wired through one daemon bridge `skillforge_index.rs`; `/v1/skilllens/*` + `/v1/skillopt/*` + `/watch/skilllens/*` routes; VibeCoder `SkillForgePanel` (Catalog / Lens / Optimize) in `AiMlComposite`; full surface in VS Code + Agent SDK, read-only catalog/status on Flutter + Watch + Wear. Provider-agnostic (toolbar `selectedProvider`/`selectedModel`); promote writes `*.opt.md` (shipped 1,144 skills untouched) |
 | Hierarchical project memory | ✅ | ✅ | system → user → project → dir |
 | Session memory (auto-extracted) | ✅ | ✅ | Facts from assistant messages |
 | Pinned memory in system prompt | ❌ | ✅ | ChatMemoryPanel |

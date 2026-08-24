@@ -724,37 +724,354 @@ pub fn expects_tools<'a>(message_contents: impl IntoIterator<Item = &'a str>) ->
         .any(|c| c.contains(TOOL_PROMPT_MARKER))
 }
 
-pub fn tool_definitions() -> Vec<serde_json::Value> {
-    /// One tool, as an OpenAI-shaped function schema.
-    fn tool(
-        name: &str,
-        description: &str,
-        params: &[(&str, &str, &str)], // (name, json type, description)
-        required: &[&str],
-    ) -> serde_json::Value {
-        let properties: serde_json::Map<String, serde_json::Value> = params
-            .iter()
-            .map(|(p, ty, desc)| {
-                (
-                    (*p).to_string(),
-                    serde_json::json!({ "type": ty, "description": desc }),
-                )
-            })
-            .collect();
-        serde_json::json!({
-            "type": "function",
-            "function": {
-                "name": name,
-                "description": description,
-                "parameters": {
-                    "type": "object",
-                    "properties": properties,
-                    "required": required,
-                },
-            }
+/// One tool, as an OpenAI-shaped function schema.
+///
+/// Shared by [`tool_definitions`] and [`chat_tool_definitions`] so the agent
+/// loop and the chat panel describe a tool to the model in exactly one shape.
+fn tool(
+    name: &str,
+    description: &str,
+    params: &[(&str, &str, &str)], // (name, json type, description)
+    required: &[&str],
+) -> serde_json::Value {
+    let properties: serde_json::Map<String, serde_json::Value> = params
+        .iter()
+        .map(|(p, ty, desc)| {
+            (
+                (*p).to_string(),
+                serde_json::json!({ "type": ty, "description": desc }),
+            )
         })
+        .collect();
+    serde_json::json!({
+        "type": "function",
+        "function": {
+            "name": name,
+            "description": description,
+            "parameters": {
+                "type": "object",
+                "properties": properties,
+                "required": required,
+            },
+        }
+    })
+}
+
+/// [`TOOL_SYSTEM_PROMPT`] with the per-tool XML catalogue replaced by a
+/// three-line pointer, for providers that send the tools as machine-readable
+/// schemas.
+///
+/// The catalogue exists to teach a model tools it cannot otherwise see. When
+/// the request carries [`tool_definitions`], the model already has every name,
+/// parameter and description — so the catalogue is the same information paid
+/// for twice. Measured: the full prompt plus schemas cost 4,517–4,959 prompt
+/// tokens per turn on lfm2.5, gpt-oss:20b and ornith; a short prompt plus the
+/// same schemas cost 965.
+///
+/// Everything that is *not* a tool description — the escaping rules, the
+/// workflow, the deployment and safety sections — is kept verbatim. Those
+/// shape behaviour and are not carried by any schema, which is why this is a
+/// 30% cut (15,382 → 10,772 chars, roughly 3.8k → 2.7k tokens) rather than the
+/// 965-token figure above: that probe sent a two-line prompt and no policy at
+/// all.
+pub static TOOL_SYSTEM_PROMPT_COMPACT: LazyLock<String> = LazyLock::new(|| {
+    let catalogue_start = TOOL_SYSTEM_PROMPT
+        .find(TOOL_PROMPT_MARKER)
+        .expect("the prompt carries its own marker");
+    let catalogue_end = TOOL_SYSTEM_PROMPT
+        .find("## Developer Workflow Best Practices")
+        .expect("the prompt has a workflow section after the catalogue");
+    format!(
+        "{prefix}{marker}\n\nYou have exactly these tools, supplied to you as callable \
+         functions with their parameters and descriptions: {names}.\n\nCall them by name. If \
+         your API does not expose them as functions, emit the `<tool_call name=\"…\">` form \
+         shown above. Never invent a tool that is not on this list.\n\n{suffix}",
+        prefix = &TOOL_SYSTEM_PROMPT[..catalogue_start],
+        marker = TOOL_PROMPT_MARKER,
+        names = AVAILABLE_TOOL_NAMES.join(", "),
+        suffix = &TOOL_SYSTEM_PROMPT[catalogue_end..],
+    )
+});
+
+/// The agent system prompt to use against a provider that does — or does not —
+/// put the tool schemas on the wire.
+pub fn agent_system_prompt(native_tools: bool) -> &'static str {
+    match native_tools {
+        true => TOOL_SYSTEM_PROMPT_COMPACT.as_str(),
+        false => TOOL_SYSTEM_PROMPT,
+    }
+}
+
+/// Marker for the chat panel's tool section, the way [`TOOL_PROMPT_MARKER`]
+/// marks the agent's. Providers read it to decide which tool set a
+/// conversation expects — see [`tool_definitions_for`].
+pub const CHAT_TOOL_PROMPT_MARKER: &str = "## File Tools";
+
+/// The chat panel's tool vocabulary. Narrower than the agent's on purpose: a
+/// chat turn edits and inspects, it does not spawn agents or record memory.
+pub const CHAT_TOOL_NAMES: &[&str] = &["read_file", "write_file", "list_dir", "build", "run"];
+
+/// Which tool vocabulary a conversation was built for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ToolSet {
+    /// The agent loop's 14 tools ([`tool_definitions`]).
+    Agent,
+    /// The chat panel's 5 file/build tools ([`chat_tool_definitions`]).
+    Chat,
+}
+
+impl ToolSet {
+    /// Machine-readable schemas for this set.
+    pub fn definitions(self) -> Vec<serde_json::Value> {
+        match self {
+            Self::Agent => tool_definitions(),
+            Self::Chat => chat_tool_definitions(),
+        }
     }
 
+    /// Every tool name this set accepts.
+    pub fn names(self) -> &'static [&'static str] {
+        match self {
+            Self::Agent => AVAILABLE_TOOL_NAMES,
+            Self::Chat => CHAT_TOOL_NAMES,
+        }
+    }
+}
+
+/// Which tool set — if any — this conversation expects, read off the system
+/// prompt's marker.
+///
+/// The agent marker wins when both appear: an agent run that quotes a chat
+/// prompt is still an agent run.
+pub fn tool_set_for<'a>(message_contents: impl IntoIterator<Item = &'a str>) -> Option<ToolSet> {
+    let mut chat = false;
+    for content in message_contents {
+        if content.contains(TOOL_PROMPT_MARKER) {
+            return Some(ToolSet::Agent);
+        }
+        chat |= content.contains(CHAT_TOOL_PROMPT_MARKER);
+    }
+    chat.then_some(ToolSet::Chat)
+}
+
+/// Schemas to advertise on the request's `tools` field for this conversation,
+/// or `None` when it asked for no tools at all.
+///
+/// A model trained for native tool calling has nothing to call when the tools
+/// live only in prose: measured against three local models (lfm2.5, gpt-oss:20b,
+/// ornith), every chat-path turn came back with an empty `content` and the whole
+/// turn in `thinking`, and gpt-oss reached for its built-in `container.exec`
+/// instead. Advertising the schemas turned all of those into real calls.
+pub fn tool_definitions_for<'a>(
+    message_contents: impl IntoIterator<Item = &'a str>,
+) -> Option<Vec<serde_json::Value>> {
+    tool_set_for(message_contents).map(ToolSet::definitions)
+}
+
+/// The chat panel's tools, in the same machine-readable shape as
+/// [`tool_definitions`].
+pub fn chat_tool_definitions() -> Vec<serde_json::Value> {
+    vec![
+        tool(
+            "read_file",
+            "Read a file from the workspace and show its contents.",
+            &[("path", "string", "File path, relative to the project root")],
+            &["path"],
+        ),
+        tool(
+            "write_file",
+            "Write the COMPLETE contents of a file, creating or replacing it.",
+            &[
+                ("path", "string", "File path, relative to the project root"),
+                ("content", "string", "Full file contents, not a fragment"),
+            ],
+            &["path", "content"],
+        ),
+        tool(
+            "list_dir",
+            "List the entries of a directory in the workspace.",
+            &[(
+                "path",
+                "string",
+                "Directory path, relative to the project root",
+            )],
+            &["path"],
+        ),
+        tool(
+            "build",
+            "Build or compile the project. The build system is auto-detected.",
+            &[(
+                "command",
+                "string",
+                "Optional custom build command; omit to auto-detect",
+            )],
+            &[],
+        ),
+        tool(
+            "run",
+            "Run the application. The run command is auto-detected.",
+            &[(
+                "command",
+                "string",
+                "Optional custom run command; omit to auto-detect",
+            )],
+            &[],
+        ),
+    ]
+}
+
+/// Every `<tool_call name="…">…</tool_call>` block in `text`, as
+/// `(tool name, parameters)` — without deciding whether the tool exists.
+///
+/// [`parse_tool_calls`] answers "which of *the agent's* tools did the model
+/// call"; this answers "what did the model emit", which is what a second
+/// executor with a different vocabulary (the chat panel) needs in order to
+/// share one wire format. Reasoning is stripped first, so a tool call the model
+/// only mused about is not reported.
+pub fn parse_tool_call_blocks(text: &str) -> Vec<(String, Vec<(String, String)>)> {
+    let visible = strip_thinking(text);
+    tool_call_re()
+        .captures_iter(&visible)
+        .map(|cap| {
+            let name = cap[1].trim().to_string();
+            (name, parse_tool_params(&cap[2]))
+        })
+        .collect()
+}
+
+/// `text` with every `<tool_call …>…</tool_call>` block removed.
+///
+/// The blocks are instructions to the harness, not prose for the reader: a
+/// panel that renders them verbatim shows the user raw markup where the answer
+/// should be. Surrounding text is kept, with the whitespace tidied.
+pub fn strip_tool_call_blocks(text: &str) -> String {
+    match tool_call_re().is_match(text) {
+        false => text.to_string(),
+        true => {
+            let stripped = tool_call_re().replace_all(text, "");
+            let mut out = String::with_capacity(stripped.len());
+            for line in stripped.lines() {
+                if line.trim().is_empty() && out.ends_with("\n\n") {
+                    continue;
+                }
+                out.push_str(line.trim_end());
+                out.push('\n');
+            }
+            out.trim_end().to_string()
+        }
+    }
+}
+
+/// Clean up file content a model handed to `write_file` (or a patch body)
+/// before it reaches the disk.
+///
+/// Three faults, each measured coming out of a local model:
+///
+///  * **JSON-escaped text.** lfm2.5 answered `write_file` with
+///    `"# Probe\\n\\nA test repo.\\n"` — literal backslash-n. Written verbatim,
+///    a three-line README became one line. Unescaped only when the content has
+///    no real newline at all and at least two escapes, so a single-line file
+///    that legitimately contains `\n` inside a string literal is left alone —
+///    the residual risk, and the reason the guard is this narrow.
+///  * **A stray reasoning close tag.** ornith ends content with `</think>`.
+///  * **A fence around the whole file.** Models wrap content in ``` … ```.
+pub fn normalize_file_content(content: &str) -> String {
+    let content = strip_orphan_reasoning_tags(content);
+    let content = strip_enclosing_fence(&content);
+    match needs_unescaping(&content) {
+        true => unescape_json_style(&content),
+        false => content,
+    }
+}
+
+/// A close tag whose opener the reasoning stripper already consumed.
+fn strip_orphan_reasoning_tags(content: &str) -> String {
+    static ORPHAN: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"(?i)</\s*(?:[A-Za-z][\w.-]*:)?think(?:ing)?\s*>")
+            .expect("hardcoded regex is valid")
+    });
+    ORPHAN.replace_all(content, "").to_string()
+}
+
+/// Content wrapped in a single ``` fence, unwrapped. Anything else unchanged —
+/// a file that merely *contains* fences (Markdown) keeps them.
+fn strip_enclosing_fence(content: &str) -> String {
+    let trimmed = content.trim();
+    let Some(rest) = trimmed.strip_prefix("```") else {
+        return content.to_string();
+    };
+    let Some(body) = rest.split_once('\n').map(|(_lang, body)| body) else {
+        return content.to_string();
+    };
+    match body.trim_end().strip_suffix("```") {
+        // Only one fence pair in the whole text, so it wraps rather than
+        // belongs to the content.
+        Some(inner) if !inner.contains("```") => inner.trim_end_matches('\n').to_string(),
+        _ => content.to_string(),
+    }
+}
+
+/// True when the content looks like a multi-line file that arrived escaped.
+fn needs_unescaping(content: &str) -> bool {
+    !content.contains('\n') && content.matches("\\n").count() >= 2
+}
+
+/// Decode the escapes a JSON-shaped string carries.
+fn unescape_json_style(content: &str) -> String {
+    let mut out = String::with_capacity(content.len());
+    let mut chars = content.chars();
+    while let Some(c) = chars.next() {
+        if c != '\\' {
+            out.push(c);
+            continue;
+        }
+        match chars.next() {
+            Some('n') => out.push('\n'),
+            Some('t') => out.push('\t'),
+            Some('r') => out.push('\r'),
+            Some('"') => out.push('"'),
+            Some('\\') => out.push('\\'),
+            // Not an escape we decode — keep both characters as written.
+            Some(other) => {
+                out.push('\\');
+                out.push(other);
+            }
+            None => out.push('\\'),
+        }
+    }
+    out
+}
+
+/// Every `<key>value</key>` pair in a tool-call body, in the order written.
+///
+/// Scanned rather than matched with a regex: the close tag has to repeat the
+/// open tag's name, and `regex` has no backreferences. [`extract_tag`] does the
+/// same walk for a known parameter name; this one discovers the names.
+fn parse_tool_params(body: &str) -> Vec<(String, String)> {
+    static OPEN_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"<([A-Za-z_][\w.-]*)>").expect("hardcoded regex is valid"));
+    let mut params = Vec::new();
+    let mut from = 0usize;
+    while let Some(cap) = OPEN_RE.captures(&body[from..]) {
+        let whole = cap.get(0).expect("group 0 always matches");
+        let key = cap[1].to_string();
+        let value_start = from + whole.end();
+        let close = format!("</{key}>");
+        match body[value_start..].find(&close) {
+            Some(rel) => {
+                let value = decode_xml_entities(body[value_start..value_start + rel].trim());
+                params.push((key, value));
+                from = value_start + rel + close.len();
+            }
+            // An open tag the model never closed: skip past it rather than
+            // swallowing the rest of the body as its value.
+            None => from = value_start,
+        }
+    }
+    params
+}
+
+pub fn tool_definitions() -> Vec<serde_json::Value> {
     vec![
         tool(
             "read_file",
@@ -1345,12 +1662,15 @@ fn parse_single_tool(name: &str, body: &str) -> Option<ToolCall> {
         }
         "write_file" => {
             let path = extract_tag(body, "path")?;
-            let content = extract_tag(body, "content")?;
+            // Normalised here, at the one place a tool call becomes a
+            // `ToolCall`, so every executor downstream gets content that is
+            // already unfenced, unescaped and free of stray reasoning tags.
+            let content = normalize_file_content(&extract_tag(body, "content")?);
             Some(ToolCall::WriteFile { path, content })
         }
         "apply_patch" => {
             let path = extract_tag(body, "path")?;
-            let patch = extract_tag(body, "patch")?;
+            let patch = normalize_file_content(&extract_tag(body, "patch")?);
             Some(ToolCall::ApplyPatch { path, patch })
         }
         "bash" => {
@@ -2014,6 +2334,202 @@ Some text in between
         assert_eq!(calls.len(), 2);
         assert_eq!(calls[0].name(), "read_file");
         assert_eq!(calls[1].name(), "bash");
+    }
+    // ── The compact agent prompt ────────────────────────────────────────────
+
+    /// The marker must survive, or providers stop advertising tools and the
+    /// compact prompt becomes a prompt with no tools in it at all.
+    #[test]
+    fn the_compact_prompt_keeps_the_marker_and_the_policy() {
+        let compact = TOOL_SYSTEM_PROMPT_COMPACT.as_str();
+        assert!(compact.contains(TOOL_PROMPT_MARKER));
+        assert_eq!(tool_set_for([compact]), Some(ToolSet::Agent));
+        // Behaviour-shaping sections are not tool descriptions and stay.
+        assert!(compact.contains("## Developer Workflow Best Practices"));
+        assert!(compact.contains("### Escaping parameter values"));
+        // Every tool is still named, so a model can be told it invented one.
+        for name in AVAILABLE_TOOL_NAMES {
+            assert!(
+                compact.contains(name),
+                "{name} is missing from the compact prompt"
+            );
+        }
+    }
+
+    #[test]
+    fn the_compact_prompt_drops_the_per_tool_catalogue() {
+        let compact = TOOL_SYSTEM_PROMPT_COMPACT.as_str();
+        // The catalogue's XML examples are what the schemas already carry.
+        assert!(!compact.contains("<glob>*.rs</glob>"));
+        // The catalogue is ~30% of the prompt; the rest is policy, which stays.
+        assert!(
+            compact.len() * 4 < TOOL_SYSTEM_PROMPT.len() * 3,
+            "compact prompt is {} chars against {} — the catalogue was not dropped",
+            compact.len(),
+            TOOL_SYSTEM_PROMPT.len(),
+        );
+    }
+
+    #[test]
+    fn prompt_selection_follows_the_provider() {
+        assert_eq!(agent_system_prompt(false), TOOL_SYSTEM_PROMPT);
+        assert_eq!(
+            agent_system_prompt(true),
+            TOOL_SYSTEM_PROMPT_COMPACT.as_str()
+        );
+    }
+
+    // ── Content normalisation at the tool boundary ──────────────────────────
+
+    /// Captured from lfm2.5: the whole file arrived JSON-escaped, and was
+    /// written to disk as a single line.
+    #[test]
+    fn json_escaped_content_is_unescaped() {
+        let out = normalize_file_content(r"# Probe\n\nA test repo.\nprobe ok\n");
+        assert_eq!(out, "# Probe\n\nA test repo.\nprobe ok\n");
+    }
+
+    /// A one-line file that legitimately contains an escape is left alone as
+    /// long as the file has real newlines — the guard that keeps this from
+    /// mangling source code.
+    #[test]
+    fn real_source_with_escapes_is_left_alone() {
+        let src = "fn main() {\n    print!(\"a\\nb\");\n}\n";
+        assert_eq!(normalize_file_content(src), src);
+    }
+
+    #[test]
+    fn a_single_escape_is_not_enough_to_unescape() {
+        let one = r"echo hello\nworld";
+        assert_eq!(normalize_file_content(one), one);
+    }
+
+    #[test]
+    fn an_enclosing_fence_is_removed() {
+        let out = normalize_file_content("```rust\nfn main() {}\n```");
+        assert_eq!(out, "fn main() {}");
+    }
+
+    /// A Markdown file full of fences keeps every one of them.
+    #[test]
+    fn inner_fences_are_kept() {
+        let md = "# Doc\n\n```rust\nfn a() {}\n```\n\n```sh\nls\n```\n";
+        assert_eq!(normalize_file_content(md), md);
+    }
+
+    /// ornith ends its content with a close tag whose opener the provider
+    /// already consumed into its reasoning field.
+    #[test]
+    fn an_orphan_reasoning_tag_is_stripped() {
+        assert_eq!(normalize_file_content("fn a() {}</think>"), "fn a() {}");
+        assert_eq!(normalize_file_content("</thinking>fn a() {}"), "fn a() {}");
+    }
+
+    #[test]
+    fn write_file_calls_carry_normalised_content() {
+        let calls = parse_tool_calls(
+            "<tool_call name=\"write_file\"><path>a.md</path><content>a\\nb\\nc</content></tool_call>",
+        );
+        match calls.first() {
+            Some(ToolCall::WriteFile { content, .. }) => {
+                assert_eq!(
+                    content, "a\nb\nc",
+                    "content must reach the executor decoded"
+                )
+            }
+            other => panic!("expected a write_file call, got {other:?}"),
+        }
+    }
+
+    // ── Tool sets and the shared block parser ───────────────────────────────
+
+    #[test]
+    fn agent_prompt_selects_the_agent_tool_set() {
+        assert_eq!(
+            tool_set_for([TOOL_SYSTEM_PROMPT, "do the thing"]),
+            Some(ToolSet::Agent)
+        );
+    }
+
+    #[test]
+    fn chat_marker_selects_the_chat_tool_set() {
+        let prompt = format!("You are Vibe Agent.\n{CHAT_TOOL_PROMPT_MARKER}\n- write_file");
+        assert_eq!(tool_set_for([prompt.as_str()]), Some(ToolSet::Chat));
+        let defs = tool_definitions_for([prompt.as_str()]).expect("chat conversations carry tools");
+        assert_eq!(defs.len(), CHAT_TOOL_NAMES.len());
+    }
+
+    /// An agent run that quotes a chat prompt is still an agent run — the
+    /// wider vocabulary has to win, or the model loses `bash` mid-task.
+    #[test]
+    fn agent_marker_wins_over_chat_marker() {
+        let mixed = format!("{TOOL_SYSTEM_PROMPT}\n{CHAT_TOOL_PROMPT_MARKER}");
+        assert_eq!(tool_set_for([mixed.as_str()]), Some(ToolSet::Agent));
+    }
+
+    #[test]
+    fn plain_conversation_selects_no_tool_set() {
+        assert_eq!(tool_set_for(["hello", "hi there"]), None);
+        assert!(tool_definitions_for(["hello"]).is_none());
+    }
+
+    #[test]
+    fn chat_tool_definitions_cover_every_chat_tool_name() {
+        let names: Vec<String> = chat_tool_definitions()
+            .iter()
+            .map(|d| {
+                d["function"]["name"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .to_string()
+            })
+            .collect();
+        for name in CHAT_TOOL_NAMES {
+            assert!(names.iter().any(|n| n == name), "{name} has no schema");
+        }
+    }
+
+    #[test]
+    fn blocks_are_parsed_without_knowing_the_vocabulary() {
+        let text = r#"<tool_call name="list_dir"><path>src</path></tool_call>"#;
+        let blocks = parse_tool_call_blocks(text);
+        assert_eq!(blocks.len(), 1);
+        assert_eq!(blocks[0].0, "list_dir");
+        assert_eq!(blocks[0].1, vec![("path".to_string(), "src".to_string())]);
+        // `list_dir` is a chat tool, so the agent's parser rejects it — the
+        // point of having both.
+        assert!(parse_tool_calls(text).is_empty());
+    }
+
+    #[test]
+    fn block_parser_decodes_entities_and_keeps_multiline_content() {
+        let text = "<tool_call name=\"write_file\"><path>a.rs</path>\
+<content>fn main() {\n    if a &lt; b &amp;&amp; c {}\n}</content></tool_call>";
+        let blocks = parse_tool_call_blocks(text);
+        let content = &blocks[0].1[1].1;
+        assert!(
+            content.contains("a < b && c"),
+            "entities must decode: {content}"
+        );
+        assert!(content.contains('\n'), "newlines must survive");
+    }
+
+    #[test]
+    fn block_parser_ignores_reasoning() {
+        let text = "<thinking>I could <tool_call name=\"run\"><command>rm -rf /</command></tool_call></thinking>Hello.";
+        assert!(parse_tool_call_blocks(text).is_empty());
+    }
+
+    #[test]
+    fn block_parser_skips_an_unclosed_parameter_tag() {
+        let text = r#"<tool_call name="build"><command>make all</tool_call>"#;
+        // The unclosed `<command>` yields no parameter, but the block is still
+        // reported so the caller can reject it with a reason rather than
+        // executing `build` with a silently empty command.
+        let blocks = parse_tool_call_blocks(text);
+        assert_eq!(blocks.len(), 1);
+        assert_eq!(blocks[0].0, "build");
+        assert!(blocks[0].1.is_empty(), "an unclosed tag is not a parameter");
     }
 }
 

@@ -10,7 +10,7 @@ use crate::provider::{AIProvider, Message, MessageRole};
 use crate::skills::SkillLoader;
 use crate::tools::{
     format_tool_result, parse_tool_calls, strip_thinking, unparsed_tool_call_name, ToolCall,
-    ToolResult, AVAILABLE_TOOL_NAMES, TOOL_SYSTEM_PROMPT,
+    ToolResult, AVAILABLE_TOOL_NAMES,
 };
 // `redact_secrets` guards what leaves the agent, not only what is written to
 // a trace: asked to summarise a `.env`, the agent reproduced a database
@@ -607,6 +607,22 @@ pub enum VerifierDecision {
     /// Verifier rejected task_complete; the agent loops back to address
     /// the reason before it can complete again.
     Fail(String),
+}
+
+/// The text an agent run reports as its result.
+///
+/// Reasoning is stripped: a summary of `<thinking>Let me read the key files…`
+/// is not a result, and it is what a reader — or an eval grader — sees as the
+/// agent's answer. When reasoning was *all* the model produced, say that
+/// plainly rather than passing the monologue off as the outcome.
+fn final_summary(text: &str) -> String {
+    let visible = crate::tools::strip_thinking(text);
+    match visible.trim().is_empty() {
+        false => visible.trim().to_string(),
+        true => "The run ended with reasoning only — the model produced no answer and called no \
+                 tool. Any work already done is on disk."
+            .to_string(),
+    }
 }
 
 /// Events emitted by the agent loop to the UI or REPL.
@@ -1279,7 +1295,14 @@ impl AgentLoop {
             None
         };
 
-        let system_content = build_system_prompt(&context, &self.approval, task);
+        // A provider that puts the tool schemas on the wire does not also need
+        // the prompt's per-tool catalogue — see `tools::agent_system_prompt`.
+        let system_content = build_system_prompt(
+            &context,
+            &self.approval,
+            task,
+            self.provider.advertises_native_tools(),
+        );
         let mut messages: Vec<Message> = vec![Message {
             role: MessageRole::System,
             content: system_content,
@@ -2202,7 +2225,9 @@ impl AgentLoop {
                         .await;
                 }
                 let _ = event_tx
-                    .send(AgentEvent::Complete(redact_secrets(&accumulated)))
+                    .send(AgentEvent::Complete(redact_secrets(&final_summary(
+                        &accumulated,
+                    ))))
                     .await;
                 self.checkpoint(&messages, "complete");
                 return Ok(());
@@ -2221,7 +2246,9 @@ impl AgentLoop {
                 Some(c) => c,
                 None => {
                     let _ = event_tx
-                        .send(AgentEvent::Complete(redact_secrets(&accumulated)))
+                        .send(AgentEvent::Complete(redact_secrets(&final_summary(
+                            &accumulated,
+                        ))))
                         .await;
                     self.checkpoint(&messages, "no tool call");
                     return Ok(());
@@ -2489,7 +2516,9 @@ impl AgentLoop {
                     "Agent task complete",
                 );
                 let _ = event_tx
-                    .send(AgentEvent::Complete(redact_secrets(&summary)))
+                    .send(AgentEvent::Complete(redact_secrets(&final_summary(
+                        &summary,
+                    ))))
                     .await;
                 self.checkpoint(&messages, "task complete");
                 return Ok(());
@@ -3821,7 +3850,7 @@ mod context_tests {
         let mut context = AgentContext::default();
         context.workspace_root = std::path::PathBuf::from("/nonexistent-vibe-test");
         context.skill_health = Some("7 skills, 3 scored, top evolvability 0.82".to_string());
-        let prompt = build_system_prompt(&context, &ApprovalPolicy::FullAuto, "a task");
+        let prompt = build_system_prompt(&context, &ApprovalPolicy::FullAuto, "a task", false);
         assert!(
             prompt.contains("## Skill Health"),
             "expected a ## Skill Health section, got:\n{prompt}"
@@ -3834,7 +3863,7 @@ mod context_tests {
         let mut context = AgentContext::default();
         context.workspace_root = std::path::PathBuf::from("/nonexistent-vibe-test");
         // skill_health defaults to None — the auto-gate path.
-        let prompt = build_system_prompt(&context, &ApprovalPolicy::FullAuto, "a task");
+        let prompt = build_system_prompt(&context, &ApprovalPolicy::FullAuto, "a task", false);
         assert!(
             !prompt.contains("## Skill Health"),
             "skill-health section must not appear when skill_health is None"
@@ -3849,7 +3878,7 @@ mod context_tests {
         let mut context = AgentContext::default();
         context.workspace_root = std::path::PathBuf::from("/nonexistent-vibe-test");
         context.plugin_rules = Some("### acme/no-secrets\n\nNever echo a token.".to_string());
-        let prompt = build_system_prompt(&context, &ApprovalPolicy::FullAuto, "a task");
+        let prompt = build_system_prompt(&context, &ApprovalPolicy::FullAuto, "a task", false);
         assert!(
             prompt.contains("## Plugin Rules (admin-approved)"),
             "expected a plugin-rules section, got:\n{prompt}"
@@ -3861,13 +3890,13 @@ mod context_tests {
     fn system_prompt_omits_plugin_rules_when_absent_or_empty() {
         let mut context = AgentContext::default();
         context.workspace_root = std::path::PathBuf::from("/nonexistent-vibe-test");
-        let none = build_system_prompt(&context, &ApprovalPolicy::FullAuto, "a task");
+        let none = build_system_prompt(&context, &ApprovalPolicy::FullAuto, "a task", false);
         assert!(!none.contains("## Plugin Rules"));
 
         // An empty string is "no plugin contributed", not "a plugin
         // contributed nothing" — an empty header would read as the latter.
         context.plugin_rules = Some(String::new());
-        let empty = build_system_prompt(&context, &ApprovalPolicy::FullAuto, "a task");
+        let empty = build_system_prompt(&context, &ApprovalPolicy::FullAuto, "a task", false);
         assert!(!empty.contains("## Plugin Rules"));
     }
 
@@ -3895,6 +3924,7 @@ mod context_tests {
             &context,
             &ApprovalPolicy::FullAuto,
             "please write a test for the parser",
+            false,
         );
         assert!(
             matched.contains("### Skill: test-first"),
@@ -3902,8 +3932,12 @@ mod context_tests {
         );
         assert!(matched.contains("Watch it fail first."));
 
-        let unmatched =
-            build_system_prompt(&context, &ApprovalPolicy::FullAuto, "rename a variable");
+        let unmatched = build_system_prompt(
+            &context,
+            &ApprovalPolicy::FullAuto,
+            "rename a variable",
+            false,
+        );
         assert!(
             !unmatched.contains("### Skill: test-first"),
             "a non-matching task must not activate the skill"
@@ -4022,7 +4056,12 @@ fn build_repo_map(root: &std::path::Path) -> String {
 /// only ever matched the open-file list and the branch name before, so on the
 /// daemon path — where `open_files` is empty and the branch is `main` — no
 /// skill could activate at all, however well its triggers were written.
-fn build_system_prompt(context: &AgentContext, approval: &ApprovalPolicy, task: &str) -> String {
+fn build_system_prompt(
+    context: &AgentContext,
+    approval: &ApprovalPolicy,
+    task: &str,
+    native_tools: bool,
+) -> String {
     let mut extras = String::new();
 
     // Auto-mode guidance: when running fully autonomous, inject behavioral rules
@@ -4186,7 +4225,11 @@ fn build_system_prompt(context: &AgentContext, approval: &ApprovalPolicy, task: 
         }
     }
 
-    format!("{}{}", TOOL_SYSTEM_PROMPT, extras)
+    format!(
+        "{}{}",
+        crate::tools::agent_system_prompt(native_tools),
+        extras
+    )
 }
 
 #[cfg(test)]
@@ -6440,4 +6483,33 @@ pub fn path_holds_secrets(path: &str) -> bool {
         || name == ".netrc"
         || name == ".npmrc"
         || name == "daemon.token"
+}
+
+#[cfg(test)]
+mod final_summary_tests {
+    use super::*;
+
+    // ── The reported result is not the model's monologue ──────────────────
+
+    #[test]
+    fn a_summary_keeps_only_what_the_model_actually_said() {
+        assert_eq!(
+            final_summary("<thinking>weighing options</thinking>Renamed the field in 3 files."),
+            "Renamed the field in 3 files."
+        );
+    }
+
+    /// Measured: a local model ended a run with reasoning and nothing else,
+    /// and the monologue was reported as the run's answer — to the user and to
+    /// the eval grader alike.
+    #[test]
+    fn a_reasoning_only_run_says_so_instead_of_reporting_the_monologue() {
+        let summary = final_summary("<thinking>I should read the key files first…</thinking>");
+        assert!(summary.contains("reasoning only"), "{summary}");
+        assert!(!summary.contains("<thinking>"), "{summary}");
+        assert!(
+            !summary.contains("key files"),
+            "the monologue must not be the answer: {summary}"
+        );
+    }
 }

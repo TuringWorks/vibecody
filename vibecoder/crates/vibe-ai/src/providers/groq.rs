@@ -119,6 +119,7 @@ mod tests {
             temperature: None,
             max_tokens: None,
             stream: false,
+            tools: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         assert!(!json.contains("temperature"));
@@ -133,6 +134,7 @@ mod tests {
             temperature: Some(0.5),
             max_tokens: Some(4096),
             stream: true,
+            tools: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         assert!(json.contains("\"temperature\""));

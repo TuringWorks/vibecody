@@ -12,7 +12,7 @@ License: MIT
 Repository: https://github.com/TuringWorks/vibecody
 Language: Rust (backend/CLI) + TypeScript/React (frontend)
 AI Providers: 23 native + OpenRouter (300+ models)
-Unit Tests: 10,535 (0 failures)
+Test functions: 16,102
 UI Panels: 196+
 Skill Files: 556 across 25+ industries
 REPL Commands: 106+
@@ -28,7 +28,7 @@ Monorepo with 9 Cargo workspace members and a React/Vite frontend:
     vibecli/vibecli-cli/    -- CLI binary (TUI + REPL + HTTP daemon)
     vibecoder/                 -- Tauri desktop app (React frontend + Rust backend)
     vibecoder/crates/vibe-core -- text buffer, FS, workspace, Git, terminal, search
-    vibecoder/crates/vibe-ai   -- 23 AI providers, agent loop, hooks, planner, tools
+    vibecoder/crates/vibe-ai   -- 25 AI providers, agent loop, hooks, planner, tools
     vibecoder/crates/vibe-lsp  -- Language Server Protocol client
     vibecoder/crates/vibe-extensions -- WASM plugin runtime (Wasmtime)
     vibecoder/crates/vibe-collab     -- CRDT multiplayer collaboration
@@ -55,7 +55,7 @@ provider -- no native function-calling API required.
 
 ## Providers
 
-23 providers, listed with env var and default model:
+25 providers, listed with env var and default model:
 
   1. Ollama         -- (no key needed)        -- glm-5.2:cloud
   2. Claude         -- ANTHROPIC_API_KEY       -- claude-sonnet-4-6

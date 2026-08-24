@@ -346,6 +346,26 @@ never send the Bearer, so they always run locally.
 
    Override the base URL with the `OLLAMA_HOST` env var if Ollama is running on a remote machine.
 
+**Tools.** VibeCody sends its tools to Ollama as callable functions, not only as
+prose in the system prompt — a model trained for native tool calling otherwise
+has nothing to call and answers with an empty turn. A model that rejects the
+`tools` field is detected from its first refusal and retried without it, once
+per model.
+
+**Context window.** VibeCody leaves `num_ctx` unset by default: Ollama 0.32 sizes
+the window from the model (measured — a 14,028-token prompt was evaluated whole),
+and pinning a large value costs KV-cache memory a small machine may not have.
+Older Ollama servers default to 4096 and silently drop the **front** of a longer
+prompt — the system prompt and tool contract first, which reads as a model that
+forgot how to use tools. Set `VIBECLI_OLLAMA_NUM_CTX` to raise it:
+
+   ```bash
+   VIBECLI_OLLAMA_NUM_CTX=32768 vibecli --tui
+   ```
+
+   A warning is logged whenever the server reports evaluating far fewer prompt
+   tokens than were sent, which is the only evidence of truncation Ollama gives.
+
 
 ### 2. Anthropic Claude — Claude 4 Sonnet/Opus
 
@@ -1226,7 +1246,7 @@ auto_inject = true          # Inject context into every agent turn (default: tru
 max_context_tokens = 1200   # Hard cap on injected context tokens (default: 1200)
 decay_enabled = true        # Run salience decay each session (default: true)
 consolidate_on_exit = false # Run sleep-cycle consolidation when the REPL exits
-encryption = false          # AES-256-GCM at rest — run /openmemory encrypt to enable
+encryption = false          # XOR obfuscation at rest — NOT cryptographic; see memory-guide.md
 
 # Verbatim drawer layer (MemPalace techniques)
 drawer_chunk_size = 800     # Characters per verbatim chunk (default: 800)
@@ -1249,9 +1269,11 @@ l3_threshold = 3            # Trigger L3 (verbatim drawers) when L2 < this many 
 
 Each store contains four files: `memories.json`, `waypoints.json`, `facts.json`, `drawers.json`.
 
-### Encryption
+### At-rest obfuscation (not encryption)
 
-To enable AES-256-GCM encryption at rest, run `/openmemory encrypt` in the REPL or set `encryption = true` in `config.toml`. The key is stored at `<store>/.key` (mode 0600).
+Run `/openmemory encrypt` in the REPL or set `encryption = true` in `config.toml`. The key is stored at `<store>/.key` (mode 0600).
+
+> ⚠️ **This is not encryption.** The implementation is a repeating-key XOR (`open_memory.rs`), not AES-256-GCM. It deters casual disk inspection and provides no cryptographic or integrity guarantee. Keep secrets in the ProfileStore instead — see [memory-guide.md](./memory-guide.md) and [security.md](./security.md).
 
 To use a passphrase instead of a stored key:
 

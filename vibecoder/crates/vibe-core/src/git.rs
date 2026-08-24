@@ -44,6 +44,11 @@ pub fn get_status(root_path: &Path) -> Result<GitStatus> {
     let mut file_statuses = HashMap::new();
     let mut opts = StatusOptions::new();
     opts.include_untracked(true);
+    // `include_untracked` alone reproduces `git status -unormal`: an untracked
+    // directory is reported as one entry (`newdir/`) and the files inside it
+    // are never listed. The Git panel showed the new folder and none of the
+    // new files in it. `-uall` is what a change list has to mean.
+    opts.recurse_untracked_dirs(true);
 
     for entry in repo.statuses(Some(&mut opts))?.iter() {
         let path = entry.path().unwrap_or("").to_string();
@@ -903,6 +908,60 @@ mod tests {
         run(&["add", "README.md"]);
         run(&["commit", "-m", "init"]);
         dir
+    }
+
+    // ── get_status ────────────────────────────────────────────────────────────
+
+    /// Regression: the Git panel listed a brand-new folder but none of the
+    /// files inside it. libgit2 defaults to `git status -unormal`, which
+    /// collapses an untracked directory into a single `dir/` entry, so every
+    /// file created under a new folder was invisible to the change list.
+    #[test]
+    fn status_lists_files_inside_an_untracked_directory() {
+        let dir = make_git_repo();
+        let nested = dir.path().join("newdir").join("deeper");
+        std::fs::create_dir_all(&nested).unwrap();
+        std::fs::write(nested.join("added.rs"), "fn main() {}").unwrap();
+        std::fs::write(dir.path().join("newdir").join("top.rs"), "// top").unwrap();
+
+        let status = get_status(dir.path()).expect("status");
+        let paths: Vec<&str> = status.file_statuses.keys().map(String::as_str).collect();
+
+        assert!(
+            paths.contains(&"newdir/deeper/added.rs"),
+            "nested untracked file missing from {paths:?}"
+        );
+        assert!(
+            paths.contains(&"newdir/top.rs"),
+            "untracked file missing from {paths:?}"
+        );
+        assert_eq!(
+            status.file_statuses.get("newdir/top.rs"),
+            Some(&FileStatus::New)
+        );
+        // The collapsed directory entry must not be reported alongside them.
+        assert!(
+            !paths.contains(&"newdir/"),
+            "collapsed dir entry in {paths:?}"
+        );
+    }
+
+    /// A `.gitignore`d path stays out of the change list even though untracked
+    /// directories are now walked — recursion must not defeat the ignore file.
+    #[test]
+    fn status_still_honours_gitignore_when_recursing() {
+        let dir = make_git_repo();
+        std::fs::write(dir.path().join(".gitignore"), "build/\n").unwrap();
+        std::fs::create_dir_all(dir.path().join("build")).unwrap();
+        std::fs::write(dir.path().join("build").join("out.o"), "bin").unwrap();
+
+        let status = get_status(dir.path()).expect("status");
+        let paths: Vec<&str> = status.file_statuses.keys().map(String::as_str).collect();
+
+        assert!(
+            !paths.iter().any(|p| p.starts_with("build/")),
+            "ignored file leaked into {paths:?}"
+        );
     }
 
     // ── discard_changes ───────────────────────────────────────────────────────

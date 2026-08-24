@@ -7,6 +7,8 @@ use anyhow::{Context, Result};
 use async_trait::async_trait;
 use futures::stream::StreamExt;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+use std::sync::{LazyLock, Mutex};
 
 /// Ollama Cloud / Turbo models — datacenter-hosted, addressed by the `*-cloud`
 /// suffix. Unlike local models these are never reported by `/api/tags`, so the
@@ -58,6 +60,16 @@ struct OllamaOptions {
     temperature: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     num_predict: Option<usize>,
+    /// Context window to serve this request with.
+    ///
+    /// Left unset by default — Ollama 0.32 sizes the window from the model
+    /// (measured: a 14,028-token prompt was evaluated whole with no `num_ctx`
+    /// at all), and pinning a large value on a small machine costs KV-cache
+    /// memory the model may not have. Older servers default to 4096 and
+    /// silently drop the front of a longer prompt — the system prompt, tools
+    /// and all — which is what `VIBECLI_OLLAMA_NUM_CTX` is for.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    num_ctx: Option<usize>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -153,9 +165,66 @@ fn tool_call_to_xml(call: &OllamaToolCall) -> Option<String> {
 }
 
 /// Tool definitions for this conversation, or `None` for a plain chat.
+///
+/// Both vocabularies are advertised here — the agent loop's and the chat
+/// panel's — because a model trained for native tool calling cannot use tools
+/// that exist only in prose. Which set applies is read off the system prompt's
+/// marker; see [`crate::tools::tool_definitions_for`].
 fn tools_for(messages: &[Message]) -> Option<Vec<serde_json::Value>> {
-    crate::tools::expects_tools(messages.iter().map(|m| m.content.as_str()))
-        .then(crate::tools::tool_definitions)
+    crate::tools::tool_definitions_for(messages.iter().map(|m| m.content.as_str()))
+}
+
+/// Models known *not* to accept a `tools` field, keyed by `base_url\0model`.
+///
+/// Ollama answers `400 … does not support tools` for those, which would turn a
+/// working plain chat into a hard failure now that the chat path advertises
+/// tools too. One rejection is remembered so the retry happens once per model,
+/// not once per turn.
+static TOOLS_UNSUPPORTED: LazyLock<Mutex<HashSet<String>>> =
+    LazyLock::new(|| Mutex::new(HashSet::new()));
+
+/// Context window override, from `VIBECLI_OLLAMA_NUM_CTX`.
+///
+/// Absent by default; see [`OllamaOptions::num_ctx`] for why this is opt-in
+/// rather than a pinned number.
+fn configured_num_ctx() -> Option<usize> {
+    std::env::var("VIBECLI_OLLAMA_NUM_CTX")
+        .ok()?
+        .trim()
+        .parse::<usize>()
+        .ok()
+        .filter(|n| *n > 0)
+}
+
+/// Warn when the server evaluated far fewer prompt tokens than were sent —
+/// the signature of a context window smaller than the prompt.
+///
+/// Ollama truncates from the *front*, which is where the system prompt and the
+/// tool contract live, so a truncated turn looks like a model that forgot how
+/// to call tools rather than like a configuration problem. There is no flag in
+/// the response saying so; the token count is the only evidence.
+fn warn_if_prompt_truncated(sent_chars: usize, prompt_eval_count: Option<usize>) {
+    let Some(evaluated) = prompt_eval_count.filter(|n| *n > 0) else {
+        return;
+    };
+    // ~4 chars per token is rough, so only a gross shortfall counts.
+    let estimated = sent_chars / 4;
+    if estimated > 512 && evaluated * 2 < estimated {
+        tracing::warn!(
+            estimated_prompt_tokens = estimated,
+            evaluated_prompt_tokens = evaluated,
+            "Ollama evaluated far fewer prompt tokens than were sent — the context window is \
+             likely smaller than the prompt, and Ollama drops the *front* of it (system prompt \
+             and tool contract first). Set VIBECLI_OLLAMA_NUM_CTX to raise it.",
+        );
+    }
+}
+
+/// True when this error is Ollama refusing the `tools` field itself, rather
+/// than anything about the conversation.
+fn is_tools_unsupported(body: &str) -> bool {
+    let body = body.to_ascii_lowercase();
+    body.contains("does not support tools") || body.contains("does not support tool")
 }
 
 /// Flatten a response message into the text the rest of the stack consumes:
@@ -184,6 +253,11 @@ fn message_to_text(msg: &OllamaChatMessage) -> String {
 struct OllamaChatResponse {
     message: Option<OllamaChatMessage>,
     done: bool,
+    /// Prompt tokens the server actually evaluated. Compared against what was
+    /// sent to spot a silently truncated prompt — see
+    /// [`warn_if_prompt_truncated`].
+    #[serde(default)]
+    prompt_eval_count: Option<usize>,
 }
 
 /// Ollama AI provider
@@ -336,12 +410,42 @@ impl OllamaProvider {
         )
     }
 
+    /// Cache key for this endpoint+model pair.
+    fn tools_cache_key(&self) -> String {
+        format!("{}\0{}", self.base_url, self.config.model)
+    }
+
+    /// Tool schemas to advertise, unless this model has already told us it
+    /// takes none.
+    fn tools_for_request(&self, messages: &[Message]) -> Option<Vec<serde_json::Value>> {
+        let defs = tools_for(messages)?;
+        let known_unsupported = TOOLS_UNSUPPORTED
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .contains(&self.tools_cache_key());
+        (!known_unsupported).then_some(defs)
+    }
+
+    /// Remember that this model rejects the `tools` field, so the next turn
+    /// goes out without it instead of failing again.
+    fn remember_tools_unsupported(&self) {
+        tracing::warn!(
+            model = %self.config.model,
+            "Model does not accept native tool definitions — falling back to prompt-only tools",
+        );
+        TOOLS_UNSUPPORTED
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(self.tools_cache_key());
+    }
+
     fn build_options(&self) -> Option<OllamaOptions> {
         // Always send options to ensure a reasonable num_predict default (16K tokens).
         // Ollama's built-in default is 2048 which truncates large code generation.
         Some(OllamaOptions {
             temperature: self.config.temperature,
             num_predict: self.config.max_tokens.or(Some(16_384)),
+            num_ctx: configured_num_ctx(),
         })
     }
 
@@ -554,7 +658,7 @@ impl AIProvider for OllamaProvider {
             messages: ollama_messages,
             stream: false,
             options: self.build_options(),
-            tools: tools_for(messages),
+            tools: self.tools_for_request(messages),
         };
 
         let response = self
@@ -570,13 +674,47 @@ impl AIProvider for OllamaProvider {
             .await
             .context("Failed to read response body")?;
 
-        if !status.is_success() {
+        // A model that takes no `tools` field says so with a 400. Drop the
+        // field, remember the model, and send the same turn again — the
+        // alternative is a chat panel that fails outright for such a model
+        // now that the chat path advertises tools too.
+        let body_text = if !status.is_success()
+            && request.tools.is_some()
+            && is_tools_unsupported(&body_text)
+        {
+            self.remember_tools_unsupported();
+            let retry = OllamaChatRequest {
+                tools: None,
+                ..request
+            };
+            let response = self
+                .auth_post(format!("{}/api/chat", self.base_url))
+                .json(&retry)
+                .send()
+                .await
+                .context("Failed to send chat request to Ollama")?;
+            let status = response.status();
+            let body_text = response
+                .text()
+                .await
+                .context("Failed to read response body")?;
+            if !status.is_success() {
+                return Err(self.api_error(status, &body_text, "chat"));
+            }
+            body_text
+        } else if !status.is_success() {
             return Err(self.api_error(status, &body_text, "chat"));
-        }
+        } else {
+            body_text
+        };
 
         let ollama_response: OllamaChatResponse = serde_json::from_str(&body_text).context(
             format!("Failed to parse Ollama chat response: {}", body_text),
         )?;
+        warn_if_prompt_truncated(
+            messages.iter().map(|m| m.content.len()).sum(),
+            ollama_response.prompt_eval_count,
+        );
 
         Ok(ollama_response
             .message
@@ -596,7 +734,7 @@ impl AIProvider for OllamaProvider {
             messages: ollama_messages,
             stream: true,
             options: self.build_options(),
-            tools: tools_for(messages),
+            tools: self.tools_for_request(messages),
         };
 
         let response = self
@@ -606,11 +744,37 @@ impl AIProvider for OllamaProvider {
             .await
             .context("Failed to send streaming chat request to Ollama")?;
 
-        if !response.status().is_success() {
+        let response = if !response.status().is_success() && request.tools.is_some() {
+            let status = response.status();
+            let error_text = response.text().await.unwrap_or_default();
+            if !is_tools_unsupported(&error_text) {
+                return Err(self.api_error(status, &error_text, "streaming chat"));
+            }
+            // Same 400-means-no-tools fallback as the non-streaming path.
+            self.remember_tools_unsupported();
+            let retry = OllamaChatRequest {
+                tools: None,
+                ..request
+            };
+            let response = self
+                .auth_post(format!("{}/api/chat", self.base_url))
+                .json(&retry)
+                .send()
+                .await
+                .context("Failed to send streaming chat request to Ollama")?;
+            if !response.status().is_success() {
+                let status = response.status();
+                let error_text = response.text().await.unwrap_or_default();
+                return Err(self.api_error(status, &error_text, "streaming chat"));
+            }
+            response
+        } else if !response.status().is_success() {
             let status = response.status();
             let error_text = response.text().await.unwrap_or_default();
             return Err(self.api_error(status, &error_text, "streaming chat"));
-        }
+        } else {
+            response
+        };
 
         let stream = response.bytes_stream();
 
@@ -701,6 +865,10 @@ impl AIProvider for OllamaProvider {
         Ok(completion_stream)
     }
 
+    fn advertises_native_tools(&self) -> bool {
+        true
+    }
+
     fn supports_vision(&self) -> bool {
         // Ollama vision support depends on the model. Common vision models:
         // qwen2-vl, qwen2.5-vl, glm-4v, llava, bakllava, moondream, deepseek-vl
@@ -741,7 +909,7 @@ impl AIProvider for OllamaProvider {
             messages: ollama_messages,
             stream: false,
             options: self.build_options(),
-            tools: tools_for(messages),
+            tools: self.tools_for_request(messages),
         };
 
         let response = self
@@ -1008,6 +1176,7 @@ mod tests {
             options: Some(OllamaOptions {
                 temperature: Some(0.7),
                 num_predict: Some(100),
+                num_ctx: None,
             }),
         };
         let json = serde_json::to_string(&req).unwrap();
@@ -1021,6 +1190,7 @@ mod tests {
         let opts = OllamaOptions {
             temperature: None,
             num_predict: Some(512),
+            num_ctx: None,
         };
         let json = serde_json::to_string(&opts).unwrap();
         assert!(
@@ -1035,6 +1205,7 @@ mod tests {
         let opts = OllamaOptions {
             temperature: None,
             num_predict: None,
+            num_ctx: None,
         };
         let json = serde_json::to_string(&opts).unwrap();
         // Should be an empty object
@@ -1265,5 +1436,48 @@ mod tests {
             .with_api_key("cloud-bearer".to_string());
         let provider = OllamaProvider::new(config);
         assert_eq!(provider.api_key, Some("cloud-bearer".to_string()));
+    }
+
+    // ── num_ctx and truncation detection ─────────────────────────────────
+
+    /// Unset by default: Ollama 0.32 sizes the window itself, and pinning a
+    /// large value costs KV-cache memory a small machine may not have.
+    #[test]
+    fn num_ctx_is_absent_from_the_wire_unless_configured() {
+        let provider = OllamaProvider::new(ProviderConfig::new(
+            "ollama".to_string(),
+            "lfm2.5:latest".to_string(),
+        ));
+        let opts = provider.build_options().expect("options are always sent");
+        assert_eq!(opts.num_ctx, None);
+        let json = serde_json::to_string(&opts).expect("serialize");
+        assert!(!json.contains("num_ctx"), "{json}");
+    }
+
+    #[test]
+    fn a_configured_num_ctx_is_serialized() {
+        let opts = OllamaOptions {
+            temperature: None,
+            num_predict: None,
+            num_ctx: Some(32_768),
+        };
+        let json = serde_json::to_string(&opts).expect("serialize");
+        assert!(json.contains("\"num_ctx\":32768"), "{json}");
+    }
+
+    /// The response carries the only evidence that a prompt was truncated —
+    /// there is no flag for it — so the field must survive deserialization.
+    #[test]
+    fn prompt_eval_count_is_captured() {
+        let json = r#"{"message":{"role":"assistant","content":"hi"},"done":true,"prompt_eval_count":4517}"#;
+        let parsed: OllamaChatResponse = serde_json::from_str(json).expect("parse");
+        assert_eq!(parsed.prompt_eval_count, Some(4517));
+    }
+
+    #[test]
+    fn a_response_without_the_count_still_parses() {
+        let json = r#"{"message":{"role":"assistant","content":"hi"},"done":true}"#;
+        let parsed: OllamaChatResponse = serde_json::from_str(json).expect("parse");
+        assert_eq!(parsed.prompt_eval_count, None);
     }
 }

@@ -142,10 +142,10 @@ Resource allocation is configured through your infrastructure provider's setting
 |---------|-------------|---------------------|
 | **Cost** | Free (self-hosted) + infra costs | $16–66/month |
 | **AI Providers** | 23 (local + cloud) | Limited to what OpenClaw supports |
-| **Code Intelligence** | 7 review detectors, 550+ skills, LSP | General-purpose |
+| **Code Intelligence** | 7 review detectors, 1,144 skills, LSP | General-purpose |
 | **Deployment Targets** | 12 platforms | Managed cloud only |
 | **Raspberry Pi** | ✅ Full support | ❌ |
-| **Desktop App** | ✅ VibeCoder (196+ panels) | ❌ |
+| **Desktop App** | ✅ VibeCoder (246 panels) | ❌ |
 | **Open Source** | ✅ MIT License | Wraps open-source, hosted service |
 | **Always-On** | ✅ All platforms | ✅ Cloud only |
 | **MCP Integration** | ✅ Full | ✅ Via OpenClaw |

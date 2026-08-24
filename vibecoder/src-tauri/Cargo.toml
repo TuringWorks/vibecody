@@ -68,4 +68,8 @@ tracing = "0.1"
 
 [dev-dependencies]
 tempfile = "3"
+# `MockAIProvider` lives behind this feature. The chat path's reasoning-only
+# continuation is tested against it — a scripted provider is the only way to
+# assert "asked once more, kept the answer" without a live model.
+vibe-ai = { path = "../crates/vibe-ai", features = ["testing"] }
 

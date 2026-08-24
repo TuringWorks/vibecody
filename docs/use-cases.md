@@ -7,7 +7,7 @@ nav_order: 3
 
 VibeCody is an AI-powered coding assistant that runs **anywhere you need it** -- on your laptop, in the cloud, or on a Raspberry Pi. Deploy it as a desktop app (VibeCoder), a terminal companion (VibeCLI), or an always-on server (`vibecli --serve --port 7878`) that monitors your infrastructure, responds to webhooks, and runs scheduled tasks around the clock.
 
-With **23 AI providers** (from local Ollama to Claude, OpenAI, Gemini, and 20 more), **106+ REPL commands**, **556+ skill files**, and a full autonomous agent loop, VibeCody covers the entire software development lifecycle -- from writing the first line of code to deploying, monitoring, and securing production systems. It also connects to **Gmail/Outlook, Google/Outlook Calendar, Todoist, Notion, Jira, and Home Assistant** for productivity workflows beyond coding.
+With **25 AI providers** (from local Ollama to Claude, OpenAI, Gemini, and 20 more), **142 REPL slash commands**, **1,144 skill files**, and a full autonomous agent loop, VibeCody covers the entire software development lifecycle -- from writing the first line of code to deploying, monitoring, and securing production systems. It also connects to **Gmail/Outlook, Google/Outlook Calendar, Todoist, Notion, Jira, and Home Assistant** for productivity workflows beyond coding.
 
 See the [Configuration Guide]({{ site.baseurl }}/configuration/) for setup and the [Provider Guide]({{ site.baseurl }}/providers/) for connecting your preferred AI backend.
 
@@ -887,7 +887,7 @@ Connect to PostgreSQL, MySQL, SQLite, MongoDB, Redis, and DuckDB. Run queries, i
 
 ### **Cost Observatory**
 
-Track AI token usage, API costs, and cloud spend across all 23 providers. Set budgets and alerts to prevent surprise bills.
+Track AI token usage, API costs, and cloud spend across all 25 providers. Set budgets and alerts to prevent surprise bills.
 
 ```bash
 /cost show --period this-month --by-provider
@@ -1341,7 +1341,7 @@ VibeCody predicts what you will ask next and pre-computes likely responses using
 | Feature | VibeCody | myclaw.ai / OpenClaw |
 |---------|----------|---------------------|
 | **Pricing** | Free and open source (MIT) | Monthly subscription |
-| **AI Providers** | 23 providers (local + cloud) | Limited provider selection |
+| **AI Providers** | 25 providers (local + cloud) | Limited provider selection |
 | **Self-Hosted** | Single binary, Docker, or Pi | Cloud-only SaaS |
 | **Runs on Raspberry Pi** | Yes (ARM binary, 2GB RAM) | No |
 | **Offline Mode** | Full functionality with Ollama | Requires internet |
@@ -1350,9 +1350,9 @@ VibeCody predicts what you will ask next and pre-computes likely responses using
 | **Multi-Agent Teams** | 5 specialized roles with shared memory | Single agent |
 | **MCP Integration** | Full MCP server support with lazy loading | No MCP support |
 | **Security Scanning** | Red team, OWASP, blue/purple team, secret detection | Basic scanning |
-| **Desktop App** | VibeCoder with 196+ panels (Tauri + React) | Web-only interface |
-| **REPL Commands** | 106+ commands with subcommands | Limited CLI |
-| **Skill Library** | 550+ skill files | No skill system |
+| **Desktop App** | VibeCoder with 246 panels (Tauri + React) | Web-only interface |
+| **REPL Commands** | 142 slash commands with subcommands | Limited CLI |
+| **Skill Library** | 1,144 skill files | No skill system |
 | **Messaging Gateway** | 18 platforms (Slack, Teams, Discord, etc.) | Slack only |
 | **Database Support** | 6 databases (Postgres, MySQL, SQLite, Mongo, Redis, DuckDB) | None |
 | **Collaborative Editing** | CRDT-based real-time sync | No collaboration |

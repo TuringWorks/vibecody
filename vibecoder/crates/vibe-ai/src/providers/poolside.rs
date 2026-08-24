@@ -63,6 +63,7 @@ impl PoolsideProvider {
             temperature: self.config.temperature,
             max_tokens: self.config.max_tokens,
             stream,
+            tools: ChatRequest::tools_for(messages),
         }
     }
 }
@@ -238,6 +239,7 @@ mod tests {
             temperature: None,
             max_tokens: None,
             stream: false,
+            tools: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         assert!(!json.contains("temperature"));

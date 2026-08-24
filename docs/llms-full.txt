@@ -18,7 +18,7 @@ License: MIT
 Repository: https://github.com/TuringWorks/vibecody
 Languages: Rust (backend, CLI, shared crates) + TypeScript/React (frontend)
 AI Providers: 23 native providers + OpenRouter gateway (300+ models)
-Unit Tests: 9,570 (0 failures)
+Test functions: 16,102
 UI Panels: 187
 Skill Files: 568 across 25+ industries
 REPL Commands: 100+
@@ -42,11 +42,11 @@ Monorepo structure (6 Cargo workspace members):
   |     |  |- repl.rs              Rustyline REPL with tab completion
   |     |  |- tool_executor.rs     Tool execution engine
   |     |  \- tui/                 Ratatui TUI (app, ui, components)
-  |     \- skills/                 568 skill files (25+ categories)
+  |     \- skills/                 1,144 skill files (155 categories)
   |- vibecoder/
   |  |- src/                       React + TypeScript frontend
   |  |  |- App.tsx                 Root component
-  |  |  \- components/             187 panel components
+  |  |  \- components/             246 panel components
   |  |- src-tauri/                 Tauri Rust backend
   |  \- crates/                    Shared library crates
   |     |- vibe-core/              Text buffer, FS, workspace, Git, terminal,
@@ -104,7 +104,7 @@ One-liner install (prebuilt binary):
 
 
 ================================================================================
-3. ALL 23 AI PROVIDERS
+3. ALL 25 AI PROVIDERS
 ================================================================================
 
 Each provider implements the AIProvider trait from vibe-ai. Configure in
@@ -881,7 +881,7 @@ Communication:
 15. TESTING
 ================================================================================
 
-Total: 9,570 unit tests (0 failures)
+Total: 16,102 test functions
 
 Test counts by crate (approximate):
   vibecli:          1,050
@@ -1042,7 +1042,7 @@ VibeCLI source:
   vibecli/vibecli-cli/src/repl.rs            REPL with tab completion
   vibecli/vibecli-cli/src/tool_executor.rs   Tool execution engine
   vibecli/vibecli-cli/src/tui/               TUI (Ratatui)
-  vibecli/vibecli-cli/skills/                539+ skill files
+  vibecli/vibecli-cli/skills/                1,144 skill files
 
 Shared crates:
   vibecoder/crates/vibe-ai/src/agent.rs         Agent loop (AgentLoop)
@@ -1060,7 +1060,7 @@ Shared crates:
 
 VibeCoder frontend:
   vibecoder/src/App.tsx                         Root React component
-  vibecoder/src/components/                     187 panel components
+  vibecoder/src/components/                     246 panel components
   vibecoder/src-tauri/                          Tauri backend
 
 User config (runtime):

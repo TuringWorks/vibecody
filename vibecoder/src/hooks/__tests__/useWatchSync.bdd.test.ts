@@ -480,3 +480,57 @@ describe('useMobileActiveSession — F3.x cross-device follow', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 });
+
+// ── skipPast — a client must not re-import its own rows ──────────────────────
+//
+// VibeCoder writes each chat turn to the same sessions.db table it polls. Without
+// a cursor advance the poll hands the reply straight back and the tab renders it
+// a second time (the "duplicate response" bug).
+
+describe('useWatchSync — skipPast', () => {
+  it('drops rows at or below the id the caller already handled', async () => {
+    mockInvoke.mockResolvedValue({ session_id: SESSION_A, messages: [] });
+    const onNew = vi.fn();
+
+    const { result } = renderHook(() => useWatchSync(SESSION_A, onNew));
+    await act(async () => {}); // seed
+
+    // The tab wrote rows up to id 42 itself and rendered them already.
+    act(() => result.current.skipPast(42));
+
+    await act(async () => {
+      vi.advanceTimersByTime(1100);
+    });
+    await act(async () => {});
+
+    const pollCall = mockInvoke.mock.calls
+      .filter((c: unknown[]) => (c[1] as Record<string, unknown>)?.afterId === 42)
+      .pop();
+    expect(pollCall).toBeDefined();
+    expect(onNew).not.toHaveBeenCalled();
+  });
+
+  it('never rewinds the cursor', async () => {
+    mockInvoke.mockResolvedValue({ session_id: SESSION_A, messages: [makeMsg(50, 'user', 'from watch')] });
+    const onNew = vi.fn();
+
+    const { result } = renderHook(() => useWatchSync(SESSION_A, onNew));
+    await act(async () => {}); // seed sets the cursor to 50
+
+    act(() => {
+      result.current.skipPast(10);
+      result.current.skipPast(null);
+      result.current.skipPast(undefined);
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(1100);
+    });
+    await act(async () => {});
+
+    const lastPoll = mockInvoke.mock.calls
+      .filter((c: unknown[]) => c[0] === 'watch_get_session_messages')
+      .pop();
+    expect((lastPoll![1] as Record<string, unknown>).afterId).toBe(50);
+  });
+});

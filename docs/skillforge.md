@@ -6,7 +6,7 @@ permalink: /skillforge/
 
 > **One-liner.** SkillForge makes VibeCody's shipped skill library **measurable** (SkillLens) and **self-improving** (SkillOpt) — turning each skill markdown doc into trainable state that improves against held-out validation, with **zero inference-time overhead** at deploy.
 
-VibeCody ships ~710 skill files in `vibecli/vibecli-cli/skills/*.md`. Today they are hand-authored and static. SkillForge is a Rust port of [TuringWorks/SkillLens](https://github.com/TuringWorks/SkillLens) + [TuringWorks/SkillOpt](https://github.com/TuringWorks/SkillOpt), wired into the daemon the same way the [Code Graph]({{ site.baseurl }}/demos/41-semantic-index/) (kodegraph) is — one standalone crate, one daemon bridge module, HTTP routes, and a VibeCoder panel.
+VibeCody ships 1,144 skill files in `vibecli/vibecli-cli/skills/*.md`. Today they are hand-authored and static. SkillForge is a Rust port of [TuringWorks/SkillLens](https://github.com/TuringWorks/SkillLens) + [TuringWorks/SkillOpt](https://github.com/TuringWorks/SkillOpt), wired into the daemon the same way the [Code Graph]({{ site.baseurl }}/demos/41-semantic-index/) (kodegraph) is — one standalone crate, one daemon bridge module, HTTP routes, and a VibeCoder panel.
 
 This page documents the user-facing surface. For the full design, decisions, and roadmap, see the **`notes/skillforge/`** vault (start at `SkillForge — MOC.md`). For a runnable walkthrough, see [Demo 66: SkillForge]({{ site.baseurl }}/demos/66-skillforge/).
 
@@ -28,11 +28,11 @@ Treats a skill markdown doc as the trainable state of a frozen agent. Scored **r
 
 Open the **SkillForge** tab in the AI/ML composite. Three views:
 
-1. **Catalog** — the ~1,140 skills as a table (name, category, cached coverage/evolvability, source). No LLM call. Click a row to open it in Lens.
+1. **Catalog** — the 1,144 skills as a table (name, category, cached coverage/evolvability, source). No LLM call. Click a row to open it in Lens.
 2. **Lens** — pick a skill → **Score** against the toolbar-selected model → three metric cards (Trigger Coverage, Target Evolvability, Extraction Efficacy) with progress bars.
 3. **Optimize** — configure `TrainConfig` (epochs / val split / textual LR / patience / seed + env kind `repo`|`static`|`history`), launch a train job, watch the **validation curve** (inline SVG sparkline) update as epochs complete, see accepted/rejected counts + a spent-tokens meter, expand the trained `best_skill.md`, then **Promote**.
 
-**Promote is guarded.** It writes `<skill>.opt.md` to the per-workspace override dir (`<workspace>/.vibecli/skills/`, or `~/.vibecli/skills/` when no workspace is resolved) and **never overwrites the shipped `skills/*.md`** — the 710 shipped skills stay pristine. The catalogue JSON surfaces `has_promoted_override` on each skill and `promoted_override` (path) on the detail view, so a UI can badge overridden skills. Swapping a promoted skill into the live agent is a separate, deliberate action — no silent regressions.
+**Promote is guarded.** It writes `<skill>.opt.md` to the per-workspace override dir (`<workspace>/.vibecli/skills/`, or `~/.vibecli/skills/` when no workspace is resolved) and **never overwrites the shipped `skills/*.md`** — the 1,144 shipped skills stay pristine. The catalogue JSON surfaces `has_promoted_override` on each skill and `promoted_override` (path) on the detail view, so a UI can badge overridden skills. Swapping a promoted skill into the live agent is a separate, deliberate action — no silent regressions.
 
 ## Provider-agnostic (STRICT)
 

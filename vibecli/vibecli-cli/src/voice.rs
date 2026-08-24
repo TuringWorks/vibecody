@@ -130,8 +130,46 @@ pub fn is_model_downloaded(model: &WhisperModel) -> bool {
         .exists()
 }
 
-/// Download a Whisper GGML model from Hugging Face.
+/// Download a Whisper GGML model from Hugging Face, reporting progress to the
+/// terminal.
+///
+/// Thin wrapper over [`download_model_with_progress`] — the CLI wants a
+/// progress bar on stderr, a GUI wants the same bytes as an event, and neither
+/// should own a second copy of the download.
 pub async fn download_model(model: &WhisperModel) -> Result<PathBuf> {
+    download_model_with_progress(model, |downloaded, total| {
+        if total > 0 {
+            let pct = (downloaded as f64 / total as f64 * 100.0) as u32;
+            eprint!(
+                "\r  [{:>3}%] {:.1}/{:.1} MB",
+                pct,
+                downloaded as f64 / 1e6,
+                total as f64 / 1e6
+            );
+        } else {
+            eprint!("\r  {:.1} MB", downloaded as f64 / 1e6);
+        }
+    })
+    .await
+}
+
+/// Download a Whisper GGML model from Hugging Face.
+///
+/// `on_progress` is called with `(bytes_downloaded, total_bytes)` as the body
+/// streams in; `total_bytes` is `0` when the server sends no `Content-Length`,
+/// which is a fact about the response, not a percentage of zero — callers must
+/// render it as "unknown", never as 0%.
+///
+/// The download lands in a `.part` file that is renamed only after the last
+/// byte is flushed, so an interrupted download can never be mistaken for a
+/// complete model by [`is_model_downloaded`].
+pub async fn download_model_with_progress<F>(
+    model: &WhisperModel,
+    mut on_progress: F,
+) -> Result<PathBuf>
+where
+    F: FnMut(u64, u64),
+{
     let dir = models_dir();
     std::fs::create_dir_all(&dir).context("Failed to create models directory")?;
 
@@ -181,15 +219,7 @@ pub async fn download_model(model: &WhisperModel) -> Result<PathBuf> {
         let chunk = chunk.context("Download stream error")?;
         file.write_all(&chunk).await?;
         downloaded += chunk.len() as u64;
-        if total > 0 {
-            let pct = (downloaded as f64 / total as f64 * 100.0) as u32;
-            eprint!(
-                "\r  [{:>3}%] {:.1}/{:.1} MB",
-                pct,
-                downloaded as f64 / 1e6,
-                total as f64 / 1e6
-            );
-        }
+        on_progress(downloaded, total);
     }
     file.flush().await?;
     drop(file);
@@ -200,6 +230,76 @@ pub async fn download_model(model: &WhisperModel) -> Result<PathBuf> {
         .context("Failed to rename downloaded model")?;
     eprintln!("Saved to {}", dest.display());
     Ok(dest)
+}
+
+/// Delete a downloaded Whisper GGML model, freeing its disk space.
+///
+/// Returns `false` when there was nothing to delete — an absent model is the
+/// desired end state, not a failure, but the caller still needs to know it did
+/// not free anything.
+pub fn delete_model(model: &WhisperModel) -> Result<bool> {
+    let path = models_dir().join(format!("ggml-{}.bin", model.name()));
+    match std::fs::remove_file(&path) {
+        Ok(()) => Ok(true),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(e) => Err(e).with_context(|| format!("Failed to delete {}", path.display())),
+    }
+}
+
+/// Parse the argument of `/voice set <key> <value>` into the three settings
+/// [`crate::config::Config::set_voice_settings`] understands.
+///
+/// A pure function so the parsing is tested without writing to the
+/// developer's real `~/.vibecli/config.toml`. `None` means "leave this key
+/// alone"; exactly one of the three is ever `Some`.
+///
+/// A value is validated here rather than on the way out: `model wisper` and
+/// `prefer_local yes` are typos, and writing them to config.toml would leave
+/// a file that looks configured and fails at the next transcription.
+pub fn parse_voice_setting(
+    args: &str,
+) -> Result<(Option<String>, Option<String>, Option<bool>)> {
+    let (key, value) = args
+        .trim()
+        .split_once(char::is_whitespace)
+        .map(|(k, v)| (k, v.trim()))
+        .filter(|(_, v)| !v.is_empty())
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "Usage: /voice set <key> <value>\n                   model <tiny|base|small|medium|large>\n                   language <code, e.g. en>\n                   prefer_local <true|false>"
+            )
+        })?;
+
+    match key {
+        "model" | "local_model" => match WhisperModel::from_name(value) {
+            Some(model) => Ok((Some(model.name().to_string()), None, None)),
+            None => Err(anyhow::anyhow!(
+                "Unknown model '{value}'. Available: tiny, base, small, medium, large"
+            )),
+        },
+        // Whisper takes an ISO 639-1 code, and "auto" for detect-it-yourself.
+        // Anything longer is a language *name* ("english"), which the engine
+        // silently treats as no language at all.
+        "language" | "lang" => match value.len() <= 3 || value == "auto" {
+            true => Ok((None, Some(value.to_ascii_lowercase()), None)),
+            false => Err(anyhow::anyhow!(
+                "Expected a language code such as 'en' or 'auto', not '{value}'"
+            )),
+        },
+        "prefer_local" => match value.parse::<bool>() {
+            Ok(b) => Ok((None, None, Some(b))),
+            Err(_) => Err(anyhow::anyhow!("Expected true or false, not '{value}'")),
+        },
+        other => Err(anyhow::anyhow!(
+            "Unknown setting '{other}'. Settable: model, language, prefer_local"
+        )),
+    }
+}
+
+/// Absolute path of a downloaded model, or `None` when it is not on disk.
+pub fn model_path(model: &WhisperModel) -> Option<PathBuf> {
+    let path = models_dir().join(format!("ggml-{}.bin", model.name()));
+    path.exists().then_some(path)
 }
 
 /// Transcribe an audio file with a locally installed Whisper runtime.
@@ -1212,5 +1312,42 @@ mod tests {
             all.len(),
             "concurrent callers must not share a path"
         );
+    }
+
+    // ── /voice set argument parsing ────────────────────────────────────────
+
+    #[test]
+    fn each_settable_key_reaches_its_own_slot() {
+        assert_eq!(
+            parse_voice_setting("model small").expect("valid"),
+            (Some("small".to_string()), None, None)
+        );
+        assert_eq!(
+            parse_voice_setting("language FR").expect("valid"),
+            (None, Some("fr".to_string()), None)
+        );
+        assert_eq!(
+            parse_voice_setting("prefer_local true").expect("valid"),
+            (None, None, Some(true))
+        );
+    }
+
+    /// A typo written to config.toml leaves a file that looks configured and
+    /// fails at the next transcription — reject it at the keyboard instead.
+    #[test]
+    fn a_bad_value_is_refused_rather_than_saved() {
+        for bad in [
+            "model wisper",
+            "language english",
+            "prefer_local yes",
+            "tts_enabled true",
+            "model",
+            "",
+        ] {
+            assert!(
+                parse_voice_setting(bad).is_err(),
+                "should be refused: {bad:?}"
+            );
+        }
     }
 }

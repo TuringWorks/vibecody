@@ -465,7 +465,7 @@ test-all: test test-ui test-aichat test-vibedesk test-sdk ## Test every Node + R
 # `eval-check` validates the suite files themselves and is safe in CI: it runs
 # no agent and calls no provider. Everything below it costs tokens.
 
-.PHONY: eval-check eval-list eval-offline eval-surfaces eval-full eval-gate
+.PHONY: eval-check eval-list eval-offline eval-surfaces eval-models eval-full eval-gate
 
 eval-check: ## Validate the eval suites (no agent, no provider, CI-safe)
 	$(CARGO) test -p vibe-eval
@@ -479,6 +479,15 @@ eval-offline: ## Run the zero-dependency capability suites (needs a provider)
 
 eval-surfaces: ## Run surface conformance only (static checks + live daemon probes)
 	$(CARGO) run --release -p vibecli -- --eval run --suite surfaces
+
+# Per-model tool-protocol conformance. Pass the model under test:
+#   make eval-models MODEL=gpt-oss:20b PROVIDER=ollama
+# A model that fails this is unreachable through the tool loop, which is a
+# different problem from being bad at coding — and a different fix.
+eval-models: ## Run model conformance for one model (MODEL=… PROVIDER=…)
+	$(CARGO) run --release -p vibecli -- --eval run --suite models \
+		--provider $(or $(PROVIDER),ollama) --model $(MODEL) \
+		--binary target/release/vibecli
 
 eval-full: ## Run every suite (slow, costs tokens)
 	$(CARGO) run --release -p vibecli -- --eval run \

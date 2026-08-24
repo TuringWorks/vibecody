@@ -147,15 +147,15 @@ vibecody/
 │       │   ├── pairing.rs      # one-time pairing URL + QR rendering
 │       │   └── tui/            # Ratatui TUI (app, ui, components)
 │       ├── tests/              # 62+ BDD / integration harnesses
-│       └── skills/             # 711 skill files (25+ categories)
+│       └── skills/             # 1,144 skill files (155 categories)
 ├── vibecoder/
 │   ├── src/                    # React + TypeScript frontend
 │   │   ├── App.tsx             # Root component
-│   │   └── components/         # 293 panels + 42 composite dashboards
-│   ├── src-tauri/              # Tauri Rust backend (1,045+ commands)
+│   │   └── components/         # 246 *Panel.tsx + 41 composite dashboards (303 top-level components)
+│   ├── src-tauri/              # Tauri Rust backend (1,349 commands)
 │   └── crates/                 # Shared Rust library crates
 │       ├── vibe-core/          # Text buffer, FS, workspace, Git, index
-│       ├── vibe-ai/            # 22 AI providers + shared openai_compat; agents, hooks, planner
+│       ├── vibe-ai/            # 23 provider backends + failover + openai_compat; agents, hooks, planner
 │       ├── vibe-lsp/           # Language Server Protocol client
 │       ├── vibe-extensions/    # WASM-based extension system
 │       └── vibe-collab/        # CRDT multiplayer collaboration
@@ -194,30 +194,40 @@ Core editor primitives — text buffer (rope-based), file system operations, wor
 
 ### `vibe-ai`
 
-Unified AI provider abstraction with agent loop, hooks, planner, multi-agent orchestration, skills, artifacts, admin policy, trace/session resume, and OpenTelemetry. Supports 22 providers (plus a shared `openai_compat` helper module):
+Unified AI provider abstraction with agent loop, hooks, planner, multi-agent orchestration, skills, artifacts, admin policy, trace/session resume, and OpenTelemetry.
 
-- **Ollama** — Local/private models (default)
-- **Anthropic Claude** — Claude 4 Sonnet/Opus
-- **OpenAI** — GPT-4o and variants
-- **Google Gemini** — Gemini 2.5 Pro/Flash
-- **xAI Grok** — Grok 2
-- **Groq** — Fast inference (Llama, Mixtral)
-- **OpenRouter** — Multi-provider gateway
-- **Azure OpenAI** — Enterprise Azure-hosted models
-- **AWS Bedrock** — AWS-hosted models (Claude, Llama, Titan)
+**25 providers are selectable in the UI.** The canonical list is `vibecoder/src/hooks/useModelRegistry.ts` — `STATIC_MODELS` and `PROVIDER_DEFAULT_MODEL` must stay in sync, and nothing else needs to change to add one. The crate underneath (`vibe-ai/src/providers/`) holds 23 concrete backends plus a failover meta-provider and two shared `*compat` helper modules.
+
+- **Ollama** — local and Ollama Cloud models (no API key for local pulls)
+- **vibecli-mistralrs** — in-process local inference, no server; weights cached under `~/.cache/huggingface/hub`
+- **vLLM** — self-hosted OpenAI-compatible endpoint
+- **LM Studio** — local desktop model server
+- **Anthropic Claude** — Claude Opus 5, Fable 5, Sonnet 5, Opus 4.x, Haiku 4.5
+- **Claude Code** — routes through the local Claude Code CLI (Free/Pro/Max/Team/Enterprise plans, no API credits)
+- **OpenAI** — GPT-5.6 Sol/Terra/Luna, GPT-5.5, GPT-5.3-Codex, GPT-4.1, GPT-4o
+- **Google Gemini** — Gemini 3.6 Flash, 3.5 Flash / Flash-Lite
+- **xAI Grok** — Grok 4.5, 4.3, 4.20
+- **Groq** — fast inference (gpt-oss, Qwen)
+- **OpenRouter** — multi-provider gateway (Kimi K3, and 300+ models)
+- **Azure OpenAI** — enterprise Azure-hosted models
+- **AWS Bedrock** — AWS-hosted Claude, Llama, Titan
 - **GitHub Copilot** — Copilot integration
-- **LocalEdit** — Local code editing model
-- **Mistral** — Mistral AI models
-- **Cerebras** — Wafer-scale inference
-- **DeepSeek** — DeepSeek V3/R1
-- **Zhipu** — GLM-4 models
-- **Vercel AI** — Vercel AI SDK
-- **MiniMax** — MiniMax-Text-01
-- **Perplexity** — Search-augmented Sonar models
-- **Together AI** — Open model hosting (Llama, Qwen)
-- **Fireworks AI** — Fast open model inference
-- **SambaNova** — Hardware-accelerated inference
-- **Failover** — Auto-failover wrapper (chains multiple providers)
+- **Mistral** — Mistral Large / Medium / Small
+- **Cerebras** — wafer-scale inference (gpt-oss-120b, Gemma 4, GLM 4.7)
+- **DeepSeek** — DeepSeek V4 Pro / Flash
+- **Zhipu** — GLM-5.2 / 5.1 / 5
+- **Vercel AI** — Vercel AI SDK gateway
+- **MiniMax** — MiniMax-M3 / M2.7
+- **Perplexity** — search-augmented Sonar models
+- **Together AI** — open model hosting (Kimi, Qwen)
+- **Fireworks AI** — fast open model inference
+- **SambaNova** — hardware-accelerated inference
+- **Poolside** — Laguna models
+
+Two more live in the crate but not in the model picker:
+
+- **LocalEdit** — local code-editing model backend
+- **Failover** — meta-provider that chains backends and retries the next on timeout, rate-limit, or error
 
 ### `vibe-lsp`
 
@@ -285,7 +295,7 @@ model = "llama-3.3-70b-versatile"
 enabled = false
 model = "mistral-large-latest"
 
-# See docs/configuration.md for all 22 providers
+# See docs/configuration.md for all 25 providers
 
 [safety]
 require_approval_for_commands = true
@@ -386,7 +396,11 @@ sudo pacman -S webkit2gtk-4.1 gtk3 libappindicator-gtk3 librsvg patchelf openssl
 
 ## Running Tests
 
-**11,000+ unit tests + 62 BDD/integration harnesses** across the workspace.
+**16,102 test functions + 89 BDD/integration harnesses** across the workspace.
+
+> Counted at v0.5.10 by `#[test]` / `#[tokio::test]` attributes across `crates/`,
+> `vibecli/`, `vibecoder/crates/` and `vibecoder/src-tauri/`, plus harness files in
+> `vibecli/vibecli-cli/tests/`. A count is not a pass rate — run `make test` for that.
 
 ```bash
 make test          # All Rust workspace tests (fast path)

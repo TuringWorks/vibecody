@@ -310,6 +310,18 @@ pub trait AIProvider: Send + Sync {
         false
     }
 
+    /// True when this provider puts `crate::tools::tool_definitions_for` on the
+    /// wire, so the model receives tools as callable functions.
+    ///
+    /// The agent uses this to pick its system prompt: a provider that sends
+    /// schemas does not also need the per-tool XML catalogue
+    /// (`crate::tools::agent_system_prompt`). Providers that describe tools in
+    /// prose only must answer `false`, or the model loses the catalogue and has
+    /// nothing left telling it what the tools are.
+    fn advertises_native_tools(&self) -> bool {
+        false
+    }
+
     /// Return a clone of this provider with a per-request effort tier applied
     /// (gap C5), or `None` if this provider has no reasoning knob.
     ///

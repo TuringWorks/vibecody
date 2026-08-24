@@ -31,7 +31,7 @@ Earlier releases: 0.5.9 brought the plugin marketplace, real connectors, and 27 
                            │ Tauri IPC (invoke / events)
 ┌──────────────────────────▼───────────────────────────────────────┐
 │                   Tauri Rust Backend                             │
-│  commands.rs    — 1,045+ Tauri commands (files, git, AI, agent …)│
+│  commands.rs    — 1,349 Tauri commands (files, git, AI, agent …)│
 │  agent_executor — ToolExecutorTrait for agent tool calls         │
 │  flow.rs        — Flow Awareness Engine (activity tracking)      │
 │  memory.rs      — Workspace + global AI rules (.vibecoder.md)    │
@@ -91,14 +91,14 @@ The installer is placed in `src-tauri/target/release/bundle/`.
 - **Rope-based buffer** — built on `ropey` for efficient O(log n) edits on large files
 - **Batch edits** — `apply_batch_edits` for bulk insert/delete operations
 - **Multi-cursor** — `update_cursors` for synchronised cursor state
-- **DiffComplete (⌘.)** — explicit-chord AI editing surface; `DiffCompleteModal` collects an instruction (with optional user-picked extra files for context), `vibe_ai::diffcomplete::generate` returns a unified diff, `DiffReviewPanel` shows per-hunk accept/reject with optional Monaco edit-before-apply and a regenerate-with-refinement loop. A deliberate alternative to keystroke-driven ghost text — there is no inline-completion / FIM / next-edit-prediction surface in VibeCody (those were removed in 2026-04-26).
+- **DiffComplete (⌘.)** — explicit-chord AI editing surface; `DiffCompleteModal` collects an instruction (with optional user-picked extra files for context), `vibe_ai::diffcomplete::generate` returns a unified diff, `DiffReviewPanel` shows per-hunk accept/reject with optional Monaco edit-before-apply and a regenerate-with-refinement loop. A deliberate alternative to keystroke-driven ghost text. Keystroke-driven inline completion was removed on 2026-04-26; inline completion returned later as an **explicit-trigger-only** surface bound to ⌥\ (`vibe_ai::ghost`, 12-line cap) — it never fires on a keystroke. See [ghost-text.md](./ghost-text.md).
 - **File watching** — auto-detects external changes using `notify`
 - **Multi-workspace** — open multiple folders simultaneously
 - **Language detection** — automatic language mode from file extension
 
 ### AI Integration
 
-The AI chat panel supports all 22 providers via the shared `vibe-ai` crate:
+The AI chat panel supports all 25 providers via the shared `vibe-ai` crate:
 
 - **Local**: Ollama (default, no API key), LocalEdit
 - **Cloud**: Claude, OpenAI, Gemini, Grok, Groq, Mistral, Cerebras, DeepSeek, Zhipu, MiniMax
@@ -283,7 +283,7 @@ Press `Cmd+P` (macOS) / `Ctrl+P` (Windows/Linux) to open the Command Palette:
 
 ## AI Panel Tabs
 
-The AI panel (toggle with **AI Chat** in the header) has **293 panel components + 42 composites** across categories:
+The AI panel (toggle with **AI Chat** in the header) has **246 panel components + 41 composites** across categories:
 
 ### Core AI & Chat
 
@@ -372,7 +372,7 @@ The AI panel (toggle with **AI Chat** in the header) has **293 panel components 
 | Tab | Component | Description |
 |-----|-----------|-------------|
 | **Steering** | `SteeringPanel` | Workspace/global steering files with templates |
-| **Open Memory** | `OpenMemoryPanel` | Cognitive memory engine: 5 sectors, associative graph, HNSW index, AES-256-GCM encryption |
+| **Open Memory** | `OpenMemoryPanel` | Cognitive memory engine: 5 sectors, associative graph, HNSW index, XOR obfuscation at rest (not cryptographic) |
 | **Context Bundle** | `ContextBundlePanel` | Context bundles/spaces with priority ordering and TOML serialization |
 | **Fast Context** | `FastContextPanel` | Fast context retrieval and SWE-grep |
 | **Infinite Context** | `InfiniteContextPanel` | 5-level context hierarchy with token budget, eviction, and compression |
@@ -1300,12 +1300,12 @@ VibeCoder implements WCAG 2.1 Level AA accessibility:
 
 ## Testing
 
-**9,570 tests** pass across the workspace (as of 2026-03-29, 0 failures).
+**16,102 test functions** across the workspace (counted at v0.5.10 by `#[test]` / `#[tokio::test]` attribute).
 
 | Crate | Tests | Key coverage areas |
 |-------|-------|--------------------|
 | vibecli | 5,262+ | session store, serve, config, review, workflow, REPL, redteam, gateway, transform, marketplace, background agents, TUI, tool executor, bugbot, vim editor, security scan, automations, legacy migration, batch builder, QA validation, RAG, GPU cluster, inference, training, counsel, superbrain, web client, open memory, auto research, blue/purple team, IDP, agent teams, cloud agents, workflow orchestration |
-| vibe-ai | 1,020+ | 23 providers, tools, trace, hooks, policy, skills, artifacts, planner, MCP, agent teams, multi-agent, SigV4, gemini |
+| vibe-ai | 1,020+ | 23 provider backends + failover, tools, trace, hooks, policy, skills, artifacts, planner, MCP, agent teams, multi-agent, SigV4, gemini |
 | vibe-core | 293 | buffer, git, diff, context, file system, workspace, search, terminal, index/embeddings |
 | vibe-coder (Tauri) | 227 | Tauri commands, coverage, cost, flow, agent executor, shadow workspace |
 | vibe-lsp | 74 | LSP client, features, manager, language configs |

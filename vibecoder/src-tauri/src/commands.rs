@@ -3105,23 +3105,26 @@ pub struct ChatResponse {
     pub message: String,
     pub tool_output: String,
     pub pending_write: Option<PendingWrite>,
+    /// Highest `sessions.db` message row written for this turn, when the tab is
+    /// session-tracked. The chat panel polls that table for Watch/mobile
+    /// messages; it advances its cursor past this id so the reply it already
+    /// rendered doesn't come back as a second bubble.
+    pub session_msg_id: Option<i64>,
 }
 
-#[tauri::command]
-pub async fn send_chat_message(
-    mut request: ChatRequest,
-    state: tauri::State<'_, AppState>,
-    app_handle: tauri::AppHandle,
-) -> Result<ChatResponse, String> {
-    let mut chat_engine = state.chat_engine.lock().await;
-
-    // Set the active provider based on request
-    chat_engine
-        .set_provider_by_name(&request.provider)
-        .map_err(|e| e.to_string())?;
-
-    // Inject system prompt with tools and file tree
-    let mut system_prompt = format!(
+/// The chat panel's system prompt: identity, the tool contract, and the
+/// behavioural guidelines.
+///
+/// One copy, called from both `send_chat_message` and `stream_chat_message` —
+/// the two literals had already been kept in sync by hand for long enough.
+///
+/// `## File Tools` is load-bearing: providers read that marker to decide
+/// whether to advertise the chat tool schemas natively
+/// (`vibe_ai::tools::tool_definitions_for`). Removing or renaming the heading
+/// silently drops every local model back to prose-only tools, which is how a
+/// reasoning model ends up answering with an empty bubble.
+fn chat_system_prompt(model_label: &str) -> String {
+    format!(
         "You are Vibe Agent, an advanced coding assistant with access to the file system.\n\
         Always refer to yourself as Vibe Agent — never use VibeCLI or any other name.\n\
         The user has selected you as their active model: {}.\n\
@@ -3146,6 +3149,13 @@ pub async fn send_chat_message(
         2. Analyze the code for issues, improvements, or requested changes\n\
         3. Write the improved version back using <write_file> with the COMPLETE updated file content\n\
         Never just describe changes — always write the updated files so the user can review the diff.\n\n\
+        ## File Tools\n\
+        Call a tool by emitting one block and nothing else in that turn:\n\
+        <tool_call name=\"write_file\"><path>src/main.rs</path><content>…complete file…</content></tool_call>\n\
+        Tools: read_file(path), write_file(path, content), list_dir(path), build(command?), run(command?).\n\
+        If your API gives you these tools as functions, call them that way instead — same names, same parameters.\n\
+        Emit the call itself; never describe the call you would make.\n\
+        The older tag form above (<write_file path=\"…\">…</write_file>) is still accepted.\n\n\
         IMPORTANT BEHAVIORAL GUIDELINES:\n\
         - Read files before modifying them. Understand existing code before suggesting changes.\n\
         - Do not create files unless absolutely necessary. Prefer editing existing files.\n\
@@ -3156,8 +3166,25 @@ pub async fn send_chat_message(
         - Be concise. Lead with the action, not the reasoning. Skip filler and preamble.\n\
         - Write ONE file per response for large tasks. Do not generate entire projects at once.\n\
         - Assist with authorized security testing but refuse malicious requests (malware, DoS, supply chain attacks).\n\n",
-        request.provider
-    );
+        model_label
+    )
+}
+
+#[tauri::command]
+pub async fn send_chat_message(
+    mut request: ChatRequest,
+    state: tauri::State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+) -> Result<ChatResponse, String> {
+    let mut chat_engine = state.chat_engine.lock().await;
+
+    // Set the active provider based on request
+    chat_engine
+        .set_provider_by_name(&request.provider)
+        .map_err(|e| e.to_string())?;
+
+    // Inject system prompt with tools and file tree
+    let mut system_prompt = chat_system_prompt(&request.provider);
 
     // Inject project + global AI rules (Phase 4)
     {
@@ -3250,6 +3277,7 @@ pub async fn send_chat_message(
         message: response_text,
         tool_output,
         pending_write,
+        session_msg_id: None,
     })
 }
 
@@ -3327,43 +3355,7 @@ pub async fn stream_chat_message(
     };
 
     // Inject system prompt (same as send_chat_message)
-    let mut system_prompt = format!(
-        "You are Vibe Agent, an advanced coding assistant with access to the file system.\n\
-        Always refer to yourself as Vibe Agent — never use VibeCLI or any other name.\n\
-        The user has selected you as their active model: {}.\n\
-        When asked what model you are, report this model name.\n\
-        When the user asks you to create or modify files, you MUST use these XML tags to write files:\n\
-        - <write_file path=\"path/to/file\">file content here</write_file>\n\
-        - <read_file path=\"path/to/file\" />\n\
-        - <list_dir path=\"path/to/dir\" />\n\
-        - <build /> — Build/compile the project (auto-detects build system). Use <build command=\"custom cmd\" /> for a custom build command.\n\
-        - <run /> — Run the application (auto-detects run command). Use <run command=\"custom cmd\" /> for a custom run command.\n\n\
-        Use <build /> when the user asks to build, compile, or make the project.\n\
-        Use <run /> when the user asks to run, start, or execute the application.\n\
-        Use <build /> then <run /> when the user says 'build and run'.\n\
-        The build system auto-detects compilers: javac for .java, gcc/g++ for .c/.cpp, go for .go, rustc for .rs, python3 for .py, etc.\n\
-        No Makefile or build config is needed for standalone source files — the compiler is invoked directly.\n\
-        If a required tool is not installed, tell the user how to install it.\n\n\
-        IMPORTANT: Always use <write_file> tags when generating code that should be saved to a file.\n\
-        You may also use fenced code blocks with file paths like ```path/to/file.ts as a fallback.\n\
-        The path should be relative to the project root.\n\n\
-        When the user asks you to check, review, fix, improve, refactor, or update code, you MUST:\n\
-        1. Read the relevant files using <read_file>\n\
-        2. Analyze the code for issues, improvements, or requested changes\n\
-        3. Write the improved version back using <write_file> with the COMPLETE updated file content\n\
-        Never just describe changes — always write the updated files so the user can review the diff.\n\n\
-        IMPORTANT BEHAVIORAL GUIDELINES:\n\
-        - Read files before modifying them. Understand existing code before suggesting changes.\n\
-        - Do not create files unless absolutely necessary. Prefer editing existing files.\n\
-        - Do not add features, refactoring, or improvements beyond what was asked.\n\
-        - Do not add unnecessary error handling, abstractions, or compatibility hacks.\n\
-        - Be careful not to introduce security vulnerabilities (XSS, injection, OWASP top 10).\n\
-        - For destructive actions (deleting files, overwriting), confirm with the user first.\n\
-        - Be concise. Lead with the action, not the reasoning. Skip filler and preamble.\n\
-        - Write ONE file per response for large tasks. Do not generate entire projects at once.\n\
-        - Assist with authorized security testing but refuse malicious requests (malware, DoS, supply chain attacks).\n\n",
-        request.provider
-    );
+    let mut system_prompt = chat_system_prompt(&request.provider);
     {
         let ws = state.workspace.lock().await;
         if let Some(root) = ws.folders().first() {
@@ -3608,6 +3600,10 @@ pub async fn stream_chat_message(
                 let content = text[content_start..start + close_rel]
                     .strip_prefix('\n')
                     .unwrap_or(&text[content_start..start + close_rel]);
+                // Same normalisation the agent's tool boundary applies: a
+                // JSON-escaped or fence-wrapped body must not reach the disk
+                // as typed.
+                let content = &vibe_ai::tools::normalize_file_content(content);
                 let target = if std::path::Path::new(path).is_absolute() {
                     std::path::PathBuf::from(path)
                 } else {
@@ -3711,6 +3707,24 @@ pub async fn stream_chat_message(
                 return;
             }
 
+            // Same two corrections as the streaming path: this branch serves
+            // providers with no token stream, not a different class of model.
+            if let Some(note) = unsupported_chat_tool_note(&accumulated) {
+                if let Some(retry) = continue_turn(&provider, &messages, &accumulated, &note).await
+                {
+                    accumulated.push('\n');
+                    accumulated.push_str(&retry);
+                }
+            }
+            if is_reasoning_only(&accumulated) {
+                if let Some(answer) =
+                    answer_after_reasoning_only(&provider, &messages, &accumulated).await
+                {
+                    accumulated.push('\n');
+                    accumulated.push_str(&answer);
+                }
+            }
+
             // Emit the full response as a single chunk + complete
             let _ = app_handle.emit("chat:chunk", accumulated.clone());
             health_tracker.record(vibe_ai::ProviderCallOutcome {
@@ -3723,7 +3737,7 @@ pub async fn stream_chat_message(
             let (tool_output, pending_write) =
                 process_tool_calls(&accumulated, &workspace, &app_handle).await;
             // Persist to sessions.db for Watch visibility
-            write_to_session_store(
+            let session_msg_id = write_to_session_store(
                 &watch_session_id,
                 &watch_session_title,
                 &messages,
@@ -3735,6 +3749,7 @@ pub async fn stream_chat_message(
                 message: accumulated.clone(),
                 tool_output,
                 pending_write,
+                session_msg_id,
             };
             let _ = app_handle.emit("chat:complete", response);
             let estimated_tokens = accumulated.len() / 4;
@@ -4002,6 +4017,38 @@ pub async fn stream_chat_message(
             error_category: None,
         });
 
+        // A tool this panel cannot run is not an action. Tell the model what it
+        // may call and take the retry — one only, so a model that keeps
+        // reaching for its built-ins cannot spin here.
+        if let Some(note) = unsupported_chat_tool_note(&accumulated) {
+            if let Some(retry) = continue_turn(&provider, &messages, &accumulated, &note).await {
+                let _ = app_handle.emit("chat:chunk", retry.clone());
+                accumulated.push('\n');
+                accumulated.push_str(&retry);
+            }
+        }
+
+        // A turn made entirely of reasoning is not an answer. Ask once for the
+        // answer itself rather than rendering a bubble that shows a "thinking"
+        // disclosure and nothing else.
+        if is_reasoning_only(&accumulated) {
+            let _ = app_handle.emit(
+                "chat:status",
+                serde_json::json!({"type": "thinking", "active": true}),
+            );
+            if let Some(answer) =
+                answer_after_reasoning_only(&provider, &messages, &accumulated).await
+            {
+                let _ = app_handle.emit("chat:chunk", answer.clone());
+                accumulated.push('\n');
+                accumulated.push_str(&answer);
+            }
+            let _ = app_handle.emit(
+                "chat:status",
+                serde_json::json!({"type": "thinking", "active": false}),
+            );
+        }
+
         // Final flush: catch any <write_file> block completed in the last chunk
         write_scan_pos = flush_completed_writes(
             &accumulated,
@@ -4030,13 +4077,8 @@ pub async fn stream_chat_message(
             tool_output = format!("{}{}", summary, tool_output);
         }
 
-        let response = ChatResponse {
-            message: accumulated.clone(),
-            tool_output,
-            pending_write,
-        };
         // Persist to sessions.db for Watch visibility
-        write_to_session_store(
+        let session_msg_id = write_to_session_store(
             &watch_session_id,
             &watch_session_title,
             &messages,
@@ -4044,6 +4086,12 @@ pub async fn stream_chat_message(
             &provider_name,
             &model_name,
         );
+        let response = ChatResponse {
+            message: accumulated.clone(),
+            tool_output,
+            pending_write,
+            session_msg_id,
+        };
         let _ = app_handle.emit("chat:complete", response);
 
         // Emit token/cost metrics
@@ -4613,6 +4661,9 @@ async fn fetch_github_issue(url: &str, token: Option<String>) -> Result<GithubIs
 
 /// Write a VibeCoder chat exchange to sessions.db so the Watch can see it.
 /// Called at completion of each LLM response. Idempotent: uses INSERT OR IGNORE.
+/// Returns the highest `messages.id` written, so the caller can hand it to the
+/// UI: VibeCoder polls this same table for Watch/mobile messages, and without a
+/// cursor to skip past its own rows it re-imports the reply it just rendered.
 fn write_to_session_store(
     session_id: &Option<String>,
     session_title: &Option<String>,
@@ -4620,19 +4671,13 @@ fn write_to_session_store(
     assistant_response: &str,
     provider_name: &str,
     model_name: &str,
-) {
+) -> Option<i64> {
     let sid = match session_id {
         Some(s) if !s.is_empty() => s.clone(),
-        _ => return, // no session_id → not a tracked tab
+        _ => return None, // no session_id → not a tracked tab
     };
-    let db_path = match dirs::home_dir() {
-        Some(h) => h.join(".vibecli").join("sessions.db"),
-        None => return,
-    };
-    let store = match vibecli_cli::session_store::SessionStore::open(&db_path) {
-        Ok(s) => s,
-        Err(_) => return,
-    };
+    let db_path = dirs::home_dir()?.join(".vibecli").join("sessions.db");
+    let store = vibecli_cli::session_store::SessionStore::open(&db_path).ok()?;
     // Derive task name: explicit title > first user message > fallback
     let task = session_title
         .as_deref()
@@ -4646,18 +4691,21 @@ fn write_to_session_store(
         });
     let _ = store.insert_session(&sid, task, provider_name, model_name);
     // Upsert all messages (insert_message is append-only — only write the last pair)
-    if let Some(last_user) = messages
+    let user_id = messages
         .iter()
         .rev()
         .find(|m| m.role == vibe_ai::MessageRole::User)
-    {
-        let _ = store.insert_message(&sid, "user", &last_user.content);
-    }
-    if !assistant_response.is_empty() {
-        let _ = store.insert_message(&sid, "assistant", assistant_response);
-    }
+        .and_then(|m| store.insert_message(&sid, "user", &m.content).ok());
+    let assistant_id = (!assistant_response.is_empty())
+        .then(|| {
+            store
+                .insert_message(&sid, "assistant", assistant_response)
+                .ok()
+        })
+        .flatten();
     // Keep session as "running" so Watch shows it as active
     let _ = store.finish_session(&sid, "complete", None);
+    assistant_id.max(user_id)
 }
 
 /// F3.x — Read which session a mobile client most recently claimed
@@ -5024,6 +5072,161 @@ pub async fn watch_get_session_messages(
     }))
 }
 
+/// Asked of a model that answered with reasoning and nothing else.
+const ANSWER_NUDGE: &str = "That turn was only reasoning — it contained no answer and no tool \
+     call. Reply now with the answer itself, or emit the tool call you decided on. Do not think \
+     out loud again.";
+
+/// True when a turn is reasoning and nothing else.
+///
+/// Reasoning models return one routinely: measured across lfm2.5, gpt-oss:20b
+/// and ornith, every chat turn came back with an empty `content` and the whole
+/// turn in `thinking`. Rendered as-is that is a bubble with a collapsed
+/// "thinking" disclosure and no reply — the model looks like it stopped
+/// mid-sentence.
+fn is_reasoning_only(text: &str) -> bool {
+    !text.trim().is_empty() && vibe_ai::tools::strip_thinking(text).trim().is_empty()
+}
+
+/// Ask the model for one more turn, with `nudge` explaining what was wrong
+/// with the last one.
+///
+/// Returns the continuation's text, or `None` when the model still had nothing
+/// to say (or the call failed) — the caller then keeps the original turn rather
+/// than inventing an answer for it. Never called more than once per turn: a
+/// model that will not answer is not made to by asking twice.
+async fn continue_turn(
+    provider: &std::sync::Arc<dyn vibe_ai::provider::AIProvider>,
+    messages: &[vibe_ai::Message],
+    last_turn: &str,
+    nudge: &str,
+) -> Option<String> {
+    let mut followup = messages.to_vec();
+    followup.push(vibe_ai::Message {
+        role: vibe_ai::MessageRole::Assistant,
+        content: last_turn.to_string(),
+    });
+    followup.push(vibe_ai::Message {
+        role: vibe_ai::MessageRole::User,
+        content: nudge.to_string(),
+    });
+    match provider.chat(&followup, None).await {
+        Ok(text) if !vibe_ai::tools::strip_thinking(&text).trim().is_empty() => Some(text),
+        Ok(_) => {
+            tracing::warn!(nudge, "Continuation turn came back empty");
+            None
+        }
+        Err(e) => {
+            tracing::warn!(error = %e, nudge, "Continuation turn failed");
+            None
+        }
+    }
+}
+
+/// One more turn, asking for the answer the reasoning was leading to.
+async fn answer_after_reasoning_only(
+    provider: &std::sync::Arc<dyn vibe_ai::provider::AIProvider>,
+    messages: &[vibe_ai::Message],
+    reasoning_turn: &str,
+) -> Option<String> {
+    continue_turn(provider, messages, reasoning_turn, ANSWER_NUDGE).await
+}
+
+/// The correction to send when a turn called a tool the chat panel does not
+/// have, or malformed one it does.
+///
+/// gpt-oss reaches for its own built-ins — `container.exec`, `browser.search`,
+/// `python` — which arrive transcribed as `<tool_call name="container.exec">`
+/// and execute nowhere. Dropping them silently leaves the user with prose and
+/// no action; naming the real vocabulary lets the model retry with a tool that
+/// exists. `None` when every block named a tool this panel can run.
+fn unsupported_chat_tool_note(text: &str) -> Option<String> {
+    let attempted: Vec<String> = vibe_ai::tools::parse_tool_call_blocks(text)
+        .into_iter()
+        .map(|(name, _)| name)
+        .filter(|name| !chat_tool_is_supported(name))
+        .collect();
+    if attempted.is_empty() {
+        return None;
+    }
+    Some(format!(
+        "Tool call rejected: {} is not available here. You have exactly these tools: {}. \
+         Retry now with one of them, or answer in plain text if no tool is needed.",
+        attempted
+            .iter()
+            .map(|n| format!("`{n}`"))
+            .collect::<Vec<_>>()
+            .join(", "),
+        vibe_ai::tools::CHAT_TOOL_NAMES.join(", "),
+    ))
+}
+
+/// Whether the chat executor can run this tool name. `list_directory` is the
+/// agent's spelling of `list_dir` and is accepted for both.
+fn chat_tool_is_supported(name: &str) -> bool {
+    vibe_ai::tools::CHAT_TOOL_NAMES.contains(&name) || name == "list_directory"
+}
+
+/// Rewrite canonical `<tool_call name="…">` blocks into the chat panel's tag
+/// dialect (`<read_file path="…" />`, `<write_file path="…">…</write_file>`, …).
+///
+/// Local models emit native tool calls, which providers transcribe to the
+/// canonical markup; without this bridge the chat executor scans for tags that
+/// are never there and the turn reads as an answer with no action. Text that
+/// contains no such block is returned unchanged.
+fn canonical_tool_calls_to_tags(response: &str) -> String {
+    let blocks = vibe_ai::tools::parse_tool_call_blocks(response);
+    if blocks.is_empty() {
+        return response.to_string();
+    }
+    let param = |params: &[(String, String)], key: &str| -> Option<String> {
+        params
+            .iter()
+            .find(|(k, _)| k == key)
+            .map(|(_, v)| v.clone())
+    };
+    let mut rendered = String::new();
+    for (name, params) in &blocks {
+        let tag = match name.as_str() {
+            "read_file" => param(params, "path").map(|p| format!("<read_file path=\"{p}\" />")),
+            "list_dir" | "list_directory" => {
+                param(params, "path").map(|p| format!("<list_dir path=\"{p}\" />"))
+            }
+            "write_file" => match (param(params, "path"), param(params, "content")) {
+                // Normalised on the way in: a model that hands over
+                // JSON-escaped or fenced content would otherwise have it
+                // written to disk verbatim.
+                (Some(p), Some(c)) => Some(format!(
+                    "<write_file path=\"{p}\">{}</write_file>",
+                    vibe_ai::tools::normalize_file_content(&c)
+                )),
+                _ => None,
+            },
+            "build" | "run" => Some(match param(params, "command") {
+                Some(cmd) if !cmd.is_empty() => format!("<{name} command=\"{cmd}\" />"),
+                _ => format!("<{name} />"),
+            }),
+            // A tool this executor does not have. Left out of the rewrite so
+            // `unsupported_chat_tool_note` can tell the model what it may call.
+            _ => None,
+        };
+        if let Some(tag) = tag {
+            rendered.push_str(&tag);
+            rendered.push('\n');
+        }
+    }
+    match rendered.is_empty() {
+        true => response.to_string(),
+        // The prose around a tool call is commentary; keeping it would feed the
+        // literal markup back into the panel as text.
+        false => format!(
+            "{}{}",
+            vibe_ai::tools::strip_tool_call_blocks(response),
+            rendered
+        ),
+    }
+}
+
 async fn process_tool_calls(
     response: &str,
     workspace_lock: &Arc<Mutex<Workspace>>,
@@ -5032,6 +5235,11 @@ async fn process_tool_calls(
     // Reasoning first: a model that muses about `<write_file …>` inside its
     // thinking block must not have that call executed.
     let response = &vibe_ai::tools::strip_thinking(response);
+    // Canonical `<tool_call name="…">` blocks — what a native tool call is
+    // transcribed into, and what the prompt now asks for — are rewritten into
+    // the tag dialect this executor scans for. One wire format, one parser,
+    // two executors.
+    let response = &canonical_tool_calls_to_tags(response);
     // Normalize GLM/Qwen-style delimiters: <|tag|> → <tag>, </|tag|> → </tag>
     // These models wrap tool calls in <|...|> instead of <...>
     let response = &response
@@ -5097,6 +5305,10 @@ async fn process_tool_calls(
                 let raw_content = &response[content_start..start + content_end];
                 // Strip leading newline that the LLM places after the opening tag
                 let content = raw_content.strip_prefix('\n').unwrap_or(raw_content);
+                // …then the same normalisation the agent's tool boundary does:
+                // unescape a JSON-escaped body, drop an enclosing fence, drop a
+                // stray reasoning close tag.
+                let content = &vibe_ai::tools::normalize_file_content(content);
 
                 let target = resolve(path);
                 if let Some(parent) = target.parent() {
@@ -7402,6 +7614,200 @@ impl SecretMap {
         if written.is_ok() {
             let _ = std::fs::remove_file(path);
         }
+    }
+}
+
+#[cfg(test)]
+mod reasoning_only_tests {
+    use super::*;
+    use vibe_ai::mock_provider::MockAIProvider;
+    use vibe_ai::provider::AIProvider;
+
+    fn user(text: &str) -> vibe_ai::Message {
+        vibe_ai::Message {
+            role: vibe_ai::MessageRole::User,
+            content: text.to_string(),
+        }
+    }
+
+    #[test]
+    fn a_turn_of_pure_reasoning_is_recognised() {
+        assert!(is_reasoning_only("<thinking>the user wants X…</thinking>"));
+        assert!(is_reasoning_only("<think>hmm</think>\n\n  \n"));
+    }
+
+    #[test]
+    fn a_turn_with_an_answer_or_a_tool_call_is_not() {
+        assert!(!is_reasoning_only("<thinking>hmm</thinking>Here you go."));
+        assert!(!is_reasoning_only(
+            r#"<thinking>hmm</thinking><tool_call name="build"></tool_call>"#
+        ));
+        assert!(!is_reasoning_only("Here you go."));
+        // Nothing at all is a dead turn, handled elsewhere — not this.
+        assert!(!is_reasoning_only("   "));
+    }
+
+    #[tokio::test]
+    async fn the_continuation_is_asked_for_and_kept() {
+        let provider: std::sync::Arc<dyn AIProvider> = std::sync::Arc::new(
+            MockAIProvider::with_responses("mock", vec!["Yes — three of them are stale."]),
+        );
+        let answer = answer_after_reasoning_only(
+            &provider,
+            &[user("any additions we can make to these documents")],
+            "<thinking>They asked about the docs…</thinking>",
+        )
+        .await;
+        assert_eq!(answer.as_deref(), Some("Yes — three of them are stale."));
+    }
+
+    /// A model that thinks twice gets no invented answer: the caller keeps the
+    /// reasoning-only turn rather than showing something the model never said.
+    #[tokio::test]
+    async fn a_second_reasoning_only_turn_yields_nothing() {
+        let provider: std::sync::Arc<dyn AIProvider> = std::sync::Arc::new(
+            MockAIProvider::with_responses("mock", vec!["<thinking>still pondering</thinking>"]),
+        );
+        let answer =
+            answer_after_reasoning_only(&provider, &[user("hi")], "<thinking>hmm</thinking>").await;
+        assert!(answer.is_none());
+    }
+
+    /// gpt-oss reaches for its built-in `container.exec`; the panel has no
+    /// such tool, and silence would leave the user with prose and no action.
+    #[test]
+    fn an_unknown_tool_gets_a_correction_naming_the_real_ones() {
+        let note = unsupported_chat_tool_note(
+            r#"<tool_call name="container.exec"><cmd>ls</cmd></tool_call>"#,
+        )
+        .expect("an unknown tool must be corrected");
+        assert!(note.contains("container.exec"), "{note}");
+        for tool in vibe_ai::tools::CHAT_TOOL_NAMES {
+            assert!(
+                note.contains(tool),
+                "the valid list must name {tool}: {note}"
+            );
+        }
+    }
+
+    #[test]
+    fn supported_tools_get_no_correction() {
+        assert!(unsupported_chat_tool_note(
+            r#"<tool_call name="write_file"><path>a</path><content>b</content></tool_call>"#
+        )
+        .is_none());
+        // The agent's spelling of the same tool is accepted too.
+        assert!(unsupported_chat_tool_note(
+            r#"<tool_call name="list_directory"><path>src</path></tool_call>"#
+        )
+        .is_none());
+        assert!(unsupported_chat_tool_note("Plain prose, no tools.").is_none());
+    }
+
+    /// A tool named only inside reasoning was never called.
+    #[test]
+    fn a_tool_mused_about_in_reasoning_is_not_corrected() {
+        assert!(unsupported_chat_tool_note(
+            "<thinking><tool_call name=\"python\"><code>1</code></tool_call></thinking>Hi."
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn the_nudge_names_both_ways_out() {
+        assert!(ANSWER_NUDGE.contains("answer"));
+        assert!(ANSWER_NUDGE.contains("tool call"));
+    }
+}
+
+#[cfg(test)]
+mod chat_tool_bridge_tests {
+    use super::*;
+
+    /// The marker providers read to decide whether to advertise the chat tool
+    /// schemas. If this heading ever moves, local models silently lose native
+    /// tool calling — so pin it here as well as in `vibe_ai::tools`.
+    #[test]
+    fn chat_prompt_carries_the_tool_marker() {
+        let prompt = chat_system_prompt("ollama");
+        assert!(prompt.contains(vibe_ai::tools::CHAT_TOOL_PROMPT_MARKER));
+        assert_eq!(
+            vibe_ai::tools::tool_set_for([prompt.as_str()]),
+            Some(vibe_ai::tools::ToolSet::Chat),
+        );
+        // The legacy dialect stays documented: a conversation already in
+        // flight, and every cloud model tuned on it, keeps working.
+        assert!(prompt.contains("<write_file path="));
+    }
+
+    #[test]
+    fn canonical_write_file_becomes_the_tag_dialect() {
+        let out = canonical_tool_calls_to_tags(
+            r#"Adding it now.
+<tool_call name="write_file"><path>src/a.rs</path><content>fn main() {}</content></tool_call>"#,
+        );
+        assert!(
+            out.contains(r#"<write_file path="src/a.rs">fn main() {}</write_file>"#),
+            "{out}"
+        );
+        assert!(out.contains("Adding it now."), "prose survives: {out}");
+        assert!(
+            !out.contains("<tool_call"),
+            "raw markup must not survive: {out}"
+        );
+    }
+
+    #[test]
+    fn canonical_read_list_build_and_run_all_convert() {
+        let out = canonical_tool_calls_to_tags(concat!(
+            r#"<tool_call name="read_file"><path>a.rs</path></tool_call>"#,
+            r#"<tool_call name="list_directory"><path>src</path></tool_call>"#,
+            r#"<tool_call name="build"></tool_call>"#,
+            r#"<tool_call name="run"><command>./a.out</command></tool_call>"#,
+        ));
+        assert!(out.contains(r#"<read_file path="a.rs" />"#), "{out}");
+        // The agent spells it `list_directory`; the chat executor scans for
+        // `list_dir`. Accepting both is why the bridge exists.
+        assert!(out.contains(r#"<list_dir path="src" />"#), "{out}");
+        assert!(out.contains("<build />"), "{out}");
+        assert!(out.contains(r#"<run command="./a.out" />"#), "{out}");
+    }
+
+    /// Entity-escaped content has to come back intact: `render_tool_call`
+    /// escapes on the way out, so a Rust or HTML file body would otherwise be
+    /// written to disk with `&lt;` in it.
+    #[test]
+    fn escaped_content_round_trips() {
+        let out = canonical_tool_calls_to_tags(
+            r#"<tool_call name="write_file"><path>a.html</path><content>&lt;div&gt;a &amp;&amp; b&lt;/div&gt;</content></tool_call>"#,
+        );
+        assert!(out.contains("<div>a && b</div>"), "{out}");
+    }
+
+    /// gpt-oss reaches for its built-in `container.exec`. It must not be
+    /// rewritten into a tag the executor would run.
+    #[test]
+    fn unknown_tool_is_not_rewritten() {
+        let out = canonical_tool_calls_to_tags(
+            r#"<tool_call name="container.exec"><cmd>ls</cmd></tool_call>"#,
+        );
+        assert!(!out.contains("<build"), "{out}");
+        assert!(!out.contains("<run "), "{out}");
+    }
+
+    #[test]
+    fn text_without_blocks_is_returned_unchanged() {
+        let plain = "Just an answer, no tools.";
+        assert_eq!(canonical_tool_calls_to_tags(plain), plain);
+    }
+
+    /// Reasoning about a tool call is not a tool call.
+    #[test]
+    fn a_tool_call_inside_thinking_is_not_executed() {
+        let out = canonical_tool_calls_to_tags(
+            "<thinking><tool_call name=\"run\"><command>rm -rf /</command></tool_call></thinking>",
+        );
+        assert!(!out.contains("<run"), "{out}");
     }
 }
 
@@ -54696,26 +55102,169 @@ pub async fn docsync_get_sections(workspace_path: String) -> Result<serde_json::
 }
 
 // ── Voice Local ──
+//
+// These wrap `vibecli_cli::voice`, which owns the whisper model directory
+// (`~/.vibecli/models`) that the daemon's own `/voice/transcribe` reads from —
+// so a model pulled here is the model the daemon transcribes with.
+//
+// Recording itself is deliberately absent: the webview already has a
+// microphone via `MediaRecorder`, and the clip goes to the daemon through
+// `vibe_desktop_voice::transcribe_audio`. The `voice_start_recording` /
+// `voice_stop_recording` commands that used to live here opened no device and
+// returned a hard-coded empty transcript, so the panel's record button was a
+// no-op that reported success.
 
+/// Parse a model id from the frontend into a [`WhisperModel`].
+fn voice_model_from_id(id: &str) -> Result<vibecli_cli::voice_local::WhisperModel, String> {
+    vibecli_cli::voice_local::WhisperModel::from_name(id).ok_or_else(|| {
+        format!("Unknown whisper model '{id}'. Known: tiny, base, small, medium, large.")
+    })
+}
+
+/// Human-facing label for a model id (`tiny` → `Whisper Tiny`).
+fn voice_model_label(id: &str) -> String {
+    let mut chars = id.chars();
+    let capitalised = match chars.next() {
+        Some(c) => c.to_uppercase().collect::<String>() + chars.as_str(),
+        None => String::new(),
+    };
+    format!("Whisper {capitalised}")
+}
+
+/// The whisper models, with what is actually on disk and which one is selected.
+///
+/// `size_mb` is the size of the GGML file that will be fetched, not the
+/// parameter count of the PyTorch checkpoint — the two differ by 2× and the
+/// number here is the one that predicts the download.
 #[tauri::command]
 pub async fn voice_list_models() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!([
-        { "id": "tiny", "name": "Whisper Tiny", "size_mb": 39, "downloaded": false },
-        { "id": "base", "name": "Whisper Base", "size_mb": 74, "downloaded": false },
-        { "id": "small", "name": "Whisper Small", "size_mb": 244, "downloaded": false },
-        { "id": "medium", "name": "Whisper Medium", "size_mb": 769, "downloaded": false },
-        { "id": "large", "name": "Whisper Large", "size_mb": 1550, "downloaded": false }
-    ]))
+    use vibecli_cli::voice;
+
+    let selected = vibecli_cli::config::Config::load()
+        .map(|c| c.voice.local_model)
+        .unwrap_or_else(|_| "base".to_string());
+
+    let models: Vec<serde_json::Value> = tokio::task::spawn_blocking(move || {
+        vibecli_cli::voice_local::WhisperModel::all()
+            .into_iter()
+            .map(|m| {
+                let path = voice::model_path(&m);
+                serde_json::json!({
+                    "id": m.name(),
+                    "label": voice_model_label(m.name()),
+                    "size_mb": m.size_mb(),
+                    "downloaded": path.is_some(),
+                    "selected": m.name() == selected,
+                    "path": path.map(|p| p.display().to_string()),
+                })
+            })
+            .collect()
+    })
+    .await
+    .map_err(|e| format!("Failed to inspect the whisper model directory: {e}"))?;
+
+    Ok(serde_json::json!(models))
 }
 
+/// Download a whisper model, emitting `voice-model-progress` as it streams.
+///
+/// Progress events carry raw byte counts; `total_bytes` is `0` when the server
+/// sent no `Content-Length`, and the UI must render that as an unknown total
+/// rather than as 0%.
 #[tauri::command]
-pub async fn voice_start_recording() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "status": "recording" }))
+pub async fn voice_download_model(
+    app_handle: tauri::AppHandle,
+    id: String,
+) -> Result<serde_json::Value, String> {
+    let model = voice_model_from_id(&id)?;
+
+    // One event per whole percent (plus the first and last chunk): a 3 GB model
+    // arrives in tens of thousands of chunks, and an event per chunk would cost
+    // more in IPC than the download does in bandwidth.
+    let mut last_pct = u64::MAX;
+    let emit_id = id.clone();
+    let path = vibecli_cli::voice::download_model_with_progress(&model, |downloaded, total| {
+        let pct = if total > 0 {
+            downloaded * 100 / total
+        } else {
+            u64::MAX
+        };
+        if pct == last_pct && downloaded < total {
+            return;
+        }
+        last_pct = pct;
+        let _ = app_handle.emit(
+            "voice-model-progress",
+            serde_json::json!({
+                "id": emit_id,
+                "downloaded_bytes": downloaded,
+                "total_bytes": total,
+            }),
+        );
+    })
+    .await
+    .map_err(|e| format!("{e:#}"))?;
+
+    Ok(serde_json::json!({ "id": id, "path": path.display().to_string() }))
 }
 
+/// Delete a downloaded whisper model. Reports whether anything was freed.
 #[tauri::command]
-pub async fn voice_stop_recording() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "status": "stopped", "text": "", "confidence": 0.0 }))
+pub async fn voice_delete_model(id: String) -> Result<serde_json::Value, String> {
+    let model = voice_model_from_id(&id)?;
+    let deleted = tokio::task::spawn_blocking(move || vibecli_cli::voice::delete_model(&model))
+        .await
+        .map_err(|e| format!("Failed to delete the model: {e}"))?
+        .map_err(|e| format!("{e:#}"))?;
+    Ok(serde_json::json!({ "id": id, "deleted": deleted }))
+}
+
+/// Choose which whisper model the local transcription path uses.
+///
+/// Persisted to `voice.local_model` in `~/.vibecli/config.toml`, which is where
+/// the daemon reads it on every `/voice/transcribe` — so the change takes
+/// effect on the next recording without restarting anything.
+#[tauri::command]
+pub async fn voice_select_model(id: String) -> Result<(), String> {
+    let model = voice_model_from_id(&id)?;
+    let name = model.name().to_string();
+    tokio::task::spawn_blocking(move || {
+        vibecli_cli::config::Config::set_voice_settings(Some(&name), None, None)
+    })
+    .await
+    .map_err(|e| format!("Failed to save the model selection: {e}"))?
+    .map_err(|e| format!("{e:#}"))
+}
+
+/// Persist the voice language and the prefer-local switch.
+#[tauri::command]
+pub async fn voice_set_settings(
+    language: Option<String>,
+    prefer_local: Option<bool>,
+) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        vibecli_cli::config::Config::set_voice_settings(
+            None,
+            language.as_deref().filter(|l| !l.is_empty()),
+            prefer_local,
+        )
+    })
+    .await
+    .map_err(|e| format!("Failed to save voice settings: {e}"))?
+    .map_err(|e| format!("{e:#}"))
+}
+
+/// The persisted voice settings, for a panel that has to show what is in force.
+#[tauri::command]
+pub async fn voice_get_settings() -> Result<serde_json::Value, String> {
+    let cfg = vibecli_cli::config::Config::load()
+        .map(|c| c.voice)
+        .unwrap_or_default();
+    Ok(serde_json::json!({
+        "local_model": cfg.local_model,
+        "language": cfg.language,
+        "prefer_local": cfg.prefer_local,
+    }))
 }
 
 // ── Native Connectors ──

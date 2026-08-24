@@ -289,6 +289,16 @@ impl EditOperations for LocalEditOps {
             });
         }
         let new_content = fr.content.replacen(&patch.old_text, &patch.new_text, 1);
+        // Replacing text with itself is a failed edit, not a quiet success:
+        // the caller reports "patched" and the file is untouched.
+        if new_content == fr.content {
+            return Ok(EditResult {
+                path: path.to_owned(),
+                lines_changed: 0,
+                success: false,
+                error: Some(format!("patch changed nothing in '{path}'")),
+            });
+        }
         let old_lines = patch.old_text.lines().count();
         let new_lines = patch.new_text.lines().count();
         let lines_changed = old_lines.max(new_lines);
@@ -408,6 +418,14 @@ impl EditOperations for MemoryEditOps {
             });
         }
         let new_content = content.replacen(&patch.old_text, &patch.new_text, 1);
+        if new_content == content {
+            return Ok(EditResult {
+                path: path.to_owned(),
+                lines_changed: 0,
+                success: false,
+                error: Some(format!("patch changed nothing in '{path}'")),
+            });
+        }
         let old_lines = patch.old_text.lines().count();
         let new_lines = patch.new_text.lines().count();
         let lines_changed = old_lines.max(new_lines);
@@ -739,5 +757,26 @@ mod tests {
         reg.register_bash("local", std::sync::Arc::new(EchoBashOps));
         // "local" now points to EchoBashOps
         assert_eq!(reg.default_bash().backend_name(), "echo");
+    }
+
+    /// A patch whose replacement equals what is already there changed nothing.
+    /// Reporting success for it is the same lie the unified-diff applier used
+    /// to tell — see `tool_executor::apply_unified_patch`.
+    #[test]
+    fn a_patch_that_changes_nothing_is_not_a_success() {
+        let ops = MemoryEditOps::default();
+        ops.write_file("a.txt", "hello\n").expect("seed");
+        let result = ops
+            .apply_patch(
+                "a.txt",
+                &EditPatch {
+                    old_text: "hello".to_string(),
+                    new_text: "hello".to_string(),
+                },
+            )
+            .expect("call succeeds, result reports the failure");
+        assert!(!result.success);
+        assert_eq!(result.lines_changed, 0);
+        assert!(result.error.unwrap_or_default().contains("changed nothing"));
     }
 }

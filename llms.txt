@@ -109,7 +109,7 @@ pub trait AIProvider: Send + Sync {
 }
 ```
 
-17 providers: Ollama, Claude, OpenAI, Gemini, Grok, Groq, OpenRouter, Azure OpenAI, Bedrock, Copilot, Mistral, Cerebras, DeepSeek, Zhipu, Vercel AI, LocalEdit, Failover.
+25 providers: Ollama, vibecli-mistralrs, vLLM, LM Studio, Claude, Claude Code, OpenAI, Gemini, Grok, Groq, OpenRouter, Azure OpenAI, Bedrock, Copilot, Mistral, Cerebras, DeepSeek, Zhipu, Vercel AI, LocalEdit, Failover.
 
 ## Tool System
 

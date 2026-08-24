@@ -66,6 +66,7 @@ impl ZhipuProvider {
             temperature: self.config.temperature,
             max_tokens: self.config.max_tokens,
             stream,
+            tools: ChatRequest::tools_for(messages),
         }
     }
 
@@ -377,6 +378,7 @@ mod tests {
             temperature: Some(0.5),
             max_tokens: None,
             stream: false,
+            tools: None,
         };
         let json = serde_json::to_value(&req).unwrap();
         assert_eq!(json["model"], "glm-4");
@@ -440,6 +442,7 @@ mod tests {
             temperature: Some(0.5),
             max_tokens: Some(2048),
             stream: true,
+            tools: None,
         };
         let json = serde_json::to_value(&req).unwrap();
         assert_eq!(json["model"], "glm-4-flash");
@@ -460,6 +463,7 @@ mod tests {
             temperature: None,
             max_tokens: None,
             stream: false,
+            tools: None,
         };
         let json = serde_json::to_value(&req).unwrap();
         assert_eq!(json["model"], "glm-3-turbo");

@@ -8,7 +8,7 @@ title: VibeCody Documentation
 VibeCody is a monorepo that provides a full family of AI-assisted development surfaces:
 
 - **[VibeCLI](./vibecli/)** — terminal-first AI coding assistant with a rich TUI + REPL
-- **[VibeCoder](./vibecoder/)** — AI-powered desktop code editor (Tauri + Monaco, 293+ panels)
+- **[VibeCoder](./vibecoder/)** — AI-powered desktop code editor (Tauri + Monaco, 246 panels)
 - **[VibeAIChat](./release/)** — dedicated desktop chat companion (Tauri)
 - **[VibeMobile](./vibemobile/)** — Flutter companion for iOS, Android, macOS, Linux, Windows, Web
 - **[VibeWatch](./watch-integration/)** — native Apple Watch (SwiftUI, watchOS 10+) and Wear OS (Compose, Wear OS 3+) clients
@@ -49,7 +49,7 @@ All surfaces are backed by a shared set of Rust crates for AI providers, text ed
 
 ## Key Features
 
-### Multi-Provider AI (23 Providers)
+### Multi-Provider AI (25 Providers)
 
 Both VibeCLI and VibeCoder share the `vibe-ai` provider abstraction:
 
@@ -66,7 +66,7 @@ All providers support streaming. Local providers require no API key.
 ### VibeCLI Highlights
 
 - Rich TUI powered by [Ratatui](https://ratatui.rs/) with REPL mode (readline history, tab completion)
-- 556 skill files across 25+ categories (106+ REPL commands)
+- 1,144 skill files across 155 categories (142 REPL slash commands)
 - Voice input via Groq Whisper (`--voice` flag)
 - Tailscale pairing with QR code sharing and mDNS discovery
 - 18 gateway platforms (Telegram, Discord, Slack, Signal, Matrix, Teams, IRC, Twitch, and more)

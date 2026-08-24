@@ -119,7 +119,7 @@ auto_inject = true              # Inject context into every agent turn
 max_context_tokens = 1200       # Hard cap on injected context
 decay_enabled = true            # Run salience decay each session
 consolidate_on_exit = false     # Run sleep-cycle consolidation when REPL exits
-encryption = false              # AES-256-GCM at rest (see /openmemory encrypt)
+encryption = false              # XOR obfuscation at rest — NOT cryptographic (see /openmemory encrypt)
 ```
 
 ### VibeCLI REPL commands
@@ -299,7 +299,24 @@ Chunk a document into 400-character overlapping segments and store each chunk as
 /openmemory encrypt
 ```
 
-Enable AES-256-GCM encryption at rest. All existing memories are re-encrypted in place. The key is stored at `~/.local/share/vibecli/openmemory/.key` (mode 0600). To use a passphrase instead:
+Enable at-rest obfuscation. All existing memories are re-encoded in place. The key is stored at `~/.local/share/vibecli/openmemory/.key` (mode 0600).
+
+> **⚠️ This is not encryption.**
+>
+> `open_memory.rs` XORs each byte against a repeating 32-byte key and a 12-byte nonce
+> (`byte ^ key[i % 32] ^ nonce[i % 12]`). A repeating-key XOR is recoverable from known
+> plaintext and is unauthenticated — it raises the bar against casual disk inspection and
+> nothing more.
+>
+> **Do not store secrets in memory, and do not cite this flag as a compliance control.**
+> AES-256-GCM is on the roadmap; until it lands, the honest word is obfuscation.
+>
+> For anything that genuinely must stay secret, use the ProfileStore
+> (`~/.vibecli/profile_settings.db`) or the WorkspaceStore
+> (`<workspace>/.vibecli/workspace.db`) — both are ChaCha20-Poly1305 AEAD with a random
+> 12-byte nonce per record (`crates/vibe-profile-store/src/lib.rs`).
+
+To use a passphrase instead of the stored key:
 
 ```bash
 VIBECLI_MEMORY_KEY="$(pass show vibecli/memory)" vibecli
@@ -542,7 +559,7 @@ Preview exactly what the agent will see before you ask.
 /openmemory export                  Dump as markdown
 /openmemory import [fmt] <file>     Import from mem0 / Zep / native JSON
 /openmemory ingest <file>           Chunk & store document (cognitive)
-/openmemory encrypt                 Enable AES-256-GCM encryption
+/openmemory encrypt                 Enable XOR obfuscation at rest (not cryptographic)
 
 # ── 4-Layer Context ───────────────────────────────────────────────────
 /openmemory context [query]         Preview agent context (L1+L2+L3)
@@ -711,7 +728,7 @@ Indefinitely, until you delete them or the salience-decay loop reclaims them. De
 Yes — via the OpenMemory panel's per-row Delete button, or `/openmemory delete <id>` in the REPL, or `POST /memory/delete` with `{ "id": "..." }`. Deletion is immediate and irreversible.
 
 **What's the encryption overhead?**
-The current implementation uses XOR-based stream encryption (lightweight, ~5% throughput overhead). AES-256-GCM is on the roadmap — when it lands, expect ~10-15% throughput overhead and no measurable recall impact.
+There is no encryption today, so the overhead question is moot. `/openmemory encrypt` applies a repeating-key XOR (~5% throughput overhead) which is obfuscation, not a cryptographic guarantee — see the warning under `/openmemory encrypt` above. AES-256-GCM is on the roadmap; when it lands, expect ~10-15% throughput overhead and no measurable recall impact.
 
 **Is memory available on mobile / watch?**
 No — by design. Memory authoring is a desktop / CLI workflow. Mobile and watch clients consume *generated* artifacts (recaps, sessions) but don't surface the memory store directly. The HTTP routes at `/memory/*` are available to any client that wants them, including IDE plugins and the Agent SDK.
