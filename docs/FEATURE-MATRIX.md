@@ -134,6 +134,9 @@ Coverage, so the ✅ is not read as more than it is: only **macOS arm64** runs t
 | Auto-format on save | ✅ | |
 | File type detection | ✅ | |
 | Image preview | ✅ | |
+| PDF / EPUB viewer | ✅ | Page and chapter navigation |
+| DOCX / EPUB editing | ✅ | Edit as Markdown, saved back into the original file |
+| Apple Pages editing | ✅ | Text only — see [documents.md](./documents.md) for what is and is not preserved |
 
 ---
 

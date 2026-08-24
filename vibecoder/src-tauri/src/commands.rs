@@ -67641,3 +67641,142 @@ mod redteam_workspace_tests {
         assert_eq!(f[0].location, "README.md");
     }
 }
+
+// ── Rich documents: DOCX, EPUB, Apple Pages ──────────────────────────────────
+//
+// These three formats open in the editor as text — Markdown for DOCX and EPUB,
+// plain text for Pages — and save back into the original container. The heavy
+// lifting (and every honesty guarantee) lives in `vibe-docfmt`; these commands
+// resolve the path against the workspace and move the work off the async
+// runtime, because parsing a large book is CPU-bound.
+
+/// Something the reader or writer could not do faithfully.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DocumentWarning {
+    pub code: String,
+    pub message: String,
+}
+
+impl From<&vibe_docfmt::Warning> for DocumentWarning {
+    fn from(warning: &vibe_docfmt::Warning) -> Self {
+        DocumentWarning { code: warning.code.clone(), message: warning.message.clone() }
+    }
+}
+
+/// A document opened as an editable text buffer.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DocumentTextResponse {
+    /// `docx` | `epub` | `pages`
+    pub format: String,
+    /// Monaco language id for the buffer: `markdown` or `plaintext`.
+    pub language: String,
+    pub text: String,
+    /// Sections in the buffer — chapters for EPUB, text storages for Pages.
+    /// Their markers must survive an edit, so the UI can show the count.
+    pub sections: usize,
+    pub warnings: Vec<DocumentWarning>,
+    pub writable: bool,
+}
+
+/// The outcome of saving an edited document buffer.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DocumentWriteResponse {
+    pub format: String,
+    pub bytes_written: u64,
+    /// Where the pre-edit copy was kept, when the writer made one (Pages).
+    pub backup: Option<String>,
+    pub warnings: Vec<DocumentWarning>,
+    /// Always true: the write is only reported after the file has been re-read
+    /// and found to match the saved text.
+    pub verified: bool,
+}
+
+/// A preview image embedded in the document, base64-encoded.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DocumentPreview {
+    pub mime: String,
+    pub base64: String,
+}
+
+/// Whether this build can open a path as a rich document.
+#[tauri::command]
+pub fn is_rich_document(path: String) -> bool {
+    vibe_docfmt::is_document_path(Path::new(&path))
+}
+
+/// Open a DOCX / EPUB / Pages document as an editable text buffer.
+#[tauri::command]
+pub async fn read_document_text(
+    path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<DocumentTextResponse, String> {
+    let resolved = {
+        let workspace = state.workspace.lock().await;
+        safe_resolve_path(&workspace, &path)?
+    };
+    let buffer = tokio::task::spawn_blocking(move || vibe_docfmt::read_text(&resolved))
+        .await
+        .map_err(|e| format!("Document reader panicked: {e}"))?
+        .map_err(|e| e.to_string())?;
+
+    Ok(DocumentTextResponse {
+        format: buffer.format.as_str().to_string(),
+        language: buffer.syntax.monaco_language().to_string(),
+        text: buffer.text,
+        sections: buffer.sections,
+        warnings: buffer.warnings.iter().map(DocumentWarning::from).collect(),
+        writable: buffer.writable,
+    })
+}
+
+/// Save an edited buffer back into the document it came from.
+///
+/// Returns an error — with the original file untouched — when the rewritten
+/// document does not read back as the text that was saved.
+#[tauri::command]
+pub async fn write_document_text(
+    path: String,
+    text: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<DocumentWriteResponse, String> {
+    let resolved = {
+        let workspace = state.workspace.lock().await;
+        safe_resolve_path(&workspace, &path)?
+    };
+    let report = tokio::task::spawn_blocking(move || vibe_docfmt::write_text(&resolved, &text))
+        .await
+        .map_err(|e| format!("Document writer panicked: {e}"))?
+        .map_err(|e| e.to_string())?;
+
+    Ok(DocumentWriteResponse {
+        format: report.format.as_str().to_string(),
+        bytes_written: report.bytes_written,
+        backup: report.backup.map(|p| p.display().to_string()),
+        warnings: report.warnings.iter().map(DocumentWarning::from).collect(),
+        verified: report.verified,
+    })
+}
+
+/// The preview image a document embeds, if it has one.
+///
+/// Only Pages does. It is how a `.pages` file — whose layout this build cannot
+/// render — still shows the reader what the page actually looks like.
+#[tauri::command]
+pub async fn read_document_preview(
+    path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<Option<DocumentPreview>, String> {
+    use base64::Engine;
+    let resolved = {
+        let workspace = state.workspace.lock().await;
+        safe_resolve_path(&workspace, &path)?
+    };
+    let preview = tokio::task::spawn_blocking(move || vibe_docfmt::read_preview(&resolved))
+        .await
+        .map_err(|e| format!("Document preview reader panicked: {e}"))?;
+
+    Ok(preview.map(|(mime, bytes)| DocumentPreview {
+        mime,
+        base64: base64::engine::general_purpose::STANDARD.encode(bytes),
+    }))
+}

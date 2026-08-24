@@ -92,6 +92,7 @@ The installer is placed in `src-tauri/target/release/bundle/`.
 - **Batch edits** — `apply_batch_edits` for bulk insert/delete operations
 - **Multi-cursor** — `update_cursors` for synchronised cursor state
 - **DiffComplete (⌘.)** — explicit-chord AI editing surface; `DiffCompleteModal` collects an instruction (with optional user-picked extra files for context), `vibe_ai::diffcomplete::generate` returns a unified diff, `DiffReviewPanel` shows per-hunk accept/reject with optional Monaco edit-before-apply and a regenerate-with-refinement loop. A deliberate alternative to keystroke-driven ghost text. Keystroke-driven inline completion was removed on 2026-04-26; inline completion returned later as an **explicit-trigger-only** surface bound to ⌥\ (`vibe_ai::ghost`, 12-line cap) — it never fires on a keystroke. See [ghost-text.md](./ghost-text.md).
+- **Documents (DOCX, EPUB, Pages)** — Word documents, e-books and Apple Pages files open in the editor area: rendered for reading, and editable as text (Markdown for DOCX/EPUB, plain text for Pages) with **Edit text** in the viewer toolbar. Saving edits the original container in place — images, styles, page setup and metadata are preserved — and only replaces the file after re-reading it and confirming the text matches. See [documents.md](./documents.md)
 - **File watching** — auto-detects external changes using `notify`
 - **Multi-workspace** — open multiple folders simultaneously
 - **Language detection** — automatic language mode from file extension
@@ -597,6 +598,10 @@ The React frontend communicates with the Rust backend using Tauri's `invoke()` I
 | `delete_item(path)` | Delete file or directory |
 | `rename_item(path, new_name)` | Rename file or directory |
 | `save_file(path)` | Save buffer contents to disk |
+| `is_rich_document(path)` | Whether the path is a DOCX / EPUB / Pages file this build can open as text |
+| `read_document_text(path)` | Open a document as an editable text buffer (see [documents.md](./documents.md)) |
+| `write_document_text(path, text)` | Save the buffer back into the document; errors — with the file untouched — if the result does not read back as the text saved |
+| `read_document_preview(path)` | Base64 preview image embedded in the document (Pages only) |
 
 ### Workspace Operations
 
@@ -1137,6 +1142,24 @@ Language Server Protocol client:
 - LSP types from `lsp-types`
 - Full document lifecycle notifications (`didOpen`, `didChange`, `didSave`)
 - Wired to Monaco for go-to-definition, hover, completions, diagnostics
+
+### `vibe-docfmt`
+
+Rich document formats read and written as text — see [documents.md](./documents.md):
+
+| Module | Struct/Fn | Description |
+|--------|-----------|-------------|
+| `lib` | `read_text`, `write_text` | Path-level API; a write is verified by re-reading the rewritten file, and refuses rather than replacing on mismatch |
+| `model` | `Document`, `Block`, `Span` | The block model shared by every format |
+| `markdown` | `to_markdown`, `from_markdown`, `to_plain_text` | The editable buffer, in both directions |
+| `xmltree` | `parse`, `serialize` | XML tree that round-trips byte-for-byte where untouched |
+| `surgical` | `apply`, `BlockAdapter` | Diff-driven element edits shared by DOCX and EPUB |
+| `docx` | `read`, `write` | OOXML; images, footnotes and page setup survive a save |
+| `epub` | `read`, `write` | Spine chapters; stylesheets, OPF and metadata preserved |
+| `pages/snappy` | `decompress`, `compress` | Apple's IWA block framing around raw Snappy |
+| `pages/protobuf` | `Message` | Wire-format walker that keeps unknown fields byte-identical |
+| `pages/iwa` | `parse_stream`, `serialize_stream` | Archive streams inside an iWork document |
+| `pages/text` | `find_storages`, `set_text` | Text substitution plus character-index remapping |
 
 ### `vibe-extensions`
 

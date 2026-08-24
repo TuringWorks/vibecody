@@ -10,6 +10,12 @@ All notable changes to VibeCody are documented here. This project follows [Seman
 
 ## [Unreleased]
 
+### Added
+
+- **DOCX, EPUB and Apple Pages open in the editor — and save back.** Word documents and e-books read as Markdown, Pages documents as plain text, editable in Monaco via **Edit text** in the viewer toolbar. Saving edits the original container in place rather than rebuilding it, so images, footnotes, stylesheets, metadata and page setup survive an edit that only changed a sentence. New: `crates/vibe-docfmt`, the `read_document_text` / `write_document_text` / `read_document_preview` commands, and [documents.md](./documents.md).
+- **A save is only reported once it has been checked.** Every write is assembled in memory, re-read with the same reader the editor uses, and compared against the text that was saved; a mismatch is an error naming the first differing line, with the file left untouched. Structural edits a format cannot take — a new EPUB chapter, an added DOCX table row — are refused with an explanation instead of guessed at.
+- **Pages support, with its limits stated where they are felt.** Apple publishes no format specification, so `.pages` yields text and the page preview the file itself embeds, not a rendering. Writing substitutes text and shifts character-index ranges to follow it, keeps a `.bak` copy of the original, and says in the save confirmation that no automated check has opened the result in Pages.
+
 ## [0.5.10] — 2026-08-21
 
 32 commits since v0.5.9. The theme is the one this project keeps returning to:

@@ -9647,6 +9647,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b7c388c1b5e93756d0c740965c41e8822f866621d41acbdf6336a6a168f8840c"
 
 [[package]]
+name = "snap"
+version = "1.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "199905e6153d6405f9728fe44daace35f8f837bbf830bb6e85fbd5828709a886"
+
+[[package]]
 name = "snow"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12225,6 +12231,7 @@ dependencies = [
  "vibe-collab",
  "vibe-core",
  "vibe-desktop-voice",
+ "vibe-docfmt",
  "vibe-embed",
  "vibe-extensions",
  "vibe-http-pool",
@@ -12295,6 +12302,19 @@ dependencies = [
  "serde_json",
  "tauri",
  "tokio",
+]
+
+[[package]]
+name = "vibe-docfmt"
+version = "0.5.10"
+dependencies = [
+ "quick-xml",
+ "serde",
+ "similar",
+ "snap",
+ "tempfile",
+ "thiserror 1.0.69",
+ "zip",
 ]
 
 [[package]]

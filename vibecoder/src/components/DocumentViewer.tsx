@@ -1,5 +1,6 @@
 /**
- * DocumentViewer — renders PDF and EPUB files in the editor area.
+ * DocumentViewer — renders PDF, EPUB, DOCX and Apple Pages files in the editor
+ * area, and hands the three editable ones to the text editor on request.
  *
  * PDF:  Renders pages to <canvas> elements using a built-in PDF.js-style
  *       decoder via the browser's native PDF rendering, falling back to
@@ -17,17 +18,40 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import DOMPurify from "dompurify";
-import { FileText, ChevronRight, ChevronLeft, AlertTriangle } from "lucide-react";
+import { FileText, ChevronRight, ChevronLeft, AlertTriangle, Info, Pencil } from "lucide-react";
+import { DocumentTextEditor } from "./DocumentTextEditor";
+import { MarkdownPreview } from "./MarkdownPreview";
+import { getMode, hasDraft, setMode as rememberMode } from "../lib/documentDrafts";
+import {
+  documentErrorMessage,
+  formatLabel,
+  readDocumentPreview,
+  readDocumentText,
+  richDocumentFormat,
+  type DocumentWarning,
+  type RichDocumentFormat,
+} from "../lib/richDocuments";
 import "./DocumentViewer.css";
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-const DOCUMENT_EXTENSIONS = new Set(["pdf", "epub"]);
+const DOCUMENT_EXTENSIONS = new Set(["pdf", "epub", "docx", "pages"]);
 
 /** Check if a filename is a supported document file */
 export function isDocumentFile(filename: string): boolean {
   const ext = filename.split(".").pop()?.toLowerCase() || "";
   return DOCUMENT_EXTENSIONS.has(ext);
+}
+
+/**
+ * Whether this document's viewer renders from the file's bytes.
+ *
+ * PDF and EPUB do. DOCX and Pages are parsed by the backend, so reading them
+ * into a base64 string on open would move the whole file through JS for nothing.
+ */
+export function needsRawBytes(filename: string): boolean {
+  const ext = filename.split(".").pop()?.toLowerCase() || "";
+  return ext === "pdf" || ext === "epub";
 }
 
 // ── Props ────────────────────────────────────────────────────────────
@@ -151,7 +175,7 @@ interface EpubChapter {
   isPlaceholder?: boolean;
 }
 
-function EpubViewer({ filePath, base64Data }: DocumentViewerProps) {
+function EpubViewer({ filePath, base64Data, onEditText }: DocumentViewerProps & EditableProps) {
   const [chapters, setChapters] = useState<EpubChapter[]>([]);
   const [currentChapter, setCurrentChapter] = useState(0);
   const [fontSize, setFontSize] = useState(16);
@@ -280,6 +304,14 @@ function EpubViewer({ filePath, base64Data }: DocumentViewerProps) {
             TOC
           </button>
         </div>
+        {onEditText && (
+          <>
+            <div className="toolbar-separator" />
+            <div className="toolbar-group">
+              <EditTextButton onEditText={onEditText} />
+            </div>
+          </>
+        )}
         <div className="file-info">
           <span className="info-badge">EPUB</span>
           <span className="info-badge">{fileName}</span>
@@ -673,17 +705,275 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+// ── Shared pieces for the text-backed formats ────────────────────────
+
+interface EditableProps {
+  /** Switch to the text editor. Absent when the format cannot be edited. */
+  onEditText?: () => void;
+}
+
+function EditTextButton({ onEditText }: { onEditText: () => void }) {
+  return (
+    <button onClick={onEditText} title="Edit this document as text" className="toolbar-btn-wide">
+      <Pencil size={13} /> Edit text
+    </button>
+  );
+}
+
+/** What the reader could not represent, shown rather than swallowed. */
+function WarningNotice({ warnings }: { warnings: DocumentWarning[] }) {
+  if (warnings.length === 0) return null;
+  return (
+    <div className="doc-notice doc-notice-warn">
+      <Info size={13} />
+      <ul>
+        {warnings.map((warning) => (
+          <li key={warning.code}>{warning.message}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** The document as text, loaded through the backend reader. */
+type TextState =
+  | { status: "loading" }
+  | { status: "ready"; text: string; warnings: DocumentWarning[] }
+  | { status: "failed"; message: string };
+
+function useDocumentText(filePath: string): TextState {
+  const [state, setState] = useState<TextState>({ status: "loading" });
+  useEffect(() => {
+    let cancelled = false;
+    setState({ status: "loading" });
+    readDocumentText(filePath)
+      .then((doc) => {
+        if (!cancelled) setState({ status: "ready", text: doc.text, warnings: doc.warnings });
+      })
+      .catch((error) => {
+        if (!cancelled) setState({ status: "failed", message: documentErrorMessage(error) });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [filePath]);
+  return state;
+}
+
+function LoadingPane({ format }: { format: RichDocumentFormat }) {
+  return (
+    <div className="document-viewer">
+      <div className="document-viewer-loading">
+        <div className="doc-spinner" />
+        <span>Reading {formatLabel(format)}…</span>
+      </div>
+    </div>
+  );
+}
+
+function ErrorPane({ message }: { message: string }) {
+  return (
+    <div className="document-viewer">
+      <div className="document-viewer-error">
+        <AlertTriangle size={16} className="error-icon" />
+        <span className="error-message">{message}</span>
+      </div>
+    </div>
+  );
+}
+
+// ── DOCX Viewer ──────────────────────────────────────────────────────
+
+/**
+ * Word documents render through the same Markdown the text editor exposes, so
+ * what is shown and what is editable cannot drift apart. Anything the reader
+ * dropped on the way (images, footnotes) is named in the notice above — those
+ * parts of the file are preserved on save, just not displayed here.
+ */
+function DocxViewer({ filePath, onEditText }: { filePath: string } & EditableProps) {
+  const state = useDocumentText(filePath);
+  const [fontSize, setFontSize] = useState(15);
+  const fileName = filePath.split(/[/\\]/).pop() || filePath;
+
+  if (state.status === "loading") return <LoadingPane format="docx" />;
+  if (state.status === "failed") return <ErrorPane message={state.message} />;
+
+  return (
+    <div className="document-viewer docx-viewer">
+      <div className="document-viewer-toolbar">
+        <div className="toolbar-group">
+          <button onClick={() => setFontSize((s) => Math.max(s - 1, 11))} title="Decrease Font Size">
+            A−
+          </button>
+          <span className="zoom-label font-label">{fontSize}px</span>
+          <button onClick={() => setFontSize((s) => Math.min(s + 1, 28))} title="Increase Font Size">
+            A+
+          </button>
+        </div>
+        {onEditText && (
+          <>
+            <div className="toolbar-separator" />
+            <div className="toolbar-group">
+              <EditTextButton onEditText={onEditText} />
+            </div>
+          </>
+        )}
+        <div className="file-info">
+          <span className="info-badge">DOCX</span>
+          <span className="info-badge">{fileName}</span>
+        </div>
+      </div>
+
+      <WarningNotice warnings={state.warnings} />
+
+      <div className="docx-page" style={{ fontSize }}>
+        <MarkdownPreview content={state.text} />
+      </div>
+    </div>
+  );
+}
+
+// ── Pages Viewer ─────────────────────────────────────────────────────
+
+/**
+ * Apple ships no format specification for `.pages`, so this shows two honest
+ * things instead of a fake rendering: the preview image Pages itself embedded
+ * (what the document actually looks like), and the text recovered from the
+ * archives (what can be edited). Neither pretends to be the other.
+ */
+function PagesViewer({ filePath, onEditText }: { filePath: string } & EditableProps) {
+  const state = useDocumentText(filePath);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [pane, setPane] = useState<"preview" | "text">("preview");
+  const fileName = filePath.split(/[/\\]/).pop() || filePath;
+
+  useEffect(() => {
+    let cancelled = false;
+    setPreview(null);
+    readDocumentPreview(filePath)
+      .then((image) => {
+        if (cancelled || !image) {
+          // No embedded preview: text is all there is, so start there.
+          if (!cancelled) setPane("text");
+          return;
+        }
+        setPreview(`data:${image.mime};base64,${image.base64}`);
+      })
+      .catch(() => {
+        if (!cancelled) setPane("text");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [filePath]);
+
+  if (state.status === "loading") return <LoadingPane format="pages" />;
+  if (state.status === "failed") return <ErrorPane message={state.message} />;
+
+  const showPreview = pane === "preview" && preview !== null;
+
+  return (
+    <div className="document-viewer pages-viewer">
+      <div className="document-viewer-toolbar">
+        <div className="toolbar-group">
+          <button
+            onClick={() => setPane("preview")}
+            disabled={preview === null}
+            title={preview === null ? "This document embeds no preview image" : "Page preview"}
+            className={`toolbar-btn-wide${showPreview ? " active" : ""}`}
+          >
+            Preview
+          </button>
+          <button
+            onClick={() => setPane("text")}
+            title="Recovered text"
+            className={`toolbar-btn-wide${showPreview ? "" : " active"}`}
+          >
+            Text
+          </button>
+        </div>
+        {onEditText && (
+          <>
+            <div className="toolbar-separator" />
+            <div className="toolbar-group">
+              <EditTextButton onEditText={onEditText} />
+            </div>
+          </>
+        )}
+        <div className="file-info">
+          <span className="info-badge">Pages</span>
+          <span className="info-badge">{fileName}</span>
+        </div>
+      </div>
+
+      <WarningNotice warnings={state.warnings} />
+
+      {showPreview ? (
+        <div className="pages-preview">
+          <img src={preview ?? ""} alt={`Preview of ${fileName}`} />
+        </div>
+      ) : (
+        <div className="pages-text">
+          {state.text.split("\n").map((line, i) => (
+            <p key={i} className={line.trim() === "" ? "pages-blank" : undefined}>
+              {line}
+            </p>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main Component ───────────────────────────────────────────────────
 
 export function DocumentViewer({ filePath, base64Data }: DocumentViewerProps) {
   const ext = filePath.split(".").pop()?.toLowerCase() || "";
+  const editableFormat = richDocumentFormat(filePath);
+  // Where this document was left, so a tab switch returns to the same pane —
+  // and never lands on the rendered view while an unsaved edit is waiting.
+  const [mode, setModeState] = useState<"view" | "text">(
+    () => getMode(filePath) ?? "view",
+  );
+
+  const setMode = useCallback(
+    (next: "view" | "text") => {
+      rememberMode(filePath, next);
+      setModeState(next);
+    },
+    [filePath],
+  );
+
+  useEffect(() => {
+    setModeState(getMode(filePath) ?? (hasDraft(filePath) ? "text" : "view"));
+  }, [filePath]);
+
+  if (mode === "text" && editableFormat) {
+    return (
+      <DocumentTextEditor
+        filePath={filePath}
+        format={editableFormat}
+        onClose={() => setMode("view")}
+      />
+    );
+  }
+
+  const onEditText = editableFormat ? () => setMode("text") : undefined;
 
   if (ext === "pdf") {
     return <PdfViewer filePath={filePath} base64Data={base64Data} />;
   }
 
   if (ext === "epub") {
-    return <EpubViewer filePath={filePath} base64Data={base64Data} />;
+    return <EpubViewer filePath={filePath} base64Data={base64Data} onEditText={onEditText} />;
+  }
+
+  if (ext === "docx") {
+    return <DocxViewer filePath={filePath} onEditText={onEditText} />;
+  }
+
+  if (ext === "pages") {
+    return <PagesViewer filePath={filePath} onEditText={onEditText} />;
   }
 
   return (

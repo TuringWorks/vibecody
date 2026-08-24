@@ -24,6 +24,7 @@ members = [
     "crates/vibe-http-pool",
     "crates/vibe-embed",
     "crates/vibe-eval",
+    "crates/vibe-docfmt",
     "vibe-indexer",
     "vibe-memory",
     "kodegraph",

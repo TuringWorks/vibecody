@@ -28,6 +28,8 @@ devtools = ["tauri/devtools"]
 # handshake to a daemon on localhost.
 vibe-http-pool = { path = "../../crates/vibe-http-pool" }
 vibe-embed = { path = "../../crates/vibe-embed" }
+# DOCX / EPUB / Pages: read them as text and write the edits back in place.
+vibe-docfmt = { path = "../../crates/vibe-docfmt" }
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"

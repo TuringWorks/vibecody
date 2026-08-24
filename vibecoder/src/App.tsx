@@ -21,7 +21,7 @@ import { createLspBridge, fileUri, type LspBridge, type LspLanguageSupport } fro
 import { LspStatus } from "./components/LspStatus";
 import { EFFORT_LEVELS, type EffortLevel, getSelectedEffort, setSelectedEffort, effortLabel } from "./utils/effort";
 import { ImageViewer, isImageFile } from "./components/ImageViewer";
-import { DocumentViewer, isDocumentFile } from "./components/DocumentViewer";
+import { DocumentViewer, isDocumentFile, needsRawBytes } from "./components/DocumentViewer";
 import "./App.css";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { CommandPalette, Command } from "./components/CommandPalette";
@@ -616,9 +616,14 @@ function App() {
         return;
       }
 
-      // ── Document files (PDF, EPUB) → read as base64 binary ─────
+      // ── Document files (PDF, EPUB, DOCX, Pages) ────────────────
+      // PDF and EPUB render from the bytes in the browser, so they are read as
+      // base64 here. DOCX and Pages are parsed by the backend and would only be
+      // paying to move a copy of the whole file through a JS string.
       if (isDocumentFile(filename)) {
-        const base64Data = await invoke<string>("read_file_base64", { path });
+        const base64Data = needsRawBytes(filename)
+          ? await invoke<string>("read_file_base64", { path })
+          : "";
 
         setOpenFiles(prev => [...prev, {
           path,
