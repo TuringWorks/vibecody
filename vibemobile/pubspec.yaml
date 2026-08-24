@@ -18,7 +18,7 @@ dependencies:
   multicast_dns: ^0.3.2+1
   speech_to_text: ^7.4.0
   record: ^7.1.1
-  permission_handler: ^13.0.0
+  permission_handler: ^13.0.1
   path_provider: ^2.1.6
 
 dev_dependencies:
