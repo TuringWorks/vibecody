@@ -209,7 +209,7 @@ jobs:
         run: cargo install cross --git https://github.com/cross-rs/cross
 
       - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           key: cli-${{ matrix.target }}
 
@@ -403,7 +403,7 @@ jobs:
         run: npm install --no-audit --no-fund
 
       - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           key: vibecoder-${{ matrix.label }}
           workspaces: vibecoder/src-tauri
@@ -594,7 +594,7 @@ jobs:
         run: npm install --no-audit --no-fund
 
       - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           key: vibeaichat-${{ matrix.label }}
           workspaces: vibeaichat/src-tauri
@@ -774,7 +774,7 @@ jobs:
         run: npm install --no-audit --no-fund
 
       - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           key: vibedesk-${{ matrix.label }}
           workspaces: vibedesk/src-tauri
@@ -1408,7 +1408,7 @@ jobs:
             patchelf
 
       - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           key: smoke-linux-next
           workspaces: |
