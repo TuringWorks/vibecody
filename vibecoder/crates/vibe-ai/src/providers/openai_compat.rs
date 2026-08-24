@@ -275,6 +275,36 @@ pub fn parse_sse_stream(response: reqwest::Response) -> CompletionStream {
 /// Send a non-streaming chat request and parse the response.
 ///
 /// This handles the common pattern of: POST JSON → check status → parse body → extract text+usage.
+/// True when an error body is the endpoint refusing the `tools` field itself
+/// rather than anything about the conversation.
+///
+/// Not every OpenAI-compatible endpoint implements function calling —
+/// Perplexity's chat models, some self-hosted servers, older proxies. Sending
+/// tools to one of those must degrade to what worked before, not fail the
+/// turn: the tools are described in the system prompt as well.
+pub fn is_tools_unsupported(body: &str) -> bool {
+    let body = body.to_ascii_lowercase();
+    (body.contains("tool") || body.contains("function"))
+        && (body.contains("not support")
+            || body.contains("unsupported")
+            || body.contains("unrecognized")
+            || body.contains("unknown field")
+            || body.contains("unexpected keyword")
+            || body.contains("invalid parameter"))
+}
+
+/// The same request with no `tools` field.
+fn without_tools(request: &ChatRequest) -> ChatRequest {
+    ChatRequest {
+        model: request.model.clone(),
+        messages: request.messages.clone(),
+        temperature: request.temperature,
+        max_tokens: request.max_tokens,
+        stream: request.stream,
+        tools: None,
+    }
+}
+
 pub async fn send_chat_request(
     client: &reqwest::Client,
     url: &str,
@@ -282,18 +312,39 @@ pub async fn send_chat_request(
     request: &ChatRequest,
     provider_label: &str,
 ) -> Result<CompletionResponse> {
-    let resp = client
-        .post(url)
-        .header("Authorization", format!("Bearer {}", api_key))
-        .json(request)
-        .send()
+    let post = |body: &ChatRequest| {
+        client
+            .post(url)
+            .header("Authorization", format!("Bearer {}", api_key))
+            .json(body)
+            .send()
+    };
+    let resp = post(request)
         .await
         .with_context(|| format!("{} request failed", provider_label))?;
 
-    if !resp.status().is_success() {
+    let resp = if resp.status().is_success() {
+        resp
+    } else {
         let err = resp.text().await?;
-        anyhow::bail!("{} API error: {}", provider_label, err);
-    }
+        // An endpoint without function calling gets the turn again without the
+        // tools field — the prompt still describes the tools in prose.
+        if request.tools.is_none() || !is_tools_unsupported(&err) {
+            anyhow::bail!("{} API error: {}", provider_label, err);
+        }
+        tracing::warn!(
+            provider = provider_label,
+            "Endpoint does not accept native tool definitions — retrying without them",
+        );
+        let retry = post(&without_tools(request))
+            .await
+            .with_context(|| format!("{} request failed", provider_label))?;
+        if !retry.status().is_success() {
+            let err = retry.text().await?;
+            anyhow::bail!("{} API error: {}", provider_label, err);
+        }
+        retry
+    };
 
     let body: ChatResponse = resp
         .json()
@@ -325,20 +376,38 @@ pub async fn send_stream_request(
     request: &ChatRequest,
     provider_label: &str,
 ) -> Result<CompletionStream> {
-    let resp = client
-        .post(url)
-        .header("Authorization", format!("Bearer {}", api_key))
-        .json(request)
-        .send()
+    let post = |body: &ChatRequest| {
+        client
+            .post(url)
+            .header("Authorization", format!("Bearer {}", api_key))
+            .json(body)
+            .send()
+    };
+    let resp = post(request)
         .await
         .with_context(|| format!("{} stream request failed", provider_label))?;
 
-    if !resp.status().is_success() {
-        let err = resp.text().await?;
-        anyhow::bail!("{} API error: {}", provider_label, err);
+    if resp.status().is_success() {
+        return Ok(parse_sse_stream(resp));
     }
 
-    Ok(parse_sse_stream(resp))
+    // Same fallback as the non-streaming path.
+    let err = resp.text().await?;
+    if request.tools.is_none() || !is_tools_unsupported(&err) {
+        anyhow::bail!("{} API error: {}", provider_label, err);
+    }
+    tracing::warn!(
+        provider = provider_label,
+        "Endpoint does not accept native tool definitions — retrying the stream without them",
+    );
+    let retry = post(&without_tools(request))
+        .await
+        .with_context(|| format!("{} stream request failed", provider_label))?;
+    if !retry.status().is_success() {
+        let err = retry.text().await?;
+        anyhow::bail!("{} API error: {}", provider_label, err);
+    }
+    Ok(parse_sse_stream(retry))
 }
 
 // ── Tests ───────────────────────────────────────────────────────────────────
@@ -564,7 +633,10 @@ mod tests {
     fn tools_ride_along_only_when_the_conversation_asked_for_them() {
         let chat = [Message {
             role: crate::provider::MessageRole::System,
-            content: format!("preamble\n{}\n- write_file", crate::tools::CHAT_TOOL_PROMPT_MARKER),
+            content: format!(
+                "preamble\n{}\n- write_file",
+                crate::tools::CHAT_TOOL_PROMPT_MARKER
+            ),
         }];
         let defs = ChatRequest::tools_for(&chat).expect("chat conversations carry tools");
         assert_eq!(defs.len(), crate::tools::CHAT_TOOL_NAMES.len());
@@ -587,6 +659,61 @@ mod tests {
             tools: None,
         };
         let json = serde_json::to_string(&req).expect("serialize");
-        assert!(!json.contains("tools"), "None tools must not hit the wire: {json}");
+        assert!(
+            !json.contains("tools"),
+            "None tools must not hit the wire: {json}"
+        );
+    }
+
+    /// An endpoint without function calling must degrade to the behaviour that
+    /// worked before tools were sent, not fail the turn.
+    #[test]
+    fn tool_rejections_are_recognised_across_wordings() {
+        for body in [
+            r#"{"error":{"message":"This model does not support tools"}}"#,
+            r#"{"error":{"message":"Unsupported parameter: 'tools'"}}"#,
+            r#"{"error":"unknown field `tools`"}"#,
+            r#"{"error":{"message":"Invalid parameter: function calling is not enabled"}}"#,
+        ] {
+            assert!(is_tools_unsupported(body), "should be recognised: {body}");
+        }
+    }
+
+    /// Everything else is a real error and must surface as one — a rate limit
+    /// retried without tools would silently lose tool calling for the session.
+    #[test]
+    fn ordinary_errors_are_not_mistaken_for_tool_rejections() {
+        for body in [
+            r#"{"error":{"message":"Rate limit exceeded"}}"#,
+            r#"{"error":{"message":"Invalid API key"}}"#,
+            r#"{"error":{"message":"context length exceeded"}}"#,
+        ] {
+            assert!(
+                !is_tools_unsupported(body),
+                "should not be recognised: {body}"
+            );
+        }
+    }
+
+    #[test]
+    fn dropping_tools_keeps_the_rest_of_the_request() {
+        let req = ChatRequest {
+            model: "m".into(),
+            messages: vec![ChatMessage {
+                role: "user".into(),
+                content: "hi".into(),
+            }],
+            temperature: Some(0.2),
+            max_tokens: Some(512),
+            stream: true,
+            tools: Some(crate::tools::chat_tool_definitions()),
+        };
+        let stripped = without_tools(&req);
+        assert!(stripped.tools.is_none());
+        assert_eq!(stripped.model, "m");
+        assert_eq!(stripped.temperature, Some(0.2));
+        assert_eq!(stripped.max_tokens, Some(512));
+        assert!(stripped.stream);
+        assert_eq!(stripped.messages.len(), 1);
     }
 }

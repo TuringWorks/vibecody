@@ -1550,7 +1550,9 @@ fn find_line_block(haystack: &[String], needle: &[String], from: usize) -> Optio
             return Some(start);
         }
     }
-    starts.into_iter().find(|&start| loose(&haystack[start..start + needle.len()]))
+    starts
+        .into_iter()
+        .find(|&start| loose(&haystack[start..start + needle.len()]))
 }
 
 /// Apply a unified diff, a `*** Begin Patch` envelope, or a SEARCH/REPLACE
@@ -2386,7 +2388,8 @@ mod tests {
     #[test]
     fn search_replace_block_applies() {
         let original = "# Probe\n\nA test repo.\n";
-        let patch = "<<<<<<< SEARCH\nA test repo.\n=======\nA test repo.\nprobe ok\n>>>>>>> REPLACE\n";
+        let patch =
+            "<<<<<<< SEARCH\nA test repo.\n=======\nA test repo.\nprobe ok\n>>>>>>> REPLACE\n";
         let result = apply_unified_patch(original, patch).expect("must apply");
         assert_eq!(result, "# Probe\n\nA test repo.\nprobe ok\n");
     }

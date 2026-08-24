@@ -185,6 +185,50 @@ grep -rn 'fetch(`${this.baseUrl}' packages/agent-sdk/src vscode-extension/src
 
 Follow the 8-file dance in **"Adding / Updating Providers and Models"** below, then update the three clients that keep their own provider list: the `vibecli.provider` `enum` in `vscode-extension/package.json`, `PROVIDERS` in `jetbrains-plugin/.../VibeCLISettingsConfigurable.kt`, and `PROVIDER_LABELS` in `vibeaichat/src/App.tsx`. A provider absent from a closed list is unselectable there however well the daemon supports it. **No changes needed** in VibeMobile, the watch clients, VibeDesk, Neovim, or the SDK — they either read `/models` from the daemon or have no provider setting at all.
 
+### Touching the tool loop — how a model is told what it can call
+
+Two rules, both learned from measuring local models (lfm2.5, gpt-oss:20b,
+ornith on Ollama 0.32) rather than from reading their docs.
+
+**1. Tools go on the wire, not only in the prompt.** A model trained for native
+tool calling cannot use tools that exist only in prose: it narrates its intent
+and returns an empty turn. Measured on the chat path before this was fixed —
+every turn came back with an empty `content` and the whole turn in `thinking`,
+and gpt-oss reached for its own built-in `container.exec`, a tool this product
+does not have. Both paths now advertise schemas:
+
+| where | what decides |
+|---|---|
+| `vibe_ai::tools::tool_definitions_for` | reads the system prompt's marker: `## Available Tools` → the agent's 14 tools, `## File Tools` → the chat panel's 5 |
+| `ollama.rs`, `compat.rs` | put those schemas on the request; a model that rejects the `tools` field is remembered and retried without it |
+| `AIProvider::advertises_native_tools` | providers that send schemas get the compact system prompt (`tools::agent_system_prompt`) — the catalogue is the same information paid for twice |
+
+Renaming either marker heading silently drops every local model back to
+prompt-only tools. Both are pinned by tests; keep them that way.
+
+**2. One wire format.** Native calls are transcribed to
+`<tool_call name="…">…</tool_call>`, and both executors read it — the agent
+loop through `tools::parse_tool_calls`, the chat panel through
+`commands.rs::canonical_tool_calls_to_tags`, which rewrites it into the older
+tag dialect it scans for. Content is normalised once, at the boundary
+(`tools::normalize_file_content`): JSON-escaped bodies, enclosing fences and
+orphan `</think>` tags never reach the disk.
+
+Every turn that fails to produce work gets exactly one correction, never a
+loop, and never an invented answer: an unknown tool → the real tool list; a
+reasoning-only turn → "give the answer". If the retry is empty too, the
+original turn stands.
+
+**A tool that reports success must have done something.** `apply_patch` used to
+return `Ok(original)` for any patch it could not parse — a bare `@@` header, a
+`*** Begin Patch` envelope, a SEARCH/REPLACE block — so the agent announced an
+edit, the verifier passed, and the file was untouched. Hunks are now located by
+searching for their context (line numbers are a hint, not an address), and
+*zero hunks*, *context not found* and *result identical to input* are all
+errors. Run `make eval-models MODEL=…` after touching any of this: it is the
+only thing that measures whether a given model can still be driven through the
+loop at all.
+
 ### Adding a new device-pairing / auth flow
 
 | Also touch | Why |

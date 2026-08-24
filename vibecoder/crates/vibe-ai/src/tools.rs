@@ -890,7 +890,11 @@ pub fn chat_tool_definitions() -> Vec<serde_json::Value> {
         tool(
             "list_dir",
             "List the entries of a directory in the workspace.",
-            &[("path", "string", "Directory path, relative to the project root")],
+            &[(
+                "path",
+                "string",
+                "Directory path, relative to the project root",
+            )],
             &["path"],
         ),
         tool(
@@ -1044,9 +1048,8 @@ fn unescape_json_style(content: &str) -> String {
 /// open tag's name, and `regex` has no backreferences. [`extract_tag`] does the
 /// same walk for a known parameter name; this one discovers the names.
 fn parse_tool_params(body: &str) -> Vec<(String, String)> {
-    static OPEN_RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"<([A-Za-z_][\w.-]*)>").expect("hardcoded regex is valid")
-    });
+    static OPEN_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"<([A-Za-z_][\w.-]*)>").expect("hardcoded regex is valid"));
     let mut params = Vec::new();
     let mut from = 0usize;
     while let Some(cap) = OPEN_RE.captures(&body[from..]) {
@@ -2346,7 +2349,10 @@ Some text in between
         assert!(compact.contains("### Escaping parameter values"));
         // Every tool is still named, so a model can be told it invented one.
         for name in AVAILABLE_TOOL_NAMES {
-            assert!(compact.contains(name), "{name} is missing from the compact prompt");
+            assert!(
+                compact.contains(name),
+                "{name} is missing from the compact prompt"
+            );
         }
     }
 
@@ -2367,7 +2373,10 @@ Some text in between
     #[test]
     fn prompt_selection_follows_the_provider() {
         assert_eq!(agent_system_prompt(false), TOOL_SYSTEM_PROMPT);
-        assert_eq!(agent_system_prompt(true), TOOL_SYSTEM_PROMPT_COMPACT.as_str());
+        assert_eq!(
+            agent_system_prompt(true),
+            TOOL_SYSTEM_PROMPT_COMPACT.as_str()
+        );
     }
 
     // ── Content normalisation at the tool boundary ──────────────────────────
@@ -2423,7 +2432,10 @@ Some text in between
         );
         match calls.first() {
             Some(ToolCall::WriteFile { content, .. }) => {
-                assert_eq!(content, "a\nb\nc", "content must reach the executor decoded")
+                assert_eq!(
+                    content, "a\nb\nc",
+                    "content must reach the executor decoded"
+                )
             }
             other => panic!("expected a write_file call, got {other:?}"),
         }
@@ -2465,7 +2477,12 @@ Some text in between
     fn chat_tool_definitions_cover_every_chat_tool_name() {
         let names: Vec<String> = chat_tool_definitions()
             .iter()
-            .map(|d| d["function"]["name"].as_str().unwrap_or_default().to_string())
+            .map(|d| {
+                d["function"]["name"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .to_string()
+            })
             .collect();
         for name in CHAT_TOOL_NAMES {
             assert!(names.iter().any(|n| n == name), "{name} has no schema");
@@ -2490,7 +2507,10 @@ Some text in between
 <content>fn main() {\n    if a &lt; b &amp;&amp; c {}\n}</content></tool_call>";
         let blocks = parse_tool_call_blocks(text);
         let content = &blocks[0].1[1].1;
-        assert!(content.contains("a < b && c"), "entities must decode: {content}");
+        assert!(
+            content.contains("a < b && c"),
+            "entities must decode: {content}"
+        );
         assert!(content.contains('\n'), "newlines must survive");
     }
 

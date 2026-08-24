@@ -10,7 +10,7 @@ use crate::provider::{AIProvider, Message, MessageRole};
 use crate::skills::SkillLoader;
 use crate::tools::{
     format_tool_result, parse_tool_calls, strip_thinking, unparsed_tool_call_name, ToolCall,
-    ToolResult, AVAILABLE_TOOL_NAMES, TOOL_SYSTEM_PROMPT,
+    ToolResult, AVAILABLE_TOOL_NAMES,
 };
 // `redact_secrets` guards what leaves the agent, not only what is written to
 // a trace: asked to summarise a `.env`, the agent reproduced a database
@@ -607,6 +607,22 @@ pub enum VerifierDecision {
     /// Verifier rejected task_complete; the agent loops back to address
     /// the reason before it can complete again.
     Fail(String),
+}
+
+/// The text an agent run reports as its result.
+///
+/// Reasoning is stripped: a summary of `<thinking>Let me read the key files…`
+/// is not a result, and it is what a reader — or an eval grader — sees as the
+/// agent's answer. When reasoning was *all* the model produced, say that
+/// plainly rather than passing the monologue off as the outcome.
+fn final_summary(text: &str) -> String {
+    let visible = crate::tools::strip_thinking(text);
+    match visible.trim().is_empty() {
+        false => visible.trim().to_string(),
+        true => "The run ended with reasoning only — the model produced no answer and called no \
+                 tool. Any work already done is on disk."
+            .to_string(),
+    }
 }
 
 /// Events emitted by the agent loop to the UI or REPL.
@@ -2209,7 +2225,9 @@ impl AgentLoop {
                         .await;
                 }
                 let _ = event_tx
-                    .send(AgentEvent::Complete(redact_secrets(&accumulated)))
+                    .send(AgentEvent::Complete(redact_secrets(&final_summary(
+                        &accumulated,
+                    ))))
                     .await;
                 self.checkpoint(&messages, "complete");
                 return Ok(());
@@ -2228,7 +2246,9 @@ impl AgentLoop {
                 Some(c) => c,
                 None => {
                     let _ = event_tx
-                        .send(AgentEvent::Complete(redact_secrets(&accumulated)))
+                        .send(AgentEvent::Complete(redact_secrets(&final_summary(
+                            &accumulated,
+                        ))))
                         .await;
                     self.checkpoint(&messages, "no tool call");
                     return Ok(());
@@ -2496,7 +2516,9 @@ impl AgentLoop {
                     "Agent task complete",
                 );
                 let _ = event_tx
-                    .send(AgentEvent::Complete(redact_secrets(&summary)))
+                    .send(AgentEvent::Complete(redact_secrets(&final_summary(
+                        &summary,
+                    ))))
                     .await;
                 self.checkpoint(&messages, "task complete");
                 return Ok(());
@@ -3910,8 +3932,12 @@ mod context_tests {
         );
         assert!(matched.contains("Watch it fail first."));
 
-        let unmatched =
-            build_system_prompt(&context, &ApprovalPolicy::FullAuto, "rename a variable", false);
+        let unmatched = build_system_prompt(
+            &context,
+            &ApprovalPolicy::FullAuto,
+            "rename a variable",
+            false,
+        );
         assert!(
             !unmatched.contains("### Skill: test-first"),
             "a non-matching task must not activate the skill"
@@ -6457,4 +6483,33 @@ pub fn path_holds_secrets(path: &str) -> bool {
         || name == ".netrc"
         || name == ".npmrc"
         || name == "daemon.token"
+}
+
+#[cfg(test)]
+mod final_summary_tests {
+    use super::*;
+
+    // ── The reported result is not the model's monologue ──────────────────
+
+    #[test]
+    fn a_summary_keeps_only_what_the_model_actually_said() {
+        assert_eq!(
+            final_summary("<thinking>weighing options</thinking>Renamed the field in 3 files."),
+            "Renamed the field in 3 files."
+        );
+    }
+
+    /// Measured: a local model ended a run with reasoning and nothing else,
+    /// and the monologue was reported as the run's answer — to the user and to
+    /// the eval grader alike.
+    #[test]
+    fn a_reasoning_only_run_says_so_instead_of_reporting_the_monologue() {
+        let summary = final_summary("<thinking>I should read the key files first…</thinking>");
+        assert!(summary.contains("reasoning only"), "{summary}");
+        assert!(!summary.contains("<thinking>"), "{summary}");
+        assert!(
+            !summary.contains("key files"),
+            "the monologue must not be the answer: {summary}"
+        );
+    }
 }
