@@ -34,11 +34,11 @@ Added in **0.5.5**: URL-only / URL + Bearer pairing (works on emulators), P-256 
 
 | Target | Minimum |
 |--------|---------|
-| iOS | **13.0+** (deployment target raised from 12.0 in v0.5.5) |
+| iOS | **15.0+** (raised from 13.0 by the Flutter 3.47.1 pin; 13.0 dated to v0.5.5, itself up from 12.0) |
 | Android | 7.0 / API 24+ |
 | macOS | 12.0+ |
 | Linux / Windows | GTK 3 / Edge WebView2 |
-| Build toolchain | Flutter 3.44.2 (CI-pinned, floor ≥ 3.8.0), Xcode 26 (App Store submissions after 2026-04-28) |
+| Build toolchain | Flutter 3.47.1 (CI-pinned, floor ≥ 3.8.0), Xcode 26 (App Store submissions after 2026-04-28) |
 
 > **Android build SDK** — `compileSdk = 37` from v0.5.8. `permission_handler_android`,
 > pulled in by the voice-input microphone permission, declares an AAR metadata
