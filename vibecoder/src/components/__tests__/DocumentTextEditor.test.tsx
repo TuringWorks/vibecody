@@ -78,17 +78,18 @@ beforeEach(() => {
 });
 
 describe('file routing', () => {
-  it('claims the four document formats and only reads bytes for the two that need them', () => {
+  it('claims the four document formats and only reads bytes for the one that needs them', () => {
     expect(isDocumentFile('a.pdf')).toBe(true);
     expect(isDocumentFile('a.epub')).toBe(true);
     expect(isDocumentFile('a.docx')).toBe(true);
     expect(isDocumentFile('a.pages')).toBe(true);
     expect(isDocumentFile('a.txt')).toBe(false);
 
+    // Only PDF renders from the raw bytes. EPUB, DOCX and Pages are parsed by
+    // the backend, so base64-ing them would move the whole file through a JS
+    // string for nothing.
     expect(needsRawBytes('a.pdf')).toBe(true);
-    expect(needsRawBytes('a.epub')).toBe(true);
-    // DOCX and Pages are parsed by the backend; base64-ing them would move the
-    // whole file through a JS string for nothing.
+    expect(needsRawBytes('a.epub')).toBe(false);
     expect(needsRawBytes('a.docx')).toBe(false);
     expect(needsRawBytes('a.pages')).toBe(false);
   });

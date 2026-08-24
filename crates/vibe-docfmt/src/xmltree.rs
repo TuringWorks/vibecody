@@ -262,6 +262,16 @@ fn element_from(e: &BytesStart<'_>, self_closing: bool) -> Result<Element, DocEr
     Ok(Element { name, attrs, children: Vec::new(), self_closing, raw_open: Some(raw) })
 }
 
+/// Serialize an element's children — its inner markup, without the element's
+/// own tags. This is what a chapter body contributes to a rendered view.
+pub fn serialize_children(el: &Element) -> String {
+    let mut out = String::new();
+    for child in &el.children {
+        write_node(child, &mut out);
+    }
+    out
+}
+
 /// Serialize a tree back to XML.
 pub fn serialize(doc: &XmlDoc) -> String {
     let mut out = String::new();

@@ -547,6 +547,8 @@ pub fn run() {
             commands::read_document_text,
             commands::write_document_text,
             commands::read_document_preview,
+            commands::read_epub_book,
+            commands::read_epub_chapter,
             commands::write_file,
             commands::list_directory,
             commands::list_directory_sandbox,

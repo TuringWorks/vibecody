@@ -11,7 +11,7 @@ VibeCoder opens four document formats in the editor area. Three of them are also
 | Format | View | Edit as | Save back |
 |---|---|---|---|
 | `.pdf` | Rendered page view | — | — |
-| `.epub` | Rendered chapters, table of contents | Markdown | Yes |
+| `.epub` | Full rendering — the book's own styles, images and links | Markdown | Yes |
 | `.docx` | Rendered document | Markdown | Yes |
 | `.pages` | Embedded page preview + recovered text | Plain text | Yes, text only |
 
@@ -77,7 +77,30 @@ Not supported, and refused rather than approximated:
 
 ### EPUB
 
-Each spine item becomes one section. Read as Markdown: headings, paragraphs, bold/italic/code, links, ordered and unordered lists (including nesting), `<pre>` blocks, horizontal rules and tables.
+**Reading.** A book renders as the book: its own stylesheets, its images, its
+cover, its table of contents (EPUB 3 navigation document, or the EPUB 2 NCX,
+with nesting preserved), and working links. Clicking a cross-reference moves to
+that chapter and scrolls to the anchor; an `http(s)` or `mailto` link opens in
+your browser rather than navigating the editor away. Chapter text is selectable,
+and the font size control scales the chapter without discarding the book's own
+typography.
+
+Two things constrain what is rendered, both deliberate:
+
+- **The chapter's markup is sanitised** before it reaches the DOM — EPUB content
+  is treated as attacker-controlled, because the file came from somewhere else.
+  Scripts, forms, frames and script URLs are removed.
+- **The book's CSS is scoped to the chapter container**, and the constructs that
+  would let it escape are dropped: `@import`, `position: fixed`/`sticky`,
+  `expression()`, script URLs, and any `url()` the book's own files do not
+  satisfy. Everything else — fonts, margins, drop caps, colours, media queries —
+  is applied.
+
+A remote `<img>` in an offline book is not fetched. It is a tracking pixel far
+more often than a picture, and the chapter reports it as a reference it did not
+resolve.
+
+**Editing.** Each spine item becomes one section. Read as Markdown: headings, paragraphs, bold/italic/code, links, ordered and unordered lists (including nesting), `<pre>` blocks, horizontal rules and tables.
 
 Writing edits the chapter's XHTML in place. XHTML indentation is normalised out of the buffer, so a chapter written across several source lines reads as one paragraph and stays one paragraph.
 
@@ -109,6 +132,8 @@ The verification step applies here too: the rewritten archives are re-read and t
 | Piece | Path |
 |---|---|
 | Format readers/writers, verification, backups | [`crates/vibe-docfmt`](https://github.com/ravituringworks/vibecody/tree/main/crates/vibe-docfmt) |
+| EPUB reading for display — spine, TOC, cover, per-chapter resources | `crates/vibe-docfmt/src/epub_view.rs` |
+| Chapter sanitising, CSS scoping, link and image rewriting | `vibecoder/src/lib/epubRender.ts` |
 | Byte-preserving XML tree | `crates/vibe-docfmt/src/xmltree.rs` |
 | Edit engine shared by DOCX and EPUB | `crates/vibe-docfmt/src/surgical.rs` |
 | IWA framing, protobuf walker, text substitution | `crates/vibe-docfmt/src/pages/` |
@@ -124,11 +149,17 @@ The verification step applies here too: the rewritten archives are re-read and t
 | `read_document_text(path)` | Open the document as a text buffer (`format`, `language`, `text`, `sections`, `warnings`, `writable`) |
 | `write_document_text(path, text)` | Save the buffer back; errors, with the file untouched, if it does not verify |
 | `read_document_preview(path)` | The preview image the document embeds, base64-encoded (Pages only) |
+| `read_epub_book(path)` | A book's metadata, cover, spine and table of contents |
+| `read_epub_chapter(path, chapter)` | One chapter's markup, stylesheets and referenced media |
 
 ### Tests
 
 ```bash
 cargo test -p vibe-docfmt --no-fail-fast          # readers, writers, framing, remapping
 cd vibecoder && npx vitest run src/lib/__tests__/richDocuments.test.ts
+cd vibecoder && npx vitest run src/lib/__tests__/epubBook.test.ts
+cd vibecoder && npx vitest run src/lib/__tests__/epubRender.test.ts      # CSS scoping + sanitising
+cd vibecoder && npx vitest run src/components/__tests__/EpubViewer.test.tsx
+cd vibecoder && npx vitest run src/components/__tests__/DocumentViewer.sanitize.test.ts
 cd vibecoder && npx vitest run src/components/__tests__/DocumentTextEditor.test.tsx
 ```

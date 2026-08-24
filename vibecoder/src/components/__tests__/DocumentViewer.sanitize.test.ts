@@ -92,3 +92,54 @@ describe("sanitizeEpubHtml — preserves legitimate chapter content", () => {
     expect(out).toContain('viewBox="0 0 10 10"');
   });
 });
+
+/**
+ * `href` and `xlink:href` were added to ALLOWED_ATTR on 2026-08-24, because
+ * without them every link in every book rendered dead and SVG-wrapped covers
+ * rendered blank. That widens the allow-list, so what the widening does *not*
+ * permit is pinned here.
+ */
+describe("sanitizeEpubHtml — links, now that href is allowed", () => {
+  it("keeps a relative link, which is how a book navigates itself", () => {
+    const out = sanitizeEpubHtml('<a href="ch2.xhtml#later">forward</a>');
+    expect(out).toContain('href="ch2.xhtml#later"');
+  });
+
+  it("keeps an http link", () => {
+    expect(sanitizeEpubHtml('<a href="https://example.com">out</a>')).toContain(
+      'href="https://example.com"',
+    );
+  });
+
+  it.each([
+    ["javascript:", '<a href="javascript:alert(1)">x</a>'],
+    ["vbscript:", '<a href="vbscript:msgbox(1)">x</a>'],
+    ["mixed-case javascript:", '<a href="JaVaScRiPt:alert(1)">x</a>'],
+    ["whitespace-obfuscated javascript:", '<a href="java\tscript:alert(1)">x</a>'],
+  ])("drops a %s href while keeping the text", (_name, html) => {
+    const out = sanitizeEpubHtml(html);
+    expect(out.toLowerCase()).not.toContain("script:");
+    expect(out).not.toContain("href=");
+    expect(out).toContain("x");
+  });
+
+  it("keeps xlink:href on an SVG image, which is how covers are wrapped", () => {
+    const out = sanitizeEpubHtml(
+      '<svg viewBox="0 0 10 10"><image xlink:href="cover.jpg" width="10" height="10"/></svg>',
+    );
+    expect(out).toContain("cover.jpg");
+  });
+
+  it("drops a script URL in xlink:href", () => {
+    const out = sanitizeEpubHtml('<svg><image xlink:href="javascript:alert(1)"/></svg>');
+    expect(out.toLowerCase()).not.toContain("javascript:");
+  });
+
+  it("still drops a data: URL that would carry markup", () => {
+    // `data:` is permitted on media elements, where it cannot execute — never
+    // as a navigable link target.
+    const out = sanitizeEpubHtml('<a href="data:text/html,<script>alert(1)</script>">x</a>');
+    expect(hasExecutableMarkup(out)).toBe(false);
+  });
+});
+

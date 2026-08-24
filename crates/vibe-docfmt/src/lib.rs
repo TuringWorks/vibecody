@@ -15,6 +15,7 @@
 
 pub mod docx;
 pub mod epub;
+pub mod epub_view;
 pub mod error;
 pub mod markdown;
 pub mod model;

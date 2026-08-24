@@ -67820,3 +67820,115 @@ pub async fn read_document_preview(
         base64: base64::engine::general_purpose::STANDARD.encode(bytes),
     }))
 }
+
+// ── EPUB reading ─────────────────────────────────────────────────────────────
+//
+// The viewer used to parse the book in the browser. That reader dropped every
+// deflate-compressed entry — which is every chapter of every real EPUB — so
+// books rendered as a placeholder telling the user to open them somewhere else.
+// Reading happens here now, where the ZIP is a solved problem, and a chapter
+// arrives with the stylesheets and images it references already resolved.
+
+/// A file from inside the book, base64-encoded for the webview.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct EpubResource {
+    /// Container path, e.g. `OEBPS/images/fig1.png`.
+    pub path: String,
+    /// How the chapter referred to it, e.g. `../images/fig1.png`.
+    pub href: String,
+    pub mime: String,
+    pub base64: String,
+}
+
+impl From<vibe_docfmt::epub_view::Resource> for EpubResource {
+    fn from(resource: vibe_docfmt::epub_view::Resource) -> Self {
+        use base64::Engine;
+        EpubResource {
+            path: resource.path,
+            href: resource.href,
+            mime: resource.mime,
+            base64: base64::engine::general_purpose::STANDARD.encode(&resource.data),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct EpubBookResponse {
+    pub title: Option<String>,
+    pub authors: Vec<String>,
+    pub language: Option<String>,
+    pub publisher: Option<String>,
+    pub chapters: Vec<vibe_docfmt::epub_view::ChapterRef>,
+    pub toc: Vec<vibe_docfmt::epub_view::TocEntry>,
+    pub cover: Option<EpubResource>,
+    pub warnings: Vec<DocumentWarning>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct EpubChapterResponse {
+    pub path: String,
+    pub title: Option<String>,
+    /// The chapter's body markup — **unsanitised**. The frontend runs it
+    /// through DOMPurify at the DOM sink, which is where that argument lives.
+    pub html: String,
+    pub css: String,
+    pub resources: Vec<EpubResource>,
+    pub warnings: Vec<DocumentWarning>,
+}
+
+/// Read a book's metadata, spine and table of contents.
+#[tauri::command]
+pub async fn read_epub_book(
+    path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<EpubBookResponse, String> {
+    let resolved = {
+        let workspace = state.workspace.lock().await;
+        safe_resolve_path(&workspace, &path)?
+    };
+    let book = tokio::task::spawn_blocking(move || {
+        let bytes = std::fs::read(&resolved).map_err(|e| format!("{}: {e}", resolved.display()))?;
+        vibe_docfmt::epub_view::read_book(&bytes).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("EPUB reader panicked: {e}"))??;
+
+    Ok(EpubBookResponse {
+        title: book.title,
+        authors: book.authors,
+        language: book.language,
+        publisher: book.publisher,
+        chapters: book.chapters,
+        toc: book.toc,
+        cover: book.cover.map(EpubResource::from),
+        warnings: book.warnings.iter().map(DocumentWarning::from).collect(),
+    })
+}
+
+/// Read one chapter, with the stylesheets and media it references.
+#[tauri::command]
+pub async fn read_epub_chapter(
+    path: String,
+    chapter: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<EpubChapterResponse, String> {
+    let resolved = {
+        let workspace = state.workspace.lock().await;
+        safe_resolve_path(&workspace, &path)?
+    };
+    let view = tokio::task::spawn_blocking(move || {
+        let bytes = std::fs::read(&resolved).map_err(|e| format!("{}: {e}", resolved.display()))?;
+        vibe_docfmt::epub_view::read_chapter(&bytes, &chapter).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("EPUB reader panicked: {e}"))??;
+
+    Ok(EpubChapterResponse {
+        path: view.path,
+        title: view.title,
+        html: view.html,
+        css: view.css,
+        resources: view.resources.into_iter().map(EpubResource::from).collect(),
+        warnings: view.warnings.iter().map(DocumentWarning::from).collect(),
+    })
+}

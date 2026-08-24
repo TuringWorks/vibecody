@@ -19,9 +19,24 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import DOMPurify from "dompurify";
 import { FileText, ChevronRight, ChevronLeft, AlertTriangle, Info, Pencil } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { DocumentTextEditor } from "./DocumentTextEditor";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { getMode, hasDraft, setMode as rememberMode } from "../lib/documentDrafts";
+import {
+  dataUrl,
+  readEpubBook,
+  readEpubChapter,
+  resourceUrls,
+  type EpubBook,
+  type EpubTocEntry,
+} from "../lib/epubBook";
+import {
+  resolveAgainst,
+  rewriteChapterHtml,
+  scopeEpubCss,
+  splitHref,
+} from "../lib/epubRender";
 import {
   documentErrorMessage,
   formatLabel,
@@ -46,12 +61,13 @@ export function isDocumentFile(filename: string): boolean {
 /**
  * Whether this document's viewer renders from the file's bytes.
  *
- * PDF and EPUB do. DOCX and Pages are parsed by the backend, so reading them
- * into a base64 string on open would move the whole file through JS for nothing.
+ * Only PDF does — it hands them to the browser's own renderer. EPUB, DOCX and
+ * Pages are parsed by the backend, so reading them into a base64 string on open
+ * would move the whole file through a JS string for nothing.
  */
 export function needsRawBytes(filename: string): boolean {
   const ext = filename.split(".").pop()?.toLowerCase() || "";
-  return ext === "pdf" || ext === "epub";
+  return ext === "pdf";
 }
 
 // ── Props ────────────────────────────────────────────────────────────
@@ -163,145 +179,208 @@ function PdfViewer({ filePath, base64Data }: DocumentViewerProps) {
 
 // ── EPUB Viewer Sub-component ────────────────────────────────────────
 
-interface EpubChapter {
-  title: string;
-  /**
-   * Either DOMPurify-sanitized HTML (real EPUB extracted chapters) or a plain
-   * text body (placeholder/fallback rows). `isPlaceholder=true` switches the
-   * renderer from `dangerouslySetInnerHTML` to pure React JSX so the value can
-   * include user-controlled filenames without an XSS risk.
-   */
-  content: string;
-  isPlaceholder?: boolean;
+/** A chapter, sanitised and wired to the resources that came with it. */
+interface RenderedChapter {
+  path: string;
+  title: string | null;
+  html: string;
+  css: string;
+  warnings: DocumentWarning[];
 }
 
-function EpubViewer({ filePath, base64Data, onEditText }: DocumentViewerProps & EditableProps) {
-  const [chapters, setChapters] = useState<EpubChapter[]>([]);
-  const [currentChapter, setCurrentChapter] = useState(0);
-  const [fontSize, setFontSize] = useState(16);
+type BookState =
+  | { status: "loading" }
+  | { status: "ready"; book: EpubBook }
+  | { status: "failed"; message: string };
+
+/**
+ * EpubViewer — renders a book the way the book was written: its own markup, its
+ * own stylesheets, its own images, its table of contents, and links that work.
+ *
+ * Reading happens in the backend. The browser-side reader this replaced could
+ * not inflate a deflate-compressed ZIP entry — which is every chapter of every
+ * real EPUB — so it fell through to a card telling the user to open the file in
+ * a different application.
+ */
+function EpubViewer({ filePath, onEditText }: { filePath: string } & EditableProps) {
+  const [state, setState] = useState<BookState>({ status: "loading" });
+  const [index, setIndex] = useState(0);
+  const [chapter, setChapter] = useState<RenderedChapter | null>(null);
+  const [chapterError, setChapterError] = useState<string | null>(null);
+  const [fragment, setFragment] = useState<string | null>(null);
+  const [fontSize, setFontSize] = useState(17);
   const [showToc, setShowToc] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  const fileName = filePath.split("/").pop() || filePath.split("\\").pop() || filePath;
+  const fileName = filePath.split(/[/\\]/).pop() || filePath;
 
-  // Parse EPUB from base64 data
+  // ── The book ──────────────────────────────────────────────────────
   useEffect(() => {
-    if (!base64Data) return;
-
-    const parseEpub = async () => {
-      try {
-        setLoading(true);
-        // Decode base64 to binary
-        const binary = atob(base64Data);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) {
-          bytes[i] = binary.charCodeAt(i);
-        }
-
-        // EPUB is a ZIP file. We'll try to extract content using JSZip-like
-        // approach via the browser's built-in APIs, or fall back to a
-        // basic content display.
-        // Since we can't install JSZip, let's try using the backend to
-        // extract EPUB content, or show a basic viewer.
-
-        // Attempt to parse as a ZIP using the browser's compression streams
-        // EPUB files are ZIP archives containing XHTML content
-        const extractedChapters = await extractEpubContent(bytes);
-        if (extractedChapters.length > 0) {
-          setChapters(extractedChapters);
-        } else {
-          // Fallback: structured placeholder rendered with React JSX (no HTML
-          // injection — fileName is user-controlled and would otherwise need
-          // escaping before interpolation).
-          setChapters([{
-            title: fileName,
-            content: `EPUB file loaded (${formatSize(bytes.length)}). To view this EPUB with full formatting, open it in a dedicated e-book reader application.`,
-            isPlaceholder: true,
-          }]);
-        }
-        setLoading(false);
-      } catch (e) {
-        setError(`Failed to parse EPUB: ${e}`);
-        setLoading(false);
-      }
+    let cancelled = false;
+    setState({ status: "loading" });
+    setIndex(0);
+    setChapter(null);
+    readEpubBook(filePath)
+      .then((book) => {
+        if (!cancelled) setState({ status: "ready", book });
+      })
+      .catch((error) => {
+        if (!cancelled) setState({ status: "failed", message: documentErrorMessage(error) });
+      });
+    return () => {
+      cancelled = true;
     };
+  }, [filePath]);
 
-    parseEpub();
-  }, [base64Data, fileName]);
+  const book = state.status === "ready" ? state.book : null;
+  const chapterPath = book?.chapters[index]?.path;
 
-  // Scroll to top on chapter change
+  // ── The chapter ───────────────────────────────────────────────────
   useEffect(() => {
-    contentRef.current?.scrollTo(0, 0);
-  }, [currentChapter]);
+    if (!chapterPath) return;
+    let cancelled = false;
+    let revoke: (() => void) | null = null;
+    setChapterError(null);
 
-  const prevChapter = useCallback(() => setCurrentChapter(c => Math.max(0, c - 1)), []);
-  const nextChapter = useCallback(() => setCurrentChapter(c => Math.min(chapters.length - 1, c + 1)), [chapters.length]);
-  const increaseFontSize = useCallback(() => setFontSize(s => Math.min(s + 2, 32)), []);
-  const decreaseFontSize = useCallback(() => setFontSize(s => Math.max(s - 2, 10)), []);
+    readEpubChapter(filePath, chapterPath)
+      .then((raw) => {
+        if (cancelled) return;
+        const resources = resourceUrls(raw.resources);
+        revoke = resources.revoke;
+        const resolve = (reference: string) =>
+          resources.urls.get(reference) ??
+          resources.urls.get(resolveAgainst(raw.path, reference));
 
-  if (error) {
-    return (
-      <div className="document-viewer">
-        <div className="document-viewer-error">
-          <AlertTriangle size={16} className="error-icon" />
-          <span className="error-message">{error}</span>
-        </div>
-      </div>
-    );
-  }
+        // Sanitise first, then rewrite references: rewriting only touches
+        // attributes, so it cannot put back anything DOMPurify removed.
+        const rewritten = rewriteChapterHtml(sanitizeEpubHtml(raw.html), resolve);
+        setChapter({
+          path: raw.path,
+          title: raw.title,
+          html: rewritten.html,
+          css: scopeEpubCss(raw.css, ".epub-chapter-body", resolve),
+          warnings: raw.warnings,
+        });
+      })
+      .catch((error) => {
+        if (!cancelled) setChapterError(documentErrorMessage(error));
+      });
 
-  if (loading) {
-    return (
-      <div className="document-viewer">
-        <div className="document-viewer-loading">
-          <div className="doc-spinner" />
-          <span>Loading EPUB…</span>
-        </div>
-      </div>
-    );
-  }
+    return () => {
+      cancelled = true;
+      // Object URLs outlive the chapter that made them unless they are revoked.
+      revoke?.();
+    };
+  }, [filePath, chapterPath]);
 
-  const chapter = chapters[currentChapter];
+  // Land on the requested anchor, or at the top of a new chapter.
+  useEffect(() => {
+    if (!chapter) return;
+    const container = contentRef.current;
+    if (!container) return;
+    if (fragment) {
+      const target = container.querySelector(`#${cssEscape(fragment)}, [name="${fragment}"]`);
+      if (target) {
+        // Optional calls: scrolling is a nicety, and not every host implements
+        // these (jsdom does not). A missing anchor must not break the chapter.
+        target.scrollIntoView?.({ block: "start" });
+        return;
+      }
+    }
+    container.scrollTo?.(0, 0);
+  }, [chapter, fragment]);
+
+  const goTo = useCallback(
+    (path: string, anchor: string | null) => {
+      const target = book?.chapters.findIndex((c) => c.path === path) ?? -1;
+      if (target < 0) return false;
+      setFragment(anchor);
+      setIndex(target);
+      return true;
+    },
+    [book],
+  );
+
+  /** Internal links navigate the book; external ones leave the app. */
+  const handleClick = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      const anchor = (event.target as HTMLElement).closest("a");
+      if (!anchor) return;
+
+      const external = anchor.getAttribute("data-epub-external");
+      if (external) {
+        event.preventDefault();
+        openUrl(external).catch(() => {});
+        return;
+      }
+      const link = anchor.getAttribute("data-epub-link");
+      if (link === null || !chapter) return;
+      event.preventDefault();
+
+      const { path, fragment: anchorName } = splitHref(link);
+      if (!path) {
+        // A bare `#anchor` stays in this chapter.
+        setFragment(anchorName);
+        const target = contentRef.current?.querySelector(
+          `#${cssEscape(anchorName ?? "")}, [name="${anchorName}"]`,
+        );
+        target?.scrollIntoView?.({ block: "start" });
+        return;
+      }
+      goTo(resolveAgainst(chapter.path, path), anchorName);
+    },
+    [chapter, goTo],
+  );
+
+  const chapterCount = book?.chapters.length ?? 0;
+  const prev = useCallback(() => {
+    setFragment(null);
+    setIndex((i) => Math.max(0, i - 1));
+  }, []);
+  const next = useCallback(() => {
+    setFragment(null);
+    setIndex((i) => Math.min(chapterCount - 1, i + 1));
+  }, [chapterCount]);
+
+  if (state.status === "loading") return <LoadingPane format="epub" />;
+  if (state.status === "failed") return <ErrorPane message={state.message} />;
+  if (!book) return <ErrorPane message="This EPUB has no readable chapters." />;
+
+  const heading = chapter?.title || book.chapters[index]?.title || `Chapter ${index + 1}`;
 
   return (
     <div className="document-viewer epub-viewer">
       {/* ── Toolbar ──────────────────────────────────────────────── */}
       <div className="document-viewer-toolbar">
         <div className="toolbar-group">
-          <button
-            onClick={prevChapter}
-            disabled={currentChapter === 0}
-            title="Previous Chapter"
-          >
+          <button onClick={prev} disabled={index === 0} title="Previous Chapter">
             <ChevronLeft size={14} />
           </button>
           <span className="zoom-label chapter-label">
-            {currentChapter + 1} / {chapters.length}
+            {index + 1} / {chapterCount}
           </span>
-          <button
-            onClick={nextChapter}
-            disabled={currentChapter >= chapters.length - 1}
-            title="Next Chapter"
-          >
+          <button onClick={next} disabled={index >= chapterCount - 1} title="Next Chapter">
             <ChevronRight size={14} />
           </button>
         </div>
         <div className="toolbar-separator" />
         <div className="toolbar-group">
-          <button onClick={decreaseFontSize} title="Decrease Font Size">A−</button>
+          <button onClick={() => setFontSize((s) => Math.max(s - 1, 12))} title="Decrease Font Size">
+            A−
+          </button>
           <span className="zoom-label font-label">{fontSize}px</span>
-          <button onClick={increaseFontSize} title="Increase Font Size">A+</button>
+          <button onClick={() => setFontSize((s) => Math.min(s + 1, 32))} title="Increase Font Size">
+            A+
+          </button>
         </div>
         <div className="toolbar-separator" />
         <div className="toolbar-group">
           <button
-            onClick={() => setShowToc(v => !v)}
+            onClick={() => setShowToc((v) => !v)}
             title="Toggle Table of Contents"
             className={`toolbar-btn-wide${showToc ? " active" : ""}`}
           >
-            TOC
+            Contents
           </button>
         </div>
         {onEditText && (
@@ -314,59 +393,67 @@ function EpubViewer({ filePath, base64Data, onEditText }: DocumentViewerProps & 
         )}
         <div className="file-info">
           <span className="info-badge">EPUB</span>
-          <span className="info-badge">{fileName}</span>
+          <span className="info-badge">{book.title || fileName}</span>
         </div>
       </div>
 
-      {/* ── Content area ─────────────────────────────────────────── */}
+      <WarningNotice warnings={[...book.warnings, ...(chapter?.warnings ?? [])]} />
+      {chapterError && (
+        <div className="document-viewer-error doc-inline-error">
+          <AlertTriangle size={14} className="error-icon" />
+          <span className="error-message">{chapterError}</span>
+        </div>
+      )}
+
+      {/* ── Contents + chapter ───────────────────────────────────── */}
       <div className="epub-content-area">
-        {/* Table of Contents sidebar */}
-        {showToc && chapters.length > 1 && (
+        {showToc && (
           <div className="epub-toc">
+            {book.cover && (
+              <img className="epub-cover" src={dataUrl(book.cover)} alt={`Cover of ${book.title ?? fileName}`} />
+            )}
+            <div className="epub-book-meta">
+              <div className="epub-book-title">{book.title || fileName}</div>
+              {book.authors.length > 0 && (
+                <div className="epub-book-authors">{book.authors.join(" · ")}</div>
+              )}
+            </div>
             <div className="epub-toc-header">Contents</div>
-            {chapters.map((ch, i) => (
-              <button
-                key={i}
-                className={`epub-toc-item${i === currentChapter ? " active" : ""}`}
-                onClick={() => setCurrentChapter(i)}
-                title={ch.title}
-              >
-                <span className="toc-number">{i + 1}</span>
-                <span className="toc-title">{ch.title}</span>
-              </button>
-            ))}
+            {tocEntries(book).map((entry, i) => {
+              const active = entry.path === chapterPath;
+              return (
+                <button
+                  key={`${entry.path}#${entry.fragment ?? ""}-${i}`}
+                  className={`epub-toc-item${active ? " active" : ""}`}
+                  style={{ paddingLeft: 8 + entry.level * 12 }}
+                  onClick={() => goTo(entry.path, entry.fragment)}
+                  title={entry.label}
+                >
+                  <span className="toc-title">{entry.label}</span>
+                </button>
+              );
+            })}
           </div>
         )}
 
-        {/* Chapter content */}
-        <div
-          ref={contentRef}
-          className={`epub-chapter-content font-size-${fontSize}`}
-        >
-          {chapter && (
+        <div ref={contentRef} className="epub-chapter-scroll" onClick={handleClick}>
+          {chapter ? (
             <>
-              <div className="epub-chapter-title">{chapter.title}</div>
-              {chapter.isPlaceholder ? (
-                <div className="epub-chapter-body epub-info">
-                  <p>{chapter.content}</p>
-                  <hr />
-                  <p style={{ opacity: 0.7 }}>
-                    EPUB is a ZIP archive containing XHTML chapters, stylesheets, and media. The content has been loaded successfully.
-                  </p>
-                </div>
-              ) : (
-                // Defense-in-depth: chapter.content was already sanitized at
-                // extract time, but we re-run sanitizeEpubHtml() here so the
-                // safety argument is co-located with the DOM sink and the
-                // semgrep `dom-sink-needs-sanitizer` rule (.semgrep/dom-sinks.yml)
-                // sees the call syntactically. DOMPurify is idempotent on its
-                // own output, so the cost is negligible.
-                <div
-                  className="epub-chapter-body"
-                  dangerouslySetInnerHTML={{ __html: sanitizeEpubHtml(chapter.content) }}
-                />
-              )}
+              {/* The book's own stylesheet, scoped to the chapter container. */}
+              <style>{chapter.css}</style>
+              <div
+                className="epub-chapter-body"
+                style={{ fontSize }}
+                /* Sanitised by sanitizeEpubHtml() above; rewriteChapterHtml()
+                   only edits attributes on what survived. */
+                dangerouslySetInnerHTML={{ __html: chapter.html }}
+              />
             </>
+          ) : (
+            <div className="document-viewer-loading">
+              <div className="doc-spinner" />
+              <span>Loading {heading}…</span>
+            </div>
           )}
         </div>
       </div>
@@ -374,260 +461,31 @@ function EpubViewer({ filePath, base64Data, onEditText }: DocumentViewerProps & 
   );
 }
 
-// ── EPUB content extraction ──────────────────────────────────────────
-
-/**
- * Attempt to extract EPUB content from a ZIP archive using
- * browser-native DecompressionStream API (available in modern browsers).
- * Falls back to basic extraction if not available.
- */
-async function extractEpubContent(data: Uint8Array): Promise<EpubChapter[]> {
-  try {
-    // Parse the ZIP file manually (EPUB is a ZIP)
-    const entries = parseZipEntries(data);
-    if (entries.length === 0) return [];
-
-    // Find the container.xml to locate the OPF file
-    const containerEntry = entries.find(e =>
-      e.filename.toLowerCase() === "meta-inf/container.xml"
-    );
-
-    let opfPath = "";
-    if (containerEntry) {
-      const containerXml = new TextDecoder().decode(containerEntry.data);
-      const rootfileMatch = containerXml.match(/full-path="([^"]+)"/);
-      if (rootfileMatch) opfPath = rootfileMatch[1];
-    }
-
-    // Find the OPF file
-    const opfEntry = opfPath
-      ? entries.find(e => e.filename === opfPath)
-      : entries.find(e => e.filename.endsWith(".opf"));
-
-    if (!opfEntry) {
-      // No OPF found — try to find any HTML content
-      return extractHtmlChapters(entries, "");
-    }
-
-    const opfContent = new TextDecoder().decode(opfEntry.data);
-    const opfDir = opfPath.includes("/") ? opfPath.substring(0, opfPath.lastIndexOf("/") + 1) : "";
-
-    // Parse spine order from OPF
-    const spineIds = extractSpineIds(opfContent);
-    const manifestItems = extractManifestItems(opfContent);
-
-    // Map spine IDs to file paths
-    const chapters: EpubChapter[] = [];
-    for (const id of spineIds) {
-      const item = manifestItems.get(id);
-      if (!item) continue;
-
-      const fullPath = opfDir + item.href;
-      const entry = entries.find(e =>
-        e.filename === fullPath || e.filename === decodeURIComponent(fullPath)
-      );
-      if (!entry) continue;
-
-      const html = new TextDecoder().decode(entry.data);
-      // Extract title from the HTML
-      const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/is);
-      const h1Match = html.match(/<h[12][^>]*>(.*?)<\/h[12]>/is);
-      const title = stripHtmlTags(h1Match?.[1] || titleMatch?.[1] || item.href.split("/").pop() || `Chapter ${chapters.length + 1}`);
-
-      // Extract body content
-      const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-      const content = bodyMatch?.[1] || html;
-
-      // Only include non-empty chapters
-      const textContent = stripHtmlTags(content).trim();
-      if (textContent.length > 10) {
-        chapters.push({ title, content: sanitizeEpubHtml(content) });
-      }
-    }
-
-    return chapters.length > 0 ? chapters : extractHtmlChapters(entries, opfDir);
-  } catch (e) {
-    console.warn("EPUB extraction failed:", e);
-    return [];
-  }
+/** The book's own contents list, or the spine when it has none. */
+function tocEntries(book: EpubBook): EpubTocEntry[] {
+  if (book.toc.length > 0) return book.toc;
+  return book.chapters.map((chapter, i) => ({
+    label: chapter.title || `Chapter ${i + 1}`,
+    path: chapter.path,
+    fragment: null,
+    level: 0,
+  }));
 }
 
-/** Fallback: extract all HTML/XHTML files as chapters */
-function extractHtmlChapters(entries: ZipEntry[], _basePath: string): EpubChapter[] {
-  const chapters: EpubChapter[] = [];
-  const htmlEntries = entries.filter(e =>
-    (e.filename.endsWith(".html") || e.filename.endsWith(".xhtml") || e.filename.endsWith(".htm")) &&
-    !e.filename.toLowerCase().includes("toc") &&
-    !e.filename.toLowerCase().includes("nav")
-  ).sort((a, b) => a.filename.localeCompare(b.filename));
-
-  for (const entry of htmlEntries) {
-    const html = new TextDecoder().decode(entry.data);
-    const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-    const content = bodyMatch?.[1] || html;
-    const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/is);
-    const h1Match = html.match(/<h[12][^>]*>(.*?)<\/h[12]>/is);
-    const title = stripHtmlTags(h1Match?.[1] || titleMatch?.[1] || entry.filename.split("/").pop() || "Untitled");
-
-    const textContent = stripHtmlTags(content).trim();
-    if (textContent.length > 10) {
-      chapters.push({ title, content: sanitizeEpubHtml(content) });
+/** Escape an id for use in a selector, without assuming `CSS.escape` exists. */
+function cssEscape(value: string): string {
+  // Called as a method, not lifted out: `CSS.escape` is bound to `CSS` and
+  // throws ("Illegal invocation" in browsers, a TypeError in jsdom) when it is
+  // detached from it.
+  const css = (globalThis as { CSS?: { escape?: (v: string) => string } }).CSS;
+  if (typeof css?.escape === "function") {
+    try {
+      return css.escape(value);
+    } catch {
+      // Fall through to the manual escape below.
     }
   }
-
-  return chapters;
-}
-
-/** Parse spine element IDs from OPF XML */
-function extractSpineIds(opfXml: string): string[] {
-  const spineMatch = opfXml.match(/<spine[^>]*>([\s\S]*?)<\/spine>/i);
-  if (!spineMatch) return [];
-
-  return [...spineMatch[1].matchAll(/<itemref\s+[^>]*idref="([^"]+)"/gi)].map(
-    (m) => m[1],
-  );
-}
-
-/** Parse manifest items from OPF XML */
-function extractManifestItems(opfXml: string): Map<string, { href: string; mediaType: string }> {
-  const items = new Map<string, { href: string; mediaType: string }>();
-  const manifestMatch = opfXml.match(/<manifest[^>]*>([\s\S]*?)<\/manifest>/i);
-  if (!manifestMatch) return items;
-
-  const itemMatches = manifestMatch[1].matchAll(/<item\s+([^>]+)\/?\s*>/gi);
-  for (const m of itemMatches) {
-    const attrs = m[1];
-    const idMatch = attrs.match(/id="([^"]+)"/);
-    const hrefMatch = attrs.match(/href="([^"]+)"/);
-    const typeMatch = attrs.match(/media-type="([^"]+)"/);
-    if (idMatch && hrefMatch) {
-      items.set(idMatch[1], {
-        href: hrefMatch[1],
-        mediaType: typeMatch?.[1] || "",
-      });
-    }
-  }
-  return items;
-}
-
-/** Simple ZIP parser — handles stored (uncompressed) entries in EPUB files */
-interface ZipEntry {
-  filename: string;
-  data: Uint8Array;
-}
-
-function parseZipEntries(data: Uint8Array): ZipEntry[] {
-  const entries: ZipEntry[] = [];
-  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-  let offset = 0;
-
-  while (offset < data.length - 4) {
-    const sig = view.getUint32(offset, true);
-    if (sig !== 0x04034b50) break; // Not a local file header
-
-    const compressionMethod = view.getUint16(offset + 8, true);
-    const compressedSize = view.getUint32(offset + 18, true);
-    const uncompressedSize = view.getUint32(offset + 22, true);
-    const filenameLen = view.getUint16(offset + 26, true);
-    const extraLen = view.getUint16(offset + 28, true);
-
-    const filename = new TextDecoder().decode(
-      data.slice(offset + 30, offset + 30 + filenameLen)
-    );
-
-    const dataStart = offset + 30 + filenameLen + extraLen;
-    const dataEnd = dataStart + compressedSize;
-
-    if (compressionMethod === 0 && compressedSize > 0) {
-      // Stored (uncompressed) — directly usable
-      entries.push({
-        filename,
-        data: data.slice(dataStart, dataEnd),
-      });
-    } else if (compressionMethod === 8 && compressedSize > 0) {
-      // Deflated — try using DecompressionStream
-      try {
-        // We'll use synchronous inflate if DecompressionStream isn't available
-        const rawDeflated = data.slice(dataStart, dataEnd);
-        // Use a wrapper to decompress: add zlib header (78 01) for raw deflate
-        const withHeader = new Uint8Array(rawDeflated.length + 2);
-        withHeader[0] = 0x78;
-        withHeader[1] = 0x01;
-        withHeader.set(rawDeflated, 2);
-
-        // Queue for async decompression (handled below)
-        entries.push({
-          filename,
-          data: rawDeflated, // Will be inflated in post-processing
-          // @ts-expect-error  — mark for decompression
-          _compressed: true,
-          _uncompressedSize: uncompressedSize,
-        });
-      } catch {
-        // Skip entries we can't decompress
-      }
-    }
-
-    offset = dataEnd;
-  }
-
-  // Post-process: decompress any deflated entries using DecompressionStream
-  return inflateEntries(entries);
-}
-
-/** Inflate compressed entries using DecompressionStream API */
-function inflateEntries(entries: ZipEntry[]): ZipEntry[] {
-  // If DecompressionStream is available, we'll process async
-  // For sync fallback, we'll keep what we have
-  const result: ZipEntry[] = [];
-
-  for (const entry of entries) {
-    // @ts-expect-error — _compressed is a dynamic marker not in the ZipEntry type
-    if (entry._compressed) {
-      // Try using DecompressionStream
-      if (typeof DecompressionStream !== "undefined") {
-        // Queue async decompression — we'll handle this in the effect
-        // For now, attempt sync decompression via a simpler approach
-        try {
-          const decompressed = inflateRawSync(entry.data);
-          if (decompressed) {
-            result.push({ filename: entry.filename, data: decompressed });
-          }
-        } catch {
-          // Skip failed decompression
-        }
-      }
-    } else {
-      result.push(entry);
-    }
-  }
-
-  return result;
-}
-
-/**
- * Simple raw DEFLATE decompression.
- * This is a minimal implementation for handling EPUB content.
- * For complex EPUBs, the Tauri backend would handle extraction.
- */
-function inflateRawSync(_data: Uint8Array): Uint8Array | null {
-  try {
-    // Use the browser's native Response + DecompressionStream if available
-    // This is a synchronous fallback that creates a temporary blob
-    // For the initial render, we can try using the data as-is
-    // and rely on the async path for proper decompression
-
-    // Minimal fixed Huffman decode for simple EPUB content
-    // Most EPUB content uses store or simple compression
-    return null; // Return null to skip compressed entries for now
-  } catch {
-    return null;
-  }
-}
-
-/** Strip HTML tags from a string */
-function stripHtmlTags(html: string): string {
-  return html.replace(/<[^>]*>/g, "").replace(/&[^;]+;/g, " ").trim();
+  return value.replace(/[^\w-]/g, "\\$&");
 }
 
 // DOMPurify configuration for EPUB chapter HTML.
@@ -665,9 +523,26 @@ const EPUB_SANITIZE_CONFIG = {
     "var",
     // Inline SVG common for typographic ornaments
     "svg", "g", "path", "circle", "rect", "line", "polyline", "polygon", "text", "tspan", "title", "desc",
+    // SVG <image>: the standard wrapper for an EPUB cover page. Same risk
+    // profile as <img>, which is already allowed — it renders a raster and
+    // executes nothing. Deliberately NOT <use>, whose xlink:href has a long
+    // history of pulling in and animating foreign content.
+    "image",
   ],
   ALLOWED_ATTR: [
     "alt", "class", "colspan", "datetime", "dir", "id", "lang", "rowspan", "src", "title",
+    // `href` and `xlink:href` are load-bearing for a book, not a nicety: the
+    // table of contents, footnote returns, and every cross-reference are links,
+    // and a cover page is usually an <svg><image xlink:href="cover.jpg"/>. They
+    // were absent from this list, so every link in every EPUB rendered dead and
+    // SVG-wrapped covers rendered blank.
+    //
+    // What makes them safe is DOMPurify's default ALLOWED_URI_REGEXP, which
+    // permits only benign schemes and drops `javascript:` / `vbscript:` / other
+    // script URLs from either attribute — see the sanitize tests. The viewer
+    // then replaces every surviving href with "#" and navigates itself, so even
+    // an allowed URL never becomes a live navigation out of the editor.
+    "href", "xlink:href",
     // SVG-specific
     "cx", "cy", "d", "fill", "height", "points", "r", "rx", "ry", "stroke", "transform", "viewBox", "width", "x", "x1", "x2", "y", "y1", "y2",
   ],
@@ -696,13 +571,6 @@ const EPUB_SANITIZE_CONFIG = {
 /** Sanitize EPUB HTML for safe rendering (DREAD #10). */
 export function sanitizeEpubHtml(html: string): string {
   return DOMPurify.sanitize(html, EPUB_SANITIZE_CONFIG);
-}
-
-/** Format byte size */
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 // ── Shared pieces for the text-backed formats ────────────────────────
@@ -965,7 +833,7 @@ export function DocumentViewer({ filePath, base64Data }: DocumentViewerProps) {
   }
 
   if (ext === "epub") {
-    return <EpubViewer filePath={filePath} base64Data={base64Data} onEditText={onEditText} />;
+    return <EpubViewer filePath={filePath} onEditText={onEditText} />;
   }
 
   if (ext === "docx") {

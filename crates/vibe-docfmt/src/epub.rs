@@ -29,6 +29,17 @@ struct SpineItem {
     path: String,
 }
 
+/// Container path of the OPF package document. Shared with [`crate::epub_view`],
+/// which reads the same package for display rather than for editing.
+pub fn opf_path_of(entries: &[ZipEntry]) -> Result<String, DocError> {
+    opf_path(entries)
+}
+
+/// The `<body>` of a chapter document, wherever it sits in the tree.
+pub fn body_of_root(root: &Element) -> Option<&Element> {
+    body_of(root)
+}
+
 fn opf_path(entries: &[ZipEntry]) -> Result<String, DocError> {
     let container = zipedit::find(entries, CONTAINER_PART)
         .ok_or_else(|| DocError::Parse(format!("{CONTAINER_PART} is missing")))?;
