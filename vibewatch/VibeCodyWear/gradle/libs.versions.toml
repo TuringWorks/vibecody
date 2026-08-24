@@ -1,5 +1,5 @@
 [versions]
-agp = "9.3.1"
+agp = "9.3.2"
 kotlin = "2.4.10"
 
 # AndroidX
@@ -14,7 +14,7 @@ wearTiles = "1.6.2"
 playServicesWearable = "20.0.1"
 
 # OkHttp
-okhttp = "5.4.0"
+okhttp = "5.5.0"
 
 # Moshi
 moshi = "1.15.1"
@@ -26,7 +26,7 @@ coroutinesPlayServices = "1.11.0"
 securityCrypto = "1.1.0"
 
 # Tiles support — async + preview
-guava = "33.6.0-android"
+guava = "33.7.1-android"
 concurrentFutures = "1.2.0"
 composeUiToolingPreview = "1.11.4"
 
