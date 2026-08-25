@@ -196,6 +196,17 @@ fn configured_num_ctx() -> Option<usize> {
         .filter(|n| *n > 0)
 }
 
+/// Did the server evaluate far fewer prompt tokens than were sent?
+///
+/// Pure, so the threshold is testable without a tracing subscriber. `~4 chars
+/// per token` is rough and varies by tokenizer, so only a gross shortfall —
+/// under half the estimate, on a prompt big enough for the estimate to mean
+/// anything — is treated as evidence.
+fn prompt_looks_truncated(sent_chars: usize, evaluated_tokens: usize) -> bool {
+    let estimated = sent_chars / 4;
+    estimated > 512 && evaluated_tokens > 0 && evaluated_tokens * 2 < estimated
+}
+
 /// Warn when the server evaluated far fewer prompt tokens than were sent —
 /// the signature of a context window smaller than the prompt.
 ///
@@ -207,9 +218,8 @@ fn warn_if_prompt_truncated(sent_chars: usize, prompt_eval_count: Option<usize>)
     let Some(evaluated) = prompt_eval_count.filter(|n| *n > 0) else {
         return;
     };
-    // ~4 chars per token is rough, so only a gross shortfall counts.
     let estimated = sent_chars / 4;
-    if estimated > 512 && evaluated * 2 < estimated {
+    if prompt_looks_truncated(sent_chars, evaluated) {
         tracing::warn!(
             estimated_prompt_tokens = estimated,
             evaluated_prompt_tokens = evaluated,
@@ -787,6 +797,9 @@ impl AIProvider for OllamaProvider {
         // a tool call, or the end of the stream arrives.
         let thinking_open = std::sync::Arc::new(std::sync::Mutex::new(false));
 
+        // Captured before the closure: the closure is `move` and outlives the
+        // borrow of `messages`.
+        let sent_chars: usize = messages.iter().map(|m| m.content.len()).sum();
         let completion_stream = stream
             .map(move |chunk| -> Result<String, anyhow::Error> {
                 let chunk = chunk?;
@@ -817,6 +830,17 @@ impl AIProvider for OllamaProvider {
                     match serde_json::from_str::<OllamaChatResponse>(line) {
                         Ok(response) => {
                             let done = response.done;
+                            // The final line carries `prompt_eval_count`, and
+                            // it is the only evidence that the server dropped
+                            // the front of the prompt. This check existed for
+                            // the non-streaming `chat()` only — which nothing
+                            // in the product calls: the chat panel and the
+                            // agent both stream. So the one diagnostic for
+                            // "your context window is smaller than your
+                            // prompt" never fired where it was needed.
+                            if done {
+                                warn_if_prompt_truncated(sent_chars, response.prompt_eval_count);
+                            }
                             if let Some(msg) = response.message {
                                 let mut open =
                                     thinking_open.lock().unwrap_or_else(|e| e.into_inner());
@@ -1463,6 +1487,33 @@ mod tests {
         };
         let json = serde_json::to_string(&opts).expect("serialize");
         assert!(json.contains("\"num_ctx\":32768"), "{json}");
+    }
+
+    /// The prompt was truncated by the server, which drops the *front* — the
+    /// system prompt and the tool contract. The model then looks like it forgot
+    /// how to call tools, and emits malformed markup instead.
+    #[test]
+    fn a_grossly_short_prompt_eval_is_flagged_as_truncation() {
+        // ~10k tokens sent, 2k evaluated.
+        assert!(prompt_looks_truncated(40_000, 2_000));
+    }
+
+    #[test]
+    fn a_normal_turn_is_not_flagged() {
+        assert!(!prompt_looks_truncated(40_000, 9_800));
+    }
+
+    /// The char-per-token ratio is a guess, so a small prompt can differ from
+    /// the estimate by a lot for innocent reasons. Only large prompts count.
+    #[test]
+    fn a_small_prompt_is_never_flagged() {
+        assert!(!prompt_looks_truncated(1_000, 1));
+    }
+
+    /// A server that reports no count at all is unknown, not truncated.
+    #[test]
+    fn a_missing_count_is_not_evidence_of_truncation() {
+        assert!(!prompt_looks_truncated(40_000, 0));
     }
 
     /// The response carries the only evidence that a prompt was truncated —
