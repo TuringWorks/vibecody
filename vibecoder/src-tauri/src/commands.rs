@@ -66522,6 +66522,31 @@ pub async fn summarise_messages(
     ai_chat_with_effort(provider, model.unwrap_or_default(), content, None).await
 }
 
+/// How many tokens of conversation this provider/model can actually hold.
+///
+/// `Ok(None)` means the vendor's API does not publish the number (Anthropic
+/// and OpenAI do not) — it is *unknown*, and the caller keeps its own
+/// documented default rather than being handed a made-up one. `Err` means the
+/// provider could not be built at all, which is a different thing again.
+///
+/// The chat panel compacts on a character count, and that count was a single
+/// constant for every model. This is what lets it use the real figure: too
+/// high and the provider truncates the front of the prompt without saying so;
+/// too low and the panel summarises away history it could have kept.
+#[tauri::command]
+pub async fn model_context_budget(
+    provider: String,
+    model: Option<String>,
+) -> Result<Option<usize>, String> {
+    let model = model.unwrap_or_default();
+    let built = build_temp_provider(&provider, &model)
+        .ok_or_else(|| format!("Provider '{provider}' is not configured"))?;
+    Ok(built
+        .context_window()
+        .await
+        .map(vibe_ai::context_window::budget_for))
+}
+
 /// Models actually installed in the local Ollama.
 ///
 /// `useModelRegistry` has always called this and it existed nowhere, so the

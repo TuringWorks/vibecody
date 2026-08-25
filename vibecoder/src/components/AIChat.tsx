@@ -258,6 +258,16 @@ type AgentMode = "fast" | "chat" | "planning";
  * the result without the user typing "continue". Capped to bound runaway
  * loops on misbehaving prompts.
  */
+/**
+ * Conversation size at which the panel compacts when the model's real budget
+ * is unknown — the vendor does not publish it, or the lookup failed.
+ *
+ * A fallback, not a measurement. It is the constant this panel used for every
+ * model, kept unchanged so resolving real budgets only alters behaviour where
+ * a real budget was found.
+ */
+const DEFAULT_COMPACTION_CHARS = 80_000;
+
 const MAX_AGENT_TURNS = 10;
 
 /**
@@ -1474,21 +1484,64 @@ export function AIChat({
   }, [messages]);
 
   // ── Auto-compaction ──────────────────────────────────────────────────────────
-  // When the conversation grows beyond COMPACTION_THRESHOLD chars, automatically
-  // summarise the older half and splice it into a single summary message.
-  // Never fires while a response is in-flight.
-  const COMPACTION_THRESHOLD = 80_000;
+  // When the conversation outgrows the model's context budget, summarise the
+  // older half and splice it in as a single summary message. Never fires while
+  // a response is in-flight.
   const COMPACTION_KEEP_LAST = 20;
   const isCompactingRef = useRef(false);
   const lastCompactionLengthRef = useRef(0);
+
+  // The budget the selected model actually has, in characters.
+  //
+  // Three states, and they are genuinely different things:
+  //   `undefined` — not asked yet. Compaction waits, because acting on the
+  //                 default here would summarise away a conversation a
+  //                 million-token model had ample room for, one render before
+  //                 the real answer arrived.
+  //   `null`      — asked, and the vendor does not publish the number
+  //                 (Anthropic and OpenAI do not). DEFAULT_COMPACTION_CHARS
+  //                 applies: the constant this panel always used, so an
+  //                 unpublished model behaves exactly as before rather than
+  //                 being handed a guess.
+  //   a number    — the model's real budget.
+  //
+  // Before this, one constant governed every model. On a small local model the
+  // panel let the conversation grow far past what the server could hold, and
+  // Ollama's answer to an oversized prompt is to drop the *front* of it — the
+  // system prompt and the tool contract — silently.
+  const [contextBudgetChars, setContextBudgetChars] = useState<number | null | undefined>(undefined);
+
+  useEffect(() => {
+    let cancelled = false;
+    setContextBudgetChars(undefined);
+    if (!provider) {
+      // No provider selected is a settled answer, not a pending one — nothing
+      // is going to resolve it, so compaction must not wait forever.
+      setContextBudgetChars(null);
+      return;
+    }
+    invoke<number | null>("model_context_budget", { provider, model: null })
+      .then((tokens) => {
+        // Same 4-chars-per-token estimate the Rust side prunes by
+        // (`vibe_ai::agent::estimate_tokens`); the two must agree or the panel
+        // and the loop compact at different points.
+        if (!cancelled) setContextBudgetChars(tokens ? tokens * 4 : null);
+      })
+      // An unresolvable provider is not a reason to stop compacting — it is a
+      // reason to compact on the default.
+      .catch(() => { if (!cancelled) setContextBudgetChars(null); });
+    return () => { cancelled = true; };
+  }, [provider]);
 
   useEffect(() => {
     if (isLoading) return;                          // never interrupt a stream
     if (isCompactingRef.current) return;
     if (messages.length < COMPACTION_KEEP_LAST + 2) return;
+    if (contextBudgetChars === undefined) return;   // budget not resolved yet
+    const threshold = contextBudgetChars ?? DEFAULT_COMPACTION_CHARS;
     // Require at least 10k new chars since last compaction to avoid re-triggering
     const totalChars = messages.reduce((s, m) => s + m.content.length, 0);
-    if (totalChars < COMPACTION_THRESHOLD) return;
+    if (totalChars < threshold) return;
     if (totalChars - lastCompactionLengthRef.current < 10_000) return;
 
     isCompactingRef.current = true;
@@ -1529,7 +1582,7 @@ export function AIChat({
         isCompactingRef.current = false;
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, isLoading]);
+  }, [messages, isLoading, contextBudgetChars]);
 
   const { toast } = useToast();
 

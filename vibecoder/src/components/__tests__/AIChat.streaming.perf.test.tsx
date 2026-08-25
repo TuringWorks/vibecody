@@ -198,3 +198,54 @@ describe('AIChat circuit-breaker notices', () => {
     expect(screen.queryByText(/halted/i)).toBeNull();
   });
 });
+
+describe('AIChat compaction budget', () => {
+  /**
+   * The panel used to compact at one constant for every model. On a small
+   * local model that let the conversation grow far past what the server could
+   * hold — and Ollama's answer to an oversized prompt is to drop the *front*
+   * of it, system prompt and tool contract first, silently.
+   */
+  it('asks the backend what the selected model can hold', async () => {
+    render(<AIChat provider="ollama" messages={[]} onMessagesChange={vi.fn()} />);
+    await waitFor(() =>
+      expect(mockInvoke).toHaveBeenCalledWith('model_context_budget', {
+        provider: 'ollama',
+        model: null,
+      }),
+    );
+  });
+
+  function bulkTranscript(): Message[] {
+    const long = 'x'.repeat(4_000);
+    return Array.from({ length: 30 }, (_, i) => ({
+      role: (i % 2 === 0 ? 'user' : 'assistant') as Message['role'],
+      content: long,
+      timestamp: 1_700_000_000_000 + i,
+    }));
+  }
+
+  /** A provider whose vendor does not publish the number must still compact. */
+  it('falls back to the default when the budget is unknown', async () => {
+    mockInvoke.mockResolvedValue(null); // model_context_budget -> unknown
+    render(<AIChat provider="ollama" messages={bulkTranscript()} onMessagesChange={vi.fn()} />);
+    // 30 x 4k = 120k chars, over the 80k default.
+    await waitFor(() =>
+      expect(mockInvoke).toHaveBeenCalledWith('summarise_messages', expect.anything()),
+    );
+  });
+
+  /** A model that reports a large budget must not be compacted at the default. */
+  it('does not compact a conversation that fits the reported budget', async () => {
+    mockInvoke.mockImplementation((cmd: string) =>
+      // 1M tokens ~ 4M chars, so 120k of transcript is nowhere near it.
+      Promise.resolve(cmd === 'model_context_budget' ? 1_000_000 : null),
+    );
+    render(<AIChat provider="gemini" messages={bulkTranscript()} onMessagesChange={vi.fn()} />);
+    await waitFor(() =>
+      expect(mockInvoke).toHaveBeenCalledWith('model_context_budget', expect.anything()),
+    );
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(mockInvoke).not.toHaveBeenCalledWith('summarise_messages', expect.anything());
+  });
+});

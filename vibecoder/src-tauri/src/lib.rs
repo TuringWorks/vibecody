@@ -500,6 +500,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::ai_chat_with_effort,
             commands::summarise_messages,
+            commands::model_context_budget,
             commands::ollama_list_models,
             commands::on_device_hardware,
             commands::on_device_benchmark,
