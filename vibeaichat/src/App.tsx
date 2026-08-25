@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { memo, useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { SettingsView, type SettingsTab } from "@vibe/shared/settings/SettingsView";
 import { Plug } from "lucide-react";
 import { visibleAnswer } from "@vibe/shared/lib/thinking";
@@ -60,6 +60,53 @@ interface Message {
   content: string;
   streaming?: boolean;
 }
+
+// ── Message row ───────────────────────────────────────────────────────────────
+
+/**
+ * One message bubble, memoized.
+ *
+ * `agent:chunk` appends to the last message on every streamed chunk, which
+ * replaces the `messages` array and re-rendered every bubble in it. Each of
+ * those re-renders ran `visibleAnswer` — twice, once for the condition and
+ * once for the value — and a full markdown parse, over the whole transcript.
+ * The cost of a reply was therefore O(transcript x chunks) and grew for the
+ * whole session.
+ *
+ * Memoized, a chunk re-renders the one bubble it changed. The message objects
+ * are already replaced immutably, so identity is a correct staleness check.
+ */
+const ChatMessage = memo(function ChatMessage({ msg }: { msg: Message }) {
+  const answer = useMemo(
+    () => (msg.role === "assistant" ? visibleAnswer(msg.content) : ""),
+    [msg.role, msg.content],
+  );
+  return (
+    <div className={`msg msg-${msg.role}`}>
+      {msg.role === "user" && <div className="msg-label">You</div>}
+      {msg.role === "assistant" && <div className="msg-label">AI</div>}
+      <div className="msg-content">
+        {/* Assistant turns are Markdown — models answer with headings,
+            lists, tables and fenced code whatever the question is, and
+            showing the source text makes every one of those unreadable.
+            User and system messages stay literal: their text is whatever
+            was typed, and rendering it would eat characters like `*`.
+
+            `<thinking>` is transport markup, not prose — chat mode strips
+            it server-side, this covers everything else. */}
+        {msg.role === "assistant" ? (
+          answer ? (
+            <Markdown text={answer} />
+          ) : msg.streaming ? (
+            <span className="cursor">▋</span>
+          ) : null
+        ) : (
+          msg.content
+        )}
+      </div>
+    </div>
+  );
+});
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 
@@ -551,29 +598,7 @@ export default function App() {
           </div>
         )}
         {messages.map((msg, i) => (
-          <div key={i} className={`msg msg-${msg.role}`}>
-            {msg.role === "user" && <div className="msg-label">You</div>}
-            {msg.role === "assistant" && <div className="msg-label">AI</div>}
-            <div className="msg-content">
-              {/* Assistant turns are Markdown — models answer with headings,
-                  lists, tables and fenced code whatever the question is, and
-                  showing the source text makes every one of those unreadable.
-                  User and system messages stay literal: their text is whatever
-                  was typed, and rendering it would eat characters like `*`.
-
-                  `<thinking>` is transport markup, not prose — chat mode strips
-                  it server-side, this covers everything else. */}
-              {msg.role === "assistant" ? (
-                visibleAnswer(msg.content) ? (
-                  <Markdown text={visibleAnswer(msg.content)} />
-                ) : msg.streaming ? (
-                  <span className="cursor">▋</span>
-                ) : null
-              ) : (
-                msg.content
-              )}
-            </div>
-          </div>
+          <ChatMessage key={i} msg={msg} />
         ))}
         <div ref={bottomRef} />
       </div>
