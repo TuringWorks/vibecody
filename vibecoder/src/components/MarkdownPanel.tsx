@@ -7,9 +7,8 @@
  */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import ReactMarkdown, { type Components } from "react-markdown";
 import { MarkdownWithDetails } from "./MarkdownDetails";
-import { htmlToMarkdown } from "../lib/markdownHtml";
+import { renderBlock, renderDocumentHtml, renderSummary } from "./markdownDocument";
 
 interface MarkdownFile {
  path: string;
@@ -36,41 +35,6 @@ console.log(hello);
 >Tip: Use the sidebar to open existing \`.md\` files from your workspace.
 `;
 
-const previewComponents: Components = {
- h1: ({ children }) => <h1 style={{ fontSize: 28, fontWeight: 700, borderBottom: "1px solid var(--border-color)", paddingBottom: 8, marginBottom: 16 }}>{children}</h1>,
- h2: ({ children }) => <h2 style={{ fontSize: 22, fontWeight: 600, marginTop: 28, marginBottom: 10 }}>{children}</h2>,
- h3: ({ children }) => <h3 style={{ fontSize: 18, fontWeight: 600, marginTop: 20, marginBottom: 8 }}>{children}</h3>,
- p: ({ children }) => <p style={{ margin: "0 0 16px" }}>{children}</p>,
- code: ({ className, children }) => {
- const isBlock = className?.startsWith("language-");
- return isBlock
- ? <code style={{ display: "block", background: "var(--bg-secondary)", padding: "16px 16px", borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", overflowX: "auto", margin: "12px 0", whiteSpace: "pre" }}>{children}</code>
- : <code style={{ background: "var(--bg-secondary)", padding: "1px 4px", borderRadius: 3, fontSize: "0.9em", fontFamily: "var(--font-mono)" }}>{children}</code>;
- },
- pre: ({ children }) => <>{children}</>,
- blockquote: ({ children }) => <blockquote style={{ borderLeft: "3px solid var(--accent-color)", margin: "16px 0", paddingLeft: 16, color: "var(--text-secondary)", fontStyle: "italic" }}>{children}</blockquote>,
- ul: ({ children }) => <ul style={{ paddingLeft: 24, margin: "12px 0" }}>{children}</ul>,
- ol: ({ children }) => <ol style={{ paddingLeft: 24, margin: "12px 0" }}>{children}</ol>,
- li: ({ children }) => <li style={{ marginBottom: 4 }}>{children}</li>,
- a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer" style={{ color: "var(--text-info)" }}>{children}</a>,
- hr: () => <hr style={{ border: "none", borderTop: "1px solid var(--border-color)", margin: "24px 0" }} />,
- table: ({ children }) => <table style={{ borderCollapse: "collapse", width: "100%", margin: "16px 0" }}>{children}</table>,
- th: ({ children }) => <th style={{ border: "1px solid var(--border-color)", padding: "8px 12px", background: "var(--bg-secondary)", fontWeight: 600 }}>{children}</th>,
- td: ({ children }) => <td style={{ border: "1px solid var(--border-color)", padding: "8px 12px" }}>{children}</td>,
- img: ({ src, alt }) => <img src={src} alt={alt ?? ""} style={{ maxWidth: "100%", borderRadius: "var(--radius-sm)" }} />,
- };
-
-// A <summary> is a single line; paragraphs would push the label onto its own.
-const summaryComponents: Components = { ...previewComponents, p: ({ children }) => <>{children}</> };
-
-const renderBlock = (markdown: string) => (
- <ReactMarkdown components={previewComponents}>{htmlToMarkdown(markdown)}</ReactMarkdown>
-);
-
-const renderSummary = (markdown: string) => (
- <ReactMarkdown components={summaryComponents}>{htmlToMarkdown(markdown)}</ReactMarkdown>
-);
-
 function wordCount(text: string): number {
  return text.trim().split(/\s+/).filter(Boolean).length;
 }
@@ -80,30 +44,6 @@ function readingTime(words: number): string {
  return `${mins} min read`;
 }
 
-function toHtml(md: string, title: string): string {
- // Very lightweight export — wraps content in a styled page.
- // For full fidelity a proper md→html transform would be used,
- // but since we render with react-markdown we snapshot innerHTML via a ref.
- return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>${title}</title>
-<style>
- body{max-width:720px;margin:40px auto;font-family:system-ui,sans-serif;line-height:1.7;color:#24292f}
- pre{background:#f6f8fa;padding:16px;border-radius:6px;overflow:auto}
- code{background:#f6f8fa;padding:2px 5px;border-radius:4px;font-size:.9em}
- blockquote{border-left:4px solid #d0d7de;margin:0;padding:0 16px;color:#57606a}
- img{max-width:100%}
- table{border-collapse:collapse;width:100%}
- th,td{border:1px solid #d0d7de;padding:8px 12px}
-</style>
-</head>
-<body>
-${md.replace(/\n/g, "\n")}
-</body>
-</html>`;
-}
 
 type View = "split" | "editor" | "preview";
 
@@ -168,7 +108,7 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  };
 
  const exportHtml = () => {
- const html = toHtml(content, fileName.replace(/\.mdx?$/, ""));
+ const html = renderDocumentHtml(content, fileName.replace(/\.mdx?$/, ""));
  const blob = new Blob([html], { type: "text/html" });
  const url = URL.createObjectURL(blob);
  const a = document.createElement("a");
