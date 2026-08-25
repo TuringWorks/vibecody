@@ -286,6 +286,15 @@ function findLast<T>(items: readonly T[], pred: (item: T) => boolean): T | undef
  */
 const STREAM_FLUSH_MS = 16;
 
+/**
+ * Cap on distinct tool-call rejections reported per turn.
+ *
+ * A model that emits one malformed tag usually emits many with the same
+ * defect. The point is to tell the user why their file is missing, not to
+ * transcribe every instance.
+ */
+const MAX_REPORTED_TOOL_REJECTIONS = 5;
+
 const MAX_AGENT_TURNS = 10;
 
 /**
@@ -1445,6 +1454,8 @@ export function AIChat({
   // read or commit `messages` in the same tick, and a pending flush landing
   // afterwards would put the finished reply back on screen a second time.
   const [streamingText, setStreamingTextState] = useState("");
+  /** Tool tags the backend refused this turn, reported when the turn ends. */
+  const toolRejectionsRef = useRef<string[]>([]);
   const streamAccumRef = useRef("");
   const streamFlushRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const streamFlushedAtRef = useRef(0);
@@ -1990,6 +2001,22 @@ export function AIChat({
               isToolOutput: true,
             });
           }
+          // Tool tags the backend refused this turn. Reported here, at the end
+          // of the turn, so the user learns why a file they were told about is
+          // not on disk — the alternative is silence and a missing file.
+          if (toolRejectionsRef.current.length > 0) {
+            updated.push({
+              role: "assistant",
+              content:
+                `Some tool calls in this reply were ignored because they could not be acted on:\n\n`
+                + toolRejectionsRef.current.map((r) => `- ${r}`).join("\n")
+                + `\n\nNothing was written for them. Asking again usually fixes it; `
+                + `a model that keeps doing this is emitting malformed tool markup.`,
+              timestamp: Date.now(),
+              isError: true,
+            });
+            toolRejectionsRef.current = [];
+          }
           captured.value = updated;
           return updated;
         });
@@ -2117,8 +2144,8 @@ export function AIChat({
       if (cancelled) { u3(); return; }
       unlisteners.push(u3);
 
-      // chat:status — retry, thinking, provider_health
-      const u4 = await listen<{ type: string; attempt?: number; max_retries?: number; score?: number; message?: string }>("chat:status", (e) => {
+      // chat:status — retry, thinking, provider_health, tool_call_rejected
+      const u4 = await listen<{ type: string; attempt?: number; max_retries?: number; score?: number; message?: string; reason?: string; tool?: string }>("chat:status", (e) => {
         const payload = e.payload;
         if (payload.type === "retry" && payload.attempt != null && payload.max_retries != null) {
           // Backend clears its accumulator on retry — reset frontend to match
@@ -2134,6 +2161,24 @@ export function AIChat({
           setStreamStatus("Thinking...");
         } else if (payload.type === "provider_health" && payload.score != null) {
           setProviderHealth(payload.score);
+        } else if (payload.type === "tool_call_rejected") {
+          // The backend refused to act on a tool tag — most often a `path`
+          // that cannot be a filename, because the model emitted a malformed
+          // tag. Without this the file simply never appears and there is
+          // nothing anywhere saying why, which is the failure the rejection
+          // was added to replace.
+          //
+          // Collected rather than shown one by one: a model that emits one
+          // malformed tag usually emits several, and the reason is the same
+          // every time. They are reported once, when the turn ends.
+          const reason = payload.reason ?? "no reason reported";
+          const line = `${payload.tool ?? "tool"}: ${reason}`;
+          if (!toolRejectionsRef.current.includes(line)) {
+            toolRejectionsRef.current = [...toolRejectionsRef.current, line].slice(
+              0,
+              MAX_REPORTED_TOOL_REJECTIONS,
+            );
+          }
         }
       });
       if (cancelled) { u4(); return; }
@@ -2472,6 +2517,9 @@ export function AIChat({
       timestamp: Date.now(),
       attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
     };
+    // A rejection left over from a turn that errored or was stopped must not
+    // be reported against this one.
+    toolRejectionsRef.current = [];
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setAttachments([]);

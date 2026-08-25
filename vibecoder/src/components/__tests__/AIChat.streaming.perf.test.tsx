@@ -315,3 +315,63 @@ describe('AIChat streaming render frequency', () => {
     });
   });
 });
+
+describe('AIChat rejected tool calls', () => {
+  /**
+   * The backend refuses a tool tag whose `path` cannot be a filename — the
+   * shape a model emits when its markup is malformed. Before this the file
+   * simply never appeared and nothing anywhere said why, which is the failure
+   * the rejection was added to replace.
+   */
+  it('tells the user which tool calls were ignored, once, at the end of the turn', async () => {
+    await startChatStream();
+
+    await act(async () => {
+      emit('chat:status', {
+        type: 'tool_call_rejected',
+        tool: 'write_file',
+        reason: 'path contains the control character \'\\n\'',
+      });
+      // The same defect repeated must not be reported twice.
+      emit('chat:status', {
+        type: 'tool_call_rejected',
+        tool: 'write_file',
+        reason: 'path contains the control character \'\\n\'',
+      });
+    });
+
+    // Nothing is claimed until the turn ends.
+    expect(document.body.textContent ?? '').not.toContain('were ignored');
+
+    await act(async () => {
+      emit('chat:complete', { message: 'Done.', session_msg_id: null });
+    });
+
+    await waitFor(() => {
+      expect(document.body.textContent ?? '').toContain('could not be acted on');
+    });
+    const body = document.body.textContent ?? '';
+    expect(body).toContain('control character');
+    expect(body.split('control character').length - 1).toBe(1);
+  });
+
+  /** A rejection from a turn that never completed must not be blamed on the next. */
+  it('does not carry a rejection into the following turn', async () => {
+    await startChatStream();
+    await act(async () => {
+      emit('chat:status', { type: 'tool_call_rejected', tool: 'write_file', reason: 'stale' });
+    });
+
+    // Second turn starts without the first ever completing.
+    const textarea = screen.getByPlaceholderText(/Ask anything/) as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: 'again', selectionStart: 5 } });
+    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+    await flushAll();
+
+    await act(async () => {
+      emit('chat:complete', { message: 'Done.', session_msg_id: null });
+    });
+    await flushAll();
+    expect(document.body.textContent ?? '').not.toContain('stale');
+  });
+});
