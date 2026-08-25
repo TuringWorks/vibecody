@@ -1,0 +1,63 @@
+/* ── Collapsible <details> lifted out of a markdown document ── */
+
+.md-details {
+  margin: 16px 0;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background-color: var(--bg-secondary);
+}
+
+.md-details__summary {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-primary);
+  user-select: none;
+  /* The default marker sits outside the flex box and misaligns; draw our own. */
+  list-style: none;
+}
+
+.md-details__summary::-webkit-details-marker {
+  display: none;
+}
+
+.md-details__summary::before {
+  content: "▸";
+  color: var(--text-secondary);
+  font-size: 0.9em;
+}
+
+.md-details[open] > .md-details__summary::before {
+  content: "▾";
+}
+
+.md-details__summary:hover {
+  color: var(--accent-blue, var(--text-primary));
+}
+
+.md-details__summary:focus-visible {
+  outline: 2px solid var(--accent-blue, var(--border-color));
+  outline-offset: -2px;
+}
+
+.md-details__summary > p {
+  display: inline;
+  margin: 0;
+}
+
+.md-details__body {
+  padding: 0 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+/* First and last child margins would double the padding above. */
+.md-details__body > :first-child {
+  margin-top: 12px;
+}
+
+.md-details__body > :last-child {
+  margin-bottom: 12px;
+}

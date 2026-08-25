@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { MarkdownPreview } from '../MarkdownPreview';
 
@@ -86,9 +86,10 @@ This is the main content.`;
         // The word "Shannon vs VibeCody" (part of frontmatter) should not be present
         expect(screen.queryByText(/layout:/)).not.toBeInTheDocument();
     });
-    it('renders a generated answer without showing its HTML tags', () => {
+    it('renders a generated answer as a real click-to-reveal disclosure', () => {
         // A generated study guide hides answers behind <details>; react-markdown
-        // has no raw-HTML pipeline, so the tags used to reach the reader as text.
+        // has no raw-HTML pipeline, so the tags used to reach the reader as text
+        // *and* the answer was visible anyway. Now it is the real element.
         const markdown = `### 1. How does a VLM see an image?
 
 <details><summary><b>Answer</b></summary>
@@ -98,10 +99,39 @@ Three components: a **vision encoder**, a projector, and the LLM.
 </details>`;
         const { container } = render(<MarkdownPreview content={markdown} />);
 
+        const details = container.querySelector('details');
+        expect(details).toBeInTheDocument();
+        expect(details).not.toHaveAttribute('open');
         expect(container.textContent).not.toContain('<details>');
         expect(container.textContent).not.toContain('<summary>');
         expect(container.textContent).not.toContain('<b>');
-        expect(screen.getByText('Answer')).toBeInTheDocument();
-        expect(container.textContent).toContain('Three components');
+        expect(within(details!).getByText('Answer')).toBeInTheDocument();
+        expect(details!.querySelector('strong')?.textContent).toBe('Answer');
+        // The answer is inside the disclosure, not loose in the document.
+        expect(details!.textContent).toContain('Three components');
+    });
+
+    it('reveals the answer when the summary is clicked', () => {
+        const markdown = '<details><summary>Answer</summary>\n\nHidden until asked for.\n\n</details>';
+        const { container, rerender } = render(<MarkdownPreview content={markdown} />);
+
+        const details = container.querySelector('details')!;
+        expect(details.open).toBe(false);
+        fireEvent.click(container.querySelector('summary')!);
+        expect(details.open).toBe(true);
+
+        // Editing text elsewhere must not snap it shut: the markdown editor
+        // re-renders its preview on every keystroke, so the disclosure has to
+        // keep its identity across a changed document.
+        rerender(<MarkdownPreview content={`Some prose.\n\n${markdown}`} />);
+        expect(container.querySelector('details')!.open).toBe(true);
+    });
+
+    it('keeps a details example written in code as text', () => {
+        const markdown = ['```html', '<details><summary>x</summary>', '</details>', '```'].join('\n');
+        const { container } = render(<MarkdownPreview content={markdown} />);
+
+        expect(container.querySelector('details')).not.toBeInTheDocument();
+        expect(container.textContent).toContain('<details><summary>x</summary>');
     });
 });

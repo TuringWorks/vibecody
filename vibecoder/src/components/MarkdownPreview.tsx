@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import React from 'react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { htmlToMarkdown } from '../lib/markdownHtml';
+import { MarkdownWithDetails } from './MarkdownDetails';
 import './MarkdownPreview.css';
 
 interface MarkdownPreviewProps {
@@ -54,20 +55,20 @@ const sharedComponents: any = {
     }
 };
 
-// Minimal pre-processor to strip frontmatter and parse tables since remark-gfm requires internet
+// Frontmatter belongs to the document, not to a block within it: run this once
+// on the whole source, before it is split, or a disclosure whose body opens
+// with a `---` rule would lose everything up to the next one.
+function stripFrontmatter(markdown: string): string {
+    if (!markdown.startsWith('---\n') && !markdown.startsWith('---\r\n')) return markdown;
+    const endFrontmatterIndex = markdown.indexOf('\n---', 3);
+    if (endFrontmatterIndex === -1) return markdown;
+    return markdown.substring(endFrontmatterIndex + 4).trimStart();
+}
+
+// Minimal pre-processor to parse tables since remark-gfm requires internet, and
+// to rewrite the raw HTML that would otherwise reach the reader as literal tags.
 function preprocessMarkdown(markdown: string): string {
-    // Raw HTML would otherwise reach the reader as literal `<details>` text.
-    let content = htmlToMarkdown(markdown);
-    
-    // Strip YAML frontmatter at the very beginning of the document
-    if (content.startsWith('---\n') || content.startsWith('---\r\n')) {
-        // Look for the next closing '---' line
-        const endFrontmatterIndex = content.indexOf('\n---', 3);
-        if (endFrontmatterIndex !== -1) {
-            // Strip it out, including the closing --- and following newline
-            content = content.substring(endFrontmatterIndex + 4).trimStart();
-        }
-    }
+    const content = htmlToMarkdown(markdown);
 
     const lines = content.split('\n');
     const out: string[] = [];
@@ -158,9 +159,29 @@ function renderTable(tableText: string) {
     );
 }
 
-export function MarkdownPreview({ content }: MarkdownPreviewProps) {
-    const processedContent = preprocessMarkdown(content);
+const bodyComponents: any = {
+    ...sharedComponents,
+    p: 'p', // Restore standard paragraph wrapping for the main document body!
+    code({ node: _node, inline, className, children, ...props }: any) {
+        const match = /language-(\w+)/.exec(className || '');
+        if (!inline && match && match[1] === '__markdown_table__') {
+            return renderTable(String(children).replace(/\n$/, ''));
+        }
+        return <code className={className} {...props}>{children}</code>;
+    }
+};
 
+const renderBlock = (markdown: string) => (
+    <ReactMarkdown components={bodyComponents}>{preprocessMarkdown(markdown)}</ReactMarkdown>
+);
+
+// A <summary> is one line: paragraphs are dropped to fragments so the label
+// sits next to the disclosure triangle instead of below it.
+const renderSummary = (markdown: string) => (
+    <ReactMarkdown components={sharedComponents}>{htmlToMarkdown(markdown)}</ReactMarkdown>
+);
+
+export function MarkdownPreview({ content }: MarkdownPreviewProps) {
     return (
         <div
             style={{
@@ -172,21 +193,11 @@ export function MarkdownPreview({ content }: MarkdownPreviewProps) {
             }}
             className="markdown-preview"
         >
-            <ReactMarkdown
-                components={{
-                    ...sharedComponents,
-                    p: 'p', // Restore standard paragraph wrapping for the main document body!
-                    code({ node: _node, inline, className, children, ...props }: any) {
-                        const match = /language-(\w+)/.exec(className || '');
-                        if (!inline && match && match[1] === '__markdown_table__') {
-                            return renderTable(String(children).replace(/\n$/, ''));
-                        }
-                        return <code className={className} {...props}>{children}</code>;
-                    }
-                }}
-            >
-                {processedContent}
-            </ReactMarkdown>
+            <MarkdownWithDetails
+                source={stripFrontmatter(content)}
+                renderBlock={renderBlock}
+                renderInline={renderSummary}
+            />
         </div>
     );
 }
