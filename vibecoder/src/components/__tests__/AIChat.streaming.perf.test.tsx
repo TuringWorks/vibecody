@@ -1,4 +1,4 @@
-import { render, act, waitFor, screen } from '@testing-library/react';
+import { render, act, waitFor, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ── Tauri ───────────────────────────────────────────────────────────────────
@@ -52,6 +52,7 @@ vi.mock('@vibe/shared/markdown/Markdown', () => ({
   },
 }));
 
+import { useState } from 'react';
 import { AIChat } from '../AIChat';
 import type { Message } from '../AIChat';
 
@@ -126,5 +127,74 @@ describe('AIChat streaming cost', () => {
 
     expect(markdownRenders).toBeGreaterThan(afterMount);
     expect(screen.getByText('rewritten body')).toBeInTheDocument();
+  });
+});
+
+async function flushAll() {
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 0));
+  });
+}
+
+/** Start an agent run so the panel owns the events that follow. */
+async function startAgentRun() {
+  function ControlledAgentChat() {
+    const [messages, setMessages] = useState<Message[]>([]);
+    return (
+      <AIChat
+        provider="test-provider"
+        messages={messages}
+        onMessagesChange={setMessages}
+        useAgentLoop
+        onUseAgentLoopChange={() => {}}
+      />
+    );
+  }
+  render(<ControlledAgentChat />);
+  await flushAll();
+  const textarea = screen.getByPlaceholderText(/Ask anything/) as HTMLTextAreaElement;
+  fireEvent.change(textarea, { target: { value: 'build the thing', selectionStart: 15 } });
+  fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+  await flushAll();
+}
+
+describe('AIChat circuit-breaker notices', () => {
+  /**
+   * `AgentEvent::CircuitBreak` is a notice, not the end of a run. The loop
+   * emits it when it compacts context and when it retires a degrading agent
+   * in favour of a fresh successor — and then keeps going. Only `BLOCKED` is
+   * terminal, and the Rust side reports that as a separate `agent:error`.
+   *
+   * Reporting "Agent halted" here made the two mechanisms that keep a long
+   * task alive look like a crash, and dropped the rest of the run on the
+   * floor with it.
+   */
+  it('keeps the run going when the harness recovers', async () => {
+    await startAgentRun();
+
+    await act(async () => {
+      emit('agent:circuit_break', {
+        state: 'PROGRESS',
+        reason: 'Handing off to a fresh agent (hand-off 1/2).',
+      });
+    });
+    await flushAll();
+
+    expect(screen.getByText(/Handing off to a fresh agent/)).toBeInTheDocument();
+    // Not an error bubble, and no "halted" claim about a run that is running.
+    expect(document.querySelector('.message-error')).toBeNull();
+    expect(screen.queryByText(/halted/i)).toBeNull();
+  });
+
+  it('reports a health warning without claiming the run ended', async () => {
+    await startAgentRun();
+
+    await act(async () => {
+      emit('agent:circuit_break', { state: 'DEGRADED', reason: 'Responses are shortening.' });
+    });
+    await flushAll();
+
+    expect(screen.getByText(/Agent health: DEGRADED/)).toBeInTheDocument();
+    expect(screen.queryByText(/halted/i)).toBeNull();
   });
 });

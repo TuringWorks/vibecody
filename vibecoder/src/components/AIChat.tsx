@@ -2196,40 +2196,44 @@ export function AIChat({
       if (cancelled) { av(); return; }
       unlisteners.push(av);
 
-      // agent:circuit_break — backend tripped its circuit breaker (treat as terminal).
-      // Payload is `{state, reason}` (see AgentEvent::CircuitBreak); interpolating
-      // it whole printed "[object Object]" and threw away the only useful part.
+      // agent:circuit_break — the health monitor noticed something and acted.
+      //
+      // This is a *notice*, not the end of the run. The loop emits it when it
+      // compacts context, when it retires a degrading agent and hands the work
+      // to a fresh successor, and when it decides the history is already too
+      // small to be the cause — and then it keeps going. Only `BLOCKED` is
+      // terminal, and the Rust side reports that separately as `agent:error`
+      // before it breaks.
+      //
+      // Treating every one of them as terminal — printing "Agent halted",
+      // dropping ownership of the run, clearing the steps and the approval
+      // state — meant the two mechanisms that exist to keep a long task alive
+      // presented to the user as a crash, and the rest of the run, which was
+      // still executing, went unwatched: further tool calls, approvals and the
+      // final answer were all discarded by the `agentRunOwnerRef` guard.
+      //
+      // Payload is `{state, reason}` (see AgentEvent::CircuitBreak);
+      // interpolating it whole printed "[object Object]".
       const a8 = await listen<{ state?: string; reason?: string } | string>(
         agentEvent("circuit_break"),
         (e) => {
         if (!sessionIdRef.current && !agentRunOwnerRef.current) return;
-        agentRunOwnerRef.current = false;
         const payload = e.payload;
+        const state = typeof payload === "string" ? undefined : payload?.state;
         const detail =
           typeof payload === "string"
             ? payload
-            : [payload?.reason, payload?.state && `state: ${payload.state}`]
-                .filter(Boolean)
-                .join(" — ") || "no reason reported";
+            : payload?.reason || "no reason reported";
+        // PROGRESS means the harness recovered and the run continues; anything
+        // else is a health warning that the run is still trying to work past.
+        const recovered = state === "PROGRESS";
         setMessages((prev) => [...prev, {
           role: "assistant",
-          content: `Agent halted (circuit breaker): ${detail}`,
+          content: recovered
+            ? detail
+            : `Agent health: ${state ?? "unknown"} — ${detail}`,
           timestamp: Date.now(),
-          isError: true,
         }]);
-        setPendingApproval(null);
-        setAgentSteps([]);
-        setAutoApprove(false);
-        if (onMessagesChangeRef.current) {
-          pendingClearRef.current += 1;
-        } else {
-          setStreamingText("");
-          setTokensPerSec(null);
-          setStreamTokenCount(0);
-          setStreamStatus(null);
-          setRetryInfo(null);
-          setIsLoading(false);
-        }
       },
       );
       if (cancelled) { a8(); return; }
