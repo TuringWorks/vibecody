@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback, useMemo } from "react";
+import { memo, useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useVoiceInput } from "@vibe/shared/voice/useVoiceInput";
 import { tauriTranscriber } from "@vibe/shared/voice/transcribers";
@@ -977,6 +977,205 @@ function ToolCallCard({ call }: { call: ToolCallInfo }) {
     </div>
   );
 }
+
+/**
+ * Extract fenced code blocks that have an EXPLICIT filename in the fence info
+ * string (e.g. ```typescript src/App.tsx). Language-only blocks are excluded
+ * because they cannot be safely applied without a known target path.
+ *
+ * Module scope, not a `useCallback`: `ChatMessageRow` needs it too, and a
+ * function that closes over nothing has no business being rebuilt per render.
+ */
+function extractCodeBlocks(content: string): { language: string; code: string; filename: string }[] {
+  const blocks: { language: string; code: string; filename: string }[] = [];
+  // Group 1: language, Group 2: explicit filename token, Group 3: code
+  const fenceRegex = /```(\w*)(?:[^\S\n]+(\S+))?\n([\s\S]*?)```/g;
+  let match: RegExpExecArray | null;
+  while ((match = fenceRegex.exec(content)) !== null) {
+    if (!match[2]) continue; // skip language-only blocks — no safe target path
+    blocks.push({ language: match[1], code: match[3], filename: match[2] });
+  }
+  return blocks;
+}
+
+/**
+ * One message bubble, memoized — and the memo is the point.
+ *
+ * `chat:chunk` fires a state update per streamed chunk. Without this, every
+ * chunk re-ran `withExtractedThinking`, `withParsedToolCalls`, `renderContent`
+ * (a markdown parse per prose run) and `extractCodeBlocks` — twice — over
+ * *every* message in the transcript. The cost of one response was therefore
+ * O(transcript x chunks), and the transcript only grows, so each answer was
+ * slower than the last for the whole session. That is what "chat gets slower
+ * after a few minutes" was. Memoized, a chunk re-renders one bubble.
+ *
+ * Every prop must stay referentially stable across a chunk for that to hold:
+ * the handlers passed in are `useCallback`s that do not depend on streaming
+ * state, and `idx` is passed through so the parent needs no per-row closure.
+ */
+const ChatMessageRow = memo(function ChatMessageRow({
+  rawMsg,
+  idx,
+  isLast,
+  copied,
+  canApply,
+  onCopy,
+  onApplyCode,
+  onApplyAll,
+  onRetry,
+  onLightbox,
+}: {
+  rawMsg: Message;
+  idx: number;
+  isLast: boolean;
+  copied: boolean;
+  canApply: boolean;
+  onCopy: (idx: number, content: string) => void;
+  onApplyCode?: (code: string, filename: string) => void;
+  onApplyAll: (content: string) => void;
+  onRetry: () => void;
+  onLightbox: (src: string) => void;
+}) {
+  // Normalise at the point of render, not at each append site. Raw model
+  // output reaches `messages` from several paths that never parsed it —
+  // session restore, the watch bridge, any future injector — and each one that
+  // forgets put `<thinking>` on screen. One choke point here means no path
+  // can leak it.
+  const msg = useMemo(() => withParsedToolCalls(withExtractedThinking(rawMsg)), [rawMsg]);
+  const body = useMemo(() => renderContent(msg.content, onApplyCode), [msg.content, onApplyCode]);
+  const applyAllCount = useMemo(
+    () => (canApply ? extractCodeBlocks(msg.content).length : 0),
+    [canApply, msg.content],
+  );
+  return (
+            <div>
+            {msg.isSummary && (
+              <div className="compaction-divider">
+                <span>Conversation compacted</span>
+              </div>
+            )}
+            <div className={`message message-${msg.role}${msg.isError ? " message-error" : ""}`}>
+              <div className="message-icon">
+                {msg.role === "user" ? <User size={14} strokeWidth={1.5} /> : <span className="assistant-icon">AI</span>}
+              </div>
+              {msg.timestamp && (
+                <time className="message-time" dateTime={new Date(msg.timestamp).toISOString()}>
+                  {formatTime(msg.timestamp)}
+                </time>
+              )}
+              <div className="message-content" style={{ position: "relative" }}>
+                {/* Work for this turn \u2014 thinking + tool calls, collapsed by default */}
+                {(msg.thinking || (msg.toolCalls && msg.toolCalls.length > 0)) && (
+                  <WorkSection label={workLabel(msg.thinking, msg.toolCalls)}>
+                    {msg.thinking && (
+                      <div className="thinking-block">
+                        <div className="thinking-content">
+                          <pre>{msg.thinking}</pre>
+                        </div>
+                      </div>
+                    )}
+                    {msg.toolCalls && msg.toolCalls.length > 0 && (
+                      <div className="tool-cards">
+                        {msg.toolCalls.map((tc, ti) => (
+                          <ToolCallCard key={ti} call={tc} />
+                        ))}
+                      </div>
+                    )}
+                  </WorkSection>
+                )}
+
+                {/* Attachments on user messages */}
+                {msg.attachments && msg.attachments.length > 0 && (
+                  <div className="msg-attachments">
+                    <div className="msg-attachments-label">
+                      <Paperclip size={11} />
+                      {msg.attachments.length} file{msg.attachments.length > 1 ? "s" : ""} attached
+                    </div>
+                    {msg.attachments.map((att, ai) => {
+                      const isImage = att.mime_type.startsWith("image/");
+                      const imgSrc = att.previewUrl || (att.data ? `data:${att.mime_type};base64,${att.data}` : undefined);
+                      const sizeStr = att.size < 1024 ? `${att.size} B`
+                        : att.size < 1024 * 1024 ? `${(att.size / 1024).toFixed(1)} KB`
+                        : `${(att.size / (1024 * 1024)).toFixed(1)} MB`;
+                      return (
+                        <div key={ai} className="msg-attachment-chip">
+                          {isImage ? (
+                            <div className="msg-attachment-image">
+                              <img
+                                src={imgSrc}
+                                alt={att.name}
+                                className="msg-attachment-thumb"
+                                onClick={() => imgSrc && onLightbox(imgSrc)}
+                                title="Click to enlarge"
+                              />
+                              <div className="msg-attachment-image-actions">
+                                <span className="msg-attachment-name">{att.name}</span>
+                                <button className="msg-attachment-zoom" onClick={() => imgSrc && onLightbox(imgSrc)} title="View full size">
+                                  <ZoomIn size={12} />
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="msg-attachment-file">
+                              <FileText size={14} />
+                              <span className="msg-attachment-name" title={att.name}>{att.name}</span>
+                              <span className="msg-attachment-size">{sizeStr}</span>
+                              {att.text_content && <span className="msg-attachment-check" title="Content sent to AI">&#10003;</span>}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Main content */}
+                {msg.role === "assistant" ? (
+                  <div className="msg-rendered">
+                    {body}
+                  </div>
+                ) : (
+                  <pre className="msg-text">{msg.content}</pre>
+                )}
+
+                {/* Action buttons for assistant messages */}
+                {msg.role === "assistant" && !msg.isError && (
+                  <div className="msg-actions">
+                    <button
+                      className="msg-copy-btn"
+                      onClick={() => {
+                        onCopy(idx, msg.content);
+                      }}
+                      title="Copy response"
+                    >
+                      {copied ? "\u2713 Copied" : "Copy"}
+                    </button>
+                    {applyAllCount > 1 && (
+                      <button
+                        className="msg-apply-all-btn"
+                        onClick={() => onApplyAll(msg.content)}
+                        title="Apply all explicitly-named code blocks to their target files"
+                      >
+                        Apply All ({applyAllCount} files)
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Error retry button */}
+                {msg.isError && isLast && (
+                  <button className="msg-retry-btn" onClick={onRetry} title="Retry last message">
+                    Retry
+                  </button>
+                )}
+
+                {/* Metrics badge */}
+                {msg.metrics && <MetricsBadge metrics={msg.metrics} />}
+              </div>
+            </div>
+            </div>
+  );
+});
 
 // ── Metrics badge ────────────────────────────────────────────────────────────
 
@@ -2349,21 +2548,21 @@ export function AIChat({
   }, []);
 
   /** Extract all fenced code blocks from a message as {language, code, filename}. */
+
   /**
-   * Extract fenced code blocks that have an EXPLICIT filename in the fence info
-   * string (e.g. ```typescript src/App.tsx). Language-only blocks are excluded
-   * because they cannot be safely applied without a known target path.
+   * Copy a message to the clipboard and flash the button.
+   *
+   * Stable so `ChatMessageRow`'s memo survives a streamed chunk — an inline
+   * `onClick` closure per row would invalidate every bubble on every token.
    */
-  const extractCodeBlocks = useCallback((content: string) => {
-    const blocks: { language: string; code: string; filename: string }[] = [];
-    // Group 1: language, Group 2: explicit filename token, Group 3: code
-    const fenceRegex = /```(\w*)(?:[^\S\n]+(\S+))?\n([\s\S]*?)```/g;
-    let match: RegExpExecArray | null;
-    while ((match = fenceRegex.exec(content)) !== null) {
-      if (!match[2]) continue; // skip language-only blocks — no safe target path
-      blocks.push({ language: match[1], code: match[3], filename: match[2] });
-    }
-    return blocks;
+  const handleCopyMessage = useCallback((idx: number, content: string) => {
+    navigator.clipboard
+      .writeText(content)
+      .then(() => {
+        setCopiedIdx(idx);
+        setTimeout(() => setCopiedIdx(null), 1500);
+      })
+      .catch(() => {});
   }, []);
 
   /** Queue of code blocks waiting to be applied one at a time. */
@@ -2382,7 +2581,14 @@ export function AIChat({
     applyBusyRef.current = true;
     applyQueueRef.current = blocks.slice(1);
     onPendingWriteRef.current(blocks[0].filename, blocks[0].code);
-  }, [extractCodeBlocks]);
+  }, []);
+
+  /** `undefined` disables the per-block Apply button; memoized so the rows
+   *  keep their identity while a response streams. */
+  const applyCodeHandler = useMemo(
+    () => (onPendingWrite ? handleApplyCode : undefined),
+    [onPendingWrite, handleApplyCode],
+  );
 
   /** Listen for diff-resolved events to process the next queued file. */
   useEffect(() => {
@@ -2552,145 +2758,21 @@ export function AIChat({
             </div>
           </div>
         ) : (
-          messages.map((rawMsg, idx) => {
-            // Normalise at the point of render, not at each append site. Raw
-            // model output reaches `messages` from several paths that never
-            // parsed it — session restore, the watch bridge, any future
-            // injector — and each one that forgets put `<thinking>` on screen.
-            // One choke point here means no path can leak it.
-            const msg = withParsedToolCalls(withExtractedThinking(rawMsg));
-            return (
-            <div key={idx}>
-            {msg.isSummary && (
-              <div className="compaction-divider">
-                <span>Conversation compacted</span>
-              </div>
-            )}
-            <div className={`message message-${msg.role}${msg.isError ? " message-error" : ""}`}>
-              <div className="message-icon">
-                {msg.role === "user" ? <User size={14} strokeWidth={1.5} /> : <span className="assistant-icon">AI</span>}
-              </div>
-              {msg.timestamp && (
-                <time className="message-time" dateTime={new Date(msg.timestamp).toISOString()}>
-                  {formatTime(msg.timestamp)}
-                </time>
-              )}
-              <div className="message-content" style={{ position: "relative" }}>
-                {/* Work for this turn \u2014 thinking + tool calls, collapsed by default */}
-                {(msg.thinking || (msg.toolCalls && msg.toolCalls.length > 0)) && (
-                  <WorkSection label={workLabel(msg.thinking, msg.toolCalls)}>
-                    {msg.thinking && (
-                      <div className="thinking-block">
-                        <div className="thinking-content">
-                          <pre>{msg.thinking}</pre>
-                        </div>
-                      </div>
-                    )}
-                    {msg.toolCalls && msg.toolCalls.length > 0 && (
-                      <div className="tool-cards">
-                        {msg.toolCalls.map((tc, ti) => (
-                          <ToolCallCard key={ti} call={tc} />
-                        ))}
-                      </div>
-                    )}
-                  </WorkSection>
-                )}
-
-                {/* Attachments on user messages */}
-                {msg.attachments && msg.attachments.length > 0 && (
-                  <div className="msg-attachments">
-                    <div className="msg-attachments-label">
-                      <Paperclip size={11} />
-                      {msg.attachments.length} file{msg.attachments.length > 1 ? "s" : ""} attached
-                    </div>
-                    {msg.attachments.map((att, ai) => {
-                      const isImage = att.mime_type.startsWith("image/");
-                      const imgSrc = att.previewUrl || (att.data ? `data:${att.mime_type};base64,${att.data}` : undefined);
-                      const sizeStr = att.size < 1024 ? `${att.size} B`
-                        : att.size < 1024 * 1024 ? `${(att.size / 1024).toFixed(1)} KB`
-                        : `${(att.size / (1024 * 1024)).toFixed(1)} MB`;
-                      return (
-                        <div key={ai} className="msg-attachment-chip">
-                          {isImage ? (
-                            <div className="msg-attachment-image">
-                              <img
-                                src={imgSrc}
-                                alt={att.name}
-                                className="msg-attachment-thumb"
-                                onClick={() => imgSrc && setLightboxSrc(imgSrc)}
-                                title="Click to enlarge"
-                              />
-                              <div className="msg-attachment-image-actions">
-                                <span className="msg-attachment-name">{att.name}</span>
-                                <button className="msg-attachment-zoom" onClick={() => imgSrc && setLightboxSrc(imgSrc)} title="View full size">
-                                  <ZoomIn size={12} />
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="msg-attachment-file">
-                              <FileText size={14} />
-                              <span className="msg-attachment-name" title={att.name}>{att.name}</span>
-                              <span className="msg-attachment-size">{sizeStr}</span>
-                              {att.text_content && <span className="msg-attachment-check" title="Content sent to AI">&#10003;</span>}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Main content */}
-                {msg.role === "assistant" ? (
-                  <div className="msg-rendered">
-                    {renderContent(msg.content, onPendingWrite ? handleApplyCode : undefined)}
-                  </div>
-                ) : (
-                  <pre className="msg-text">{msg.content}</pre>
-                )}
-
-                {/* Action buttons for assistant messages */}
-                {msg.role === "assistant" && !msg.isError && (
-                  <div className="msg-actions">
-                    <button
-                      className="msg-copy-btn"
-                      onClick={() => {
-                        navigator.clipboard.writeText(msg.content).then(() => {
-                          setCopiedIdx(idx);
-                          setTimeout(() => setCopiedIdx(null), 1500);
-                        }).catch(() => {});
-                      }}
-                      title="Copy response"
-                    >
-                      {copiedIdx === idx ? "\u2713 Copied" : "Copy"}
-                    </button>
-                    {!!onPendingWrite && extractCodeBlocks(msg.content).length > 1 && (
-                      <button
-                        className="msg-apply-all-btn"
-                        onClick={() => handleApplyAll(msg.content)}
-                        title="Apply all explicitly-named code blocks to their target files"
-                      >
-                        Apply All ({extractCodeBlocks(msg.content).length} files)
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* Error retry button */}
-                {msg.isError && idx === messages.length - 1 && (
-                  <button className="msg-retry-btn" onClick={retryLastMessage} title="Retry last message">
-                    Retry
-                  </button>
-                )}
-
-                {/* Metrics badge */}
-                {msg.metrics && <MetricsBadge metrics={msg.metrics} />}
-              </div>
-            </div>
-            </div>
-          );
-          })
+          messages.map((rawMsg, idx) => (
+            <ChatMessageRow
+              key={idx}
+              rawMsg={rawMsg}
+              idx={idx}
+              isLast={idx === messages.length - 1}
+              copied={copiedIdx === idx}
+              canApply={!!onPendingWrite}
+              onCopy={handleCopyMessage}
+              onApplyCode={applyCodeHandler}
+              onApplyAll={handleApplyAll}
+              onRetry={retryLastMessage}
+              onLightbox={setLightboxSrc}
+            />
+          ))
         )}
 
         {/* Agent steps — completed tool executions in the current run.
