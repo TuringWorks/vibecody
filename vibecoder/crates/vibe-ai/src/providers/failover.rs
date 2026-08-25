@@ -137,6 +137,22 @@ impl AIProvider for FailoverProvider {
         false
     }
 
+    /// The window of whichever provider would actually serve the request.
+    ///
+    /// A failover chain can mix models with very different windows, and the
+    /// budget must describe the one being used. Falling back mid-run to a
+    /// smaller model is a real gap — the budget resolved at the start no
+    /// longer applies — and is why this returns the head's answer rather than
+    /// the chain's maximum, which would be the optimistic direction.
+    async fn context_window(&self) -> Option<usize> {
+        for provider in &self.chain {
+            if let Some(window) = provider.context_window().await {
+                return Some(window);
+            }
+        }
+        None
+    }
+
     async fn complete(&self, context: &CodeContext) -> Result<CompletionResponse> {
         let mut last_err = anyhow::anyhow!("No providers in failover chain");
         for p in self.ordered_chain() {

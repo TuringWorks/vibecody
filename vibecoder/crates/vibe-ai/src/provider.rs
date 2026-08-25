@@ -310,6 +310,21 @@ pub trait AIProvider: Send + Sync {
         false
     }
 
+    /// This model's context window in tokens, as the provider reports it.
+    ///
+    /// `None` means **unknown**, not unlimited: either the vendor's API does
+    /// not publish the number (Anthropic and OpenAI do not) or the probe
+    /// failed. Callers must keep their own documented default for that case
+    /// rather than inventing one — see [`crate::context_window`] for why there
+    /// is no hardcoded table here.
+    ///
+    /// Implementations are expected to answer from
+    /// [`crate::context_window::cached`], so the network is touched once per
+    /// provider and model rather than once per turn.
+    async fn context_window(&self) -> Option<usize> {
+        None
+    }
+
     /// True when this provider puts `crate::tools::tool_definitions_for` on the
     /// wire, so the model receives tools as callable functions.
     ///

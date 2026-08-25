@@ -1025,6 +1025,54 @@ pub struct AgentLoop {
     pub max_step_extensions: usize,
 }
 
+/// Decide how many tokens of conversation history this run may hold.
+///
+/// Separate from the loop so the precedence is testable on its own, because
+/// getting it wrong is silent in both directions: too high and the prompt
+/// overflows and the provider truncates the front of it without saying so;
+/// too low and the loop discards history it did not need to.
+///
+/// 1. An explicit `with_context_limit` is an operator decision and wins
+///    outright — including a deliberately small one, which must not be
+///    "corrected" upward by a provider that reports a bigger window.
+/// 2. Otherwise the provider's own reported window, less room for the reply.
+/// 3. Only when the provider does not publish the number does the default
+///    apply. `None` is unknown, never zero and never unlimited.
+async fn resolve_context_budget(explicit: Option<usize>, provider: &dyn AIProvider) -> usize {
+    if let Some(explicit) = explicit {
+        return explicit;
+    }
+    match provider.context_window().await {
+        Some(window) => {
+            let budget = crate::context_window::budget_for(window);
+            tracing::info!(
+                provider = provider.name(),
+                window,
+                budget,
+                "Context budget taken from the provider's reported window",
+            );
+            budget
+        }
+        None => {
+            tracing::info!(
+                provider = provider.name(),
+                budget = DEFAULT_CONTEXT_BUDGET_TOKENS,
+                "Provider does not report a context window; using the default budget",
+            );
+            DEFAULT_CONTEXT_BUDGET_TOKENS
+        }
+    }
+}
+
+/// Conversation-history budget used when the provider does not publish this
+/// model's context window.
+///
+/// It is a fallback, not a measurement, and it is deliberately the number this
+/// loop has always used so that resolving real windows changes behaviour only
+/// where a real window was found. Anthropic's and OpenAI's APIs do not report
+/// the field; everything else answers for itself. See [`crate::context_window`].
+pub const DEFAULT_CONTEXT_BUDGET_TOKENS: usize = 200_000;
+
 /// Steps without a successful tool call after which a run is no longer
 /// considered to be "visibly working", so its budget stops being extended.
 const PROGRESS_STALENESS_LIMIT: usize = 10;
@@ -1355,6 +1403,21 @@ impl AgentLoop {
             content: user_content,
         });
 
+        // ── Context budget ────────────────────────────────────────────────
+        // Ask the provider what this model can hold. Resolved once per run —
+        // it cannot change mid-run, and the probe is cached process-wide
+        // anyway — and reserving room for the reply, since the window covers
+        // prompt *and* completion.
+        //
+        // Order matters. An explicit `with_context_limit` is an operator
+        // decision and wins. Otherwise the provider's own answer is used. Only
+        // when the provider does not publish the number (Anthropic and OpenAI
+        // do not) does `DEFAULT_CONTEXT_BUDGET_TOKENS` apply — and it stays
+        // what it has always been, so nothing regresses on the way to being
+        // told the real figure.
+        let context_budget =
+            resolve_context_budget(self.max_context_tokens, self.provider.as_ref()).await;
+
         // ── Plan tracking ─────────────────────────────────────────────────
         // When the model calls `plan_task`, we parse the step lines so we
         // can detect premature termination (prose-only turn while the plan
@@ -1625,11 +1688,9 @@ impl AgentLoop {
             }
 
             // ── 0. Context window safety ──────────────────────────────────────
-            // Prune middle messages to keep within the provider's context limit.
-            // Default budget: 200 000 tokens (~800 KB of text), overridable via
-            // AgentLoop::with_context_limit().
+            // Prune middle messages to keep within this model's real budget,
+            // resolved above.
             let message_count_before = messages.len();
-            let context_budget = self.max_context_tokens.unwrap_or(200_000);
 
             // Checkpoint *before* pruning. `prune_middle` replaces the middle
             // of the conversation with a summary, so anything not written by
@@ -1681,7 +1742,7 @@ impl AgentLoop {
                         "message_count_before": message_count_before,
                         "message_count_after": message_count_after,
                         "messages_pruned": messages_pruned,
-                        "context_limit": self.max_context_tokens.unwrap_or(200_000)
+                        "context_limit": context_budget
                     })
                     .to_string();
 
@@ -6510,6 +6571,95 @@ mod final_summary_tests {
         assert!(
             !summary.contains("key files"),
             "the monologue must not be the answer: {summary}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod context_budget_tests {
+    use super::*;
+    use crate::provider::{CodeContext, CompletionResponse, CompletionStream};
+
+    /// A provider that answers a fixed window — the only behaviour under test.
+    struct WindowProvider(Option<usize>);
+
+    #[async_trait]
+    impl AIProvider for WindowProvider {
+        fn name(&self) -> &str {
+            "window-provider"
+        }
+        async fn is_available(&self) -> bool {
+            true
+        }
+        async fn complete(&self, _c: &CodeContext) -> Result<CompletionResponse> {
+            unimplemented!("not exercised by these tests")
+        }
+        async fn stream_complete(&self, _c: &CodeContext) -> Result<CompletionStream> {
+            unimplemented!("not exercised by these tests")
+        }
+        async fn chat(&self, _m: &[Message], _c: Option<String>) -> Result<String> {
+            unimplemented!("not exercised by these tests")
+        }
+        async fn stream_chat(&self, _m: &[Message]) -> Result<CompletionStream> {
+            unimplemented!("not exercised by these tests")
+        }
+        async fn context_window(&self) -> Option<usize> {
+            self.0
+        }
+    }
+
+    /// The regression: the budget used to be `unwrap_or(200_000)` for every
+    /// model on every provider, because nothing ever set it. A provider that
+    /// knows its window must be believed.
+    #[tokio::test]
+    async fn a_reported_window_sets_the_budget() {
+        let budget = resolve_context_budget(None, &WindowProvider(Some(40_960))).await;
+        assert_eq!(budget, crate::context_window::budget_for(40_960));
+        assert!(budget < 40_960, "room must be left for the reply");
+    }
+
+    /// A small local model must not be handed the 200k default. That is the
+    /// case where the failure is invisible: the server truncates the front of
+    /// the prompt — system prompt and tool contract first — and the model
+    /// looks like it forgot how to call tools.
+    #[tokio::test]
+    async fn a_small_window_is_not_rounded_up_to_the_default() {
+        let budget = resolve_context_budget(None, &WindowProvider(Some(8_192))).await;
+        assert!(
+            budget < DEFAULT_CONTEXT_BUDGET_TOKENS,
+            "an 8k model got a {budget}-token budget",
+        );
+    }
+
+    /// A million-token window must not be capped at the default either — the
+    /// old constant lost history that did not need losing.
+    #[tokio::test]
+    async fn a_large_window_is_not_capped_at_the_default() {
+        let budget = resolve_context_budget(None, &WindowProvider(Some(1_048_576))).await;
+        assert!(budget > DEFAULT_CONTEXT_BUDGET_TOKENS, "budget was {budget}");
+    }
+
+    /// Unknown is not a number. Anthropic and OpenAI do not publish the field,
+    /// and the documented default — not a guess — is what applies.
+    #[tokio::test]
+    async fn an_unknown_window_falls_back_to_the_documented_default() {
+        let budget = resolve_context_budget(None, &WindowProvider(None)).await;
+        assert_eq!(budget, DEFAULT_CONTEXT_BUDGET_TOKENS);
+    }
+
+    /// An operator who set a limit meant it, including a small one. Letting a
+    /// provider's larger window override it would silently undo the setting.
+    #[tokio::test]
+    async fn an_explicit_limit_wins_over_a_larger_reported_window() {
+        let budget = resolve_context_budget(Some(50_000), &WindowProvider(Some(1_048_576))).await;
+        assert_eq!(budget, 50_000);
+    }
+
+    #[tokio::test]
+    async fn an_explicit_limit_wins_when_the_window_is_unknown() {
+        assert_eq!(
+            resolve_context_budget(Some(12_345), &WindowProvider(None)).await,
+            12_345
         );
     }
 }

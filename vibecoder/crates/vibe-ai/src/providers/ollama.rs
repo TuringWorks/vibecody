@@ -889,6 +889,39 @@ impl AIProvider for OllamaProvider {
         Ok(completion_stream)
     }
 
+    /// Ask the server what this model's window actually is.
+    ///
+    /// `/api/show` reports it under `model_info` with an architecture prefix
+    /// (`qwen3.context_length`, `gemma3.context_length`), so it is the exact
+    /// number for the exact blob that is loaded — no table can be as accurate,
+    /// because the same tag can be re-pulled with a different quantisation.
+    ///
+    /// This is the provider that most needs it. Local windows are small, and
+    /// Ollama's response to an oversized prompt is to drop the *front* of it —
+    /// the system prompt and the tool contract — without saying so.
+    ///
+    /// An explicit `VIBECLI_OLLAMA_NUM_CTX` wins: it is what the server will
+    /// actually be told to use, so it is the real window for the request even
+    /// when the blob could hold more.
+    async fn context_window(&self) -> Option<usize> {
+        if let Some(configured) = configured_num_ctx() {
+            return Some(configured);
+        }
+        crate::context_window::cached("Ollama", &self.config.model, || async {
+            let body = self
+                .auth_post(format!("{}/api/show", self.base_url))
+                .json(&serde_json::json!({ "model": self.config.model }))
+                .send()
+                .await
+                .ok()?
+                .json::<serde_json::Value>()
+                .await
+                .ok()?;
+            crate::context_window::from_ollama_show(&body)
+        })
+        .await
+    }
+
     fn advertises_native_tools(&self) -> bool {
         true
     }

@@ -197,6 +197,13 @@ impl AIProvider for ResilientProvider {
         self.inner.is_available().await
     }
 
+    /// Forwarded. A wrapper that answered `None` here would erase the window
+    /// of every provider it wraps — and `ResilientProvider::wrap` is on the
+    /// default path, so that would be all of them.
+    async fn context_window(&self) -> Option<usize> {
+        self.inner.context_window().await
+    }
+
     async fn complete(&self, context: &CodeContext) -> Result<CompletionResponse> {
         let ctx = context.clone();
         retry_async(&self.config, &format!("{}/complete", self.name()), || {

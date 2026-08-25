@@ -189,6 +189,30 @@ impl AIProvider for CompatProvider {
         }
     }
 
+    /// Read the window from this vendor's `/models` listing.
+    ///
+    /// One implementation covers every provider built from this macro, which
+    /// is most of them. Vendors disagree only on the field name, and
+    /// [`crate::context_window::from_models_list`] knows the spellings.
+    ///
+    /// A failed probe answers `None` — unknown — never a guess. The listing is
+    /// unauthenticated on some vendors and keyed on others, so the key is
+    /// attached when there is one and its absence is not treated as an error.
+    async fn context_window(&self) -> Option<usize> {
+        crate::context_window::cached(self.spec.label, &self.config.model, || async {
+            let url = format!("{}/models", self.base_url());
+            let mut req = self.client.get(&url);
+            if let Ok(key) = self.api_key() {
+                if !key.is_empty() {
+                    req = req.bearer_auth(key);
+                }
+            }
+            let body = req.send().await.ok()?.json::<serde_json::Value>().await.ok()?;
+            crate::context_window::from_models_list(&body, &self.config.model)
+        })
+        .await
+    }
+
     async fn complete(&self, context: &CodeContext) -> Result<CompletionResponse> {
         self.chat_response(&Self::code_prompt(context), None).await
     }
@@ -457,6 +481,11 @@ macro_rules! openai_compat_provider {
             /// the one that knows whether schemas ride along.
             fn advertises_native_tools(&self) -> bool {
                 self.0.advertises_native_tools()
+            }
+            /// Delegated for the same reason as the rest: the inner provider
+            /// holds the base URL, the key and the model id.
+            async fn context_window(&self) -> Option<usize> {
+                self.0.context_window().await
             }
         }
     };

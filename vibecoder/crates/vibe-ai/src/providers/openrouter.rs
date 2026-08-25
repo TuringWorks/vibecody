@@ -135,6 +135,27 @@ impl AIProvider for OpenRouterProvider {
         self.config.api_key.is_some()
     }
 
+    /// OpenRouter publishes `context_length` per model on `/models`, and it is
+    /// the number that matters here: the same model id can be routed to
+    /// different upstreams with different windows, so only OpenRouter knows.
+    /// The listing is public, so this works before a key is configured.
+    async fn context_window(&self) -> Option<usize> {
+        crate::context_window::cached("OpenRouter", &self.config.model, || async {
+            let url = format!("{}/models", self.base_url());
+            let body = self
+                .client
+                .get(&url)
+                .send()
+                .await
+                .ok()?
+                .json::<serde_json::Value>()
+                .await
+                .ok()?;
+            crate::context_window::from_models_list(&body, &self.config.model)
+        })
+        .await
+    }
+
     async fn complete(&self, context: &CodeContext) -> Result<CompletionResponse> {
         let prompt = format!(
             "Complete the following {} code:\n\n{}<CURSOR>{}",

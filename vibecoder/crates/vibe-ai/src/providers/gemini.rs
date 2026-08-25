@@ -597,6 +597,34 @@ impl AIProvider for GeminiProvider {
         self.config.api_key.is_some()
     }
 
+    /// Gemini reports `inputTokenLimit` on `models/{id}`.
+    ///
+    /// There *is* a table in this file — [`GeminiModel::context_window`] — but
+    /// it only knows the 2.x variants, and the registry has shipped 3.x models
+    /// for months. Asking cannot go stale that way.
+    async fn context_window(&self) -> Option<usize> {
+        crate::context_window::cached("Gemini", &self.config.model, || async {
+            let base = self
+                .config
+                .api_url
+                .as_deref()
+                .unwrap_or("https://generativelanguage.googleapis.com/v1beta");
+            let key = self.config.api_key.as_deref()?;
+            let body = self
+                .client
+                .get(format!("{}/models/{}", base, self.config.model))
+                .header("x-goog-api-key", key)
+                .send()
+                .await
+                .ok()?
+                .json::<serde_json::Value>()
+                .await
+                .ok()?;
+            crate::context_window::from_gemini_model(&body)
+        })
+        .await
+    }
+
     async fn complete(&self, context: &CodeContext) -> Result<CompletionResponse> {
         let prompt = format!(
             "Complete the following {} code:\n\n{}<CURSOR>{}",
