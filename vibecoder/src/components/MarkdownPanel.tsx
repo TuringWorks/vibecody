@@ -5,9 +5,10 @@
  * Browse .md files from the workspace, create new notes, save, and
  * export to standalone HTML.
  */
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import ReactMarkdown from "react-markdown";
+import { htmlToMarkdown } from "../lib/markdownHtml";
 
 interface MarkdownFile {
  path: string;
@@ -141,6 +142,9 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  URL.revokeObjectURL(url);
  };
 
+ // Rewriting raw HTML walks the whole document; the editor pane re-renders on
+ // every keystroke, so only redo it when the text actually changed.
+ const rendered = useMemo(() => htmlToMarkdown(content), [content]);
  const words = wordCount(content);
  const chars = content.length;
  const filtered = files.filter(f => !filter || f.name.toLowerCase().includes(filter.toLowerCase()));
@@ -290,7 +294,7 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  img: ({ src, alt }) => <img src={src} alt={alt ?? ""} style={{ maxWidth: "100%", borderRadius: "var(--radius-sm)" }} />,
  }}
  >
- {content}
+ {rendered}
  </ReactMarkdown>
  </div>
  </div>

@@ -2,6 +2,7 @@
 import ReactMarkdown from 'react-markdown';
 import React from 'react';
 import { openUrl } from '@tauri-apps/plugin-opener';
+import { htmlToMarkdown } from '../lib/markdownHtml';
 import './MarkdownPreview.css';
 
 interface MarkdownPreviewProps {
@@ -55,7 +56,8 @@ const sharedComponents: any = {
 
 // Minimal pre-processor to strip frontmatter and parse tables since remark-gfm requires internet
 function preprocessMarkdown(markdown: string): string {
-    let content = markdown;
+    // Raw HTML would otherwise reach the reader as literal `<details>` text.
+    let content = htmlToMarkdown(markdown);
     
     // Strip YAML frontmatter at the very beginning of the document
     if (content.startsWith('---\n') || content.startsWith('---\r\n')) {

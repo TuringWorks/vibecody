@@ -86,4 +86,22 @@ This is the main content.`;
         // The word "Shannon vs VibeCody" (part of frontmatter) should not be present
         expect(screen.queryByText(/layout:/)).not.toBeInTheDocument();
     });
+    it('renders a generated answer without showing its HTML tags', () => {
+        // A generated study guide hides answers behind <details>; react-markdown
+        // has no raw-HTML pipeline, so the tags used to reach the reader as text.
+        const markdown = `### 1. How does a VLM see an image?
+
+<details><summary><b>Answer</b></summary>
+
+Three components: a **vision encoder**, a projector, and the LLM.
+
+</details>`;
+        const { container } = render(<MarkdownPreview content={markdown} />);
+
+        expect(container.textContent).not.toContain('<details>');
+        expect(container.textContent).not.toContain('<summary>');
+        expect(container.textContent).not.toContain('<b>');
+        expect(screen.getByText('Answer')).toBeInTheDocument();
+        expect(container.textContent).toContain('Three components');
+    });
 });
