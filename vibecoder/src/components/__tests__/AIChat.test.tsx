@@ -481,9 +481,14 @@ describe('AIChat — response does not disappear (controlled mode)', () => {
     await flushAll();
     expect(screen.getByText(/Hello/)).toBeInTheDocument();
 
+    // A chunk arriving inside STREAM_FLUSH_MS of the previous one is coalesced
+    // into the next flush rather than costing its own render, so the assertion
+    // is that it *becomes* visible — which is the actual contract — not that it
+    // is visible in the same tick.
     act(() => { emitTauriEvent('chat:chunk', 'world!'); });
-    await flushAll();
-    expect(screen.getByText(/Hello world!/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/Hello world!/)).toBeInTheDocument();
+    });
   });
 
   it('response remains visible after chat:complete — no disappearing frame', async () => {

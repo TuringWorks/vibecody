@@ -268,6 +268,24 @@ type AgentMode = "fast" | "chat" | "planning";
  */
 const DEFAULT_COMPACTION_CHARS = 80_000;
 
+/** Last element satisfying `pred`, without copying the array. */
+function findLast<T>(items: readonly T[], pred: (item: T) => boolean): T | undefined {
+  for (let i = items.length - 1; i >= 0; i -= 1) {
+    if (pred(items[i])) return items[i];
+  }
+  return undefined;
+}
+
+/**
+ * How often the live stream is published to React while a reply arrives.
+ *
+ * ~60 Hz: fast enough that the text still reads as typing, slow enough that a
+ * fast provider does not spend one full re-render per token. A model slower
+ * than this renders on every chunk exactly as it always did — the interval is
+ * a ceiling on render frequency, not a delay added to every chunk.
+ */
+const STREAM_FLUSH_MS = 16;
+
 const MAX_AGENT_TURNS = 10;
 
 /**
@@ -1407,7 +1425,97 @@ export function AIChat({
 
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [streamingText, setStreamingText] = useState("");
+  // ── Live stream text ────────────────────────────────────────────────────────
+  //
+  // `chat:chunk` arrives once per streamed chunk, each as its own Tauri event
+  // and so its own React render. Every one of those renders re-runs
+  // `extractThinking` and a full markdown parse over the *whole* reply so far,
+  // which makes the cost of a response quadratic in its own length: a long
+  // answer visibly slows down as it is written.
+  //
+  // So the accumulator is a ref — the exact, immediate text — and the state is
+  // a view of it published at most once per `STREAM_FLUSH_MS`. Chunks arriving
+  // faster than that collapse into one render; a slow model, where chunks are
+  // further apart than the interval, is unaffected and renders exactly as
+  // before.
+  //
+  // `setStreamingText` keeps the `useState` setter's signature so the sixteen
+  // call sites do not have to know any of this. Clearing is the exception: it
+  // publishes immediately, because several paths clear the stream and then
+  // read or commit `messages` in the same tick, and a pending flush landing
+  // afterwards would put the finished reply back on screen a second time.
+  const [streamingText, setStreamingTextState] = useState("");
+  const streamAccumRef = useRef("");
+  const streamFlushRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const streamFlushedAtRef = useRef(0);
+
+  /**
+   * Move the throughput readout to match what was just published.
+   *
+   * Derived from the character counter rather than pushed per chunk, so a
+   * chunk that is coalesced away costs no state update at all — which is what
+   * makes the throttle worth anything.
+   */
+  const publishStreamMetrics = useCallback(() => {
+    const approxTokens = Math.round(streamCharsRef.current / 4);
+    setStreamTokenCount(approxTokens);
+    const started = streamStartMsRef.current;
+    if (started !== null) {
+      const elapsedSec = (Date.now() - started) / 1000;
+      if (elapsedSec > 0) setTokensPerSec(Math.round(approxTokens / elapsedSec));
+    }
+  }, []);
+
+  const setStreamingText = useCallback(
+    (next: string | ((prev: string) => string)) => {
+      streamAccumRef.current =
+        typeof next === "function" ? next(streamAccumRef.current) : next;
+
+      const publish = () => {
+        streamFlushRef.current = null;
+        streamFlushedAtRef.current = Date.now();
+        setStreamingTextState(streamAccumRef.current);
+        publishStreamMetrics();
+      };
+
+      if (streamAccumRef.current === "") {
+        if (streamFlushRef.current !== null) {
+          clearTimeout(streamFlushRef.current);
+          streamFlushRef.current = null;
+        }
+        streamFlushedAtRef.current = 0;
+        setStreamingTextState("");
+        return;
+      }
+      if (streamFlushRef.current !== null) return;   // already queued
+      // Leading edge: the first chunk of a reply is published at once, so the
+      // answer still starts the instant it starts. Only chunks arriving inside
+      // the window behind it are coalesced — the throttle is a ceiling on
+      // render frequency, never latency added to a chunk that could have been
+      // shown immediately.
+      const since = Date.now() - streamFlushedAtRef.current;
+      if (since >= STREAM_FLUSH_MS) {
+        publish();
+        return;
+      }
+      streamFlushRef.current = setTimeout(publish, STREAM_FLUSH_MS - since);
+    },
+    [publishStreamMetrics],
+  );
+
+  /** Extend the live stream by one arriving chunk. */
+  const appendStreamChunk = useCallback(
+    (chunk: string) => setStreamingText((prev) => prev + chunk),
+    [setStreamingText],
+  );
+
+  // A pending flush after unmount would set state on a dead component.
+  useEffect(
+    () => () => {
+      if (streamFlushRef.current !== null) clearTimeout(streamFlushRef.current);
+    },
+    [],
+  );
   const [pickerQuery, setPickerQuery] = useState<string | null>(null);
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
@@ -1481,7 +1589,7 @@ export function AIChat({
       setRetryInfo(null);
       setIsLoading(false);
     }
-  }, [messages]);
+  }, [messages, setStreamingText]);
 
   // ── Auto-compaction ──────────────────────────────────────────────────────────
   // When the conversation outgrows the model's context budget, summarise the
@@ -1825,17 +1933,15 @@ export function AIChat({
     (async () => {
       // chat:chunk
       const u1 = await listen<string>("chat:chunk", (e) => {
-        const now = Date.now();
         const chunk = e.payload;
-        if (streamStartMsRef.current === null) streamStartMsRef.current = now;
+        if (streamStartMsRef.current === null) streamStartMsRef.current = Date.now();
         streamCharsRef.current += chunk.length;
-        const elapsedSec = (now - streamStartMsRef.current) / 1000;
-        const approxTokens = Math.round(streamCharsRef.current / 4);
-        if (elapsedSec > 0) {
-          setTokensPerSec(Math.round(approxTokens / elapsedSec));
-        }
-        setStreamTokenCount(approxTokens);
-        setStreamingText((prev) => prev + chunk);
+        // The throughput readout is derived inside the publish rather than set
+        // here. Setting it per chunk re-rendered the panel per chunk on its
+        // own, which made throttling the text pointless: the live bubble's
+        // markdown was re-parsed every token anyway, by a state update whose
+        // only job was to move a number in the status bar.
+        appendStreamChunk(chunk);
 
         // Check for thinking blocks in streaming text for status bar
         if (chunk.includes("<thinking>") || chunk.includes("</thinking>")) {
@@ -2297,7 +2403,7 @@ export function AIChat({
       cancelled = true;
       unlisteners.forEach((fn) => fn());
     };
-  }, [setMessages]);
+  }, [setMessages, setStreamingText, appendStreamChunk]);
 
   // Consume pendingInput from Cascade
   useEffect(() => {
@@ -2496,8 +2602,11 @@ export function AIChat({
       await invoke("stop_chat_stream").catch(() => {});
     }
     setMessages((prev) => {
-      if (streamingText) {
-        const [cleaned, thinking] = extractThinking(streamingText);
+      // The ref, not the state: the state lags by up to STREAM_FLUSH_MS, and
+      // this is the one reader that must not lose the tail of what arrived.
+      const live = streamAccumRef.current;
+      if (live) {
+        const [cleaned, thinking] = extractThinking(live);
         const [finalContent, toolCalls] = parseToolCalls(cleaned);
         return [...prev, {
           role: "assistant" as const,
@@ -2522,7 +2631,7 @@ export function AIChat({
 
   // Retry: resend last user message
   const retryLastMessage = useCallback(() => {
-    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+    const lastUserMsg = findLast(messages, (m) => m.role === "user");
     if (lastUserMsg) {
       sendMessage(lastUserMsg.content);
     }
@@ -2691,9 +2800,12 @@ export function AIChat({
   const streamingAlreadyCommitted = useMemo(() => {
     const live = (streamingParts ? streamingParts.cleaned : streamingText).trim();
     if (!live) return false;
-    const lastAssistant = [...messages]
-      .reverse()
-      .find((m) => m.role === "assistant" && !m.isToolOutput);
+    // Walk backwards rather than `[...messages].reverse().find(...)`. This memo
+    // recomputes on every stream flush, and that spelling copied and reversed
+    // the entire transcript each time — allocation proportional to the whole
+    // conversation, repeatedly, while a reply is arriving. The answer is
+    // almost always in the last message or two.
+    const lastAssistant = findLast(messages, (m) => m.role === "assistant" && !m.isToolOutput);
     return !!lastAssistant && lastAssistant.content.trim() === live;
   }, [messages, streamingParts, streamingText]);
 

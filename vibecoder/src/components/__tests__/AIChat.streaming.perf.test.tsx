@@ -249,3 +249,69 @@ describe('AIChat compaction budget', () => {
     expect(mockInvoke).not.toHaveBeenCalledWith('summarise_messages', expect.anything());
   });
 });
+
+/** Render a controlled chat and put a request in flight. */
+async function startChatStream() {
+  function ControlledChat() {
+    const [messages, setMessages] = useState<Message[]>([]);
+    return <AIChat provider="ollama" messages={messages} onMessagesChange={setMessages} />;
+  }
+  render(<ControlledChat />);
+  await flushAll();
+  const textarea = screen.getByPlaceholderText(/Ask anything/) as HTMLTextAreaElement;
+  fireEvent.change(textarea, { target: { value: 'hello', selectionStart: 5 } });
+  fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+  await flushAll();
+}
+
+describe('AIChat streaming render frequency', () => {
+  /**
+   * `chat:chunk` arrives as its own Tauri event, so it used to cost its own
+   * React render — and every one of those renders re-ran `extractThinking`
+   * and a full markdown parse over the whole reply so far. The cost of a
+   * response was therefore quadratic in its own length: a long answer visibly
+   * slowed down as it was written.
+   *
+   * A burst faster than STREAM_FLUSH_MS must collapse into one render. How
+   * much that saves scales with the provider's token rate — a model slower
+   * than the interval renders on every chunk exactly as before, by design.
+   */
+  it('coalesces a burst of chunks into a single render', async () => {
+    await startChatStream();
+    markdownRenders = 0;
+
+    // One `act` per chunk. Batching them into one would let React collapse the
+    // renders by itself and the assertion below would hold with or without the
+    // throttle — the real stream arrives as 40 separate Tauri events.
+    for (let i = 0; i < 40; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await act(async () => emit('chat:chunk', `tok${i} `));
+    }
+
+    // One leading-edge publish. Before this, 40 chunks meant 40 renders of the
+    // live bubble, each re-parsing everything received so far.
+    // Measured: 40 before (one full re-parse of the reply-so-far per chunk),
+    // 1-2 after.
+    expect(markdownRenders).toBeGreaterThan(0);
+    expect(markdownRenders).toBeLessThanOrEqual(3);
+
+    // …and nothing is lost: the trailing flush carries the whole burst.
+    await waitFor(() => {
+      expect(document.body.textContent ?? '').toContain('tok39');
+    });
+  });
+
+  /** The tail must survive a stop, which reads the accumulator, not the view. */
+  it('keeps chunks that had not been published when the user stops', async () => {
+    await startChatStream();
+
+    await act(async () => emit('chat:chunk', 'first '));
+    await act(async () => emit('chat:chunk', 'and the unpublished tail'));
+    const stop = screen.getByTitle(/Stop/i);
+    await act(async () => { fireEvent.click(stop); });
+
+    await waitFor(() => {
+      expect(document.body.textContent ?? '').toContain('and the unpublished tail');
+    });
+  });
+});
