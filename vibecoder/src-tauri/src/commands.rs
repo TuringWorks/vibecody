@@ -763,13 +763,20 @@ async fn gateway_process_tool_calls(response: &str, sandbox_path: &str) -> Strin
     let mut search_from = 0;
     while let Some(rel) = cleaned[search_from..].find(write_open) {
         let tag_start = search_from + rel;
-        let path_start = tag_start + write_open.len();
-        let Some(path_end_rel) = cleaned[path_start..].find("\">") else {
-            break;
-        };
-        let path_end = path_start + path_end_rel;
-        let path = cleaned[path_start..path_end].to_string();
-        let content_start = path_end + 2; // skip `">`
+        // The path ends at its own closing quote, not at the tag's `>`; see
+        // `vibe_ai::tools::read_path_tag`.
+        let (path, content_start) =
+            match vibe_ai::tools::read_path_tag(&cleaned, tag_start, write_open) {
+                vibe_ai::tools::PathTag::Found { path, after_open } => {
+                    (path.to_string(), after_open)
+                }
+                vibe_ai::tools::PathTag::Rejected { reason, after_open } => {
+                    written.push(format!("ERROR:<unusable path>:{reason}"));
+                    search_from = after_open;
+                    continue;
+                }
+                vibe_ai::tools::PathTag::Incomplete => break,
+            };
         let Some(close_rel) = cleaned[content_start..].find(write_close) else {
             break;
         };
@@ -804,18 +811,18 @@ async fn gateway_process_tool_calls(response: &str, sandbox_path: &str) -> Strin
     search_from = 0;
     while let Some(rel) = cleaned[search_from..].find(read_tag) {
         let tag_start = search_from + rel;
-        let path_start = tag_start + read_tag.len();
-        let Some(close_rel) = cleaned[path_start..].find("/>") else {
-            search_from = tag_start + 1;
-            continue;
+        // The path ends at its own closing quote; trimming quotes off whatever
+        // preceded `/>` swallowed any further attribute into the filename.
+        let (path, tag_end) = match vibe_ai::tools::read_path_tag(&cleaned, tag_start, read_tag) {
+            vibe_ai::tools::PathTag::Found { path, after_open } => (path.to_string(), after_open),
+            vibe_ai::tools::PathTag::Rejected { reason, after_open } => {
+                let note = format!("[Ignored a <read_file> tag: {reason}]");
+                cleaned.replace_range(tag_start..after_open, &note);
+                search_from = tag_start + note.len();
+                continue;
+            }
+            vibe_ai::tools::PathTag::Incomplete => break,
         };
-        // Extract path (strip trailing `"` or `" `)
-        let raw = cleaned[path_start..path_start + close_rel]
-            .trim_end_matches('"')
-            .trim_end()
-            .trim_end_matches('"');
-        let path = raw.to_string();
-        let tag_end = path_start + close_rel + 2;
 
         let resolved = if std::path::Path::new(&path).is_absolute() {
             path.clone()
@@ -3588,15 +3595,33 @@ pub async fn stream_chat_message(
             }
             while let Some(rel_start) = text[pos..].find(tag) {
                 let start = pos + rel_start;
-                let Some(path_end_rel) = text[start..].find("\">") else {
-                    break;
+                // The path ends at its own closing quote, not at the first
+                // `">` in the tag — see `vibe_ai::tools::read_path_tag`.
+                let (path, content_start) = match vibe_ai::tools::read_path_tag(text, start, tag) {
+                    vibe_ai::tools::PathTag::Found { path, after_open } => (path, after_open),
+                    // A string that cannot be a filename is dropped rather
+                    // than written. Scanning resumes past the tag so the
+                    // well-formed writes after a malformed one still land.
+                    vibe_ai::tools::PathTag::Rejected { reason, after_open } => {
+                        eprintln!("[stream_chat] Ignoring <write_file>: {reason}");
+                        let _ = app.emit(
+                            "chat:status",
+                            serde_json::json!({
+                                "type": "tool_call_rejected",
+                                "tool": "write_file",
+                                "reason": reason,
+                            }),
+                        );
+                        pos = after_open;
+                        continue;
+                    }
+                    // Not finished arriving — retry on the next chunk.
+                    vibe_ai::tools::PathTag::Incomplete => break,
                 };
-                let path = &text[start + tag.len()..start + path_end_rel];
                 let Some(close_rel) = text[start..].find("</write_file>") else {
                     // Block not yet complete — stop scanning, will retry on next chunk
                     break;
                 };
-                let content_start = start + path_end_rel + 2;
                 let content = text[content_start..start + close_rel]
                     .strip_prefix('\n')
                     .unwrap_or(&text[content_start..start + close_rel]);
@@ -5278,16 +5303,24 @@ async fn process_tool_calls(
     let mut search_from = 0;
     while let Some(rel_start) = response[search_from..].find(read_tag) {
         let start = search_from + rel_start;
-        if let Some(end) = response[start..].find("\" />") {
-            let path = &response[start + read_tag.len()..start + end];
-            let resolved = resolve(path);
-            match workspace.file_system().read_file(&resolved).await {
-                Ok(content) => output.push_str(&format!("Read file '{}':\n{}\n", path, content)),
-                Err(e) => output.push_str(&format!("Failed to read file '{}': {}\n", path, e)),
+        // The path ends at its own closing quote, and the tag at the next `>`.
+        // Matching on the literal `" />` instead missed every spelling a model
+        // actually emits — `"/>`, `" / >`, or any extra attribute — and gave up
+        // on the whole response at the first one.
+        match vibe_ai::tools::read_path_tag(response, start, read_tag) {
+            vibe_ai::tools::PathTag::Found { path, after_open } => {
+                let resolved = resolve(path);
+                match workspace.file_system().read_file(&resolved).await {
+                    Ok(content) => output.push_str(&format!("Read file '{}':\n{}\n", path, content)),
+                    Err(e) => output.push_str(&format!("Failed to read file '{}': {}\n", path, e)),
+                }
+                search_from = after_open;
             }
-            search_from = start + end + 4;
-        } else {
-            break;
+            vibe_ai::tools::PathTag::Rejected { reason, after_open } => {
+                output.push_str(&format!("Ignored a <read_file> tag: {reason}\n"));
+                search_from = after_open;
+            }
+            vibe_ai::tools::PathTag::Incomplete => break,
         }
     }
 
@@ -5298,10 +5331,18 @@ async fn process_tool_calls(
     search_from = 0;
     while let Some(rel_start) = response[search_from..].find(write_tag_start) {
         let start = search_from + rel_start;
-        if let Some(path_end) = response[start..].find("\">") {
-            let path = &response[start + write_tag_start.len()..start + path_end];
+        let (path, content_start) =
+            match vibe_ai::tools::read_path_tag(response, start, write_tag_start) {
+                vibe_ai::tools::PathTag::Found { path, after_open } => (path, after_open),
+                vibe_ai::tools::PathTag::Rejected { reason, after_open } => {
+                    output.push_str(&format!("Ignored a <write_file> tag: {reason}\n"));
+                    search_from = after_open;
+                    continue;
+                }
+                vibe_ai::tools::PathTag::Incomplete => break,
+            };
+        {
             if let Some(content_end) = response[start..].find("</write_file>") {
-                let content_start = start + path_end + 2;
                 let raw_content = &response[content_start..start + content_end];
                 // Strip leading newline that the LLM places after the opening tag
                 let content = raw_content.strip_prefix('\n').unwrap_or(raw_content);
@@ -5332,8 +5373,6 @@ async fn process_tool_calls(
             } else {
                 break;
             }
-        } else {
-            break;
         }
     }
 

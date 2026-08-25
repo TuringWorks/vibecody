@@ -3189,3 +3189,179 @@ mod bash_risk_tests {
         assert!(!ToolCall::ReadFile { path: "a".into() }.is_destructive());
     }
 }
+
+// ── Element-tag path extraction ───────────────────────────────────────────────
+
+/// Longest path a model is allowed to name in a tool tag.
+///
+/// Well past any real source path, and short enough that a paragraph of prose
+/// mis-parsed as an attribute is rejected rather than turned into a filename.
+pub const MAX_TOOL_PATH_LEN: usize = 512;
+
+/// The outcome of reading the opening tag of an element-style tool call.
+#[derive(Debug, PartialEq, Eq)]
+pub enum PathTag<'a> {
+    /// A complete opening tag naming a usable path.
+    Found {
+        path: &'a str,
+        /// Offset in the source text just past the `>` that closes the tag.
+        after_open: usize,
+    },
+    /// A complete opening tag whose `path` cannot be a filename.
+    ///
+    /// `after_open` still points past the tag so a caller can skip it and
+    /// keep scanning: one malformed tag must not discard the calls after it.
+    Rejected {
+        reason: String,
+        after_open: usize,
+    },
+    /// The tag has not finished arriving yet. Callers scanning a partial
+    /// stream should stop and retry on the next chunk.
+    Incomplete,
+}
+
+/// Read the opening `<tool path="…" …>` tag that begins at `text[at..]`.
+///
+/// `open` is the literal tag prefix through the opening quote, e.g.
+/// `<write_file path="`, and `at` must be the index where it starts.
+///
+/// **Why this is not `find("\">")`.** That searches for the *tag* terminator
+/// and uses it as the *attribute* terminator, which only coincides when `path`
+/// is the last attribute. Given `<write_file path="a.rs" mode="overwrite">`
+/// the first `">` sits at the end of `mode="overwrite"`, so the naive scan
+/// yields the path `a.rs" mode="overwrite` — and the writer downstream creates
+/// a file with that literal name. Every attribute a model invents, and every
+/// stray quote it emits, becomes a garbage filename in the workspace. The path
+/// ends at the next quote; the tag ends at the next `>` after that quote.
+pub fn read_path_tag<'a>(text: &'a str, at: usize, open: &str) -> PathTag<'a> {
+    let Some(rest) = text.get(at + open.len()..) else {
+        return PathTag::Incomplete;
+    };
+    let Some(quote) = rest.find('"') else {
+        return PathTag::Incomplete;
+    };
+    // The `>` closing the tag, allowing further attributes after `path`.
+    let Some(gt_rel) = rest[quote..].find('>') else {
+        return PathTag::Incomplete;
+    };
+    let after_open = at + open.len() + quote + gt_rel + 1;
+    let raw = &rest[..quote];
+    match sanitize_tool_path(raw) {
+        Ok(path) => PathTag::Found { path, after_open },
+        Err(reason) => PathTag::Rejected { reason, after_open },
+    }
+}
+
+/// Reject the path shapes that mean the tag was mis-parsed, the model was
+/// hallucinating, or the write would escape the workspace.
+///
+/// This is the last gate before a model-authored string becomes a filename on
+/// disk. It does not try to decide whether the path is *sensible* — only that
+/// it is a path at all. Absolute paths are left to the caller's own resolution
+/// policy; `..` is not, because no legitimate tool call needs it and it is the
+/// one shape that writes outside the workspace by accident.
+pub fn sanitize_tool_path(raw: &str) -> Result<&str, String> {
+    let path = raw.trim();
+    if path.is_empty() {
+        return Err("path is empty".to_string());
+    }
+    if path.len() > MAX_TOOL_PATH_LEN {
+        return Err(format!(
+            "path is {} bytes, over the {MAX_TOOL_PATH_LEN}-byte limit",
+            path.len()
+        ));
+    }
+    if let Some(c) = path.chars().find(|c| c.is_control()) {
+        return Err(format!("path contains the control character {:?}", c));
+    }
+    if let Some(c) = path.chars().find(|c| matches!(c, '"' | '<' | '>' | '|' | '\0')) {
+        return Err(format!("path contains {c:?}, so the tag was misread"));
+    }
+    if path.split(['/', '\\']).any(|part| part == "..") {
+        return Err("path escapes the workspace with `..`".to_string());
+    }
+    Ok(path)
+}
+
+#[cfg(test)]
+mod path_tag_tests {
+    use super::*;
+
+    const OPEN: &str = "<write_file path=\"";
+
+    fn read(text: &str) -> PathTag<'_> {
+        let at = text.find(OPEN).expect("test input contains the tag");
+        read_path_tag(text, at, OPEN)
+    }
+
+    #[test]
+    fn plain_tag_yields_the_path() {
+        let text = "<write_file path=\"src/main.rs\">body</write_file>";
+        assert_eq!(
+            read(text),
+            PathTag::Found {
+                path: "src/main.rs",
+                after_open: text.find('>').unwrap() + 1,
+            }
+        );
+    }
+
+    /// The regression this whole function exists for.
+    #[test]
+    fn extra_attributes_do_not_leak_into_the_path() {
+        let text = "<write_file path=\"src/main.rs\" language=\"rust\">body</write_file>";
+        let PathTag::Found { path, after_open } = read(text) else {
+            panic!("expected a usable path");
+        };
+        assert_eq!(path, "src/main.rs");
+        assert_eq!(&text[after_open..after_open + 4], "body");
+    }
+
+    #[test]
+    fn a_newline_in_the_path_is_rejected() {
+        let text = "<write_file path=\"src/\nmain.rs\">body</write_file>";
+        assert!(matches!(read(text), PathTag::Rejected { .. }));
+    }
+
+    #[test]
+    fn a_rejected_tag_still_reports_where_it_ends() {
+        let text = "<write_file path=\"\">body</write_file>";
+        let PathTag::Rejected { after_open, .. } = read(text) else {
+            panic!("empty path must be rejected");
+        };
+        assert_eq!(&text[after_open..after_open + 4], "body");
+    }
+
+    #[test]
+    fn parent_traversal_is_rejected() {
+        let text = "<write_file path=\"../../etc/passwd\">x</write_file>";
+        assert!(matches!(read(text), PathTag::Rejected { .. }));
+    }
+
+    #[test]
+    fn a_dotfile_is_not_mistaken_for_traversal() {
+        let text = "<write_file path=\"..config/x.toml\">x</write_file>";
+        assert!(matches!(read(text), PathTag::Found { path: "..config/x.toml", .. }));
+    }
+
+    #[test]
+    fn a_half_arrived_tag_is_incomplete_not_garbage() {
+        assert_eq!(read_path_tag("<write_file path=\"src/ma", 0, OPEN), PathTag::Incomplete);
+        assert_eq!(read_path_tag("<write_file path=\"src/main.rs", 0, OPEN), PathTag::Incomplete);
+        assert_eq!(
+            read_path_tag("<write_file path=\"src/main.rs\"", 0, OPEN),
+            PathTag::Incomplete
+        );
+    }
+
+    #[test]
+    fn a_prose_paragraph_is_rejected_rather_than_written() {
+        let long = "a".repeat(MAX_TOOL_PATH_LEN + 1);
+        assert!(sanitize_tool_path(&long).is_err());
+    }
+
+    #[test]
+    fn surrounding_whitespace_is_trimmed() {
+        assert_eq!(sanitize_tool_path("  src/main.rs  "), Ok("src/main.rs"));
+    }
+}
