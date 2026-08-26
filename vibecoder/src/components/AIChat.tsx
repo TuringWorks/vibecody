@@ -2,7 +2,7 @@ import { memo, useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useVoiceInput } from "@vibe/shared/voice/useVoiceInput";
 import { useVoiceDuplex } from "@vibe/shared/voice/useVoiceDuplex";
-import { PROVIDER_DEFAULT_MODEL } from "../hooks/useModelRegistry";
+import { parseProviderSelection } from "../hooks/useModelRegistry";
 import { DuplexVoiceButton } from "@vibe/shared/voice/DuplexVoiceButton";
 import { tauriTranscriber } from "@vibe/shared/voice/transcribers";
 import { listen } from "@tauri-apps/api/event";
@@ -1727,12 +1727,22 @@ export function AIChat({
   } = useVoiceInput({ onTranscript: appendTranscript, transcribe: voiceTranscribe });
 
   // Full-duplex conversation. The model is resolved here rather than left to
-  // the daemon: with only a provider the daemon falls back to whatever it
-  // booted with, which can be a different vendor entirely — exactly the silent
-  // default the provider-agnostic rule exists to prevent.
+  // the daemon: `chat_provider_for` needs *both* a provider and a model to
+  // build an override and silently uses whatever the daemon booted with
+  // otherwise — the silent default the provider-agnostic rule exists to
+  // prevent.
+  //
+  // `provider` is the toolbar's selection, and the toolbar lists display names
+  // (`"Ollama (gpt-oss:120b-cloud)"`), not provider ids. Indexing
+  // PROVIDER_DEFAULT_MODEL with one returns `undefined`, so the model went
+  // missing and the fallback fired — the microphone transcribed, the turns
+  // appeared, and nothing ever answered. `parseProviderSelection` is the
+  // existing helper for exactly this, and it keeps the model the user picked
+  // rather than substituting the registry default.
+  const duplexSelection = useMemo(() => parseProviderSelection(provider), [provider]);
   const duplex = useVoiceDuplex({
-    provider,
-    model: PROVIDER_DEFAULT_MODEL[provider],
+    provider: duplexSelection.provider,
+    model: duplexSelection.model,
     language: "en",
     onTurn: turn =>
       setMessages(prev => [
@@ -1748,6 +1758,21 @@ export function AIChat({
     toast.warn(voiceError);
     clearVoiceError();
   }, [voiceError, toast, clearVoiceError]);
+
+  // The duplex button reports a failure as the word "Voice error" with the
+  // reason in a `title` — so the only way to learn why the assistant stopped
+  // answering was to hover a button and wait for a tooltip. The reason is
+  // already on the state; show it.
+  const duplexError = duplex.state.status === "error" ? duplex.state.message : null;
+  const reportedDuplexError = useRef<string | null>(null);
+  useEffect(() => {
+    if (!duplexError || reportedDuplexError.current === duplexError) return;
+    reportedDuplexError.current = duplexError;
+    toast.error(`Voice: ${duplexError}`);
+  }, [duplexError, toast]);
+  useEffect(() => {
+    if (!duplexError) reportedDuplexError.current = null;
+  }, [duplexError]);
 
   // ── Attachment handlers ─────────────────────────────────────────────────────
 

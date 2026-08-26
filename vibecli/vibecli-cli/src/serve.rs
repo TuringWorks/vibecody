@@ -6707,7 +6707,23 @@ fn chat_provider_for(
                 }
             }
         }
-        _ => fallback.clone(),
+        // A caller that sent one half of the pair meant to choose a provider and
+        // did not manage it. Falling through silently is how a voice session
+        // ran its whole conversation against the daemon's boot provider — which
+        // may be a different vendor, and may have no key configured — while the
+        // client believed it had selected one. Say so; the request still
+        // proceeds, because a usable fallback beats refusing to answer.
+        (p, m) => {
+            if p.is_some() || m.is_some() {
+                tracing::warn!(
+                    provider = p.unwrap_or(""),
+                    model = m.unwrap_or(""),
+                    "provider override ignored — both a provider and a model are required; \
+                     using the daemon's own provider instead",
+                );
+            }
+            fallback.clone()
+        }
     }
 }
 
