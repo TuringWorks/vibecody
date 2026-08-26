@@ -59,6 +59,11 @@ Use this table as a pre-flight checklist. Cross-cutting changes that miss a surf
 
 ### Touching voice input
 
+Two features, one pipeline. **Push-to-talk** dictates into a composer through
+`POST /voice/transcribe`; **full-duplex** holds the microphone open through
+`GET /ws/voice/duplex` and can be interrupted mid-sentence. Both run on the same
+engines in the daemon — see [voice-duplex.md](./docs/voice-duplex.md).
+
 All speech-to-text goes through **one** daemon route. No client may call a speech
 provider directly — that is exactly how VibeCoder ended up with a Groq-only
 implementation that could never use the local whisper model the CLI had been
@@ -67,15 +72,37 @@ downloading for it.
 | Surface | What lives there |
 |---|---|
 | `vibecli/vibecli-cli/src/voice.rs` | `VoiceDispatcher` — the only place that talks to Groq or whisper.cpp |
-| `vibecli/vibecli-cli/src/serve.rs` | `POST /voice/transcribe`, `GET /voice/status` |
-| `packages/vibe-ui-shared/src/voice/` | `useVoiceInput`, `VoiceButton`, transcribers — every webview shell |
-| `crates/vibe-desktop-voice/` | `transcribe_audio` / `voice_status` Tauri commands, registered by all three shells |
+| `vibecli/vibecli-cli/src/voice_duplex.rs` | VAD, turn-taking, barge-in, TTS engines, language mapping — the duplex pipeline |
+| `vibecli/vibecli-cli/src/serve.rs` | `POST /voice/transcribe`, `GET /voice/status`, `GET /ws/voice/duplex` |
+| `packages/vibe-ui-shared/src/voice/` | `useVoiceInput` + `VoiceButton` (push-to-talk), `useVoiceDuplex` + `DuplexVoiceButton` (duplex) — every webview shell |
+| `crates/vibe-desktop-voice/` | `transcribe_audio` / `voice_status` / `daemon_token_effective` Tauri commands, registered by all three shells |
+| `tools/webview-probe/` | Measures AEC, capture and transport on the engine each platform ships. Run it before claiming a surface works |
 | `vibemobile/lib/services/voice_service.dart` | On-device recogniser → record-and-upload fallback |
 | `vscode-extension/src/voice-capture.ts` · `jetbrains-plugin/.../VoiceRecorder.kt` · `neovim-plugin/.../init.lua` | SoX `rec` capture |
 | `packages/agent-sdk/src/index.ts` | `transcribe()` / `voiceStatus()` |
-| `docs/FEATURE-MATRIX.md` → Voice Input · `docs/api-reference.md` | The per-client table and the route contract |
+| `docs/FEATURE-MATRIX.md` → Voice Input · `docs/api-reference.md` · `docs/voice-duplex.md` | The per-client table, the route contract, and the duplex surface matrix |
 
 Rules that are easy to get wrong and produce silent failures:
+
+- **An `AudioWorklet` module is fetched under `script-src`, not `worker-src`.**
+  A host shipping `script-src 'self'` rejects a blob: module outright, and voice
+  fails to start with a CSP error that names no remedy. Shells allow
+  `script-src 'self' blob:`; the shared hook also falls back to a
+  `ScriptProcessorNode`, which fetches no module, so the feature never depends
+  on a host's policy to function.
+- **A failed voice start must release the microphone.** A half-started attempt
+  that keeps the stream open denies the device to push-to-talk, so one broken
+  feature disables a working one. Every failure path tears down.
+- **Full-duplex requires echo cancellation.** Without it the agent's own voice
+  trips the VAD and it interrupts itself every sentence. A surface that cannot
+  do AEC — the watch, the terminal — keeps push-to-talk, and
+  `docs/voice-duplex.md` says which and why rather than leaving them looking
+  unfinished.
+- **A configured binary name is not a path.** `whisper_server_bin` defaults to
+  the bare `whisper-server`; checking it with `Path::exists()` asks whether it
+  sits in the daemon's working directory, which it never does. Resolve bare
+  names through `PATH`, and ask the port *before* the binary — a server already
+  listening is usable whether or not one can be started.
 
 - **A mic permission needs two things on Apple platforms** — an `Info.plist`
   usage string *and* (under the hardened runtime) the

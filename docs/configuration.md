@@ -1439,6 +1439,9 @@ VibeCLI saves REPL command history to `~/.vibecli/history.txt`. This file is cre
 # than spawning whisper-cli per utterance is worth ~1 s: `small` measured
 # 1433 ms total against 570 ms of actual encode, the rest being model load and
 # backend init paid on every single turn.
+# A bare name is resolved on PATH; anything with a separator is taken as a
+# literal path. (It used to be checked as a path either way, so a bare name —
+# the natural thing to write here — was never found.)
 whisper_server_bin   = "whisper-server"
 # `small` is the floor for non-Latin scripts — `base` renders Devanagari in
 # Arabic script, while `small` and `medium` produce identical correct text and
@@ -1452,5 +1455,8 @@ whisper_server_port  = 8923
 # capability one.
 tts_sidecar = "/path/to/tts"
 ```
+
+A `whisper-server` **already listening** on `whisper_server_port` is reused as-is,
+so these keys only matter when the daemon has to start one itself.
 
 See [Full-duplex voice](/vibecody/voice-duplex/).

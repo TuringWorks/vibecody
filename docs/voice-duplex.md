@@ -165,3 +165,48 @@ sample goes out. That is a latency difference, not a capability one.
 Running `whisper-server` resident rather than spawning `whisper-cli` per
 utterance is worth ~1 s: `small` measured 1433 ms total against 570 ms of actual
 encode, because every turn was paying model load *and* backend init.
+
+**How the engine is resolved**, in order:
+
+1. **A server already listening** on `whisper_server_port` is used as-is —
+   whether or not a binary can be found to start another. Asking the port first
+   means an existing server is never ignored because of a path that did not
+   resolve.
+2. Otherwise `whisper_server_bin` is resolved: a **bare name** is looked up on
+   `PATH`; anything containing a separator is taken as a literal path and used
+   only if it exists.
+3. If neither yields a server, duplex voice reports what it looked for and the
+   route stays unavailable. Push-to-talk (`POST /voice/transcribe`) is
+   unaffected — it has its own engine resolution.
+
+**TTS defaults to batch.** Without `tts_sidecar` the whole utterance is
+synthesised before the first sample goes out, so first-audio is a few hundred
+milliseconds rather than ~20 ms. Correct, just slower; `ready` reports which
+path is in use (`"tts":"streaming"` or `"tts":"batch"`).
+
+## Troubleshooting
+
+**"No speech engine."** The message names the binary it looked for, the model
+path, and the port nothing was listening on. Usually one of: whisper.cpp is not
+installed, the model has not been downloaded to
+`~/.vibecli/models/ggml-small.bin`, or `whisper_server_bin` points somewhere
+that does not exist. A bare name on `PATH` is fine — that is resolved.
+
+**"Audio capture was blocked by this app's content security policy."** The host
+ships `script-src` without `blob:`, so the AudioWorklet module cannot be
+fetched. Capture falls back to a `ScriptProcessorNode` automatically, so this
+should not surface as a failure; if it does, the host's policy is blocking
+something else as well.
+
+**"Could not reach the daemon's voice route."** The daemon is not running, or
+predates `/ws/voice/duplex`. Check `GET /health` and its `version`.
+
+**Push-to-talk stopped working after a failed voice attempt.** Fixed — a
+half-started duplex attempt used to keep the microphone open, which then denied
+it to push-to-talk. If you see it again on an older build, quitting and
+reopening the app releases the device.
+
+**The assistant answers the wrong thing after you pause mid-sentence.** See
+[Interruption, and what is *not* an interruption](#interruption-and-what-is-not-an-interruption)
+— fragments are carried forward now, but a pause longer than the reply takes to
+start will still be answered as its own turn.

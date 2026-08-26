@@ -568,7 +568,7 @@ Requires a Bearer token, but a WebSocket cannot set headers, so it is passed as
 
 | `type` | Meaning |
 |---|---|
-| `ready` | Which ASR and TTS engines resolved. |
+| `ready` | Which engines resolved: `asr` is `whisper-server` or `whisper-cli`, `tts` is `streaming` or `batch`. Worth checking — `batch` costs a few hundred ms of first-audio. |
 | `state` | `listening` · `hearing` · `thinking` · `speaking`. |
 | `transcript` | What was heard, with `asr_ms` and the detected `lang`. |
 | `speaking` | A sentence about to be spoken. |
