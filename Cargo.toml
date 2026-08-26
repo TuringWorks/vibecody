@@ -1,5 +1,8 @@
 [workspace]
 resolver = "2"
+# Standalone: pulls wry/webrtc, which nothing we ship depends on. Built by
+# its own CI job (.github/workflows/webview-probe.yml), never by the workspace.
+exclude = ["tools/webview-probe"]
 members = [
     "vibecli/vibecli-cli",
     "vibecli/crates/vibe-sandbox",

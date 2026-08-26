@@ -1,0 +1,78 @@
+<!doctype html><meta charset="utf-8"><title>gv1c aec</title>
+<body style="font:12px ui-monospace,monospace;padding:10px"><pre id="log"></pre></body>
+<script>const R = { trail: [], errors: [] };
+const logEl = document.getElementById('log');
+const say = s => { logEl.textContent += s + "\n"; R.trail.push(s); };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+// wry exposes window.ipc; the standalone WKWebView harness used messageHandlers.
+function report() {
+  const body = JSON.stringify(R);
+  try { if (window.ipc && window.ipc.postMessage) return window.ipc.postMessage(body); } catch(e){}
+  try { return window.webkit.messageHandlers.spike.postMessage(body); } catch(e){}
+}
+setTimeout(() => { R.watchdog = "fired"; R.verdict = R.verdict || { pass:false, why:"watchdog" }; report(); }, 60000);
+const withTimeout = (p, ms, tag) =>
+  Promise.race([p, sleep(ms).then(() => { throw new Error("timeout:" + tag); })]);
+</script>
+<script>
+const TONE_HZ = 1000; let ac;
+async function analyser(stream){
+  const an = ac.createAnalyser(); an.fftSize = 4096; an.smoothingTimeConstant = 0;
+  ac.createMediaStreamSource(stream).connect(an);
+  return { an, freq:new Float32Array(an.frequencyBinCount), time:new Float32Array(an.fftSize),
+           binHz: ac.sampleRate/an.fftSize };
+}
+function meas(A){
+  A.an.getFloatFrequencyData(A.freq); A.an.getFloatTimeDomainData(A.time);
+  const c = Math.round(TONE_HZ/A.binHz); let peak = -Infinity;
+  for (let i=Math.max(0,c-3);i<=c+3;i++) peak = Math.max(peak, A.freq[i]);
+  let s=0; for (let i=0;i<A.time.length;i++) s+=A.time[i]*A.time[i];
+  return { tone:peak, rms:20*Math.log10(Math.sqrt(s/A.time.length)+1e-12) };
+}
+async function waitLive(A, ms){ const t0=performance.now();
+  while (performance.now()-t0<ms){ if (meas(A).rms > -150) return +(performance.now()-t0).toFixed(0); await sleep(50);} return null; }
+async function sample(A, ms){ const t0=performance.now(), tone=[], rms=[];
+  while (performance.now()-t0<ms){ const m=meas(A); tone.push(m.tone); rms.push(m.rms); await sleep(50); }
+  tone.sort((a,b)=>a-b); rms.sort((a,b)=>a-b); const med=a=>a[Math.floor(a.length/2)];
+  return { n:tone.length, tone:+med(tone).toFixed(1), rms:+med(rms).toFixed(1) }; }
+
+async function arm(name, aec){
+  say("── " + name + " (echoCancellation=" + aec + ")");
+  const stream = await withTimeout(navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation: aec } }), 12000, "gum");
+  const track = stream.getAudioTracks()[0];
+  const applied = track.getSettings ? track.getSettings().echoCancellation : null;
+  if (!ac) { ac = new (window.AudioContext||window.webkitAudioContext)(); R.sampleRate = ac.sampleRate; }
+  try { await withTimeout(Promise.resolve(ac.resume()), 3000, "resume"); } catch(e){}
+  const A = await analyser(stream);
+  const warmupMs = await waitLive(A, 5000);
+  const quiet = await sample(A, 1500);
+  const osc = ac.createOscillator(); osc.frequency.value = TONE_HZ;
+  const g = ac.createGain(); g.gain.value = 0.35; osc.connect(g); g.connect(ac.destination); osc.start();
+  await sleep(500);
+  const playing = await sample(A, 2000);
+  osc.stop(); g.disconnect(); await sleep(700);
+  const after = await sample(A, 1000);
+  track.stop();
+  const o = { requestedAEC:aec, appliedAEC:applied, warmupMs, quiet, playing, after,
+              leak_dB:+(playing.tone-quiet.tone).toFixed(1) };
+  say("   applied=" + applied + " quiet=" + quiet.tone + " playing=" + playing.tone + " leak=" + o.leak_dB + "dB");
+  R[name] = o; return o;
+}
+
+(async () => {
+try {
+  const off = await arm("aec_off", false);
+  await sleep(800);
+  const on  = await arm("aec_on", true);
+  const audible = off.leak_dB > 6;
+  R.verdict = {
+    pass: audible && (off.leak_dB - on.leak_dB) > 6,
+    control_tone_audible: audible,
+    suppression_dB: +(off.leak_dB - on.leak_dB).toFixed(1),
+    note: "aec_off is the control. control_tone_audible=false means the rig is broken, not the AEC."
+  };
+  say("VERDICT " + JSON.stringify(R.verdict));
+} catch(e){ R.errors.push(String(e && e.message || e)); R.verdict = { pass:false, why:String(e && e.message || e) }; say("ERR " + e); }
+finally { report(); }
+})();
+</script>

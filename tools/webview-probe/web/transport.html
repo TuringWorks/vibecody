@@ -1,0 +1,90 @@
+<!doctype html><meta charset="utf-8"><title>gv1c transport</title>
+<body style="font:12px ui-monospace,monospace;padding:10px"><pre id="log"></pre></body>
+<script>const R = { trail: [], errors: [] };
+const logEl = document.getElementById('log');
+const say = s => { logEl.textContent += s + "\n"; R.trail.push(s); };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+// wry exposes window.ipc; the standalone WKWebView harness used messageHandlers.
+function report() {
+  const body = JSON.stringify(R);
+  try { if (window.ipc && window.ipc.postMessage) return window.ipc.postMessage(body); } catch(e){}
+  try { return window.webkit.messageHandlers.spike.postMessage(body); } catch(e){}
+}
+setTimeout(() => { R.watchdog = "fired"; R.verdict = R.verdict || { pass:false, why:"watchdog" }; report(); }, 60000);
+const withTimeout = (p, ms, tag) =>
+  Promise.race([p, sleep(ms).then(() => { throw new Error("timeout:" + tag); })]);
+</script>
+<script>
+(async () => {
+try {
+  const ac = new (window.AudioContext || window.webkitAudioContext)();
+  try { await Promise.race([ac.resume(), sleep(2000)]); } catch(e){}
+  R.acState = ac.state;
+
+  // Synthetic 1 kHz source: deterministic, and no microphone in the loop, so
+  // this arm needs no audio hardware and can gate CI.
+  const osc = ac.createOscillator(); osc.frequency.value = 1000; osc.start();
+  const dest = ac.createMediaStreamDestination();
+  const g = ac.createGain(); g.gain.value = 0.5; osc.connect(g); g.connect(dest);
+
+  const pc = new RTCPeerConnection({ iceServers: [] });
+  R.cands = [];
+  pc.onicecandidate = e => { if (e.candidate) R.cands.push(e.candidate.candidate); };
+  const gotRelay = new Promise(res => { pc.ontrack = e => res(e.streams[0] || new MediaStream([e.track])); });
+  pc.addTrack(dest.stream.getAudioTracks()[0], dest.stream);
+
+  await pc.setLocalDescription(await pc.createOffer());
+  const g0 = performance.now();
+  while (pc.iceGatheringState !== "complete" && performance.now() - g0 < 6000) await sleep(100);
+  R.gatheringMs = +(performance.now() - g0).toFixed(0);
+  R.mdnsOnly = R.cands.length > 0 && R.cands.every(c => /\.local/.test(c));
+  say("gathered " + R.cands.length + " candidates in " + R.gatheringMs + "ms (mDNS-only: " + R.mdnsOnly + ")");
+
+  const res = await withTimeout(fetch("/offer", { method: "POST", body: pc.localDescription.sdp }), 15000, "signal");
+  if (!res.ok) { R.errors.push("signaling " + res.status); R.verdict = { pass:false, why:"signaling" }; return report(); }
+  await pc.setRemoteDescription({ type: "answer", sdp: await res.text() });
+  say("answer applied");
+
+  const t0 = performance.now();
+  while (performance.now() - t0 < 25000) {
+    if (["connected","completed","failed"].includes(pc.iceConnectionState)) break;
+    await sleep(200);
+  }
+  R.iceMs = +(performance.now() - t0).toFixed(0);
+  R.iceState = pc.iceConnectionState;
+  say("ice=" + R.iceState + " after " + R.iceMs + "ms");
+
+  const relay = await Promise.race([gotRelay, sleep(3000).then(()=>null)]);
+  R.relayTrack = !!relay;
+  if (relay) {
+    const an = ac.createAnalyser(); an.fftSize = 4096; an.smoothingTimeConstant = 0;
+    ac.createMediaStreamSource(relay).connect(an);
+    const f = new Float32Array(an.frequencyBinCount);
+    const c = Math.round(1000 / (ac.sampleRate / an.fftSize));
+    let peak = -Infinity;
+    for (let k = 0; k < 40; k++) { an.getFloatFrequencyData(f);
+      for (let i = Math.max(0,c-3); i <= c+3; i++) peak = Math.max(peak, f[i]); await sleep(60); }
+    R.relayedTone_dB = Number.isFinite(peak) ? +peak.toFixed(1) : null;
+    say("relayed 1kHz peak: " + R.relayedTone_dB + " dB");
+  }
+
+  const stats = await pc.getStats(); let outb=null, inb=null;
+  stats.forEach(s => { if (s.type==='outbound-rtp') outb=s; if (s.type==='inbound-rtp') inb=s; });
+  R.outbound = outb ? { packetsSent: outb.packetsSent, bytesSent: outb.bytesSent } : null;
+  R.inbound  = inb  ? { packetsReceived: inb.packetsReceived, bytesReceived: inb.bytesReceived } : null;
+  try { R.peerStats = await (await fetch("/peer-stats")).json(); } catch(e){}
+
+  const up = !!(R.peerStats && R.peerStats.packets_in > 0);
+  const down = (R.relayedTone_dB ?? -999) > -100 || !!(R.inbound && R.inbound.packetsReceived > 0);
+  R.verdict = {
+    pass: ["connected","completed"].includes(R.iceState) && up && down,
+    iceConnected: ["connected","completed"].includes(R.iceState),
+    up_webviewToDaemon: up, down_daemonToWebview: down,
+    mdnsOnlyCandidates: R.mdnsOnly
+  };
+  say("VERDICT " + JSON.stringify(R.verdict));
+  pc.close(); osc.stop();
+} catch(e){ R.errors.push(String(e && e.message || e)); R.verdict = R.verdict || { pass:false }; say("ERR " + e); }
+finally { report(); }
+})();
+</script>

@@ -1,0 +1,69 @@
+name: webview-probe
+
+# The transport arm needs no audio hardware, so the question "can a webview
+# reach a local WebRTC peer on this engine" can be answered on every push
+# instead of being assumed. The AEC arm is deliberately absent: it needs a real
+# microphone and speaker in one room, and a virtual loopback device would
+# measure the driver rather than the echo canceller.
+
+on:
+  push:
+    paths: ['tools/webview-probe/**', '.github/workflows/webview-probe.yml']
+  pull_request:
+    paths: ['tools/webview-probe/**', '.github/workflows/webview-probe.yml']
+  workflow_dispatch:
+
+jobs:
+  transport:
+    name: transport (${{ matrix.engine }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            engine: WKWebView
+          - os: windows-latest
+            engine: WebView2
+          - os: ubuntu-latest
+            engine: WebKitGTK
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Linux deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev xvfb pulseaudio
+          # WebKitGTK can refuse to construct an AudioContext with no sink at
+          # all. A null sink costs nothing and removes that as a variable.
+          pulseaudio --start || true
+          pactl load-module module-null-sink sink_name=probe || true
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tools/webview-probe
+
+      - name: Build
+        working-directory: tools/webview-probe
+        run: cargo build --release
+
+      # A webview needs a display even when nothing looks at it.
+      - name: Run transport arm (Linux)
+        if: runner.os == 'Linux'
+        working-directory: tools/webview-probe
+        run: xvfb-run -a ./target/release/webview-probe --arm transport --out result.json
+
+      - name: Run transport arm
+        if: runner.os != 'Linux'
+        working-directory: tools/webview-probe
+        run: ./target/release/webview-probe --arm transport --out result.json
+
+      - name: Upload result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webview-probe-${{ matrix.engine }}
+          path: tools/webview-probe/result.json
+          if-no-files-found: warn

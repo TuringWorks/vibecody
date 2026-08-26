@@ -1,0 +1,52 @@
+<!doctype html><meta charset="utf-8"><title>gv1c probe</title>
+<body style="font:12px ui-monospace,monospace;padding:10px"><pre id="log"></pre></body>
+<script>const R = { trail: [], errors: [] };
+const logEl = document.getElementById('log');
+const say = s => { logEl.textContent += s + "\n"; R.trail.push(s); };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+// wry exposes window.ipc; the standalone WKWebView harness used messageHandlers.
+function report() {
+  const body = JSON.stringify(R);
+  try { if (window.ipc && window.ipc.postMessage) return window.ipc.postMessage(body); } catch(e){}
+  try { return window.webkit.messageHandlers.spike.postMessage(body); } catch(e){}
+}
+setTimeout(() => { R.watchdog = "fired"; R.verdict = R.verdict || { pass:false, why:"watchdog" }; report(); }, 60000);
+const withTimeout = (p, ms, tag) =>
+  Promise.race([p, sleep(ms).then(() => { throw new Error("timeout:" + tag); })]);
+</script>
+<script>
+(async () => {
+try {
+  const md = navigator.mediaDevices;
+  const sc = (md && md.getSupportedConstraints) ? md.getSupportedConstraints() : {};
+  R.probe = {
+    secureContext: window.isSecureContext,
+    RTCPeerConnection: typeof RTCPeerConnection,
+    getUserMedia: !!(md && md.getUserMedia),
+    AudioContext: typeof (window.AudioContext || window.webkitAudioContext),
+    echoCancellation: !!sc.echoCancellation,
+    autoGainControl: !!sc.autoGainControl,
+    noiseSuppression: !!sc.noiseSuppression,
+    supportedConstraintKeys: Object.keys(sc),
+  };
+  say("secureContext=" + R.probe.secureContext + " pc=" + R.probe.RTCPeerConnection + " gum=" + R.probe.getUserMedia);
+  say("AEC=" + R.probe.echoCancellation + " AGC=" + R.probe.autoGainControl + " NS=" + R.probe.noiseSuppression);
+  // Does the mic actually open on this engine? On WebKitGTK this is the line
+  // that fails unless the embedder enabled media-stream and answered the
+  // permission request.
+  try {
+    const s = await withTimeout(md.getUserMedia({ audio: { echoCancellation: true } }), 12000, "gum");
+    const t = s.getAudioTracks()[0];
+    R.probe.micOpened = true;
+    R.probe.trackSettings = t.getSettings ? t.getSettings() : null;
+    R.probe.trackLabel = t.label;
+    t.stop();
+    say("mic opened: " + R.probe.trackLabel);
+  } catch(e) { R.probe.micOpened = false; R.probe.micError = String(e && e.message || e); say("mic FAILED: " + R.probe.micError); }
+  R.verdict = { pass: R.probe.RTCPeerConnection === "function" && R.probe.getUserMedia && R.probe.micOpened,
+                aec: R.probe.echoCancellation, agc: R.probe.autoGainControl, ns: R.probe.noiseSuppression };
+  say("VERDICT " + JSON.stringify(R.verdict));
+} catch(e){ R.errors.push(String(e)); R.verdict = { pass:false }; }
+finally { report(); }
+})();
+</script>
