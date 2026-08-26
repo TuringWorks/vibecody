@@ -1,7 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { FolderOpen, AlertTriangle, X, ChevronDown } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
-import { ReviewPanel } from './ReviewPanel';
+import { ReviewPanel, ReviewControls, useCodeReview } from './ReviewPanel';
 import { useToast } from '../hooks/useToast';
 import { Toaster } from './Toaster';
 
@@ -71,6 +71,10 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  const [localView, setLocalView] = useState<GitPanelView>('changes');
  const view = viewProp ?? localView;
  const setView = (next: GitPanelView) => { setLocalView(next); onViewChange?.(next); };
+ /* One review run, shared across two tabs: the controls that start it sit with
+  * the changes on the Changes tab, the findings on the Review tab. Held here
+  * because neither component can own state the other needs. */
+ const review = useCodeReview(workspacePath, selectedProvider);
  const [commitMessage, setCommitMessage] = useState('');
  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
  const [isLoading, setIsLoading] = useState(false);
@@ -605,22 +609,14 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  <div className="panel-container" style={{ padding: '12px' }}>
  {viewSwitch}
  <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
- /* Height is a floor, not a cap. The box used to be a fixed 420px with
-  * `overflow: hidden`, which clipped every review longer than it — the
-  * findings below the fold were unreachable, since the clip left nothing
-  * to scroll. Letting the content size the box hands the scrolling to the
-  * panel's one scroll region above. */
- <div style={{ marginTop: 8, minHeight: 240, borderRadius: "var(--radius-sm)", background: 'var(--bg-secondary)' }}>
  <ReviewPanel
- workspacePath={workspacePath}
- selectedProvider={selectedProvider}
+ review={review}
  onOpenFile={onCompareFile ? (path) => {
  invoke<string>('git_diff', { path: workspacePath, filePath: path })
  .then((diff) => onCompareFile(path, diff))
  .catch(console.error);
  } : undefined}
  />
- </div>
  </div>
  <Toaster toasts={toasts} onDismiss={dismiss} />
  </div>
@@ -992,9 +988,24 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  </button>
  </div>
 
- {/* Code Review, Generate Changelog and Git Settings live in their own tabs
-   * now — see the `view` branches above. They were collapsible sections here,
-   * sharing this scroll region with the changes list. */}
+ {/* ── Review ──
+   * Starting a review belongs with the changes being reviewed; the findings
+   * do not, so only the control is here and the report lands on the Review
+   * tab. Pressing the button switches there, because a run whose output
+   * appears on a tab you are not looking at reads as a button that did
+   * nothing.
+   *
+   * Generate Changelog and Git Settings moved out wholesale — see the `view`
+   * branches above. All three were collapsible sections in this scroll
+   * region. */}
+ <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 8, marginBottom: 10 }}>
+ <ReviewControls
+ review={review}
+ workspacePath={workspacePath}
+ onRun={() => setView('review')}
+ />
+ </div>
+
  {/* ── AI Git Tools section ── */}
  <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 8 }}>
  {/* Branch Name Suggester */}

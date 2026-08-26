@@ -48,12 +48,40 @@ interface ReviewReport {
 
 // ── Props ──────────────────────────────────────────────────────────────────
 
+/**
+ * Everything a review run owns, shared by the control that starts it and the
+ * body that shows the result.
+ *
+ * They live on opposite sides of a tab boundary — the controls sit with the
+ * changes being reviewed, the findings in the Review tab — so the state cannot
+ * live in either component. `useCodeReview` holds it and the parent hands the
+ * same instance to both.
+ */
+export interface CodeReview {
+ baseRef: string;
+ setBaseRef: (next: string) => void;
+ isLoading: boolean;
+ report: ReviewReport | null;
+ error: string | null;
+ /** Bumped by each run so a hand-off button stops claiming the previous
+  *  report's issues were sent. */
+ runId: number;
+ runReview: () => Promise<void>;
+}
+
 interface ReviewPanelProps {
- workspacePath: string | null;
+ /** The shared run state — see [`useCodeReview`]. */
+ review: CodeReview;
  onOpenFile?: (path: string, line?: number) => void;
- /** Provider name from the toolbar dropdown — forwarded so the AI reviewer
-  *  uses the user's selected model instead of the chat engine's default. */
- selectedProvider?: string;
+}
+
+interface ReviewControlsProps {
+ review: CodeReview;
+ workspacePath: string | null;
+ /** Called when a run starts, so the caller can show the results. Without it
+  *  a user pressing Run Review from the Changes tab gets no feedback at all:
+  *  the report lands on a tab they are not looking at. */
+ onRun?: () => void;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -203,16 +231,23 @@ function ScoreBar({ label, value }: { label: string; value: number | null }) {
 
 // ── Component ──────────────────────────────────────────────────────────────
 
-export function ReviewPanel({ workspacePath, onOpenFile, selectedProvider }: ReviewPanelProps) {
+/**
+ * Own a code-review run.
+ *
+ * Called once by the parent, which then renders [`ReviewControls`] and
+ * [`ReviewPanel`] from the same instance. `selectedProvider` is the toolbar's
+ * choice, forwarded so the reviewer uses the user's model rather than whatever
+ * the chat engine happens to have active.
+ */
+export function useCodeReview(
+ workspacePath: string | null,
+ selectedProvider?: string,
+): CodeReview {
  const [isLoading, setIsLoading] = useState(false);
  const [report, setReport] = useState<ReviewReport | null>(null);
  const [error, setError] = useState<string | null>(null);
- const [filterSeverity, setFilterSev] = useState<Severity | 'all'>('all');
- // Bumped by each review so a hand-off button stops claiming the previous
- // report's issues were sent.
  const [runId, setRunId] = useState(0);
  const [baseRef, setBaseRef] = useState('');
- const [expandedIssue, setExpanded] = useState<number | null>(null);
 
  const runReview = async () => {
  if (!workspacePath) return;
@@ -237,6 +272,43 @@ export function ReviewPanel({ workspacePath, onOpenFile, selectedProvider }: Rev
  }
  };
 
+ return { baseRef, setBaseRef, isLoading, report, error, runId, runReview };
+}
+
+/**
+ * The base-ref field and the Run button.
+ *
+ * Separate from the panel so it can sit beside the working tree it reviews.
+ * Reviewing is an action on the changes you are looking at, and it used to be
+ * a control stranded above an empty results pane on a different tab.
+ */
+export function ReviewControls({ review, workspacePath, onRun }: ReviewControlsProps) {
+ return (
+ <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+ <input
+ value={review.baseRef}
+ onChange={(e) => review.setBaseRef(e.target.value)}
+ placeholder="Base ref (e.g. main, HEAD~1) — leave blank for uncommitted"
+ className="panel-input"
+ style={{ flex: 1, minWidth: 0 }}
+ />
+ <button
+ onClick={() => { onRun?.(); void review.runReview(); }}
+ disabled={review.isLoading || !workspacePath}
+ className="panel-btn panel-btn-primary"
+ style={{ flexShrink: 0, opacity: !workspacePath ? 0.5 : 1 }}
+ >
+ {review.isLoading ? 'Reviewing…' : 'Run Review'}
+ </button>
+ </div>
+ );
+}
+
+export function ReviewPanel({ review, onOpenFile }: ReviewPanelProps) {
+ const { isLoading, report, error, runId } = review;
+ const [filterSeverity, setFilterSev] = useState<Severity | 'all'>('all');
+ const [expandedIssue, setExpanded] = useState<number | null>(null);
+
  const filteredIssues = report?.issues.filter(
  (i) => filterSeverity === 'all' || i.severity === filterSeverity,
  ) ?? [];
@@ -246,25 +318,8 @@ export function ReviewPanel({ workspacePath, onOpenFile, selectedProvider }: Rev
 
  return (
  <div className="panel-container">
- {/* ── Toolbar ── */}
- <div className="panel-header">
- <input
- value={baseRef}
- onChange={(e) => setBaseRef(e.target.value)}
- placeholder="Base ref (e.g. main, HEAD~1) — leave blank for uncommitted"
- className="panel-input"
- style={{ flex: 1, minWidth: 180 }}
- />
- <button
- onClick={runReview}
- disabled={isLoading || !workspacePath}
- className="panel-btn panel-btn-primary"
- style={{ opacity: !workspacePath ? 0.5 : 1 }}
- >
- {isLoading ? ' Reviewing…' : ' Run Review'}
- </button>
- </div>
-
+ {/* The toolbar that used to sit here is `ReviewControls`, rendered beside
+   * the changes list on the Changes tab. */}
  <div className="panel-body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
  {/* ── Error ── */}
  {error && (

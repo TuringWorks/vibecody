@@ -22,16 +22,34 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: (...args: unknown[]) => mockInvoke(...args),
 }));
 
-import { ReviewPanel } from "../ReviewPanel";
+import { ReviewPanel, ReviewControls, useCodeReview } from "../ReviewPanel";
 
 beforeEach(() => mockInvoke.mockReset());
+
+/**
+ * The two halves wired together, as GitPanel wires them.
+ *
+ * The control and the body now live on different tabs and share state through
+ * `useCodeReview`, so a test that drove the panel's own toolbar no longer has
+ * one. Rendering both against a single hook instance is closer to production
+ * than before: it exercises the join as well as the body.
+ */
+function ReviewHost({ workspacePath = "/ws" }: { workspacePath?: string }) {
+  const review = useCodeReview(workspacePath);
+  return (
+    <>
+      <ReviewControls review={review} workspacePath={workspacePath} />
+      <ReviewPanel review={review} />
+    </>
+  );
+}
 
 /** Run a review whose reply is `report`, and wait for it to land. */
 async function review(report: unknown) {
   mockInvoke.mockImplementation((cmd: string) =>
     cmd === "run_code_review" ? Promise.resolve(report) : Promise.resolve(null),
   );
-  render(<ReviewPanel workspacePath="/ws" />);
+  render(<ReviewHost />);
   fireEvent.click(screen.getByRole("button", { name: /Run Review/ }));
   await waitFor(() => expect(screen.getByText(/Quality Score/)).toBeTruthy());
 }
