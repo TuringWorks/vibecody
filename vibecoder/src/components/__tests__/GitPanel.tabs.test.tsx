@@ -65,7 +65,14 @@ beforeEach(() => {
 
 async function renderPanel() {
   render(<GitPanel workspacePath="/repo" selectedProvider="ollama" />);
-  await waitFor(() => expect(screen.getByRole('tab', { name: 'Changes' })).toBeInTheDocument());
+  // Wait for the Changes *body*, not the tab bar. The panel renders its tab bar
+  // during the "Loading git status…" state too, so waiting on a tab returned
+  // before `get_git_status` resolved — and under a loaded suite the body was
+  // still absent when the assertions ran. The heading only appears once the
+  // status has landed.
+  await waitFor(() =>
+    expect(screen.getByRole('heading', { name: 'Changes' })).toBeInTheDocument(),
+  );
 }
 
 const openTab = async (name: string) => {
@@ -92,9 +99,9 @@ function expectNoRawComments() {
 }
 
 describe('GitPanel tabs', () => {
-  it('offers Review, Changelog and Settings as tabs', async () => {
+  it('offers Review, Changelog, Tools and Settings as tabs', async () => {
     await renderPanel();
-    for (const name of ['Changes', 'Review', 'Changelog', 'Settings', 'GitHub']) {
+    for (const name of ['Changes', 'Review', 'Changelog', 'Tools', 'Settings', 'GitHub']) {
       expect(screen.getByRole('tab', { name })).toBeInTheDocument();
     }
   });
@@ -113,6 +120,18 @@ describe('GitPanel tabs', () => {
     expect(screen.queryByTestId('review-panel')).toBeNull();
     expect(screen.queryByPlaceholderText(/since \(e\.g\. HEAD~10/)).toBeNull();
     expect(screen.queryByPlaceholderText('User name')).toBeNull();
+    // The AI git tools are neither a property of the working tree nor a review
+    // of it, so they are not here either.
+    expect(screen.queryByPlaceholderText('Describe the task…')).toBeNull();
+    expect(screen.queryByPlaceholderText(/File path/)).toBeNull();
+  });
+
+  it('shows the AI git tools on their own tab', async () => {
+    await renderPanel();
+    await openTab('Tools');
+    expect(screen.getByPlaceholderText('Describe the task…')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/File path/)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Changes' })).toBeNull();
   });
 
   it('shows the review findings on their own tab', async () => {
@@ -126,7 +145,7 @@ describe('GitPanel tabs', () => {
   /** Every tab, because the leak was in one of them and nothing said so. */
   it('renders no comment syntax as text on any tab', async () => {
     await renderPanel();
-    for (const name of ['Changes', 'Review', 'Changelog', 'Settings']) {
+    for (const name of ['Changes', 'Review', 'Changelog', 'Tools', 'Settings']) {
       // eslint-disable-next-line no-await-in-loop
       await openTab(name);
       expectNoRawComments();

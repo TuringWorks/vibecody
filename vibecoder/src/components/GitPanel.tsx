@@ -1,5 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
-import { FolderOpen, AlertTriangle, X, ChevronDown } from 'lucide-react';
+import { FolderOpen, AlertTriangle, X } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { ReviewPanel, ReviewControls, useCodeReview } from './ReviewPanel';
 import { useToast } from '../hooks/useToast';
@@ -16,6 +16,7 @@ export type GitPanelView =
  | 'changes'
  | 'review'
  | 'changelog'
+ | 'tools'
  | 'settings'
  | 'github';
 
@@ -91,7 +92,6 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  const [changelog, setChangelog] = useState('');
  const [generatingChangelog, setGeneratingChangelog] = useState(false);
  const [changelogRef, setChangelogRef] = useState('HEAD~10');
- const [showConflictModal, setShowConflictModal] = useState(false);
  const [conflictText, setConflictText] = useState('');
  const [conflictFile, setConflictFile] = useState('');
  const [resolvingConflict, setResolvingConflict] = useState(false);
@@ -499,6 +499,7 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  ['changes', 'Changes'],
  ['review', 'Review'],
  ['changelog', 'Changelog'],
+ ['tools', 'Tools'],
  ['settings', 'Settings'],
  ['github', 'GitHub'],
  ] as const).map(([id, label]) => (
@@ -660,6 +661,103 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  </button>
  </div>
  )}
+ </div>
+ </div>
+ <Toaster toasts={toasts} onDismiss={dismiss} />
+ </div>
+ );
+ }
+
+ /* Suggesting a branch name and untangling a merge conflict are neither a
+  * property of the working tree nor a review of it — they are things you go
+  * and do. Sat under the changes list they read as commentary on the files
+  * above them, which is what put them here. */
+ if (view === 'tools') {
+ return (
+ <div className="panel-container" style={{ padding: '12px' }}>
+ {viewSwitch}
+ <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+ {/* ── AI Git Tools section ── */}
+ <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 8 }}>
+ {/* Branch Name Suggester */}
+ <div style={{ marginBottom: 10 }}>
+ <div style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)', marginBottom: 4 }}>AI Branch Name</div>
+ <div style={{ display: 'flex', gap: 6 }}>
+ <input
+ value={branchTask}
+ onChange={e => setBranchTask(e.target.value)}
+ onKeyDown={e => e.key === 'Enter' && handleSuggestBranch()}
+ placeholder="Describe the task…"
+ style={{ flex: 1, background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', fontFamily: 'inherit', fontSize: "var(--font-size-sm)" }}
+ />
+ <button className="panel-btn"
+ onClick={handleSuggestBranch}
+ disabled={suggestingBranch || !branchTask.trim()}
+ style={{ background: 'var(--accent-bg)', color: 'var(--accent-color)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', cursor: 'pointer', fontSize: "var(--font-size-sm)" }}
+ >
+ {suggestingBranch ? '…' : ''}
+ </button>
+ </div>
+ {suggestedBranch && (
+ <div style={{ marginTop: 5, display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-secondary)', padding: '4px 8px', borderRadius: "var(--radius-xs-plus)" }}>
+ <code style={{ flex: 1, fontSize: "var(--font-size-sm)", color: 'var(--info-color)' }}>{suggestedBranch}</code>
+ <button
+ onClick={() => { navigator.clipboard.writeText(suggestedBranch).then(() => toast.success('Copied!')).catch(() => {}); }}
+ style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: "var(--font-size-xs)" }}
+ >
+ 
+ </button>
+ </div>
+ )}
+ </div>
+
+ {/* Merge Conflict Resolver — no longer collapsed. The disclosure existed to
+   * keep a tall form out of a column shared with the changes list; on a tab of
+   * its own there is nothing to yield to, and a header that hides the only
+   * thing on screen is a click for nothing. */}
+ <div>
+ <div style={{ fontSize: "var(--font-size-base)", color: 'var(--text-primary)', marginBottom: 6 }}>
+ Resolve Merge Conflict
+ </div>
+ <div>
+ <input
+ value={conflictFile}
+ onChange={e => setConflictFile(e.target.value)}
+ placeholder="File path (e.g. src/main.rs)"
+ style={{ width: '100%', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', fontFamily: 'inherit', fontSize: "var(--font-size-sm)", marginBottom: 5, boxSizing: 'border-box' }}
+ />
+ <textarea
+ value={conflictText}
+ onChange={e => setConflictText(e.target.value)}
+ placeholder="Paste the conflict block here (<<<<<<< HEAD ... ======= ... >>>>>>> branch)..."
+ rows={6}
+ style={{ width: '100%', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: 6, fontFamily: 'inherit', fontSize: "var(--font-size-sm)", marginBottom: 5, boxSizing: 'border-box' }}
+ />
+ <button className="panel-btn"
+ onClick={handleResolveConflict}
+ disabled={resolvingConflict || !conflictText.trim()}
+ style={{ width: '100%', background: 'var(--accent-bg)', color: 'var(--accent-color)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '4px 0', cursor: 'pointer', fontSize: "var(--font-size-sm)", marginBottom: 5 }}
+ >
+ {resolvingConflict ? ' Resolving…' : ' AI Resolve'}
+ </button>
+ {conflictResolution && (
+ <div style={{ position: 'relative' }}>
+ <textarea
+ value={conflictResolution}
+ onChange={e => setConflictResolution(e.target.value)}
+ rows={8}
+ style={{ width: '100%', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: 6, fontFamily: 'inherit', fontSize: "var(--font-size-sm)", boxSizing: 'border-box' }}
+ />
+ <button
+ onClick={() => { navigator.clipboard.writeText(conflictResolution).then(() => toast.success('Copied!')).catch(() => {}); }}
+ style={{ position: 'absolute', top: 4, right: 4, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 3, padding: '2px 8px', cursor: 'pointer', fontSize: "var(--font-size-xs)", color: 'var(--text-secondary)' }}
+ >
+ Copy resolution
+ </button>
+ </div>
+ )}
+ </div>
+ </div>
  </div>
  </div>
  <Toaster toasts={toasts} onDismiss={dismiss} />
@@ -995,9 +1093,9 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
    * appears on a tab you are not looking at reads as a button that did
    * nothing.
    *
-   * Generate Changelog and Git Settings moved out wholesale — see the `view`
-   * branches above. All three were collapsible sections in this scroll
-   * region. */}
+   * Changelog, Settings and the AI git tools moved out wholesale — see the
+   * `view` branches above. All of them were collapsible sections competing for
+   * this one scroll region. */}
  <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 8, marginBottom: 10 }}>
  <ReviewControls
  review={review}
@@ -1006,91 +1104,6 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  />
  </div>
 
- {/* ── AI Git Tools section ── */}
- <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 8 }}>
- {/* Branch Name Suggester */}
- <div style={{ marginBottom: 10 }}>
- <div style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)', marginBottom: 4 }}>AI Branch Name</div>
- <div style={{ display: 'flex', gap: 6 }}>
- <input
- value={branchTask}
- onChange={e => setBranchTask(e.target.value)}
- onKeyDown={e => e.key === 'Enter' && handleSuggestBranch()}
- placeholder="Describe the task…"
- style={{ flex: 1, background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', fontFamily: 'inherit', fontSize: "var(--font-size-sm)" }}
- />
- <button className="panel-btn"
- onClick={handleSuggestBranch}
- disabled={suggestingBranch || !branchTask.trim()}
- style={{ background: 'var(--accent-bg)', color: 'var(--accent-color)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', cursor: 'pointer', fontSize: "var(--font-size-sm)" }}
- >
- {suggestingBranch ? '…' : ''}
- </button>
- </div>
- {suggestedBranch && (
- <div style={{ marginTop: 5, display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-secondary)', padding: '4px 8px', borderRadius: "var(--radius-xs-plus)" }}>
- <code style={{ flex: 1, fontSize: "var(--font-size-sm)", color: 'var(--info-color)' }}>{suggestedBranch}</code>
- <button
- onClick={() => { navigator.clipboard.writeText(suggestedBranch).then(() => toast.success('Copied!')).catch(() => {}); }}
- style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: "var(--font-size-xs)" }}
- >
- 
- </button>
- </div>
- )}
- </div>
-
- {/* Merge Conflict Resolver */}
- <div>
- <button
- onClick={() => setShowConflictModal(c => !c)}
- style={{ width: '100%', textAlign: 'left', padding: '4px 0', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', fontSize: "var(--font-size-base)", display: 'flex', alignItems: 'center', gap: 6 }}
- >
- {showConflictModal && <ChevronDown size={12} />}
- <span>Resolve Merge Conflict</span>
- </button>
- {showConflictModal && (
- <div style={{ marginTop: 6 }}>
- <input
- value={conflictFile}
- onChange={e => setConflictFile(e.target.value)}
- placeholder="File path (e.g. src/main.rs)"
- style={{ width: '100%', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', fontFamily: 'inherit', fontSize: "var(--font-size-sm)", marginBottom: 5, boxSizing: 'border-box' }}
- />
- <textarea
- value={conflictText}
- onChange={e => setConflictText(e.target.value)}
- placeholder="Paste the conflict block here (<<<<<<< HEAD ... ======= ... >>>>>>> branch)..."
- rows={6}
- style={{ width: '100%', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: 6, fontFamily: 'inherit', fontSize: "var(--font-size-sm)", marginBottom: 5, boxSizing: 'border-box' }}
- />
- <button className="panel-btn"
- onClick={handleResolveConflict}
- disabled={resolvingConflict || !conflictText.trim()}
- style={{ width: '100%', background: 'var(--accent-bg)', color: 'var(--accent-color)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '4px 0', cursor: 'pointer', fontSize: "var(--font-size-sm)", marginBottom: 5 }}
- >
- {resolvingConflict ? ' Resolving…' : ' AI Resolve'}
- </button>
- {conflictResolution && (
- <div style={{ position: 'relative' }}>
- <textarea
- value={conflictResolution}
- onChange={e => setConflictResolution(e.target.value)}
- rows={8}
- style={{ width: '100%', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: 6, fontFamily: 'inherit', fontSize: "var(--font-size-sm)", boxSizing: 'border-box' }}
- />
- <button
- onClick={() => { navigator.clipboard.writeText(conflictResolution).then(() => toast.success('Copied!')).catch(() => {}); }}
- style={{ position: 'absolute', top: 4, right: 4, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 3, padding: '2px 8px', cursor: 'pointer', fontSize: "var(--font-size-xs)", color: 'var(--text-secondary)' }}
- >
- Copy resolution
- </button>
- </div>
- )}
- </div>
- )}
- </div>
- </div>
 
  {/* end of the scroll region */}
  </div>
