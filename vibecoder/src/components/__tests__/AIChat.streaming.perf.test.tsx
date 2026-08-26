@@ -58,6 +58,9 @@ import type { Message } from '../AIChat';
 
 const TRANSCRIPT = 30;
 
+/** Mirrors `STREAM_FLUSH_MS` in AIChat.tsx — the publish interval under test. */
+const STREAM_FLUSH_MS = 16;
+
 function transcript(): Message[] {
   return Array.from({ length: TRANSCRIPT }, (_, i) => ({
     role: (i % 2 === 0 ? 'user' : 'assistant') as Message['role'],
@@ -283,17 +286,30 @@ describe('AIChat streaming render frequency', () => {
     // One `act` per chunk. Batching them into one would let React collapse the
     // renders by itself and the assertion below would hold with or without the
     // throttle — the real stream arrives as 40 separate Tauri events.
-    for (let i = 0; i < 40; i += 1) {
+    const CHUNKS = 40;
+    const startedAt = Date.now();
+    for (let i = 0; i < CHUNKS; i += 1) {
       // eslint-disable-next-line no-await-in-loop
       await act(async () => emit('chat:chunk', `tok${i} `));
     }
+    const elapsedMs = Date.now() - startedAt;
 
-    // One leading-edge publish. Before this, 40 chunks meant 40 renders of the
-    // live bubble, each re-parsing everything received so far.
-    // Measured: 40 before (one full re-parse of the reply-so-far per chunk),
-    // 1-2 after.
+    // Before this, 40 chunks meant 40 renders of the live bubble, each
+    // re-parsing everything received so far. After, it is one leading-edge
+    // publish plus one per elapsed window.
+    //
+    // The bound is computed from measured elapsed time rather than hardcoded.
+    // A fixed `<= 3` passes on an idle machine and fails under a loaded full
+    // suite, where the 40 iterations can straddle several 16 ms windows — this
+    // test did exactly that, intermittently, before the bound was derived.
+    // What the throttle actually promises is "at most one render per window",
+    // and that is what is asserted.
+    const windows = Math.ceil(elapsedMs / STREAM_FLUSH_MS) + 1; // +1: leading edge
     expect(markdownRenders).toBeGreaterThan(0);
-    expect(markdownRenders).toBeLessThanOrEqual(3);
+    expect(markdownRenders).toBeLessThanOrEqual(windows);
+    // …and the claim that matters is not weakened by a slow machine: however
+    // long this took, it must still be far cheaper than one render per chunk.
+    expect(markdownRenders).toBeLessThan(CHUNKS / 2);
 
     // …and nothing is lost: the trailing flush carries the whole burst.
     await waitFor(() => {

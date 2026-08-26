@@ -1,5 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
-import { FolderOpen, AlertTriangle, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { FolderOpen, AlertTriangle, X, ChevronDown } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { ReviewPanel } from './ReviewPanel';
 import { useToast } from '../hooks/useToast';
@@ -12,7 +12,12 @@ const GitHubComposite = lazy(() =>
  import('./composite/GitHubComposite').then(m => ({ default: m.GitHubComposite })));
 
 /** Which half of Source Control is showing. */
-export type GitPanelView = 'changes' | 'github';
+export type GitPanelView =
+ | 'changes'
+ | 'review'
+ | 'changelog'
+ | 'settings'
+ | 'github';
 
 interface GitPanelProps {
  workspacePath: string | null;
@@ -75,12 +80,10 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  const [history, setHistory] = useState<CommitInfo[]>([]);
  const [selectedCommit, setSelectedCommit] = useState<CommitInfo | null>(null);
  const [commitFiles, setCommitFiles] = useState<string[]>([]);
- const [showReview, setShowReview] = useState(false);
  const [confirmDiscard, setConfirmDiscard] = useState<string | null>(null);
  const [branchTask, setBranchTask] = useState('');
  const [suggestingBranch, setSuggestingBranch] = useState(false);
  const [suggestedBranch, setSuggestedBranch] = useState<string | null>(null);
- const [showChangelog, setShowChangelog] = useState(false);
  const [changelog, setChangelog] = useState('');
  const [generatingChangelog, setGeneratingChangelog] = useState(false);
  const [changelogRef, setChangelogRef] = useState('HEAD~10');
@@ -90,7 +93,6 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  const [resolvingConflict, setResolvingConflict] = useState(false);
  const [conflictResolution, setConflictResolution] = useState('');
  const [gitError, setGitError] = useState<string | null>(null);
- const [showGitSettings, setShowGitSettings] = useState(false);
  const [gitUserName, setGitUserName] = useState('');
  const [gitUserEmail, setGitUserEmail] = useState('');
  const [gitCredUrl, setGitCredUrl] = useState('');
@@ -472,15 +474,36 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  );
  }
 
+ /* Review, Changelog and Settings each get a tab of their own rather than a
+  * collapsible section stacked under the changes list. As sections they shared
+  * one scroll region with everything above them, so opening a review meant
+  * scrolling past the working tree to read it and scrolling back to act on it —
+  * and the three of them are the parts of this panel that most want the height:
+  * a findings list, a generated changelog, and three groups of settings fields.
+  *
+  * Full-width `flex: 1` buttons stop working at five, so this is the house
+  * `panel-tab-bar`. It does not wrap, so it scrolls sideways in a narrow panel
+  * instead of squeezing the labels to nothing. */
  const viewSwitch = (
- <div role="tablist" aria-label="Source Control view" style={{ display: 'flex', gap: '4px', marginBottom: '12px' }}>
- {([['changes', 'Changes'], ['github', 'GitHub']] as const).map(([id, label]) => (
+ <div
+ role="tablist"
+ aria-label="Source Control view"
+ className="panel-tab-bar"
+ style={{ marginBottom: '12px', overflowX: 'auto' }}
+ >
+ {([
+ ['changes', 'Changes'],
+ ['review', 'Review'],
+ ['changelog', 'Changelog'],
+ ['settings', 'Settings'],
+ ['github', 'GitHub'],
+ ] as const).map(([id, label]) => (
  <button
  key={id}
  role="tab"
  aria-selected={view === id}
- className={`panel-btn ${view === id ? 'btn-primary' : 'btn-secondary'}`}
- style={{ flex: 1, fontSize: '12px', padding: '4px 8px', justifyContent: 'center' }}
+ className={`panel-tab ${view === id ? 'active' : ''}`}
+ style={{ flexShrink: 0 }}
  onClick={() => setView(id)}
  >
  {label}
@@ -568,6 +591,174 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
 
  const changedFiles = Object.entries(gitStatus.file_statuses);
 
+ /* ── Review / Changelog / Settings tabs ──────────────────────────────────
+  * Each fills the panel below the tab bar. They sit after the repo checks
+  * above deliberately: with no repository there is nothing to review, no log
+  * to summarise and no config to write, so clicking one of these tabs lands on
+  * the same "Initialize repository" screen rather than an empty form.
+  *
+  * Each body is wrapped in its own scroller. Without one they would size the
+  * flex column and overflow the panel with no scrollbar — the squeeze that put
+  * the three of them in a shared scroll region in the first place. */
+ if (view === 'review') {
+ return (
+ <div className="panel-container" style={{ padding: '12px' }}>
+ {viewSwitch}
+ <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+ /* Height is a floor, not a cap. The box used to be a fixed 420px with
+  * `overflow: hidden`, which clipped every review longer than it — the
+  * findings below the fold were unreachable, since the clip left nothing
+  * to scroll. Letting the content size the box hands the scrolling to the
+  * panel's one scroll region above. */
+ <div style={{ marginTop: 8, minHeight: 240, borderRadius: "var(--radius-sm)", background: 'var(--bg-secondary)' }}>
+ <ReviewPanel
+ workspacePath={workspacePath}
+ selectedProvider={selectedProvider}
+ onOpenFile={onCompareFile ? (path) => {
+ invoke<string>('git_diff', { path: workspacePath, filePath: path })
+ .then((diff) => onCompareFile(path, diff))
+ .catch(console.error);
+ } : undefined}
+ />
+ </div>
+ </div>
+ <Toaster toasts={toasts} onDismiss={dismiss} />
+ </div>
+ );
+ }
+
+ if (view === 'changelog') {
+ return (
+ <div className="panel-container" style={{ padding: '12px' }}>
+ {viewSwitch}
+ <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+ <div style={{ marginTop: 6 }}>
+ <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+ <input
+ value={changelogRef}
+ onChange={e => setChangelogRef(e.target.value)}
+ placeholder="since (e.g. HEAD~10 or v1.2.0)"
+ style={{ flex: 1, background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', fontFamily: 'inherit', fontSize: "var(--font-size-sm)" }}
+ />
+ <button className="panel-btn"
+ onClick={handleGenerateChangelog}
+ disabled={generatingChangelog}
+ style={{ background: 'var(--accent-bg)', color: 'var(--accent-color)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', cursor: 'pointer', fontSize: "var(--font-size-sm)" }}
+ >
+ {generatingChangelog ? '…' : ' Generate'}
+ </button>
+ </div>
+ {changelog && (
+ <div style={{ position: 'relative' }}>
+ <textarea
+ value={changelog}
+ onChange={e => setChangelog(e.target.value)}
+ rows={8}
+ style={{ width: '100%', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: 6, fontFamily: 'inherit', fontSize: "var(--font-size-sm)", boxSizing: 'border-box' }}
+ />
+ <button
+ onClick={() => { navigator.clipboard.writeText(changelog).then(() => toast.success('Copied!')).catch(() => {}); }}
+ style={{ position: 'absolute', top: 4, right: 4, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 3, padding: '2px 8px', cursor: 'pointer', fontSize: "var(--font-size-xs)", color: 'var(--text-secondary)' }}
+ >
+ 
+ </button>
+ </div>
+ )}
+ </div>
+ </div>
+ <Toaster toasts={toasts} onDismiss={dismiss} />
+ </div>
+ );
+ }
+
+ if (view === 'settings') {
+ return (
+ <div className="panel-container" style={{ padding: '12px' }}>
+ {viewSwitch}
+ <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+ <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 10 }}>
+ {/* User identity */}
+ <div>
+ <div style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)', marginBottom: 4 }}>User Identity</div>
+ <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+ <input
+ value={gitUserName}
+ onChange={e => setGitUserName(e.target.value)}
+ placeholder="User name"
+ style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', fontSize: "var(--font-size-sm)", fontFamily: 'inherit' }}
+ />
+ <input
+ value={gitUserEmail}
+ onChange={e => setGitUserEmail(e.target.value)}
+ placeholder="Email"
+ style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', fontSize: "var(--font-size-sm)", fontFamily: 'inherit' }}
+ />
+ <button className="panel-btn"
+ onClick={saveGitConfig}
+ disabled={!gitUserName && !gitUserEmail}
+ style={{ alignSelf: 'flex-start', background: 'var(--accent-bg)', color: 'var(--accent-color)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', cursor: 'pointer', fontSize: "var(--font-size-sm)" }}
+ >
+ Save Identity
+ </button>
+ </div>
+ </div>
+
+ {/* Remote & SSH info */}
+ <div>
+ <div style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)', marginBottom: 4 }}>Remote</div>
+ <div style={{ fontSize: "var(--font-size-sm)", padding: '4px 8px', background: 'var(--bg-tertiary)', borderRadius: "var(--radius-xs-plus)", wordBreak: 'break-all' }}>
+ {remoteUrl || 'No remote configured'}
+ </div>
+ <div style={{ marginTop: 4, fontSize: "var(--font-size-xs)", color: sshAvailable ? 'var(--success-color)' : 'var(--text-secondary)' }}>
+ {remoteUrl.startsWith('git@') ? 'Using SSH' : sshAvailable ? 'SSH keys detected — switch remote to SSH for passwordless auth' : 'No SSH keys found — use HTTPS with credentials below'}
+ </div>
+ </div>
+
+ {/* Credentials for HTTPS */}
+ {!remoteUrl.startsWith('git@') && (
+ <div>
+ <div style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)', marginBottom: 4 }}>HTTPS Credentials</div>
+ <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+ <input
+ value={gitCredUrl}
+ onChange={e => setGitCredUrl(e.target.value)}
+ placeholder="Repository URL (e.g. https://github.com/user/repo)"
+ style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', fontSize: "var(--font-size-sm)", fontFamily: 'inherit' }}
+ />
+ <input
+ value={gitCredUser}
+ onChange={e => setGitCredUser(e.target.value)}
+ placeholder="Username"
+ style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', fontSize: "var(--font-size-sm)", fontFamily: 'inherit' }}
+ />
+ <input
+ type="password"
+ value={gitCredToken}
+ onChange={e => setGitCredToken(e.target.value)}
+ placeholder="Personal access token / password"
+ style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', fontSize: "var(--font-size-sm)", fontFamily: 'inherit' }}
+ />
+ <button className="panel-btn"
+ onClick={saveGitCredentials}
+ disabled={!gitCredUrl || !gitCredUser || !gitCredToken}
+ style={{ alignSelf: 'flex-start', background: 'var(--accent-bg)', color: 'var(--accent-color)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', cursor: 'pointer', fontSize: "var(--font-size-sm)" }}
+ >
+ Store Credentials
+ </button>
+ <div style={{ fontSize: "var(--font-size-xs)", color: 'var(--text-secondary)' }}>
+ Stored via git credential-store. Use a personal access token instead of password.
+ </div>
+ </div>
+ </div>
+ )}
+ </div>
+ </div>
+ <Toaster toasts={toasts} onDismiss={dismiss} />
+ </div>
+ );
+ }
+
+
  return (
  <div className="panel-container" style={{ padding: '12px' }}>
  {viewSwitch}
@@ -612,11 +803,14 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
   *
   * Every section used to be a direct flex child of `.panel-container`, and two
   * of them (this one, plus whichever div landed last — see the
-  * `div:last-child` rule in App.css) claimed `flex: 1`. Open the Code Review
-  * section and the column ran out of room: the changes list, having
+  * `div:last-child` rule in App.css) claimed `flex: 1`. Expanding a section
+  * then left the column out of room: the changes list, having
   * `overflow-y: auto`, resolved its min-height to 0 and vanished, taking the
-  * file you were about to commit off the screen entirely. Sections now flow
-  * inside a single scroller, so an expanding one pushes rather than evicts.
+  * file you were about to commit off the screen entirely. Sections flow inside
+  * a single scroller, so an expanding one pushes rather than evicts.
+  *
+  * The three biggest of them have since moved to their own tabs, which removes
+  * most of the pressure — but not the rule that caused it, so this stays.
   *
   * Block layout, deliberately: as a flex column its own children would shrink
   * to fit instead of overflowing, and the scrollbar would never appear — the
@@ -624,8 +818,13 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
 
  {/* The list scrolls within a bounded height rather than growing without
-   * limit: a 200-file working tree must not push Commit off the panel. */}
- <div style={{ maxHeight: '32vh', overflowY: 'auto', marginBottom: '12px' }}>
+   * limit: a 200-file working tree must not push Commit off the panel.
+   *
+   * Raised from 32vh with the move to tabs. The old cap was set when Review,
+   * Changelog and Settings all sat below this list; with them gone, the space
+   * they were reserving belongs to the list. Commit is still protected,
+   * which is the only thing the cap was ever for. */}
+ <div style={{ maxHeight: '50vh', overflowY: 'auto', marginBottom: '12px' }}>
  {showHistory ? (
  <div>
  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
@@ -793,40 +992,9 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  </button>
  </div>
 
- {/* ── Code Review section ── */}
- <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 8 }}>
- <button
- onClick={() => setShowReview(!showReview)}
- style={{
- width: '100%', textAlign: 'left', padding: '8px 8px',
- background: showReview ? 'var(--bg-tertiary)' : 'transparent',
- border: 'none', borderRadius: "var(--radius-xs-plus)", cursor: 'pointer',
- color: 'var(--text-primary)', fontSize: "var(--font-size-base)",
- display: 'flex', alignItems: 'center', gap: 6,
- }}
- >
- {showReview && <ChevronDown size={12} />}
- <span>Code Review</span>
- </button>
- {showReview && (
- /* Height is a floor, not a cap. The box used to be a fixed 420px with
-  * `overflow: hidden`, which clipped every review longer than it — the
-  * findings below the fold were unreachable, since the clip left nothing
-  * to scroll. Letting the content size the box hands the scrolling to the
-  * panel's one scroll region above. */
- <div style={{ marginTop: 8, minHeight: 240, borderRadius: "var(--radius-sm)", background: 'var(--bg-secondary)' }}>
- <ReviewPanel
- workspacePath={workspacePath}
- selectedProvider={selectedProvider}
- onOpenFile={onCompareFile ? (path) => {
- invoke<string>('git_diff', { path: workspacePath, filePath: path })
- .then((diff) => onCompareFile(path, diff))
- .catch(console.error);
- } : undefined}
- />
- </div>
- )}
- </div>
+ {/* Code Review, Generate Changelog and Git Settings live in their own tabs
+   * now — see the `view` branches above. They were collapsible sections here,
+   * sharing this scroll region with the changes list. */}
  {/* ── AI Git Tools section ── */}
  <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 8 }}>
  {/* Branch Name Suggester */}
@@ -857,52 +1025,6 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  >
  
  </button>
- </div>
- )}
- </div>
-
- {/* Changelog Generator */}
- <div style={{ marginBottom: 10 }}>
- <button
- onClick={() => setShowChangelog(c => !c)}
- style={{ width: '100%', textAlign: 'left', padding: '4px 0', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', fontSize: "var(--font-size-base)", display: 'flex', alignItems: 'center', gap: 6 }}
- >
- {showChangelog && <ChevronDown size={12} />}
- <span>Generate Changelog</span>
- </button>
- {showChangelog && (
- <div style={{ marginTop: 6 }}>
- <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
- <input
- value={changelogRef}
- onChange={e => setChangelogRef(e.target.value)}
- placeholder="since (e.g. HEAD~10 or v1.2.0)"
- style={{ flex: 1, background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', fontFamily: 'inherit', fontSize: "var(--font-size-sm)" }}
- />
- <button className="panel-btn"
- onClick={handleGenerateChangelog}
- disabled={generatingChangelog}
- style={{ background: 'var(--accent-bg)', color: 'var(--accent-color)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', cursor: 'pointer', fontSize: "var(--font-size-sm)" }}
- >
- {generatingChangelog ? '…' : ' Generate'}
- </button>
- </div>
- {changelog && (
- <div style={{ position: 'relative' }}>
- <textarea
- value={changelog}
- onChange={e => setChangelog(e.target.value)}
- rows={8}
- style={{ width: '100%', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: 6, fontFamily: 'inherit', fontSize: "var(--font-size-sm)", boxSizing: 'border-box' }}
- />
- <button
- onClick={() => { navigator.clipboard.writeText(changelog).then(() => toast.success('Copied!')).catch(() => {}); }}
- style={{ position: 'absolute', top: 4, right: 4, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 3, padding: '2px 8px', cursor: 'pointer', fontSize: "var(--font-size-xs)", color: 'var(--text-secondary)' }}
- >
- 
- </button>
- </div>
- )}
  </div>
  )}
  </div>
@@ -959,101 +1081,6 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  </div>
  </div>
 
- {/* ── Git Settings section ── */}
- <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 8 }}>
- <button
- onClick={() => setShowGitSettings(!showGitSettings)}
- style={{
- width: '100%', textAlign: 'left', padding: '8px 8px',
- background: showGitSettings ? 'var(--bg-tertiary)' : 'transparent',
- border: 'none', borderRadius: "var(--radius-xs-plus)", cursor: 'pointer',
- color: 'var(--text-primary)', fontSize: "var(--font-size-base)",
- display: 'flex', alignItems: 'center', gap: 6,
- }}
- >
- {showGitSettings ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
- <span>Git Settings</span>
- {sshAvailable && <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 3, background: 'var(--success-bg)', color: 'var(--success-color)' }}>SSH</span>}
- </button>
- {showGitSettings && (
- <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 10 }}>
- {/* User identity */}
- <div>
- <div style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)', marginBottom: 4 }}>User Identity</div>
- <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
- <input
- value={gitUserName}
- onChange={e => setGitUserName(e.target.value)}
- placeholder="User name"
- style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', fontSize: "var(--font-size-sm)", fontFamily: 'inherit' }}
- />
- <input
- value={gitUserEmail}
- onChange={e => setGitUserEmail(e.target.value)}
- placeholder="Email"
- style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', fontSize: "var(--font-size-sm)", fontFamily: 'inherit' }}
- />
- <button className="panel-btn"
- onClick={saveGitConfig}
- disabled={!gitUserName && !gitUserEmail}
- style={{ alignSelf: 'flex-start', background: 'var(--accent-bg)', color: 'var(--accent-color)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', cursor: 'pointer', fontSize: "var(--font-size-sm)" }}
- >
- Save Identity
- </button>
- </div>
- </div>
-
- {/* Remote & SSH info */}
- <div>
- <div style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)', marginBottom: 4 }}>Remote</div>
- <div style={{ fontSize: "var(--font-size-sm)", padding: '4px 8px', background: 'var(--bg-tertiary)', borderRadius: "var(--radius-xs-plus)", wordBreak: 'break-all' }}>
- {remoteUrl || 'No remote configured'}
- </div>
- <div style={{ marginTop: 4, fontSize: "var(--font-size-xs)", color: sshAvailable ? 'var(--success-color)' : 'var(--text-secondary)' }}>
- {remoteUrl.startsWith('git@') ? 'Using SSH' : sshAvailable ? 'SSH keys detected — switch remote to SSH for passwordless auth' : 'No SSH keys found — use HTTPS with credentials below'}
- </div>
- </div>
-
- {/* Credentials for HTTPS */}
- {!remoteUrl.startsWith('git@') && (
- <div>
- <div style={{ fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)', marginBottom: 4 }}>HTTPS Credentials</div>
- <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
- <input
- value={gitCredUrl}
- onChange={e => setGitCredUrl(e.target.value)}
- placeholder="Repository URL (e.g. https://github.com/user/repo)"
- style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', fontSize: "var(--font-size-sm)", fontFamily: 'inherit' }}
- />
- <input
- value={gitCredUser}
- onChange={e => setGitCredUser(e.target.value)}
- placeholder="Username"
- style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', fontSize: "var(--font-size-sm)", fontFamily: 'inherit' }}
- />
- <input
- type="password"
- value={gitCredToken}
- onChange={e => setGitCredToken(e.target.value)}
- placeholder="Personal access token / password"
- style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', fontSize: "var(--font-size-sm)", fontFamily: 'inherit' }}
- />
- <button className="panel-btn"
- onClick={saveGitCredentials}
- disabled={!gitCredUrl || !gitCredUser || !gitCredToken}
- style={{ alignSelf: 'flex-start', background: 'var(--accent-bg)', color: 'var(--accent-color)', border: '1px solid var(--border-color)', borderRadius: "var(--radius-xs-plus)", padding: '3px 8px', cursor: 'pointer', fontSize: "var(--font-size-sm)" }}
- >
- Store Credentials
- </button>
- <div style={{ fontSize: "var(--font-size-xs)", color: 'var(--text-secondary)' }}>
- Stored via git credential-store. Use a personal access token instead of password.
- </div>
- </div>
- </div>
- )}
- </div>
- )}
- </div>
  {/* end of the scroll region */}
  </div>
 
