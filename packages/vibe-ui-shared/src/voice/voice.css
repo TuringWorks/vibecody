@@ -1,6 +1,19 @@
-/* Composer mic button — shared by VibeDesk, VibeAIChat and VibeCoder.
+/* Voice controls — shared by VibeDesk, VibeAIChat and VibeCoder.
    Design-system tokens only (vibecoder/design-system/tokens.css); each host app
-   imports that before this file. */
+   imports that before this file.
+
+   "Tokens only" means tokens that *exist*. `var(--foo, #hex)` naming a token
+   this design system never defines is not a fallback — the hex always wins, on
+   every theme, forever. That is how these controls ended up rendering in
+   GitHub-dark greys inside an app themed otherwise: `--border`, `--surface`,
+   `--fg`, `--muted` and `--accent-red` are none of them tokens here. The real
+   names are `--border-color`, `--bg-tertiary`, `--text-primary`,
+   `--text-secondary` and `--error-color`.
+
+   State colours go through the semantic tokens (`--success-color`,
+   `--info-color`, `--warning-color`, `--error-color`) rather than literal hex,
+   so light theme and any future palette move them together with the rest of
+   the app. */
 
 .vx-voice-btn {
   display: inline-flex;
@@ -28,8 +41,8 @@
 }
 
 .vx-voice-btn.is-listening {
-  color: var(--accent-red, #e5534b);
-  background: color-mix(in srgb, var(--accent-red, #e5534b) 14%, transparent);
+  color: var(--error-color);
+  background: color-mix(in srgb, var(--error-color) 14%, transparent);
   animation: vx-voice-pulse 1.4s ease-in-out infinite;
 }
 
@@ -38,7 +51,7 @@
 }
 
 .vx-voice-btn.is-error {
-  color: var(--accent-red, #e5534b);
+  color: var(--error-color);
 }
 
 .vx-voice-btn__spin {
@@ -81,36 +94,60 @@
 .vx-voice-error {
   padding: 4px 10px;
   font-size: 12px;
-  color: var(--accent-red, #e5534b);
+  color: var(--error-color);
 }
 
 /* ── Full-duplex conversation ─────────────────────────────────────────────── */
 
+/* Geometry and colour match `.panel-btn`, which is what every other button in
+   these apps is. It previously set its own padding, radius and font size, so
+   it read as a control borrowed from somewhere else even once the colours were
+   right. */
 .voice-duplex-btn {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 5px 11px;
-  border: 1px solid var(--border, #232a33);
-  border-radius: 8px;
-  background: var(--surface, #161b22);
-  color: var(--fg, #e6edf3);
+  padding: 5px 12px;
+  min-height: 28px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
   font: inherit;
-  font-size: 12.5px;
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
+  transition: background var(--transition-fast), opacity var(--transition-fast);
 }
-.voice-duplex-btn:disabled { opacity: .55; cursor: not-allowed; }
+.voice-duplex-btn:hover:not(:disabled) { background: var(--bg-elevated); }
+.voice-duplex-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .voice-duplex-dot {
   width: 8px; height: 8px; border-radius: 50%;
-  background: var(--muted, #8b949e);
+  background: var(--text-secondary);
   flex: none;
-  transition: background .15s, box-shadow .15s;
+  transition: background var(--transition-fast), box-shadow var(--transition-fast);
 }
-.voice-duplex-btn.state-listening .voice-duplex-dot { background: #3fb950; box-shadow: 0 0 0 3px rgba(63,185,80,.18); }
-.voice-duplex-btn.state-hearing   .voice-duplex-dot { background: #58a6ff; box-shadow: 0 0 0 3px rgba(88,166,255,.20); }
-.voice-duplex-btn.state-thinking  .voice-duplex-dot { background: #d29922; box-shadow: 0 0 0 3px rgba(210,153,34,.18); }
-.voice-duplex-btn.state-speaking  .voice-duplex-dot { background: #f78166; box-shadow: 0 0 0 3px rgba(247,129,102,.20); }
-.voice-duplex-btn.state-error     .voice-duplex-dot { background: #f85149; }
+
+/* The halo is derived from the state colour with `color-mix` rather than a
+   parallel rgba() literal, so a palette change cannot leave the ring a
+   different hue from the dot it surrounds. */
+.voice-duplex-btn.state-listening .voice-duplex-dot {
+  background: var(--success-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success-color) 18%, transparent);
+}
+.voice-duplex-btn.state-hearing .voice-duplex-dot {
+  background: var(--info-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--info-color) 20%, transparent);
+}
+.voice-duplex-btn.state-thinking .voice-duplex-dot {
+  background: var(--warning-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--warning-color) 18%, transparent);
+}
+.voice-duplex-btn.state-speaking .voice-duplex-dot {
+  background: var(--accent-orange);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-orange) 20%, transparent);
+}
+.voice-duplex-btn.state-error .voice-duplex-dot { background: var(--error-color); }
 
 /* The pulse marks an open microphone. Respect a user who has asked for less
    motion — this is decoration, and the colour already carries the state. */
@@ -118,6 +155,6 @@
   .voice-duplex-btn.state-listening .voice-duplex-dot { animation: voice-duplex-pulse 2s ease-in-out infinite; }
 }
 @keyframes voice-duplex-pulse {
-  0%, 100% { box-shadow: 0 0 0 3px rgba(63,185,80,.18); }
-  50%      { box-shadow: 0 0 0 6px rgba(63,185,80,.06); }
+  0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--success-color) 18%, transparent); }
+  50%      { box-shadow: 0 0 0 6px color-mix(in srgb, var(--success-color) 6%, transparent); }
 }
