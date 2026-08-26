@@ -2218,6 +2218,12 @@ function App() {
                 height="100%"
                 language={detectLanguage(gitDiffView.file)}
                 theme={editorTheme}
+                /* Define the theme before this editor is created. `themeName`
+                   alone is just a string: the main editor registers it in its
+                   own onMount, so opening a diff with no file open left Monaco
+                   with a name it had never seen and it fell back to `vs` —
+                   a white diff in a dark app. */
+                beforeMount={defineEditorTheme}
                 original={gitDiffView.original}
                 modified={gitDiffView.modified}
                 options={{

@@ -16,6 +16,7 @@
  */
 
 import React, { useState, useMemo, useEffect, useRef, Component } from "react";
+import { useEditorTheme } from "../hooks/useEditorTheme";
 import { Check, X } from "lucide-react";
 import Editor from "@monaco-editor/react";
 import { MONACO_OVERFLOW_OPTIONS } from "../lib/monacoOptions";
@@ -217,6 +218,7 @@ interface DiffReviewPanelProps {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function DiffReviewPanel({ original, modified, filePath, onApply, language }: DiffReviewPanelProps) {
+  const { themeName, defineTheme } = useEditorTheme();
  const originalLines = useMemo(() => (original ?? "").split("\n"), [original]);
  const modifiedLines = useMemo(() => (modified ?? "").split("\n"), [modified]);
  const allDiffed = useMemo(() => {
@@ -383,7 +385,10 @@ export function DiffReviewPanel({ original, modified, filePath, onApply, languag
      <Editor
        value={editBuffer}
        language={resolvedLanguage}
-       theme="vs-dark"
+       /* Follows the editor's theme rather than pinning dark: a user on a
+          light theme got a dark review pane beside a light editor. */
+       theme={themeName}
+       beforeMount={defineTheme}
        onChange={(value) => {
          const next = value ?? "";
          setEditBuffer(next);
