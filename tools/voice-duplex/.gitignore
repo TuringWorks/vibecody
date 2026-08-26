@@ -1,0 +1,4 @@
+target/
+sidecar/tts
+sidecar/asr
+result.json
