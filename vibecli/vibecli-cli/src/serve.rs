@@ -9736,8 +9736,15 @@ async fn voice_duplex_turn(
             }
         },
         None => {
-            say(serde_json::json!({"type": "error",
-                "message": "no speech engine configured — see docs/voice-duplex.md"}));
+            // Name what was looked for. "no speech engine configured" sent a
+            // user to the docs to discover that a binary on their PATH had been
+            // checked as a relative path.
+            let cfg = crate::config::Config::load().unwrap_or_default().voice;
+            say(serde_json::json!({"type": "error", "message": format!(
+                "No speech engine. Looked for `{}` (not found on PATH) and the model `{}`, \
+                 and nothing is listening on port {}. Install whisper.cpp, or set \
+                 [voice] whisper_server_bin / whisper_server_model in config.toml.",
+                cfg.whisper_server_bin, cfg.whisper_server_model, cfg.whisper_server_port)}));
             return;
         }
     };

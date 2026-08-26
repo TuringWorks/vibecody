@@ -198,18 +198,61 @@ pub fn file_at_head(repo_path: &Path, file_path: &str) -> Result<Option<String>>
         return Ok(None);
     };
     let tree = head.peel_to_tree()?;
-    let Ok(entry) = tree.get_path(Path::new(file_path)) else {
-        return Ok(None);
-    };
-    let blob = repo.find_blob(entry.id())?;
 
     // A binary file is reported rather than lossily decoded. Returning `None`
     // would claim it is new, and `from_utf8_lossy` would fill the pane with
     // replacement characters and call it a diff.
+    blob_text(&repo, &tree, file_path)
+}
+
+/// One file's text inside a tree, or `None` when the tree has no such path.
+///
+/// Shared by [`file_at_head`] and [`file_versions_at_commit`] so both agree on
+/// what "absent" and "binary" mean.
+fn blob_text(repo: &Repository, tree: &git2::Tree<'_>, file_path: &str) -> Result<Option<String>> {
+    let Ok(entry) = tree.get_path(Path::new(file_path)) else {
+        return Ok(None);
+    };
+    let blob = repo.find_blob(entry.id())?;
     match std::str::from_utf8(blob.content()) {
         Ok(text) => Ok(Some(text.to_string())),
-        Err(_) => Err(anyhow::anyhow!("{file_path} is binary at HEAD")),
+        Err(_) => Err(anyhow::anyhow!("{file_path} is binary")),
     }
+}
+
+/// The two sides of what `rev` did to `file_path`: its content in `rev`'s first
+/// parent, and its content in `rev` itself.
+///
+/// This is what a history entry's diff needs, and it is not what `HEAD` against
+/// the working tree gives you. Showing the latter for a file listed under an
+/// older commit is wrong in a way that hides: if the working tree happens to
+/// match `HEAD` — the usual case while browsing history — the two sides are
+/// identical and the viewer renders an empty diff, which reads as "this commit
+/// changed nothing".
+///
+/// Either side may be `None`, and each means something specific:
+/// the file was added by this commit (no parent side), deleted by it (no commit
+/// side), or the commit is the repository's root and has no parent at all.
+pub fn file_versions_at_commit(
+    repo_path: &Path,
+    rev: &str,
+    file_path: &str,
+) -> Result<(Option<String>, Option<String>)> {
+    let root = discover_repo_root(repo_path).ok_or_else(|| {
+        anyhow::anyhow!("{} is not inside a git repository", repo_path.display())
+    })?;
+    let repo = Repository::open(&root)?;
+    let oid = repo.revparse_single(rev)?.id();
+    let commit = repo.find_commit(oid)?;
+
+    let after = blob_text(&repo, &commit.tree()?, file_path)?;
+    let before = if commit.parent_count() > 0 {
+        blob_text(&repo, &commit.parent(0)?.tree()?, file_path)?
+    } else {
+        // A root commit adds everything it contains.
+        None
+    };
+    Ok((before, after))
 }
 
 pub fn list_branches(repo_path: &Path) -> Result<Vec<String>> {
@@ -2046,5 +2089,119 @@ mod file_at_head_tests {
     fn a_path_outside_any_repository_is_an_error() {
         let dir = tempfile::tempdir().expect("tempdir");
         assert!(file_at_head(dir.path(), "a.txt").is_err());
+    }
+}
+
+#[cfg(test)]
+mod file_versions_at_commit_tests {
+    use super::*;
+    use std::fs;
+
+    /// Commit `files` on top of whatever is there, returning the new hash.
+    fn commit_all(root: &Path, files: &[(&str, &str)], msg: &str) -> String {
+        let repo = Repository::open(root).expect("open");
+        for (path, body) in files {
+            let full = root.join(path);
+            if let Some(parent) = full.parent() {
+                fs::create_dir_all(parent).expect("mkdir");
+            }
+            fs::write(&full, body).expect("write");
+        }
+        let mut index = repo.index().expect("index");
+        index
+            .add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)
+            .expect("add_all");
+        index.write().expect("index write");
+        let tree_id = index.write_tree().expect("write_tree");
+        let tree = repo.find_tree(tree_id).expect("tree");
+        let sig = git2::Signature::now("t", "t@example.com").expect("sig");
+        let parents: Vec<git2::Commit<'_>> = match repo.head().ok().and_then(|h| h.peel_to_commit().ok()) {
+            Some(c) => vec![c],
+            None => vec![],
+        };
+        let parent_refs: Vec<&git2::Commit<'_>> = parents.iter().collect();
+        let oid = repo
+            .commit(Some("HEAD"), &sig, &sig, msg, &tree, &parent_refs)
+            .expect("commit");
+        oid.to_string()
+    }
+
+    fn repo() -> (tempfile::TempDir, std::path::PathBuf) {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = dir.path().to_path_buf();
+        Repository::init(&root).expect("init");
+        (dir, root)
+    }
+
+    /// The regression this exists for. Browsing history, the working tree
+    /// usually matches HEAD — so comparing HEAD against the working tree gives
+    /// two identical sides and the viewer shows an empty diff, as though the
+    /// commit changed nothing. The two sides must come from the commit and its
+    /// parent.
+    #[test]
+    fn gives_the_commit_and_its_parent_not_head() {
+        let (_dir, root) = repo();
+        commit_all(&root, &[("a.txt", "one\n")], "first");
+        let second = commit_all(&root, &[("a.txt", "two\n")], "second");
+        // A third commit, so HEAD is past the one being inspected.
+        commit_all(&root, &[("a.txt", "three\n")], "third");
+
+        let (before, after) = file_versions_at_commit(&root, &second, "a.txt").expect("ok");
+        assert_eq!(before.as_deref(), Some("one\n"));
+        assert_eq!(after.as_deref(), Some("two\n"));
+    }
+
+    #[test]
+    fn a_file_added_by_the_commit_has_no_parent_side() {
+        let (_dir, root) = repo();
+        commit_all(&root, &[("a.txt", "a\n")], "first");
+        let second = commit_all(&root, &[("b.txt", "b\n")], "adds b");
+
+        let (before, after) = file_versions_at_commit(&root, &second, "b.txt").expect("ok");
+        assert_eq!(before, None);
+        assert_eq!(after.as_deref(), Some("b\n"));
+    }
+
+    #[test]
+    fn a_file_deleted_by_the_commit_has_no_commit_side() {
+        let (_dir, root) = repo();
+        commit_all(&root, &[("a.txt", "a\n"), ("b.txt", "b\n")], "first");
+        fs::remove_file(root.join("b.txt")).expect("rm");
+        let second = commit_all(&root, &[], "deletes b");
+
+        let (before, after) = file_versions_at_commit(&root, &second, "b.txt").expect("ok");
+        assert_eq!(before.as_deref(), Some("b\n"));
+        assert_eq!(after, None);
+    }
+
+    /// A root commit adds everything it contains — there is no parent to read.
+    #[test]
+    fn a_root_commit_has_no_parent_side() {
+        let (_dir, root) = repo();
+        let first = commit_all(&root, &[("a.txt", "a\n")], "first");
+
+        let (before, after) = file_versions_at_commit(&root, &first, "a.txt").expect("ok");
+        assert_eq!(before, None);
+        assert_eq!(after.as_deref(), Some("a\n"));
+    }
+
+    /// A file untouched by the commit reads the same on both sides, which is
+    /// the honest answer — the viewer then shows no change, correctly.
+    #[test]
+    fn a_file_the_commit_did_not_touch_is_identical_on_both_sides() {
+        let (_dir, root) = repo();
+        commit_all(&root, &[("a.txt", "a\n"), ("b.txt", "b\n")], "first");
+        let second = commit_all(&root, &[("a.txt", "a2\n")], "touches a only");
+
+        let (before, after) = file_versions_at_commit(&root, &second, "b.txt").expect("ok");
+        assert_eq!(before.as_deref(), Some("b\n"));
+        assert_eq!(after.as_deref(), Some("b\n"));
+    }
+
+    #[test]
+    fn an_unknown_revision_is_an_error() {
+        let (_dir, root) = repo();
+        commit_all(&root, &[("a.txt", "a\n")], "first");
+        assert!(file_versions_at_commit(&root, "nosuchrev", "a.txt").is_err());
     }
 }

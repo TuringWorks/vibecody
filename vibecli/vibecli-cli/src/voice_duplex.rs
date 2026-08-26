@@ -523,14 +523,22 @@ pub fn clean_transcript(raw: &str) -> String {
 /// Devanagari in Arabic script, while `small` and `medium` produce identical
 /// correct text and `small` is 3× faster.
 pub async fn ensure_whisper_server(bin: &str, model: &str, port: u16) -> Option<String> {
-    if !std::path::Path::new(bin).exists() || !std::path::Path::new(model).exists() {
-        return None;
-    }
     let url = format!("http://127.0.0.1:{port}");
+
+    // Ask the port first. A server already listening is usable whether or not
+    // we can find a binary to start one — checking the binary first meant a
+    // perfectly good running server was ignored because `whisper-server` is not
+    // a path relative to the daemon's working directory.
     if tokio::net::TcpStream::connect(("127.0.0.1", port)).await.is_ok() {
         return Some(url);
     }
-    Command::new(bin)
+
+    let bin = resolve_bin(bin)?;
+    if !std::path::Path::new(model).exists() {
+        tracing::warn!(model, "voice: speech model not found; duplex voice unavailable");
+        return None;
+    }
+    Command::new(&bin)
         .args(["-m", model, "--port", &port.to_string(), "-t", "4"])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -544,6 +552,29 @@ pub async fn ensure_whisper_server(bin: &str, model: &str, port: u16) -> Option<
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
     }
     None
+}
+
+/// Resolve a configured binary to something runnable.
+///
+/// A bare command name is the natural thing to write in a config file and the
+/// natural thing to get wrong: `Path::new("whisper-server").exists()` asks
+/// whether it sits in the daemon's working directory, which it never does, so
+/// the engine was reported missing on a machine that had it installed. Walk
+/// `PATH` when the name contains no separator.
+pub fn resolve_bin(bin: &str) -> Option<String> {
+    let p = std::path::Path::new(bin);
+    if p.components().count() > 1 || bin.starts_with('/') {
+        return p.exists().then(|| bin.to_string());
+    }
+    std::env::var_os("PATH")
+        .into_iter()
+        .flat_map(|paths| {
+            std::env::split_paths(&paths)
+                .map(|d| d.join(bin))
+                .collect::<Vec<_>>()
+        })
+        .find(|c| c.is_file())
+        .map(|c| c.to_string_lossy().to_string())
 }
 
 #[cfg(test)]
@@ -654,6 +685,21 @@ mod tests {
     fn non_speech_markers_are_not_words() {
         assert_eq!(clean_transcript("[BLANK_AUDIO]"), "");
         assert_eq!(clean_transcript("(music)\nhello"), "hello");
+    }
+
+    #[test]
+    fn a_bare_command_name_is_resolved_through_path() {
+        // The failure this exists to prevent: a bare name checked as a relative
+        // path is never found, and a machine with the tool installed is told it
+        // has no speech engine.
+        assert!(
+            resolve_bin("sh").is_some_and(|p| p.contains('/')),
+            "a bare name on PATH must resolve to an absolute path"
+        );
+        assert_eq!(resolve_bin("definitely-not-a-real-binary-xyz"), None);
+        // An explicit path is taken at face value, present or not.
+        assert_eq!(resolve_bin("/nonexistent/whisper-server"), None);
+        assert!(resolve_bin("/bin/sh").is_some());
     }
 
     #[test]
