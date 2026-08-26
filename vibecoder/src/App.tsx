@@ -1505,47 +1505,36 @@ function App() {
   }, []);
 
   // Git Compare Handler
-  const handleCompareFile = async (file: string, diff: string) => {
-    // Parse diff to get original and modified content
-    // For now, we'll need to read the file and reconstruct
-    if (!workspaceFolders[0]) return;
+  /**
+   * Show `file` in the diff view, comparing HEAD against the working copy.
+   *
+   * The previous implementation rebuilt the "before" side by walking the
+   * unified diff and keeping its `-` and context lines. That cannot work: a
+   * patch carries only the changed hunks, so everything between them is
+   * missing from it. The reconstruction produced a few dozen lines where the
+   * file had thousands, and Monaco — diffing that against the whole working
+   * copy — marked almost every line as added. A one-line change rendered as a
+   * wholly new file.
+   *
+   * The before side now comes from git itself. `null` means the file does not
+   * exist at HEAD (new, or a repo with no commits), and comparing against
+   * empty is then correct rather than a fallback.
+   */
+  const handleCompareFile = async (file: string) => {
+    const root = workspaceFolders[0];
+    if (!root) return;
 
     try {
-      // Read current file content (modified)
-      const modified = await invoke<string>('read_file', { path: `${workspaceFolders[0]}/${file}` });
-
-      // Parse diff to reconstruct original, removing git metadata
-      const lines = diff.split('\n');
-      const originalLines: string[] = [];
-
-      for (const line of lines) {
-        // Skip git metadata lines
-        if (line.startsWith('diff --git') ||
-          line.startsWith('index ') ||
-          line.startsWith('---') ||
-          line.startsWith('+++') ||
-          line.startsWith('@@')) {
-          continue;
-        }
-
-        // Process actual diff content
-        if (line.startsWith('-')) {
-          originalLines.push(line.substring(1));
-        } else if (line.startsWith('+')) {
-          // Skip added lines in original
-          continue;
-        } else {
-          // Context lines (no prefix or space prefix)
-          originalLines.push(line.startsWith(' ') ? line.substring(1) : line);
-        }
-      }
-
-      const original = originalLines.join('\n');
-      setGitDiffView({ file, original, modified });
+      const [original, modified] = await Promise.all([
+        invoke<string | null>('git_file_at_head', { path: root, filePath: file }),
+        invoke<string>('read_file', { path: `${root}/${file}` }),
+      ]);
+      setGitDiffView({ file, original: original ?? '', modified });
     } catch (e) {
+      // No silent half-diff: showing one side against an empty other is what
+      // this function used to do by accident, and it looked like a real result.
       console.error('Failed to prepare diff:', e);
-      // Fallback: show empty original
-      setGitDiffView({ file, original: '', modified: diff });
+      toast.error(`Could not diff ${file}: ${e}`);
     }
   };
 

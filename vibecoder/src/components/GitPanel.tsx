@@ -22,7 +22,10 @@ export type GitPanelView =
 
 interface GitPanelProps {
  workspacePath: string | null;
- onCompareFile?: (filePath: string, diff: string) => void;
+ /** Open `filePath` in the diff view. The before side is fetched from git by
+  *  the host — a unified diff cannot supply it, which is what this callback
+  *  used to hand over. */
+ onCompareFile?: (filePath: string) => void;
  /** Provider name from the toolbar dropdown — forwarded to AI git commands so
   *  the commit-message generator (and friends) use the user's selected model
   *  instead of whichever provider happens to be active in the chat engine. */
@@ -252,14 +255,15 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  }
  };
 
+ /* Known-wrong, and it was before this change too: this shows HEAD against
+  * the working tree, not the selected commit against its parent. Diffing a
+  * historical commit needs a command that takes two refs, which does not exist
+  * yet. Left as-is rather than quietly relabelled — the previous version fed
+  * the same working-tree diff into a reconstruction that produced garbage, so
+  * this is strictly better while still not being what the button implies. */
  const handleCompareCommitFile = async (file: string) => {
  if (!workspacePath || !selectedCommit || !onCompareFile) return;
- try {
- const diff = await invoke<string>('git_diff', { path: workspacePath, filePath: file });
- onCompareFile(file, diff);
- } catch (e) {
- toast.error(`Failed to get diff: ${e}`);
- }
+ onCompareFile(file);
  };
 
  const handleDiscardChanges = async (file: string) => {
@@ -332,12 +336,7 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
 
  const handleCompare = async (file: string) => {
  if (!workspacePath || !onCompareFile) return;
- try {
- const diff = await invoke<string>('git_diff', { path: workspacePath, filePath: file });
- onCompareFile(file, diff);
- } catch (e) {
- toast.error(`Failed to get diff: ${e}`);
- }
+ onCompareFile(file);
  };
 
  const handleGenerateMsg = async () => {
@@ -612,11 +611,7 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
  <ReviewPanel
  review={review}
- onOpenFile={onCompareFile ? (path) => {
- invoke<string>('git_diff', { path: workspacePath, filePath: path })
- .then((diff) => onCompareFile(path, diff))
- .catch(console.error);
- } : undefined}
+ onOpenFile={onCompareFile}
  />
  </div>
  <Toaster toasts={toasts} onDismiss={dismiss} />

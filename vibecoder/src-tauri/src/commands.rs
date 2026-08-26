@@ -2771,6 +2771,17 @@ pub async fn git_diff(path: String, file_path: String) -> Result<String, String>
     vibe_core::git::get_diff(&PathBuf::from(path), &file_path).map_err(|e| e.to_string())
 }
 
+/// The file's content at `HEAD` — the "before" side of a diff.
+///
+/// `Ok(None)` means the file does not exist at `HEAD`: new in the working tree,
+/// or the repository has no commits yet. Both are cases where every line
+/// genuinely is an addition, and the caller should compare against empty.
+#[tauri::command]
+pub async fn git_file_at_head(path: String, file_path: String) -> Result<Option<String>, String> {
+    let _ = reject_sensitive_path(&path)?;
+    vibe_core::git::file_at_head(&PathBuf::from(path), &file_path).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub async fn git_list_branches(
     path: String,

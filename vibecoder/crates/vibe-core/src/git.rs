@@ -167,6 +167,51 @@ pub fn get_diff(repo_path: &Path, file_path: &str) -> Result<String> {
     Ok(diff_text)
 }
 
+/// The file's content as it stands at `HEAD`, or `None` when `HEAD` has no
+/// such file.
+///
+/// This exists because a unified diff is not enough to rebuild the "before"
+/// side of a comparison. A patch carries only the changed hunks with a few
+/// lines of context; everything between hunks is absent from it. Reconstructing
+/// a file by walking the patch and keeping the `-` and context lines therefore
+/// yields a few dozen lines where the real file has thousands — and diffing
+/// that against the working copy reports almost the entire file as added.
+/// That is what VibeCoder's git diff view did.
+///
+/// `None` is the honest answer for a file that is new in the working tree, and
+/// for an unborn `HEAD` in a repository with no commits yet: in both cases
+/// every line really is an addition. It is not used to paper over a lookup
+/// that failed for some other reason.
+///
+/// The path is discovered rather than assumed, so a workspace opened at a
+/// subdirectory of a checkout still resolves; `file_path` is relative to the
+/// repository root, matching [`get_diff`].
+pub fn file_at_head(repo_path: &Path, file_path: &str) -> Result<Option<String>> {
+    let root = discover_repo_root(repo_path).ok_or_else(|| {
+        anyhow::anyhow!("{} is not inside a git repository", repo_path.display())
+    })?;
+    let repo = Repository::open(&root)?;
+
+    // An unborn HEAD (a repo with no commits) is not an error here — there is
+    // simply no previous version of anything.
+    let Ok(head) = repo.head() else {
+        return Ok(None);
+    };
+    let tree = head.peel_to_tree()?;
+    let Ok(entry) = tree.get_path(Path::new(file_path)) else {
+        return Ok(None);
+    };
+    let blob = repo.find_blob(entry.id())?;
+
+    // A binary file is reported rather than lossily decoded. Returning `None`
+    // would claim it is new, and `from_utf8_lossy` would fill the pane with
+    // replacement characters and call it a diff.
+    match std::str::from_utf8(blob.content()) {
+        Ok(text) => Ok(Some(text.to_string())),
+        Err(_) => Err(anyhow::anyhow!("{file_path} is binary at HEAD")),
+    }
+}
+
 pub fn list_branches(repo_path: &Path) -> Result<Vec<String>> {
     let repo = Repository::open(repo_path)?;
     let branches = repo.branches(None)?;
@@ -1902,4 +1947,104 @@ pub fn get_repo_diff(repo_path: &Path) -> Result<String> {
     })?;
 
     Ok(diff_text)
+}
+
+#[cfg(test)]
+mod file_at_head_tests {
+    use super::*;
+    use std::fs;
+
+    /// A repo with one commit containing `path`, plus a modified working copy.
+    fn repo_with(path: &str, committed: &str) -> (tempfile::TempDir, std::path::PathBuf) {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = dir.path().to_path_buf();
+        let repo = Repository::init(&root).expect("init");
+        let file = root.join(path);
+        if let Some(parent) = file.parent() {
+            fs::create_dir_all(parent).expect("mkdir");
+        }
+        fs::write(&file, committed).expect("write");
+
+        let mut index = repo.index().expect("index");
+        index.add_path(Path::new(path)).expect("add");
+        index.write().expect("index write");
+        let tree_id = index.write_tree().expect("write_tree");
+        let tree = repo.find_tree(tree_id).expect("find_tree");
+        let sig = git2::Signature::now("t", "t@example.com").expect("sig");
+        repo.commit(Some("HEAD"), &sig, &sig, "init", &tree, &[])
+            .expect("commit");
+        drop(tree);
+        (dir, root)
+    }
+
+    /// The regression. A unified diff carries only the changed hunks, so a
+    /// "before" side rebuilt from one is a few lines where the file is many —
+    /// and the comparison then reports nearly every line as added. The whole
+    /// file has to come from the object store.
+    #[test]
+    fn returns_the_whole_committed_file_not_just_the_changed_part() {
+        let body: String = (1..=500).map(|i| format!("line {i}\n")).collect();
+        let (_dir, root) = repo_with("src/cli.ts", &body);
+        // One line edited in the working tree.
+        fs::write(root.join("src/cli.ts"), body.replace("line 250\n", "line 250 edited\n"))
+            .expect("write");
+
+        let head = file_at_head(&root, "src/cli.ts").expect("ok").expect("tracked");
+        assert_eq!(head, body);
+        assert_eq!(head.lines().count(), 500);
+    }
+
+    /// A file that is new in the working tree has no previous version, and
+    /// saying so is what makes "every line is an addition" correct rather than
+    /// a bug.
+    #[test]
+    fn an_untracked_file_has_no_head_version() {
+        let (_dir, root) = repo_with("a.txt", "a\n");
+        fs::write(root.join("new.txt"), "hello\n").expect("write");
+        assert_eq!(file_at_head(&root, "new.txt").expect("ok"), None);
+    }
+
+    /// Opened at a subdirectory, the repository is still discovered — the
+    /// mistake `discover_repo_root` exists to prevent.
+    #[test]
+    fn resolves_from_a_subdirectory_of_the_checkout() {
+        let (_dir, root) = repo_with("src/cli.ts", "x\n");
+        let head = file_at_head(&root.join("src"), "src/cli.ts").expect("ok");
+        assert_eq!(head.as_deref(), Some("x\n"));
+    }
+
+    /// A repository with no commits yet: nothing has a previous version.
+    #[test]
+    fn an_unborn_head_is_not_an_error() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        Repository::init(dir.path()).expect("init");
+        fs::write(dir.path().join("a.txt"), "a\n").expect("write");
+        assert_eq!(file_at_head(dir.path(), "a.txt").expect("ok"), None);
+    }
+
+    /// Reported, not lossily decoded: `None` would claim the file is new, and
+    /// a lossy decode would fill the pane with replacement characters.
+    #[test]
+    fn a_binary_file_is_an_error_rather_than_a_wrong_answer() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = dir.path().to_path_buf();
+        let repo = Repository::init(&root).expect("init");
+        fs::write(root.join("bin"), [0xff_u8, 0xfe, 0x00, 0x01]).expect("write");
+        let mut index = repo.index().expect("index");
+        index.add_path(Path::new("bin")).expect("add");
+        index.write().expect("index write");
+        let tree_id = index.write_tree().expect("write_tree");
+        let tree = repo.find_tree(tree_id).expect("tree");
+        let sig = git2::Signature::now("t", "t@example.com").expect("sig");
+        repo.commit(Some("HEAD"), &sig, &sig, "init", &tree, &[]).expect("commit");
+        drop(tree);
+
+        assert!(file_at_head(&root, "bin").is_err());
+    }
+
+    #[test]
+    fn a_path_outside_any_repository_is_an_error() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        assert!(file_at_head(dir.path(), "a.txt").is_err());
+    }
 }
