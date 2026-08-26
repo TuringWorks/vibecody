@@ -67,7 +67,7 @@ Coverage, so the ✅ is not read as more than it is: only **macOS arm64** runs t
 | Chat memory panel | ❌ | ✅ | Extracted facts + pin to prompt |
 | Pinned facts injected into prompt | ❌ | ✅ | Persist across sessions |
 | Voice input (push-to-talk) | ✅ | ✅ | Shared hook → daemon `/voice/transcribe`; see [Voice Input](#voice-input) for every client. ⚠ **Not functional on Linux** — WebKitGTK denies mic capture unless the embedder enables it, and neither wry nor Tauri does |
-| **Full-duplex voice** (open mic, interruptible) | ⚙️ | ✅ | Daemon `/ws/voice/duplex`; VibeCoder + VibeDesk + VibeAIChat. Requires echo cancellation — measured on macOS only. See [Full-duplex voice](voice-duplex.md) |
+| **Full-duplex voice** (open mic, interruptible) | ⚙️ | ✅ | Daemon `/ws/voice/duplex`; VibeCoder + VibeDesk + VibeAIChat. Requires echo cancellation — measured on macOS only. See [Full-duplex voice](/vibecody/voice-duplex/) |
 | Image/file attachments | ✅ | ✅ | Up to 10 files, 20 MB each |
 | Slash commands | ✅ | ✅ | `/fix`, `/explain`, `/test`, etc. |
 | @ file mentions | ✅ | ✅ | Add file content to context |
@@ -94,11 +94,11 @@ Coverage, so the ✅ is not read as more than it is: only **macOS arm64** runs t
 | Sub-agent spawning | ✅ | ✅ | `spawn_agent` tool |
 | Multi-agent teams | ✅ | ⚙️ | `/team` command |
 | Agent-to-agent (A2A) protocol | ✅ | 🔬 | |
-| Parallel agent execution | ✅ | ❌ | `--parallel N` |
-| Background agents | ✅ | ❌ | `/agents` to manage |
+| Parallel agent execution | ✅ | ✅ | `--parallel N` · VibeCoder: AgentPanel's Parallel Mode → `start_parallel_agent_task`, splits a task into up to 8 concurrent chunks. Chunked, **not** worktree-isolated — see the next row |
+| Background agents | ✅ | ❌ | `/agents` to manage. VibeCoder's BackgroundJobsPanel is presentation only — it issues no commands |
 | Agent trust scoring | ✅ | ⚙️ | |
-| Worktree isolation | ✅ | ❌ | `--worktree` |
-| CI/exec mode (non-interactive) | ✅ | ❌ | `--exec` |
+| Worktree isolation | ✅ | ✅ | `--worktree` · VibeCoder: WorktreePoolPanel → `worktree_spawn` / `_list` / `_merge` / `_cleanup`, each agent on its own branch, capped at 4 concurrent |
+| CI/exec mode (non-interactive) | ✅ | ❌ | `--exec` — a terminal mode by design; VibeCoder shells out to VibeCLI for it |
 
 **Agent Tools:**
 
@@ -137,7 +137,7 @@ Coverage, so the ✅ is not read as more than it is: only **macOS arm64** runs t
 | Image preview | ✅ | |
 | PDF / EPUB viewer | ✅ | Page and chapter navigation |
 | DOCX / EPUB editing | ✅ | Edit as Markdown, saved back into the original file |
-| Apple Pages editing | ✅ | Text only — see [documents.md](./documents.md) for what is and is not preserved |
+| Apple Pages editing | ✅ | Text only — see [documents.md](/vibecody/documents/) for what is and is not preserved |
 
 ---
 
@@ -218,7 +218,7 @@ Coverage, so the ✅ is not read as more than it is: only **macOS arm64** runs t
 | Stash management | ✅ | ✅ | |
 | Git history viewer | ✅ | ✅ | |
 | Tag management | ✅ | ✅ | |
-| Worktree isolation | ✅ | ❌ | |
+| Worktree isolation | ✅ | ✅ | WorktreePoolPanel — `worktree_spawn` creates a branch + worktree per agent |
 
 ---
 
@@ -308,7 +308,7 @@ Coverage, so the ✅ is not read as more than it is: only **macOS arm64** runs t
 | OS-level sandbox | ✅ | ❌ | sandbox-exec (macOS), bwrap (Linux) |
 | Network isolation | ✅ | ❌ | `--no-network` |
 | Container isolation (Docker/Podman) | ✅ | ⚙️ | |
-| Worktree isolation | ✅ | ❌ | Separate git worktree |
+| Worktree isolation | ✅ | ✅ | Separate git worktree — VibeCoder via WorktreePoolPanel (`worktree_spawn`) |
 | Policy engine (RBAC/ABAC/CEL) | ✅ | ✅ | 14 condition operators |
 | Per-tool approval | ✅ | ✅ | |
 | Secrets scanning | ✅ | ❌ | API key monitor |

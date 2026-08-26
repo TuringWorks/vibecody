@@ -13,12 +13,19 @@
 //! .invoke_handler(tauri::generate_handler![
 //!     vibe_desktop_voice::transcribe_audio,
 //!     vibe_desktop_voice::voice_status,
+//!     vibe_desktop_voice::daemon_token_effective,
 //! ])
 //! ```
 //!
-//! The frontend counterpart is `tauriTranscriber()` in
-//! `packages/vibe-ui-shared/src/voice/transcribers.ts`, which calls
-//! `transcribe_audio` by that exact name.
+//! The frontend counterparts are `tauriTranscriber()` and `useVoiceDuplex()` in
+//! `packages/vibe-ui-shared/src/voice/`, which call `transcribe_audio` and
+//! `daemon_token_effective` by those exact names.
+//!
+//! `daemon_token_effective` exists because a WebSocket cannot set an
+//! Authorization header, so `/ws/voice/duplex` takes `?token=` — and the token
+//! a *local* daemon uses is minted fresh on every start and stored nowhere the
+//! frontend can see, so asking the settings store returns null and the socket
+//! 401s against the user's own daemon.
 
 pub mod voice;
 

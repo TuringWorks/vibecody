@@ -91,8 +91,8 @@ The installer is placed in `src-tauri/target/release/bundle/`.
 - **Rope-based buffer** — built on `ropey` for efficient O(log n) edits on large files
 - **Batch edits** — `apply_batch_edits` for bulk insert/delete operations
 - **Multi-cursor** — `update_cursors` for synchronised cursor state
-- **DiffComplete (⌘.)** — explicit-chord AI editing surface; `DiffCompleteModal` collects an instruction (with optional user-picked extra files for context), `vibe_ai::diffcomplete::generate` returns a unified diff, `DiffReviewPanel` shows per-hunk accept/reject with optional Monaco edit-before-apply and a regenerate-with-refinement loop. A deliberate alternative to keystroke-driven ghost text. Keystroke-driven inline completion was removed on 2026-04-26; inline completion returned later as an **explicit-trigger-only** surface bound to ⌥\ (`vibe_ai::ghost`, 12-line cap) — it never fires on a keystroke. See [ghost-text.md](./ghost-text.md).
-- **Documents (DOCX, EPUB, Pages)** — Word documents, e-books and Apple Pages files open in the editor area. EPUBs render as books: the publisher's own stylesheets (scoped and sanitised), images, cover, nested table of contents and working cross-chapter links. All three are rendered for reading, and editable as text (Markdown for DOCX/EPUB, plain text for Pages) with **Edit text** in the viewer toolbar. Saving edits the original container in place — images, styles, page setup and metadata are preserved — and only replaces the file after re-reading it and confirming the text matches. See [documents.md](./documents.md)
+- **DiffComplete (⌘.)** — explicit-chord AI editing surface; `DiffCompleteModal` collects an instruction (with optional user-picked extra files for context), `vibe_ai::diffcomplete::generate` returns a unified diff, `DiffReviewPanel` shows per-hunk accept/reject with optional Monaco edit-before-apply and a regenerate-with-refinement loop. A deliberate alternative to keystroke-driven ghost text. Keystroke-driven inline completion was removed on 2026-04-26; inline completion returned later as an **explicit-trigger-only** surface bound to ⌥\ (`vibe_ai::ghost`, 12-line cap) — it never fires on a keystroke. See [ghost-text.md](/vibecody/ghost-text/).
+- **Documents (DOCX, EPUB, Pages)** — Word documents, e-books and Apple Pages files open in the editor area. EPUBs render as books: the publisher's own stylesheets (scoped and sanitised), images, cover, nested table of contents and working cross-chapter links. All three are rendered for reading, and editable as text (Markdown for DOCX/EPUB, plain text for Pages) with **Edit text** in the viewer toolbar. Saving edits the original container in place — images, styles, page setup and metadata are preserved — and only replaces the file after re-reading it and confirming the text matches. See [documents.md](/vibecody/documents/)
 - **File watching** — auto-detects external changes using `notify`
 - **Multi-workspace** — open multiple folders simultaneously
 - **Language detection** — automatic language mode from file extension
@@ -290,7 +290,7 @@ The AI panel (toggle with **AI Chat** in the header) has **246 panel components 
 
 | Tab | Component | Description |
 |-----|-----------|-------------|
-| **Chat** | `ChatTabManager` | Multiple independent chat tabs, each with per-tab provider selection; voice input |
+| **Chat** | `ChatTabManager` | Multiple independent chat tabs, each with per-tab provider selection; voice input, and [full-duplex voice](/vibecody/voice-duplex/) — an open microphone you can interrupt |
 | **Agent** | `AgentPanel` | Autonomous multi-step agent with step timeline, approval UI, Turbo mode, and plan mode |
 | **Agent Modes** | `AgentModesPanel` | Switch between Smart, Rush, and Deep agent modes |
 | **Memory** | `MemoryPanel` | Edit per-workspace `.vibecoder.md` and global `~/.vibecoder/rules.md` |
@@ -599,7 +599,7 @@ The React frontend communicates with the Rust backend using Tauri's `invoke()` I
 | `rename_item(path, new_name)` | Rename file or directory |
 | `save_file(path)` | Save buffer contents to disk |
 | `is_rich_document(path)` | Whether the path is a DOCX / EPUB / Pages file this build can open as text |
-| `read_document_text(path)` | Open a document as an editable text buffer (see [documents.md](./documents.md)) |
+| `read_document_text(path)` | Open a document as an editable text buffer (see [documents.md](/vibecody/documents/)) |
 | `write_document_text(path, text)` | Save the buffer back into the document; errors — with the file untouched — if the result does not read back as the text saved |
 | `read_document_preview(path)` | Base64 preview image embedded in the document (Pages only) |
 | `read_epub_book(path)` | EPUB metadata, cover, spine and table of contents |
@@ -1147,7 +1147,7 @@ Language Server Protocol client:
 
 ### `vibe-docfmt`
 
-Rich document formats read and written as text — see [documents.md](./documents.md):
+Rich document formats read and written as text — see [documents.md](/vibecody/documents/):
 
 | Module | Struct/Fn | Description |
 |--------|-----------|-------------|

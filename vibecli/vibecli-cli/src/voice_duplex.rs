@@ -607,6 +607,28 @@ mod tests {
         assert_eq!(t.flush(), None);
     }
 
+    /// The distinction the turn loop depends on: a turn superseded *before* it
+    /// spoke is a user still forming a thought, and its words must be carried
+    /// into the next turn. One superseded *while* speaking is a real
+    /// interruption and must be dropped.
+    ///
+    /// Getting this wrong is not cosmetic. "plus fifty one." <pause> "minus
+    /// fifty four." is one instruction in two breaths; dropping the first half
+    /// silently answers a different question — 32 - 54 instead of 32 + 51 - 54.
+    #[test]
+    fn unspoken_words_are_carried_forward_but_interrupted_speech_is_not() {
+        fn resolve(prior: Option<&str>, heard: &str) -> String {
+            match prior {
+                Some(p) => format!("{p} {heard}"),
+                None => heard.to_string(),
+            }
+        }
+        // Superseded before any audio: the two breaths become one instruction.
+        assert_eq!(resolve(Some("plus 51."), "minus 54."), "plus 51. minus 54.");
+        // A turn that already spoke leaves nothing behind to merge.
+        assert_eq!(resolve(None, "stop"), "stop");
+    }
+
     #[test]
     fn a_barge_in_makes_the_previous_turn_stale() {
         let g = Generation::default();

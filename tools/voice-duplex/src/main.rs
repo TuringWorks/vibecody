@@ -132,13 +132,35 @@ fn send_json(tx: &Out, v: serde_json::Value) {
 
 /// One user turn: transcribe, answer, speak — checking `gen` at every stage so
 /// a barge-in abandons the turn instead of talking over the user.
+#[allow(clippy::too_many_arguments)]
 async fn run_turn(
     text: String, asr_ms: u128, lang: Option<String>, t_end_of_speech: std::time::Instant,
     tx: Out, gen: Generation, my_gen: u64,
     llm: Arc<Llm>, tts: Arc<Mutex<Tts>>,
     history: Arc<Mutex<Vec<(String, String)>>>,
+    unanswered: Arc<Mutex<Option<String>>>,
 ) {
-    if gen.is_stale(my_gen) { return; }
+    // A turn superseded before it spoke is not an interruption — it is a user
+    // still forming their thought. "plus fifty one." <pause> "minus fifty
+    // four." is one instruction in two breaths, and dropping the first half
+    // silently answers a different question. Carry it forward.
+    //
+    // Only before any audio has gone out; once the assistant is speaking, the
+    // user talking over it *is* an interruption.
+    if gen.is_stale(my_gen) {
+        let mut c = unanswered.lock().await;
+        *c = Some(match c.take() {
+            Some(prev) => format!("{prev} {text}"),
+            None => text.clone(),
+        });
+        send_json(&tx, serde_json::json!({"type": "carried", "text": text}));
+        return;
+    }
+    // Anything said while we were still thinking belongs to this turn.
+    let text = match unanswered.lock().await.take() {
+        Some(prev) => format!("{prev} {text}"),
+        None => text,
+    };
     let hist = history.lock().await.clone();
     let (tx_s, mut rx_s) = mpsc::unbounded_channel::<String>();
 
@@ -236,6 +258,8 @@ async fn serve_ws(cfg: Arc<Cfg>) -> anyhow::Result<()> {
             // "auto" until the first turn establishes it; then pinned, because
             // a known language is both faster and more accurate than `auto`.
             let session_lang: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+            // Words from a turn the user superseded before it could answer.
+            let unanswered: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
             // Language mode: "en" keeps the fast streaming path; anything else
             // routes through Whisper, which is the only multilingual engine here.
             let lang_mode = Arc::new(Mutex::new(cfg.language.clone()));
@@ -382,7 +406,8 @@ async fn serve_ws(cfg: Arc<Cfg>) -> anyhow::Result<()> {
                                 send_json(&tx, serde_json::json!({"type":"transcript","text":text,"asr_ms":asr_ms,"lang":detected}));
                                 tokio::spawn(run_turn(
                                     text, asr_ms, detected.clone(), t_eos, tx.clone(), gen.clone(), my_gen,
-                                    Arc::clone(&llm), Arc::clone(&tts), Arc::clone(&history)));
+                                    Arc::clone(&llm), Arc::clone(&tts), Arc::clone(&history),
+                                    Arc::clone(&unanswered)));
                             }
                         }
                         Turn::Silence => {}

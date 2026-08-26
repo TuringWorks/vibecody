@@ -270,6 +270,11 @@ ws.onmessage = ev => {
         if (v) { fillVoices({voices: allVoices, hasNeural: true, default: ''}); $('voice').value = m.id; } }
       break;
     case 'language':   break;
+    // Carried forward, not dropped: the user kept talking before we answered,
+    // so these words join the next turn instead of vanishing.
+    case 'carried':
+      line('sys', '↑ carried into the next turn');
+      break;
     case 'error':      line('sys', 'error: ' + m.message); break;
   }
 };

@@ -9614,6 +9614,9 @@ async fn handle_voice_duplex_ws(socket: WebSocket, state: ServeState, params: Ws
     let history: Arc<tokio::sync::Mutex<Vec<(String, String)>>> =
         Arc::new(tokio::sync::Mutex::new(Vec::new()));
     let voice = Arc::new(tokio::sync::Mutex::new(params.voice.clone()));
+    // Survives across turns: see `voice_duplex_turn`. Distinct from `carry`
+    // below, which is the PCM remainder between frames.
+    let unanswered: Arc<tokio::sync::Mutex<Option<String>>> = Arc::new(tokio::sync::Mutex::new(None));
     let lang_mode = Arc::new(tokio::sync::Mutex::new(
         params.language.clone().unwrap_or_else(|| "en".into()),
     ));
@@ -9681,6 +9684,7 @@ async fn handle_voice_duplex_ws(socket: WebSocket, state: ServeState, params: Ws
                             Arc::clone(&history),
                             Arc::clone(&voice),
                             lang_mode.lock().await.clone(),
+                            Arc::clone(&unanswered),
                         ));
                     } else {
                         say(serde_json::json!({"type": "state", "state": "listening"}));
@@ -9711,6 +9715,8 @@ async fn voice_duplex_turn(
     history: Arc<tokio::sync::Mutex<Vec<(String, String)>>>,
     voice: Arc<tokio::sync::Mutex<Option<String>>>,
     lang_mode: String,
+    // Words from a turn the user superseded before it could answer.
+    unanswered: Arc<tokio::sync::Mutex<Option<String>>>,
 ) {
     use crate::voice_duplex as vd;
     use futures::StreamExt;
@@ -9736,14 +9742,38 @@ async fn voice_duplex_turn(
         }
     };
     let asr_ms = t0.elapsed().as_millis();
-    if gen.is_stale(my_gen) {
-        return;
-    }
     if text.trim().is_empty() {
         say(serde_json::json!({"type": "state", "state": "listening"}));
         return;
     }
+
+    // Everything heard is shown, even when the turn is about to be superseded.
+    // The user said it; silently discarding it makes their words vanish.
     say(serde_json::json!({"type":"transcript","text":text,"asr_ms":asr_ms,"lang":detected}));
+
+    // A superseded turn that never spoke is not an interruption — it is a user
+    // still forming their thought. "plus fifty one." <pause> "minus fifty four."
+    // is one instruction said in two breaths, and dropping the first half
+    // silently changes the answer. Carry it into the next turn instead.
+    //
+    // Only before any audio has gone out. Once the assistant is speaking, the
+    // user talking over it *is* an interruption and the abandoned reply must
+    // not come back.
+    if gen.is_stale(my_gen) {
+        let mut c = unanswered.lock().await;
+        *c = Some(match c.take() {
+            Some(prev) => format!("{prev} {text}"),
+            None => text.clone(),
+        });
+        say(serde_json::json!({"type": "carried", "text": text}));
+        return;
+    }
+
+    // Anything the user said while we were still thinking belongs to this turn.
+    let text = match unanswered.lock().await.take() {
+        Some(prev) => format!("{prev} {text}"),
+        None => text,
+    };
 
     // Reply in the language that was actually heard.
     let lang_rule = match detected.as_deref() {

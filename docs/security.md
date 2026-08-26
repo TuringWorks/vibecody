@@ -72,11 +72,11 @@ approval_policy = "suggest"  # "suggest", "auto-edit", or "full-auto"
 > | Enabled | opt-in via `[sandbox] enabled = true` | always on for daemon-mediated tool calls |
 > | Isolation | full container namespace | per-OS process isolation |
 > | Requires | Docker, Podman, or OpenSandbox | nothing (`bwrap` on Linux for filesystem isolation) |
-> | Documented in | this page | [sandbox.md](./sandbox.md) |
+> | Documented in | this page | [sandbox.md](/vibecody/sandbox/) |
 >
 > Tier-0 applies whether or not you enable the container sandbox, and its coverage is
 > uneven by platform — **macOS gets network isolation only**. Read
-> [sandbox.md](./sandbox.md) before relying on either.
+> [sandbox.md](/vibecody/sandbox/) before relying on either.
 
 The container sandbox executes agent commands inside a container, preventing access to the host system.
 

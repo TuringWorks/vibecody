@@ -66,6 +66,18 @@ cargo run --release -- --selftest        # headless: proves the pipeline, prints
 Flags: `--model`, `--ollama`, `--whisper`, `--whisper-model`, `--tts`,
 `--http-port`, `--ws-port`. `VD_TRACE=1` traces sidecar frames.
 
+## Interruption vs. finishing a thought
+
+Barge-in conflated two different events. A turn superseded *while the assistant
+is speaking* is a real interruption and its reply is abandoned. A turn
+superseded *before any audio went out* is a user still forming their thought —
+the 600 ms hangover ends a turn on a breath — and its words are now carried into
+the next turn instead of being dropped.
+
+Dropping them was not cosmetic: `"plus fifty one."` <pause> `"minus fifty
+four."` answered `32 - 54` instead of `32 + 51 - 54`, with the transcript on
+screen and no reply and no explanation.
+
 ## Four traps this found, all worth remembering
 
 Three are in `AVSpeechSynthesizer.write`:

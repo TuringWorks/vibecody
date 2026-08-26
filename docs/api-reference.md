@@ -537,6 +537,59 @@ curl http://localhost:7878/share/a1b2c3d4... \
 ```
 
 
+### WS /ws/voice/duplex
+
+Full-duplex voice: one open microphone, one speaking assistant, interruptible
+mid-sentence. The whole pipeline — voice-activity detection, turn-taking,
+transcription, the model call and speech synthesis — runs here; a client
+contributes a microphone and speakers and nothing else.
+
+Requires a Bearer token, but a WebSocket cannot set headers, so it is passed as
+`?token=` (the same mechanism `/ws/collab` uses).
+
+| Query param | Meaning |
+|---|---|
+| `token` | Bearer token. Required. |
+| `provider`, `model` | Which model answers. Both must be set to take effect — with only one, the daemon falls back to its startup provider, which may be a different vendor. |
+| `language` | `en` for the fast path, `auto` to detect per turn across 99 languages, or a language code to pin one. |
+| `voice` | TTS voice identifier. |
+
+**Client → server**
+
+* Binary frames: 16 kHz mono little-endian `i16` PCM.
+* Text frames: `{"type":"set_voice","id":"…"}`, `{"type":"set_language","lang":"…"}`.
+
+**Server → client**
+
+* Binary frames: a `u32` little-endian sample rate followed by `f32` samples.
+  Self-describing, because the streaming and batch synthesisers produce
+  different rates and a wrong rate does not fail — it plays at the wrong pitch.
+* Text frames:
+
+| `type` | Meaning |
+|---|---|
+| `ready` | Which ASR and TTS engines resolved. |
+| `state` | `listening` · `hearing` · `thinking` · `speaking`. |
+| `transcript` | What was heard, with `asr_ms` and the detected `lang`. |
+| `speaking` | A sentence about to be spoken. |
+| `flush` | Barge-in — discard queued audio immediately. |
+| `carried` | The user kept talking before this turn could answer, so its words join the next turn rather than being dropped. |
+| `latency` | `first_audio_ms` from end of speech. |
+| `reply` | The full text plus `asr_ms`, `llm_ttft_ms`, `total_ms`. |
+| `error` | Something the user should be told. |
+
+```bash
+websocat "ws://localhost:7878/ws/voice/duplex?token=$TOKEN&provider=ollama&model=granite4.1:3b"
+```
+
+**Echo cancellation is a precondition, not a nicety.** With an open microphone
+and no AEC the assistant's own voice trips the voice-activity detector and it
+interrupts itself every sentence. Surfaces without it should use
+`POST /voice/transcribe` push-to-talk instead. See
+[Full-duplex voice](/vibecody/voice-duplex/).
+
+---
+
 ### WS /ws/collab/:room_id
 
 WebSocket endpoint for real-time CRDT collaboration. No Bearer token required (public).

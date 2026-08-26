@@ -67,7 +67,7 @@ All providers support streaming. Local providers require no API key.
 
 - Rich TUI powered by [Ratatui](https://ratatui.rs/) with REPL mode (readline history, tab completion)
 - 1,144 skill files across 155 categories (142 REPL slash commands)
-- Voice input via Groq Whisper (`--voice` flag)
+- Voice input, local-first: a downloaded whisper model runs on the machine, with Groq Whisper as the fallback (`--voice` flag)
 - Tailscale pairing with QR code sharing and mDNS discovery
 - 18 gateway platforms (Telegram, Discord, Slack, Signal, Matrix, Teams, IRC, Twitch, and more)
 - Red team security pipeline and compliance reporting

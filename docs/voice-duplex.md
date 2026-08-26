@@ -1,3 +1,9 @@
+---
+layout: page
+title: Full-duplex voice
+permalink: /voice-duplex/
+---
+
 # Full-duplex voice
 
 The microphone stays open while the assistant is speaking, so you can interrupt
@@ -82,6 +88,25 @@ so end of turn only has to finalise.
 Three things must be warm before a user is invited to speak, and the daemon does
 all three on connect: the speech synthesiser (~300 ms first utterance, ~20 ms
 after), the model (**3796 ms** cold against ~85 ms warm), and the recogniser.
+
+## Interruption, and what is *not* an interruption
+
+Two things look alike and are not:
+
+* The user talks **while the assistant is speaking** — a real interruption.
+  Playback stops, the reply is abandoned, and it does not come back.
+* The user talks **while the assistant is still thinking**, before any audio has
+  gone out. That is someone finishing a thought, not interrupting one.
+
+The second case used to discard the turn silently. `"plus fifty one."` <pause>
+`"minus fifty four."` is one instruction said in two breaths — the 600 ms
+hangover ends a turn on the pause — and dropping the first half answered a
+different question (`32 - 54` instead of `32 + 51 - 54`) with nothing on screen
+to say why.
+
+Words from a turn superseded before it spoke are now **carried into the next
+turn**, and the client is told with a `carried` event so nothing vanishes
+silently either way.
 
 ## Languages
 

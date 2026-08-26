@@ -1273,7 +1273,7 @@ Each store contains four files: `memories.json`, `waypoints.json`, `facts.json`,
 
 Run `/openmemory encrypt` in the REPL or set `encryption = true` in `config.toml`. The key is stored at `<store>/.key` (mode 0600).
 
-> ⚠️ **This is not encryption.** The implementation is a repeating-key XOR (`open_memory.rs`), not AES-256-GCM. It deters casual disk inspection and provides no cryptographic or integrity guarantee. Keep secrets in the ProfileStore instead — see [memory-guide.md](./memory-guide.md) and [security.md](./security.md).
+> ⚠️ **This is not encryption.** The implementation is a repeating-key XOR (`open_memory.rs`), not AES-256-GCM. It deters casual disk inspection and provides no cryptographic or integrity guarantee. Keep secrets in the ProfileStore instead — see [memory-guide.md](/vibecody/memory-guide/) and [security.md](/vibecody/security/).
 
 To use a passphrase instead of a stored key:
 
@@ -1430,3 +1430,27 @@ token = "ATATT3xxx"   # id.atlassian.com → Security → API tokens
 ## Command History
 
 VibeCLI saves REPL command history to `~/.vibecli/history.txt`. This file is created automatically and persists across sessions. History is navigable with the Up/Down arrow keys in the REPL.
+
+### `[voice]`
+
+```toml
+[voice]
+# Resident whisper-server for the full-duplex route. Running it resident rather
+# than spawning whisper-cli per utterance is worth ~1 s: `small` measured
+# 1433 ms total against 570 ms of actual encode, the rest being model load and
+# backend init paid on every single turn.
+whisper_server_bin   = "whisper-server"
+# `small` is the floor for non-Latin scripts — `base` renders Devanagari in
+# Arabic script, while `small` and `medium` produce identical correct text and
+# `small` is 3x faster.
+whisper_server_model = "~/.vibecli/models/ggml-small.bin"
+whisper_server_port  = 8923
+
+# Optional streaming TTS sidecar. Without it every platform still speaks
+# (`say` / `espeak` / PowerShell to a WAV) — the whole utterance is just
+# synthesised before the first sample goes out. A latency difference, not a
+# capability one.
+tts_sidecar = "/path/to/tts"
+```
+
+See [Full-duplex voice](/vibecody/voice-duplex/).
