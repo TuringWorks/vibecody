@@ -18,6 +18,7 @@
 import React, { useState, useMemo, useEffect, useRef, Component } from "react";
 import { Check, X } from "lucide-react";
 import Editor from "@monaco-editor/react";
+import { MONACO_OVERFLOW_OPTIONS } from "../lib/monacoOptions";
 import { detectLanguage } from "../utils/fileUtils";
 
 // ── Diff types ────────────────────────────────────────────────────────────────
@@ -389,6 +390,7 @@ export function DiffReviewPanel({ original, modified, filePath, onApply, languag
          if (!editDirty) setEditDirty(true);
        }}
        options={{
+         ...MONACO_OVERFLOW_OPTIONS,
          minimap: { enabled: false },
          scrollBeyondLastLine: false,
          fontSize: 13,

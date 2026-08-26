@@ -18,6 +18,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
+import { MONACO_OVERFLOW_OPTIONS } from "../lib/monacoOptions";
 import { AlertTriangle, Check, Eye, Info, Save } from "lucide-react";
 
 import { useEditorTheme } from "../hooks/useEditorTheme";
@@ -214,6 +215,7 @@ export function DocumentTextEditor({ filePath, format, onClose }: DocumentTextEd
           }}
           onMount={handleMount}
           options={{
+            ...MONACO_OVERFLOW_OPTIONS,
             readOnly: !writable,
             minimap: { enabled: false },
             fontSize: 14,

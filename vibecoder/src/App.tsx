@@ -8,6 +8,7 @@ import { registerGhostText, type GhostTextHandle } from "./lib/ghostText";
 import { Toaster } from "./components/Toaster";
 import { NotificationCenter } from "./components/NotificationCenter";
 import Editor, { DiffEditor, OnMount } from "@monaco-editor/react";
+import { MONACO_OVERFLOW_OPTIONS } from "./lib/monacoOptions";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getVersion } from "@tauri-apps/api/app";
@@ -2206,6 +2207,7 @@ function App() {
                 original={gitDiffView.original}
                 modified={gitDiffView.modified}
                 options={{
+                  ...MONACO_OVERFLOW_OPTIONS,
                   readOnly: true,
                   renderSideBySide: false,
                   minimap: { enabled: false },
@@ -2310,6 +2312,7 @@ function App() {
                       onChange={handleEditorChange}
                       onMount={handleEditorDidMount}
                       options={{
+                        ...MONACO_OVERFLOW_OPTIONS,
                         minimap: { enabled: true },
                         fontSize: 14,
                         lineNumbers: "on",
