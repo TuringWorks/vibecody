@@ -101,6 +101,27 @@ class Cap extends AudioWorkletProcessor {
 registerProcessor('cap', Cap);`;
 
 /** Whether this webview can plausibly run duplex. */
+/**
+ * Turn a start failure into something a user can act on.
+ *
+ * "connection failed" told nobody anything. Each of these has a different
+ * remedy, and the first two are the ones that actually happen.
+ */
+function describeStartFailure(e: unknown): string {
+  const msg = e instanceof Error ? e.message : String(e);
+  const name = e instanceof Error ? e.name : "";
+  if (name === "NotAllowedError" || /permission|denied|not allowed/i.test(msg)) {
+    return "Microphone access was denied. Allow it in System Settings → Privacy & Security → Microphone.";
+  }
+  if (name === "NotFoundError" || /no.*(device|microphone)/i.test(msg)) {
+    return "No microphone was found.";
+  }
+  if (/csp|content security/i.test(msg)) {
+    return `Audio capture was blocked by this app's content security policy (${msg}).`;
+  }
+  return `Could not start voice: ${msg}`;
+}
+
 export function duplexSupported(): boolean {
   return (
     typeof AudioWorkletNode !== "undefined" &&
@@ -115,6 +136,9 @@ export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
   const [latency, setLatency] = useState<DuplexLatency>({});
 
   const ws = useRef<WebSocket | null>(null);
+  /// Read by the capture callback, which is created before the socket opens.
+  const sockRef = useRef<WebSocket | null>(null);
+  const capturePath = useRef<"worklet" | "scriptprocessor" | null>(null);
   const capCtx = useRef<AudioContext | null>(null);
   const playCtx = useRef<AudioContext | null>(null);
   const stream = useRef<MediaStream | null>(null);
@@ -136,18 +160,25 @@ export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
     nextAt.current = 0;
   }, []);
 
-  const stop = useCallback(() => {
+  /// Release every resource. Safe to call on a half-started attempt.
+  const teardown = useCallback(() => {
     flush();
     ws.current?.close();
     ws.current = null;
+    sockRef.current = null;
     stream.current?.getTracks().forEach((t) => t.stop());
     stream.current = null;
-    void capCtx.current?.close();
-    void playCtx.current?.close();
+    void capCtx.current?.close().catch(() => {});
+    void playCtx.current?.close().catch(() => {});
     capCtx.current = null;
     playCtx.current = null;
-    setState({ status: "idle" });
+    capturePath.current = null;
   }, [flush]);
+
+  const stop = useCallback(() => {
+    teardown();
+    setState({ status: "idle" });
+  }, [teardown]);
 
   /**
    * Queue a chunk back-to-back on the AudioContext clock.
@@ -203,17 +234,58 @@ export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
       await play.resume();
       playCtx.current = play;
 
-      const url = URL.createObjectURL(
-        new Blob([CAPTURE_WORKLET], { type: "application/javascript" }),
-      );
-      await cap.audioWorklet.addModule(url);
-      URL.revokeObjectURL(url);
-      const node = new AudioWorkletNode(cap, "cap");
-      cap.createMediaStreamSource(s).connect(node);
-      // A worklet with no downstream connection is not pulled in some engines.
+      // Capture, two ways. An AudioWorklet is the right tool — it runs off the
+      // main thread — but its module is fetched under `script-src`, and the
+      // shells ship `script-src 'self'`, which rejects a blob: URL outright
+      // ("Not allowed by CSP", measured). `worker-src 'self' blob:` does not
+      // cover worklets. Rather than depend on every host's CSP, fall back to a
+      // ScriptProcessorNode, which needs no module fetch at all.
+      const src = cap.createMediaStreamSource(s);
+      // A capture node with no downstream connection is not pulled by some
+      // engines, so both paths terminate in a muted gain.
       const mute = cap.createGain();
       mute.gain.value = 0;
-      node.connect(mute).connect(cap.destination);
+      mute.connect(cap.destination);
+
+      const onPcm = (pcm: Int16Array<ArrayBufferLike>) => {
+        if (sockRef.current?.readyState !== WebSocket.OPEN) return;
+        // A transferred worklet buffer is typed `ArrayBufferLike`, which admits
+        // SharedArrayBuffer and so is not assignable to a WebSocket payload.
+        // It cannot be shared here — both producers allocate a plain
+        // Int16Array — so narrow rather than copy 4 KB per frame.
+        sockRef.current.send(pcm as Int16Array<ArrayBuffer>);
+      };
+
+      let usedWorklet = false;
+      try {
+        const url = URL.createObjectURL(
+          new Blob([CAPTURE_WORKLET], { type: "application/javascript" }),
+        );
+        await cap.audioWorklet.addModule(url);
+        URL.revokeObjectURL(url);
+        const node = new AudioWorkletNode(cap, "cap");
+        src.connect(node);
+        node.connect(mute);
+        node.port.onmessage = (e) => onPcm(e.data as Int16Array);
+        usedWorklet = true;
+      } catch {
+        // Deprecated, and still the only capture path that works under a
+        // `script-src 'self'` CSP. 2048 frames at 16 kHz is 128 ms — well
+        // inside the 600 ms the daemon needs to detect end of turn.
+        const sp = cap.createScriptProcessor(2048, 1, 1);
+        sp.onaudioprocess = (e) => {
+          const ch = e.inputBuffer.getChannelData(0);
+          const pcm = new Int16Array(ch.length);
+          for (let i = 0; i < ch.length; i++) {
+            const v = Math.max(-1, Math.min(1, ch[i]));
+            pcm[i] = v < 0 ? v * 0x8000 : v * 0x7fff;
+          }
+          onPcm(pcm);
+        };
+        src.connect(sp);
+        sp.connect(mute);
+      }
+      capturePath.current = usedWorklet ? "worklet" : "scriptprocessor";
 
       // Resolve late: the daemon rotates its token on every restart, and the
       // shells restart it themselves.
@@ -243,10 +315,7 @@ export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
       const sock = new WebSocket(`${base}/ws/voice/duplex?${q}`);
       sock.binaryType = "arraybuffer";
       ws.current = sock;
-
-      node.port.onmessage = (e) => {
-        if (sock.readyState === WebSocket.OPEN) sock.send(e.data.buffer ?? e.data);
-      };
+      sockRef.current = sock;
 
       sock.onmessage = (ev) => {
         if (ev.data instanceof ArrayBuffer) {
@@ -290,14 +359,26 @@ export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
             break;
         }
       };
-      sock.onerror = () => setState({ status: "error", message: "connection failed" });
+      sock.onerror = () => {
+        teardown();
+        setState({
+          status: "error",
+          message:
+            "Could not reach the daemon's voice route. Check the daemon is running and " +
+            "recent enough to serve /ws/voice/duplex.",
+        });
+      };
       sock.onclose = () => {
         if (ws.current === sock) stop();
       };
     } catch (e) {
+      // Release everything before reporting. A half-started attempt used to
+      // keep the microphone open, which then made *push-to-talk* fail too —
+      // one failure taking out a feature that was working.
+      teardown();
       setState({
         status: "error",
-        message: e instanceof Error ? e.message : "could not start voice",
+        message: describeStartFailure(e),
       });
     }
   }, [opts.daemonUrl, opts.token, opts.provider, opts.model, opts.language, opts.voice, enqueue, flush, stop]);

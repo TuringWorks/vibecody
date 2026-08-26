@@ -38,6 +38,24 @@ floor", not as a calibrated constant.
 
 A surface without AEC should stay on `POST /voice/transcribe` push-to-talk.
 
+## What a host has to allow
+
+Capture prefers an `AudioWorklet`, which runs off the main thread. Its module is
+fetched under **`script-src`** — not `worker-src`, which is a common and costly
+assumption — so a host shipping `script-src 'self'` rejects the blob: module
+with *"Not allowed by CSP"* and voice fails to start.
+
+Hosts should allow it:
+
+```
+script-src 'self' blob:
+```
+
+Where they do not, capture falls back to a `ScriptProcessorNode`, which fetches
+no module and works under any policy. It is deprecated and runs on the main
+thread, so the worklet is preferred where the policy permits — but the feature
+never depends on a host's CSP to function at all.
+
 ## Surfaces
 
 | Surface | Duplex | Why |
