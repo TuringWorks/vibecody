@@ -140,11 +140,14 @@ describe('history diff', () => {
 });
 
 describe('GitPanel tabs', () => {
-  it('offers Review, Changelog, Tools and Settings as tabs', async () => {
+  it('offers Changes, Review, Tools and GitHub as tabs — and only those', async () => {
     await renderPanel();
-    for (const name of ['Changes', 'Review', 'Changelog', 'Tools', 'Settings', 'GitHub']) {
+    for (const name of ['Changes', 'Review', 'Tools', 'GitHub']) {
       expect(screen.getByRole('tab', { name })).toBeInTheDocument();
     }
+    // Changelog and Settings folded into Tools; a tab bar that keeps growing
+    // is the thing this panel was moved away from.
+    expect(screen.getAllByRole('tab')).toHaveLength(4);
   });
 
   /**
@@ -186,7 +189,7 @@ describe('GitPanel tabs', () => {
   /** Every tab, because the leak was in one of them and nothing said so. */
   it('renders no comment syntax as text on any tab', async () => {
     await renderPanel();
-    for (const name of ['Changes', 'Review', 'Changelog', 'Tools', 'Settings']) {
+    for (const name of ['Changes', 'Review', 'Tools']) {
       // eslint-disable-next-line no-await-in-loop
       await openTab(name);
       expectNoRawComments();
@@ -224,39 +227,48 @@ describe('GitPanel tabs', () => {
     expect(screen.getByTestId('review-panel')).toBeInTheDocument();
   });
 
-  it('shows the changelog generator on its own tab', async () => {
+  it('shows the changelog generator under Tools', async () => {
     await renderPanel();
-    await openTab('Changelog');
+    await openTab('Tools');
     expect(screen.getByPlaceholderText(/since \(e\.g\. HEAD~10/)).toBeInTheDocument();
     expect(screen.queryByTestId('review-panel')).toBeNull();
   });
 
-  it('shows git settings on its own tab', async () => {
+  it('shows git settings under Tools', async () => {
     await renderPanel();
-    await openTab('Settings');
+    await openTab('Tools');
     expect(screen.getByPlaceholderText('User name')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Email')).toBeInTheDocument();
     expect(screen.queryByTestId('review-panel')).toBeNull();
   });
 
+  /** All four, on one tab, each labelled. */
+  it('gathers every git tool under Tools', async () => {
+    await renderPanel();
+    await openTab('Tools');
+    for (const heading of ['AI Branch Name', 'Resolve Merge Conflict', 'Generate Changelog', 'Git Settings']) {
+      expect(screen.getByText(heading)).toBeInTheDocument();
+    }
+  });
+
   it('marks exactly one tab selected at a time', async () => {
     await renderPanel();
-    await openTab('Settings');
+    await openTab('Tools');
     const selected = screen.getAllByRole('tab').filter(
       (t) => t.getAttribute('aria-selected') === 'true',
     );
     expect(selected).toHaveLength(1);
-    expect(selected[0]).toHaveTextContent('Settings');
+    expect(selected[0]).toHaveTextContent('Tools');
   });
 
   /** Switching away and back must not lose what was typed. */
   it('keeps changelog input across a tab switch', async () => {
     await renderPanel();
-    await openTab('Changelog');
+    await openTab('Tools');
     const input = screen.getByPlaceholderText(/since \(e\.g\. HEAD~10/) as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'v1.2.0' } });
     await openTab('Changes');
-    await openTab('Changelog');
+    await openTab('Tools');
     expect((screen.getByPlaceholderText(/since \(e\.g\. HEAD~10/) as HTMLInputElement).value)
       .toBe('v1.2.0');
   });

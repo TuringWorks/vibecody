@@ -783,7 +783,7 @@ The Reinforcement Learning Operating System provides end-to-end ML training infr
 | `AIChat` | Inline AI assistant with tabs, memory, history |
 | `EditorPanel` | Monaco code editor |
 | `TerminalPanel` | xterm.js terminal emulator |
-| `GitPanel` | Five tabs — Changes, Review, Changelog, Tools, Settings — plus GitHub |
+| `GitPanel` | Four tabs — Changes, Review, Tools, GitHub |
 | `FileExplorer` | Directory tree with context menu |
 
 ### Analysis & Review
