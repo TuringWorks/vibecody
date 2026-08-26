@@ -491,12 +491,14 @@ docker-compose up
 
 **Solution:**
 
-1. Limit the context window size:
+1. Nothing to configure — the agent prunes history to the context window the
+   provider reports for the model you selected, and the chat panel compacts at
+   the same figure. Anthropic and OpenAI do not publish that field, so those
+   two fall back to a documented default of 200 000 tokens.
 
-```toml
-[agent]
-max_context_tokens = 100000  # Reduce from default
-```
+   > A `[agent] max_context_tokens` key was documented here previously. It was
+   > never read: no `[agent]` section exists in `config.toml`, and nothing in
+   > the codebase parsed the key. Setting it did nothing.
 
 1. Clear session history periodically:
 

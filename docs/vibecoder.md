@@ -187,7 +187,17 @@ AI-powered code review via the **Review Panel**:
 
 ### Git Panel
 
-The Git panel provides a full Git workflow UI:
+Source Control is five tabs, so each half of the workflow gets the panel to
+itself rather than competing for one scrolling column:
+
+| Tab | What it holds |
+|-----|---------------|
+| **Changes** | File status, staging, commit, push/pull, branch switching, history — and the control that starts a code review |
+| **Review** | The findings from the last review run |
+| **Changelog** | Generate a changelog from a base ref |
+| **Tools** | AI branch-name suggestion, AI merge-conflict resolution |
+| **Settings** | User identity, remote, SSH detection, HTTPS credentials |
+| **GitHub** | Remote, Actions and triage |
 
 | Feature | Status |
 |---------|--------|
@@ -203,6 +213,26 @@ The Git panel provides a full Git workflow UI:
 | Commit history | Done |
 
 Modified files appear **yellow** (M), new files **green** (N), deleted files **red** (D).
+
+**What the diff compares.** From the Changes list, a file is shown as `HEAD`
+against your working copy. From a commit in **History**, it is shown as that
+commit against its first parent — which is what the commit itself changed, not
+what has happened since. The header names the comparison, including the short
+hash when you are looking at a commit.
+
+Both sides come from git's object store. A file with no previous version — new
+in the working tree, added by the commit you are inspecting, or any file in a
+repository's first commit — compares against empty, which is correct: every
+line really is an addition. A binary file is reported as binary rather than
+decoded into a pane full of replacement characters.
+
+**Commit messages** are clipped in the history list to their subject line, or
+100 characters, whichever comes first. `more` expands the body; it appears only
+when there is a body to show.
+
+**Starting a review** is on the Changes tab, because reviewing is an action on
+the changes you are looking at. The findings land on Review, and pressing
+**Run Review** takes you there.
 
 ### Checkpoints
 
@@ -430,7 +460,7 @@ The AI panel (toggle with **AI Chat** in the header) has **246 panel components 
 
 | Tab | Component | Description |
 |-----|-----------|-------------|
-| **Git** | `GitPanel` | Full Git workflow panel; PR review; AI commit message button |
+| **Git** | `GitPanel` | Full Git workflow, in tabs: Changes, Review, Changelog, Tools, Settings, GitHub; AI commit message button |
 | **GH Sync** | `GitHubSyncPanel` | GitHub sync with ahead/behind status, push/pull, repo management |
 | **Collab** | `CollabPanel` | CRDT multiplayer collaboration: create/join rooms, peer list with color indicators, copy invite link |
 | **Review** | `ReviewPanel` | AI code review with issues, scores, and suggestions |
@@ -573,7 +603,7 @@ The AI panel (toggle with **AI Chat** in the header) has **246 panel components 
 | `CollabPanel` | `src/components/CollabPanel.tsx` | CRDT multiplayer session management: create/join rooms, peer list with color indicators, invite link |
 | `DatabasePanel` | `src/components/DatabasePanel.tsx` | SQLite/PostgreSQL browser with AI query generation |
 | `ContextPicker` | `src/components/ContextPicker.tsx` | @ context dropdown; file, folder, git, web, terminal, symbol, github, jira, html-selected picker |
-| `GitPanel` | `src/components/GitPanel.tsx` | Full Git workflow panel; PR review; AI commit message button (AI) |
+| `GitPanel` | `src/components/GitPanel.tsx` | Full Git workflow, in tabs: Changes, Review, Changelog, Tools, Settings, GitHub; AI commit message button (AI) |
 | `Terminal` | `src/components/Terminal.tsx` | xterm.js terminal integration |
 | `CommandPalette` | `src/components/CommandPalette.tsx` | Fuzzy search command palette |
 | `ThemeToggle` | `src/components/ThemeToggle.tsx` | Dark/light theme switcher |
