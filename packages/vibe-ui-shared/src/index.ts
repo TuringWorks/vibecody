@@ -42,6 +42,8 @@ export type {
   UseVoiceDuplexOptions,
 } from "./voice/useVoiceDuplex";
 export { DuplexVoiceButton } from "./voice/DuplexVoiceButton";
+export { useVoiceDuplexPreference } from "./voice/useVoiceDuplexPreference";
+export type { VoiceDuplexPreference } from "./voice/useVoiceDuplexPreference";
 export type { DuplexVoiceButtonProps } from "./voice/DuplexVoiceButton";
 export {
   tauriTranscriber,

@@ -6,6 +6,7 @@ import { useVoiceInput } from "@vibe/shared/voice/useVoiceInput";
 import { VoiceButton } from "@vibe/shared/voice/VoiceButton";
 import { useVoiceDuplex } from "@vibe/shared/voice/useVoiceDuplex";
 import { DuplexVoiceButton } from "@vibe/shared/voice/DuplexVoiceButton";
+import { useVoiceDuplexPreference } from "@vibe/shared/voice/useVoiceDuplexPreference";
 import { tauriTranscriber } from "@vibe/shared/voice/transcribers";
 import { ApprovalPill, type ApprovalTier } from "./ApprovalPill";
 import { ProviderPill } from "./ProviderPill";
@@ -203,7 +204,9 @@ export function TaskPrompt({
   // Full-duplex conversation, on the same provider/model the composer will use
   // for a typed task. Push-to-talk above stays: it dictates *into* the
   // composer, where this speaks a whole turn without touching the draft.
+  const voicePref = useVoiceDuplexPreference();
   const duplex = useVoiceDuplex({
+    enabled: voicePref.enabled,
     daemonUrl,
     provider: prefs.provider,
     model: prefs.model,
@@ -456,6 +459,8 @@ export function TaskPrompt({
         <VoiceButton voice={voice} disabled={busy} />
         <DuplexVoiceButton
           state={duplex.state}
+          enabled={voicePref.enabled}
+          onEnabledChange={voicePref.setEnabled}
           active={duplex.active}
           supported={duplex.supported && daemonOnline}
           onStart={duplex.start}

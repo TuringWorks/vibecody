@@ -66,6 +66,13 @@ export interface UseVoiceDuplexOptions {
   /** `en` for the fast path, `auto` to detect per turn, or a language code. */
   language?: string;
   voice?: string;
+  /**
+   * Whether the feature is enabled at all. Defaults to `false`.
+   *
+   * Checked here as well as in the UI: hiding a control is not the same as
+   * refusing to open a microphone, and this hook is what actually opens one.
+   */
+  enabled?: boolean;
   onTurn?: (turn: DuplexTurn) => void;
 }
 
@@ -209,6 +216,10 @@ export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
 
   const start = useCallback(async () => {
     if (ws.current) return;
+    if (opts.enabled === false) {
+      setState({ status: "error", message: "Voice is turned off." });
+      return;
+    }
     setState({ status: "connecting" });
     try {
       // Ask for all three; WebKit only honours echoCancellation, and reporting
@@ -381,13 +392,21 @@ export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
         message: describeStartFailure(e),
       });
     }
-  }, [opts.daemonUrl, opts.token, opts.provider, opts.model, opts.language, opts.voice, enqueue, flush, stop]);
+  }, [opts.daemonUrl, opts.token, opts.provider, opts.model, opts.language, opts.voice,
+      opts.enabled, enqueue, flush, teardown]);
 
   const send = useCallback((v: unknown) => {
     if (ws.current?.readyState === WebSocket.OPEN) ws.current.send(JSON.stringify(v));
   }, []);
 
-  useEffect(() => () => stop(), [stop]);
+  useEffect(() => () => teardown(), [teardown]);
+
+  // Switching the preference off mid-conversation closes the microphone. A
+  // disabled feature that keeps holding the device is the failure this whole
+  // opt-in exists to prevent.
+  useEffect(() => {
+    if (opts.enabled === false && ws.current) stop();
+  }, [opts.enabled, stop]);
 
   return {
     state,

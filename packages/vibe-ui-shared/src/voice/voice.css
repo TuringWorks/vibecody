@@ -158,3 +158,29 @@
   0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--success-color) 18%, transparent); }
   50%      { box-shadow: 0 0 0 6px color-mix(in srgb, var(--success-color) 6%, transparent); }
 }
+
+/* The off state and the disable affordance. */
+.voice-duplex-group { display: inline-flex; align-items: stretch; }
+.voice-duplex-group .voice-duplex-btn {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: 0;
+}
+.voice-duplex-btn.off { color: var(--muted, #8b949e); }
+.voice-duplex-disable {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 7px;
+  border: 1px solid var(--border, #232a33);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+  background: var(--surface, #161b22);
+  color: var(--muted, #8b949e);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+.voice-duplex-disable:hover { color: var(--fg, #e6edf3); }

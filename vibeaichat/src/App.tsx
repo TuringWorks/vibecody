@@ -7,6 +7,7 @@ import { useVoiceInput } from "@vibe/shared/voice/useVoiceInput";
 import { VoiceButton } from "@vibe/shared/voice/VoiceButton";
 import { useVoiceDuplex } from "@vibe/shared/voice/useVoiceDuplex";
 import { DuplexVoiceButton } from "@vibe/shared/voice/DuplexVoiceButton";
+import { useVoiceDuplexPreference } from "@vibe/shared/voice/useVoiceDuplexPreference";
 import { tauriTranscriber } from "@vibe/shared/voice/transcribers";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -215,7 +216,9 @@ export default function App() {
   // Full-duplex conversation. Push-to-talk (`useVoiceInput`, below) stays: it
   // is the right control for dictating a long prompt, and it is the only one
   // that works on a host without echo cancellation.
+  const voicePref = useVoiceDuplexPreference();
   const duplex = useVoiceDuplex({
+    enabled: voicePref.enabled,
     daemonUrl,
     token: daemonToken,
     provider,
@@ -642,6 +645,8 @@ export default function App() {
         <VoiceButton voice={voice} disabled={loading} />
         <DuplexVoiceButton
           state={duplex.state}
+          enabled={voicePref.enabled}
+          onEnabledChange={voicePref.setEnabled}
           active={duplex.active}
           supported={duplex.supported && daemonOk === true}
           onStart={duplex.start}

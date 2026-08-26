@@ -56,6 +56,29 @@ no module and works under any policy. It is deprecated and runs on the main
 thread, so the worklet is preferred where the policy permits — but the feature
 never depends on a host's CSP to function at all.
 
+## It is off until you turn it on
+
+Duplex holds the microphone open for the whole session — that is what makes it
+interruptible — so it is **disabled by default** and stays that way until
+someone enables it. "Idle until clicked" would not be the same promise: it
+leaves a live control one misclick away from an open mic.
+
+The control in the chat window has two states:
+
+* **Voice off** — one click enables the feature. It does *not* open the
+  microphone; starting is a second, deliberate click.
+* **Enabled** — a start/stop button showing the turn state, and an **×** that
+  turns the feature back off. Switching it off closes the microphone rather
+  than merely hiding the control that was holding it open.
+
+The preference is stored per machine under `vibe.voice.duplexEnabled` and shared
+across the shells: someone who turns voice off in VibeCoder does not expect
+VibeDesk to keep offering it. Anything other than exactly `true` reads as off —
+a microphone is not the place to be generous about what counts as consent.
+
+The hook enforces this too, not just the button: hiding a control is not the
+same as refusing to open a device, and the hook is what actually opens one.
+
 ## Surfaces
 
 | Surface | Duplex | Why |

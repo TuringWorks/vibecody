@@ -4,6 +4,7 @@ import { useVoiceInput } from "@vibe/shared/voice/useVoiceInput";
 import { useVoiceDuplex } from "@vibe/shared/voice/useVoiceDuplex";
 import { parseProviderSelection } from "../hooks/useModelRegistry";
 import { DuplexVoiceButton } from "@vibe/shared/voice/DuplexVoiceButton";
+import { useVoiceDuplexPreference } from "@vibe/shared/voice/useVoiceDuplexPreference";
 import { tauriTranscriber } from "@vibe/shared/voice/transcribers";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -1740,7 +1741,9 @@ export function AIChat({
   // existing helper for exactly this, and it keeps the model the user picked
   // rather than substituting the registry default.
   const duplexSelection = useMemo(() => parseProviderSelection(provider), [provider]);
+  const voicePref = useVoiceDuplexPreference();
   const duplex = useVoiceDuplex({
+    enabled: voicePref.enabled,
     provider: duplexSelection.provider,
     model: duplexSelection.model,
     language: "en",
@@ -3435,6 +3438,8 @@ export function AIChat({
           {/* Full-duplex conversation — an open mic, interruptible. */}
           <DuplexVoiceButton
             state={duplex.state}
+            enabled={voicePref.enabled}
+            onEnabledChange={voicePref.setEnabled}
             active={duplex.active}
             supported={duplex.supported}
             onStart={duplex.start}
