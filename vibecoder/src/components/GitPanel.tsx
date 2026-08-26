@@ -1,4 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
+import { gitStatusCode, gitStatusLabel } from '../lib/gitStatus';
 import { FolderOpen, AlertTriangle, X } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { ReviewPanel, ReviewControls, useCodeReview } from './ReviewPanel';
@@ -1045,7 +1046,22 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  onChange={() => toggleFileSelection(file)}
  />
  <span style={{ fontSize: '11px', flex: 1 }}>{file}</span>
- <span style={{ fontSize: '9px', color: 'var(--text-secondary)' }}>{status}</span>
+ <span
+ style={{
+ fontSize: '10px',
+ fontFamily: 'var(--font-mono, ui-monospace, monospace)',
+ color: 'var(--text-secondary)',
+ // Fixed width so the Diff and discard controls stay aligned
+ // down the column whatever the code is.
+ width: '1.1em',
+ textAlign: 'center',
+ flex: 'none',
+ }}
+ title={gitStatusLabel(status)}
+ aria-label={gitStatusLabel(status)}
+ >
+ {gitStatusCode(status)}
+ </span>
  <button
  onClick={() => handleCompare(file)}
  style={{

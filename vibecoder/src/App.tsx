@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { gitStatusCode } from './lib/gitStatus';
 import { useToast } from "./hooks/useToast";
 import { useNotifications } from "./hooks/useNotifications";
 import { useApiKeyMonitor } from "./hooks/useApiKeyMonitor";
@@ -1658,7 +1659,13 @@ function App() {
     const isActive = !entry.is_directory && activeFilePath === entry.path;
     const children = isExpanded ? dirContents.get(entry.path) : undefined;
     const gitChar = gitStatus
-      ? Object.entries(gitStatus.file_statuses).find(([p]) => entry.path.endsWith(p))?.[1].charAt(0)
+      ? (() => {
+          const st = Object.entries(gitStatus.file_statuses).find(([p]) =>
+            entry.path.endsWith(p),
+          )?.[1];
+          // Not charAt(0): the variants only have distinct initials by luck.
+          return st ? gitStatusCode(st) : undefined;
+        })()
       : undefined;
     return (
       <React.Fragment key={entry.path}>
