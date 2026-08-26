@@ -1094,6 +1094,7 @@ mod tests {
             local_model: "base".to_string(),
             language: "en".to_string(),
             silence_timeout_ms: 1500,
+            ..VoiceConfig::default()
         };
         let d = VoiceDispatcher::from_config(&vcfg, None);
         assert!(d.cloud_stt_key.is_none());
@@ -1113,6 +1114,7 @@ mod tests {
             local_model: "tiny".to_string(),
             language: "fr".to_string(),
             silence_timeout_ms: 2000,
+            ..VoiceConfig::default()
         };
         let d = VoiceDispatcher::from_config(&vcfg, None);
         assert_eq!(d.cloud_stt_key.as_deref(), Some("gsk_test"));
@@ -1131,6 +1133,7 @@ mod tests {
             local_model: "small".to_string(),
             language: "de".to_string(),
             silence_timeout_ms: 1500,
+            ..VoiceConfig::default()
         };
         let d = VoiceDispatcher::from_config(&vcfg, None);
         assert!(d.prefer_local);
@@ -1148,6 +1151,7 @@ mod tests {
             local_model: "base".to_string(),
             language: "en".to_string(),
             silence_timeout_ms: 1500,
+            ..VoiceConfig::default()
         };
         let d = VoiceDispatcher::from_config(&vcfg, Some("groq_fallback_key"));
         assert_eq!(d.cloud_stt_key.as_deref(), Some("groq_fallback_key"));
@@ -1164,6 +1168,7 @@ mod tests {
             local_model: "base".to_string(),
             language: "en".to_string(),
             silence_timeout_ms: 1500,
+            ..VoiceConfig::default()
         };
         let d = VoiceDispatcher::from_config(&vcfg, None);
         let status = d.status();

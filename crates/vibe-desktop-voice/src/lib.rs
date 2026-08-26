@@ -22,4 +22,4 @@
 
 pub mod voice;
 
-pub use voice::{transcribe_audio, voice_status};
+pub use voice::{daemon_token_effective, transcribe_audio, voice_status};

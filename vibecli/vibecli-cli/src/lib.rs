@@ -512,6 +512,7 @@ pub mod vector_db;
 pub mod verification;
 pub mod vm_orchestrator;
 pub mod voice;
+pub mod voice_duplex;
 pub mod vscode_compat_ext;
 pub mod vscode_sessions;
 pub mod vulnerability_db;

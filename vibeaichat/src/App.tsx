@@ -5,6 +5,8 @@ import { visibleAnswer } from "@vibe/shared/lib/thinking";
 import { Markdown } from "@vibe/shared/markdown/Markdown";
 import { useVoiceInput } from "@vibe/shared/voice/useVoiceInput";
 import { VoiceButton } from "@vibe/shared/voice/VoiceButton";
+import { useVoiceDuplex } from "@vibe/shared/voice/useVoiceDuplex";
+import { DuplexVoiceButton } from "@vibe/shared/voice/DuplexVoiceButton";
 import { tauriTranscriber } from "@vibe/shared/voice/transcribers";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -209,6 +211,19 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [availableModels, setAvailableModels] = useState<ModelRow[]>(readModelsCache);
   const [selectedModel, setSelectedModel] = useState(() => loadSetting(MODEL_KEY, ""));
+
+  // Full-duplex conversation. Push-to-talk (`useVoiceInput`, below) stays: it
+  // is the right control for dictating a long prompt, and it is the only one
+  // that works on a host without echo cancellation.
+  const duplex = useVoiceDuplex({
+    daemonUrl,
+    token: daemonToken,
+    provider,
+    model: selectedModel,
+    language: "en",
+    onTurn: turn =>
+      setMessages(m => [...m, { role: turn.role === "user" ? "user" : "assistant", content: turn.text }]),
+  });
 
   const bottomRef   = useRef<HTMLDivElement>(null);
   const inputRef    = useRef<HTMLTextAreaElement>(null);
@@ -625,6 +640,18 @@ export default function App() {
           disabled={loading}
         />
         <VoiceButton voice={voice} disabled={loading} />
+        <DuplexVoiceButton
+          state={duplex.state}
+          active={duplex.active}
+          supported={duplex.supported && daemonOk === true}
+          onStart={duplex.start}
+          onStop={duplex.stop}
+          unsupportedHint={
+            daemonOk === true
+              ? "This webview cannot capture audio"
+              : "Connect to a daemon to start a voice conversation"
+          }
+        />
         <button
           className="send-btn"
           onClick={send}

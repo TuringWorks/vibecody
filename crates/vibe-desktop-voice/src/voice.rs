@@ -141,6 +141,20 @@ async fn error_message(resp: reqwest::Response) -> String {
 /// Returns the recognised text. The daemon decides which engine runs (local
 /// whisper first when configured, Groq otherwise); `prefer_local` forces the
 /// local one so audio never leaves the machine.
+/// The bearer token that will actually work against the daemon.
+///
+/// Distinct from `daemon_token_get`, which returns only what the user stored
+/// for a *remote* daemon. A local `vibecli --serve` writes a fresh token to
+/// `~/.vibecli/daemon.token` on every start and nothing stores it, so a client
+/// asking the settings store would get `null` and 401 against its own daemon.
+///
+/// Needed in the frontend because a WebSocket cannot set an Authorization
+/// header — `/ws/voice/duplex` takes `?token=` for exactly this reason.
+#[tauri::command]
+pub async fn daemon_token_effective(explicit: Option<String>) -> Result<Option<String>, String> {
+    Ok(resolve_token(explicit))
+}
+
 #[tauri::command]
 pub async fn transcribe_audio(
     url: Option<String>,

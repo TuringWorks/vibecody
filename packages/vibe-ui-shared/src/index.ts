@@ -33,6 +33,16 @@ export {
   type UseVoiceInputOptions,
 } from "./voice/useVoiceInput";
 export { VoiceButton } from "./voice/VoiceButton";
+export { useVoiceDuplex, duplexSupported } from "./voice/useVoiceDuplex";
+export type {
+  DuplexState,
+  DuplexTurn,
+  DuplexLatency,
+  UseVoiceDuplex,
+  UseVoiceDuplexOptions,
+} from "./voice/useVoiceDuplex";
+export { DuplexVoiceButton } from "./voice/DuplexVoiceButton";
+export type { DuplexVoiceButtonProps } from "./voice/DuplexVoiceButton";
 export {
   tauriTranscriber,
   daemonTranscriber,

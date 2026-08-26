@@ -4,6 +4,8 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { useVoiceInput } from "@vibe/shared/voice/useVoiceInput";
 import { VoiceButton } from "@vibe/shared/voice/VoiceButton";
+import { useVoiceDuplex } from "@vibe/shared/voice/useVoiceDuplex";
+import { DuplexVoiceButton } from "@vibe/shared/voice/DuplexVoiceButton";
 import { tauriTranscriber } from "@vibe/shared/voice/transcribers";
 import { ApprovalPill, type ApprovalTier } from "./ApprovalPill";
 import { ProviderPill } from "./ProviderPill";
@@ -197,6 +199,16 @@ export function TaskPrompt({
   );
   const transcribe = useMemo(() => tauriTranscriber(daemonUrl), [daemonUrl]);
   const voice = useVoiceInput({ onTranscript: appendTranscript, transcribe });
+
+  // Full-duplex conversation, on the same provider/model the composer will use
+  // for a typed task. Push-to-talk above stays: it dictates *into* the
+  // composer, where this speaks a whole turn without touching the draft.
+  const duplex = useVoiceDuplex({
+    daemonUrl,
+    provider: prefs.provider,
+    model: prefs.model,
+    language: "en",
+  });
 
   const canSubmit = (!!draft.trim() || attachments.length > 0) && !busy && daemonOnline;
 
@@ -442,6 +454,16 @@ export function TaskPrompt({
           <Paperclip size={15} />
         </button>
         <VoiceButton voice={voice} disabled={busy} />
+        <DuplexVoiceButton
+          state={duplex.state}
+          active={duplex.active}
+          supported={duplex.supported && daemonOnline}
+          onStart={duplex.start}
+          onStop={duplex.stop}
+          unsupportedHint={
+            daemonOnline ? "This webview cannot capture audio" : "The daemon is offline"
+          }
+        />
         <ApprovalPill value={prefs.approval} onChange={(v) => onPref("approval", v)} />
         <button
           type="button"

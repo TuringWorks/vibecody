@@ -8620,6 +8620,7 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/acp/v1/capabilities", get(acp_capabilities))
         .route("/v1/capabilities", get(v1_capabilities))
         .route("/ws/collab/{room_id}", get(ws_collab_handler))
+        .route("/ws/voice/duplex", get(ws_voice_duplex_handler))
         .route("/mobile/beacon", get(mobile_beacon))
         .route("/.well-known/mcp.json", get(well_known_mcp))
         .route_layer(middleware::from_fn_with_state(public_limiter, rate_limit));
@@ -9529,6 +9530,370 @@ async fn list_collab_peers(
 struct WsCollabParams {
     token: String,
     name: Option<String>,
+}
+
+// ── Full-duplex voice ───────────────────────────────────────────────────────
+
+#[derive(Deserialize)]
+struct WsVoiceParams {
+    token: String,
+    /// Provider + model for the reply turn. Required by the provider-agnostic
+    /// rule: the route must honour the client's selection, never the daemon's
+    /// startup config.
+    provider: Option<String>,
+    model: Option<String>,
+    /// `en` keeps the fast path; `auto` detects per turn; a code pins one.
+    language: Option<String>,
+    /// TTS voice identifier, when the client has chosen one.
+    voice: Option<String>,
+}
+
+/// `GET /ws/voice/duplex` — one open microphone, one speaking assistant.
+///
+/// Every surface that can carry audio speaks this: the three desktop shells,
+/// the IDE clients, mobile, and the built-in web client. They contribute a
+/// microphone and speakers; the turn loop lives here so it exists once.
+///
+/// **Clients without echo cancellation must not use this route.** An open mic
+/// with no AEC makes the agent interrupt itself on its own voice; those
+/// surfaces should keep push-to-talk via `POST /voice/transcribe`.
+async fn ws_voice_duplex_handler(
+    Query(params): Query<WsVoiceParams>,
+    State(state): State<ServeState>,
+    ws: WebSocketUpgrade,
+) -> impl IntoResponse {
+    if !crate::auth_util::token_matches(&params.token, &state.api_token) {
+        return (StatusCode::UNAUTHORIZED, "Invalid token").into_response();
+    }
+    ws.on_upgrade(move |socket| handle_voice_duplex_ws(socket, state, params))
+        .into_response()
+}
+
+async fn handle_voice_duplex_ws(socket: WebSocket, state: ServeState, params: WsVoiceParams) {
+    use crate::voice_duplex as vd;
+    use futures::{SinkExt, StreamExt};
+
+    let (mut sink, mut source) = socket.split();
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<WsMessage>();
+    tokio::spawn(async move {
+        while let Some(m) = rx.recv().await {
+            if sink.send(m).await.is_err() {
+                break;
+            }
+        }
+    });
+    let say = |v: serde_json::Value| {
+        let _ = tx.send(WsMessage::Text(v.to_string().into()));
+    };
+
+    let cfg = crate::config::Config::load().unwrap_or_default();
+    let asr_server = vd::ensure_whisper_server(
+        &cfg.voice.whisper_server_bin,
+        &cfg.voice.whisper_server_model,
+        cfg.voice.whisper_server_port,
+    )
+    .await;
+    let tts = Arc::new(tokio::sync::Mutex::new(
+        vd::Tts::open(cfg.voice.tts_sidecar.as_deref()).await,
+    ));
+
+    say(serde_json::json!({
+        "type": "ready",
+        "asr": if asr_server.is_some() { "whisper-server" } else { "whisper-cli" },
+        "tts": if tts.lock().await.is_streaming() { "streaming" } else { "batch" },
+        "language": params.language.clone().unwrap_or_else(|| "en".into()),
+    }));
+    say(serde_json::json!({"type": "state", "state": "listening"}));
+
+    let provider = chat_provider_for(
+        &state.provider,
+        params.provider.as_deref(),
+        params.model.as_deref(),
+    );
+    let gen = vd::Generation::default();
+    let history: Arc<tokio::sync::Mutex<Vec<(String, String)>>> =
+        Arc::new(tokio::sync::Mutex::new(Vec::new()));
+    let voice = Arc::new(tokio::sync::Mutex::new(params.voice.clone()));
+    let lang_mode = Arc::new(tokio::sync::Mutex::new(
+        params.language.clone().unwrap_or_else(|| "en".into()),
+    ));
+
+    let mut vad = vd::Vad::default();
+    let mut pending: Vec<i16> = Vec::new();
+    let mut preroll: std::collections::VecDeque<Vec<i16>> = std::collections::VecDeque::new();
+    let mut capturing = false;
+    let mut carry: Vec<i16> = Vec::new();
+
+    while let Some(Ok(msg)) = source.next().await {
+        match msg {
+            WsMessage::Text(t) => {
+                let Ok(v) = serde_json::from_str::<serde_json::Value>(&t) else { continue };
+                match v.get("type").and_then(|x| x.as_str()) {
+                    Some("set_voice") => {
+                        *voice.lock().await = v.get("id").and_then(|x| x.as_str()).map(str::to_string);
+                    }
+                    Some("set_language") => {
+                        *lang_mode.lock().await =
+                            v.get("lang").and_then(|x| x.as_str()).unwrap_or("en").to_string();
+                    }
+                    _ => {}
+                }
+                continue;
+            }
+            WsMessage::Binary(buf) => {
+                carry.extend(buf.chunks_exact(2).map(|c| i16::from_le_bytes([c[0], c[1]])));
+            }
+            WsMessage::Close(_) => break,
+            _ => continue,
+        }
+
+        while carry.len() >= vd::FRAME {
+            let frame: Vec<i16> = carry.drain(..vd::FRAME).collect();
+            match vad.push(&frame) {
+                vd::Turn::SpeechStart => {
+                    // Barge-in: whatever is speaking belongs to a superseded turn.
+                    gen.bump();
+                    let _ = tts.lock().await.cancel().await;
+                    say(serde_json::json!({"type": "flush"}));
+                    say(serde_json::json!({"type": "state", "state": "hearing"}));
+                    capturing = true;
+                    pending = preroll.iter().flatten().copied().collect();
+                    pending.extend_from_slice(&frame);
+                }
+                vd::Turn::Speech => {
+                    if capturing {
+                        pending.extend_from_slice(&frame);
+                    }
+                }
+                vd::Turn::SpeechEnd => {
+                    capturing = false;
+                    let audio = std::mem::take(&mut pending);
+                    if audio.len() > vd::MIC_RATE as usize / 5 {
+                        say(serde_json::json!({"type": "state", "state": "thinking"}));
+                        tokio::spawn(voice_duplex_turn(
+                            audio,
+                            tx.clone(),
+                            gen.clone(),
+                            gen.current(),
+                            asr_server.clone(),
+                            Arc::clone(&provider),
+                            Arc::clone(&tts),
+                            Arc::clone(&history),
+                            Arc::clone(&voice),
+                            lang_mode.lock().await.clone(),
+                        ));
+                    } else {
+                        say(serde_json::json!({"type": "state", "state": "listening"}));
+                    }
+                }
+                vd::Turn::Silence => {}
+            }
+            preroll.push_back(frame);
+            // 300 ms of lead-in, so the first word of a turn is not clipped.
+            if preroll.len() > 15 {
+                preroll.pop_front();
+            }
+        }
+    }
+}
+
+/// One user turn: transcribe, answer, speak — checking `gen` at every stage so
+/// a barge-in abandons the turn instead of talking over the user.
+#[allow(clippy::too_many_arguments)]
+async fn voice_duplex_turn(
+    pcm: Vec<i16>,
+    tx: tokio::sync::mpsc::UnboundedSender<WsMessage>,
+    gen: crate::voice_duplex::Generation,
+    my_gen: u64,
+    asr_server: Option<String>,
+    provider: Arc<dyn vibe_ai::provider::AIProvider>,
+    tts: Arc<tokio::sync::Mutex<crate::voice_duplex::Tts>>,
+    history: Arc<tokio::sync::Mutex<Vec<(String, String)>>>,
+    voice: Arc<tokio::sync::Mutex<Option<String>>>,
+    lang_mode: String,
+) {
+    use crate::voice_duplex as vd;
+    use futures::StreamExt;
+
+    let say = |v: serde_json::Value| {
+        let _ = tx.send(WsMessage::Text(v.to_string().into()));
+    };
+    let t0 = std::time::Instant::now();
+
+    let want = (lang_mode != "auto").then(|| lang_mode.clone());
+    let (text, detected) = match &asr_server {
+        Some(url) => match vd::transcribe_server(url, &pcm, vd::MIC_RATE, want.as_deref()).await {
+            Ok(r) => r,
+            Err(e) => {
+                say(serde_json::json!({"type": "error", "message": format!("asr: {e}")}));
+                return;
+            }
+        },
+        None => {
+            say(serde_json::json!({"type": "error",
+                "message": "no speech engine configured — see docs/voice-duplex.md"}));
+            return;
+        }
+    };
+    let asr_ms = t0.elapsed().as_millis();
+    if gen.is_stale(my_gen) {
+        return;
+    }
+    if text.trim().is_empty() {
+        say(serde_json::json!({"type": "state", "state": "listening"}));
+        return;
+    }
+    say(serde_json::json!({"type":"transcript","text":text,"asr_ms":asr_ms,"lang":detected}));
+
+    // Reply in the language that was actually heard.
+    let lang_rule = match detected.as_deref() {
+        Some(c) if c != "en" => format!(
+            " The user is speaking {0}. Reply ONLY in {0}. Do not translate to English.",
+            vd::language_name(c)
+        ),
+        _ => String::new(),
+    };
+    let mut messages = vec![vibe_ai::provider::Message {
+        role: vibe_ai::provider::MessageRole::System,
+        content: format!(
+            "You are a voice assistant. Reply in one or two short spoken sentences.              No markdown, no lists, no code blocks — this is read aloud.{lang_rule}"
+        ),
+    }];
+    for (u, a) in history.lock().await.iter() {
+        messages.push(vibe_ai::provider::Message {
+            role: vibe_ai::provider::MessageRole::User,
+            content: u.clone(),
+        });
+        messages.push(vibe_ai::provider::Message {
+            role: vibe_ai::provider::MessageRole::Assistant,
+            content: a.clone(),
+        });
+    }
+    messages.push(vibe_ai::provider::Message {
+        role: vibe_ai::provider::MessageRole::User,
+        content: text.clone(),
+    });
+
+    let mut stream = match provider.stream_chat(&messages).await {
+        Ok(s) => s,
+        Err(e) => {
+            say(serde_json::json!({"type": "error", "message": format!("provider: {e}")}));
+            return;
+        }
+    };
+
+    let mut split = vd::SentenceSplitter::default();
+    let mut full = String::new();
+    let mut ttft = 0u128;
+    let mut first_audio: Option<u128> = None;
+
+    while let Some(tok) = stream.next().await {
+        if gen.is_stale(my_gen) {
+            return;
+        }
+        let Ok(tok) = tok else { continue };
+        if tok.is_empty() {
+            continue;
+        }
+        if ttft == 0 {
+            ttft = t0.elapsed().as_millis();
+        }
+        full.push_str(&tok);
+        if let Some(sentence) = split.push(&tok) {
+            say(serde_json::json!({"type": "speaking", "text": sentence}));
+            if let Some(ms) =
+                speak_sentence(&sentence, &tx, &tts, &voice, &gen, my_gen, t0).await
+            {
+                if first_audio.is_none() {
+                    first_audio = Some(ms);
+                    say(serde_json::json!({"type": "latency", "first_audio_ms": ms}));
+                }
+            }
+        }
+    }
+    if !gen.is_stale(my_gen) {
+        if let Some(sentence) = split.flush() {
+            say(serde_json::json!({"type": "speaking", "text": sentence}));
+            if let Some(ms) = speak_sentence(&sentence, &tx, &tts, &voice, &gen, my_gen, t0).await
+            {
+                if first_audio.is_none() {
+                    say(serde_json::json!({"type": "latency", "first_audio_ms": ms}));
+                    first_audio = Some(ms);
+                }
+            }
+        }
+        say(serde_json::json!({
+            "type": "reply", "text": full, "asr_ms": asr_ms,
+            "first_audio_ms": first_audio,
+            "llm_ttft_ms": ttft, "total_ms": t0.elapsed().as_millis()
+        }));
+        let mut h = history.lock().await;
+        h.push((text, full));
+        if h.len() > 6 {
+            h.remove(0);
+        }
+        say(serde_json::json!({"type": "state", "state": "listening"}));
+    }
+}
+
+/// Speak one sentence, streaming its audio to the client.
+///
+/// Called per completed sentence rather than once per reply: waiting for the
+/// model to finish would make first-audio inherit the whole generation time.
+/// Returns the elapsed ms at which the first sample went out, or `None` if the
+/// turn was superseded.
+#[allow(clippy::too_many_arguments)]
+async fn speak_sentence(
+    sentence: &str,
+    tx: &tokio::sync::mpsc::UnboundedSender<WsMessage>,
+    tts: &Arc<tokio::sync::Mutex<crate::voice_duplex::Tts>>,
+    voice: &Arc<tokio::sync::Mutex<Option<String>>>,
+    gen: &crate::voice_duplex::Generation,
+    my_gen: u64,
+    t0: std::time::Instant,
+) -> Option<u128> {
+    let mut t = tts.lock().await;
+    let v = voice.lock().await.clone();
+    if t.is_streaming() {
+        if t.say(sentence, v.as_deref(), 0.52).await.is_err() {
+            return None;
+        }
+        let mut first = None;
+        while let Ok(Some(chunk)) = t.next_chunk().await {
+            if gen.is_stale(my_gen) {
+                let _ = t.cancel().await;
+                break;
+            }
+            if first.is_none() {
+                first = Some(t0.elapsed().as_millis());
+            }
+            let _ = tx.send(WsMessage::Binary(encode_audio(&chunk).into()));
+        }
+        first
+    } else {
+        match t.synthesize(sentence, v.as_deref()).await {
+            Ok(Some(chunk)) if !gen.is_stale(my_gen) => {
+                let first = Some(t0.elapsed().as_millis());
+                let _ = tx.send(WsMessage::Binary(encode_audio(&chunk).into()));
+                first
+            }
+            _ => None,
+        }
+    }
+}
+
+/// Frame audio as `u32` sample-rate followed by f32 samples.
+///
+/// Self-describing so a batch engine at 22.05 kHz and a streaming one at some
+/// other rate can interleave without an ordering contract — a wrong rate does
+/// not fail loudly, it just plays back at the wrong pitch.
+fn encode_audio(a: &crate::voice_duplex::Audio) -> Vec<u8> {
+    let mut out = Vec::with_capacity(4 + a.pcm.len() * 4);
+    out.extend_from_slice(&a.rate.to_le_bytes());
+    for s in &a.pcm {
+        out.extend_from_slice(&s.to_le_bytes());
+    }
+    out
 }
 
 async fn ws_collab_handler(

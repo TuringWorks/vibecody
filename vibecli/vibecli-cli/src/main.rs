@@ -432,6 +432,7 @@ mod v1_messages;
 #[allow(dead_code)]
 mod verification;
 mod voice;
+mod voice_duplex;
 #[allow(dead_code)]
 #[allow(dead_code)]
 mod web_crawler;

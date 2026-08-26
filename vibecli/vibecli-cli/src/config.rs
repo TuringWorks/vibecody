@@ -804,6 +804,25 @@ pub struct VoiceConfig {
     /// Prefer local offline transcription even when a cloud key is available.
     #[serde(default)]
     pub prefer_local: bool,
+    /// Resident `whisper-server` binary, for the full-duplex route.
+    ///
+    /// Spawning `whisper-cli` per utterance pays model load *and* backend init
+    /// every turn — measured 1433 ms total against 570 ms of actual encode.
+    /// Resident, the same model and audio answer in ~455 ms.
+    #[serde(default = "VoiceConfig::default_whisper_server_bin")]
+    pub whisper_server_bin: String,
+    /// Model for the resident server. `small` is the quality floor for
+    /// non-Latin scripts: `base` renders Devanagari in Arabic script, while
+    /// `small` and `medium` produce identical text and `small` is 3x faster.
+    #[serde(default = "VoiceConfig::default_whisper_server_model")]
+    pub whisper_server_model: String,
+    #[serde(default = "VoiceConfig::default_whisper_server_port")]
+    pub whisper_server_port: u16,
+    /// Streaming TTS sidecar. Optional: without it every platform still
+    /// speaks, just with the whole utterance synthesised before the first
+    /// sample goes out.
+    #[serde(default)]
+    pub tts_sidecar: Option<String>,
     /// Local Whisper model variant: "tiny", "base", "small", "medium", "large".
     #[serde(default = "VoiceConfig::default_local_model")]
     pub local_model: String,
@@ -823,6 +842,10 @@ impl Default for VoiceConfig {
             elevenlabs_voice_id: None,
             tts_enabled: false,
             prefer_local: false,
+            whisper_server_bin: Self::default_whisper_server_bin(),
+            whisper_server_model: Self::default_whisper_server_model(),
+            whisper_server_port: Self::default_whisper_server_port(),
+            tts_sidecar: None,
             local_model: Self::default_local_model(),
             language: Self::default_language(),
             silence_timeout_ms: Self::default_silence_timeout(),
@@ -832,6 +855,21 @@ impl Default for VoiceConfig {
 
 #[allow(dead_code)]
 impl VoiceConfig {
+    fn default_whisper_server_bin() -> String {
+        "whisper-server".to_string()
+    }
+
+    fn default_whisper_server_model() -> String {
+        dirs::home_dir()
+            .map(|h| h.join(".vibecli/models/ggml-small.bin"))
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_default()
+    }
+
+    fn default_whisper_server_port() -> u16 {
+        8923
+    }
+
     fn default_local_model() -> String {
         "base".to_string()
     }

@@ -1,6 +1,9 @@
 import { memo, useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useVoiceInput } from "@vibe/shared/voice/useVoiceInput";
+import { useVoiceDuplex } from "@vibe/shared/voice/useVoiceDuplex";
+import { PROVIDER_DEFAULT_MODEL } from "../hooks/useModelRegistry";
+import { DuplexVoiceButton } from "@vibe/shared/voice/DuplexVoiceButton";
 import { tauriTranscriber } from "@vibe/shared/voice/transcribers";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -1723,6 +1726,21 @@ export function AIChat({
     clearError: clearVoiceError,
   } = useVoiceInput({ onTranscript: appendTranscript, transcribe: voiceTranscribe });
 
+  // Full-duplex conversation. The model is resolved here rather than left to
+  // the daemon: with only a provider the daemon falls back to whatever it
+  // booted with, which can be a different vendor entirely — exactly the silent
+  // default the provider-agnostic rule exists to prevent.
+  const duplex = useVoiceDuplex({
+    provider,
+    model: PROVIDER_DEFAULT_MODEL[provider],
+    language: "en",
+    onTurn: turn =>
+      setMessages(prev => [
+        ...prev,
+        { role: turn.role, content: turn.text, timestamp: Date.now() } satisfies Message,
+      ]),
+  });
+
   // The hook reports failures as state; VibeCoder already has a toast surface,
   // so mirror them there and clear so the same error can be raised again.
   useEffect(() => {
@@ -3388,6 +3406,16 @@ export function AIChat({
             <Mic size={14} strokeWidth={1.5} />
             {isListening && <span className="mic-recording-badge">REC</span>}
           </button>
+
+          {/* Full-duplex conversation — an open mic, interruptible. */}
+          <DuplexVoiceButton
+            state={duplex.state}
+            active={duplex.active}
+            supported={duplex.supported}
+            onStart={duplex.start}
+            onStop={duplex.stop}
+            unsupportedHint="This webview cannot capture audio"
+          />
 
           {/* Send button */}
           <button

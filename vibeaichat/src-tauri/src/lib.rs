@@ -105,6 +105,9 @@ pub fn run() {
             // these registrations the button records and then silently fails.
             vibe_desktop_voice::transcribe_audio,
             vibe_desktop_voice::voice_status,
+            // A WebSocket cannot set an Authorization header, so /ws/voice/duplex
+            // takes ?token= and the frontend needs the effective token to build it.
+            vibe_desktop_voice::daemon_token_effective,
             // SkillForge — 10 daemon-proxy commands (G7). vibeaichat's
             // bespoke UI doesn't render the panel (that lives in VibeCoder),
             // but the surface is registered so SkillForge is reachable

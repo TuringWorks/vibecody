@@ -66,7 +66,8 @@ Coverage, so the ✅ is not read as more than it is: only **macOS arm64** runs t
 | Manual compaction (`/compact`) | ✅ | ✅ | Summarize + truncate old messages |
 | Chat memory panel | ❌ | ✅ | Extracted facts + pin to prompt |
 | Pinned facts injected into prompt | ❌ | ✅ | Persist across sessions |
-| Voice input | ✅ | ✅ | Shared hook → daemon `/voice/transcribe`; see [Voice Input](#voice-input) for every client |
+| Voice input (push-to-talk) | ✅ | ✅ | Shared hook → daemon `/voice/transcribe`; see [Voice Input](#voice-input) for every client. ⚠ **Not functional on Linux** — WebKitGTK denies mic capture unless the embedder enables it, and neither wry nor Tauri does |
+| **Full-duplex voice** (open mic, interruptible) | ⚙️ | ✅ | Daemon `/ws/voice/duplex`; VibeCoder + VibeDesk + VibeAIChat. Requires echo cancellation — measured on macOS only. See [Full-duplex voice](voice-duplex.md) |
 | Image/file attachments | ✅ | ✅ | Up to 10 files, 20 MB each |
 | Slash commands | ✅ | ✅ | `/fix`, `/explain`, `/test`, etc. |
 | @ file mentions | ✅ | ✅ | Add file content to context |

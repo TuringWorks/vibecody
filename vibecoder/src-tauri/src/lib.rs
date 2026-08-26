@@ -989,6 +989,9 @@ pub fn run() {
             // path; `transcribe_audio_file` handles files already on disk.
             vibe_desktop_voice::transcribe_audio,
             vibe_desktop_voice::voice_status,
+            // A WebSocket cannot set an Authorization header, so /ws/voice/duplex
+            // takes ?token= and the frontend needs the effective token to build it.
+            vibe_desktop_voice::daemon_token_effective,
             commands::transcribe_audio_file,
             commands::text_to_speech,
             // Gap Closure: Webhook Automations
