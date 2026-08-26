@@ -583,6 +583,7 @@ pub fn run() {
             commands::git_pull,
             commands::git_diff,
             commands::git_file_at_head,
+            commands::git_file_versions_at_commit,
             commands::git_list_branches,
             commands::git_switch_branch,
             commands::get_git_config,

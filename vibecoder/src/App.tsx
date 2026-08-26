@@ -1520,11 +1520,29 @@ function App() {
    * exist at HEAD (new, or a repo with no commits), and comparing against
    * empty is then correct rather than a fallback.
    */
-  const handleCompareFile = async (file: string) => {
+  const handleCompareFile = async (file: string, commit?: string) => {
     const root = workspaceFolders[0];
     if (!root) return;
 
     try {
+      if (commit) {
+        // A history entry asks what *that commit* changed, which is its parent
+        // against itself. Comparing HEAD to the working tree instead — as this
+        // did — is wrong in a way that hides: while browsing history the two
+        // usually match, so the viewer showed two identical sides and the
+        // commit looked like it changed nothing.
+        const { before, after } = await invoke<{ before: string | null; after: string | null }>(
+          'git_file_versions_at_commit',
+          { path: root, rev: commit, filePath: file },
+        );
+        setGitDiffView({
+          file: `${file} @ ${commit.substring(0, 7)}`,
+          original: before ?? '',
+          modified: after ?? '',
+        });
+        return;
+      }
+
       const [original, modified] = await Promise.all([
         invoke<string | null>('git_file_at_head', { path: root, filePath: file }),
         invoke<string>('read_file', { path: `${root}/${file}` }),

@@ -2782,6 +2782,24 @@ pub async fn git_file_at_head(path: String, file_path: String) -> Result<Option<
     vibe_core::git::file_at_head(&PathBuf::from(path), &file_path).map_err(|e| e.to_string())
 }
 
+/// The two sides of what `rev` did to `file_path` — its parent's version and
+/// its own.
+///
+/// `null` on either side is meaningful: the file was added by this commit, was
+/// deleted by it, or the commit is the repository root.
+#[tauri::command]
+pub async fn git_file_versions_at_commit(
+    path: String,
+    rev: String,
+    file_path: String,
+) -> Result<serde_json::Value, String> {
+    let _ = reject_sensitive_path(&path)?;
+    let (before, after) =
+        vibe_core::git::file_versions_at_commit(&PathBuf::from(path), &rev, &file_path)
+            .map_err(|e| e.to_string())?;
+    Ok(serde_json::json!({ "before": before, "after": after }))
+}
+
 #[tauri::command]
 pub async fn git_list_branches(
     path: String,

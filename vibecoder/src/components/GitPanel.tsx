@@ -22,10 +22,11 @@ export type GitPanelView =
 
 interface GitPanelProps {
  workspacePath: string | null;
- /** Open `filePath` in the diff view. The before side is fetched from git by
-  *  the host — a unified diff cannot supply it, which is what this callback
-  *  used to hand over. */
- onCompareFile?: (filePath: string) => void;
+ /** Open `filePath` in the diff view. The host fetches both sides from git —
+  *  a unified diff cannot supply them, which is what this callback used to
+  *  hand over. With `commit`, the comparison is that commit against its
+  *  parent; without, HEAD against the working tree. */
+ onCompareFile?: (filePath: string, commit?: string) => void;
  /** Provider name from the toolbar dropdown — forwarded to AI git commands so
   *  the commit-message generator (and friends) use the user's selected model
   *  instead of whichever provider happens to be active in the chat engine. */
@@ -66,6 +67,53 @@ interface GitRepoSuggestion {
  should_suggest: boolean;
  declined: boolean;
  blocked_reason: string | null;
+}
+
+/** Longest commit message shown before it is clipped behind "more". */
+const COMMIT_MESSAGE_CLAMP = 100;
+
+/**
+ * A commit message that does not take over the panel.
+ *
+ * Git messages are a short subject line and an arbitrarily long body, and this
+ * list rendered the whole thing. One commit with a real body pushed "Files
+ * Changed" and every file under it off the visible area, so the list you came
+ * to the history for was unreachable without scrolling past prose.
+ *
+ * Clipped at the first line break or `COMMIT_MESSAGE_CLAMP` characters,
+ * whichever comes first — the subject line is the part that identifies a
+ * commit, and a body is exactly what a reader has not asked for yet. Nothing
+ * is hidden without a way back: the toggle is only rendered when there is more
+ * to show, so a short message has no dangling control.
+ */
+function CommitMessage({ text, fontSize }: { text: string; fontSize: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const trimmed = text.trim();
+  const firstBreak = trimmed.indexOf('\n');
+  const subjectEnd = firstBreak === -1 ? trimmed.length : firstBreak;
+  const cut = Math.min(subjectEnd, COMMIT_MESSAGE_CLAMP);
+  const clipped = cut < trimmed.length;
+
+  return (
+    <div style={{ fontSize, marginTop: 4 }}>
+      <span style={{ whiteSpace: expanded ? 'pre-wrap' : 'normal', wordBreak: 'break-word' }}>
+        {expanded ? trimmed : trimmed.slice(0, cut)}
+        {clipped && !expanded && '…'}
+      </span>
+      {clipped && (
+        <button
+          onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
+          aria-expanded={expanded}
+          style={{
+            marginLeft: 6, background: 'none', border: 'none', padding: 0,
+            color: 'var(--accent-blue)', cursor: 'pointer', fontSize: 'var(--font-size-xs)',
+          }}
+        >
+          {expanded ? 'less' : 'more'}
+        </button>
+      )}
+    </div>
+  );
 }
 
 export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view: viewProp, onViewChange }: GitPanelProps) {
@@ -255,15 +303,9 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  }
  };
 
- /* Known-wrong, and it was before this change too: this shows HEAD against
-  * the working tree, not the selected commit against its parent. Diffing a
-  * historical commit needs a command that takes two refs, which does not exist
-  * yet. Left as-is rather than quietly relabelled — the previous version fed
-  * the same working-tree diff into a reconstruction that produced garbage, so
-  * this is strictly better while still not being what the button implies. */
  const handleCompareCommitFile = async (file: string) => {
  if (!workspacePath || !selectedCommit || !onCompareFile) return;
- onCompareFile(file);
+ onCompareFile(file, selectedCommit.hash);
  };
 
  const handleDiscardChanges = async (file: string) => {
@@ -611,7 +653,11 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
  <ReviewPanel
  review={review}
- onOpenFile={onCompareFile}
+ /* `line` is dropped deliberately: the diff view addresses a file, not a
+   * position in one. Forwarding `onCompareFile` bare typechecked only while
+   * its second parameter was unused — now that it means a commit, a review
+   * finding's line number would have been read as a revision. */
+ onOpenFile={onCompareFile ? (path) => onCompareFile(path) : undefined}
  />
  </div>
  <Toaster toasts={toasts} onDismiss={dismiss} />
@@ -925,7 +971,7 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  <button onClick={() => setSelectedCommit(null)} style={{ background: 'none', border: 'none', color: 'var(--accent-blue)', cursor: 'pointer', fontSize: '11px', marginBottom: '8px' }}>← Back to commits</button>
  <div style={{ padding: '8px', background: 'var(--bg-tertiary)', borderRadius: '4px', marginBottom: '8px' }}>
  <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{selectedCommit.hash.substring(0, 7)} • {selectedCommit.author}</div>
- <div style={{ fontSize: '12px', marginTop: '4px' }}>{selectedCommit.message}</div>
+ <CommitMessage text={selectedCommit.message} fontSize={12} />
  </div>
  <h4 style={{ fontSize: '11px', marginBottom: '8px', color: 'var(--text-secondary)' }}>Files Changed</h4>
  {commitFiles.map(file => (
@@ -953,7 +999,7 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginBottom: '2px' }}>
  {commit.hash.substring(0, 7)} • {commit.author} • {new Date(commit.timestamp * 1000).toLocaleDateString()}
  </div>
- <div style={{ fontSize: '11px' }}>{commit.message}</div>
+ <CommitMessage text={commit.message} fontSize={11} />
  </div>
  ))
  )}

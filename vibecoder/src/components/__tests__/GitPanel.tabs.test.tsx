@@ -98,6 +98,47 @@ function expectNoRawComments() {
     .not.toMatch(/\/\*|\*\//);
 }
 
+describe('history diff', () => {
+  /**
+   * A history entry asks what *that commit* changed, which is its parent
+   * against itself — not HEAD against the working tree.
+   *
+   * Getting it wrong is invisible rather than loud: while browsing history the
+   * working tree usually matches HEAD, so the two sides come back identical
+   * and the viewer renders an empty diff. The commit looks like it changed
+   * nothing, and there is no error anywhere to say otherwise.
+   */
+  it('asks for the commit and its parent, not the working tree', async () => {
+    const onCompareFile = vi.fn();
+    mockInvoke.mockImplementation((cmd: string) => {
+      switch (cmd) {
+        case 'get_git_status':
+          return Promise.resolve({ branch: 'main', file_statuses: {} });
+        case 'git_list_branches':
+          return Promise.resolve(['main']);
+        case 'git_get_history':
+          return Promise.resolve([
+            { hash: 'abcdef1234567890', author: 'me', timestamp: 1, message: 'a commit' },
+          ]);
+        case 'git_get_commit_files':
+          return Promise.resolve(['src/cli.ts']);
+        default:
+          return Promise.resolve(null);
+      }
+    });
+
+    render(<GitPanel workspacePath="/repo" onCompareFile={onCompareFile} />);
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Changes' })).toBeInTheDocument(),
+    );
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'History' })); });
+    await act(async () => { fireEvent.click(screen.getByText('a commit')); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Diff' })); });
+
+    expect(onCompareFile).toHaveBeenCalledWith('src/cli.ts', 'abcdef1234567890');
+  });
+});
+
 describe('GitPanel tabs', () => {
   it('offers Review, Changelog, Tools and Settings as tabs', async () => {
     await renderPanel();
