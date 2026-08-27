@@ -110,6 +110,8 @@ body {
 
 .btn-icon:hover { opacity: 1; color: var(--text-primary); background: var(--bg-elevated); }
 .btn-icon.pinned { opacity: 1; color: var(--accent-blue); }
+/* Quit, not minimise — say so on hover, since the two sit side by side. */
+.btn-close:hover { color: #fff; background: var(--error-color); }
 
 /* ── Model selector bar ────────────────────────────────────────────────────── */
 

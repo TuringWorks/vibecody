@@ -39,6 +39,15 @@ pub async fn show_window(app: AppHandle) -> Result<(), String> {
     win.set_focus().map_err(|e| e.to_string())
 }
 
+/// Quit the app outright — the title bar's ✕, distinct from `hide_window`'s
+/// send-to-tray. The window is frameless, so without this the only way out was
+/// the tray menu's Quit, and closing a window that has no close button is not
+/// something a user should have to discover.
+#[tauri::command]
+pub async fn quit_app(app: AppHandle) {
+    app.exit(0);
+}
+
 /// Value the daemon reports as `service` in `GET /health`.
 ///
 /// Now taken from the shared module rather than duplicated as a literal. The

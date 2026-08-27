@@ -75,6 +75,7 @@ pub fn run() {
             commands::start_drag,
             commands::hide_window,
             commands::show_window,
+            commands::quit_app,
             commands::check_daemon,
             commands::start_daemon,
             commands::list_daemon_models,
@@ -149,6 +150,22 @@ fn wire_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
         return Ok(());
     };
 
+    // macOS draws a template image from its alpha channel alone and ignores the
+    // colours entirely. `icons/icon.png` is 96% opaque — a filled rounded square —
+    // so as a template it rendered in the menu bar as a plain white square.
+    // `tray-template.png` is the brand V on transparency, which is what the
+    // menu bar (and every other icon beside it) actually wants. Windows and
+    // Linux keep the full-colour icon from tauri.conf.json.
+    #[cfg(target_os = "macos")]
+    {
+        let bytes: &[u8] = include_bytes!("../icons/tray-template.png");
+        match tauri::image::Image::from_bytes(bytes) {
+            // One call, not set_icon + set_icon_as_template, which renders twice.
+            Ok(img) => tray.set_icon_with_as_template(Some(img), true)?,
+            Err(e) => eprintln!("[vibeaichat] tray template icon failed to decode: {e}"),
+        }
+    }
+
     tray.set_menu(Some(menu))?;
     tray.on_menu_event(|app, event| match event.id.as_ref() {
         "show" => reveal(app),
@@ -183,5 +200,27 @@ fn reveal(app: &tauri::AppHandle) {
         let _ = w.show();
         let _ = w.unminimize();
         let _ = w.set_focus();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    /// macOS draws a template image from its alpha channel alone, so an icon
+    /// that is mostly opaque renders as a solid block whatever its colours are.
+    /// Shipping the app icon (96% opaque) as the tray template is what put a
+    /// plain white square in the menu bar; this pins the replacement's shape.
+    #[test]
+    fn tray_template_is_a_glyph_not_a_filled_square() {
+        let bytes: &[u8] = include_bytes!("../icons/tray-template.png");
+        let img = tauri::image::Image::from_bytes(bytes).expect("tray template decodes as PNG");
+
+        let total = (img.width() * img.height()) as usize;
+        let opaque = img.rgba().iter().skip(3).step_by(4).filter(|&&a| a == 255).count();
+
+        assert!(
+            opaque * 2 < total,
+            "tray template is {opaque}/{total} fully opaque — a template icon that \
+             covers most of its canvas renders as a filled square in the menu bar"
+        );
     }
 }
