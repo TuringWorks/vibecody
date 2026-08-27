@@ -11,21 +11,28 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* ── Dark theme (default) ─────────────────────────────────────────────── */
-  --bg-primary:   #0f1117;
-  --bg-secondary: #161821;
-  --bg-tertiary:  #1c1f2b;
-  --bg-elevated:  #222638;
-  --border-color:  rgba(255, 255, 255, 0.06);
-  --border-subtle: rgba(255, 255, 255, 0.03);
-  --text-primary:   #e2e4ea;
-  --text-secondary: #6e7491;
-  --text-tertiary:  #8b8b8b;
-  --accent-blue:   #6c8cff;
-  --accent-green:  #34d399;
-  --accent-purple: #a78bfa;
-  --accent-gold:   #f5c542;
-  --accent-rose:   #f472b6;
+  /* ── Dark theme: Charcoal (the default) ───────────────────────────────────
+     Same palette as the `dark-charcoal` entry in the theme registries
+     (`vibecoder/src/theme/themes.ts` + the vibe-ui-shared copy), including the
+     values their `applyDerivedVars` computes — text-tertiary, text-muted,
+     git-*, the 10%/15% semantic fills, glass-bg, glow-accent. Keeping the two
+     in step is what makes the first paint — before any JS applies a theme —
+     the same Charcoal the app settles on, instead of a flash of the old
+     midnight-blue palette. ────────────────────────────────────────────── */
+  --bg-primary:   #1a1a1a;
+  --bg-secondary: #252526;
+  --bg-tertiary:  #2d2d30;
+  --bg-elevated:  #333337;
+  --border-color:  rgba(255, 255, 255, 0.05);
+  --border-subtle: rgba(255, 255, 255, 0.025);
+  --text-primary:   #d4d4d4;
+  --text-secondary: #808080;
+  --text-tertiary:  #aaaaaa;
+  --accent-blue:   #569cd6;
+  --accent-green:  #6a9955;
+  --accent-purple: #c586c0;
+  --accent-gold:   #dcdcaa;
+  --accent-rose:   #d7ba7d;
   --accent-indigo: #6366f1;
   --accent-cyan:   #06b6d4;
   --accent-orange: #f97b22;
@@ -42,14 +49,14 @@
   --peer-color-8: var(--accent-brown);
 
   /* ── Surfaces ─────────────────────────────────────────────────────────── */
-  --glass-bg:    rgba(22, 24, 33, 0.75);
+  --glass-bg:    rgba(37, 37, 38, 0.75);
   --glass-border: rgba(255, 255, 255, 0.08);
   --glass-blur:  16px;
   --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.25);
   --elevation-1: 0 1px 2px rgba(0, 0, 0, 0.3);
   --elevation-2: 0 4px 12px rgba(0, 0, 0, 0.35);
   --elevation-3: 0 8px 30px rgba(0, 0, 0, 0.45);
-  --glow-accent: 0 0 20px rgba(108, 140, 255, 0.15);
+  --glow-accent: 0 0 20px rgba(86, 156, 214, 0.15);
   --overlay-bg:  rgba(0, 0, 0, 0.5);
 
   /* ── Gradients ────────────────────────────────────────────────────────── */
@@ -106,25 +113,25 @@
   --accent-color:   var(--accent-blue);
   --accent-primary: var(--accent-blue);
   --success-color:  var(--accent-green);
-  --error-color:    #ef4444;
+  --error-color:    #f14c4c;
   --warning-color:  var(--accent-gold);
   --info-color:     var(--accent-blue);
 
   /* ── Semantic text colors ─────────────────────────────────────────────── */
-  --text-muted:   #4b5068;
+  --text-muted:   #525252;
   --text-color:   var(--text-primary);
   --text-success: var(--accent-green);
-  --text-danger:  #ef4444;
-  --text-info:    #89b4fa;
+  --text-danger:  #f14c4c;
+  --text-info:    #569cd6;
   --text-warning: var(--accent-gold);
   --text-accent:  var(--accent-blue);
 
   /* ── Semantic backgrounds ─────────────────────────────────────────────── */
-  --success-bg: rgba(52, 211, 153, 0.1);
-  --error-bg:   rgba(239, 68, 68, 0.1);
-  --warning-bg: rgba(245, 197, 66, 0.1);
-  --info-bg:    rgba(108, 140, 255, 0.1);
-  --accent-bg:  rgba(108, 140, 255, 0.15);
+  --success-bg: rgba(106, 153, 85, 0.1);
+  --error-bg:   rgba(241, 76, 76, 0.1);
+  --warning-bg: rgba(220, 220, 170, 0.1);
+  --info-bg:    rgba(86, 156, 214, 0.1);
+  --accent-bg:  rgba(86, 156, 214, 0.15);
 
   /* ── Form inputs ──────────────────────────────────────────────────────── */
   --input-bg:  var(--bg-primary);
@@ -133,15 +140,19 @@
   --bg-hover:  var(--bg-tertiary);
 
   /* ── Git status ───────────────────────────────────────────────────────── */
-  --git-modified:   #f5c542;
-  --git-added:      #34d399;
-  --git-deleted:    #ef4444;
-  --git-ignored:    #4b5068;
-  --git-conflicted: #f472b6;
+  --git-modified:   #dcdcaa;
+  --git-added:      #6a9955;
+  --git-deleted:    #f14c4c;
+  --git-ignored:    #4d4d4d;
+  --git-conflicted: #d7ba7d;
 
   /* ── Button foreground (WCAG contrast auto-computed per theme) ────────── */
-  --btn-primary-fg: #ffffff;
-  --btn-error-fg:   #ffffff;
+  /* Black, not white: Charcoal's accent (#569cd6) and error (#f14c4c) are both
+     light enough that black text is the higher-contrast label. This is what
+     the registry computes for `dark-charcoal`; keep the two the same or the
+     first paint labels a blue button white and the theme then flips it. */
+  --btn-primary-fg: #000000;
+  --btn-error-fg:   #000000;
 
   /* ── Icon sizing & stroke ────────────────────────────────────────────── */
   --icon-stroke: 1.5;
@@ -152,49 +163,49 @@
   --icon-xl:  24px;
 }
 
-/* ── Light theme overrides ────────────────────────────────────────────────── */
+/* ── Light theme overrides — the light half of the Charcoal pair ─────────── */
 [data-theme="light"] {
-  --bg-primary:   #fafbfd;
-  --bg-secondary: #f0f1f5;
-  --bg-tertiary:  #e6e8ef;
+  --bg-primary:   #f3f3f3;
+  --bg-secondary: #e8e8e8;
+  --bg-tertiary:  #d6d6d6;
   --bg-elevated:  #ffffff;
   --border-color:  rgba(0, 0, 0, 0.08);
   --border-subtle: rgba(0, 0, 0, 0.04);
-  --text-primary:   #1a1d2e;
-  --text-secondary: #6b7089;
-  --text-tertiary:  #9ca3af;
-  --accent-blue:   #4f6df5;
-  --accent-green:  #10b981;
-  --accent-purple: #8b5cf6;
-  --accent-gold:   #d4a017;
-  --accent-rose:   #ec4899;
+  --text-primary:   #1e1e1e;
+  --text-secondary: #616161;
+  --text-tertiary:  #404040;
+  --accent-blue:   #005fb8;
+  --accent-green:  #388a34;
+  --accent-purple: #8839a1;
+  --accent-gold:   #bf8803;
+  --accent-rose:   #c72e49;
   --accent-indigo: #6366f1;
   --accent-cyan:   #06b6d4;
   --accent-orange: #ea580c;
   --accent-brown:  #6d4c41;
 
-  --glass-bg:    rgba(255, 255, 255, 0.72);
+  --glass-bg:    rgba(232, 232, 232, 0.72);
   --glass-border: rgba(0, 0, 0, 0.06);
   --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
   --elevation-1: 0 1px 2px rgba(0, 0, 0, 0.05);
   --elevation-2: 0 4px 12px rgba(0, 0, 0, 0.08);
   --elevation-3: 0 8px 30px rgba(0, 0, 0, 0.1);
-  --glow-accent: 0 0 20px rgba(79, 109, 245, 0.12);
+  --glow-accent: 0 0 20px rgba(0, 95, 184, 0.15);
   --overlay-bg:  rgba(0, 0, 0, 0.4);
 
   --gradient-accent:  linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
   --gradient-surface: linear-gradient(180deg, var(--bg-secondary), var(--bg-primary));
 
   --success-color: var(--accent-green);
-  --error-color:   #dc2626;
+  --error-color:   #cd3131;
   --warning-color: var(--accent-gold);
   --info-color:    var(--accent-blue);
 
-  --text-muted:   #9ca3af;
+  --text-muted:   #a3a3a3;
   --text-color:   var(--text-primary);
   --text-success: var(--accent-green);
-  --text-danger:  #dc2626;
-  --text-info:    #4f6df5;
+  --text-danger:  #cd3131;
+  --text-info:    #005fb8;
   --text-warning: var(--accent-gold);
   --text-accent:  var(--accent-blue);
 
@@ -202,17 +213,17 @@
   --bg-input:  #ffffff;
   --bg-hover:  var(--bg-tertiary);
 
-  --success-bg: rgba(16, 185, 129, 0.1);
-  --error-bg:   rgba(220, 38, 38, 0.1);
-  --warning-bg: rgba(212, 160, 23, 0.1);
-  --info-bg:    rgba(79, 109, 245, 0.1);
-  --accent-bg:  rgba(79, 109, 245, 0.1);
+  --success-bg: rgba(56, 138, 52, 0.1);
+  --error-bg:   rgba(205, 49, 49, 0.1);
+  --warning-bg: rgba(191, 136, 3, 0.1);
+  --info-bg:    rgba(0, 95, 184, 0.1);
+  --accent-bg:  rgba(0, 95, 184, 0.15);
 
-  --git-modified:   #d4a017;
-  --git-added:      #10b981;
-  --git-deleted:    #dc2626;
-  --git-ignored:    #9ca3af;
-  --git-conflicted: #ec4899;
+  --git-modified:   #bf8803;
+  --git-added:      #388a34;
+  --git-deleted:    #cd3131;
+  --git-ignored:    #aaaaaa;
+  --git-conflicted: #c72e49;
 
   --btn-primary-fg: #ffffff;
   --btn-error-fg:   #ffffff;

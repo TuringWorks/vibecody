@@ -27,6 +27,18 @@ export interface ThemeDef {
 /* ── Theme definitions ─────────────────────────────────────────────── */
 
 // Each theme has a pairId linking its dark/light counterpart
+/* ── The default ──────────────────────────────────────────────────────────
+   Charcoal is what a fresh install opens in, on every shell. Named here
+   rather than spelled as a literal at each call site: the fallback lived in
+   four places and had already drifted — the toggle booted `dark-sherwood`
+   while the editor's fallback said `dark-default`, so a user with no stored
+   choice got one palette for the app and another for the code pane.
+   `vibecoder/design-system/tokens.css` carries the same palette as its
+   `:root`, so the first paint (before any of this runs) is already Charcoal
+   rather than a flash of something else. */
+export const DEFAULT_DARK_THEME_ID = "dark-charcoal";
+export const DEFAULT_LIGHT_THEME_ID = "light-charcoal";
+
 export const THEMES: ThemeDef[] = [
   // ── Pair: Default (Midnight Blue / Clean White) ──
   {

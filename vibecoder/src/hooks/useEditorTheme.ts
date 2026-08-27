@@ -7,7 +7,7 @@
  * Listens for "vibecoder-theme-change" custom events dispatched by applyThemeById().
  */
 import { useState, useEffect, useRef, useCallback } from "react";
-import { THEMES, type ThemeDef } from "../theme/themes";
+import { THEMES, DEFAULT_DARK_THEME_ID, type ThemeDef } from "../theme/themes";
 import type { editor } from "monaco-editor";
 
 /** Monaco theme name prefix */
@@ -248,7 +248,7 @@ function buildMonacoTheme(theme: ThemeDef): editor.IStandaloneThemeData {
 
 /** Get the current VibeCoder theme from localStorage */
 function getCurrentTheme(): ThemeDef {
-  const id = localStorage.getItem("vibecoder-theme-id") || "dark-default";
+  const id = localStorage.getItem("vibecoder-theme-id") || DEFAULT_DARK_THEME_ID;
   return THEMES.find((t) => t.id === id) || THEMES[0];
 }
 

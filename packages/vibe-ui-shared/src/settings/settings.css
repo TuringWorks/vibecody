@@ -27,8 +27,9 @@
 .vx-set-theme { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 13px; }
 .vx-set-theme.is-active { border-color: var(--accent-blue); }
 .vx-set-theme__swatch { width: 28px; height: 18px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-primary); }
-.vx-set-theme__swatch[data-theme="light"] { background: #fafbfd; }
-.vx-set-theme__swatch[data-theme="dark"] { background: #0f1117; }
+/* The two mode swatches show the product defaults — the Charcoal pair. */
+.vx-set-theme__swatch[data-theme="light"] { background: #f3f3f3; }
+.vx-set-theme__swatch[data-theme="dark"] { background: #1a1a1a; }
 
 /* Full theme picker (grouped by category) ────────────────────────────── */
 .vx-set-theme-group { margin-top: 18px; }

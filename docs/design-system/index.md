@@ -169,8 +169,8 @@ The same design tokens are translated to each platform:
 
 | Token | CSS | Flutter (Dart) |
 |---|---|---|
-| `--bg-primary` | `#0f1117` | `VibeDarkColors.bgPrimary` |
-| `--accent-blue` | `#6c8cff` | `VibeDarkColors.accentBlue` |
+| `--bg-primary` | `#1a1a1a` | `VibeDarkColors.bgPrimary` |
+| `--accent-blue` | `#569cd6` | `VibeDarkColors.accentBlue` |
 | `--success-color` | `var(--accent-green)` | `VibeDarkColors.successColor` |
 | `--space-4` | `16px` | `VibeSpacing.s4` |
 | `--font-size-md` | `13px` | `VibeFontSize.md` |

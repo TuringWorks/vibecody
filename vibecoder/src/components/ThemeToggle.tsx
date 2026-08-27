@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Sun, Moon } from 'lucide-react';
-import { getPairedTheme, applyThemeById } from '../theme/themes';
+import {
+    getPairedTheme,
+    applyThemeById,
+    DEFAULT_DARK_THEME_ID,
+    DEFAULT_LIGHT_THEME_ID,
+} from '../theme/themes';
 
 export const ThemeToggle = () => {
     const [mode, setMode] = useState<'dark' | 'light'>('dark');
@@ -14,7 +19,7 @@ export const ThemeToggle = () => {
         setMode(initial);
 
         // Always restore full theme (CSS vars + data-theme + Monaco event)
-        const idToApply = storedId || (initial === 'dark' ? 'dark-sherwood' : 'light-default');
+        const idToApply = storedId || (initial === 'dark' ? DEFAULT_DARK_THEME_ID : DEFAULT_LIGHT_THEME_ID);
         applyThemeById(idToApply);
 
         // Listen for OS-level theme changes (e.g., macOS auto dark mode)
@@ -24,7 +29,7 @@ export const ThemeToggle = () => {
             if (!localStorage.getItem('vibecoder-theme')) {
                 const newMode = e.matches ? 'dark' : 'light';
                 setMode(newMode);
-                applyThemeById(newMode === 'dark' ? 'dark-sherwood' : 'light-default');
+                applyThemeById(newMode === 'dark' ? DEFAULT_DARK_THEME_ID : DEFAULT_LIGHT_THEME_ID);
             }
         };
         mql?.addEventListener?.('change', handleSystemChange);
@@ -32,7 +37,9 @@ export const ThemeToggle = () => {
     }, []);
 
     const toggleTheme = () => {
-        const currentId = localStorage.getItem('vibecoder-theme-id') || (mode === 'dark' ? 'dark-default' : 'light-default');
+        const currentId =
+            localStorage.getItem('vibecoder-theme-id') ||
+            (mode === 'dark' ? DEFAULT_DARK_THEME_ID : DEFAULT_LIGHT_THEME_ID);
         const paired = getPairedTheme(currentId);
         if (paired) {
             applyThemeById(paired.id);
@@ -40,7 +47,7 @@ export const ThemeToggle = () => {
         } else {
             // Fallback: simple dark/light toggle with default pair
             const newMode = mode === 'dark' ? 'light' : 'dark';
-            const fallbackId = newMode === 'dark' ? 'dark-sherwood' : 'light-default';
+            const fallbackId = newMode === 'dark' ? DEFAULT_DARK_THEME_ID : DEFAULT_LIGHT_THEME_ID;
             applyThemeById(fallbackId);
             setMode(newMode);
         }

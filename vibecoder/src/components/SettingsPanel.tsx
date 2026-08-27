@@ -18,7 +18,7 @@ import {
   Mail, CalendarDays, ClipboardList, MessageSquare, Search, Mic, Home, Server,
   Briefcase, Boxes, LayoutList,
 } from "lucide-react";
-import { THEMES, applyThemeById, type ThemeDef } from "../theme/themes";
+import { THEMES, applyThemeById, DEFAULT_DARK_THEME_ID, type ThemeDef } from "../theme/themes";
 import { EmbeddingModelPicker } from "./EmbeddingModelPicker";
 import { LayoutSection } from "./settings/LayoutSection";
 import { ExperimentalBadge } from "./ExperimentalBadge";
@@ -496,13 +496,13 @@ function ProfileSection() {
 }
 
 function AppearanceSection() {
-  const [activeThemeId, setActiveThemeId] = useState("dark-sherwood");
+  const [activeThemeId, setActiveThemeId] = useState(DEFAULT_DARK_THEME_ID);
   const [fontSize, setFontSize] = useState(13);
   const [density, setDensity] = useState<"compact" | "normal" | "spacious">("normal");
   const [filterCategory, setFilterCategory] = useState<"all" | "standard" | "high-contrast" | "color-blind" | "supercar">("all");
 
   useEffect(() => {
-    const storedTheme = localStorage.getItem(STORAGE_KEYS.theme) || "dark-sherwood";
+    const storedTheme = localStorage.getItem(STORAGE_KEYS.theme) || DEFAULT_DARK_THEME_ID;
     const storedSize = localStorage.getItem(STORAGE_KEYS.fontSize);
     const storedDensity = localStorage.getItem("vibecoder-density");
     setActiveThemeId(storedTheme);
@@ -884,7 +884,7 @@ function CustomizationsSection() {
       id: Date.now().toString(36),
       name: name.trim(),
       createdAt: new Date().toISOString(),
-      theme: localStorage.getItem(STORAGE_KEYS.theme) || "dark-sherwood",
+      theme: localStorage.getItem(STORAGE_KEYS.theme) || DEFAULT_DARK_THEME_ID,
       fontSize: parseInt(localStorage.getItem(STORAGE_KEYS.fontSize) || "13", 10),
       density: localStorage.getItem("vibecoder-density") || "normal",
     };

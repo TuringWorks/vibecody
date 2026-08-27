@@ -25,6 +25,11 @@ const mockGetPairedTheme = vi.fn();
 vi.mock('../../theme/themes', () => ({
   getPairedTheme: (...args: unknown[]) => mockGetPairedTheme(...args),
   applyThemeById: (...args: unknown[]) => mockApplyThemeById(...args),
+  // Real values, not stand-ins: these are what the component falls back to
+  // with nothing stored, so a mock that renamed them would hide a wrong
+  // default rather than catch one.
+  DEFAULT_DARK_THEME_ID: 'dark-charcoal',
+  DEFAULT_LIGHT_THEME_ID: 'light-charcoal',
 }));
 
 // Mock lucide-react — we only need Sun and Moon
@@ -131,6 +136,22 @@ describe('ThemeToggle — system preference', () => {
     mockMatchMedia(true); // system prefers dark
     await act(async () => { render(<ThemeToggle />); });
     expect(screen.getByTestId('moon-icon')).toBeDefined();
+  });
+
+  /** The default a fresh install opens in. It had drifted from the editor's
+   *  own fallback (`dark-default`), so the app and the code pane disagreed. */
+  it('opens a fresh install on Charcoal', async () => {
+    mockStorage(null, null);
+    mockMatchMedia(true);
+    await act(async () => { render(<ThemeToggle />); });
+    expect(mockApplyThemeById).toHaveBeenCalledWith('dark-charcoal');
+  });
+
+  it('uses the light half of the same pair when the system prefers light', async () => {
+    mockStorage(null, null);
+    mockMatchMedia(false);
+    await act(async () => { render(<ThemeToggle />); });
+    expect(mockApplyThemeById).toHaveBeenCalledWith('light-charcoal');
   });
 });
 

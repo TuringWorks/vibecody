@@ -4,33 +4,33 @@ VibeCoder uses a two-layer color system: **palette tokens** (raw values) and **s
 
 ---
 
-## Palette — Dark Theme (default)
+## Palette — Dark Theme (Charcoal, the default)
 
 ```
 Background
-  --bg-primary:    #0f1117   deepest — page canvas
-  --bg-secondary:  #161821   cards, panel surfaces
-  --bg-tertiary:   #1c1f2b   inputs, subtle hover areas
-  --bg-elevated:   #222638   modals, dropdowns, floating surfaces
+  --bg-primary:    #1a1a1a   deepest — page canvas
+  --bg-secondary:  #252526   cards, panel surfaces
+  --bg-tertiary:   #2d2d30   inputs, subtle hover areas
+  --bg-elevated:   #333337   modals, dropdowns, floating surfaces
 
 Border
-  --border-color:  rgba(255,255,255,0.06)   standard
-  --border-subtle: rgba(255,255,255,0.03)   dividers between rows
+  --border-color:  rgba(255,255,255,0.05)   standard
+  --border-subtle: rgba(255,255,255,0.025)   dividers between rows
 
 Text
-  --text-primary:   #e2e4ea   body, headings
-  --text-secondary: #6e7491   labels, captions
-  --text-muted:     #4b5068   placeholders, timestamps, disabled
+  --text-primary:   #d4d4d4   body, headings
+  --text-secondary: #808080   labels, captions
+  --text-muted:     #525252   placeholders, timestamps, disabled
 
 Accent palette
-  --accent-blue:   #6c8cff   primary brand
-  --accent-green:  #34d399   success
-  --accent-purple: #a78bfa   tags, highlights
-  --accent-gold:   #f5c542   warning, highlights
-  --accent-rose:   #f472b6   destructive highlights
+  --accent-blue:   #569cd6   primary brand
+  --accent-green:  #6a9955   success
+  --accent-purple: #c586c0   tags, highlights
+  --accent-gold:   #dcdcaa   warning, highlights
+  --accent-rose:   #d7ba7d   destructive highlights
 
 Semantic
-  --error-color:   #ef4444   red
+  --error-color:   #f14c4c   red
   --warning-color: var(--accent-gold)
   --success-color: var(--accent-green)
   --info-color:    var(--accent-blue)
@@ -38,20 +38,20 @@ Semantic
 
 Semantic text
   --text-success:  var(--accent-green)
-  --text-danger:   #ef4444
+  --text-danger:   #f14c4c
   --text-warning:  var(--accent-gold)
-  --text-info:     #89b4fa
+  --text-info:     #569cd6
   --text-accent:   var(--accent-blue)
 
 Semantic backgrounds (10% opacity tints)
-  --success-bg:  rgba(52,211,153,0.10)
-  --error-bg:    rgba(239,68,68,0.10)
-  --warning-bg:  rgba(245,197,66,0.10)
-  --info-bg:     rgba(108,140,255,0.10)
-  --accent-bg:   rgba(108,140,255,0.15)
+  --success-bg:  rgba(106,153,85,0.10)
+  --error-bg:    rgba(241,76,76,0.10)
+  --warning-bg:  rgba(220,220,170,0.10)
+  --info-bg:     rgba(86,156,214,0.10)
+  --accent-bg:   rgba(86,156,214,0.15)
 
 Glass / Frosted
-  --glass-bg:     rgba(22,24,33,0.75)
+  --glass-bg:     rgba(37,37,38,0.75)
   --glass-border: rgba(255,255,255,0.08)
   --glass-blur:   16px
 
@@ -59,31 +59,31 @@ Elevation (shadows)
   --elevation-1: 0 1px 2px rgba(0,0,0,0.30)
   --elevation-2: 0 4px 12px rgba(0,0,0,0.35)
   --elevation-3: 0 8px 30px rgba(0,0,0,0.45)
-  --glow-accent: 0 0 20px rgba(108,140,255,0.15)
+  --glow-accent: 0 0 20px rgba(86,156,214,0.15)
   --card-shadow: 0 1px 3px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25)
 ```
 
 ## Palette — Light Theme (`[data-theme="light"]`)
 
 ```
-  --bg-primary:    #fafbfd
-  --bg-secondary:  #f0f1f5
-  --bg-tertiary:   #e6e8ef
+  --bg-primary:    #f3f3f3
+  --bg-secondary:  #e8e8e8
+  --bg-tertiary:   #d6d6d6
   --bg-elevated:   #ffffff
 
   --border-color:  rgba(0,0,0,0.08)
   --border-subtle: rgba(0,0,0,0.04)
 
-  --text-primary:   #1a1d2e
-  --text-secondary: #6b7089
-  --text-muted:     #9ca3af
+  --text-primary:   #1e1e1e
+  --text-secondary: #616161
+  --text-muted:     #a3a3a3
 
-  --accent-blue:   #4f6df5
-  --accent-green:  #10b981
-  --accent-gold:   #d4a017
-  --error-color:   #dc2626
-  --text-danger:   #dc2626
-  --text-info:     #4f6df5
+  --accent-blue:   #005fb8
+  --accent-green:  #388a34
+  --accent-gold:   #bf8803
+  --error-color:   #cd3131
+  --text-danger:   #cd3131
+  --text-info:     #005fb8
 
   --success-bg: rgba(16,185,129,0.10)
   --error-bg:   rgba(220,38,38,0.10)

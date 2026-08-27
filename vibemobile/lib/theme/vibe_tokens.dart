@@ -13,87 +13,89 @@ import 'package:flutter/material.dart';
 
 // ── Color Tokens ────────────────────────────────────────────────────────────
 
-/// Dark theme palette (matches :root in tokens.css)
+/// Dark theme palette — Charcoal, the product default (matches :root in
+/// tokens.css)
 class VibeDarkColors {
   const VibeDarkColors._();
 
   // Backgrounds
-  static const bgPrimary   = Color(0xFF0F1117); // --bg-primary
-  static const bgSecondary = Color(0xFF161821); // --bg-secondary
-  static const bgTertiary  = Color(0xFF1C1F2B); // --bg-tertiary
-  static const bgElevated  = Color(0xFF222638); // --bg-elevated
+  static const bgPrimary   = Color(0xFF1A1A1A); // --bg-primary
+  static const bgSecondary = Color(0xFF252526); // --bg-secondary
+  static const bgTertiary  = Color(0xFF2D2D30); // --bg-tertiary
+  static const bgElevated  = Color(0xFF333337); // --bg-elevated
 
   // Text
-  static const textPrimary   = Color(0xFFE2E4EA); // --text-primary
-  static const textSecondary = Color(0xFF6E7491); // --text-secondary
-  static const textMuted     = Color(0xFF4B5068); // --text-muted
+  static const textPrimary   = Color(0xFFD4D4D4); // --text-primary
+  static const textSecondary = Color(0xFF808080); // --text-secondary
+  static const textMuted     = Color(0xFF525252); // --text-muted
 
   // Accents
-  static const accentBlue   = Color(0xFF6C8CFF); // --accent-blue
-  static const accentGreen  = Color(0xFF34D399); // --accent-green
-  static const accentPurple = Color(0xFFA78BFA); // --accent-purple
-  static const accentGold   = Color(0xFFF5C542); // --accent-gold
-  static const accentRose   = Color(0xFFF472B6); // --accent-rose
+  static const accentBlue   = Color(0xFF569CD6); // --accent-blue
+  static const accentGreen  = Color(0xFF6A9955); // --accent-green
+  static const accentPurple = Color(0xFFC586C0); // --accent-purple
+  static const accentGold   = Color(0xFFDCDCAA); // --accent-gold
+  static const accentRose   = Color(0xFFD7BA7D); // --accent-rose
 
   // Semantic
   static const successColor = accentGreen;
-  static const errorColor   = Color(0xFFEF4444); // --error-color
+  static const errorColor   = Color(0xFFF14C4C); // --error-color
   static const warningColor = accentGold;
   static const infoColor    = accentBlue;
 
   // Semantic backgrounds (10% opacity fills)
-  static const successBg = Color(0x1A34D399); // rgba(52, 211, 153, 0.1)
-  static const errorBg   = Color(0x1AEF4444); // rgba(239, 68, 68, 0.1)
-  static const warningBg = Color(0x1AF5C542); // rgba(245, 197, 66, 0.1)
-  static const infoBg    = Color(0x1A6C8CFF); // rgba(108, 140, 255, 0.1)
-  static const accentBg  = Color(0x266C8CFF); // rgba(108, 140, 255, 0.15)
+  static const successBg = Color(0x1A6A9955); // rgba(106, 153, 85, 0.1)
+  static const errorBg   = Color(0x1AF14C4C); // rgba(241, 76, 76, 0.1)
+  static const warningBg = Color(0x1ADCDCAA); // rgba(220, 220, 170, 0.1)
+  static const infoBg    = Color(0x1A569CD6); // rgba(86, 156, 214, 0.1)
+  static const accentBg  = Color(0x26569CD6); // rgba(86, 156, 214, 0.15)
 
   // Border
-  static const borderColor  = Color(0x0FFFFFFF); // rgba(255,255,255,0.06)
-  static const borderSubtle = Color(0x08FFFFFF); // rgba(255,255,255,0.03)
+  static const borderColor  = Color(0x0DFFFFFF); // rgba(255,255,255,0.05)
+  static const borderSubtle = Color(0x06FFFFFF); // rgba(255,255,255,0.025)
 
   // Git status
   static const gitModified   = accentGold;
   static const gitAdded      = accentGreen;
   static const gitDeleted    = errorColor;
-  static const gitIgnored    = textMuted;
+  static const gitIgnored    = Color(0xFF4D4D4D); // --git-ignored
   static const gitConflicted = accentRose;
 }
 
-/// Light theme palette (matches [data-theme="light"] in tokens.css)
+/// Light theme palette — the light half of the Charcoal pair (matches
+/// [data-theme="light"] in tokens.css)
 class VibeLightColors {
   const VibeLightColors._();
 
   // Backgrounds
-  static const bgPrimary   = Color(0xFFFAFBFD); // --bg-primary
-  static const bgSecondary = Color(0xFFF0F1F5); // --bg-secondary
-  static const bgTertiary  = Color(0xFFE6E8EF); // --bg-tertiary
+  static const bgPrimary   = Color(0xFFF3F3F3); // --bg-primary
+  static const bgSecondary = Color(0xFFE8E8E8); // --bg-secondary
+  static const bgTertiary  = Color(0xFFD6D6D6); // --bg-tertiary
   static const bgElevated  = Color(0xFFFFFFFF); // --bg-elevated
 
   // Text
-  static const textPrimary   = Color(0xFF1A1D2E); // --text-primary
-  static const textSecondary = Color(0xFF6B7089); // --text-secondary
-  static const textMuted     = Color(0xFF9CA3AF); // --text-muted
+  static const textPrimary   = Color(0xFF1E1E1E); // --text-primary
+  static const textSecondary = Color(0xFF616161); // --text-secondary
+  static const textMuted     = Color(0xFFA3A3A3); // --text-muted
 
   // Accents (adjusted for light-mode contrast)
-  static const accentBlue   = Color(0xFF4F6DF5); // --accent-blue
-  static const accentGreen  = Color(0xFF10B981); // --accent-green
-  static const accentPurple = Color(0xFF8B5CF6); // --accent-purple
-  static const accentGold   = Color(0xFFD4A017); // --accent-gold
-  static const accentRose   = Color(0xFFEC4899); // --accent-rose
+  static const accentBlue   = Color(0xFF005FB8); // --accent-blue
+  static const accentGreen  = Color(0xFF388A34); // --accent-green
+  static const accentPurple = Color(0xFF8839A1); // --accent-purple
+  static const accentGold   = Color(0xFFBF8803); // --accent-gold
+  static const accentRose   = Color(0xFFC72E49); // --accent-rose
 
   // Semantic
   static const successColor = accentGreen;
-  static const errorColor   = Color(0xFFDC2626); // --error-color
+  static const errorColor   = Color(0xFFCD3131); // --error-color
   static const warningColor = accentGold;
   static const infoColor    = accentBlue;
 
   // Semantic backgrounds
-  static const successBg = Color(0x1A10B981);
-  static const errorBg   = Color(0x1ADC2626);
-  static const warningBg = Color(0x1AD4A017);
-  static const infoBg    = Color(0x1A4F6DF5);
-  static const accentBg  = Color(0x1A4F6DF5);
+  static const successBg = Color(0x1A388A34);
+  static const errorBg   = Color(0x1ACD3131);
+  static const warningBg = Color(0x1ABF8803);
+  static const infoBg    = Color(0x1A005FB8);
+  static const accentBg  = Color(0x26005FB8);
 
   // Border
   static const borderColor  = Color(0x14000000); // rgba(0,0,0,0.08)
@@ -103,7 +105,7 @@ class VibeLightColors {
   static const gitModified   = accentGold;
   static const gitAdded      = accentGreen;
   static const gitDeleted    = errorColor;
-  static const gitIgnored    = Color(0xFF9CA3AF);
+  static const gitIgnored    = Color(0xFFAAAAAA);
   static const gitConflicted = accentRose;
 }
 

@@ -9,57 +9,57 @@ VibeCoder uses a two-layer color system: **palette tokens** (raw values) and **s
 
 ---
 
-## Palette — Dark Theme (default)
+## Palette — Dark Theme (Charcoal, the default)
 
 <div class="swatch-grid">
   <h4>Background</h4>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#0f1117"></span></div><div class="swatch-meta"><div class="swatch-token">--bg-primary</div><div class="swatch-value">#0f1117</div><div class="swatch-desc">deepest — page canvas</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#161821"></span></div><div class="swatch-meta"><div class="swatch-token">--bg-secondary</div><div class="swatch-value">#161821</div><div class="swatch-desc">cards, panel surfaces</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#1c1f2b"></span></div><div class="swatch-meta"><div class="swatch-token">--bg-tertiary</div><div class="swatch-value">#1c1f2b</div><div class="swatch-desc">inputs, subtle hover areas</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#222638"></span></div><div class="swatch-meta"><div class="swatch-token">--bg-elevated</div><div class="swatch-value">#222638</div><div class="swatch-desc">modals, dropdowns, floating</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#1a1a1a"></span></div><div class="swatch-meta"><div class="swatch-token">--bg-primary</div><div class="swatch-value">#1a1a1a</div><div class="swatch-desc">deepest — page canvas</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#252526"></span></div><div class="swatch-meta"><div class="swatch-token">--bg-secondary</div><div class="swatch-value">#252526</div><div class="swatch-desc">cards, panel surfaces</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#2d2d30"></span></div><div class="swatch-meta"><div class="swatch-token">--bg-tertiary</div><div class="swatch-value">#2d2d30</div><div class="swatch-desc">inputs, subtle hover areas</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#333337"></span></div><div class="swatch-meta"><div class="swatch-token">--bg-elevated</div><div class="swatch-value">#333337</div><div class="swatch-desc">modals, dropdowns, floating</div></div></div>
 
   <h4>Border</h4>
-  <div class="swatch"><div class="swatch-chip"><span style="background:rgba(255,255,255,0.06)"></span></div><div class="swatch-meta"><div class="swatch-token">--border-color</div><div class="swatch-value">rgba(255,255,255,0.06)</div><div class="swatch-desc">standard</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:rgba(255,255,255,0.03)"></span></div><div class="swatch-meta"><div class="swatch-token">--border-subtle</div><div class="swatch-value">rgba(255,255,255,0.03)</div><div class="swatch-desc">dividers between rows</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:rgba(255,255,255,0.05)"></span></div><div class="swatch-meta"><div class="swatch-token">--border-color</div><div class="swatch-value">rgba(255,255,255,0.05)</div><div class="swatch-desc">standard</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:rgba(255,255,255,0.025)"></span></div><div class="swatch-meta"><div class="swatch-token">--border-subtle</div><div class="swatch-value">rgba(255,255,255,0.025)</div><div class="swatch-desc">dividers between rows</div></div></div>
 
   <h4>Text</h4>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#e2e4ea"></span></div><div class="swatch-meta"><div class="swatch-token">--text-primary</div><div class="swatch-value">#e2e4ea</div><div class="swatch-desc">body, headings</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#6e7491"></span></div><div class="swatch-meta"><div class="swatch-token">--text-secondary</div><div class="swatch-value">#6e7491</div><div class="swatch-desc">labels, captions</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#4b5068"></span></div><div class="swatch-meta"><div class="swatch-token">--text-muted</div><div class="swatch-value">#4b5068</div><div class="swatch-desc">placeholders, disabled</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#d4d4d4"></span></div><div class="swatch-meta"><div class="swatch-token">--text-primary</div><div class="swatch-value">#d4d4d4</div><div class="swatch-desc">body, headings</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#808080"></span></div><div class="swatch-meta"><div class="swatch-token">--text-secondary</div><div class="swatch-value">#808080</div><div class="swatch-desc">labels, captions</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#525252"></span></div><div class="swatch-meta"><div class="swatch-token">--text-muted</div><div class="swatch-value">#525252</div><div class="swatch-desc">placeholders, disabled</div></div></div>
 
   <h4>Accent palette</h4>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#6c8cff"></span></div><div class="swatch-meta"><div class="swatch-token">--accent-blue</div><div class="swatch-value">#6c8cff</div><div class="swatch-desc">primary brand</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#34d399"></span></div><div class="swatch-meta"><div class="swatch-token">--accent-green</div><div class="swatch-value">#34d399</div><div class="swatch-desc">success</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#a78bfa"></span></div><div class="swatch-meta"><div class="swatch-token">--accent-purple</div><div class="swatch-value">#a78bfa</div><div class="swatch-desc">tags, highlights</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#f5c542"></span></div><div class="swatch-meta"><div class="swatch-token">--accent-gold</div><div class="swatch-value">#f5c542</div><div class="swatch-desc">warning, highlights</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#f472b6"></span></div><div class="swatch-meta"><div class="swatch-token">--accent-rose</div><div class="swatch-value">#f472b6</div><div class="swatch-desc">destructive highlights</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#569cd6"></span></div><div class="swatch-meta"><div class="swatch-token">--accent-blue</div><div class="swatch-value">#569cd6</div><div class="swatch-desc">primary brand</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#6a9955"></span></div><div class="swatch-meta"><div class="swatch-token">--accent-green</div><div class="swatch-value">#6a9955</div><div class="swatch-desc">success</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#c586c0"></span></div><div class="swatch-meta"><div class="swatch-token">--accent-purple</div><div class="swatch-value">#c586c0</div><div class="swatch-desc">tags, highlights</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#dcdcaa"></span></div><div class="swatch-meta"><div class="swatch-token">--accent-gold</div><div class="swatch-value">#dcdcaa</div><div class="swatch-desc">warning, highlights</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#d7ba7d"></span></div><div class="swatch-meta"><div class="swatch-token">--accent-rose</div><div class="swatch-value">#d7ba7d</div><div class="swatch-desc">destructive highlights</div></div></div>
 
   <h4>Semantic</h4>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#ef4444"></span></div><div class="swatch-meta"><div class="swatch-token">--error-color</div><div class="swatch-value">#ef4444</div><div class="swatch-desc">red</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#f5c542"></span></div><div class="swatch-meta"><div class="swatch-token">--warning-color</div><div class="swatch-value">var(--accent-gold)</div><div class="swatch-desc">→ #f5c542</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#34d399"></span></div><div class="swatch-meta"><div class="swatch-token">--success-color</div><div class="swatch-value">var(--accent-green)</div><div class="swatch-desc">→ #34d399</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#6c8cff"></span></div><div class="swatch-meta"><div class="swatch-token">--info-color</div><div class="swatch-value">var(--accent-blue)</div><div class="swatch-desc">→ #6c8cff</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#6c8cff"></span></div><div class="swatch-meta"><div class="swatch-token">--accent-color</div><div class="swatch-value">var(--accent-blue)</div><div class="swatch-desc">primary</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#f14c4c"></span></div><div class="swatch-meta"><div class="swatch-token">--error-color</div><div class="swatch-value">#f14c4c</div><div class="swatch-desc">red</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#dcdcaa"></span></div><div class="swatch-meta"><div class="swatch-token">--warning-color</div><div class="swatch-value">var(--accent-gold)</div><div class="swatch-desc">→ #dcdcaa</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#6a9955"></span></div><div class="swatch-meta"><div class="swatch-token">--success-color</div><div class="swatch-value">var(--accent-green)</div><div class="swatch-desc">→ #6a9955</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#569cd6"></span></div><div class="swatch-meta"><div class="swatch-token">--info-color</div><div class="swatch-value">var(--accent-blue)</div><div class="swatch-desc">→ #569cd6</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#569cd6"></span></div><div class="swatch-meta"><div class="swatch-token">--accent-color</div><div class="swatch-value">var(--accent-blue)</div><div class="swatch-desc">primary</div></div></div>
 
   <h4>Semantic text</h4>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#34d399"></span></div><div class="swatch-meta"><div class="swatch-token">--text-success</div><div class="swatch-value">#34d399</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#ef4444"></span></div><div class="swatch-meta"><div class="swatch-token">--text-danger</div><div class="swatch-value">#ef4444</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#f5c542"></span></div><div class="swatch-meta"><div class="swatch-token">--text-warning</div><div class="swatch-value">#f5c542</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#89b4fa"></span></div><div class="swatch-meta"><div class="swatch-token">--text-info</div><div class="swatch-value">#89b4fa</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#6c8cff"></span></div><div class="swatch-meta"><div class="swatch-token">--text-accent</div><div class="swatch-value">#6c8cff</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#6a9955"></span></div><div class="swatch-meta"><div class="swatch-token">--text-success</div><div class="swatch-value">#6a9955</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#f14c4c"></span></div><div class="swatch-meta"><div class="swatch-token">--text-danger</div><div class="swatch-value">#f14c4c</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#dcdcaa"></span></div><div class="swatch-meta"><div class="swatch-token">--text-warning</div><div class="swatch-value">#dcdcaa</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#569cd6"></span></div><div class="swatch-meta"><div class="swatch-token">--text-info</div><div class="swatch-value">#569cd6</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#569cd6"></span></div><div class="swatch-meta"><div class="swatch-token">--text-accent</div><div class="swatch-value">#569cd6</div></div></div>
 
   <h4>Semantic backgrounds (10% tint)</h4>
-  <div class="swatch"><div class="swatch-chip"><span style="background:rgba(52,211,153,0.10)"></span></div><div class="swatch-meta"><div class="swatch-token">--success-bg</div><div class="swatch-value">rgba(52,211,153,0.10)</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:rgba(239,68,68,0.10)"></span></div><div class="swatch-meta"><div class="swatch-token">--error-bg</div><div class="swatch-value">rgba(239,68,68,0.10)</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:rgba(245,197,66,0.10)"></span></div><div class="swatch-meta"><div class="swatch-token">--warning-bg</div><div class="swatch-value">rgba(245,197,66,0.10)</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:rgba(108,140,255,0.10)"></span></div><div class="swatch-meta"><div class="swatch-token">--info-bg</div><div class="swatch-value">rgba(108,140,255,0.10)</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:rgba(108,140,255,0.15)"></span></div><div class="swatch-meta"><div class="swatch-token">--accent-bg</div><div class="swatch-value">rgba(108,140,255,0.15)</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:rgba(106,153,85,0.10)"></span></div><div class="swatch-meta"><div class="swatch-token">--success-bg</div><div class="swatch-value">rgba(106,153,85,0.10)</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:rgba(241,76,76,0.10)"></span></div><div class="swatch-meta"><div class="swatch-token">--error-bg</div><div class="swatch-value">rgba(241,76,76,0.10)</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:rgba(220,220,170,0.10)"></span></div><div class="swatch-meta"><div class="swatch-token">--warning-bg</div><div class="swatch-value">rgba(220,220,170,0.10)</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:rgba(86,156,214,0.10)"></span></div><div class="swatch-meta"><div class="swatch-token">--info-bg</div><div class="swatch-value">rgba(86,156,214,0.10)</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:rgba(86,156,214,0.15)"></span></div><div class="swatch-meta"><div class="swatch-token">--accent-bg</div><div class="swatch-value">rgba(86,156,214,0.15)</div></div></div>
 </div>
 
 ### Glass / Frosted
 
 ```
---glass-bg:     rgba(22,24,33,0.75)
+--glass-bg:     rgba(37,37,38,0.75)
 --glass-border: rgba(255,255,255,0.08)
 --glass-blur:   16px
 ```
@@ -70,7 +70,7 @@ VibeCoder uses a two-layer color system: **palette tokens** (raw values) and **s
 --elevation-1: 0 1px 2px rgba(0,0,0,0.30)
 --elevation-2: 0 4px 12px rgba(0,0,0,0.35)
 --elevation-3: 0 8px 30px rgba(0,0,0,0.45)
---glow-accent: 0 0 20px rgba(108,140,255,0.15)
+--glow-accent: 0 0 20px rgba(86,156,214,0.15)
 --card-shadow: 0 1px 3px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25)
 ```
 
@@ -80,9 +80,9 @@ VibeCoder uses a two-layer color system: **palette tokens** (raw values) and **s
 
 <div class="swatch-grid">
   <h4>Background</h4>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#fafbfd"></span></div><div class="swatch-meta"><div class="swatch-token">--bg-primary</div><div class="swatch-value">#fafbfd</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#f0f1f5"></span></div><div class="swatch-meta"><div class="swatch-token">--bg-secondary</div><div class="swatch-value">#f0f1f5</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#e6e8ef"></span></div><div class="swatch-meta"><div class="swatch-token">--bg-tertiary</div><div class="swatch-value">#e6e8ef</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#f3f3f3"></span></div><div class="swatch-meta"><div class="swatch-token">--bg-primary</div><div class="swatch-value">#f3f3f3</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#e8e8e8"></span></div><div class="swatch-meta"><div class="swatch-token">--bg-secondary</div><div class="swatch-value">#e8e8e8</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#d6d6d6"></span></div><div class="swatch-meta"><div class="swatch-token">--bg-tertiary</div><div class="swatch-value">#d6d6d6</div></div></div>
   <div class="swatch"><div class="swatch-chip"><span style="background:#ffffff"></span></div><div class="swatch-meta"><div class="swatch-token">--bg-elevated</div><div class="swatch-value">#ffffff</div></div></div>
 
   <h4>Border</h4>
@@ -90,17 +90,17 @@ VibeCoder uses a two-layer color system: **palette tokens** (raw values) and **s
   <div class="swatch"><div class="swatch-chip"><span style="background:rgba(0,0,0,0.04)"></span></div><div class="swatch-meta"><div class="swatch-token">--border-subtle</div><div class="swatch-value">rgba(0,0,0,0.04)</div></div></div>
 
   <h4>Text</h4>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#1a1d2e"></span></div><div class="swatch-meta"><div class="swatch-token">--text-primary</div><div class="swatch-value">#1a1d2e</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#6b7089"></span></div><div class="swatch-meta"><div class="swatch-token">--text-secondary</div><div class="swatch-value">#6b7089</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#9ca3af"></span></div><div class="swatch-meta"><div class="swatch-token">--text-muted</div><div class="swatch-value">#9ca3af</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#1e1e1e"></span></div><div class="swatch-meta"><div class="swatch-token">--text-primary</div><div class="swatch-value">#1e1e1e</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#616161"></span></div><div class="swatch-meta"><div class="swatch-token">--text-secondary</div><div class="swatch-value">#616161</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#a3a3a3"></span></div><div class="swatch-meta"><div class="swatch-token">--text-muted</div><div class="swatch-value">#a3a3a3</div></div></div>
 
   <h4>Accent &amp; semantic</h4>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#4f6df5"></span></div><div class="swatch-meta"><div class="swatch-token">--accent-blue</div><div class="swatch-value">#4f6df5</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#10b981"></span></div><div class="swatch-meta"><div class="swatch-token">--accent-green</div><div class="swatch-value">#10b981</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#d4a017"></span></div><div class="swatch-meta"><div class="swatch-token">--accent-gold</div><div class="swatch-value">#d4a017</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#dc2626"></span></div><div class="swatch-meta"><div class="swatch-token">--error-color</div><div class="swatch-value">#dc2626</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#dc2626"></span></div><div class="swatch-meta"><div class="swatch-token">--text-danger</div><div class="swatch-value">#dc2626</div></div></div>
-  <div class="swatch"><div class="swatch-chip"><span style="background:#4f6df5"></span></div><div class="swatch-meta"><div class="swatch-token">--text-info</div><div class="swatch-value">#4f6df5</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#005fb8"></span></div><div class="swatch-meta"><div class="swatch-token">--accent-blue</div><div class="swatch-value">#005fb8</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#388a34"></span></div><div class="swatch-meta"><div class="swatch-token">--accent-green</div><div class="swatch-value">#388a34</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#bf8803"></span></div><div class="swatch-meta"><div class="swatch-token">--accent-gold</div><div class="swatch-value">#bf8803</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#cd3131"></span></div><div class="swatch-meta"><div class="swatch-token">--error-color</div><div class="swatch-value">#cd3131</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#cd3131"></span></div><div class="swatch-meta"><div class="swatch-token">--text-danger</div><div class="swatch-value">#cd3131</div></div></div>
+  <div class="swatch"><div class="swatch-chip"><span style="background:#005fb8"></span></div><div class="swatch-meta"><div class="swatch-token">--text-info</div><div class="swatch-value">#005fb8</div></div></div>
 
   <h4>Semantic backgrounds</h4>
   <div class="swatch"><div class="swatch-chip"><span style="background:rgba(16,185,129,0.10)"></span></div><div class="swatch-meta"><div class="swatch-token">--success-bg</div><div class="swatch-value">rgba(16,185,129,0.10)</div></div></div>

@@ -18,7 +18,7 @@ Level   Token           Value                                          Use
 1       --elevation-1   0 1px 2px rgba(0,0,0,0.30)                   Cards, buttons (resting)
 2       --elevation-2   0 4px 12px rgba(0,0,0,0.35)                  Buttons (hover), popovers
 3       --elevation-3   0 8px 30px rgba(0,0,0,0.45)                  Modals, drawers, tooltips
-─       --glow-accent   0 0 20px rgba(108,140,255,0.15)              Button hover glow
+─       --glow-accent   0 0 20px rgba(86,156,214,0.15)              Button hover glow
 ─       --card-shadow   0 1px 3px rgba(0,0,0,0.4),                   Heavy card emphasis
                         0 4px 16px rgba(0,0,0,0.25)
 ```
@@ -32,10 +32,10 @@ Higher value = further from the canvas = visually "higher".
 ```
 Depth  Token            Dark value    Light value    Use
 ─────────────────────────────────────────────────────────────────────
-0      --bg-primary     #0f1117       #fafbfd        Page canvas, deepest bg
-1      --bg-secondary   #161821       #f0f1f5        Panel body, card surfaces
-2      --bg-tertiary    #1c1f2b       #e6e8ef        Inputs, hover states, sub-cards
-3      --bg-elevated    #222638       #ffffff        Modals, dropdowns, tooltips
+0      --bg-primary     #1a1a1a       #f3f3f3        Page canvas, deepest bg
+1      --bg-secondary   #252526       #e8e8e8        Panel body, card surfaces
+2      --bg-tertiary    #2d2d30       #d6d6d6        Inputs, hover states, sub-cards
+3      --bg-elevated    #333337       #ffffff        Modals, dropdowns, tooltips
 ```
 
 Rules:
@@ -73,7 +73,7 @@ Rules:
 For surfaces that need a translucent, blurred effect (e.g. floating panels, headers).
 
 ```
---glass-bg:     rgba(22,24,33,0.75)        Semi-transparent bg
+--glass-bg:     rgba(37,37,38,0.75)        Semi-transparent bg
 --glass-border: rgba(255,255,255,0.08)     Subtle edge
 --glass-blur:   16px                        backdrop-filter value
 ```

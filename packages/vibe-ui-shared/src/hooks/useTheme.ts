@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { applyThemeById, getPairedTheme, THEMES, type ThemeDef } from "../theme/themes";
+import {
+  applyThemeById,
+  getPairedTheme,
+  THEMES,
+  DEFAULT_DARK_THEME_ID,
+  DEFAULT_LIGHT_THEME_ID,
+  type ThemeDef,
+} from "../theme/themes";
 
 /** Back-compat alias used by callers that haven't been migrated to the
  *  full theme-id system. */
@@ -24,8 +31,8 @@ const LS_KEY_ID = "vibedesk-theme-id";
 
 /* ── Defaults ─────────────────────────────────────────────────────────── */
 
-const DEFAULT_DARK = "dark-default";
-const DEFAULT_LIGHT = "light-default";
+const DEFAULT_DARK = DEFAULT_DARK_THEME_ID;
+const DEFAULT_LIGHT = DEFAULT_LIGHT_THEME_ID;
 
 function isKnownThemeId(id: string | null | undefined): id is string {
   return !!id && THEMES.some((t) => t.id === id);
