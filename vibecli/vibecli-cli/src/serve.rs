@@ -10025,7 +10025,8 @@ async fn voice_duplex_turn(
             }
             full.push_str(&speakable);
             if let Some(sentence) = split.push(&speakable) {
-                emit_sentence(&sentence, &tx, &tts, &voice, &gen, my_gen, t0, &mut first_audio)
+                emit_sentence(&sentence, &tx, &tts, &voice, &gen, my_gen, t0, &mut first_audio,
+                              detected.as_deref())
                     .await;
             }
         }
@@ -10046,7 +10047,8 @@ async fn voice_duplex_turn(
             }
             full.push_str(&part);
             if let Some(sentence) = split.push(&part) {
-                emit_sentence(&sentence, &tx, &tts, &voice, &gen, my_gen, t0, &mut first_audio)
+                emit_sentence(&sentence, &tx, &tts, &voice, &gen, my_gen, t0, &mut first_audio,
+                              detected.as_deref())
                     .await;
             }
         }
@@ -10074,6 +10076,7 @@ async fn voice_duplex_turn(
                     false => {
                         run_voice_tools(
                             &calls, root, &tx, &tts, &voice, &gen, my_gen, t0, &approvals,
+                            detected.as_deref(),
                         )
                         .await
                     }
@@ -10098,7 +10101,7 @@ async fn voice_duplex_turn(
         }
 
         if let Some(sentence) = split.flush() {
-            emit_sentence(&sentence, &tx, &tts, &voice, &gen, my_gen, t0, &mut first_audio).await;
+            emit_sentence(&sentence, &tx, &tts, &voice, &gen, my_gen, t0, &mut first_audio, detected.as_deref()).await;
         }
         break;
     }
@@ -10154,6 +10157,11 @@ async fn run_voice_tools(
     my_gen: u64,
     t0: std::time::Instant,
     approvals: &crate::voice_tools::ApprovalSlot,
+    // The approval question is spoken, so it needs the same voice the rest of
+    // the turn uses. Asking "May I write src/main.rs?" in English in the middle
+    // of a Hindi conversation is the one sentence the user most needs to
+    // understand, since answering it changes a file.
+    lang: Option<&str>,
 ) -> String {
     use crate::voice_tools as vt;
 
@@ -10193,7 +10201,7 @@ async fn run_voice_tools(
                 .into(),
             ));
             let mut spoken = None;
-            emit_sentence(&question, tx, tts, voice, gen, my_gen, t0, &mut spoken).await;
+            emit_sentence(&question, tx, tts, voice, gen, my_gen, t0, &mut spoken, lang).await;
 
             let approved = match tokio::time::timeout(vt::APPROVAL_TIMEOUT, recv).await {
                 Ok(Ok(v)) => v,
@@ -10386,12 +10394,13 @@ async fn emit_sentence(
     my_gen: u64,
     t0: std::time::Instant,
     first_audio: &mut Option<u128>,
+    lang: Option<&str>,
 ) {
     let say = |v: serde_json::Value| {
         let _ = tx.send(WsMessage::Text(v.to_string().into()));
     };
     say(serde_json::json!({"type": "speaking", "text": sentence}));
-    let Some(ms) = speak_sentence(sentence, tx, tts, voice, gen, my_gen, t0).await else {
+    let Some(ms) = speak_sentence(sentence, tx, tts, voice, gen, my_gen, t0, lang).await else {
         return;
     };
     if first_audio.is_none() {
@@ -10415,11 +10424,12 @@ async fn speak_sentence(
     gen: &crate::voice_duplex::Generation,
     my_gen: u64,
     t0: std::time::Instant,
+    lang: Option<&str>,
 ) -> Option<u128> {
     let mut t = tts.lock().await;
     let v = voice.lock().await.clone();
     if t.is_streaming() {
-        if t.say(sentence, v.as_deref(), 0.52).await.is_err() {
+        if t.say(sentence, v.as_deref(), 0.52, lang).await.is_err() {
             return None;
         }
         let mut first = None;
@@ -10432,6 +10442,28 @@ async fn speak_sentence(
                 first = Some(t0.elapsed().as_millis());
             }
             let _ = tx.send(WsMessage::Binary(encode_audio(&chunk).into()));
+        }
+        // No audio at all for something speakable means the engine has no voice
+        // for this language. Kokoro covers nine and the recogniser detects 99,
+        // so this is reachable by simply speaking Korean. Silence with no
+        // explanation is indistinguishable from a broken microphone.
+        if first.is_none()
+            && !gen.is_stale(my_gen)
+            && sentence.chars().any(char::is_alphanumeric)
+        {
+            let why = match lang {
+                Some(l) => format!(
+                    "The speech engine has no voice for {}. Set [voice] tts_engine = \"system\" \
+                     for wider language coverage.",
+                    crate::voice_duplex::language_name(l)
+                ),
+                None => "The speech engine produced no audio for that reply.".to_string(),
+            };
+            let _ = tx.send(WsMessage::Text(
+                serde_json::json!({"type": "notice", "message": why})
+                    .to_string()
+                    .into(),
+            ));
         }
         first
     } else {

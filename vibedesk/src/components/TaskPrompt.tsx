@@ -270,7 +270,12 @@ export function TaskPrompt({
     daemonUrl,
     provider: prefs.provider,
     model: prefs.model,
-    language: "en",
+    // `auto`, not a pinned language. Pinning one does not merely bias the
+    // recogniser — it *suppresses* the detection result, so every turn came
+    // back labelled English, the reply rule never fired, and a question asked
+    // in Hindi was answered in English. Detection runs per turn because
+    // code-switching mid-conversation is normal for multilingual speakers.
+    language: "auto",
     context: voiceContext,
     workspaceRoot: scopePath ?? null,
     onTurn: (turn) => onTurnRef.current(turn.role, turn.text),

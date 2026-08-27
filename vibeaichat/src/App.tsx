@@ -246,7 +246,12 @@ export default function App() {
     token: daemonToken,
     provider,
     model: selectedModel,
-    language: "en",
+    // `auto`, not a pinned language. Pinning one does not merely bias the
+    // recogniser — it *suppresses* the detection result, so every turn came
+    // back labelled English, the reply rule never fired, and a question asked
+    // in Hindi was answered in English. Detection runs per turn because
+    // code-switching mid-conversation is normal for multilingual speakers.
+    language: "auto",
     onTurn: turn =>
       setMessages(m => [...m, { role: turn.role === "user" ? "user" : "assistant", content: turn.text }]),
   });

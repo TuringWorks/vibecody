@@ -116,7 +116,7 @@ final class Sidecar {
   private var live: [Int: AVSpeechSynthesizer] = [:]
   /// Every mutable field below is touched only inside this queue.
   private let q = DispatchQueue(label: "tts.state")
-  private var queue: [(String, String?, Float)] = []
+  private var queue: [(String, String?, Float, String?)] = []
   private var busy = false
   private var utteranceId = 0
   private var t0 = Date()
@@ -144,8 +144,8 @@ final class Sidecar {
     stdoutHandle.write(d)
   }
 
-  func enqueue(_ text: String, voice: String?, rate: Float) {
-    q.async { self.queue.append((text, voice, rate)); self.pump() }
+  func enqueue(_ text: String, voice: String?, rate: Float, lang: String? = nil) {
+    q.async { self.queue.append((text, voice, rate, lang)); self.pump() }
   }
 
   func cancel() {
@@ -163,7 +163,7 @@ final class Sidecar {
   private func pump() {
     guard !busy, !queue.isEmpty else { return }
     busy = true
-    let (text, voice, rate) = queue.removeFirst()
+    let (text, voice, rate, lang) = queue.removeFirst()
     utteranceId += 1
     let myId = utteranceId
     t0 = Date()
@@ -175,8 +175,18 @@ final class Sidecar {
 
     let synth = shared
     let u = AVSpeechUtterance(string: text)
-    if let v = voice, let av = AVSpeechSynthesisVoice(identifier: v) { u.voice = av }
-    else { u.voice = bestVoice(for: "en-US") }
+    // The language the recogniser actually heard wins over a session voice.
+    // A bilingual speaker switches mid-conversation, and Samantha reading Hindi
+    // is not accented Hindi, it is the wrong sounds. A pinned voice is honoured
+    // only while it still matches the language being spoken.
+    let want = lang ?? "en-US"
+    let pinned = voice.flatMap { AVSpeechSynthesisVoice(identifier: $0) }
+    if let p = pinned,
+       p.language.lowercased().hasPrefix(String(want.prefix(2)).lowercased()) {
+      u.voice = p
+    } else {
+      u.voice = bestVoice(for: want)
+    }
     u.rate = rate
 
     DispatchQueue.main.async {
@@ -292,7 +302,9 @@ DispatchQueue.global().async {
           let o = try? JSONSerialization.jsonObject(with: d) as? [String: Any] else { continue }
     if (o["cmd"] as? String) == "cancel" { sc.cancel(); continue }
     if let t = o["text"] as? String, !t.isEmpty {
-      sc.enqueue(t, voice: o["voice"] as? String, rate: (o["rate"] as? NSNumber)?.floatValue ?? 0.52)
+      sc.enqueue(t, voice: o["voice"] as? String,
+                 rate: (o["rate"] as? NSNumber)?.floatValue ?? 0.52,
+                 lang: o["lang"] as? String)
     }
   }
   exit(0)

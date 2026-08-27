@@ -33,6 +33,39 @@ import queue
 
 RATE = 24_000
 DEFAULT_VOICE = "af_heart"
+
+# Kokoro speaks nine language variants and nothing else, which is fewer than the
+# 99 the recogniser can detect. Each needs its own phonemizer *and* a voice
+# trained on that language: an English voice fed Devanagari does not read it
+# with an accent, it reads the wrong sounds entirely.
+#
+# Support is decided at runtime, not from this table. `misaki[en]` covers
+# English; Spanish, French, Hindi, Italian and Portuguese fall back to espeak,
+# which misaki bundles; Japanese and Chinese need `misaki[ja]` / `misaki[zh]`
+# and raise ImportError without them. Assuming a language works because it is
+# listed here is exactly the failure this comment exists to prevent.
+LANGS = {
+    "en": ("a", "af_heart"),
+    "en-gb": ("b", "bf_emma"),
+    "es": ("e", "ef_dora"),
+    "fr": ("f", "ff_siwis"),
+    "hi": ("h", "hf_alpha"),
+    "it": ("i", "if_sara"),
+    "ja": ("j", "jf_alpha"),
+    "pt": ("p", "pf_dora"),
+    "zh": ("z", "zf_xiaobei"),
+}
+
+
+def for_language(lang):
+    """`(lang_code, voice)` for a detected language, or `None` if unsupported.
+
+    Silence is a better answer than confident mispronunciation: a Japanese reply
+    read by an English voice is not accented Japanese, it is noise.
+    """
+    if not lang:
+        return LANGS["en"]
+    return LANGS.get(lang.lower()) or LANGS.get(lang.split("-")[0].lower())
 # Below this many characters a clause is not worth a separate synthesis pass:
 # the fixed overhead per pass outweighs anything gained by starting sooner.
 MIN_CLAUSE = 22
@@ -91,6 +124,9 @@ class Engine:
         # without emitting, so a barge-in cannot be spoken over by the reply it
         # interrupted.
         self.gen = 0
+        # Languages already reported as unspeakable, so the log records the
+        # problem once rather than once per sentence.
+        self.warned = set()
         self.lock = threading.Lock()
         threading.Thread(target=self._worker, daemon=True).start()
 
@@ -100,9 +136,9 @@ class Engine:
         cold first turn would otherwise charge the user for it."""
         list(self.model.generate(text="ok", voice=DEFAULT_VOICE, speed=1.0, lang_code="a"))
 
-    def enqueue(self, text, voice, speed):
+    def enqueue(self, text, voice, speed, lang):
         with self.lock:
-            self.q.put((self.gen, text, voice, speed))
+            self.q.put((self.gen, text, voice, speed, lang))
 
     def cancel(self):
         with self.lock:
@@ -116,33 +152,71 @@ class Engine:
         # reader waits out the full timeout before moving on.
         emit(b"END", b"")
 
+    def _unsupported(self, lang):
+        """Say once, to the log, that this language cannot be spoken.
+
+        Once rather than per sentence: a whole conversation in an unsupported
+        language would otherwise fill the daemon log with the same line. The
+        daemon notices the silence on its own and tells the user — this is the
+        record of *why*.
+        """
+        if lang in self.warned:
+            return
+        self.warned.add(lang)
+        log(
+            f"kokoro: no voice for language {lang!r}. Kokoro speaks "
+            f"{', '.join(sorted(LANGS))} and nothing else; Japanese and Chinese "
+            f"additionally need misaki[ja] / misaki[zh]. Set "
+            f"[voice] tts_engine = \"system\" for wider language coverage."
+        )
+
     def _stale(self, g) -> bool:
         with self.lock:
             return g != self.gen
 
     def _worker(self):
         while True:
-            g, text, voice, speed = self.q.get()
+            g, text, voice, speed, lang = self.q.get()
             if self._stale(g):
                 continue
             try:
-                self._speak(g, text, voice, speed)
+                self._speak(g, text, voice, speed, lang)
             except Exception as e:  # noqa: BLE001 — a bad utterance must not kill the process
                 log(f"kokoro: synthesis failed: {e}")
             if not self._stale(g):
                 emit(b"END", b"")
 
-    def _speak(self, g, text, voice, speed):
+    def _speak(self, g, text, voice, speed, lang):
         # Nothing speakable produces no audio and no callback. Terminate at once
         # rather than leaving the daemon's reader to time out.
         if not any(c.isalnum() for c in text):
             return
+        picked = for_language(lang)
+        if picked is None:
+            self._unsupported(lang)
+            return
+        code, default_voice = picked
+        # A voice the caller pinned is only honoured for the language it belongs
+        # to. `af_heart` reading Hindi is the bug this whole path exists to
+        # avoid, and a session voice chosen while speaking English must not
+        # follow the user into another language.
+        chosen = voice if (voice and voice[:1] == code) else default_voice
         for part in (clauses(text) if self.split else [text]):
             if self._stale(g):
                 return
-            for seg in self.model.generate(
-                text=part, voice=voice or DEFAULT_VOICE, speed=speed, lang_code="a"
-            ):
+            try:
+                segs = self.model.generate(
+                    text=part, voice=chosen, speed=speed, lang_code=code
+                )
+                segs = list(segs)
+            except ImportError as e:
+                # Japanese and Chinese need a misaki extra that is not installed
+                # until someone installs it. The table above says Kokoro *has* a
+                # voice; only trying tells you whether it can be reached.
+                self._unsupported(lang)
+                log(f"kokoro: {lang} phonemizer unavailable: {e}")
+                return
+            for seg in segs:
                 if self._stale(g):
                     return
                 rate = getattr(seg, "sample_rate", RATE)
@@ -179,7 +253,25 @@ def selftest() -> int:
         ("", [""]),
         ("...", ["..."]),
     ]
+    lang_cases = [
+        ("hi", ("h", "hf_alpha")),
+        ("en", ("a", "af_heart")),
+        # Whisper reports region tags; the base language is what selects a voice.
+        ("en-US", ("a", "af_heart")),
+        ("pt-BR", ("p", "pf_dora")),
+        # Kokoro has no Korean or Tamil voice. Silence beats reading Hangul with
+        # an English voice, which is not accented Korean but the wrong sounds.
+        ("ko", None),
+        ("ta", None),
+        (None, ("a", "af_heart")),
+    ]
     bad = 0
+    for lang, want in lang_cases:
+        got = for_language(lang)
+        if got != want:
+            bad += 1
+            log(f"FAIL language {lang!r}: want {want}, got {got}")
+
     for text, want in cases:
         got = clauses(text)
         if got != want:
@@ -221,10 +313,15 @@ def main():
         elif o.get("cmd") == "clauses":
             eng.split = bool(o.get("on", True))
         elif "text" in o:
+            # `lang` is the language the recogniser actually detected, not a
+            # session setting: a bilingual speaker switches mid-conversation and
+            # the voice has to switch with them.
             # `rate` is the Swift sidecar's AVSpeechUtterance rate, where 0.5 is
             # normal. Kokoro's `speed` is a multiplier where 1.0 is normal.
             r = float(o.get("rate", 0.52))
-            eng.enqueue(o["text"], o.get("voice"), max(0.5, min(2.0, r / 0.52)))
+            eng.enqueue(
+                o["text"], o.get("voice"), max(0.5, min(2.0, r / 0.52)), o.get("lang")
+            )
     return 0
 
 

@@ -153,6 +153,26 @@ socket** and falls back to the platform voice. It does not fall back silently:
 that failure is inaudible in the only sense that matters, because it sounds
 exactly like never having configured anything.
 
+### Kokoro speaks nine languages, not 99
+
+| | |
+|---|---|
+| works with `misaki[en]` | English (US, UK) |
+| works via bundled espeak | Spanish · French · Hindi · Italian · Portuguese |
+| needs `misaki[ja]` / `misaki[zh]` | Japanese · Chinese |
+| no voice at all | everything else the recogniser can detect |
+
+Support is decided by *trying*, not by that table: the language having a voice
+does not mean its phonemizer is installed. When the engine cannot speak a
+language it produces nothing, and the daemon — which can see that a speakable
+sentence produced no audio — sends a `notice` naming the language and pointing
+at `tts_engine = "system"`. Silence with no explanation is indistinguishable
+from a broken microphone.
+
+**Enabling Kokoro narrows language coverage.** The platform engine has voices
+for roughly forty languages and Kokoro for nine, so `system` remains the right
+choice for anyone who speaks something outside that list.
+
 ### Why it splits sentences at commas
 
 Kokoro is non-autoregressive — a sentence is produced in one pass, so first
@@ -310,9 +330,20 @@ the moment there is something to explain.
 
 ## Languages
 
-`language=en` keeps the fast path. `language=auto` detects per turn across 99
-languages; a code pins one. The reply is instructed into the detected language
-and the voice follows it.
+`language=auto` is what the shells send, and detects per turn across 99
+languages. `language=en` keeps the fast path; a code pins one. The reply is
+instructed into the detected language and the voice follows it.
+
+**The shells used to send `en`,** which is why a question asked in Hindi came
+back in correct English. Pinning a language does not merely bias the recogniser
+— it *suppresses* the detection result, so every turn arrived labelled English
+and the reply rule never fired.
+
+The detected language travels with every spoken sentence, not just the reply
+text, because choosing the voice is a separate decision from choosing the words.
+A pinned voice is honoured only while it still matches the language being
+spoken: an English voice reading Devanagari is not accented Hindi, it is the
+wrong sounds.
 
 **Detection runs every turn in auto mode, deliberately.** Pinning a language
 after the first turn suppresses the engine's detection result, so a user who

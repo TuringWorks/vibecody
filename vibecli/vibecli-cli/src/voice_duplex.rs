@@ -223,9 +223,20 @@ impl Tts {
     }
 
     /// Begin an utterance. Chunks then arrive from [`Tts::next_chunk`].
-    pub async fn say(&mut self, text: &str, voice: Option<&str>, rate: f32) -> Result<()> {
+    ///
+    /// `lang` is what the recogniser detected for *this turn*, not a session
+    /// setting. A bilingual speaker switches language mid-conversation and the
+    /// voice has to switch with them — an English voice reading Devanagari does
+    /// not sound accented, it reads the wrong sounds.
+    pub async fn say(
+        &mut self,
+        text: &str,
+        voice: Option<&str>,
+        rate: f32,
+        lang: Option<&str>,
+    ) -> Result<()> {
         match self {
-            Tts::Streaming(s) => s.say(text, voice, rate).await,
+            Tts::Streaming(s) => s.say(text, voice, rate, lang).await,
             Tts::Batch => Ok(()),
         }
     }
@@ -281,15 +292,24 @@ impl Sidecar {
         // ~300 ms and every later one ~20 ms. Pay it before anyone is listening.
         // It must contain something speakable — a blank utterance produces no
         // callback at all, and a reader waiting for the terminator would hang.
-        s.say("ok", None, 0.52).await?;
+        s.say("ok", None, 0.52, None).await?;
         while s.next_chunk().await?.is_some() {}
         Ok(s)
     }
 
-    async fn say(&mut self, text: &str, voice: Option<&str>, rate: f32) -> Result<()> {
+    async fn say(
+        &mut self,
+        text: &str,
+        voice: Option<&str>,
+        rate: f32,
+        lang: Option<&str>,
+    ) -> Result<()> {
         let mut o = serde_json::json!({ "text": text, "rate": rate });
         if let Some(v) = voice {
             o["voice"] = serde_json::json!(v);
+        }
+        if let Some(l) = lang {
+            o["lang"] = serde_json::json!(l);
         }
         self.stdin.write_all(format!("{o}\n").as_bytes()).await?;
         self.stdin.flush().await?;
