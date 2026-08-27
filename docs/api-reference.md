@@ -582,8 +582,8 @@ answering about the old one.
 | `flush` | Barge-in — discard queued audio immediately. |
 | `carried` | The user kept talking before this turn could answer, so its words join the next turn rather than being dropped. |
 | `latency` | `first_audio_ms` from end of speech. |
-| `reply` | The turn: the full text plus `asr_ms`, `llm_ttft_ms`, `total_ms`. One per answer. |
-| `error` | Something the user should be told. |
+| `reply` | The turn: the full text plus `asr_ms`, `llm_ttft_ms`, `total_ms`. One per answer. Never empty — a turn that produced no answer sends `error` instead and no `reply` at all. |
+| `error` | Something the user should be told. Sent for a *turn* failure as well as a fatal one — the socket stays open and the next utterance starts a new turn, so a client must not treat it as the end of the conversation. |
 
 ```bash
 websocat "ws://localhost:7878/ws/voice/duplex?token=$TOKEN&provider=ollama&model=granite4.1:3b"

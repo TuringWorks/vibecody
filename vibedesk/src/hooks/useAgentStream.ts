@@ -267,6 +267,23 @@ export function useAgentStream() {
     setItems((prev) => [...prev, { kind: "system", text }]);
   }, []);
 
+  /** Append a completed voice turn.
+   *
+   *  A spoken conversation is still a conversation: without this the whole of
+   *  it — what the user said and what the assistant answered — happened with
+   *  nothing to show for it, and the only record was audio that had already
+   *  stopped playing. Rendered with the same two kinds a typed turn uses, so
+   *  a mixed session reads as one thread rather than two.
+   *
+   *  Not persisted, for the same reason as `appendSystem`: these turns come
+   *  from the voice socket, not from a daemon session, so there is no run log
+   *  they belong to. */
+  const appendTurn = useCallback((role: "user" | "assistant", text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setItems((prev) => [...prev, { kind: role === "user" ? "user" : "agent", text: trimmed }]);
+  }, []);
+
   /** Seed the stream with a previously-finished conversation. The stream
    *  returns to `idle` so the composer is ready for a follow-up. */
   const loadItems = useCallback(
@@ -464,5 +481,5 @@ export function useAgentStream() {
     }
   }, []);
 
-  return { items, state, sessionId, startedAt, runTask, attach, stop, loadItems, appendSystem };
+  return { items, state, sessionId, startedAt, runTask, attach, stop, loadItems, appendSystem, appendTurn };
 }

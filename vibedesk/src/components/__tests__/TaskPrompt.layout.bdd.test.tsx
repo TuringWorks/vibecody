@@ -31,6 +31,7 @@ vi.mock("@vibe/shared/voice/useVoiceInput", () => ({
 vi.mock("@vibe/shared/voice/useVoiceDuplex", () => ({
   useVoiceDuplex: () => ({
     state: { status: "idle" },
+    turns: [],
     active: false,
     supported: true,
     start: vi.fn(),
@@ -57,6 +58,7 @@ function props(overrides: Partial<Props> = {}): Props {
       sandbox: LOCKED_SANDBOX,
       isolate: false,
     },
+    onVoiceTurn: vi.fn(),
     onPref: vi.fn(),
     onProviderModel: vi.fn(),
     draft: "",

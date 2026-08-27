@@ -6,6 +6,7 @@ import { useVoiceInput } from "@vibe/shared/voice/useVoiceInput";
 import { VoiceButton } from "@vibe/shared/voice/VoiceButton";
 import { useVoiceDuplex } from "@vibe/shared/voice/useVoiceDuplex";
 import { DuplexVoiceButton } from "@vibe/shared/voice/DuplexVoiceButton";
+import { VoiceTranscript } from "@vibe/shared/voice/VoiceTranscript";
 import { useVoiceDuplexPreference } from "@vibe/shared/voice/useVoiceDuplexPreference";
 import { tauriTranscriber } from "@vibe/shared/voice/transcribers";
 import { ApprovalPill, type ApprovalTier } from "./ApprovalPill";
@@ -66,6 +67,10 @@ interface TaskPromptProps {
   onQuickAction: (action: QuickAction) => void;
   /** Run a slash command. Handled by the shell — the composer only picks it. */
   onSlash: (action: SlashAction) => void;
+  /** A completed spoken turn, for the conversation above. Without it a voice
+   *  conversation left no record at all: it was heard, answered, and never
+   *  written down. */
+  onVoiceTurn: (role: "user" | "assistant", text: string) => void;
 }
 
 /** Grow the textarea with its content, up to a scrollable ceiling. */
@@ -97,6 +102,7 @@ export function TaskPrompt({
   onStop,
   onQuickAction,
   onSlash,
+  onVoiceTurn,
 }: TaskPromptProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [sandboxOpen, setSandboxOpen] = useState(false);
@@ -210,12 +216,18 @@ export function TaskPrompt({
   // for a typed task. Push-to-talk above stays: it dictates *into* the
   // composer, where this speaks a whole turn without touching the draft.
   const voicePref = useVoiceDuplexPreference();
+  // `onTurn` fires once per completed turn — the transcription, then the whole
+  // reply — which is what the conversation above wants. The live,
+  // sentence-by-sentence text is `duplex.turns`, rendered as a caption.
+  const onTurnRef = useRef(onVoiceTurn);
+  onTurnRef.current = onVoiceTurn;
   const duplex = useVoiceDuplex({
     enabled: voicePref.enabled,
     daemonUrl,
     provider: prefs.provider,
     model: prefs.model,
     language: "en",
+    onTurn: (turn) => onTurnRef.current(turn.role, turn.text),
   });
 
   const canSubmit = (!!draft.trim() || attachments.length > 0) && !busy && daemonOnline;
@@ -395,6 +407,7 @@ export function TaskPrompt({
           {voice.error}
         </div>
       )}
+      <VoiceTranscript state={duplex.state} turns={duplex.turns} active={duplex.active} />
       {sandboxOpen && (
         <SandboxSettings
           value={prefs.sandbox}

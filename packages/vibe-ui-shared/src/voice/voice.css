@@ -205,3 +205,90 @@
   background: var(--bg-tertiary);
   color: var(--text-primary);
 }
+
+/* ── Live caption ──────────────────────────────────────────────────────────
+   What is being said, while it is being said. Sits directly above the
+   composer in every shell, so the answer appears where the eye already is.
+
+   Deliberately low-contrast and capped in height: this is a caption that
+   scrolls past, not the transcript. The transcript is the host's own
+   conversation view, which gets each turn once it is complete. */
+.voice-caption {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.voice-caption__state {
+  display: flex;
+  align-items: center;
+  height: 17px;
+  flex: none;
+}
+
+.voice-caption__lines {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+  /* Three lines of the answer, then it scrolls. An unbounded caption grew the
+     composer upward on a long reply and pushed the conversation off screen. */
+  max-height: 4.4em;
+  overflow-y: auto;
+}
+
+.voice-caption__line {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.voice-caption__line--user {
+  color: var(--text-secondary);
+}
+
+.voice-caption__line--assistant {
+  color: var(--text-primary);
+}
+
+.voice-caption__line--waiting {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.voice-caption--error {
+  border-color: color-mix(in srgb, var(--error-color) 45%, var(--border-color));
+  color: var(--error-color);
+}
+
+/* The dot carries the turn state, exactly as it does on the button — same
+   class, so the two can never drift into disagreeing about the colour. */
+.voice-caption.state-listening .voice-duplex-dot {
+  background: var(--success-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success-color) 18%, transparent);
+}
+.voice-caption.state-hearing .voice-duplex-dot {
+  background: var(--info-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--info-color) 20%, transparent);
+}
+.voice-caption.state-thinking .voice-duplex-dot {
+  background: var(--warning-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--warning-color) 18%, transparent);
+}
+.voice-caption.state-speaking .voice-duplex-dot {
+  background: var(--accent-orange);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-orange) 20%, transparent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .voice-caption.state-listening .voice-duplex-dot {
+    animation: voice-duplex-pulse 2s ease-in-out infinite;
+  }
+}

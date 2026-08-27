@@ -76,4 +76,30 @@ describe("shared voice control theming", () => {
     expect(withFallback, `Fallbacks mask a missing token rather than surfacing it`)
       .toEqual([]);
   });
+
+  /**
+   * A perfectly themed stylesheet nobody loads is the same as no stylesheet.
+   *
+   * VibeCoder rendered every one of these controls as bare markup — an
+   * unstyled button beside the styled toolbar, a status dot with no colour —
+   * for the whole life of the feature, because it was the one shell that never
+   * imported the file. VibeDesk imports it in `main.tsx`, VibeAIChat in
+   * `App.tsx`; there is nothing to notice unless something checks.
+   */
+  it("is imported by every shell that renders the controls", () => {
+    const ROOT = resolve(SRC, "..", "..");
+    const importers = [
+      ["VibeCoder", resolve(SRC, "components", "AIChat.tsx")],
+      ["VibeDesk", resolve(ROOT, "vibedesk", "src", "main.tsx")],
+      ["VibeAIChat", resolve(ROOT, "vibeaichat", "src", "App.tsx")],
+    ] as const;
+    const missing = importers
+      .filter(([, file]) => !readFileSync(file, "utf8").includes("voice/voice.css"))
+      .map(([app]) => app);
+    expect(
+      missing,
+      `These shells render the voice controls without loading their stylesheet:\n`
+        + missing.map((a) => `  - ${a}`).join("\n"),
+    ).toEqual([]);
+  });
 });

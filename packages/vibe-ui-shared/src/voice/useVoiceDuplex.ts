@@ -213,6 +213,18 @@ export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
   const [state, setState] = useState<DuplexState>({ status: "idle" });
   const [turns, setTurns] = useState<DuplexTurn[]>([]);
   const [latency, setLatency] = useState<DuplexLatency>({});
+  /**
+   * Whether a socket is open, tracked separately from `state`.
+   *
+   * The daemon reports a turn-level failure — no speech engine, a provider
+   * error, a reply that was all reasoning — as `error` without closing the
+   * conversation. Deriving `active` from the status alone then told the button
+   * the conversation had stopped, so it offered "start" on a socket that was
+   * still open, `start` returned early because `ws.current` was set, and there
+   * was no longer any control that could stop it. One bad turn stranded the
+   * microphone open with no way back.
+   */
+  const [connected, setConnected] = useState(false);
 
   const ws = useRef<WebSocket | null>(null);
   /// Read by the capture callback, which is created before the socket opens.
@@ -245,6 +257,7 @@ export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
   /// Release every resource. Safe to call on a half-started attempt.
   const teardown = useCallback(() => {
     flush();
+    setConnected(false);
     ws.current?.close();
     ws.current = null;
     sockRef.current = null;
@@ -406,6 +419,7 @@ export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
       // Before the first turn, not after it: a question asked in the first
       // two seconds is the one most likely to be about what is on screen.
       sock.onopen = () => {
+        setConnected(true);
         const c = contextRef.current?.trim();
         if (c) sock.send(JSON.stringify({ type: "set_context", context: c }));
       };
@@ -503,7 +517,10 @@ export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
     turns,
     latency,
     supported: duplexSupported(),
-    active: state.status !== "idle" && state.status !== "error",
+    // A failed *start* leaves no socket, so `connected` is false and the button
+    // correctly offers to start again. A failed *turn* keeps the socket, and
+    // the only useful control is the one that stops it.
+    active: connected || (state.status !== "idle" && state.status !== "error"),
     start,
     stop,
     setVoice: (id) => send({ type: "set_voice", id }),

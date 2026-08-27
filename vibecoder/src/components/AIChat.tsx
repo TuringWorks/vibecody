@@ -25,6 +25,13 @@ import { Mic, User, Paperclip, X, FileText, Loader2, Download, ZoomIn, AtSign, A
 import { Markdown } from "@vibe/shared/markdown/Markdown";
 import "@vibe/shared/markdown/markdown.css";
 import "@vibe/shared/composer/composer.css";
+// The stylesheet for the mic button, the full-duplex control and the live
+// caption. VibeDesk and VibeAIChat import it; VibeCoder never did, so every
+// one of those controls rendered here as bare unstyled markup — a button with
+// no border sitting next to the styled toolbar buttons, and a status dot with
+// no colour, which is exactly the state anyone would describe as "the voice UI
+// looks right in VibeDesk and wrong here".
+import "@vibe/shared/voice/voice.css";
 import "./AIChat.css";
 
 // Voice input lives in packages/vibe-ui-shared/src/voice — the same hook

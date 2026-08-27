@@ -196,6 +196,19 @@ An unterminated block is discarded — it *is* reasoning.
 sits far below `first_audio_ms`. That gap is real: the model was producing
 tokens the whole time, just none you were meant to hear.
 
+**A reply that was nothing but reasoning says so.** Filtering can leave nothing
+behind, and a turn that ends with an empty reply is a chat log that skipped a
+turn and a speaker that stayed quiet — from where the user sits, identical to a
+microphone that never worked. The daemon distinguishes the two silences it can
+tell apart: tokens arrived and none survived the filter, or no tokens arrived at
+all. Neither is reported as an answer.
+
+A turn failure like this leaves the socket open — the conversation is still
+live, and the next thing you say is a new turn — so the control on screen stays
+the one that stops it. Deriving that from the turn state alone used to offer
+"start" on a microphone that was already open, with nothing left that could
+close it.
+
 ## One reply is one turn
 
 `speaking` fires **once per sentence**, because that is what drives streaming
@@ -210,6 +223,27 @@ sentences on `turns` and calling `onTurn` only for completed turns.
 Appending each `speaking` event instead rendered a single three-sentence answer
 as three separate chat bubbles. `reduceTurns` in the hook is a pure function so
 the property — one reply, one turn — is unit-tested without a microphone.
+
+## A spoken turn leaves a record
+
+Everything above is audio, and audio has already stopped by the time you want
+to reread it. Two surfaces write it down, and they are deliberately different
+things:
+
+**The chat log** gets each turn once it is complete, via `onTurn` — your
+transcription when it lands, then the whole reply. It is indistinguishable from
+a typed exchange, so a session where you spoke half the questions still reads as
+one thread. All three shells wire it; VibeDesk did not, which is why a whole
+voice conversation there used to happen with nothing on screen at all.
+
+**The caption** (`VoiceTranscript`, above the composer) covers the seconds in
+between: the sentence being spoken right now, under the question it answers.
+It renders the tail of `turns` and nothing older, because everything older is
+already in the chat log — showing the lot would render every turn twice.
+
+The caption is also where a failure shows up. It survives `active` going false,
+since the hook tears the conversation down on a failed start — which is exactly
+the moment there is something to explain.
 
 ## Languages
 

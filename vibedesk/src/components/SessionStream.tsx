@@ -89,7 +89,7 @@ export function SessionStream({
   onSlash,
   onRunFinished,
 }: SessionStreamProps) {
-  const { items, state, sessionId, startedAt, runTask, attach, stop, loadItems, appendSystem } =
+  const { items, state, sessionId, startedAt, runTask, attach, stop, loadItems, appendSystem, appendTurn } =
     useAgentStream();
   const usage = useJobUsage(daemonUrl, sessionId, state === "running");
   const approvals = useApprovals(daemonUrl, daemonOnline);
@@ -395,6 +395,7 @@ export function SessionStream({
         onSubmit={submit}
         onStop={() => stop(daemonUrl)}
         onQuickAction={onQuickAction}
+        onVoiceTurn={appendTurn}
         onSlash={(action) => {
           // Three commands act on this pane; the rest are the shell's.
           if (action === "stop") stop(daemonUrl);

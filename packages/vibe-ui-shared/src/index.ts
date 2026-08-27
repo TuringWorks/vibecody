@@ -34,6 +34,17 @@ export {
   type UseVoiceInputOptions,
 } from "./voice/useVoiceInput";
 export { VoiceButton } from "./voice/VoiceButton";
+export { ComposerDrawer } from "./composer/ComposerDrawer";
+export type {
+  ComposerIcon,
+  ComposerItem,
+  ComposerAction,
+  ComposerSwitch,
+  ComposerGroup,
+  ComposerDrawerProps,
+} from "./composer/ComposerDrawer";
+export { VoiceTranscript } from "./voice/VoiceTranscript";
+export type { VoiceTranscriptProps } from "./voice/VoiceTranscript";
 export { useVoiceDuplex, duplexSupported } from "./voice/useVoiceDuplex";
 export type {
   DuplexState,

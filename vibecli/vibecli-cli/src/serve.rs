@@ -9877,6 +9877,12 @@ async fn voice_duplex_turn(
     // routinely straddles a chunk boundary (`<thin` + `king>`).
     let mut filter = crate::agent_stream_filter::StreamFilter::new();
     let mut full = String::new();
+    // Raw stream length, kept only to tell two silences apart: a model that
+    // said nothing, and a model that said only things the user must not hear.
+    // Both end with an empty reply, and reporting either as an ordinary empty
+    // turn is the failure this whole route is easiest to get wrong in — the
+    // user speaks, nothing is spoken back, and nothing says why.
+    let mut raw_len = 0usize;
     let mut ttft = 0u128;
     let mut first_audio: Option<u128> = None;
 
@@ -9894,6 +9900,7 @@ async fn voice_duplex_turn(
         if ttft == 0 {
             ttft = t0.elapsed().as_millis();
         }
+        raw_len += tok.len();
         let tok = filter.push(&tok);
         if tok.is_empty() {
             continue;
@@ -9917,6 +9924,25 @@ async fn voice_duplex_turn(
         }
         if let Some(sentence) = split.flush() {
             emit_sentence(&sentence, &tx, &tts, &voice, &gen, my_gen, t0, &mut first_audio).await;
+        }
+        // Nothing was spoken. Say which of the two reasons it was and stop
+        // there, rather than closing the turn as if the assistant had
+        // answered. An empty `reply` renders as a chat log that skipped a turn
+        // and a speaker that stayed quiet — indistinguishable, from the user's
+        // side, from a microphone that never worked.
+        //
+        // Deliberately not followed by `state: listening`: that would overwrite
+        // the message on the client before it could be read. The next thing the
+        // user says moves the state on by itself.
+        if full.trim().is_empty() {
+            let why = if raw_len > 0 {
+                "The model produced only reasoning and no answer. Ask again, or pick a \
+                 model that does not think out loud."
+            } else {
+                "The model returned nothing for that turn."
+            };
+            say(serde_json::json!({"type": "error", "message": why}));
+            return;
         }
         say(serde_json::json!({
             "type": "reply", "text": full, "asr_ms": asr_ms,
