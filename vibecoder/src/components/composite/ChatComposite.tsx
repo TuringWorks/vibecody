@@ -72,6 +72,7 @@ export function ChatComposite({
                 context={context}
                 fileTree={fileTree}
                 currentFile={currentFile}
+                workspacePath={workspacePath ?? null}
                 onPendingWrite={onPendingWrite}
                 onSwitchToGoals={onSwitchToGoals}
               />

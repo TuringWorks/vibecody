@@ -44,6 +44,9 @@ interface ChatTabManagerProps {
     context?: string;
     fileTree?: string[];
     currentFile?: string | null;
+    /** Root of the open workspace. The voice path needs it to say *which*
+     *  project it is looking at — a file tree alone never names one. */
+    workspacePath?: string | null;
     onPendingWrite?: (path: string, content: string) => void;
     /** /goal slash command → forwarded to AIChat. */
     onSwitchToGoals?: (seed?: string) => void;
@@ -99,6 +102,7 @@ export function ChatTabManager({
     availableProviders,
     context,
     fileTree,
+    workspacePath,
     currentFile,
     onPendingWrite,
     onSwitchToGoals,
@@ -902,6 +906,7 @@ export function ChatTabManager({
                             context={context}
                             fileTree={fileTree}
                             currentFile={currentFile}
+                            workspacePath={workspacePath}
                             onPendingWrite={onPendingWrite}
                             pendingInput={activeTabId === tab.id ? injectedText[tab.id] : undefined}
                             onPendingInputConsumed={() =>

@@ -55,6 +55,12 @@ export type {
 } from "./voice/useVoiceDuplex";
 export { DuplexVoiceButton } from "./voice/DuplexVoiceButton";
 export { useVoiceDuplexPreference } from "./voice/useVoiceDuplexPreference";
+export {
+  buildVoiceContext,
+  findReadme,
+  VOICE_CONTEXT_LIMITS,
+  type VoiceContextParts,
+} from "./voice/voiceContext";
 export type { VoiceDuplexPreference } from "./voice/useVoiceDuplexPreference";
 export type { DuplexVoiceButtonProps } from "./voice/DuplexVoiceButton";
 export {

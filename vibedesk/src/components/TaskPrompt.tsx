@@ -8,6 +8,7 @@ import { useVoiceDuplex } from "@vibe/shared/voice/useVoiceDuplex";
 import { DuplexVoiceButton } from "@vibe/shared/voice/DuplexVoiceButton";
 import { VoiceTranscript } from "@vibe/shared/voice/VoiceTranscript";
 import { useVoiceDuplexPreference } from "@vibe/shared/voice/useVoiceDuplexPreference";
+import { buildVoiceContext, findReadme, VOICE_CONTEXT_LIMITS } from "@vibe/shared/voice/voiceContext";
 import { tauriTranscriber } from "@vibe/shared/voice/transcribers";
 import { ApprovalPill, type ApprovalTier } from "./ApprovalPill";
 import { ProviderPill } from "./ProviderPill";
@@ -86,6 +87,38 @@ const MAX_ROWS_PX = 260;
  * NOTE: there is intentionally NO Cmd+K inline edit — targeted edits use the
  * ⌘. diffcomplete surface (see pdm/08 §1).
  */
+/**
+ * The project's README, for the voice context block.
+ *
+ * Voice gets one round trip and no tools, so a listing of paths is everything
+ * it will ever know unless the file that names the project is in the block
+ * too. Failure is silence: a repo without a README is normal.
+ */
+function useProjectReadme(root: string | undefined, tree: readonly string[]): string | null {
+  const [readme, setReadme] = useState<string | null>(null);
+  const rel = useMemo(() => (tree.length ? findReadme(tree) : undefined), [tree]);
+
+  useEffect(() => {
+    if (!root || !rel) {
+      setReadme(null);
+      return;
+    }
+    let alive = true;
+    invoke<Attachment>("read_attachment", { path: `${root.replace(/\/+$/, "")}/${rel}` })
+      .then((a) => {
+        if (alive) setReadme(a.text.slice(0, VOICE_CONTEXT_LIMITS.readme * 2));
+      })
+      .catch(() => {
+        if (alive) setReadme(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [root, rel]);
+
+  return readme;
+}
+
 export function TaskPrompt({
   daemonUrl,
   daemonOnline,
@@ -221,12 +254,23 @@ export function TaskPrompt({
   // sentence-by-sentence text is `duplex.turns`, rendered as a caption.
   const onTurnRef = useRef(onVoiceTurn);
   onTurnRef.current = onVoiceTurn;
+  // What the spoken turn knows about the project. VibeDesk sent nothing at all
+  // until now — the hook has taken a `context` since the daemon learned to
+  // accept one, and only VibeCoder ever passed it, so a voice question here was
+  // answered with no idea which repo was open.
+  const readme = useProjectReadme(scopePath, projectFiles);
+  const voiceContext = useMemo(
+    () => buildVoiceContext({ root: scopePath, readme, tree: projectFiles }),
+    [scopePath, readme, projectFiles],
+  );
+
   const duplex = useVoiceDuplex({
     enabled: voicePref.enabled,
     daemonUrl,
     provider: prefs.provider,
     model: prefs.model,
     language: "en",
+    context: voiceContext,
     onTurn: (turn) => onTurnRef.current(turn.role, turn.text),
   });
 

@@ -6,6 +6,7 @@ import { parseProviderSelection } from "../hooks/useModelRegistry";
 import { DuplexVoiceButton } from "@vibe/shared/voice/DuplexVoiceButton";
 import { VoiceTranscript } from "@vibe/shared/voice/VoiceTranscript";
 import { useVoiceDuplexPreference } from "@vibe/shared/voice/useVoiceDuplexPreference";
+import { buildVoiceContext, findReadme, VOICE_CONTEXT_LIMITS } from "@vibe/shared/voice/voiceContext";
 import { tauriTranscriber } from "@vibe/shared/voice/transcribers";
 import { ComposerDrawer, type ComposerGroup } from "@vibe/shared/composer/ComposerDrawer";
 import { useClickAway } from "@vibe/shared/hooks/useClickAway";
@@ -130,6 +131,8 @@ interface AIChatProps {
  context?: string;
  fileTree?: string[];
  currentFile?: string | null;
+ /** Root of the open workspace, for the voice context block. */
+ workspacePath?: string | null;
  onFileAction?: () => void;
  onPendingWrite?: (path: string, content: string) => void;
  /** When set, appends this text to the current input (Cascade flow inject). */
@@ -1303,11 +1306,45 @@ function SlashPalette({ query, onSelect, onClose }: {
 
 // ── Main component ───────────────────────────────────────────────────────────
 
+/**
+ * The project's README, read once per workspace, for the voice context block.
+ *
+ * Read here rather than in the daemon because the shell already has the file
+ * tree and a path-guarded `read_file`; the daemon would need a workspace root
+ * of its own to do the same safely. Failure is silence, not an error: a repo
+ * with no README is normal, and voice must still work without one.
+ */
+function useProjectReadme(root: string | null | undefined, tree: string[] | undefined): string | null {
+  const [readme, setReadme] = useState<string | null>(null);
+  const path = useMemo(() => (tree?.length ? findReadme(tree) : undefined), [tree]);
+
+  useEffect(() => {
+    if (!path) {
+      setReadme(null);
+      return;
+    }
+    let alive = true;
+    invoke<string>("read_file", { path })
+      .then((text) => {
+        if (alive) setReadme(text.slice(0, VOICE_CONTEXT_LIMITS.readme * 2));
+      })
+      .catch(() => {
+        if (alive) setReadme(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [path, root]);
+
+  return readme;
+}
+
 export function AIChat({
   provider,
   context,
   fileTree,
   currentFile,
+  workspacePath,
   onFileAction,
   onPendingWrite,
   pendingInput,
@@ -1754,29 +1791,30 @@ export function AIChat({
   const duplexSelection = useMemo(() => parseProviderSelection(provider), [provider]);
   const voicePref = useVoiceDuplexPreference();
 
-  // The same material the typed path sends as `context` / `file_tree` /
-  // `current_file`, flattened into one block because the socket carries prose
-  // rather than the typed path's structured request. Without it the assistant
-  // answered "I don't have any information about that" about the project the
-  // user had open in the tree beside it.
+  // What the spoken path knows about the project.
   //
-  // The tree is capped here rather than at the daemon: a large repo is tens of
-  // thousands of paths, and the tail of an alphabetical listing is the least
-  // informative part of it. The daemon bounds it again — this is a courtesy,
-  // not the guard.
-  const duplexContext = useMemo(() => {
-    const tree = fileTree ?? [];
-    const shown = tree.slice(0, 400);
-    const blocks = [
-      pinnedMemory?.trim(),
-      context?.trim(),
-      currentFile ? `Open file: ${currentFile}` : null,
-      shown.length
-        ? `Project files (${shown.length}${tree.length > shown.length ? ` of ${tree.length}` : ""}):\n${shown.join("\n")}`
-        : null,
-    ].filter(Boolean);
-    return blocks.join("\n\n");
-  }, [pinnedMemory, context, currentFile, fileTree]);
+  // The typed path can go and look — it has `<read_file>` — so a file tree is
+  // enough to get it started. Voice has one round trip and no tools, so a tree
+  // of paths is all it will ever have: asked to summarise the project it
+  // answered "just a collection of directories and files, I couldn't tell what
+  // Gbrain is", which is a fair description of a listing with no README in it.
+  // Root, README and the open file's *contents* (not just its path) go in too.
+  const readme = useProjectReadme(workspacePath, fileTree);
+  const duplexContext = useMemo(
+    () =>
+      buildVoiceContext({
+        root: workspacePath,
+        pinned: pinnedMemory,
+        readme,
+        openFile: currentFile,
+        // `context` is the editor material the typed path sends — selection
+        // and open-file text — so it belongs with the open file, not as a
+        // nameless block of prose.
+        extra: context,
+        tree: fileTree,
+      }),
+    [workspacePath, pinnedMemory, readme, currentFile, context, fileTree],
+  );
 
   const duplex = useVoiceDuplex({
     enabled: voicePref.enabled,
