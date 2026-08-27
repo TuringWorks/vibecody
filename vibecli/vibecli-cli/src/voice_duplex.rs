@@ -597,25 +597,36 @@ pub fn resolve_bin(bin: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     /// The pipeline the daemon runs between the provider and the speaker.
+    ///
+    /// All three stages, in the daemon's order, because a helper that models
+    /// two of them stops being evidence about the third. This one drifted
+    /// exactly that way: it kept `StreamFilter::new()` after the daemon moved
+    /// to `reasoning_only()` and grew a `ToolGate`, and so went on passing
+    /// while every tool call in production was being swallowed.
     fn spoken(chunks: &[&str]) -> Vec<String> {
-        let mut filter = crate::agent_stream_filter::StreamFilter::new();
+        let mut filter = crate::agent_stream_filter::StreamFilter::reasoning_only();
+        let mut gate = crate::voice_tools::ToolGate::default();
         let mut split = super::SentenceSplitter::default();
         let mut out = Vec::new();
+        let feed = |text: &str, split: &mut super::SentenceSplitter, out: &mut Vec<String>| {
+            if text.is_empty() {
+                return;
+            }
+            if let Some(s) = split.push(text) {
+                out.push(s);
+            }
+        };
         for c in chunks {
             let t = filter.push(c);
             if t.is_empty() {
                 continue;
             }
-            if let Some(s) = split.push(&t) {
-                out.push(s);
-            }
+            feed(&gate.push(&t), &mut split, &mut out);
         }
-        let tail = filter.finish();
-        if !tail.is_empty() {
-            if let Some(s) = split.push(&tail) {
-                out.push(s);
-            }
-        }
+        let tail = gate.push(&filter.finish());
+        feed(&tail, &mut split, &mut out);
+        let held = gate.finish();
+        feed(&held, &mut split, &mut out);
         out.extend(split.flush());
         out
     }
@@ -658,7 +669,36 @@ mod tests {
 
     #[test]
     fn a_model_that_does_not_reason_is_unaffected() {
-        assert_eq!(spoken(&["Yes.", " Two files changed."]), vec!["Yes.", "Two files changed."]);
+        // Not a word is lost, and nothing is invented. *How* it is cut into
+        // utterances is not the property: a reply short enough to sit inside
+        // the tool gate's decision window is released whole at end of stream,
+        // so the splitter sees both sentences at once and speaks them as one
+        // utterance. That is the daemon's real behaviour and it is the better
+        // one — a two-word answer is not improved by two synthesiser calls.
+        // The old expectation of two utterances was written against a pipeline
+        // that had no gate in it.
+        assert_eq!(
+            spoken(&["Yes.", " Two files changed."]).join(" "),
+            "Yes. Two files changed."
+        );
+    }
+
+    #[test]
+    fn a_long_answer_is_still_spoken_sentence_by_sentence() {
+        // Past the gate window, speech starts at the first boundary rather than
+        // waiting for the whole reply — which is what keeps first-audio off the
+        // full generation time.
+        let said = spoken(&[
+            "There are three files in the examples folder. ",
+            "The largest is a Rust program.",
+        ]);
+        assert_eq!(
+            said,
+            vec![
+                "There are three files in the examples folder.",
+                "The largest is a Rust program."
+            ]
+        );
     }
 
     #[test]

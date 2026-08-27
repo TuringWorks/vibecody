@@ -45,8 +45,25 @@ pub const MAX_RESULT_CHARS: usize = 4_000;
 const GATE_CHARS: usize = 24;
 
 /// Openings that mean "this turn is a tool call, do not speak it".
-const TOOL_PREFIXES: &[&str] =
-    &["<tool_call", "<read_file", "<list_dir", "<search_files", "<write_file", "<apply_patch"];
+///
+/// `<list_dir` is a prefix of `<list_directory` too, so both spellings are
+/// gated even though only the canonical one is ever advertised.
+const TOOL_PREFIXES: &[&str] = &[
+    "<tool_call",
+    "<read_file",
+    "<list_dir",
+    "<search_files",
+    "<write_file",
+    "<apply_patch",
+    "<open_file",
+];
+
+/// The line that closes a tool round: the model has its results, now speak.
+///
+/// Shared because a round can end in either half — files opened for the client,
+/// tools run against disk, or both — and all three have to hand back the same
+/// instruction or the turn ends on a look with nothing said.
+pub const ANSWER_NOW: &str = "Now answer the user in one or two short spoken sentences.";
 
 /// What the assistant is told it may do, when a workspace root is known.
 ///
@@ -55,14 +72,39 @@ const TOOL_PREFIXES: &[&str] =
 /// host asked for it — and even then a write does not happen until the user
 /// says yes, which the prompt says plainly so the assistant does not promise
 /// something it cannot deliver.
-pub fn contract(may_change: bool) -> &'static str {
+///
+/// `may_open` is a fact about the *client*, not about permission: VibeDesk and
+/// VibeAIChat have no editor to open a file in, so advertising the tool there
+/// would buy a promise nobody can keep. It is declared over the socket by the
+/// clients that can, and the line is omitted for the ones that cannot.
+pub fn contract(may_change: bool, may_open: bool) -> String {
+    let base = change_contract(may_change);
+    match may_open {
+        true => format!("{base}{OPEN_CLAUSE}"),
+        false => base.to_string(),
+    }
+}
+
+/// Showing a file is not reading one, and models reach for `read_file` for
+/// both. Asked to "open the config", one reads it and describes it — which is
+/// an answer to a question the user did not ask, with their editor still
+/// showing whatever it showed before.
+const OPEN_CLAUSE: &str = "\n\nThe user has an editor open in front of them, so you can also put a \
+     file on their screen:\n\
+     <tool_call name=\"open_file\"><path>src/main.rs</path></tool_call>\n\
+     Opening is not reading. When they ask you to open, show, pull up or bring up a file, \
+     call open_file — reading it to yourself and then describing it is not what they asked \
+     for. read_file is for when *you* need the contents in order to answer. Only say a file \
+     is open after you have been told it was.";
+
+fn change_contract(may_change: bool) -> &'static str {
     if may_change {
         concat!(
             "\n\nYou can look at the project, and you can change it — but a change is asked \
              for out loud and the user has to agree before it happens. To use a tool, reply \
              with ONE tool call and nothing else; it is not read aloud:\n\
              <tool_call name=\"read_file\"><path>README.md</path></tool_call>\n\
-             <tool_call name=\"list_dir\"><path>src</path></tool_call>\n\
+             <tool_call name=\"list_directory\"><path>src</path></tool_call>\n\
              <tool_call name=\"search_files\"><query>fn main</query></tool_call>\n\
              <tool_call name=\"write_file\"><path>src/main.rs</path><content>…</content></tool_call>\n\
              Paths are relative to the project root. Read a file before rewriting it — \
@@ -84,7 +126,7 @@ pub fn read_only_contract() -> &'static str {
      ONE tool call and nothing else — no speech around it, since it is not read \
      aloud:\n\
      <tool_call name=\"read_file\"><path>README.md</path></tool_call>\n\
-     <tool_call name=\"list_dir\"><path>src</path></tool_call>\n\
+     <tool_call name=\"list_directory\"><path>src</path></tool_call>\n\
      <tool_call name=\"search_files\"><query>fn main</query></tool_call>\n\
      Paths are relative to the project root. You will be given the result and \
      can then answer. If the workspace block above already answers, answer from it — \
@@ -198,11 +240,171 @@ pub fn describe(call: &ToolCall) -> String {
     }
 }
 
+/// The paths a turn asked the *client* to show, in the order it asked.
+///
+/// Deliberately not a [`ToolCall`]: every variant of that enum is something
+/// [`crate::tool_executor::ToolExecutor`] can run against the filesystem, and
+/// opening an editor tab is not — there is no file operation to perform. It is
+/// parsed here and dispatched over the socket to whoever owns a window, so the
+/// executor's contract stays "things this process can do".
+///
+/// Both dialects models actually emit are accepted: the canonical
+/// `<tool_call name="open_file">` the contract teaches, and the bare
+/// `<open_file>` element they fall into when copying the shape of the tag
+/// around it.
+pub fn parse_open_file(text: &str) -> Vec<String> {
+    open_file_re()
+        .captures_iter(text)
+        .filter_map(|c| c.get(1))
+        .map(|m| m.as_str().trim().to_string())
+        .filter(|p| !p.is_empty())
+        .collect()
+}
+
+/// Compiled once. A `Regex::new` on a per-turn path is this codebase's most
+/// expensive recurring mistake — `strip_thinking` cost 27 MB per streamed chunk
+/// before its patterns were hoisted.
+fn open_file_re() -> &'static regex::Regex {
+    static RE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(
+            r#"(?s)<(?:tool_call\s+name="open_file"\s*|open_file\s*)>\s*<path>(.*?)</path>"#,
+        )
+        .expect("open_file pattern is a literal and is covered by unit tests")
+    });
+    &RE
+}
+
 /// Trim a tool result to something an answer can be built from.
 pub fn clamp_result(s: &str) -> String {
     match s.char_indices().nth(MAX_RESULT_CHARS) {
         Some((byte, _)) => format!("{}\n…(truncated)", &s[..byte]),
         None => s.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod pipeline_tests {
+    /// The pipeline the daemon actually runs between the provider and the
+    /// speaker: reasoning filter, then tool gate.
+    ///
+    /// It has to be tested as a pipeline, because the defect lived in neither
+    /// half. `StreamFilter` suppresses `<tool_call>` — correctly, for the agent
+    /// console, which renders tool lines separately — and it runs *before* the
+    /// gate. So a model following the contract in [`contract`] had its call
+    /// eaten before `ToolGate` could see it: `tool_text()` was `None`, no tool
+    /// ever ran, and the turn ended on "the model produced only reasoning or
+    /// tool calls and never answered".
+    fn run(chunks: &[&str]) -> (String, Option<String>) {
+        let mut filter = crate::agent_stream_filter::StreamFilter::reasoning_only();
+        let mut gate = super::ToolGate::default();
+        let mut spoken = String::new();
+        for c in chunks {
+            let t = filter.push(c);
+            if t.is_empty() {
+                continue;
+            }
+            spoken.push_str(&gate.push(&t));
+        }
+        let tail = filter.finish();
+        spoken.push_str(&gate.push(&tail));
+        spoken.push_str(&gate.finish());
+        (spoken, gate.tool_text().map(str::to_string))
+    }
+
+    #[test]
+    fn a_tool_call_survives_the_reasoning_filter_and_reaches_the_gate() {
+        let (spoken, tool) = run(&[
+            "<tool_call name=\"list_directory\">",
+            "<path>examples</path>",
+            "</tool_call>",
+        ]);
+        assert_eq!(spoken, "", "a tool call is never read aloud");
+        let tool = tool.expect("the gate must see the call the contract asked for");
+        assert!(
+            !vibe_ai::tools::parse_tool_calls(&tool).is_empty(),
+            "the gate's text must still parse as a call: {tool:?}"
+        );
+    }
+
+    #[test]
+    fn reasoning_before_a_tool_call_is_still_dropped() {
+        // Both halves at once — the reason the filter cannot simply be removed.
+        let (spoken, tool) = run(&[
+            "<thinking>",
+            "The user wants the examples folder. I should list it.",
+            "</thinking>\n",
+            "<tool_call name=\"list_directory\"><path>examples</path></tool_call>",
+        ]);
+        assert_eq!(spoken, "");
+        let tool = tool.expect("the call after the reasoning block must survive");
+        assert!(!tool.contains("The user wants"), "reasoning leaked: {tool:?}");
+        assert_eq!(
+            vibe_ai::tools::parse_tool_calls(&tool).len(),
+            1,
+            "expected exactly one call from {tool:?}"
+        );
+    }
+
+    /// Every call the contract shows the model must actually parse.
+    ///
+    /// The contract advertised `list_dir`; `parse_tool_calls` knows
+    /// `list_directory` and nothing else. So a model that did exactly what it
+    /// was told produced a call that parsed to *zero* calls, the tool branch
+    /// was skipped, the turn ended with nothing spoken, and the user was told
+    /// the model "never answered" — for following the instructions.
+    ///
+    /// A prompt is an interface. This is its conformance test: the examples in
+    /// the prompt are the specification, and they are checked against the
+    /// implementation that has to honour them.
+    #[test]
+    fn every_example_in_the_contract_parses_as_a_call() {
+        for (label, text) in [
+            ("read-only", super::read_only_contract().to_string()),
+            ("read-write", super::contract(true, false)),
+            // The `open_file` clause is part of a shipped contract too, on the
+            // clients that have an editor — so it is held to the same rule.
+            ("read-write + open", super::contract(true, true)),
+        ] {
+            let text = text.as_str();
+            let examples: Vec<&str> = text
+                .match_indices("<tool_call")
+                .filter_map(|(start, _)| {
+                    text[start..]
+                        .find("</tool_call>")
+                        .map(|end| &text[start..start + end + "</tool_call>".len()])
+                })
+                .collect();
+            assert!(
+                examples.len() >= 3,
+                "{label}: found {} examples — the scan is not reading the contract",
+                examples.len()
+            );
+            for ex in examples {
+                // `open_file` is answered by the client, not the executor, so
+                // it is parsed here rather than by `parse_tool_calls` — but the
+                // rule it is being held to is the same one: the example in the
+                // prompt must reach the code that acts on it.
+                let parsed = match ex.contains("open_file") {
+                    true => super::parse_open_file(ex).len(),
+                    false => vibe_ai::tools::parse_tool_calls(ex).len(),
+                };
+                assert_eq!(
+                    parsed, 1,
+                    "{label}: the contract shows the model a call the parser does not \
+                     accept, so following it produces nothing: {ex:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn an_ordinary_answer_is_still_spoken_and_is_not_a_tool_turn() {
+        let (spoken, tool) = run(&[
+            "<thinking>short</thinking>",
+            "There are three files in the examples folder.",
+        ]);
+        assert_eq!(spoken, "There are three files in the examples folder.");
+        assert!(tool.is_none());
     }
 }
 
@@ -298,6 +500,45 @@ mod tests {
     #[test]
     fn a_write_in_element_form_is_gated_too() {
         assert_eq!(spoken(&["<write_file path=\"a.rs\">", "x</write_file>"]), "");
+    }
+
+    /// The canonical dialect the contract teaches.
+    #[test]
+    fn an_open_call_yields_its_path() {
+        assert_eq!(
+            parse_open_file("<tool_call name=\"open_file\"><path>src/main.rs</path></tool_call>"),
+            vec!["src/main.rs".to_string()]
+        );
+    }
+
+    /// The one models fall into by copying the shape of the surrounding tag.
+    /// Accepting it costs a branch; rejecting it costs the user a file that
+    /// does not open and an assistant that says it did.
+    #[test]
+    fn the_element_dialect_is_accepted_too() {
+        assert_eq!(
+            parse_open_file("<open_file><path>docs/README.md</path></open_file>"),
+            vec!["docs/README.md".to_string()]
+        );
+    }
+
+    /// Reading is not opening, in this direction as well: a `read_file` turn
+    /// must not put a tab on screen the user did not ask for.
+    #[test]
+    fn a_read_is_not_an_open() {
+        assert!(parse_open_file(
+            "<tool_call name=\"read_file\"><path>src/main.rs</path></tool_call>"
+        )
+        .is_empty());
+    }
+
+    /// Two files in one turn are both honoured, in order — the cap on how many
+    /// are acted upon belongs to the caller, not the parser.
+    #[test]
+    fn several_opens_keep_their_order() {
+        let calls = "<tool_call name=\"open_file\"><path>a.rs</path></tool_call>\n\
+                     <tool_call name=\"open_file\"><path>b.rs</path></tool_call>";
+        assert_eq!(parse_open_file(calls), vec!["a.rs", "b.rs"]);
     }
 
     #[test]

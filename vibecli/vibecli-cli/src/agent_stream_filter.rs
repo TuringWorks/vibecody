@@ -24,6 +24,16 @@ use std::sync::OnceLock;
 /// the local name, so `<mm:think>` matches `think`.
 const SUPPRESSED: &[&str] = &["think", "thinking", "tool_call"];
 
+/// Reasoning only — for a consumer that has to *act* on the tool call rather
+/// than render it.
+///
+/// The voice turn is one: it holds the call back from the speaker itself (see
+/// `voice_tools::ToolGate`) and then parses and runs it. Filtering `tool_call`
+/// out first left the gate with nothing to decide on, so no tool ever ran and
+/// every look-then-answer turn ended as "the model produced only reasoning or
+/// tool calls and never answered".
+const REASONING_ONLY: &[&str] = &["think", "thinking"];
+
 /// `<`, an optional `/`, a possibly-namespaced name, optional attributes, `>`.
 fn tag_re() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
@@ -57,7 +67,7 @@ fn local_name(name: &str) -> &str {
 /// regex for every chunk of its duration. `tag` is always the local name of a
 /// [`SUPPRESSED`] element (see `drain`), so three regexes cover every call.
 ///
-/// Matching is case-insensitive, which [`is_suppressed`] already is for the
+/// Matching is case-insensitive, which [`StreamFilter::is_suppressed`] already is for the
 /// *opening* tag. The old per-call regex was built from the observed tag and
 /// so was case-*sensitive* on close: a model emitting `<Think>` … `</think>`
 /// never closed the block, and the whole tail was dropped on flush. Being
@@ -82,22 +92,49 @@ fn close_re(tag: &str) -> Option<&'static Regex> {
         .map(|(_, re)| re)
 }
 
-fn is_suppressed(name: &str) -> bool {
-    let local = local_name(name);
-    SUPPRESSED.iter().any(|s| s.eq_ignore_ascii_case(local))
-}
-
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct StreamFilter {
     /// Text received but not yet classified as emittable or suppressed.
     buf: String,
     /// Local tag name of the suppressed element currently being consumed.
     inside: Option<String>,
+    /// Which elements this filter swallows. Always a subset of [`SUPPRESSED`],
+    /// so [`close_re`] still covers every name that can appear here.
+    suppressed: &'static [&'static str],
+}
+
+impl Default for StreamFilter {
+    fn default() -> Self {
+        Self {
+            buf: String::new(),
+            inside: None,
+            suppressed: SUPPRESSED,
+        }
+    }
 }
 
 impl StreamFilter {
+    /// Suppresses reasoning *and* tool markup — for a consumer that renders
+    /// tool use as its own structured line and must never print the raw call.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Suppresses reasoning only, passing tool markup through.
+    ///
+    /// For a consumer that has to act on the call rather than display it. The
+    /// caller then owns keeping it away from the user — the voice turn does
+    /// that with `voice_tools::ToolGate`.
+    pub fn reasoning_only() -> Self {
+        Self {
+            suppressed: REASONING_ONLY,
+            ..Self::default()
+        }
+    }
+
+    fn is_suppressed(&self, name: &str) -> bool {
+        let local = local_name(name);
+        self.suppressed.iter().any(|s| s.eq_ignore_ascii_case(local))
     }
 
     /// Feed one streamed chunk. Returns the text safe to print now, which may
@@ -172,7 +209,7 @@ impl StreamFilter {
                     let could_still_grow = matched.is_none() && partial_tag_re().is_match(rest);
 
                     if let Some((whole, closing, local)) = matched {
-                        if !closing && is_suppressed(&local) {
+                        if !closing && self.is_suppressed(&local) {
                             self.buf.drain(..lt + whole);
                             self.inside = Some(local);
                         } else {
@@ -205,7 +242,7 @@ mod tests {
     use super::*;
 
     /// The open tag has always been matched case-insensitively
-    /// ([`is_suppressed`]), but the close tag was matched case-*sensitively*
+    /// ([`StreamFilter::is_suppressed`]), but the close tag was matched case-*sensitively*
     /// because its regex was built from the observed text. A model emitting
     /// `<Think>` … `</think>` therefore never closed the block, and everything
     /// after it was swallowed as reasoning. Now consistent in both directions.

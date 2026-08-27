@@ -343,14 +343,24 @@ change:
 |---|---|---|
 | `set_context` | `{ "context": "<text>" }` | the `<workspace>` block in the system prompt. Empty clears it |
 | `set_workspace` | `{ "root": "/abs/path" }` | enables the tools, jailed to that directory. Empty or missing → no tools |
+| `set_capabilities` | `{ "open_file": true }` | offers `open_file`. Absent means no |
 
 With a root, the turn may answer with **one tool call and nothing else**:
 
 ```xml
 <tool_call name="read_file"><path>README.md</path></tool_call>
-<tool_call name="list_dir"><path>src</path></tool_call>
+<tool_call name="list_directory"><path>src</path></tool_call>
 <tool_call name="search_files"><query>fn main</query></tool_call>
 ```
+
+The names are the agent's own — `read_file`, `list_directory`, `search_files`,
+`write_file`, `apply_patch` — and that is not a detail. The contract shipped
+advertising `list_dir`, which `parse_tool_calls` does not know, so a model that
+did exactly what it was told produced a call that parsed to nothing: no tool
+ran, no answer was spoken, and the user was told the model "never answered" for
+following the instructions. **A prompt is an interface**, so the examples in the
+contract are now parsed by a test — the specification is checked against the
+implementation that has to honour it.
 
 The daemon executes it through the same path-guarded `ToolExecutor` the agent
 uses, feeds the result back, and asks again. Bounds, because every round is
@@ -358,6 +368,15 @@ silence in a conversation rather than a progress bar: **2 rounds**, **2 calls
 per round**, **4k characters per result**, and the final pass must answer. A
 `{"type":"tool","text":"Reading README.md"}` event goes to the client so the
 caption can say what the pause is for.
+
+**The reasoning filter has two modes, and the voice turn needs the other one.**
+`StreamFilter` suppresses `<think>`, `<thinking>` *and* `<tool_call>` — right
+for the agent console, which renders tool use as its own structured line and
+must never print the raw call. The voice turn has to **run** the call, and the
+filter sits upstream of the tool gate, so the default mode ate every call
+before the gate could see one. `StreamFilter::reasoning_only()` drops reasoning
+and passes tool markup through; keeping it away from the speaker is the gate's
+job, which is what the gate is for.
 
 **When to look is a rule, and it changes with the tools.** Without a root the
 assistant is told to say it cannot tell from what it can see. With one, that
@@ -390,3 +409,43 @@ reported to the model in words so it tells the user rather than trying again.
 `bash` is not reachable from a spoken turn at all, approval or not: a spoken
 "yes" to `rm -rf` is the same word as a spoken "yes" to a formatter, and a
 speaker cannot show you which one you are agreeing to.
+
+### Showing something
+
+*"Can you open `serve.rs`."* — the assistant read it, described it, and the
+editor never moved. Every half of that worked: the tool ran, the answer was
+spoken, the chat log recorded it. What was missing was the idea that the
+assistant could **do** something to the screen rather than only report on it.
+
+`open_file` is the one tool the daemon cannot execute. It resolves the path
+against the workspace root, confirms the file exists, and sends the client an
+action:
+
+```jsonc
+{ "type": "ui", "action": "open_file", "path": "/abs/path/src/main.rs", "relative": "src/main.rs" }
+```
+
+Three things are deliberate about it.
+
+**Opening is not reading, and the prompt has to say so.** A model asked to
+"open the config" reaches for `read_file` and describes what it found — an
+answer to a question nobody asked. The contract distinguishes the two by what
+they are *for*: `open_file` is what the user asked for, `read_file` is for when
+the assistant needs the contents in order to answer.
+
+**The client says whether it has an editor; the daemon does not guess.**
+VibeDesk and VibeAIChat run the same hook against the same daemon and have
+nowhere to put a file, so the clause is only added to the contract for a client
+that sent `set_capabilities`. In the shared hook that declaration is derived
+from the presence of an `onOpenFile` handler rather than configured beside it —
+two switches for one fact drift apart, and the shape they drift into is an
+assistant that says "I've opened that for you" over an editor that did not
+move.
+
+**The path is checked here, not trusted.** "Open my ssh key" is a sentence a
+microphone can pick up. The path is canonicalised and required to name an
+existing file inside the workspace root — the same rule the executor applies to
+a read — and a path that fails is reported to the model as *not* opened, so it
+tells the user rather than claiming success. Both forms travel: the client
+opens by absolute path because its file tree is built from them, and the
+caption and transcript read the relative one.

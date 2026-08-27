@@ -9654,6 +9654,12 @@ async fn handle_voice_duplex_ws(socket: WebSocket, state: ServeState, params: Ws
     // until the first is answered or abandoned.
     let approvals: crate::voice_tools::ApprovalSlot =
         Arc::new(tokio::sync::Mutex::new(None));
+    // Whether this client has somewhere to put a file. VibeCoder has an editor;
+    // VibeDesk and VibeAIChat do not, and a tool they cannot honour would only
+    // buy the user "I've opened that for you" with nothing on screen. Declared
+    // by the client rather than assumed from the workspace root — having a
+    // project open and having a window to show it in are different facts.
+    let can_open = Arc::new(std::sync::atomic::AtomicBool::new(false));
 
     let mut vad = vd::Vad::default();
     let mut pending: Vec<i16> = Vec::new();
@@ -9691,6 +9697,14 @@ async fn handle_voice_duplex_ws(socket: WebSocket, state: ServeState, params: Ws
                             .and_then(|x| x.as_str())
                             .map(std::path::PathBuf::from)
                             .filter(|p| p.is_dir());
+                    }
+                    Some("set_capabilities") => {
+                        // Absent means no, so a client that never sends this is
+                        // never offered a tool it cannot honour.
+                        can_open.store(
+                            v.get("open_file").and_then(|x| x.as_bool()) == Some(true),
+                            std::sync::atomic::Ordering::Relaxed,
+                        );
                     }
                     Some("set_context") => {
                         // An absent or blank block clears it rather than
@@ -9751,6 +9765,7 @@ async fn handle_voice_duplex_ws(socket: WebSocket, state: ServeState, params: Ws
                             Arc::clone(&context),
                             Arc::clone(&root),
                             Arc::clone(&approvals),
+                            can_open.load(std::sync::atomic::Ordering::Relaxed),
                         ));
                     } else {
                         say(serde_json::json!({"type": "state", "state": "listening"}));
@@ -9789,6 +9804,9 @@ async fn voice_duplex_turn(
     root: Arc<tokio::sync::Mutex<Option<std::path::PathBuf>>>,
     // Where the client's answer to "may I edit this?" arrives.
     approvals: crate::voice_tools::ApprovalSlot,
+    // Whether this client has an editor to show a file in. Gates the
+    // `open_file` clause of the contract — see `voice_tools::contract`.
+    can_open: bool,
 ) {
     use crate::voice_duplex as vd;
     use futures::StreamExt;
@@ -9892,7 +9910,10 @@ async fn voice_duplex_turn(
         None => String::new(),
     };
     // Tools only when there is a root to jail them to.
-    let tool_rule = if has_tools { crate::voice_tools::contract(true) } else { "" };
+    let tool_rule = match has_tools {
+        true => crate::voice_tools::contract(true, can_open),
+        false => String::new(),
+    };
     let mut messages = vec![vibe_ai::provider::Message {
         role: vibe_ai::provider::MessageRole::System,
         content: format!(
@@ -9941,7 +9962,16 @@ async fn voice_duplex_turn(
         // deliberation aloud. `StreamFilter` is the existing state machine for
         // this; a per-chunk strip cannot work, because the tag routinely
         // straddles a chunk boundary (`<thin` + `king>`).
-        let mut filter = crate::agent_stream_filter::StreamFilter::new();
+        //
+        // `reasoning_only`, not `new`: the default filter also swallows
+        // `<tool_call>`, which is right for the agent console (it renders tool
+        // use as its own line) and fatal here. This turn has to *run* the call,
+        // and the filter sits upstream of the gate — so a model following the
+        // contract had its call eaten before `ToolGate` could see it, no tool
+        // ever ran, and the turn ended on "produced only reasoning or tool
+        // calls and never answered". The gate is what keeps it out of the
+        // speaker.
+        let mut filter = crate::agent_stream_filter::StreamFilter::reasoning_only();
         // And the same problem one layer out: a turn that is a tool call must
         // not be read aloud while we work out that it was one.
         let mut gate = crate::voice_tools::ToolGate::default();
@@ -10001,14 +10031,30 @@ async fn voice_duplex_turn(
         // A tool turn: nothing was spoken, and the text is the call.
         if let (Some(text), Some(root)) = (gate.tool_text(), root_path.as_ref()) {
             let calls = vibe_ai::tools::parse_tool_calls(text);
+            // Opening a file is not something this process can do — it is a
+            // request to whoever owns the window. Parsed separately for that
+            // reason, and only when the client said it has one.
+            let opens = match can_open {
+                true => crate::voice_tools::parse_open_file(text),
+                false => Vec::new(),
+            };
             // The last pass has to answer: tools are only run while a pass
             // remains for the answer itself. A model that spends that pass on
             // another tool call falls through to the empty-reply path below,
             // which says so out loud rather than closing the turn silently.
-            if !calls.is_empty() && round < crate::voice_tools::MAX_ROUNDS {
-                let mut results =
-                    run_voice_tools(&calls, root, &tx, &tts, &voice, &gen, my_gen, t0, &approvals)
-                        .await;
+            if (!calls.is_empty() || !opens.is_empty()) && round < crate::voice_tools::MAX_ROUNDS {
+                let mut results = open_for_client(&opens, root, &tx);
+                results.push_str(&match calls.is_empty() {
+                    // Nothing to run against disk — the round was the open, and
+                    // the model still has to say so.
+                    true => crate::voice_tools::ANSWER_NOW.to_string(),
+                    false => {
+                        run_voice_tools(
+                            &calls, root, &tx, &tts, &voice, &gen, my_gen, t0, &approvals,
+                        )
+                        .await
+                    }
+                });
                 if round + 1 == crate::voice_tools::MAX_ROUNDS {
                     results.push_str(
                         " This is your last look — answer the user now, or say what you \
@@ -10167,8 +10213,140 @@ async fn run_voice_tools(
             vt::MAX_CALLS_PER_ROUND
         ));
     }
-    out.push_str("Now answer the user in one or two short spoken sentences.");
+    out.push_str(vt::ANSWER_NOW);
     out
+}
+
+/// Ask the client to show files, and tell the model what actually happened.
+///
+/// The daemon cannot open an editor tab; all it can do is say so on the socket
+/// and let whoever owns a window act. What it *can* check is that the path
+/// names a real file inside the workspace — so a model that invents one is told
+/// it was not opened, rather than left free to tell the user it was. The same
+/// canonicalise-and-contain rule the executor applies to a read: a spoken
+/// "open my ssh key" must not walk out of the project.
+fn open_for_client(
+    paths: &[String],
+    root: &std::path::Path,
+    tx: &tokio::sync::mpsc::UnboundedSender<WsMessage>,
+) -> String {
+    let mut out = String::new();
+    for path in paths.iter().take(crate::voice_tools::MAX_CALLS_PER_ROUND) {
+        match resolve_in_workspace(root, path) {
+            Ok((absolute, relative)) => {
+                // The caption says what the pause was for, exactly as a read does.
+                let _ = tx.send(WsMessage::Text(
+                    serde_json::json!({"type": "tool", "text": format!("Opening {relative}")})
+                        .to_string()
+                        .into(),
+                ));
+                let _ = tx.send(WsMessage::Text(
+                    serde_json::json!({
+                        "type": "ui",
+                        "action": "open_file",
+                        "path": absolute,
+                        "relative": relative,
+                    })
+                    .to_string()
+                    .into(),
+                ));
+                out.push_str(&format!(
+                    "Opened {relative} in the user's editor — it is on their screen now.\n\n"
+                ));
+            }
+            Err(why) => out.push_str(&format!(
+                "Could not open {path}: {why}. Tell the user that, and do not say it is open.\n\n"
+            )),
+        }
+    }
+    if paths.len() > crate::voice_tools::MAX_CALLS_PER_ROUND {
+        out.push_str(&format!(
+            "Only the first {} files were opened; ask for the rest next turn.\n\n",
+            crate::voice_tools::MAX_CALLS_PER_ROUND
+        ));
+    }
+    out
+}
+
+/// Resolve a model-supplied path to `(absolute, workspace-relative)`, or say
+/// why not.
+///
+/// Both forms are needed and neither substitutes for the other: the client
+/// opens by absolute path (its file tree is built from absolute paths), and the
+/// caption and the model's own transcript read better in the relative one.
+fn resolve_in_workspace(
+    root: &std::path::Path,
+    path: &str,
+) -> Result<(String, String), &'static str> {
+    let candidate = match std::path::Path::new(path) {
+        p if p.is_absolute() => p.to_path_buf(),
+        p => root.join(p),
+    };
+    // Canonicalise both sides before comparing: on macOS `/var` is a symlink to
+    // `/private/var`, so an uncanonicalised root never prefixes a canonical
+    // path and every open under a temp-dir workspace would be refused.
+    let root = root.canonicalize().map_err(|_| "the workspace root is gone")?;
+    // Existence is part of the answer here, not an afterthought — you cannot
+    // show a file that is not there, and `canonicalize` is where we find out.
+    let resolved = candidate.canonicalize().map_err(|_| "there is no such file")?;
+    if !resolved.starts_with(&root) {
+        return Err("it is outside the project");
+    }
+    if !resolved.is_file() {
+        return Err("that is a directory, not a file");
+    }
+    let relative = resolved
+        .strip_prefix(&root)
+        .unwrap_or(&resolved)
+        .to_string_lossy()
+        .to_string();
+    Ok((resolved.to_string_lossy().to_string(), relative))
+}
+
+#[cfg(test)]
+mod voice_open_tests {
+    use super::resolve_in_workspace;
+
+    /// Suffixed with the pid: a fixed `/tmp` path collides between concurrent
+    /// test processes, which is where this repo's "flaky" tests come from.
+    fn workspace() -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("vibe_voice_open_{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        std::fs::write(dir.join("src/main.rs"), "fn main() {}").unwrap();
+        dir
+    }
+
+    #[test]
+    fn a_file_in_the_project_resolves_to_both_forms() {
+        let ws = workspace();
+        let (absolute, relative) = resolve_in_workspace(&ws, "src/main.rs").unwrap();
+        assert_eq!(relative, "src/main.rs");
+        assert!(std::path::Path::new(&absolute).is_absolute());
+        assert!(absolute.ends_with("src/main.rs"));
+    }
+
+    /// The whole reason this is checked here rather than trusted to the model:
+    /// "open my ssh key" is a sentence a microphone can pick up.
+    #[test]
+    fn traversal_out_of_the_project_is_refused() {
+        let ws = workspace();
+        assert!(resolve_in_workspace(&ws, "../../etc/hosts").is_err());
+        assert!(resolve_in_workspace(&ws, "/etc/hosts").is_err());
+    }
+
+    /// A path that does not exist must fail, not succeed with a plausible
+    /// absolute form — the model is told "opened" only when it was.
+    #[test]
+    fn an_invented_file_is_refused() {
+        let ws = workspace();
+        assert!(resolve_in_workspace(&ws, "src/does_not_exist.rs").is_err());
+    }
+
+    #[test]
+    fn a_directory_is_not_a_file_to_open() {
+        let ws = workspace();
+        assert!(resolve_in_workspace(&ws, "src").is_err());
+    }
 }
 
 /// Announce a sentence, speak it, and record first-audio the first time.
