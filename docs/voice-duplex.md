@@ -174,6 +174,28 @@ Words from a turn superseded before it spoke are now **carried into the next
 turn**, and the client is told with a `carried` event so nothing vanishes
 silently either way.
 
+## Reasoning models say the answer, not the deliberation
+
+A reasoning model narrates its way to an answer, and Ollama returns that
+narration in a separate `thinking` field which the provider splices into the
+token stream as `<thinking>…</thinking>`. Spoken unfiltered, the assistant read
+its own deliberation aloud — *"The user says: Hey, how are you doing? As a voice
+assistant, respond in one or two short spoken sentences…"* — and only then
+answered.
+
+Reasoning is now filtered out of the stream before the sentence splitter sees
+it, so it is neither spoken nor shown. `<think>`, `<thinking>` and namespaced
+forms like `<mm:think>` are all suppressed, as is `<tool_call>` markup.
+
+The filter is a state machine rather than a per-chunk strip, because tokens are
+not tag-aligned: `<thin` and `king>` routinely arrive in different chunks, and a
+per-chunk strip both misses the tag and leaks its two halves into the speaker.
+An unterminated block is discarded — it *is* reasoning.
+
+`llm_ttft_ms` is still measured on the raw stream, so on a reasoning model it
+sits far below `first_audio_ms`. That gap is real: the model was producing
+tokens the whole time, just none you were meant to hear.
+
 ## One reply is one turn
 
 `speaking` fires **once per sentence**, because that is what drives streaming

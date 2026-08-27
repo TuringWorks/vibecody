@@ -596,6 +596,71 @@ pub fn resolve_bin(bin: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    /// The pipeline the daemon runs between the provider and the speaker.
+    fn spoken(chunks: &[&str]) -> Vec<String> {
+        let mut filter = crate::agent_stream_filter::StreamFilter::new();
+        let mut split = super::SentenceSplitter::default();
+        let mut out = Vec::new();
+        for c in chunks {
+            let t = filter.push(c);
+            if t.is_empty() {
+                continue;
+            }
+            if let Some(s) = split.push(&t) {
+                out.push(s);
+            }
+        }
+        let tail = filter.finish();
+        if !tail.is_empty() {
+            if let Some(s) = split.push(&tail) {
+                out.push(s);
+            }
+        }
+        out.extend(split.flush());
+        out
+    }
+
+    #[test]
+    fn a_reasoning_model_speaks_its_answer_and_not_its_deliberation() {
+        // What Ollama actually streams for gpt-oss: reasoning arrives in a
+        // separate field and the provider splices it in as a `<thinking>`
+        // block. Spoken unfiltered, the assistant read out "The user says:
+        // Hey, how are you doing? As a voice assistant, respond in one or two
+        // short spoken sentences…" before ever answering.
+        let said = spoken(&[
+            "<thinking>",
+            "The user says: \"Hey, how are you doing?\" ",
+            "As a voice assistant, respond in one or two short spoken sentences. ",
+            "We should keep it short.",
+            "</thinking>\n",
+            "I'm doing great, thanks!",
+            " How can I help you today?",
+        ]);
+        assert_eq!(
+            said,
+            vec!["I'm doing great, thanks!", "How can I help you today?"]
+        );
+    }
+
+    #[test]
+    fn a_tag_split_across_chunks_is_still_suppressed() {
+        // Tokens are not tag-aligned. A per-chunk strip both misses the tag
+        // and leaks its two halves into the speaker.
+        let said = spoken(&["<thin", "king>", "deliberating.", "</think", "ing>", "Yes."]);
+        assert_eq!(said, vec!["Yes."]);
+    }
+
+    #[test]
+    fn an_unclosed_reasoning_block_is_dropped_rather_than_spoken() {
+        // The stream ended mid-thought. It is still reasoning.
+        assert!(spoken(&["<think>", "still deciding"]).is_empty());
+    }
+
+    #[test]
+    fn a_model_that_does_not_reason_is_unaffected() {
+        assert_eq!(spoken(&["Yes.", " Two files changed."]), vec!["Yes.", "Two files changed."]);
+    }
+
     #[test]
     fn clamp_context_trims_and_keeps_short_blocks_whole() {
         assert_eq!(super::clamp_context("  src/main.rs\n  "), "src/main.rs");

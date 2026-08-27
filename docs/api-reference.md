@@ -578,7 +578,7 @@ answering about the old one.
 | `ready` | Which engines resolved: `asr` is `whisper-server` or `whisper-cli`, `tts` is `streaming` or `batch`. Worth checking — `batch` costs a few hundred ms of first-audio. |
 | `state` | `listening` · `hearing` · `thinking` · `speaking`. |
 | `transcript` | What was heard, with `asr_ms` and the detected `lang`. |
-| `speaking` | A sentence about to be spoken. Fires **once per sentence** — it is live text, not a turn. Build a chat log from `reply`. |
+| `speaking` | A sentence about to be spoken. Fires **once per sentence** — it is live text, not a turn. Build a chat log from `reply`. Reasoning blocks are filtered out upstream, so a reasoning model's deliberation is neither sent nor spoken. |
 | `flush` | Barge-in — discard queued audio immediately. |
 | `carried` | The user kept talking before this turn could answer, so its words join the next turn rather than being dropped. |
 | `latency` | `first_audio_ms` from end of speech. |

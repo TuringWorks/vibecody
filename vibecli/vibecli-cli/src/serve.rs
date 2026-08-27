@@ -9868,6 +9868,14 @@ async fn voice_duplex_turn(
     };
 
     let mut split = vd::SentenceSplitter::default();
+    // A reasoning model narrates its way to an answer, and the Ollama provider
+    // splices that narration into the token stream as `<thinking>…</thinking>`.
+    // Unfiltered, the assistant reads its own deliberation aloud — "The user
+    // says: Hey, how are you doing? As a voice assistant, respond in one or two
+    // short sentences…" — and only then answers. `StreamFilter` is the existing
+    // state machine for this; a per-chunk strip cannot work, because the tag
+    // routinely straddles a chunk boundary (`<thin` + `king>`).
+    let mut filter = crate::agent_stream_filter::StreamFilter::new();
     let mut full = String::new();
     let mut ttft = 0u128;
     let mut first_audio: Option<u128> = None;
@@ -9880,32 +9888,35 @@ async fn voice_duplex_turn(
         if tok.is_empty() {
             continue;
         }
+        // Measured on the raw stream: this is time to first *token*, and for a
+        // reasoning model it is legitimately far from first audio. Moving it
+        // past the filter would quietly relabel one as the other.
         if ttft == 0 {
             ttft = t0.elapsed().as_millis();
         }
+        let tok = filter.push(&tok);
+        if tok.is_empty() {
+            continue;
+        }
         full.push_str(&tok);
         if let Some(sentence) = split.push(&tok) {
-            say(serde_json::json!({"type": "speaking", "text": sentence}));
-            if let Some(ms) =
-                speak_sentence(&sentence, &tx, &tts, &voice, &gen, my_gen, t0).await
-            {
-                if first_audio.is_none() {
-                    first_audio = Some(ms);
-                    say(serde_json::json!({"type": "latency", "first_audio_ms": ms}));
-                }
-            }
+            emit_sentence(&sentence, &tx, &tts, &voice, &gen, my_gen, t0, &mut first_audio).await;
         }
     }
     if !gen.is_stale(my_gen) {
-        if let Some(sentence) = split.flush() {
-            say(serde_json::json!({"type": "speaking", "text": sentence}));
-            if let Some(ms) = speak_sentence(&sentence, &tx, &tts, &voice, &gen, my_gen, t0).await
-            {
-                if first_audio.is_none() {
-                    say(serde_json::json!({"type": "latency", "first_audio_ms": ms}));
-                    first_audio = Some(ms);
-                }
+        // Whatever the filter still holds: an unclosed reasoning block is
+        // dropped (it is reasoning), a lone `<` that never became a tag is
+        // returned and belongs to the reply.
+        let tail = filter.finish();
+        if !tail.is_empty() {
+            full.push_str(&tail);
+            if let Some(sentence) = split.push(&tail) {
+                emit_sentence(&sentence, &tx, &tts, &voice, &gen, my_gen, t0, &mut first_audio)
+                    .await;
             }
+        }
+        if let Some(sentence) = split.flush() {
+            emit_sentence(&sentence, &tx, &tts, &voice, &gen, my_gen, t0, &mut first_audio).await;
         }
         say(serde_json::json!({
             "type": "reply", "text": full, "asr_ms": asr_ms,
@@ -9918,6 +9929,34 @@ async fn voice_duplex_turn(
             h.remove(0);
         }
         say(serde_json::json!({"type": "state", "state": "listening"}));
+    }
+}
+
+/// Announce a sentence, speak it, and record first-audio the first time.
+///
+/// The announce/speak/latency trio ran in three places with the two latency
+/// lines in a different order in each; one copy is enough.
+#[allow(clippy::too_many_arguments)]
+async fn emit_sentence(
+    sentence: &str,
+    tx: &tokio::sync::mpsc::UnboundedSender<WsMessage>,
+    tts: &Arc<tokio::sync::Mutex<crate::voice_duplex::Tts>>,
+    voice: &Arc<tokio::sync::Mutex<Option<String>>>,
+    gen: &crate::voice_duplex::Generation,
+    my_gen: u64,
+    t0: std::time::Instant,
+    first_audio: &mut Option<u128>,
+) {
+    let say = |v: serde_json::Value| {
+        let _ = tx.send(WsMessage::Text(v.to_string().into()));
+    };
+    say(serde_json::json!({"type": "speaking", "text": sentence}));
+    let Some(ms) = speak_sentence(sentence, tx, tts, voice, gen, my_gen, t0).await else {
+        return;
+    };
+    if first_audio.is_none() {
+        *first_audio = Some(ms);
+        say(serde_json::json!({"type": "latency", "first_audio_ms": ms}));
     }
 }
 
