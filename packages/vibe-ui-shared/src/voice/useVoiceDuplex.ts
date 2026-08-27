@@ -76,6 +76,15 @@ export interface UseVoiceDuplexOptions {
    */
   context?: string;
   /**
+   * Absolute path of the open project, when the host has one.
+   *
+   * This is what lets a spoken turn *look* at a file rather than answer from
+   * whatever the host happened to preload. The daemon jails its read-only
+   * tools to this directory and refuses the tools entirely without it — a
+   * model naming any path it likes is not a feature.
+   */
+  workspaceRoot?: string | null;
+  /**
    * Whether the feature is enabled at all. Defaults to `false`.
    *
    * Checked here as well as in the UI: hiding a control is not the same as
@@ -97,7 +106,25 @@ export interface UseVoiceDuplexOptions {
 export interface UseVoiceDuplex {
   state: DuplexState;
   turns: DuplexTurn[];
+  /**
+   * What the assistant is doing during a pause — "Reading README.md".
+   *
+   * A spoken turn that stops to look at a file is several seconds of silence,
+   * and silence is what a broken microphone sounds like. Cleared by the next
+   * state change, so it never outlives the pause it explains.
+   */
+  activity: string | null;
   latency: DuplexLatency;
+  /**
+   * A change the assistant wants to make, waiting on the user.
+   *
+   * Spoken *and* shown: the question is read aloud because the user may not be
+   * looking, and answered by a click because agreeing to overwrite a file must
+   * be deliberate rather than a word the microphone thought it heard.
+   */
+  approval: { question: string } | null;
+  /** Answer the pending question. Anything but `true` is a refusal. */
+  respondToApproval: (approved: boolean) => void;
   /** Whether this host can do duplex at all — drive the button's presence. */
   supported: boolean;
   active: boolean;
@@ -211,6 +238,8 @@ export function duplexSupported(): boolean {
 
 export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
   const [state, setState] = useState<DuplexState>({ status: "idle" });
+  const [activity, setActivity] = useState<string | null>(null);
+  const [approval, setApproval] = useState<{ question: string } | null>(null);
   const [turns, setTurns] = useState<DuplexTurn[]>([]);
   const [latency, setLatency] = useState<DuplexLatency>({});
   /**
@@ -240,6 +269,8 @@ export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
   /// Read when the socket opens, which happens after `start` was created.
   const contextRef = useRef(opts.context);
   contextRef.current = opts.context;
+  const rootRef = useRef(opts.workspaceRoot);
+  rootRef.current = opts.workspaceRoot;
 
   /** Stop every scheduled source and reset the cursor. */
   const flush = useCallback(() => {
@@ -422,6 +453,8 @@ export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
         setConnected(true);
         const c = contextRef.current?.trim();
         if (c) sock.send(JSON.stringify({ type: "set_context", context: c }));
+        const r = rootRef.current;
+        if (r) sock.send(JSON.stringify({ type: "set_workspace", root: r }));
       };
 
       sock.onmessage = (ev) => {
@@ -433,6 +466,19 @@ export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
         switch (m.type) {
           case "state":
             setState({ status: m.state });
+            setActivity(null);
+            break;
+          // The daemon looked something up. Say so — see `activity`.
+          case "tool":
+            setActivity(typeof m.text === "string" ? m.text : null);
+            break;
+          case "approval_request":
+            setApproval({ question: String(m.question ?? "May I make this change?") });
+            break;
+          // Answered, timed out, or the turn was abandoned — either way the
+          // question is no longer live and must leave the screen.
+          case "approval_resolved":
+            setApproval(null);
             break;
           case "flush":
             flush();
@@ -503,6 +549,13 @@ export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
     send({ type: "set_context", context: opts.context ?? "" });
   }, [opts.context, send]);
 
+  // Same contract for the root: switching project mid-conversation must move
+  // the tools with it, and closing one must take them away rather than leave
+  // them pointed at a directory the user has walked away from.
+  useEffect(() => {
+    send({ type: "set_workspace", root: opts.workspaceRoot ?? "" });
+  }, [opts.workspaceRoot, send]);
+
   useEffect(() => () => teardown(), [teardown]);
 
   // Switching the preference off mid-conversation closes the microphone. A
@@ -512,9 +565,20 @@ export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
     if (opts.enabled === false && ws.current) stop();
   }, [opts.enabled, stop]);
 
+  const respondToApproval = useCallback(
+    (approved: boolean) => {
+      setApproval(null);
+      send({ type: "approval", approved });
+    },
+    [send],
+  );
+
   return {
     state,
     turns,
+    activity,
+    approval,
+    respondToApproval,
     latency,
     supported: duplexSupported(),
     // A failed *start* leaves no socket, so `connected` is false and the button

@@ -16,6 +16,8 @@ import type { DuplexState, DuplexTurn } from "./useVoiceDuplex";
 export interface VoiceTranscriptProps {
   state: DuplexState;
   turns: readonly DuplexTurn[];
+  /** What the assistant is doing during a pause — "Reading README.md". */
+  activity?: string | null;
   /** Whether a conversation is running. Nothing renders when it is not. */
   active: boolean;
 }
@@ -28,7 +30,7 @@ const WAITING: Partial<Record<DuplexState["status"], string>> = {
   thinking: "Thinking…",
 };
 
-export function VoiceTranscript({ state, turns, active }: VoiceTranscriptProps) {
+export function VoiceTranscript({ state, turns, active, activity }: VoiceTranscriptProps) {
   if (state.status === "error") {
     return (
       <div className="voice-caption voice-caption--error" role="status">
@@ -48,7 +50,9 @@ export function VoiceTranscript({ state, turns, active }: VoiceTranscriptProps) 
   const showUser =
     lastUser && (!lastAssistant || turns.indexOf(lastUser) > turns.indexOf(lastAssistant));
 
-  const waiting = !lastAssistant || showUser ? WAITING[state.status] : undefined;
+  // A look at a file is several seconds of silence, and silence is what a
+  // broken microphone sounds like. What it is reading outranks "Thinking…".
+  const waiting = activity ?? (!lastAssistant || showUser ? WAITING[state.status] : undefined);
 
   return (
     <div className={`voice-caption state-${state.status}`} aria-live="polite">

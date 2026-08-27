@@ -292,3 +292,44 @@
     animation: voice-duplex-pulse 2s ease-in-out infinite;
   }
 }
+
+/* ── "May I change this?" ─────────────────────────────────────────────────── */
+
+/* Sits above the composer, like the agent's own approval banner: the turn is
+   blocked until it is answered, so it must not be somewhere you can scroll
+   past. Orange rather than red — this is a question, not a failure. */
+.voice-approval {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--accent-orange);
+  border-radius: var(--radius-md);
+  background: var(--bg-tertiary);
+}
+.voice-approval__question {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.45;
+}
+.voice-approval__actions { display: flex; gap: 6px; flex: none; }
+.voice-approval__btn {
+  padding: 5px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.voice-approval__btn--allow {
+  border-color: var(--accent-orange);
+  color: var(--accent-orange);
+  font-weight: 600;
+}
+.voice-approval__btn:hover { background: var(--bg-secondary); }

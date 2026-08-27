@@ -8,6 +8,7 @@ import { VoiceButton } from "@vibe/shared/voice/VoiceButton";
 import { useVoiceDuplex } from "@vibe/shared/voice/useVoiceDuplex";
 import { DuplexVoiceButton } from "@vibe/shared/voice/DuplexVoiceButton";
 import { VoiceTranscript } from "@vibe/shared/voice/VoiceTranscript";
+import { VoiceApproval } from "@vibe/shared/voice/VoiceApproval";
 import { useVoiceDuplexPreference } from "@vibe/shared/voice/useVoiceDuplexPreference";
 import { ComposerDrawer, type ComposerGroup } from "@vibe/shared/composer/ComposerDrawer";
 import { useClickAway } from "@vibe/shared/hooks/useClickAway";
@@ -670,7 +671,13 @@ export default function App() {
           change once a day. */}
       {/* The spoken turn as it happens. Completed turns go to the thread
           above via `onTurn`; this covers the seconds in between. */}
-      <VoiceTranscript state={duplex.state} turns={duplex.turns} active={duplex.active} />
+      <VoiceApproval approval={duplex.approval} onRespond={duplex.respondToApproval} />
+      <VoiceTranscript
+        state={duplex.state}
+        turns={duplex.turns}
+        activity={duplex.activity}
+        active={duplex.active}
+      />
       <div className="input-area vxc-composer">
         <div className="vxc-frame">
           <textarea

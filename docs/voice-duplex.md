@@ -329,3 +329,55 @@ reopening the app releases the device.
 [Interruption, and what is *not* an interruption](#interruption-and-what-is-not-an-interruption)
 — fragments are carried forward now, but a pause longer than the reply takes to
 start will still be answered as its own turn.
+
+## Looking at the project
+
+A spoken turn can read the workspace before it answers. Without it, "summarise
+this project" got what the client happened to preload — a list of paths — and
+the assistant said so: *"just a collection of directories and files."*
+
+Two control messages set this up, both sent on connect and again whenever they
+change:
+
+| message | payload | effect |
+|---|---|---|
+| `set_context` | `{ "context": "<text>" }` | the `<workspace>` block in the system prompt. Empty clears it |
+| `set_workspace` | `{ "root": "/abs/path" }` | enables the tools, jailed to that directory. Empty or missing → no tools |
+
+With a root, the turn may answer with **one tool call and nothing else**:
+
+```xml
+<tool_call name="read_file"><path>README.md</path></tool_call>
+<tool_call name="list_dir"><path>src</path></tool_call>
+<tool_call name="search_files"><query>fn main</query></tool_call>
+```
+
+The daemon executes it through the same path-guarded `ToolExecutor` the agent
+uses, feeds the result back, and asks again. Bounds, because every round is
+silence in a conversation rather than a progress bar: **2 rounds**, **2 calls
+per round**, **4k characters per result**, and the final pass must answer. A
+`{"type":"tool","text":"Reading README.md"}` event goes to the client so the
+caption can say what the pause is for.
+
+### Changing something
+
+`write_file` and `apply_patch` are available too — but nothing changes until
+the user agrees:
+
+1. the daemon **speaks** the question ("May I write `src/main.rs`? It replaces
+   the file with 12 lines.") — the user may not be looking at the window;
+2. it sends `{"type":"approval_request","question":…}`, and the client renders
+   Yes / No;
+3. the client answers `{"type":"approval","approved":true|false}`, and the
+   daemon replies `{"type":"approval_resolved","approved":…}` so the prompt
+   leaves the screen whatever happened.
+
+Consent is a click, not a word. "Yes" is a word a microphone can mishear, and
+the cost of mishearing it is an overwritten file — so hearing the question is
+how you learn there is one, and clicking is how you agree. **A timeout (90 s),
+a closed socket and a malformed answer are all refusals**, and a refusal is
+reported to the model in words so it tells the user rather than trying again.
+
+`bash` is not reachable from a spoken turn at all, approval or not: a spoken
+"yes" to `rm -rf` is the same word as a spoken "yes" to a formatter, and a
+speaker cannot show you which one you are agreeing to.

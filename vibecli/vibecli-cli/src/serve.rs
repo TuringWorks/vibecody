@@ -9642,6 +9642,18 @@ async fn handle_voice_duplex_ws(socket: WebSocket, state: ServeState, params: Ws
     // typed chat path has injected a file tree and pinned notes from the
     // start, and the voice path was the one surface that never did.
     let context: Arc<tokio::sync::Mutex<Option<String>>> = Arc::new(tokio::sync::Mutex::new(None));
+    // The project root, sent by clients that have one. Without it the turn has
+    // no tools: a path-guarded executor needs something to guard against, and
+    // "read whatever the model names" is not a feature, it is an exfiltration
+    // route. Absent root → the assistant answers from the context block alone,
+    // exactly as before.
+    let root: Arc<tokio::sync::Mutex<Option<std::path::PathBuf>>> =
+        Arc::new(tokio::sync::Mutex::new(None));
+    // The one approval a spoken turn can have outstanding. One, not a queue:
+    // the assistant asks and then waits, so a second question cannot exist
+    // until the first is answered or abandoned.
+    let approvals: crate::voice_tools::ApprovalSlot =
+        Arc::new(tokio::sync::Mutex::new(None));
 
     let mut vad = vd::Vad::default();
     let mut pending: Vec<i16> = Vec::new();
@@ -9660,6 +9672,25 @@ async fn handle_voice_duplex_ws(socket: WebSocket, state: ServeState, params: Ws
                     Some("set_language") => {
                         *lang_mode.lock().await =
                             v.get("lang").and_then(|x| x.as_str()).unwrap_or("en").to_string();
+                    }
+                    Some("approval") => {
+                        // Anything that is not an explicit yes is a no: a
+                        // malformed answer must not be read as consent to
+                        // change a file.
+                        let ok = v.get("approved").and_then(|x| x.as_bool()) == Some(true);
+                        if let Some(tx) = approvals.lock().await.take() {
+                            let _ = tx.send(ok);
+                        }
+                    }
+                    Some("set_workspace") => {
+                        // Only an existing directory: a root that does not
+                        // resolve would make every tool call fail one at a
+                        // time, mid-conversation, with the model guessing why.
+                        *root.lock().await = v
+                            .get("root")
+                            .and_then(|x| x.as_str())
+                            .map(std::path::PathBuf::from)
+                            .filter(|p| p.is_dir());
                     }
                     Some("set_context") => {
                         // An absent or blank block clears it rather than
@@ -9718,6 +9749,8 @@ async fn handle_voice_duplex_ws(socket: WebSocket, state: ServeState, params: Ws
                             lang_mode.lock().await.clone(),
                             Arc::clone(&unanswered),
                             Arc::clone(&context),
+                            Arc::clone(&root),
+                            Arc::clone(&approvals),
                         ));
                     } else {
                         say(serde_json::json!({"type": "state", "state": "listening"}));
@@ -9752,6 +9785,10 @@ async fn voice_duplex_turn(
     unanswered: Arc<tokio::sync::Mutex<Option<String>>>,
     // The workspace the user is looking at, as last sent by the client.
     context: Arc<tokio::sync::Mutex<Option<String>>>,
+    // Its root on disk, when the client has one. Gates the tools.
+    root: Arc<tokio::sync::Mutex<Option<std::path::PathBuf>>>,
+    // Where the client's answer to "may I edit this?" arrives.
+    approvals: crate::voice_tools::ApprovalSlot,
 ) {
     use crate::voice_duplex as vd;
     use futures::StreamExt;
@@ -9837,11 +9874,19 @@ async fn voice_duplex_turn(
         ),
         None => String::new(),
     };
+    // Tools only when there is a root to jail them to. The contract goes after
+    // the workspace block on purpose: look *only* when the block does not
+    // already answer, since every look is a pause the user hears.
+    let root_path = root.lock().await.clone();
+    let tool_rule = match &root_path {
+        Some(_) => crate::voice_tools::contract(true),
+        None => "",
+    };
     let mut messages = vec![vibe_ai::provider::Message {
         role: vibe_ai::provider::MessageRole::System,
         content: format!(
             "You are a voice assistant. Reply in one or two short spoken sentences. \
-             No markdown, no lists, no code blocks — this is read aloud.{lang_rule}{ctx_rule}"
+             No markdown, no lists, no code blocks — this is read aloud.{lang_rule}{ctx_rule}{tool_rule}"
         ),
     }];
     for (u, a) in history.lock().await.iter() {
@@ -9859,103 +9904,260 @@ async fn voice_duplex_turn(
         content: text.clone(),
     });
 
-    let mut stream = match provider.stream_chat(&messages).await {
-        Ok(s) => s,
-        Err(e) => {
-            say(serde_json::json!({"type": "error", "message": format!("provider: {e}")}));
-            return;
-        }
-    };
-
-    let mut split = vd::SentenceSplitter::default();
-    // A reasoning model narrates its way to an answer, and the Ollama provider
-    // splices that narration into the token stream as `<thinking>…</thinking>`.
-    // Unfiltered, the assistant reads its own deliberation aloud — "The user
-    // says: Hey, how are you doing? As a voice assistant, respond in one or two
-    // short sentences…" — and only then answers. `StreamFilter` is the existing
-    // state machine for this; a per-chunk strip cannot work, because the tag
-    // routinely straddles a chunk boundary (`<thin` + `king>`).
-    let mut filter = crate::agent_stream_filter::StreamFilter::new();
-    let mut full = String::new();
-    // Raw stream length, kept only to tell two silences apart: a model that
-    // said nothing, and a model that said only things the user must not hear.
-    // Both end with an empty reply, and reporting either as an ordinary empty
-    // turn is the failure this whole route is easiest to get wrong in — the
-    // user speaks, nothing is spoken back, and nothing says why.
-    let mut raw_len = 0usize;
+    // Look, then answer — bounded. Each pass either speaks (and the turn ends)
+    // or is a tool call, whose result is appended and the model asked again.
+    // The cap is small because every round is silence in a conversation, not a
+    // progress bar: `MAX_ROUNDS` is enough to list a directory and read the
+    // file it named.
     let mut ttft = 0u128;
     let mut first_audio: Option<u128> = None;
+    let mut full = String::new();
+    let mut raw_len = 0usize;
 
-    while let Some(tok) = stream.next().await {
-        if gen.is_stale(my_gen) {
-            return;
-        }
-        let Ok(tok) = tok else { continue };
-        if tok.is_empty() {
-            continue;
-        }
-        // Measured on the raw stream: this is time to first *token*, and for a
-        // reasoning model it is legitimately far from first audio. Moving it
-        // past the filter would quietly relabel one as the other.
-        if ttft == 0 {
-            ttft = t0.elapsed().as_millis();
-        }
-        raw_len += tok.len();
-        let tok = filter.push(&tok);
-        if tok.is_empty() {
-            continue;
-        }
-        full.push_str(&tok);
-        if let Some(sentence) = split.push(&tok) {
-            emit_sentence(&sentence, &tx, &tts, &voice, &gen, my_gen, t0, &mut first_audio).await;
-        }
-    }
-    if !gen.is_stale(my_gen) {
-        // Whatever the filter still holds: an unclosed reasoning block is
-        // dropped (it is reasoning), a lone `<` that never became a tag is
-        // returned and belongs to the reply.
-        let tail = filter.finish();
-        if !tail.is_empty() {
-            full.push_str(&tail);
-            if let Some(sentence) = split.push(&tail) {
+    for round in 0..=crate::voice_tools::MAX_ROUNDS {
+        let mut stream = match provider.stream_chat(&messages).await {
+            Ok(s) => s,
+            Err(e) => {
+                say(serde_json::json!({"type": "error", "message": format!("provider: {e}")}));
+                return;
+            }
+        };
+
+        let mut split = vd::SentenceSplitter::default();
+        // A reasoning model narrates its way to an answer, and the Ollama
+        // provider splices that narration into the token stream as
+        // `<thinking>…</thinking>`. Unfiltered, the assistant reads its own
+        // deliberation aloud. `StreamFilter` is the existing state machine for
+        // this; a per-chunk strip cannot work, because the tag routinely
+        // straddles a chunk boundary (`<thin` + `king>`).
+        let mut filter = crate::agent_stream_filter::StreamFilter::new();
+        // And the same problem one layer out: a turn that is a tool call must
+        // not be read aloud while we work out that it was one.
+        let mut gate = crate::voice_tools::ToolGate::default();
+        full.clear();
+
+        while let Some(tok) = stream.next().await {
+            if gen.is_stale(my_gen) {
+                return;
+            }
+            let Ok(tok) = tok else { continue };
+            if tok.is_empty() {
+                continue;
+            }
+            // Measured on the raw stream: this is time to first *token*, and
+            // for a reasoning model it is legitimately far from first audio.
+            // Moving it past the filter would quietly relabel one as the other.
+            if ttft == 0 {
+                ttft = t0.elapsed().as_millis();
+            }
+            raw_len += tok.len();
+            let tok = filter.push(&tok);
+            if tok.is_empty() {
+                continue;
+            }
+            let speakable = gate.push(&tok);
+            if speakable.is_empty() {
+                continue;
+            }
+            full.push_str(&speakable);
+            if let Some(sentence) = split.push(&speakable) {
                 emit_sentence(&sentence, &tx, &tts, &voice, &gen, my_gen, t0, &mut first_audio)
                     .await;
             }
         }
+        if gen.is_stale(my_gen) {
+            return;
+        }
+
+        // Whatever the filters still hold: an unclosed reasoning block is
+        // dropped (it is reasoning), a lone `<` that never became a tag is
+        // returned and belongs to the reply, and a reply too short to have
+        // tripped the tool gate is released here.
+        let tail = filter.finish();
+        let tail = gate.push(&tail);
+        let held = gate.finish();
+        for part in [tail, held] {
+            if part.is_empty() {
+                continue;
+            }
+            full.push_str(&part);
+            if let Some(sentence) = split.push(&part) {
+                emit_sentence(&sentence, &tx, &tts, &voice, &gen, my_gen, t0, &mut first_audio)
+                    .await;
+            }
+        }
+
+        // A tool turn: nothing was spoken, and the text is the call.
+        if let (Some(text), Some(root)) = (gate.tool_text(), root_path.as_ref()) {
+            let calls = vibe_ai::tools::parse_tool_calls(text);
+            // The last pass has to answer: tools are only run while a pass
+            // remains for the answer itself. A model that spends that pass on
+            // another tool call falls through to the empty-reply path below,
+            // which says so out loud rather than closing the turn silently.
+            if !calls.is_empty() && round < crate::voice_tools::MAX_ROUNDS {
+                let mut results =
+                    run_voice_tools(&calls, root, &tx, &tts, &voice, &gen, my_gen, t0, &approvals)
+                        .await;
+                if round + 1 == crate::voice_tools::MAX_ROUNDS {
+                    results.push_str(
+                        " This is your last look — answer the user now, or say what you \
+                         would still need to see.",
+                    );
+                }
+                messages.push(vibe_ai::provider::Message {
+                    role: vibe_ai::provider::MessageRole::Assistant,
+                    content: text.to_string(),
+                });
+                messages.push(vibe_ai::provider::Message {
+                    role: vibe_ai::provider::MessageRole::User,
+                    content: results,
+                });
+                say(serde_json::json!({"type": "state", "state": "thinking"}));
+                continue;
+            }
+        }
+
         if let Some(sentence) = split.flush() {
             emit_sentence(&sentence, &tx, &tts, &voice, &gen, my_gen, t0, &mut first_audio).await;
         }
-        // Nothing was spoken. Say which of the two reasons it was and stop
-        // there, rather than closing the turn as if the assistant had
-        // answered. An empty `reply` renders as a chat log that skipped a turn
-        // and a speaker that stayed quiet — indistinguishable, from the user's
-        // side, from a microphone that never worked.
-        //
-        // Deliberately not followed by `state: listening`: that would overwrite
-        // the message on the client before it could be read. The next thing the
-        // user says moves the state on by itself.
-        if full.trim().is_empty() {
-            let why = if raw_len > 0 {
-                "The model produced only reasoning and no answer. Ask again, or pick a \
-                 model that does not think out loud."
-            } else {
-                "The model returned nothing for that turn."
-            };
-            say(serde_json::json!({"type": "error", "message": why}));
-            return;
-        }
-        say(serde_json::json!({
-            "type": "reply", "text": full, "asr_ms": asr_ms,
-            "first_audio_ms": first_audio,
-            "llm_ttft_ms": ttft, "total_ms": t0.elapsed().as_millis()
-        }));
-        let mut h = history.lock().await;
-        h.push((text, full));
-        if h.len() > 6 {
-            h.remove(0);
-        }
-        say(serde_json::json!({"type": "state", "state": "listening"}));
+        break;
     }
+
+    if gen.is_stale(my_gen) {
+        return;
+    }
+    // Nothing was spoken. Say which of the reasons it was and stop there,
+    // rather than closing the turn as if the assistant had answered. An empty
+    // `reply` renders as a chat log that skipped a turn and a speaker that
+    // stayed quiet — indistinguishable, from the user's side, from a
+    // microphone that never worked.
+    //
+    // Deliberately not followed by `state: listening`: that would overwrite the
+    // message on the client before it could be read. The next thing the user
+    // says moves the state on by itself.
+    if full.trim().is_empty() {
+        let why = if raw_len > 0 {
+            "The model produced only reasoning or tool calls and never answered. Ask again, \
+             or pick a model that does not think out loud."
+        } else {
+            "The model returned nothing for that turn."
+        };
+        say(serde_json::json!({"type": "error", "message": why}));
+        return;
+    }
+    say(serde_json::json!({
+        "type": "reply", "text": full, "asr_ms": asr_ms,
+        "first_audio_ms": first_audio,
+        "llm_ttft_ms": ttft, "total_ms": t0.elapsed().as_millis()
+    }));
+    let mut h = history.lock().await;
+    h.push((text, full));
+    if h.len() > 6 {
+        h.remove(0);
+    }
+    say(serde_json::json!({"type": "state", "state": "listening"}));
+}
+
+/// Execute the read-only calls of one round and format them for the model.
+///
+/// Refusals are answered in-band rather than dropped: a model told nothing
+/// about a rejected call asks for it again, and the user hears a second pause
+/// for the same reason.
+#[allow(clippy::too_many_arguments)]
+async fn run_voice_tools(
+    calls: &[vibe_ai::tools::ToolCall],
+    root: &std::path::Path,
+    tx: &tokio::sync::mpsc::UnboundedSender<WsMessage>,
+    tts: &Arc<tokio::sync::Mutex<crate::voice_duplex::Tts>>,
+    voice: &Arc<tokio::sync::Mutex<Option<String>>>,
+    gen: &crate::voice_duplex::Generation,
+    my_gen: u64,
+    t0: std::time::Instant,
+    approvals: &crate::voice_tools::ApprovalSlot,
+) -> String {
+    use crate::voice_tools as vt;
+
+    let executor = crate::tool_executor::ToolExecutor::new(root.to_path_buf(), false);
+    let mut out = String::new();
+
+    for call in calls.iter().take(vt::MAX_CALLS_PER_ROUND) {
+        if gen.is_stale(my_gen) {
+            break;
+        }
+        if !vt::is_permitted(call) {
+            // Refused in words the model can relay, not dropped: a model told
+            // nothing about a rejected call asks for it again, and the user
+            // hears a second pause for the same reason.
+            out.push_str(
+                "That tool is not available in a spoken turn — you can read, list, search and \
+                 write files, but not run commands. Tell the user that, and what they could \
+                 run themselves.\n\n",
+            );
+            continue;
+        }
+        // Anything that changes the project is asked out loud and answered on
+        // screen. The question is spoken because the user may not be looking;
+        // it is also sent as an event, because agreeing must be a deliberate
+        // click and not a word the microphone thought it heard.
+        if !vt::is_read_only(call) {
+            let question = vt::approval_question(call);
+            let (send, recv) = tokio::sync::oneshot::channel();
+            *approvals.lock().await = Some(send);
+            let _ = tx.send(WsMessage::Text(
+                serde_json::json!({
+                    "type": "approval_request",
+                    "question": question,
+                    "tool": format!("{call:?}"),
+                })
+                .to_string()
+                .into(),
+            ));
+            let mut spoken = None;
+            emit_sentence(&question, tx, tts, voice, gen, my_gen, t0, &mut spoken).await;
+
+            let approved = match tokio::time::timeout(vt::APPROVAL_TIMEOUT, recv).await {
+                Ok(Ok(v)) => v,
+                // Timed out, or the socket closed with the question unanswered.
+                // Neither is consent.
+                _ => false,
+            };
+            // Whether it was answered or timed out, nothing may answer it now.
+            *approvals.lock().await = None;
+            let _ = tx.send(WsMessage::Text(
+                serde_json::json!({"type": "approval_resolved", "approved": approved})
+                    .to_string()
+                    .into(),
+            ));
+            if !approved {
+                out.push_str(
+                    "The user did not agree to that change, so it did not happen. Say so \
+                     plainly and do not try it again this turn.\n\n",
+                );
+                continue;
+            }
+        }
+        // The caption says what the pause is for: "Reading README.md".
+        let _ = tx.send(WsMessage::Text(
+            serde_json::json!({"type": "tool", "text": vt::describe(call)})
+                .to_string()
+                .into(),
+        ));
+        let result = <crate::tool_executor::ToolExecutor as vibe_ai::agent::ToolExecutorTrait>::execute(&executor, call).await;
+        out.push_str(&format!(
+            "Result of {} ({}):\n{}\n\n",
+            result.tool_name,
+            if result.success { "ok" } else { "failed" },
+            vt::clamp_result(&result.output)
+        ));
+    }
+    if calls.len() > vt::MAX_CALLS_PER_ROUND {
+        out.push_str(&format!(
+            "Only the first {} calls were run; ask for the rest next turn if you still need them.\n\n",
+            vt::MAX_CALLS_PER_ROUND
+        ));
+    }
+    out.push_str("Now answer the user in one or two short spoken sentences.");
+    out
 }
 
 /// Announce a sentence, speak it, and record first-audio the first time.

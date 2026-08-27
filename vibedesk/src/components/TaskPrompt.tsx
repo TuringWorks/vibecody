@@ -7,6 +7,7 @@ import { VoiceButton } from "@vibe/shared/voice/VoiceButton";
 import { useVoiceDuplex } from "@vibe/shared/voice/useVoiceDuplex";
 import { DuplexVoiceButton } from "@vibe/shared/voice/DuplexVoiceButton";
 import { VoiceTranscript } from "@vibe/shared/voice/VoiceTranscript";
+import { VoiceApproval } from "@vibe/shared/voice/VoiceApproval";
 import { useVoiceDuplexPreference } from "@vibe/shared/voice/useVoiceDuplexPreference";
 import { buildVoiceContext, findReadme, VOICE_CONTEXT_LIMITS } from "@vibe/shared/voice/voiceContext";
 import { tauriTranscriber } from "@vibe/shared/voice/transcribers";
@@ -271,6 +272,7 @@ export function TaskPrompt({
     model: prefs.model,
     language: "en",
     context: voiceContext,
+    workspaceRoot: scopePath ?? null,
     onTurn: (turn) => onTurnRef.current(turn.role, turn.text),
   });
 
@@ -451,7 +453,13 @@ export function TaskPrompt({
           {voice.error}
         </div>
       )}
-      <VoiceTranscript state={duplex.state} turns={duplex.turns} active={duplex.active} />
+      <VoiceApproval approval={duplex.approval} onRespond={duplex.respondToApproval} />
+      <VoiceTranscript
+        state={duplex.state}
+        turns={duplex.turns}
+        activity={duplex.activity}
+        active={duplex.active}
+      />
       {sandboxOpen && (
         <SandboxSettings
           value={prefs.sandbox}

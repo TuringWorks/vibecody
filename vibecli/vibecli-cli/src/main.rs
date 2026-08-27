@@ -433,6 +433,7 @@ mod v1_messages;
 mod verification;
 mod voice;
 mod voice_duplex;
+mod voice_tools;
 #[allow(dead_code)]
 #[allow(dead_code)]
 mod web_crawler;

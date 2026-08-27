@@ -5,6 +5,7 @@ import { useVoiceDuplex } from "@vibe/shared/voice/useVoiceDuplex";
 import { parseProviderSelection } from "../hooks/useModelRegistry";
 import { DuplexVoiceButton } from "@vibe/shared/voice/DuplexVoiceButton";
 import { VoiceTranscript } from "@vibe/shared/voice/VoiceTranscript";
+import { VoiceApproval } from "@vibe/shared/voice/VoiceApproval";
 import { useVoiceDuplexPreference } from "@vibe/shared/voice/useVoiceDuplexPreference";
 import { buildVoiceContext, findReadme, VOICE_CONTEXT_LIMITS } from "@vibe/shared/voice/voiceContext";
 import { tauriTranscriber } from "@vibe/shared/voice/transcribers";
@@ -1822,6 +1823,7 @@ export function AIChat({
     model: duplexSelection.model,
     language: "en",
     context: duplexContext,
+    workspaceRoot: workspacePath,
     onTurn: turn =>
       setMessages(prev => [
         ...prev,
@@ -3451,7 +3453,13 @@ export function AIChat({
         {/* The spoken turn as it happens. The chat log above gets each turn
             once it is complete (`onTurn`); this is the seconds in between,
             which previously showed nothing at all. */}
-        <VoiceTranscript state={duplex.state} turns={duplex.turns} active={duplex.active} />
+        <VoiceApproval approval={duplex.approval} onRespond={duplex.respondToApproval} />
+      <VoiceTranscript
+        state={duplex.state}
+        turns={duplex.turns}
+        activity={duplex.activity}
+        active={duplex.active}
+      />
         {/* Loading indicator for file reading */}
         {isAttachLoading && (
           <div className="attachment-loading">
