@@ -39,4 +39,9 @@ swiftc -O apple_bench.swift -o out/apple_bench
 # JSON is the line that starts with {"rows" rather than the whole file.
 ./.venv/bin/python mlx_bench.py > out/mlx.json
 
-echo "wrote out/*.json and out/*.wav"
+# The comparison page: audio encoded once, then the layout built from it.
+# Latency is measurable and quality is not, so the clips ship with the numbers.
+./.venv/bin/python mkreport.py
+python3 build_report.py
+
+echo "wrote out/*.json, out/*.wav and out/report.html"
