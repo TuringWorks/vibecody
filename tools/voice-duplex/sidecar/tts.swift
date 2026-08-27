@@ -34,6 +34,80 @@
 import Foundation
 import AVFoundation
 
+/// Which generation of speech synthesis a voice belongs to. Quality alone does
+/// not separate them: everything below is `default` quality until a user
+/// downloads something, so an unranked pick lands on whatever sorts first —
+/// which was Albert, a 1990s novelty voice, rather than Samantha.
+///
+///  * `com.apple.voice.*`      — the modern Siri-family voices. `compact` is
+///                               the built-in tier; `enhanced` and `premium`
+///                               are neural and are separate downloads.
+///  * `com.apple.ttsbundle.*`  — the previous generation, still shipped for
+///                               some locales.
+///  * `com.apple.eloquence.*`  — 1980s formant synthesis, kept for the
+///                               accessibility users who read at 700 wpm.
+///  * `com.apple.speech.synthesis.voice.*` — 1990s MacinTalk, mostly sound
+///                               effects (Bells, Boing, Zarvox).
+private func family(_ id: String) -> Int {
+  if id.hasPrefix("com.apple.voice.") { return 0 }
+  if id.hasPrefix("com.apple.ttsbundle.") { return 1 }
+  if id.hasPrefix("com.apple.eloquence.") { return 2 }
+  return 3
+}
+
+/// The MacinTalk namespace is shared by five nameable voices and fourteen sound
+/// effects. Only the effects are excluded from *listing*; none of the nineteen
+/// is ever chosen automatically.
+private let realMacinTalk: Set<String> = ["Albert", "Fred", "Junior", "Kathy", "Ralph"]
+
+private func isNovelty(_ v: AVSpeechSynthesisVoice) -> Bool {
+  v.identifier.contains("com.apple.speech.synthesis.voice") && !realMacinTalk.contains(v.name)
+}
+
+/// The best installed voice for a language.
+///
+/// Replaces `AVSpeechSynthesisVoice(language:)`, which returns whatever the
+/// system default for that language happens to be. On a machine with only the
+/// built-in voices the two agree — both give Samantha compact — so this is not
+/// an audible change by itself. It is a change in what the pick is *based on*:
+/// installed quality, ranked here, rather than a system setting this process
+/// does not control and cannot see.
+///
+/// **Unverified:** whether the system default follows a premium voice once one
+/// is downloaded. There is no premium voice on the machine this was written on,
+/// so the case that matters most is the case that could not be tested. Ranking
+/// explicitly is correct either way; the claim that it *fixes* something is not
+/// made until someone with a premium voice installed checks.
+///
+/// Premium and enhanced are neural and cost nothing extra at synthesis time.
+/// They are separate downloads, so a machine can legitimately have none.
+private func bestVoice(for language: String) -> AVSpeechSynthesisVoice? {
+  func rank(_ v: AVSpeechSynthesisVoice) -> Int {
+    switch v.quality {
+    case .premium: return 0
+    case .enhanced: return 1
+    default: return 2
+    }
+  }
+  let prefix = String(language.prefix(2)).lowercased()
+  let candidates = AVSpeechSynthesisVoice.speechVoices().filter {
+    !isNovelty($0) && $0.language.lowercased().hasPrefix(prefix)
+  }
+  // Exact locale, then quality, then generation, then name — the last only so
+  // the choice is stable across launches instead of following whatever order
+  // the system returned.
+  return candidates.min { a, b in
+    let exactA = a.language.lowercased() == language.lowercased()
+    let exactB = b.language.lowercased() == language.lowercased()
+    if exactA != exactB { return exactA }
+    if rank(a) != rank(b) { return rank(a) < rank(b) }
+    if family(a.identifier) != family(b.identifier) {
+      return family(a.identifier) < family(b.identifier)
+    }
+    return a.name < b.name
+  } ?? AVSpeechSynthesisVoice(language: language)
+}
+
 let stdoutHandle = FileHandle.standardOutput
 let stderrHandle = FileHandle.standardError
 
@@ -88,7 +162,7 @@ final class Sidecar {
     let synth = shared
     let u = AVSpeechUtterance(string: text)
     if let v = voice, let av = AVSpeechSynthesisVoice(identifier: v) { u.voice = av }
-    else { u.voice = AVSpeechSynthesisVoice(language: "en-US") }
+    else { u.voice = bestVoice(for: "en-US") }
     u.rate = rate
 
     DispatchQueue.main.async {
@@ -160,9 +234,10 @@ if CommandLine.arguments.contains("--list") {
   let voices = AVSpeechSynthesisVoice.speechVoices()
     .map { v -> [String: Any] in
       ["id": v.identifier, "name": v.name, "lang": v.language, "quality": tier(v),
-       // The novelty voices (Bells, Boing, Bubbles…) are not speech assistants.
-       "novelty": v.identifier.contains("com.apple.speech.synthesis.voice")
-                  && !["Albert", "Fred", "Junior", "Kathy", "Ralph"].contains(v.name)]
+       "novelty": isNovelty(v),
+       // 0 modern · 1 previous-gen · 2 eloquence · 3 MacinTalk. A picker that
+       // lists 180 voices flat is not a choice, it is a phone book.
+       "generation": family(v.identifier)]
     }
     .sorted {
       let a = rank[$0["quality"] as! String]!, b = rank[$1["quality"] as! String]!
@@ -173,7 +248,9 @@ if CommandLine.arguments.contains("--list") {
   let out: [String: Any] = [
     "voices": voices,
     "languages": langs,
-    "default": AVSpeechSynthesisVoice(language: "en-US")?.identifier ?? "",
+    // What an unconfigured turn will actually use, so a caller can show it
+    // rather than guessing that "default" means the system default.
+    "default": bestVoice(for: "en-US")?.identifier ?? "",
     "hasNeural": voices.contains {
       ($0["quality"] as! String) != "default" && ($0["lang"] as! String).hasPrefix("en")
     },
