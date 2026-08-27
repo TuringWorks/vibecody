@@ -328,8 +328,17 @@ v0.5.8 adds Developer ID signing to the whole macOS surface — including the
 Whether a specific download is signed depends on the build that produced it:
 the release workflow signs only when the `APPLE_CERT_P12_BASE64` secret is
 configured, and falls back to ad-hoc (apps) or unsigned (CLI) with a workflow
-notice otherwise. Rather than take this page's word for it, check the artifact
-you actually have:
+notice otherwise. **That secret has been set since 2026-08-10**, so v0.5.9 and
+later are signed and notarized; v0.5.8 and earlier are not.
+
+**One gap, measured on v0.5.10:** the `.app` inside a `.dmg` is notarized and
+stapled, but the `.dmg` wrapper itself is only *signed* — `spctl -a -t open`
+reports `source=Unnotarized Developer ID` for the image. Tauri notarizes the app
+bundle, not the disk image around it. The app you drag out works; the image may
+prompt. `make notarize-macos` staples both.
+
+Rather than take this page's word for any of it, check the artifact you actually
+have:
 
 ```bash
 codesign -dv --verbose=4 /Applications/VibeCoder.app
@@ -491,14 +500,25 @@ Applies to every release; not specific to the version above.
 **Symptom.** The app bounces once in the Dock and quits, or Finder says
 *"«App» is damaged and can't be opened. You should move it to the Trash."*
 
-**It is not damaged, and re-downloading will not help.** Every macOS artifact
-built by CI is **ad-hoc signed** with the hardened runtime enabled, because the
-release workflow has no Developer ID certificate (`APPLE_CERT_P12_BASE64` is
-unset — see [macOS code signing setup](#macos-code-signing-setup-for-maintainers)).
-macOS refuses to run that combination while the download-quarantine flag is set,
-and it does so by **killing the process** — verified: the binary exits with
-signal 9 (`exit=137`) while quarantined, and starts normally the moment the flag
-is removed.
+**This applies to v0.5.8 and earlier only.** The signing secrets were added to
+CI on 2026-08-10, a few hours after v0.5.8 shipped. From **v0.5.9 onward the
+apps are Developer ID signed *and* notarized**, and none of the below is needed
+— verified on the published v0.5.10 artifact:
+
+```
+$ spctl -a -vv -t exec VibeDesk.app        # from the downloaded .dmg
+VibeDesk.app: accepted
+source=Notarized Developer ID
+$ xcrun stapler validate VibeDesk.app
+The validate action worked!
+```
+
+If you are on an older download: every macOS artifact CI built before that
+cutover is **ad-hoc signed** with the hardened runtime enabled. macOS refuses to
+run that combination while the download-quarantine flag is set, and it does so
+by **killing the process** — verified: the binary exits with signal 9
+(`exit=137`) while quarantined, and starts normally the moment the flag is
+removed.
 
 **Fix — remove the quarantine flag:**
 
