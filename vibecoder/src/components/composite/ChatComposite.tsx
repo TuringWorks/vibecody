@@ -26,6 +26,13 @@ export interface ChatCompositeProps {
   /** G9.1 — workspace this VibeCoder instance is rooted in. Used by the
    *  PinnedGoalBanner to look up the right `current` pin row. */
   workspacePath?: string | null;
+  /** Show a file in the editor, by absolute path.
+   *
+   * The spoken path is the only one that needs it: a typed answer that
+   * mentions a file leaves the user a name to click, but "open the config"
+   * asked out loud has no click in it. Passing it is also what declares the
+   * capability to the daemon — see `useVoiceDuplex`'s `onOpenFile`. */
+  onOpenFile?: (path: string) => void;
 }
 
 export function ChatComposite({
@@ -37,6 +44,7 @@ export function ChatComposite({
   onPendingWrite,
   onSwitchToGoals,
   workspacePath,
+  onOpenFile,
 }: ChatCompositeProps) {
   const [activeTab, setActiveTab] = useState("chat");
 
@@ -75,6 +83,7 @@ export function ChatComposite({
                 workspacePath={workspacePath ?? null}
                 onPendingWrite={onPendingWrite}
                 onSwitchToGoals={onSwitchToGoals}
+                onOpenFile={onOpenFile}
               />
             </Suspense>
           ),

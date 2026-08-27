@@ -174,6 +174,13 @@ interface AIChatProps {
  onApprovalModeChange?: (mode: ApprovalMode) => void;
  /** /goal slash command — switch to Goals panel (and optionally seed the New Goal modal). */
  onSwitchToGoals?: (seed?: string) => void;
+ /** Show a file in the editor, by absolute path.
+  *
+  * Used by the spoken path, which is the one that needs it: a typed answer
+  * naming a file leaves the user something to click, and "can you open the
+  * config" said out loud leaves nothing. Supplying it also declares the
+  * capability to the daemon — see `useVoiceDuplex`'s `onOpenFile`. */
+ onOpenFile?: (path: string) => void;
 }
 
 // ── Approval modes ───────────────────────────────────────────────────────────
@@ -1360,6 +1367,7 @@ export function AIChat({
   approvalMode: controlledApprovalMode,
   onApprovalModeChange,
   onSwitchToGoals,
+  onOpenFile,
 }: AIChatProps) {
   const [agentMode, setAgentMode] = useState<AgentMode>("chat");
 
@@ -1821,7 +1829,12 @@ export function AIChat({
     enabled: voicePref.enabled,
     provider: duplexSelection.provider,
     model: duplexSelection.model,
-    language: "en",
+    // `auto`, not a pinned language. Pinning one does not merely bias the
+    // recogniser — it *suppresses* the detection result, so every turn came
+    // back labelled English, the reply rule never fired, and a question asked
+    // in Hindi was answered in English. Detection runs per turn because
+    // code-switching mid-conversation is normal for multilingual speakers.
+    language: "auto",
     context: duplexContext,
     workspaceRoot: workspacePath,
     onTurn: turn =>
@@ -1829,6 +1842,11 @@ export function AIChat({
         ...prev,
         { role: turn.role, content: turn.text, timestamp: Date.now() } satisfies Message,
       ]),
+    // Asked to open a file, the assistant used to read it and describe it: the
+    // information arrived, the editor never moved. This is the hand-off that
+    // was missing — and its presence is what tells the daemon to offer the
+    // tool at all, so a host that cannot show a file is never promised one.
+    onOpenFile,
   });
 
   // The hook reports failures as state; VibeCoder already has a toast surface,

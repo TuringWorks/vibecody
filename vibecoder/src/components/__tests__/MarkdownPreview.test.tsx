@@ -134,4 +134,74 @@ Three components: a **vision encoder**, a projector, and the LLM.
         expect(container.querySelector('details')).not.toBeInTheDocument();
         expect(container.textContent).toContain('<details><summary>x</summary>');
     });
+
+    it('opens a relative link as a workspace file, resolved against the document', () => {
+        const opened: Array<[string, string | null]> = [];
+        const { container } = render(
+            <MarkdownPreview
+                content="See [Documentation Index](docs/README.md)."
+                basePath="/work/repo/AGENTS.md"
+                onOpenFile={(path, fragment) => { opened.push([path, fragment]); }}
+            />
+        );
+
+        fireEvent.click(container.querySelector('a')!);
+        expect(opened).toEqual([['/work/repo/docs/README.md', null]]);
+    });
+
+    it('carries the fragment of a cross-file link', () => {
+        const opened: Array<[string, string | null]> = [];
+        const { container } = render(
+            <MarkdownPreview
+                content="[Answer Style](AGENTS.md#answer-style)"
+                basePath="/work/repo/README.md"
+                onOpenFile={(path, fragment) => { opened.push([path, fragment]); }}
+            />
+        );
+
+        fireEvent.click(container.querySelector('a')!);
+        expect(opened).toEqual([['/work/repo/AGENTS.md', 'answer-style']]);
+    });
+
+    it('leaves an external link to the browser, not to the file opener', () => {
+        const opened: string[] = [];
+        const { container } = render(
+            <MarkdownPreview
+                content="[Site](https://example.com/x)"
+                basePath="/work/repo/README.md"
+                onOpenFile={(path) => { opened.push(path); }}
+            />
+        );
+
+        fireEvent.click(container.querySelector('a')!);
+        expect(opened).toEqual([]);
+    });
+
+    it('gives headings the id their own anchors name, and scrolls to one', () => {
+        const scrolled: HTMLElement[] = [];
+        const original = Element.prototype.scrollIntoView;
+        Element.prototype.scrollIntoView = function (this: HTMLElement) { scrolled.push(this); };
+        try {
+            const { container } = render(
+                <MarkdownPreview content={'[Go](#answer-style)\n\n## Answer Style\n\nBody.'} />
+            );
+
+            const heading = container.querySelector('h2')!;
+            expect(heading.id).toBe('answer-style');
+
+            fireEvent.click(container.querySelector('a')!);
+            expect(scrolled).toEqual([heading]);
+        } finally {
+            Element.prototype.scrollIntoView = original;
+        }
+    });
+
+    it('does not follow a local link when the surface has no opener', () => {
+        // DocumentViewer and the memory panel render markdown with nowhere to
+        // open a file to; the click must stay inert rather than look handled.
+        const { container } = render(<MarkdownPreview content="[Docs](docs/README.md)" basePath="/work/repo/README.md" />);
+        const link = container.querySelector('a')!;
+        expect(link.getAttribute('data-link-kind')).toBe('file');
+        expect(() => fireEvent.click(link)).not.toThrow();
+    });
 });

@@ -50,6 +50,13 @@ interface ChatTabManagerProps {
     onPendingWrite?: (path: string, content: string) => void;
     /** /goal slash command → forwarded to AIChat. */
     onSwitchToGoals?: (seed?: string) => void;
+    /** Show a file in the editor, by absolute path.
+     *
+     * The spoken path is the only one that needs it: a typed answer that
+     * mentions a file leaves the user a name to click, but "open the config"
+     * asked out loud has no click in it. Passing it is also what declares the
+     * capability to the daemon — see `useVoiceDuplex`'s `onOpenFile`. */
+    onOpenFile?: (path: string) => void;
 }
 
 const LEGACY_SESSIONS_KEY = "vibecody:chat-sessions";
@@ -106,6 +113,7 @@ export function ChatTabManager({
     currentFile,
     onPendingWrite,
     onSwitchToGoals,
+    onOpenFile,
 }: ChatTabManagerProps) {
     // Refresh adventure names from backend once on mount (non-blocking).
     // Also drop the legacy per-tab message blob — we no longer auto-restore
@@ -924,6 +932,7 @@ export function ChatTabManager({
                             approvalMode={tabApprovalMode[tab.id] ?? "suggest"}
                             onApprovalModeChange={(mode) => setApprovalModeForTab(tab.id, mode)}
                             onSwitchToGoals={onSwitchToGoals}
+                            onOpenFile={onOpenFile}
                         />
                     </div>
                 ))}

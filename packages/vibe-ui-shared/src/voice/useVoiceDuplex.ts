@@ -101,11 +101,29 @@ export interface UseVoiceDuplexOptions {
    * Live, sentence-by-sentence text is on `turns`.
    */
   onTurn?: (turn: DuplexTurn) => void;
+  /**
+   * Show a file to the user, by absolute path.
+   *
+   * Providing this is what tells the daemon the assistant may offer to open
+   * files at all — the capability is declared from the presence of the handler,
+   * not configured separately, so the two cannot drift apart. A host without an
+   * editor (VibeDesk, VibeAIChat) leaves it out and the tool is never
+   * advertised, rather than being offered and silently doing nothing.
+   */
+  onOpenFile?: (path: string) => void;
 }
 
 export interface UseVoiceDuplex {
   state: DuplexState;
   turns: DuplexTurn[];
+  /**
+   * Something the user should know that did not stop the conversation — the
+   * configured speech engine failing to start, so the platform voice is
+   * speaking instead. A working fallback reported as an error reads as a broken
+   * feature; reported as nothing at all, it is a voice that silently is not the
+   * one that was configured.
+   */
+  notice: string | null;
   /**
    * What the assistant is doing during a pause — "Reading README.md".
    *
@@ -242,6 +260,7 @@ export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
   const [approval, setApproval] = useState<{ question: string } | null>(null);
   const [turns, setTurns] = useState<DuplexTurn[]>([]);
   const [latency, setLatency] = useState<DuplexLatency>({});
+  const [notice, setNotice] = useState<string | null>(null);
   /**
    * Whether a socket is open, tracked separately from `state`.
    *
@@ -266,6 +285,8 @@ export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
   const live = useRef<AudioBufferSourceNode[]>([]);
   const onTurn = useRef(opts.onTurn);
   onTurn.current = opts.onTurn;
+  const onOpenFile = useRef(opts.onOpenFile);
+  onOpenFile.current = opts.onOpenFile;
   /// Read when the socket opens, which happens after `start` was created.
   const contextRef = useRef(opts.context);
   contextRef.current = opts.context;
@@ -455,6 +476,12 @@ export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
         if (c) sock.send(JSON.stringify({ type: "set_context", context: c }));
         const r = rootRef.current;
         if (r) sock.send(JSON.stringify({ type: "set_workspace", root: r }));
+        // What this host can do, as opposed to what it has open. The daemon
+        // only teaches the assistant a tool the client answered for, so a shell
+        // with no editor never offers to open a file it cannot show.
+        if (onOpenFile.current) {
+          sock.send(JSON.stringify({ type: "set_capabilities", open_file: true }));
+        }
       };
 
       sock.onmessage = (ev) => {
@@ -471,6 +498,15 @@ export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
           // The daemon looked something up. Say so — see `activity`.
           case "tool":
             setActivity(typeof m.text === "string" ? m.text : null);
+            break;
+          // The one thing the daemon asks the *host* to do rather than doing
+          // itself. It has already resolved the path against the workspace and
+          // confirmed the file exists, so an unknown action is a version skew,
+          // not a bad path — ignore it rather than guessing.
+          case "ui":
+            if (m.action === "open_file" && typeof m.path === "string") {
+              onOpenFile.current?.(m.path);
+            }
             break;
           case "approval_request":
             setApproval({ question: String(m.question ?? "May I make this change?") });
@@ -507,6 +543,13 @@ export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
               totalMs: m.total_ms,
             });
             if (m.text?.trim()) onTurn.current?.({ role: "assistant", text: m.text });
+            break;
+          case "notice":
+            // Worth telling the user, and *not* a failure — a configured speech
+            // engine that did not start, so the platform voice is speaking
+            // instead. Deliberately not `setState(error)`: that is a terminal
+            // session state, and the conversation is working.
+            setNotice(m.message);
             break;
           case "error":
             setState({ status: "error", message: m.message });
@@ -576,6 +619,7 @@ export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
   return {
     state,
     turns,
+    notice,
     activity,
     approval,
     respondToApproval,

@@ -185,6 +185,8 @@ function App() {
 
   // Preview State
   const [showMarkdownPreview, setShowMarkdownPreview] = useState(false);
+  /** Heading a followed markdown link asked for, kept until the new file has rendered. */
+  const [markdownAnchor, setMarkdownAnchor] = useState<{ path: string; fragment: string } | null>(null);
   const [showHtmlPreview, setShowHtmlPreview] = useState(false);
   const [showSvgPreview, setShowSvgPreview] = useState(false);
   const [showDrawioPreview, setShowDrawioPreview] = useState(false);
@@ -663,6 +665,14 @@ function App() {
       console.error("Failed to open file:", error);
       toast.error("Failed to open file: " + error);
     }
+  };
+
+  /** Follow a link out of the markdown preview to another file in the
+   *  workspace. The heading is kept until that file has rendered, so a link to
+   *  `AGENTS.md#answer-style` lands on the section rather than on line 1. */
+  const followMarkdownLink = (path: string, fragment: string | null) => {
+    setMarkdownAnchor(fragment ? { path, fragment } : null);
+    openFile(path);
   };
 
   const closeFile = (path: string, e?: React.MouseEvent) => {
@@ -2308,7 +2318,12 @@ function App() {
                       base64Data={activeFile.base64Data || ''}
                     />
                   ) : showMarkdownPreview && currentFile?.endsWith('.md') ? (
-                    <MarkdownPreview content={editorContent} />
+                    <MarkdownPreview
+                      content={editorContent}
+                      basePath={currentFile}
+                      onOpenFile={followMarkdownLink}
+                      focusFragment={markdownAnchor?.path === currentFile ? markdownAnchor.fragment : null}
+                    />
                   ) : showHtmlPreview && (currentFile?.endsWith('.html') || currentFile?.endsWith('.htm')) ? (
                     <HtmlPreview content={editorContent} filePath={currentFile} />
                   ) : showSvgPreview && currentFile?.endsWith('.svg') ? (
