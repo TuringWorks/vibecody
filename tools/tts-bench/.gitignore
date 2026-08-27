@@ -1,0 +1,4 @@
+# Model weights (310 MB + 169 MB + 88 MB + 27 MB) and the venv are fetched by
+# bench.sh, not committed. The .wav output is regenerated per run.
+.venv/
+out/
