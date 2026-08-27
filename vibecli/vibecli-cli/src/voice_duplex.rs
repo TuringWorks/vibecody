@@ -398,6 +398,23 @@ fn decode_wav(bytes: &[u8]) -> Audio {
 
 /// Language name for a Whisper language code, for the reply instruction.
 /// A bare code in the prompt is markedly less reliable than a name.
+/// Bound and tidy a client-supplied workspace context block.
+///
+/// The client chooses what to send and the daemon holds it for the life of the
+/// socket, so the size is not the client's to choose. 32k characters is far
+/// more than a file tree and a pinned note, and truncating costs the tail of
+/// the context rather than the whole turn.
+pub fn clamp_context(s: &str) -> String {
+    const MAX_CHARS: usize = 32 * 1024;
+    let s = s.trim();
+    // Split on a character boundary — a byte slice through a multi-byte
+    // codepoint panics, and a file tree is exactly where non-ASCII shows up.
+    match s.char_indices().nth(MAX_CHARS) {
+        Some((byte, _)) => format!("{}\n…(context truncated)", &s[..byte]),
+        None => s.to_string(),
+    }
+}
+
 pub fn language_name(code: &str) -> &'static str {
     match code {
         "en" => "English", "es" => "Spanish", "fr" => "French", "de" => "German",
@@ -579,6 +596,30 @@ pub fn resolve_bin(bin: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn clamp_context_trims_and_keeps_short_blocks_whole() {
+        assert_eq!(super::clamp_context("  src/main.rs\n  "), "src/main.rs");
+        assert_eq!(super::clamp_context("   "), "");
+    }
+
+    #[test]
+    fn clamp_context_bounds_a_client_that_sends_too_much() {
+        let huge = "x".repeat(100_000);
+        let out = super::clamp_context(&huge);
+        assert!(out.starts_with(&"x".repeat(32 * 1024)));
+        assert!(out.ends_with("(context truncated)"));
+        assert!(out.chars().count() < 33 * 1024);
+    }
+
+    #[test]
+    fn clamp_context_truncates_on_a_character_boundary() {
+        // Slicing mid-codepoint panics; a tree full of box-drawing characters
+        // is exactly the input that would find it.
+        let wide = "└─".repeat(40_000);
+        let out = super::clamp_context(&wide);
+        assert!(out.ends_with("(context truncated)"));
+    }
+
     use super::*;
 
     #[test]

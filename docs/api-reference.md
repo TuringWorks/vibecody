@@ -557,7 +557,14 @@ Requires a Bearer token, but a WebSocket cannot set headers, so it is passed as
 **Client → server**
 
 * Binary frames: 16 kHz mono little-endian `i16` PCM.
-* Text frames: `{"type":"set_voice","id":"…"}`, `{"type":"set_language","lang":"…"}`.
+* Text frames: `{"type":"set_voice","id":"…"}`, `{"type":"set_language","lang":"…"}`,
+  `{"type":"set_context","context":"…"}`.
+
+`set_context` is what the user can see — file tree, open file, pinned notes.
+Send it on connect and again whenever it changes. It is folded into the turn's
+system prompt and bounded at 32k characters; an empty block **clears** it rather
+than leaving it unchanged, so closing a project does not leave the assistant
+answering about the old one.
 
 **Server → client**
 
@@ -571,11 +578,11 @@ Requires a Bearer token, but a WebSocket cannot set headers, so it is passed as
 | `ready` | Which engines resolved: `asr` is `whisper-server` or `whisper-cli`, `tts` is `streaming` or `batch`. Worth checking — `batch` costs a few hundred ms of first-audio. |
 | `state` | `listening` · `hearing` · `thinking` · `speaking`. |
 | `transcript` | What was heard, with `asr_ms` and the detected `lang`. |
-| `speaking` | A sentence about to be spoken. |
+| `speaking` | A sentence about to be spoken. Fires **once per sentence** — it is live text, not a turn. Build a chat log from `reply`. |
 | `flush` | Barge-in — discard queued audio immediately. |
 | `carried` | The user kept talking before this turn could answer, so its words join the next turn rather than being dropped. |
 | `latency` | `first_audio_ms` from end of speech. |
-| `reply` | The full text plus `asr_ms`, `llm_ttft_ms`, `total_ms`. |
+| `reply` | The turn: the full text plus `asr_ms`, `llm_ttft_ms`, `total_ms`. One per answer. |
 | `error` | Something the user should be told. |
 
 ```bash

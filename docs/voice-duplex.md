@@ -130,6 +130,31 @@ Three things must be warm before a user is invited to speak, and the daemon does
 all three on connect: the speech synthesiser (~300 ms first utterance, ~20 ms
 after), the model (**3796 ms** cold against ~85 ms warm), and the recogniser.
 
+## What the assistant knows about your project
+
+The socket carries a `set_context` control message, and the client sends it on
+connect and again whenever the workspace changes:
+
+```json
+{ "type": "set_context", "context": "Open file: src/main.rs\n\nProject files (400 of 5121):\n…" }
+```
+
+The daemon folds it into the turn's system prompt, bounds it at 32k characters,
+and treats an empty block as *clear* rather than *unchanged* — closing a project
+mid-conversation must not leave the assistant answering about the old one.
+
+VibeCoder sends the same material the typed chat path sends: pinned memory, the
+context block, the open file, and the head of the file tree. VibeDesk and
+VibeAIChat send nothing, because neither has a workspace open to describe.
+
+Without this the assistant answered *"I don't have any information about that"*
+about the project on screen beside it — voice was the one surface that never
+received the context every other path already had.
+
+The prompt asks it to answer from the context and to say when the context does
+not say. It is not asked to be helpful about files it cannot see: an assistant
+that invents a file name out loud is harder to catch than one that prints it.
+
 ## Interruption, and what is *not* an interruption
 
 Two things look alike and are not:
@@ -148,6 +173,21 @@ to say why.
 Words from a turn superseded before it spoke are now **carried into the next
 turn**, and the client is told with a `carried` event so nothing vanishes
 silently either way.
+
+## One reply is one turn
+
+`speaking` fires **once per sentence**, because that is what drives streaming
+TTS — waiting for the whole reply would make first audio inherit the entire
+generation time. It is live text, not a turn.
+
+`reply` fires once, with the model's own text, and that is the turn. A host
+building a chat log should append on `reply` and use `speaking` only for live
+display; the shared `useVoiceDuplex` hook already draws this line, exposing
+sentences on `turns` and calling `onTurn` only for completed turns.
+
+Appending each `speaking` event instead rendered a single three-sentence answer
+as three separate chat bubbles. `reduceTurns` in the hook is a pure function so
+the property — one reply, one turn — is unit-tested without a microphone.
 
 ## Languages
 

@@ -67,12 +67,30 @@ export interface UseVoiceDuplexOptions {
   language?: string;
   voice?: string;
   /**
+   * What the user is looking at — file tree, open file, pinned notes.
+   *
+   * Sent on connect and whenever it changes. A host that omits it gets an
+   * assistant that knows nothing about the open project, which is how this
+   * shipped: the typed chat path injected all of this and the voice path
+   * injected none of it.
+   */
+  context?: string;
+  /**
    * Whether the feature is enabled at all. Defaults to `false`.
    *
    * Checked here as well as in the UI: hiding a control is not the same as
    * refusing to open a microphone, and this hook is what actually opens one.
    */
   enabled?: boolean;
+  /**
+   * A *completed* turn, for the host's own chat log.
+   *
+   * Fires once for the user (on transcription) and once for the assistant
+   * (with the whole reply). Deliberately not per sentence: `speaking` fires
+   * per sentence because that is what drives streaming TTS, and a host that
+   * appended each one rendered a two-sentence answer as two chat bubbles.
+   * Live, sentence-by-sentence text is on `turns`.
+   */
   onTurn?: (turn: DuplexTurn) => void;
 }
 
@@ -129,6 +147,60 @@ function describeStartFailure(e: unknown): string {
   return `Could not start voice: ${msg}`;
 }
 
+/** A socket message, as far as the visible turn list is concerned. */
+export type DuplexEvent =
+  | { type: "transcript"; text: string; lang?: string }
+  | { type: "speaking"; text: string }
+  | { type: "reply"; text: string }
+  | { type: "flush" };
+
+/**
+ * Fold one socket event into the turn list.
+ *
+ * Pure, so the property this exists to hold — one reply is one turn — can be
+ * tested without a microphone, a socket or an AudioContext.
+ *
+ * An assistant turn is *open* while it is the last turn and still `interim`.
+ * Sentences extend the open turn instead of starting a new one; `reply` closes
+ * it with the model's own text. `speaking` fires per sentence because that is
+ * what drives streaming TTS, and appending each one rendered a two-sentence
+ * answer as two chat bubbles.
+ */
+export function reduceTurns(turns: readonly DuplexTurn[], ev: DuplexEvent): DuplexTurn[] {
+  const last = turns[turns.length - 1];
+  const open = last?.role === "assistant" && last.interim === true ? last : null;
+  const kept = open ? turns.slice(0, -1) : turns.slice();
+
+  switch (ev.type) {
+    case "transcript":
+      return [...turns, { role: "user", text: ev.text, lang: ev.lang }];
+
+    case "speaking":
+      return open
+        ? [...kept, { ...open, text: `${open.text} ${ev.text}`.trim() }]
+        : [...turns, { role: "assistant", text: ev.text, interim: true }];
+
+    case "reply": {
+      // The model's own text, not the sentences glued back together — the
+      // splitter consumes the whitespace it splits on. An empty reply keeps
+      // whatever was already spoken rather than blanking the turn.
+      const text = ev.text.trim() || open?.text.trim() || "";
+      return text ? [...kept, { role: "assistant", text }] : kept;
+    }
+
+    case "flush":
+      // Barge-in: what was being said was cut off mid-word. Keep it — the
+      // assistant did say it — but close it so the next turn's sentences do
+      // not land inside it.
+      return open ? [...kept, { ...open, interim: false }] : kept;
+
+    default: {
+      const never: never = ev;
+      return never;
+    }
+  }
+}
+
 export function duplexSupported(): boolean {
   return (
     typeof AudioWorkletNode !== "undefined" &&
@@ -153,6 +225,9 @@ export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
   const live = useRef<AudioBufferSourceNode[]>([]);
   const onTurn = useRef(opts.onTurn);
   onTurn.current = opts.onTurn;
+  /// Read when the socket opens, which happens after `start` was created.
+  const contextRef = useRef(opts.context);
+  contextRef.current = opts.context;
 
   /** Stop every scheduled source and reset the cursor. */
   const flush = useCallback(() => {
@@ -328,6 +403,13 @@ export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
       ws.current = sock;
       sockRef.current = sock;
 
+      // Before the first turn, not after it: a question asked in the first
+      // two seconds is the one most likely to be about what is on screen.
+      sock.onopen = () => {
+        const c = contextRef.current?.trim();
+        if (c) sock.send(JSON.stringify({ type: "set_context", context: c }));
+      };
+
       sock.onmessage = (ev) => {
         if (ev.data instanceof ArrayBuffer) {
           enqueue(ev.data);
@@ -340,30 +422,31 @@ export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
             break;
           case "flush":
             flush();
+            setTurns((t) => reduceTurns(t, { type: "flush" }));
             break;
           case "transcript": {
-            const turn: DuplexTurn = { role: "user", text: m.text, lang: m.lang };
-            setTurns((t) => [...t, turn]);
+            setTurns((t) => reduceTurns(t, { type: "transcript", text: m.text, lang: m.lang }));
             setLatency((l) => ({ ...l, asrMs: m.asr_ms }));
-            onTurn.current?.(turn);
+            onTurn.current?.({ role: "user", text: m.text, lang: m.lang });
             break;
           }
-          case "speaking": {
-            const turn: DuplexTurn = { role: "assistant", text: m.text };
-            setTurns((t) => [...t, turn]);
-            onTurn.current?.(turn);
+          case "speaking":
+            // Live text only. The host's chat log hears about the turn once,
+            // on `reply` — see the `onTurn` contract.
+            setTurns((t) => reduceTurns(t, { type: "speaking", text: m.text }));
             break;
-          }
           case "latency":
             setLatency((l) => ({ ...l, firstAudioMs: m.first_audio_ms }));
             break;
           case "reply":
+            setTurns((t) => reduceTurns(t, { type: "reply", text: m.text }));
             setLatency({
               asrMs: m.asr_ms,
               llmTtftMs: m.llm_ttft_ms,
               firstAudioMs: m.first_audio_ms ?? undefined,
               totalMs: m.total_ms,
             });
+            if (m.text?.trim()) onTurn.current?.({ role: "assistant", text: m.text });
             break;
           case "error":
             setState({ status: "error", message: m.message });
@@ -398,6 +481,13 @@ export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
   const send = useCallback((v: unknown) => {
     if (ws.current?.readyState === WebSocket.OPEN) ws.current.send(JSON.stringify(v));
   }, []);
+
+  // Following the workspace while the mic stays open: switching project or
+  // file mid-conversation must not leave the assistant answering about the
+  // last one. An empty block clears it rather than pinning what is now stale.
+  useEffect(() => {
+    send({ type: "set_context", context: opts.context ?? "" });
+  }, [opts.context, send]);
 
   useEffect(() => () => teardown(), [teardown]);
 

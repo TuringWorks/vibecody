@@ -1742,11 +1742,37 @@ export function AIChat({
   // rather than substituting the registry default.
   const duplexSelection = useMemo(() => parseProviderSelection(provider), [provider]);
   const voicePref = useVoiceDuplexPreference();
+
+  // The same material the typed path sends as `context` / `file_tree` /
+  // `current_file`, flattened into one block because the socket carries prose
+  // rather than the typed path's structured request. Without it the assistant
+  // answered "I don't have any information about that" about the project the
+  // user had open in the tree beside it.
+  //
+  // The tree is capped here rather than at the daemon: a large repo is tens of
+  // thousands of paths, and the tail of an alphabetical listing is the least
+  // informative part of it. The daemon bounds it again — this is a courtesy,
+  // not the guard.
+  const duplexContext = useMemo(() => {
+    const tree = fileTree ?? [];
+    const shown = tree.slice(0, 400);
+    const blocks = [
+      pinnedMemory?.trim(),
+      context?.trim(),
+      currentFile ? `Open file: ${currentFile}` : null,
+      shown.length
+        ? `Project files (${shown.length}${tree.length > shown.length ? ` of ${tree.length}` : ""}):\n${shown.join("\n")}`
+        : null,
+    ].filter(Boolean);
+    return blocks.join("\n\n");
+  }, [pinnedMemory, context, currentFile, fileTree]);
+
   const duplex = useVoiceDuplex({
     enabled: voicePref.enabled,
     provider: duplexSelection.provider,
     model: duplexSelection.model,
     language: "en",
+    context: duplexContext,
     onTurn: turn =>
       setMessages(prev => [
         ...prev,

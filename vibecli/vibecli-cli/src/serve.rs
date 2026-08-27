@@ -9636,6 +9636,12 @@ async fn handle_voice_duplex_ws(socket: WebSocket, state: ServeState, params: Ws
     let lang_mode = Arc::new(tokio::sync::Mutex::new(
         params.language.clone().unwrap_or_else(|| "en".into()),
     ));
+    // What the user can see on screen, sent by the client on connect and
+    // whenever it changes. Without it the assistant answers "I don't have any
+    // information about that" about the project open in front of them: the
+    // typed chat path has injected a file tree and pinned notes from the
+    // start, and the voice path was the one surface that never did.
+    let context: Arc<tokio::sync::Mutex<Option<String>>> = Arc::new(tokio::sync::Mutex::new(None));
 
     let mut vad = vd::Vad::default();
     let mut pending: Vec<i16> = Vec::new();
@@ -9654,6 +9660,16 @@ async fn handle_voice_duplex_ws(socket: WebSocket, state: ServeState, params: Ws
                     Some("set_language") => {
                         *lang_mode.lock().await =
                             v.get("lang").and_then(|x| x.as_str()).unwrap_or("en").to_string();
+                    }
+                    Some("set_context") => {
+                        // An absent or blank block clears it rather than
+                        // pinning stale context: the client sends this when the
+                        // workspace *closes* too.
+                        *context.lock().await = v
+                            .get("context")
+                            .and_then(|x| x.as_str())
+                            .map(vd::clamp_context)
+                            .filter(|c| !c.is_empty());
                     }
                     _ => {}
                 }
@@ -9701,6 +9717,7 @@ async fn handle_voice_duplex_ws(socket: WebSocket, state: ServeState, params: Ws
                             Arc::clone(&voice),
                             lang_mode.lock().await.clone(),
                             Arc::clone(&unanswered),
+                            Arc::clone(&context),
                         ));
                     } else {
                         say(serde_json::json!({"type": "state", "state": "listening"}));
@@ -9733,6 +9750,8 @@ async fn voice_duplex_turn(
     lang_mode: String,
     // Words from a turn the user superseded before it could answer.
     unanswered: Arc<tokio::sync::Mutex<Option<String>>>,
+    // The workspace the user is looking at, as last sent by the client.
+    context: Arc<tokio::sync::Mutex<Option<String>>>,
 ) {
     use crate::voice_duplex as vd;
     use futures::StreamExt;
@@ -9806,10 +9825,23 @@ async fn voice_duplex_turn(
         ),
         _ => String::new(),
     };
+    // Answer about the project that is open, not about nothing. The rule stops
+    // short of inviting a guess: an assistant that invents a project structure
+    // out loud is worse than one that admits the context does not say.
+    let ctx_rule = match context.lock().await.as_deref() {
+        Some(c) => format!(
+            "\n\nYou are talking to a developer about the workspace below. Answer from it \
+             when it says enough to answer, and say you cannot tell from what you can see \
+             when it does not. Never invent file names or contents.\n\n\
+             <workspace>\n{c}\n</workspace>"
+        ),
+        None => String::new(),
+    };
     let mut messages = vec![vibe_ai::provider::Message {
         role: vibe_ai::provider::MessageRole::System,
         content: format!(
-            "You are a voice assistant. Reply in one or two short spoken sentences.              No markdown, no lists, no code blocks — this is read aloud.{lang_rule}"
+            "You are a voice assistant. Reply in one or two short spoken sentences. \
+             No markdown, no lists, no code blocks — this is read aloud.{lang_rule}{ctx_rule}"
         ),
     }];
     for (u, a) in history.lock().await.iter() {
