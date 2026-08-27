@@ -122,6 +122,20 @@ final class Sidecar {
   private var t0 = Date()
   private var firstBuffer = true
 
+  /// Audio frame carrying its own sample rate.
+  ///
+  /// `AUD` meant "22.05 kHz, by construction" and was correct while this was
+  /// the only sidecar. It is not any more — the Kokoro sidecar produces 24 kHz
+  /// — and a wrong rate does not fail, it plays at the wrong pitch. The rate
+  /// now travels with the samples. The daemon still reads `AUD`, so an older
+  /// build of this binary keeps working.
+  private func emitAudio(_ samples: Data, rate: Double) {
+    var r = UInt32(rate).littleEndian
+    var payload = Data(bytes: &r, count: 4)
+    payload.append(samples)
+    emit("AUR", payload)
+  }
+
   private func emit(_ tag: String, _ payload: Data) {
     var d = tag.data(using: .ascii)!
     var len = UInt32(payload.count).littleEndian
@@ -200,7 +214,7 @@ final class Sidecar {
           self.firstBuffer = false
           stderrHandle.write("first-buffer \(Int(Date().timeIntervalSince(self.t0)*1000))ms sr=\(sr)\n".data(using: .utf8)!)
         }
-        mono.withUnsafeBufferPointer { p in self.emit("AUD", Data(buffer: p)) }
+        mono.withUnsafeBufferPointer { p in self.emitAudio(Data(buffer: p), rate: sr) }
       }
     }
     }

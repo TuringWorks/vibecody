@@ -14,9 +14,9 @@ SENTENCES = [
     "I could not tell from the file tree alone, so I opened the README to check.",
 ]
 ENGINES = [
-    ("Apple Samantha", "compact · shipping today", "apple-compact-Samantha-{}.wav"),
-    ("Kokoro af_heart", "MLX · fastest neural", "mlx-kokoro-af_heart-{}.wav"),
-    ("Kokoro af_heart", "ONNX fp32", "kokoro-af_heart-{}.wav"),
+    ("Apple Samantha", "compact · tts_engine = system", "apple-compact-Samantha-{}.wav"),
+    ("Kokoro af_heart", "MLX + clauses · tts_engine = kokoro", "ship-kokoro-{}.wav"),
+    ("Kokoro af_heart", "MLX · whole sentence", "mlx-kokoro-af_heart-{}.wav"),
     ("Kokoro am_michael", "ONNX fp32", "kokoro-am_michael-{}.wav"),
 ]
 

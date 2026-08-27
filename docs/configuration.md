@@ -1449,11 +1449,31 @@ whisper_server_bin   = "whisper-server"
 whisper_server_model = "~/.vibecli/models/ggml-small.bin"
 whisper_server_port  = 8923
 
+# Which engine synthesises spoken replies.
+#   "system" — the platform voice. 21 ms to first audio on macOS, measured.
+#              Needs nothing installed. The default.
+#   "kokoro" — Kokoro-82M via MLX. Neural, 165-230 ms to first audio, Apple
+#              Silicon only, and needs mlx-audio + misaki in the interpreter
+#              named by tts_sidecar.
+# Selecting an engine that cannot start falls back to the platform voice *and
+# says so on the socket* — a silent fallback sounds exactly like having
+# configured nothing, which is how it goes unnoticed.
+tts_engine = "system"
+
 # Optional streaming TTS sidecar. Without it every platform still speaks
 # (`say` / `espeak` / PowerShell to a WAV) — the whole utterance is just
 # synthesised before the first sample goes out. A latency difference, not a
 # capability one.
+# A bare name is resolved on PATH, the same as whisper_server_bin above.
 tts_sidecar = "/path/to/tts"
+# Arguments for it. Kokoro's sidecar is a Python script, so the program is an
+# interpreter and the script is an argument. A list, not one string: a path
+# with a space in it is a real path, and a quoting parser is a real bug.
+tts_sidecar_args = []
+# Voice for the neural engine — af_heart, am_michael, and 52 others. Voice ids
+# are per-engine and not interchangeable; the platform engine speaks
+# identifiers like "com.apple.voice.compact.en-US.Samantha".
+kokoro_voice = "af_heart"
 ```
 
 A `whisper-server` **already listening** on `whisper_server_port` is reused as-is,

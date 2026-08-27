@@ -110,6 +110,69 @@ microphone and speaker in one room.
 > all — duplex or push-to-talk. See `tools/webview-probe`'s
 > `apply_linux_media_fix` for the two calls required.
 
+## Choosing a voice engine
+
+Two engines, and the choice is a latency/quality trade with no free answer.
+
+| `[voice] tts_engine` | first audio | needs | platforms |
+|---|---:|---|---|
+| `system` *(default)* | **21 ms** | nothing | macOS · Windows · Linux |
+| `kokoro` | **165–230 ms** | Python + `mlx-audio` | Apple Silicon |
+
+`system` is the platform voice. On macOS that is `AVSpeechSynthesizer`, and the
+single biggest quality win available there costs nothing and is not a code
+change: **Apple's Enhanced and Premium voices are neural, free, and separate
+downloads.** A Mac with none installed speaks in the compact tier, which is what
+"the assistant sounds mechanical" usually means. System Settings →
+Accessibility → Spoken Content → System Voice → Manage Voices. The daemon picks
+the best installed voice automatically.
+
+`kokoro` is Kokoro-82M running through MLX. Neural, 54 voices, Apache-2.0, and
+about 8× slower to first audio than the platform engine — see the numbers in
+`tools/tts-bench`, which measures both rather than estimating.
+
+### Turning on Kokoro
+
+The daemon cannot ship a Python environment, so this is explicit setup:
+
+```bash
+uv venv --python 3.12 ~/.vibecli/tts
+VIRTUAL_ENV=~/.vibecli/tts uv pip install mlx-audio "misaki[en]"
+```
+
+```toml
+[voice]
+tts_engine = "kokoro"
+tts_sidecar = "~/.vibecli/tts/bin/python"
+tts_sidecar_args = ["/path/to/tools/voice-duplex/sidecar/tts_kokoro.py"]
+kokoro_voice = "af_heart"
+```
+
+If the interpreter or the packages are missing, the daemon **says so on the
+socket** and falls back to the platform voice. It does not fall back silently:
+that failure is inaudible in the only sense that matters, because it sounds
+exactly like never having configured anything.
+
+### Why it splits sentences at commas
+
+Kokoro is non-autoregressive — a sentence is produced in one pass, so first
+audio is the whole sentence's synthesis time. Measured on an M-series Mac, a
+full sentence takes 386–416 ms; split at the comma and the first clause goes out
+in **165–228 ms** while the rest synthesises behind it. Total synthesis rises
+about 15%, which costs nothing at a real-time factor near 0.1 — playback never
+catches up with generation.
+
+The cost is prosody: every clause gets sentence-final intonation, so a long
+reply is slightly choppier than one pass would be. Send
+`{"cmd":"clauses","on":false}` to the sidecar to hear the difference.
+
+### The frame carries its own sample rate
+
+`AVSpeechSynthesizer` produces 22.05 kHz and Kokoro 24 kHz. A wrong sample rate
+does not fail — it plays at the wrong pitch and speed — so audio frames are
+`AUR`: a `u32` rate followed by `f32` samples. The original `AUD` frame is still
+read as 22.05 kHz, so a daemon can drive a sidecar built before this existed.
+
 ## Latency
 
 Measured on an M-series MacBook Air, end of speech to first audio:

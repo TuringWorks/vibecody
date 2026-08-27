@@ -9609,16 +9609,33 @@ async fn handle_voice_duplex_ws(socket: WebSocket, state: ServeState, params: Ws
         cfg.voice.whisper_server_port,
     )
     .await;
-    let tts = Arc::new(tokio::sync::Mutex::new(
-        vd::Tts::open(cfg.voice.tts_sidecar.as_deref()).await,
-    ));
-
+    let (tts_raw, tts_warning) = vd::Tts::open(
+        cfg.voice.tts_sidecar.as_deref(),
+        &cfg.voice.tts_sidecar_args,
+    )
+    .await;
+    let streaming = tts_raw.is_streaming();
+    let tts = Arc::new(tokio::sync::Mutex::new(tts_raw));
     say(serde_json::json!({
         "type": "ready",
         "asr": if asr_server.is_some() { "whisper-server" } else { "whisper-cli" },
-        "tts": if tts.lock().await.is_streaming() { "streaming" } else { "batch" },
+        "tts": if streaming { "streaming" } else { "batch" },
+        "engine": cfg.voice.tts_engine,
         "language": params.language.clone().unwrap_or_else(|| "en".into()),
     }));
+    // A configured engine that did not start is worth a sentence on screen. The
+    // failure is otherwise inaudible in the only sense that matters: it sounds
+    // exactly like not having configured anything.
+    //
+    // `notice`, not `error`: the conversation works, it is merely using the
+    // other voice. Clients turn `error` into a terminal session state, so
+    // reporting a successful fallback that way would read as "voice is broken"
+    // when nothing is. Also logged, because a client too old to know the type
+    // drops it silently and the daemon log is then the only record.
+    if let Some(w) = tts_warning {
+        tracing::warn!("{w}");
+        say(serde_json::json!({"type": "notice", "message": w}));
+    }
     say(serde_json::json!({"type": "state", "state": "listening"}));
 
     let provider = chat_provider_for(
@@ -9629,7 +9646,13 @@ async fn handle_voice_duplex_ws(socket: WebSocket, state: ServeState, params: Ws
     let gen = vd::Generation::default();
     let history: Arc<tokio::sync::Mutex<Vec<(String, String)>>> =
         Arc::new(tokio::sync::Mutex::new(Vec::new()));
-    let voice = Arc::new(tokio::sync::Mutex::new(params.voice.clone()));
+    // Voice ids are per-engine and not interchangeable: Kokoro speaks
+    // `af_heart`, the platform speaks `com.apple.voice.compact.en-US.Samantha`.
+    // A client that has not chosen one gets the configured default for whichever
+    // engine is actually running, rather than the other engine's vocabulary.
+    let voice = Arc::new(tokio::sync::Mutex::new(params.voice.clone().or_else(|| {
+        (cfg.voice.tts_engine == "kokoro").then(|| cfg.voice.kokoro_voice.clone())
+    })));
     // Survives across turns: see `voice_duplex_turn`. Distinct from `carry`
     // below, which is the PCM remainder between frames.
     let unanswered: Arc<tokio::sync::Mutex<Option<String>>> = Arc::new(tokio::sync::Mutex::new(None));

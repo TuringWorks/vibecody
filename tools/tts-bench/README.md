@@ -22,9 +22,10 @@ any engine with RTF < 1 can sustain.
 
 | engine | first audio (median) | RTF | notes |
 |---|---:|---:|---|
-| **Apple Samantha, compact** (shipping) | **21 ms** | 0.019 | streams buffers within an utterance |
+| **Apple Samantha, compact** (`tts_engine = "system"`) | **21 ms** | 0.019 | streams buffers within an utterance |
 | Apple enhanced / premium | *not measured* | | none installed on the test machine |
-| Kokoro-82M, MLX | 471 ms | 0.106 | best neural result |
+| **Kokoro-82M, MLX + clause split** (`tts_engine = "kokoro"`) | **218 ms** | 0.106 | what ships |
+| Kokoro-82M, MLX, whole sentence | 471 ms | 0.106 | the same model, one pass |
 | Kokoro-82M, ONNX fp16 CPU | 826 ms | 0.262 | best ONNX result |
 | Kokoro-82M, ONNX fp32 CPU | 869 ms | 0.293 | |
 | Kokoro-82M, ONNX fp16 CoreML | 930 ms | 0.297 | CoreML is *slower* than CPU |
@@ -40,6 +41,18 @@ rather than estimated:
   way quantisation helps.
 * **MLX is 1.75× faster than the best ONNX build.** The published "0.08 RTF"
   figure is reachable, but not through ONNX Runtime.
+
+## Clause splitting is worth 2x
+
+Kokoro is non-autoregressive, so a sentence is produced in one pass and first
+audio is the *whole sentence's* synthesis time. Splitting at commas lets the
+first clause go out while the rest is still being made: 218 ms median against
+471 ms, on the same model and machine. Total synthesis rises ~15%, which costs
+nothing at RTF 0.106 — playback never catches up.
+
+The cost is prosody: every clause gets sentence-final intonation. `ship-*.wav`
+and `mlx-kokoro-*.wav` are the same sentences with and without the split, which
+is the comparison the numbers cannot make.
 
 ## Two instrument bugs, both caught by disbelieving the number
 

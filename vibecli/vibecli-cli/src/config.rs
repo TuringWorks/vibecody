@@ -823,6 +823,28 @@ pub struct VoiceConfig {
     /// sample goes out.
     #[serde(default)]
     pub tts_sidecar: Option<String>,
+    /// Arguments for the sidecar. The Kokoro engine is a Python script, so the
+    /// program is an interpreter and the script is an argument — kept as a list
+    /// rather than parsed out of one string, because a path with a space in it
+    /// is a real path and a quoting parser is a real bug.
+    #[serde(default)]
+    pub tts_sidecar_args: Vec<String>,
+    /// Which engine synthesises spoken replies.
+    ///
+    /// * `system` — the platform voice. **21 ms** to first audio on macOS,
+    ///   measured; the default, and the only one that needs nothing installed.
+    /// * `kokoro` — Kokoro-82M via MLX. Neural, and the answer to "the
+    ///   assistant sounds mechanical", at **165–230 ms** to first audio with
+    ///   clause splitting. Apple Silicon only, and needs `mlx-audio` plus
+    ///   `misaki` in the interpreter named by `tts_sidecar`.
+    ///
+    /// Selecting `kokoro` without those installed falls back to the platform
+    /// voice and says so on the socket rather than quietly sounding wrong.
+    #[serde(default = "VoiceConfig::default_tts_engine")]
+    pub tts_engine: String,
+    /// Voice for the neural engine: `af_heart`, `am_michael`, and 52 others.
+    #[serde(default = "VoiceConfig::default_kokoro_voice")]
+    pub kokoro_voice: String,
     /// Local Whisper model variant: "tiny", "base", "small", "medium", "large".
     #[serde(default = "VoiceConfig::default_local_model")]
     pub local_model: String,
@@ -846,6 +868,9 @@ impl Default for VoiceConfig {
             whisper_server_model: Self::default_whisper_server_model(),
             whisper_server_port: Self::default_whisper_server_port(),
             tts_sidecar: None,
+            tts_sidecar_args: Vec::new(),
+            tts_engine: Self::default_tts_engine(),
+            kokoro_voice: Self::default_kokoro_voice(),
             local_model: Self::default_local_model(),
             language: Self::default_language(),
             silence_timeout_ms: Self::default_silence_timeout(),
@@ -855,6 +880,12 @@ impl Default for VoiceConfig {
 
 #[allow(dead_code)]
 impl VoiceConfig {
+    fn default_tts_engine() -> String {
+        "system".into()
+    }
+    fn default_kokoro_voice() -> String {
+        "af_heart".into()
+    }
     fn default_whisper_server_bin() -> String {
         "whisper-server".to_string()
     }

@@ -185,15 +185,37 @@ pub struct Audio {
 
 impl Tts {
     /// Prefer the streaming sidecar, fall back to batch synthesis.
-    pub async fn open(sidecar_bin: Option<&str>) -> Self {
-        if let Some(bin) = sidecar_bin {
-            if std::path::Path::new(bin).exists() {
-                if let Ok(s) = Sidecar::spawn(bin).await {
-                    return Tts::Streaming(s);
-                }
-            }
+    ///
+    /// Returns the reason alongside, when a sidecar was configured and could
+    /// not be used. A silent fallback here is the whole
+    /// [success-assuming](../../AGENTS.md) failure: the user configures a
+    /// neural voice, hears the platform one, and has nothing to read.
+    pub async fn open(sidecar_bin: Option<&str>, args: &[String]) -> (Self, Option<String>) {
+        let Some(bin) = sidecar_bin.map(str::trim).filter(|b| !b.is_empty()) else {
+            return (Tts::Batch, None);
+        };
+        // `resolve_bin`, not `Path::exists`: a bare command name is not a path,
+        // and checking it as one reported "not found" for a program sitting on
+        // PATH. The same mistake shipped once already for `whisper_server_bin`.
+        let Some(prog) = resolve_bin(bin) else {
+            return (
+                Tts::Batch,
+                Some(format!(
+                    "Speech sidecar `{bin}` was not found on PATH or at that path. \
+                     Falling back to the platform voice."
+                )),
+            );
+        };
+        match Sidecar::spawn(&prog, args).await {
+            Ok(s) => (Tts::Streaming(s), None),
+            Err(e) => (
+                Tts::Batch,
+                Some(format!(
+                    "Speech sidecar `{bin}` failed to start ({e}). Falling back to \
+                     the platform voice."
+                )),
+            ),
         }
-        Tts::Batch
     }
 
     pub fn is_streaming(&self) -> bool {
@@ -233,8 +255,9 @@ impl Tts {
 }
 
 impl Sidecar {
-    async fn spawn(bin: &str) -> Result<Self> {
+    async fn spawn(bin: &str, args: &[String]) -> Result<Self> {
         let mut child = Command::new(bin)
+            .args(args)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
@@ -305,12 +328,32 @@ impl Sidecar {
         }
         let mut buf = vec![0u8; n];
         self.stdout.read_exact(&mut buf).await?;
+        // `AUR` carries its own rate; `AUD` is the original frame and is
+        // 22.05 kHz by construction. The rate has to travel with the samples
+        // now that more than one engine can produce them — AVSpeechSynthesizer
+        // gives 22.05 kHz and Kokoro 24 kHz, and a wrong rate does not fail, it
+        // plays at the wrong pitch. Both tags are read so a daemon can drive a
+        // sidecar built before this existed.
+        let (rate, body) = if &tag == b"AUR" {
+            if buf.len() < 4 {
+                anyhow::bail!("tts sidecar: AUR frame too short for a rate");
+            }
+            let r = u32::from_le_bytes([buf[0], buf[1], buf[2], buf[3]]);
+            // A rate outside this range is a desynchronised stream, not audio.
+            // Trusting it would drive the resampler off a cliff.
+            if !(8_000..=48_000).contains(&r) {
+                anyhow::bail!("tts sidecar: implausible sample rate {r}");
+            }
+            (r, &buf[4..])
+        } else {
+            (22_050u32, &buf[..])
+        };
         Ok(Some(Audio {
-            pcm: buf
+            pcm: body
                 .chunks_exact(4)
                 .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
                 .collect(),
-            rate: 22_050,
+            rate,
         }))
     }
 }
@@ -596,6 +639,47 @@ pub fn resolve_bin(bin: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    /// Decode one sidecar frame the way `read_frame` does, without a pipe.
+    ///
+    /// The parsing is the part that can be wrong in a way nobody hears as a
+    /// failure: a mis-read sample rate plays the whole reply at the wrong pitch
+    /// and speed, which sounds like a bad voice rather than a bug.
+    fn decode(tag: &[u8; 3], payload: &[u8]) -> Option<(u32, usize)> {
+        if tag == b"END" {
+            return None;
+        }
+        let (rate, body) = if tag == b"AUR" {
+            let r = u32::from_le_bytes([payload[0], payload[1], payload[2], payload[3]]);
+            (r, &payload[4..])
+        } else {
+            (22_050u32, payload)
+        };
+        Some((rate, body.len() / 4))
+    }
+
+    #[test]
+    fn an_aur_frame_carries_its_own_sample_rate() {
+        // Kokoro is 24 kHz and AVSpeechSynthesizer 22.05 kHz. Assuming either
+        // one for both is a 9% pitch error on every word.
+        let mut p = 24_000u32.to_le_bytes().to_vec();
+        p.extend(1.0f32.to_le_bytes());
+        p.extend((-1.0f32).to_le_bytes());
+        assert_eq!(decode(b"AUR", &p), Some((24_000, 2)));
+    }
+
+    #[test]
+    fn a_legacy_aud_frame_is_still_read_at_22_05_khz() {
+        // A daemon may be driving a sidecar binary built before AUR existed.
+        // Refusing it would break the shipping engine to add a new one.
+        let p: Vec<u8> = 0.5f32.to_le_bytes().repeat(3);
+        assert_eq!(decode(b"AUD", &p), Some((22_050, 3)));
+    }
+
+    #[test]
+    fn end_terminates_the_utterance() {
+        assert_eq!(decode(b"END", &[]), None);
+    }
+
     /// The pipeline the daemon runs between the provider and the speaker.
     ///
     /// All three stages, in the daemon's order, because a helper that models

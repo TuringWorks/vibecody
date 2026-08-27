@@ -4,7 +4,8 @@ d = json.loads(pathlib.Path("out/clips.json").read_text())
 BARS = [
     ("Apple Samantha", "compact · AVSpeechSynthesizer", 21, "0.019", "ship", ""),
     ("Apple enhanced / premium", "neural · free download", None, "—", "gap", "not installed on this Mac"),
-    ("Kokoro-82M", "MLX", 471, "0.106", "ok", ""),
+    ("Kokoro-82M", "MLX + clause split", 218, "0.106", "ok", "what ships as tts_engine = kokoro"),
+    ("Kokoro-82M", "MLX · whole sentence", 471, "0.106", "mid", ""),
     ("Kokoro-82M", "ONNX fp16 · CPU", 826, "0.262", "mid", ""),
     ("Kokoro-82M", "ONNX fp32 · CPU", 869, "0.293", "mid", ""),
     ("Kokoro-82M", "ONNX fp16 · CoreML", 930, "0.297", "mid", "CoreML slower than CPU"),
@@ -212,6 +213,18 @@ whether the fast one is good enough.</p>
   </tbody>
 </table>
 </div>
+
+<h2>What shipped</h2>
+<p class="col"><code>tts_engine = "kokoro"</code> runs the second row: Kokoro-82M
+through MLX, splitting each sentence at its commas so the first clause is spoken
+while the rest is still being synthesised. That is worth <strong>2&times;</strong>
+— 218 ms median against 471 ms for the same model on the same machine
+one sentence at a time — and it costs about 15% more total synthesis, which is
+free at a real-time factor near 0.1.</p>
+<p class="col">The cost is prosody. Every clause gets sentence-final intonation,
+so a long reply is a little choppier than one pass would be. The second and
+third columns above are the same model with and without the split; that
+difference is the one the numbers cannot settle.</p>
 
 <h2>Three results that cut against expectation</h2>
 <p class="col">Each of these would have been guessed the other way, which is the
