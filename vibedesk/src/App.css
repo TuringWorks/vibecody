@@ -262,11 +262,89 @@ html, body, #root {
 .vx-approval__btn--allow:hover { background: var(--bg-secondary); }
 
 /* ── Composer (VX-105) + pills (VX-106/107/108) ─────────────────────────── */
-.vx-composer { position: relative; border-top: 1px solid var(--border-color); padding: 10px; background: var(--bg-secondary); }
-.vx-composer__input { width: 100%; resize: none; background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 10px; font-size: 13px; font-family: inherit; }
-.vx-composer__bar { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-.vx-composer__spacer { flex: 1; }
+/* A container, so the bar can wrap on *its* width rather than the window's:
+   the composer is narrower than the viewport by whatever the rails take. On
+   macOS 12 (WebKit 15, no @container) the query simply never matches and the
+   model name truncates to its floor instead — squeezed, not broken. */
+.vx-composer { position: relative; container-type: inline-size; border-top: 1px solid var(--border-color); padding: 10px; background: var(--bg-secondary); }
+/* One frame around the message and its controls (ChatGPT/Claude composer
+   shape). Before this the toolbar was a loose strip of pills under a box, so
+   nothing said which controls belonged to the thing being sent. */
+.vx-composer__box {
+  position: relative;
+  display: flex; flex-direction: column;
+  padding: 8px 8px 6px;
+  border: 1px solid var(--border-color); border-radius: 12px;
+  background: var(--bg-tertiary);
+  transition: border-color var(--transition-fast);
+}
+.vx-composer__box:focus-within { border-color: var(--accent-blue); }
+.vx-composer__input { width: 100%; resize: none; background: transparent; color: var(--text-primary); border: none; padding: 4px 4px 2px; font-size: 13px; font-family: inherit; }
+.vx-composer__input:focus { outline: none; }
+/* Shrink first, wrap only when the window itself is narrow. Flex decides to
+   wrap from an item's *unshrunk* width, so allowing wrap unconditionally sent
+   the send button to a second line while the model name still had 100px of
+   slack to give up. Without either, at ~440px it sat outside the frame. */
+.vx-composer__bar { display: flex; align-items: center; flex-wrap: nowrap; gap: 6px; margin-top: 6px; }
+@container (max-width: 470px) { .vx-composer__bar { flex-wrap: wrap; } }
+/* Everything holds its size; the model name is the one thing allowed to give
+   ground, and the spacer eats what is left. */
+.vx-composer__bar > * { flex: none; }
+.vx-composer__spacer { flex: 1 1 0; min-width: 0; }
 .vx-composer__input { max-height: 260px; overflow-y: auto; line-height: 1.5; }
+
+/* The run's standing conditions — approval tier, branch, sandbox grants.
+   Text-weight, outside the box: these describe the *run*, not the message, and
+   putting them in the same row as the model selector is what made eight
+   equal-looking pills. */
+.vx-composer__context { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; padding: 6px 4px 0; }
+.vx-composer__hint { margin-left: auto; padding-right: 4px; font-size: 11px; color: var(--text-tertiary); }
+@container (max-width: 620px) { .vx-composer__hint { display: none; } }
+
+/* Quiet control: reads as a label until hovered. Colour is reserved for the
+   one state worth noticing (full access). */
+.vx-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  max-width: 100%;
+  padding: 3px 7px; border: 1px solid transparent; border-radius: 7px;
+  background: transparent; color: var(--text-tertiary);
+  font-size: 11px; font-family: inherit; cursor: pointer;
+}
+.vx-chip:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+.vx-chip__caret { opacity: 0.6; }
+.vx-chip__truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vx-chip--warn { color: var(--accent-orange); }
+.vx-chip--warn:hover { color: var(--accent-orange); background: color-mix(in srgb, var(--accent-orange) 12%, transparent); }
+.vx-chip--on { color: var(--accent-blue); }
+.vx-chip--on:hover { color: var(--accent-blue); background: color-mix(in srgb, var(--accent-blue) 12%, transparent); }
+
+/* Run mode as a segmented switch: the one control that decides whether a
+   message *does* something shows its alternatives without a click. */
+.vx-seg { display: inline-flex; flex: none; padding: 2px; border-radius: 9px; background: var(--bg-secondary); border: 1px solid var(--border-color); }
+.vx-seg__opt {
+  padding: 3px 10px; border: none; border-radius: 7px;
+  background: transparent; color: var(--text-tertiary);
+  font-size: 12px; font-family: inherit; cursor: pointer;
+}
+.vx-seg__opt:hover { color: var(--text-primary); }
+.vx-seg__opt.is-active { background: var(--bg-elevated); color: var(--text-primary); font-weight: 600; }
+
+/* Model + effort: one decision, one shell. */
+.vx-pillgroup { display: inline-flex; align-items: stretch; min-width: 0; flex: 0 1 auto; border: 1px solid var(--border-color); border-radius: 14px; background: var(--bg-secondary); }
+.vx-pillgroup .vx-pill { border: none; background: transparent; border-radius: 14px; }
+.vx-pillgroup .vx-pill--effort { color: var(--text-tertiary); padding-left: 6px; }
+.vx-pillgroup .vx-pill--effort:hover { color: var(--text-primary); }
+.vx-pillgroup .vx-pill--model { padding-right: 4px; min-width: 0; overflow: hidden; }
+/* Shrinking has to reach the model *name*, or the group shrinks while its
+   children spill out of it and draw over the mic and the send button. Each
+   level between the two opts out of `min-width: auto`; the effort keeps its
+   size, so a narrow pane truncates the model name and nothing else. */
+.vx-pillgroup .vx-pill-wrap { min-width: 0; flex: 0 1 auto; }
+.vx-pillgroup .vx-pill-wrap:last-child { flex: none; }
+.vx-pillgroup .vx-pill { min-width: 0; }
+/* Right-hand menus open leftwards, or they run off the window edge. */
+.vx-pillgroup .vx-pill-menu { left: auto; right: 0; }
+
 /* Attachment chips, above the input so they read as part of the message. */
 .vx-attach { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
 .vx-attach__chip { display: inline-flex; align-items: center; gap: 5px; max-width: 260px; padding: 3px 6px 3px 8px; border: 1px solid var(--border-color); border-radius: 12px; background: var(--bg-tertiary); font-size: 11px; color: var(--text-secondary); }
@@ -309,15 +387,18 @@ html, body, #root {
 .vx-composer__submit:disabled { opacity: 0.4; cursor: default; }
 /* Stop reads as an interrupt, not a send — different colour, square glyph. */
 .vx-composer__submit--stop { background: var(--error-color); }
-.vx-pill-wrap { position: relative; }
-.vx-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border: 1px solid var(--border-color); border-radius: 14px; background: var(--bg-tertiary); color: var(--text-secondary); cursor: pointer; font-size: 12px; }
+.vx-pill-wrap { position: relative; display: inline-flex; }
+.vx-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border: 1px solid var(--border-color); border-radius: 14px; background: var(--bg-tertiary); color: var(--text-secondary); cursor: pointer; font-size: 12px; font-family: inherit; }
 .vx-pill:hover { color: var(--text-primary); }
 .vx-pill--warn { color: var(--accent-orange); border-color: var(--accent-orange); }
-.vx-pill--branch-on { color: var(--accent-blue); border-color: var(--accent-blue); }
-.vx-pill-menu { position: absolute; bottom: calc(100% + 6px); left: 0; min-width: 180px; list-style: none; background: var(--bg-elevated); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: var(--elevation-2); padding: 4px; z-index: 10; }
-.vx-pill-menu__item { display: flex; justify-content: space-between; width: 100%; padding: 6px 8px; border: none; border-radius: 5px; background: transparent; color: var(--text-primary); cursor: pointer; font-size: 12px; text-align: left; }
+.vx-pill-menu { position: absolute; bottom: calc(100% + 6px); left: 0; min-width: 200px; list-style: none; margin: 0; background: var(--bg-elevated); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: var(--elevation-2); padding: 4px; z-index: 10; }
+.vx-pill-menu__item { display: flex; align-items: baseline; flex-wrap: wrap; justify-content: space-between; gap: 2px 10px; width: 100%; padding: 6px 8px; border: none; border-radius: 5px; background: transparent; color: var(--text-primary); cursor: pointer; font-size: 12px; font-family: inherit; text-align: left; }
 .vx-pill-menu__item:hover { background: var(--bg-tertiary); }
 .vx-pill-menu__item.is-active { background: var(--bg-tertiary); font-weight: 600; }
+/* The hint takes a whole line of its own — a menu of bare tier names ("Default
+   permissions") never said what picking one would do. */
+.vx-pill-menu__label { flex: 1 1 auto; }
+.vx-pill-menu__hint { flex: 1 0 100%; font-size: 11px; font-weight: 400; color: var(--text-tertiary); line-height: 1.4; }
 .vx-pill-menu__item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vx-pill-menu--models { min-width: 260px; max-width: 340px; }
 /* The filter stays pinned while the (often long) model list scrolls. */
@@ -325,17 +406,25 @@ html, body, #root {
 .vx-pill-menu__scroll { max-height: 300px; overflow-y: auto; }
 .vx-pill-menu__group { padding: 6px 8px 2px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-tertiary); }
 .vx-pill-menu__empty { padding: 8px; font-size: 12px; color: var(--text-tertiary); }
-.vx-pill__model { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vx-pill__model { flex: 0 1 auto; min-width: 3.5em; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ── Quick-action drawer (VX-110) ───────────────────────────────────────── */
-.vx-drawer { position: absolute; bottom: calc(100% + 6px); left: 10px; right: 10px; background: var(--bg-elevated); border: 1px solid var(--border-color); border-radius: 10px; box-shadow: var(--elevation-3); padding: 10px; z-index: 12; }
-.vx-drawer__head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; color: var(--text-secondary); font-size: 12px; }
-.vx-drawer__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.vx-drawer__action { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; text-align: left; position: relative; }
-.vx-drawer__action:disabled { opacity: 0.5; cursor: default; }
-.vx-drawer__action-label { font-weight: 600; font-size: 13px; }
-.vx-drawer__action-sub { font-size: 11px; color: var(--text-secondary); }
-.vx-drawer__soon { position: absolute; top: 6px; right: 6px; font-size: 10px; color: var(--text-tertiary); }
+/* Anchored to the "+" that opens it, not stretched across the composer: a
+   full-width card of three-column tiles read as a modal you had to deal with,
+   which is the opposite of "one button that quietly adds things". */
+.vx-drawer { position: absolute; bottom: calc(100% + 6px); left: 0; width: 290px; max-height: 60vh; overflow-y: auto; background: var(--bg-elevated); border: 1px solid var(--border-color); border-radius: 10px; box-shadow: var(--elevation-3); padding: 4px; z-index: 12; }
+.vx-drawer__group { padding: 7px 8px 3px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-tertiary); }
+.vx-drawer__item { display: grid; grid-template-columns: auto 1fr auto; align-items: center; column-gap: 9px; width: 100%; padding: 6px 8px; border: none; border-radius: 6px; background: transparent; color: var(--text-primary); cursor: pointer; text-align: left; font-family: inherit; }
+.vx-drawer__item:hover:not(:disabled) { background: var(--bg-tertiary); }
+.vx-drawer__item:disabled { opacity: 0.55; cursor: default; }
+.vx-drawer__item > svg { grid-row: 1 / span 2; color: var(--text-secondary); }
+.vx-drawer__label { font-size: 13px; }
+.vx-drawer__sub { grid-column: 2 / span 2; font-size: 11px; color: var(--text-tertiary); line-height: 1.35; }
+/* A switch, because this one is a standing setting rather than an action. */
+.vx-drawer__switch { grid-column: 3; grid-row: 1; width: 26px; height: 15px; border-radius: 8px; background: var(--bg-secondary); border: 1px solid var(--border-color); position: relative; transition: background var(--transition-fast); }
+.vx-drawer__switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 9px; height: 9px; border-radius: 50%; background: var(--text-tertiary); transition: transform var(--transition-fast), background var(--transition-fast); }
+.vx-drawer__switch.is-on { background: color-mix(in srgb, var(--accent-blue) 40%, transparent); border-color: var(--accent-blue); }
+.vx-drawer__switch.is-on::after { transform: translateX(11px); background: var(--accent-blue); }
 
 /* ── Automations (hosted loops) ─────────────────────────────────────────── */
 .vx-auto__new { display: flex; gap: 8px; padding: 12px 18px 6px; }

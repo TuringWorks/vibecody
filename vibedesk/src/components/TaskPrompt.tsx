@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Plus, ArrowUp, GitBranch, Square, FileCode, Paperclip, X } from "lucide-react";
+import { Plus, ArrowUp, GitBranch, Square, FileCode, X, FlaskConical } from "lucide-react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { useVoiceInput } from "@vibe/shared/voice/useVoiceInput";
@@ -15,6 +15,7 @@ import { ModePill, type RunMode } from "./ModePill";
 import { SandboxSettings } from "./SandboxSettings";
 import { describe as describeSandbox, type SandboxPolicy } from "../lib/sandbox";
 import { QuickActionDrawer, type QuickAction } from "./QuickActionDrawer";
+import { useClickAway } from "@vibe/shared/hooks/useClickAway";
 import type { ComposerPrefs } from "../hooks/useComposerPrefs";
 import { findMention, rankFiles, useProjectFiles } from "../hooks/useProjectFiles";
 import { findSlash, matchSlash, type SlashAction } from "./slashCommands";
@@ -99,6 +100,10 @@ export function TaskPrompt({
 }: TaskPromptProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [sandboxOpen, setSandboxOpen] = useState(false);
+  // The "+" and its menu share one wrapper so a click on the button counts as
+  // "inside": dismissing on the button itself would close, then immediately
+  // reopen on the same click.
+  const plusRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   // Sent messages, newest last — recalled with ↑/↓ on an empty composer, the
   // way every shell and chat client behaves.
@@ -215,6 +220,13 @@ export function TaskPrompt({
 
   const canSubmit = (!!draft.trim() || attachments.length > 0) && !busy && daemonOnline;
 
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+  useClickAway(drawerOpen, plusRef, closeDrawer);
+
+  const duplexHint = daemonOnline
+    ? "This webview cannot capture audio"
+    : "The daemon is offline";
+
   // Auto-grow: a fixed 2-row box made anything longer than a sentence a
   // 2-line peephole, which is the most-hit edge of the composer.
   useLayoutEffect(() => {
@@ -330,15 +342,6 @@ export function TaskPrompt({
 
   return (
     <div className="vx-composer">
-      {drawerOpen && (
-        <QuickActionDrawer
-          onAction={(a) => {
-            setDrawerOpen(false);
-            onQuickAction(a);
-          }}
-          onClose={() => setDrawerOpen(false)}
-        />
-      )}
       {slashOpen && (
         <ul className="vx-mention" role="listbox" aria-label="Slash commands">
           {slashMatches.map((c, i) => (
@@ -382,28 +385,6 @@ export function TaskPrompt({
           ))}
         </ul>
       )}
-      {(attachments.length > 0 || attachError) && (
-        <div className="vx-attach">
-          {attachments.map((a) => (
-            <span key={a.path} className="vx-attach__chip" title={`${a.path} · ${formatBytes(a.bytes)}`}>
-              <FileCode size={11} />
-              <span className="vx-attach__name">{a.name}</span>
-              <span className="vx-attach__size">
-                {formatBytes(a.bytes)}
-                {a.truncated ? " · truncated" : ""}
-              </span>
-              <button
-                className="vx-attach__remove"
-                aria-label={`Remove ${a.name}`}
-                onClick={() => onAttachments(attachments.filter((x) => x.path !== a.path))}
-              >
-                <X size={11} />
-              </button>
-            </span>
-          ))}
-          {attachError && <span className="vx-attach__error">{attachError}</span>}
-        </div>
-      )}
       {voice.interimText && (
         <div className="vx-voice-interim" aria-live="polite">
           {voice.interimText}
@@ -414,24 +395,6 @@ export function TaskPrompt({
           {voice.error}
         </div>
       )}
-      <textarea
-        ref={inputRef}
-        className="vx-composer__input"
-        placeholder={
-          daemonOnline
-            ? "Describe a task, or ask a question — @ for a file, / for commands"
-            : "Waiting for the daemon…"
-        }
-        value={draft}
-        rows={1}
-        onChange={(e) => {
-          historyPos.current = null;
-          setCaret(e.target.selectionStart ?? e.target.value.length);
-          onDraft(e.target.value);
-        }}
-        onSelect={(e) => setCaret(e.currentTarget.selectionStart ?? 0)}
-        onKeyDown={onKeyDown}
-      />
       {sandboxOpen && (
         <SandboxSettings
           value={prefs.sandbox}
@@ -439,94 +402,170 @@ export function TaskPrompt({
           onClose={() => setSandboxOpen(false)}
         />
       )}
-      <div className="vx-composer__bar">
-        <button
-          className="vx-icon-btn"
-          aria-label="Quick actions"
-          title="Quick actions"
-          onClick={() => setDrawerOpen((v) => !v)}
-        >
-          <Plus size={16} />
-        </button>
-        <button
-          className="vx-icon-btn"
-          aria-label="Attach files"
-          title="Attach files"
-          onClick={pickAttachments}
-        >
-          <Paperclip size={15} />
-        </button>
-        <VoiceButton voice={voice} disabled={busy} />
-        <DuplexVoiceButton
-          state={duplex.state}
-          enabled={voicePref.enabled}
-          onEnabledChange={voicePref.setEnabled}
-          active={duplex.active}
-          supported={duplex.supported && daemonOnline}
-          onStart={duplex.start}
-          onStop={duplex.stop}
-          unsupportedHint={
-            daemonOnline ? "This webview cannot capture audio" : "The daemon is offline"
+      {/* One surface: what you are sending (attachments, text) and how you send
+          it (the toolbar) sit inside a single frame, so the controls read as
+          part of the message rather than as a strip of app chrome under it. */}
+      <div className="vx-composer__box">
+        {(attachments.length > 0 || attachError) && (
+          <div className="vx-attach">
+            {attachments.map((a) => (
+              <span key={a.path} className="vx-attach__chip" title={`${a.path} · ${formatBytes(a.bytes)}`}>
+                <FileCode size={11} />
+                <span className="vx-attach__name">{a.name}</span>
+                <span className="vx-attach__size">
+                  {formatBytes(a.bytes)}
+                  {a.truncated ? " · truncated" : ""}
+                </span>
+                <button
+                  className="vx-attach__remove"
+                  aria-label={`Remove ${a.name}`}
+                  onClick={() => onAttachments(attachments.filter((x) => x.path !== a.path))}
+                >
+                  <X size={11} />
+                </button>
+              </span>
+            ))}
+            {attachError && <span className="vx-attach__error">{attachError}</span>}
+          </div>
+        )}
+        <textarea
+          ref={inputRef}
+          className="vx-composer__input"
+          placeholder={
+            daemonOnline
+              ? "Describe a task, or ask a question — @ for a file, / for commands"
+              : "Waiting for the daemon…"
           }
+          value={draft}
+          rows={1}
+          onChange={(e) => {
+            historyPos.current = null;
+            setCaret(e.target.selectionStart ?? e.target.value.length);
+            onDraft(e.target.value);
+          }}
+          onSelect={(e) => setCaret(e.currentTarget.selectionStart ?? 0)}
+          onKeyDown={onKeyDown}
         />
+        {/* Left: what goes in. Right: which model answers, and send. Anything
+            that describes the *run* rather than the message lives on the
+            context row below — eight equal-weight pills in one row was the
+            complaint this layout answers. */}
+        <div className="vx-composer__bar">
+          <div className="vx-pill-wrap" ref={plusRef}>
+            {drawerOpen && (
+              <QuickActionDrawer
+                onAction={(a) => {
+                  setDrawerOpen(false);
+                  onQuickAction(a);
+                }}
+                onClose={closeDrawer}
+                onAttach={pickAttachments}
+                voice={{
+                  enabled: voicePref.enabled,
+                  supported: duplex.supported && daemonOnline,
+                  unsupportedHint: duplexHint,
+                  onEnabledChange: (on) => {
+                    // Switching off must close the microphone, not just hide
+                    // the control holding it open.
+                    if (!on) duplex.stop();
+                    voicePref.setEnabled(on);
+                  },
+                }}
+              />
+            )}
+            <button
+              className="vx-icon-btn"
+              aria-label="Attach files, open a panel, or turn on voice"
+              title="Attach files, open a panel, or turn on voice"
+              aria-expanded={drawerOpen}
+              onClick={() => setDrawerOpen((v) => !v)}
+            >
+              <Plus size={16} />
+            </button>
+          </div>
+          <ModePill value={prefs.mode} onChange={(v) => onPref("mode", v)} />
+          <div className="vx-composer__spacer" />
+          {/* Model and thinking effort are one decision — "which brain, how
+              hard" — so they share a shell instead of competing as two pills. */}
+          <div className="vx-pillgroup">
+            <ProviderPill
+              daemonUrl={daemonUrl}
+              daemonOnline={daemonOnline}
+              provider={prefs.provider}
+              model={prefs.model}
+              onSelect={onProviderModel}
+            />
+            <ReasoningPill
+              provider={prefs.provider}
+              value={prefs.reasoning}
+              onChange={(v) => onPref("reasoning", v)}
+            />
+          </div>
+          <VoiceButton voice={voice} disabled={busy} />
+          <DuplexVoiceButton
+            compact
+            state={duplex.state}
+            enabled={voicePref.enabled}
+            onEnabledChange={voicePref.setEnabled}
+            active={duplex.active}
+            supported={duplex.supported && daemonOnline}
+            onStart={duplex.start}
+            onStop={duplex.stop}
+            unsupportedHint={duplexHint}
+          />
+          {busy ? (
+            <button
+              className="vx-composer__submit vx-composer__submit--stop"
+              aria-label="Stop the running task"
+              title="Stop"
+              onClick={onStop}
+            >
+              <Square size={13} fill="currentColor" />
+            </button>
+          ) : (
+            <button
+              className="vx-composer__submit"
+              aria-label="Submit task"
+              title="Send (Enter)"
+              disabled={!canSubmit}
+              onClick={submit}
+            >
+              <ArrowUp size={16} />
+            </button>
+          )}
+        </div>
+      </div>
+      {/* The run's standing conditions, not the message's: who approves what,
+          whether it forks a branch, what it may touch. Quiet by design — the
+          only one that colours itself is the one that gave something away. */}
+      <div className="vx-composer__context">
         <ApprovalPill value={prefs.approval} onChange={(v) => onPref("approval", v)} />
         <button
           type="button"
-          className={`vx-pill vx-pill--branch${prefs.isolate ? " vx-pill--branch-on" : ""}`}
+          className={`vx-chip${prefs.isolate ? " vx-chip--on" : ""}`}
           aria-pressed={prefs.isolate}
           title={
             prefs.isolate
-              ? "This run will get its own git worktree branch"
-              : "Run in place (no branch). Click to isolate this run in a git worktree branch."
+              ? "This run gets its own git worktree branch"
+              : "Runs in place. Click to isolate this run in a git worktree branch."
           }
           onClick={() => onPref("isolate", !prefs.isolate)}
         >
           <GitBranch size={13} />
-          <span>Branch: {prefs.isolate ? "on" : "off"}</span>
+          <span>{prefs.isolate ? "New branch" : "In place"}</span>
         </button>
-        <div className="vx-composer__spacer" />
-        <ProviderPill
-          daemonUrl={daemonUrl}
-          daemonOnline={daemonOnline}
-          provider={prefs.provider}
-          model={prefs.model}
-          onSelect={onProviderModel}
-        />
-        <ModePill value={prefs.mode} onChange={(v) => onPref("mode", v)} />
         {prefs.mode === "sandbox" && (
           <button
-            className="vx-pill"
+            type="button"
+            className="vx-chip"
             onClick={() => setSandboxOpen(true)}
             title={`Sandbox access: ${describeSandbox(prefs.sandbox)}`}
           >
-            Access: {describeSandbox(prefs.sandbox)}
+            <FlaskConical size={13} />
+            <span className="vx-chip__truncate">Access: {describeSandbox(prefs.sandbox)}</span>
           </button>
         )}
-        <ReasoningPill
-          provider={prefs.provider}
-          value={prefs.reasoning}
-          onChange={(v) => onPref("reasoning", v)}
-        />
-        {busy ? (
-          <button
-            className="vx-composer__submit vx-composer__submit--stop"
-            aria-label="Stop the running task"
-            title="Stop"
-            onClick={onStop}
-          >
-            <Square size={13} fill="currentColor" />
-          </button>
-        ) : (
-          <button
-            className="vx-composer__submit"
-            aria-label="Submit task"
-            title="Send (Enter)"
-            disabled={!canSubmit}
-            onClick={submit}
-          >
-            <ArrowUp size={16} />
-          </button>
-        )}
+        <span className="vx-composer__hint">Enter sends · ⇧Enter for a new line</span>
       </div>
     </div>
   );

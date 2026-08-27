@@ -19,6 +19,7 @@ export { Markdown, CopyButton } from "./markdown/Markdown";
 export { SettingsView } from "./settings/SettingsView";
 export { AccountSection } from "./settings/AccountSection";
 export { useTheme, type ThemeMode } from "./hooks/useTheme";
+export { useClickAway } from "./hooks/useClickAway";
 export {
   useProviderSettings,
   KEYED_PROVIDERS,

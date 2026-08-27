@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronUp } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useModels } from "../hooks/useModels";
 
 interface ProviderPillProps {
@@ -116,14 +116,14 @@ export function ProviderPill({ daemonUrl, daemonOnline, provider, model, onSelec
         </div>
       )}
       <button
-        className="vx-pill"
+        className="vx-pill vx-pill--model"
         onClick={() => setOpen((v) => !v)}
         aria-label="Provider and model"
         aria-expanded={open}
         title={`${provider} · ${label}`}
       >
         <span className="vx-pill__model">{label}</span>
-        <ChevronUp size={12} />
+        <ChevronDown size={12} className="vx-chip__caret" />
       </button>
     </div>
   );

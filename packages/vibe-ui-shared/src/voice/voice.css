@@ -166,21 +166,42 @@
   border-bottom-right-radius: 0;
   border-right: 0;
 }
-.voice-duplex-btn.off { color: var(--muted, #8b949e); }
+.voice-duplex-btn.off { color: var(--text-tertiary); }
 .voice-duplex-disable {
   display: inline-flex;
   align-items: center;
   padding: 0 7px;
-  border: 1px solid var(--border, #232a33);
+  border: 1px solid var(--border-color);
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
   border-top-right-radius: 8px;
   border-bottom-right-radius: 8px;
-  background: var(--surface, #161b22);
-  color: var(--muted, #8b949e);
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
   font: inherit;
   font-size: 13px;
   line-height: 1;
   cursor: pointer;
 }
-.voice-duplex-disable:hover { color: var(--fg, #e6edf3); }
+.voice-duplex-disable:hover { color: var(--text-primary); }
+
+/* Toolbar variant: an icon while idle, widening to dot + state once a
+   conversation is live. Sized like the other composer icon buttons so a row of
+   them lines up. */
+.voice-duplex-btn.compact {
+  justify-content: center;
+  min-width: 28px;
+  padding: 0 7px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-secondary);
+}
+.voice-duplex-btn.compact:hover:not(:disabled) {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+.voice-duplex-btn.compact.active {
+  border-color: var(--border-color);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}

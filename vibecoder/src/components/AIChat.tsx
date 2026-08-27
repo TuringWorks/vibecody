@@ -3425,6 +3425,8 @@ export function AIChat({
               className={`mode-btn ${agentMode === "fast" ? "mode-btn-active" : ""}`}
               onClick={() => setAgentMode("fast")}
               title="Fast — Quick answers, less context"
+              aria-label="Fast"
+              aria-pressed={agentMode === "fast"}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
               <span>Fast</span>
@@ -3433,6 +3435,8 @@ export function AIChat({
               className={`mode-btn ${agentMode === "chat" ? "mode-btn-active" : ""}`}
               onClick={() => setAgentMode("chat")}
               title="Balanced — Default, good context"
+              aria-label="Balanced"
+              aria-pressed={agentMode === "chat"}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>
               <span>Balanced</span>
@@ -3441,14 +3445,20 @@ export function AIChat({
               className={`mode-btn ${agentMode === "planning" ? "mode-btn-active" : ""}`}
               onClick={() => setAgentMode("planning")}
               title="Thorough — Deep analysis, max context"
+              aria-label="Thorough"
+              aria-pressed={agentMode === "planning"}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
               <span>Thorough</span>
             </button>
           </div>
 
-          <div style={{ flex: 1 }} />
+          <div className="chat-toolbar-spacer" />
 
+          {/* Voice, then send. One group so a narrow pane wraps them together
+              rather than leaving the send button alone on a second line — or,
+              as it did before, clipped out of the card entirely. */}
+          <div className="chat-toolbar-right">
           {/* Voice button */}
           <button
             onClick={toggleVoice}
@@ -3483,6 +3493,7 @@ export function AIChat({
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
           </button>
+          </div>
         </div>
       </div>
 

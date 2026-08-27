@@ -1,3 +1,4 @@
+import { AudioLines } from "lucide-react";
 import type { DuplexState } from "./useVoiceDuplex";
 
 /**
@@ -27,6 +28,16 @@ export interface DuplexVoiceButtonProps {
   /** Hosts that cannot do echo cancellation should say so rather than offer a
    *  control that will make the assistant interrupt itself. */
   unsupportedHint?: string;
+  /** Toolbar variant: one icon-sized start/stop button, and nothing at all
+   *  while the feature is off or unavailable.
+   *
+   *  A composer toolbar has room for the *live* control, not for the standing
+   *  opt-in and its off-switch as well — those move to the host's menu, which
+   *  must then own `enabled` (this button in compact mode never turns the
+   *  feature on, so a host that renders it without such a menu strands the
+   *  user with no way to enable voice). The label still appears once a
+   *  conversation is running: an open microphone says so in words. */
+  compact?: boolean;
 }
 
 const LABEL: Record<DuplexState["status"], string> = {
@@ -48,7 +59,12 @@ export function DuplexVoiceButton({
   onStart,
   onStop,
   unsupportedHint,
+  compact = false,
 }: DuplexVoiceButtonProps) {
+  // Compact hosts explain the "why" in their menu next to the switch; a dead
+  // button on the toolbar would only take space to say nothing.
+  if (compact && (!supported || !enabled)) return null;
+
   if (!supported) {
     return (
       <button
@@ -77,6 +93,27 @@ export function DuplexVoiceButton({
   }
 
   const title = state.status === "error" ? state.message : LABEL[state.status];
+  if (compact) {
+    return (
+      <button
+        className={`voice-duplex-btn compact ${active ? "active" : ""} state-${state.status}`}
+        onClick={active ? onStop : onStart}
+        title={active ? title : "Start voice conversation"}
+        aria-label={active ? "Stop voice conversation" : "Start voice conversation"}
+        aria-pressed={active}
+      >
+        {active ? (
+          <>
+            <span className="voice-duplex-dot" aria-hidden="true" />
+            {LABEL[state.status]}
+          </>
+        ) : (
+          <AudioLines size={15} aria-hidden="true" />
+        )}
+      </button>
+    );
+  }
+
   return (
     <span className="voice-duplex-group">
       <button

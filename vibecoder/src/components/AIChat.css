@@ -945,6 +945,11 @@
     overflow: visible;
     flex-shrink: 0;
     transition: border-color 0.2s;
+    /* A query container: this card sits in a sidebar the user resizes, so its
+       controls have to respond to the card's width, not the window's. (WebKit
+       15 — macOS 12 — has no @container; there the queries below simply never
+       match and the toolbar wraps, which is the safe direction.) */
+    container-type: inline-size;
 }
 
 .chat-input-card:focus-within {
@@ -980,13 +985,41 @@
 
 /* ── Toolbar ──────────────────────────────────────────────────────────────── */
 
+/* Wrap, never clip. `nowrap` + `overflow: hidden` meant that in a narrow
+   sidebar the send button was cut off at the card edge — the primary action of
+   the whole panel, invisible and unreachable, with the voice button's × the
+   only thing left showing. */
 .chat-input-toolbar {
     display: flex;
     align-items: center;
     gap: 4px;
     padding: 4px 8px 6px;
-    flex-wrap: nowrap;
-    overflow: hidden;
+    flex-wrap: wrap;
+    row-gap: 6px;
+    overflow: visible;
+}
+
+.chat-toolbar-spacer {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+/* Voice and send travel together: on a second line they stay a cluster, and
+   `margin-left: auto` keeps them right-aligned whether they wrapped or not. */
+.chat-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    flex: none;
+}
+
+/* Under ~430px the mode labels are the cheapest thing to give up: the icons
+   carry the same three-way choice, and losing them keeps the row on one line
+   far longer than losing the send button ever would. */
+@container (max-width: 430px) {
+    .mode-btn span { display: none; }
+    .mode-btn { padding: 5px 8px; }
 }
 
 .chat-toolbar-btn {

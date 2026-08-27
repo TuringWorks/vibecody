@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { Brain, ChevronUp } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
+import { useClickAway } from "@vibe/shared/hooks/useClickAway";
 
 export type ReasoningEffort =
   | "off"
@@ -49,10 +50,12 @@ interface ReasoningPillProps {
  */
 export function ReasoningPill({ provider, value, onChange }: ReasoningPillProps) {
   const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  useClickAway(open, wrapRef, useCallback(() => setOpen(false), []));
   if (!REASONING_PROVIDERS.has(provider)) return null;
 
   return (
-    <div className="vx-pill-wrap">
+    <div className="vx-pill-wrap" ref={wrapRef}>
       {open && (
         <ul className="vx-pill-menu" role="menu">
           {(Object.keys(LABELS) as ReasoningEffort[]).map((r) => (
@@ -66,16 +69,22 @@ export function ReasoningPill({ provider, value, onChange }: ReasoningPillProps)
                   setOpen(false);
                 }}
               >
-                {LABELS[r]} {value === r && "✓"}
+                <span className="vx-pill-menu__label">{LABELS[r]}</span>
+                {value === r && <span aria-hidden>✓</span>}
               </button>
             </li>
           ))}
         </ul>
       )}
-      <button className="vx-pill" onClick={() => setOpen((v) => !v)} aria-label="Reasoning effort">
-        <Brain size={13} />
+      <button
+        className="vx-pill vx-pill--effort"
+        onClick={() => setOpen((v) => !v)}
+        aria-label="Reasoning effort"
+        aria-expanded={open}
+        title={`Thinking effort: ${LABELS[value]}`}
+      >
         <span>{LABELS[value]}</span>
-        <ChevronUp size={12} />
+        <ChevronDown size={12} className="vx-chip__caret" />
       </button>
     </div>
   );
