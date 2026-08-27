@@ -167,7 +167,7 @@ ui: vibecoder/node_modules ## Run VibeCoder in dev mode (Vite + Tauri)
 	cd vibecoder && $(NPM) run tauri:dev
 
 build-ui: vibecoder/node_modules ## Build VibeCoder for production (Tauri bundle)
-	cd vibecoder && $(NPM) run tauri:build
+	./scripts/tauri-build.sh vibecoder
 
 test-ui: vibecoder/node_modules ## Test VibeCoder (vitest)
 	cd vibecoder && $(NPM) test
@@ -186,7 +186,7 @@ aichat: vibeaichat/node_modules ## Run VibeAIChat in dev mode
 	cd vibeaichat && $(NPM) run tauri:dev
 
 build-aichat: vibeaichat/node_modules ## Build VibeAIChat for production (Tauri bundle)
-	cd vibeaichat && $(NPM) run tauri:build
+	./scripts/tauri-build.sh vibeaichat
 
 test-aichat: check-aichat ## Test VibeAIChat (typecheck only — no unit suite yet)
 
@@ -201,7 +201,7 @@ vibedesk: vibedesk/node_modules ## Run VibeDesk in dev mode
 	cd vibedesk && $(NPM) run tauri:dev
 
 build-vibedesk: vibedesk/node_modules ## Build VibeDesk for production (Tauri bundle)
-	cd vibedesk && $(NPM) run tauri:build
+	./scripts/tauri-build.sh vibedesk
 
 test-vibedesk: check-vibedesk lint-vibedesk parity-vibedesk ## Test VibeDesk (typecheck + guards)
 
@@ -257,12 +257,27 @@ test-apps: test-ui test-aichat test-vibedesk ## Test all three Tauri shells
 # but nothing signs the standalone binaries that ship in the tarballs. This
 # target covers both and *verifies* every signature — a build that reports
 # "signed" without checking is how an ad-hoc artifact reaches a release.
+#
+# The build targets above now export the identity themselves via
+# scripts/tauri-build.sh, so a local `make build-vibedesk` is signed rather than
+# ad-hoc. This stays because the standalone binaries still need it, and because
+# re-signing an already-built tree is the faster loop.
 
 codesign-macos: ## Sign + verify macOS release artifacts with a Developer ID cert
 	./scripts/codesign-macos.sh
 
 codesign-verify: ## Verify macOS artifact signatures without changing them
 	./scripts/codesign-macos.sh --verify-only
+
+# Signing is half the job. A Developer ID signature with no notarization is
+# still refused on any machine that did not build it — `spctl` calls it
+# "source=Unnotarized Developer ID" — so a build that stops after signing
+# produces artifacts that work for exactly one person.
+notarize-macos: ## Notarize + staple the built macOS artifacts (needs a notarytool keychain profile)
+	./scripts/notarize-macos.sh
+
+notarize-verify: ## Ask Gatekeeper whether the artifacts would actually open
+	./scripts/notarize-macos.sh --verify-only
 
 
 # ══════════════════════════════════════════════════════════════════════════════

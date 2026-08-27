@@ -67,6 +67,16 @@ resolve_identity() {
   printf '%s' "$found"
 }
 
+# `--print-identity` exposes the resolution above to other scripts — the local
+# build wrapper needs the same answer and must not reimplement it. Failure is
+# still an error, but the caller decides whether to treat it as fatal: a build
+# with no certificate should ad-hoc sign and say so, not refuse to build.
+if [[ "${1:-}" == "--print-identity" ]]; then
+  resolve_identity
+  echo
+  exit 0
+fi
+
 IDENTITY="$(resolve_identity)"
 echo "Identity: $IDENTITY"
 echo

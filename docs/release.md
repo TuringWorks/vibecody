@@ -360,6 +360,55 @@ spctl -a -vvv -t install /Applications/VibeCoder.app # "source=Notarized Develop
 Maintainers: see [macOS code signing setup](#macos-code-signing-setup-for-maintainers)
 for the full credential list and the local build recipe.
 
+#### Building signed, locally
+
+`tauri build` **ad-hoc signs** whenever `APPLE_SIGNING_IDENTITY` is unset, and
+the log looks the same either way — both spellings print `Signing with
+identity`, the ad-hoc one as `identity "-"`. The only hint is a line about
+notarization, which reads as a note about a later step rather than "this bundle
+is not signed at all". That is how a local build quietly produces artifacts
+macOS refuses on every machine but the one that built them.
+
+`make build-ui` / `build-aichat` / `build-vibedesk` go through
+[`scripts/tauri-build.sh`](https://github.com/TuringWorks/vibecody/blob/main/scripts/tauri-build.sh),
+which resolves the identity from the keychain — reusing
+`codesign-macos.sh --print-identity`, so it refuses to guess between several
+certificates — and says plainly when it found none. `APPLE_SIGNING_IDENTITY`
+still wins if you set it.
+
+Already built something ad-hoc? Sign it in place, no rebuild:
+
+```bash
+make codesign-macos     # sign + verify every artifact under target/release
+make codesign-verify    # check without changing anything
+```
+
+#### Signing is half of it
+
+A Developer ID signature with no notarization is still refused on any Mac that
+did not build it:
+
+```
+$ spctl -a -vv -t exec VibeDesk.app
+VibeDesk.app: rejected
+source=Unnotarized Developer ID
+```
+
+Notarization needs a second set of credentials — an Apple ID, an
+**app-specific** password from appleid.apple.com, and the Team ID. Keep them in
+the keychain rather than in the environment or any file:
+
+```bash
+xcrun notarytool store-credentials vibecody \
+  --apple-id you@example.com --team-id N7HV58M58W --password <app-specific>
+
+make notarize-macos     # submit, wait, staple, then ask Gatekeeper
+make notarize-verify    # ask Gatekeeper, change nothing
+```
+
+Stapling matters: it attaches the ticket to the artifact so it opens offline
+too. An app that only passes while Apple is reachable is on loan, not shipped.
+
 ---
 
 ## v0.5.7
