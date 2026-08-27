@@ -1,5 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { gitStatusCode, gitStatusLabel } from '../lib/gitStatus';
+import { MiddleTruncate } from './MiddleTruncate';
 import { FolderOpen, AlertTriangle, X } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { ReviewPanel, ReviewControls, useCodeReview } from './ReviewPanel';
@@ -962,9 +963,9 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  </div>
  <h4 style={{ fontSize: '11px', marginBottom: '8px', color: 'var(--text-secondary)' }}>Files Changed</h4>
  {commitFiles.map(file => (
- <div key={file} style={{ padding: '8px', background: 'var(--bg-secondary)', borderRadius: '4px', marginBottom: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
- <span style={{ fontSize: '11px' }}>{file}</span>
- <button onClick={() => handleCompareCommitFile(file)} style={{ background: 'none', border: 'none', color: 'var(--accent-blue)', cursor: 'pointer', fontSize: '10px' }}>Diff</button>
+ <div key={file} style={{ padding: '8px', background: 'var(--bg-secondary)', borderRadius: '4px', marginBottom: '4px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+ <MiddleTruncate text={file} style={{ fontSize: '11px', flex: 1, minWidth: 0 }} />
+ <button onClick={() => handleCompareCommitFile(file)} style={{ background: 'none', border: 'none', color: 'var(--accent-blue)', cursor: 'pointer', fontSize: '10px', flex: 'none' }}>Diff</button>
  </div>
  ))}
  </div>
@@ -1031,7 +1032,15 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  checked={selectedFiles.includes(file)}
  onChange={() => toggleFileSelection(file)}
  />
- <span style={{ fontSize: '11px', flex: 1 }}>{file}</span>
+ {/* `minWidth: 0` is what lets this shrink at all: a flex item defaults
+     to `min-width: auto` and refuses to go below its content, so a long
+     path used to push the status / Diff / discard controls out of the
+     row rather than truncating. Middle-truncated because the end of a
+     path is what tells two of them apart. */}
+ <MiddleTruncate
+ text={file}
+ style={{ fontSize: '11px', flex: 1, minWidth: 0 }}
+ />
  <span
  style={{
  fontSize: '10px',
@@ -1057,6 +1066,10 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  cursor: 'pointer',
  fontSize: '10px',
  padding: '2px 4px',
+ // Never give up width: the controls are the column the eye
+ // tracks down, and a row whose Diff sits 3px left of the one
+ // above reads as misalignment even when nothing is wrong.
+ flex: 'none',
  }}
  title="Compare"
  >
@@ -1081,7 +1094,7 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  ) : (
  <button
  onClick={() => setConfirmDiscard(file)}
- style={{ background: 'none', border: 'none', color: 'var(--text-danger)', cursor: 'pointer', padding: '2px 4px', display: 'flex', alignItems: 'center' }}
+ style={{ background: 'none', border: 'none', color: 'var(--text-danger)', cursor: 'pointer', padding: '2px 4px', display: 'flex', alignItems: 'center', flex: 'none' }}
  title="Discard changes"
  >
  <X size={10} />
