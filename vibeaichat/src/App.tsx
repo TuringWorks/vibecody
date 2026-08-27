@@ -7,7 +7,11 @@ import { useVoiceInput } from "@vibe/shared/voice/useVoiceInput";
 import { VoiceButton } from "@vibe/shared/voice/VoiceButton";
 import { useVoiceDuplex } from "@vibe/shared/voice/useVoiceDuplex";
 import { DuplexVoiceButton } from "@vibe/shared/voice/DuplexVoiceButton";
+import { VoiceTranscript } from "@vibe/shared/voice/VoiceTranscript";
 import { useVoiceDuplexPreference } from "@vibe/shared/voice/useVoiceDuplexPreference";
+import { ComposerDrawer, type ComposerGroup } from "@vibe/shared/composer/ComposerDrawer";
+import { useClickAway } from "@vibe/shared/hooks/useClickAway";
+import "@vibe/shared/composer/composer.css";
 import { tauriTranscriber } from "@vibe/shared/voice/transcribers";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -41,6 +45,18 @@ const IconMinus = () => (
 const IconClose = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
     <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+);
+
+const IconPlus = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+);
+
+const IconVoiceLines = ({ size = 15 }: { size?: number | string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+    <path d="M2 12h2M6 8v8M10 5v14M14 8v8M18 10v4M22 12h-2" />
   </svg>
 );
 
@@ -233,6 +249,14 @@ export default function App() {
     onTurn: turn =>
       setMessages(m => [...m, { role: turn.role === "user" ? "user" : "assistant", content: turn.text }]),
   });
+
+  // The `+` menu. The voice opt-in is a standing setting, not a per-message
+  // action, and a 440px toolbar cannot afford a permanent control for a feature
+  // most sessions never turn on.
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const plusRef = useRef<HTMLDivElement>(null);
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+  useClickAway(drawerOpen, plusRef, closeDrawer);
 
   const bottomRef   = useRef<HTMLDivElement>(null);
   const inputRef    = useRef<HTMLTextAreaElement>(null);
@@ -526,6 +550,39 @@ export default function App() {
     setShowSettings(false);
   };
 
+  const drawerGroups: ComposerGroup[] = useMemo(
+    () => [
+      {
+        title: "Voice",
+        items: [
+          {
+            kind: "switch",
+            id: "duplex",
+            icon: IconVoiceLines,
+            label: "Voice conversation",
+            on: voicePref.enabled,
+            disabled: !(duplex.supported && daemonOk === true),
+            disabledHint:
+              daemonOk === true
+                ? "This webview cannot capture audio"
+                : "Connect to a daemon to start a voice conversation",
+            sub: {
+              on: "On — start it from the toolbar",
+              off: "Off — talk with the model, hands free",
+            },
+            onChange: on => {
+              // Switching off closes the microphone, rather than only hiding
+              // the control that was holding it open.
+              if (!on) duplex.stop();
+              voicePref.setEnabled(on);
+            },
+          },
+        ],
+      },
+    ],
+    [voicePref, duplex, daemonOk],
+  );
+
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="app">
@@ -568,45 +625,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* Model selector bar — shown when settings are closed. Provider + model
-          pickers live here so you can switch between Claude, Ollama (local +
-          cloud), etc. without opening Settings. Both are populated from the
-          daemon's /models catalog (the single source of truth). */}
-      {!showSettings && (selectedModel || availableModels.length > 0) && (
-        <div className="model-bar">
-          {availableModels.length > 0 ? (
-            <>
-              <select
-                value={provider}
-                onChange={e => { setProvider(e.target.value); localStorage.setItem(PROVIDER_KEY, e.target.value); }}
-                title="Select provider"
-              >
-                {providerOptions.map(p => (
-                  <option key={p.id} value={p.id}>{p.label}</option>
-                ))}
-              </select>
-              {filteredModels.length > 0 ? (
-                <select
-                  value={selectedModel}
-                  onChange={e => { setSelectedModel(e.target.value); localStorage.setItem(MODEL_KEY, e.target.value); }}
-                  title="Select model"
-                >
-                  {filteredModels.map(m => (
-                    <option key={m.id} value={m.name}>
-                      {m.name || m.id}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <span style={{ fontSize: 12, color: "var(--text-dim)" }}>No models for this provider</span>
-              )}
-            </>
-          ) : (
-            <span style={{ fontSize: 12, color: "var(--text-dim)" }}>{selectedModel || "No model selected"}</span>
-          )}
-        </div>
-      )}
-
       {/* Settings panel */}
       {showSettings && (
         <SettingsView
@@ -645,38 +663,119 @@ export default function App() {
           {voice.error}
         </div>
       )}
-      <div className="input-area">
-        <textarea
-          ref={inputRef}
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={onKeyDown}
-          placeholder="Ask anything… (Enter to send, Shift+Enter for newline)"
-          rows={2}
-          disabled={loading}
-        />
-        <VoiceButton voice={voice} disabled={loading} />
-        <DuplexVoiceButton
-          state={duplex.state}
-          enabled={voicePref.enabled}
-          onEnabledChange={voicePref.setEnabled}
-          active={duplex.active}
-          supported={duplex.supported && daemonOk === true}
-          onStart={duplex.start}
-          onStop={duplex.stop}
-          unsupportedHint={
-            daemonOk === true
-              ? "This webview cannot capture audio"
-              : "Connect to a daemon to start a voice conversation"
-          }
-        />
-        <button
-          className="send-btn"
-          onClick={send}
-          disabled={loading || !input.trim()}
-        >
-          {loading ? <IconLoader /> : <IconSend />}
-        </button>
+      {/* One surface: the text and the controls that send it share a frame, so
+          the controls read as part of the message. Which model answers lives
+          here too rather than as a bar of app chrome above the conversation —
+          in a 440px window that bar cost a whole row to say something you
+          change once a day. */}
+      {/* The spoken turn as it happens. Completed turns go to the thread
+          above via `onTurn`; this covers the seconds in between. */}
+      <VoiceTranscript state={duplex.state} turns={duplex.turns} active={duplex.active} />
+      <div className="input-area vxc-composer">
+        <div className="vxc-frame">
+          <textarea
+            ref={inputRef}
+            className="vxc-frame__input"
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder="Ask anything…"
+            rows={2}
+            disabled={loading}
+          />
+          <div className="vxc-bar vxc-bar--tight">
+            <div className="vxc-pop" ref={plusRef}>
+              {drawerOpen && (
+                <ComposerDrawer
+                  groups={drawerGroups}
+                  onClose={closeDrawer}
+                  label="Turn on voice"
+                />
+              )}
+              <button
+                className="vxc-iconbtn"
+                aria-label="More options"
+                title="More options"
+                aria-expanded={drawerOpen}
+                onClick={() => setDrawerOpen(v => !v)}
+              >
+                <IconPlus />
+              </button>
+            </div>
+
+            <div className="vxc-spacer" />
+
+            {/* Provider and model are one decision — "who answers" — so they
+                share a shell instead of competing as two separate controls. */}
+            <div className="aic-model vxc-bar__shrink">
+              {availableModels.length > 0 ? (
+                <>
+                  <select
+                    value={provider}
+                    onChange={e => { setProvider(e.target.value); localStorage.setItem(PROVIDER_KEY, e.target.value); }}
+                    aria-label="Provider"
+                    title="Provider"
+                  >
+                    {providerOptions.map(p => (
+                      <option key={p.id} value={p.id}>{p.label}</option>
+                    ))}
+                  </select>
+                  {filteredModels.length > 0 ? (
+                    <select
+                      value={selectedModel}
+                      onChange={e => { setSelectedModel(e.target.value); localStorage.setItem(MODEL_KEY, e.target.value); }}
+                      aria-label="Model"
+                      title="Model"
+                    >
+                      {filteredModels.map(m => (
+                        <option key={m.id} value={m.name}>{m.name || m.id}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="aic-model__empty">No models for this provider</span>
+                  )}
+                </>
+              ) : (
+                <span className="aic-model__empty">{selectedModel || "No model selected"}</span>
+              )}
+            </div>
+
+            <VoiceButton voice={voice} disabled={loading} />
+            {/* The toolbar carries the live start/stop; the opt-in that decides
+                whether it appears at all lives behind the `+`. */}
+            {voicePref.enabled && (
+              <DuplexVoiceButton
+                compact
+                state={duplex.state}
+                enabled={voicePref.enabled}
+                onEnabledChange={voicePref.setEnabled}
+                active={duplex.active}
+                supported={duplex.supported && daemonOk === true}
+                onStart={duplex.start}
+                onStop={duplex.stop}
+                unsupportedHint={
+                  daemonOk === true
+                    ? "This webview cannot capture audio"
+                    : "Connect to a daemon to start a voice conversation"
+                }
+              />
+            )}
+            <button
+              className="vxc-send"
+              onClick={send}
+              aria-label="Send message"
+              title="Send (Enter)"
+              disabled={loading || !input.trim()}
+            >
+              {loading ? <IconLoader /> : <IconSend />}
+            </button>
+          </div>
+        </div>
+        {/* The keyboard contract, out of the placeholder — which vanishes the
+            moment you start typing, exactly when you might want it. */}
+        <div className="vxc-underrow">
+          <span className="vxc-hint">Enter sends · &#8679;Enter for a new line</span>
+        </div>
       </div>
     </div>
   );

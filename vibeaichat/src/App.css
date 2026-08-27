@@ -113,39 +113,50 @@ body {
 /* Quit, not minimise — say so on hover, since the two sit side by side. */
 .btn-close:hover { color: #fff; background: var(--error-color); }
 
-/* ── Model selector bar ────────────────────────────────────────────────────── */
+/* ── Model control, inside the composer ───────────────────────────────────── */
 
-.model-bar {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-  padding: var(--space-1) 10px;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--bg-secondary);
-  flex-shrink: 0;
+/* Provider and model are one decision — "who answers" — so they share a shell
+   instead of competing as two controls. This replaces the full-width bar that
+   sat above the conversation: in a 440px window that bar spent a whole row on
+   something you change once a day. */
+.aic-model {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+    background: var(--bg-secondary);
+    overflow: hidden;
 }
 
-.model-bar select {
-  flex: 1;
-  min-width: 0;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  padding: var(--space-1) var(--space-2);
-  color: var(--text-primary);
-  font-size: var(--font-size-base);
-  font-family: var(--font-family);
-  outline: none;
+.aic-model select {
+    min-width: 0;
+    max-width: 132px;
+    padding: 3px 4px 3px 7px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    font-family: var(--font-family);
+    outline: none;
+    cursor: pointer;
+    /* Truncate the long ones. `gpt-oss:120b-cloud` is wider than the whole
+       control, and letting it size the flex item pushes send off the row. */
+    text-overflow: ellipsis;
 }
 
-.model-bar select:focus { border-color: var(--accent-blue); }
+/* The model is what you are actually talking to; the provider is context. */
+.aic-model select:last-child { color: var(--text-primary); padding-left: 0; }
+.aic-model select:hover { color: var(--text-primary); }
+.aic-model:focus-within { border-color: var(--accent-blue); }
 
-/* ── Settings panel ────────────────────────────────────────────────────────── */
+.aic-model__empty {
+    padding: 3px 8px;
+    font-size: var(--font-size-sm);
+    color: var(--text-dim);
+    white-space: nowrap;
+}
 
-/* Connection settings — the tab VibeAIChat contributes to the shared settings
-   screens. The bespoke .settings-panel these styles used to dress is gone; they
-   now dress the fields inside that tab. Unstyled inputs inherit the UA's
-   white-on-white, which is invisible in the dark theme. */
 .settings-field {
   display: flex;
   flex-direction: column;
@@ -294,63 +305,23 @@ body {
 /* ── Input area ────────────────────────────────────────────────────────────── */
 
 .input-area {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-1);
-  padding: 10px var(--space-3);
-  border-top: 1px solid var(--border-color);
-  background: var(--bg-secondary);
-  flex-shrink: 0;
-  border-radius: 0 0 var(--radius-md) var(--radius-md);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    padding: 8px var(--space-3) 4px;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
 }
 
-.input-area textarea {
-  flex: 1;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  padding: var(--space-2) 10px;
-  font-size: var(--font-size-md);
-  font-family: var(--font-family);
-  resize: none;
-  outline: none;
-  line-height: 1.5;
-  max-height: 120px;
-  overflow-y: auto;
-  user-select: text;
-  -webkit-user-select: text;
+/* The frame's own textarea rules come from the shared composer stylesheet;
+   only the height is a VibeAIChat decision — this window is 680px tall and the
+   conversation has to keep most of it. */
+.input-area .vxc-frame__input {
+    min-height: 38px;
+    max-height: 120px;
 }
 
-.input-area textarea:focus { border-color: var(--accent-blue); }
-
-.input-area textarea::placeholder {
-  color: var(--text-muted);
-  font-size: var(--font-size-base);
-}
-
-.input-area textarea:disabled { opacity: 0.6; cursor: not-allowed; }
-
-.send-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--accent-blue);
-  border: none;
-  color: var(--btn-primary-fg);
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-bold);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: opacity var(--transition-fast), transform 0.1s;
-  flex-shrink: 0;
-}
-
-.send-btn:hover:not(:disabled)  { opacity: 0.85; transform: scale(1.05); }
-.send-btn:active:not(:disabled) { transform: scale(0.97); }
-.send-btn:disabled               { opacity: 0.35; cursor: not-allowed; }
 
 /* ── Icon styles ──────────────────────────────────────────────────────────── */
 
