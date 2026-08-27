@@ -41,6 +41,9 @@ vi.mock('lucide-react', () => ({
   Loader2: (props: Record<string, unknown>) => <span data-testid="icon-loader2" {...props} />,
   Download: (props: Record<string, unknown>) => <span data-testid="icon-download" {...props} />,
   ZoomIn: (props: Record<string, unknown>) => <span data-testid="icon-zoomin" {...props} />,
+  AtSign: (props: Record<string, unknown>) => <span data-testid="icon-atsign" {...props} />,
+  AudioLines: (props: Record<string, unknown>) => <span data-testid="icon-audiolines" {...props} />,
+  Plus: (props: Record<string, unknown>) => <span data-testid="icon-plus" {...props} />,
 }));
 
 // ── Mock internal dependencies ──────────────────────────────────────────────

@@ -4,8 +4,11 @@ import { useVoiceInput } from "@vibe/shared/voice/useVoiceInput";
 import { useVoiceDuplex } from "@vibe/shared/voice/useVoiceDuplex";
 import { parseProviderSelection } from "../hooks/useModelRegistry";
 import { DuplexVoiceButton } from "@vibe/shared/voice/DuplexVoiceButton";
+import { VoiceTranscript } from "@vibe/shared/voice/VoiceTranscript";
 import { useVoiceDuplexPreference } from "@vibe/shared/voice/useVoiceDuplexPreference";
 import { tauriTranscriber } from "@vibe/shared/voice/transcribers";
+import { ComposerDrawer, type ComposerGroup } from "@vibe/shared/composer/ComposerDrawer";
+import { useClickAway } from "@vibe/shared/hooks/useClickAway";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useToast } from "../hooks/useToast";
@@ -14,13 +17,14 @@ import { ContextPicker } from "./ContextPicker";
 import { McpAppEmbed, type McpAppPayload } from "./McpAppEmbed";
 import { flowContext } from "../utils/FlowContext";
 import { getSelectedEffort } from "../utils/effort";
-import { Mic, User, Paperclip, X, FileText, Loader2, Download, ZoomIn } from "lucide-react";
+import { Mic, User, Paperclip, X, FileText, Loader2, Download, ZoomIn, AtSign, AudioLines, Plus } from "lucide-react";
 // The same Markdown renderer VibeDesk and VibeAIChat use. Chat replies are
 // markdown — headings, lists, bold and above all tables — and rendering them
 // as a raw string made every structured answer an unreadable wall of pipes and
 // asterisks. Shared rather than a third local implementation.
 import { Markdown } from "@vibe/shared/markdown/Markdown";
 import "@vibe/shared/markdown/markdown.css";
+import "@vibe/shared/composer/composer.css";
 import "./AIChat.css";
 
 // Voice input lives in packages/vibe-ui-shared/src/voice — the same hook
@@ -2929,6 +2933,82 @@ export function AIChat({
     return !!lastAssistant && lastAssistant.content.trim() === live;
   }, [messages, streamingParts, streamingText]);
 
+  // ── The `+` menu ───────────────────────────────────────────────────────────
+
+  // Progressive disclosure, from the VibeDesk composer. Attaching a file,
+  // mentioning one, and the standing voice opt-in each had a permanent button
+  // on a toolbar that has to fit inside a resizable sidebar; they are things
+  // you reach for occasionally, so the toolbar keeps only what is touched every
+  // turn. The bare `+` that typed an `@` character was the worst of them — a
+  // button whose label described its glyph rather than what it did.
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const plusRef = useRef<HTMLDivElement>(null);
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+  useClickAway(drawerOpen, plusRef, closeDrawer);
+
+  const insertMention = useCallback(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const v = input + "@";
+    setInput(v);
+    ta.focus();
+    handleInputChange({
+      target: { value: v, selectionStart: v.length },
+    } as React.ChangeEvent<HTMLTextAreaElement>);
+  }, [input]);
+
+  const drawerGroups: ComposerGroup[] = useMemo(
+    () => [
+      {
+        title: "Add to this message",
+        items: [
+          {
+            id: "attach",
+            icon: Paperclip,
+            label: "Attach files",
+            sub:
+              attachments.length > 0
+                ? `${attachments.length} attached — send file contents with the prompt`
+                : "Send file contents with the prompt",
+            onSelect: openFilePicker,
+          },
+          {
+            id: "mention",
+            icon: AtSign,
+            label: "Mention a file",
+            sub: "Point the model at something in the project",
+            onSelect: insertMention,
+          },
+        ],
+      },
+      {
+        title: "Voice",
+        items: [
+          {
+            kind: "switch",
+            id: "duplex",
+            icon: AudioLines,
+            label: "Voice conversation",
+            on: voicePref.enabled,
+            disabled: !duplex.supported,
+            disabledHint: "This webview cannot capture audio",
+            sub: {
+              on: "On — start it from the toolbar",
+              off: "Off — talk with the model, hands free",
+            },
+            onChange: (on) => {
+              // Switching off must close the microphone, not merely hide the
+              // control that was holding it open.
+              if (!on) duplex.stop();
+              voicePref.setEnabled(on);
+            },
+          },
+        ],
+      },
+    ],
+    [attachments.length, openFilePicker, insertMention, voicePref, duplex],
+  );
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -3323,6 +3403,10 @@ export function AIChat({
             {interimText}
           </div>
         )}
+        {/* The spoken turn as it happens. The chat log above gets each turn
+            once it is complete (`onTurn`); this is the seconds in between,
+            which previously showed nothing at all. */}
+        <VoiceTranscript state={duplex.state} turns={duplex.turns} active={duplex.active} />
         {/* Loading indicator for file reading */}
         {isAttachLoading && (
           <div className="attachment-loading">
@@ -3380,7 +3464,7 @@ export function AIChat({
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          placeholder={isListening ? "Listening\u2026" : "Ask anything, @ to mention, / for commands. Drop files or paste images."}
+          placeholder={isListening ? "Listening\u2026" : "Ask anything \u2014 @ for a file, / for commands"}
           rows={3}
         />
         {/* Hidden file input for fallback */}
@@ -3392,32 +3476,29 @@ export function AIChat({
           onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ""; }}
         />
         <div className="chat-input-toolbar">
-          {/* Context button */}
-          <button
-            className="chat-toolbar-btn"
-            title="Add context (@file, @web, @git)"
-            onClick={() => {
-              const ta = textareaRef.current;
-              if (ta) {
-                const v = input + "@";
-                setInput(v);
-                ta.focus();
-                handleInputChange({ target: { value: v, selectionStart: v.length } } as React.ChangeEvent<HTMLTextAreaElement>);
-              }
-            }}
-          >+</button>
-
-          {/* Attach files button */}
-          <button
-            className="chat-toolbar-btn"
-            title="Attach files, images, or documents"
-            onClick={openFilePicker}
-          >
-            <Paperclip size={14} strokeWidth={1.5} />
-            {attachments.length > 0 && (
-              <span className="attach-badge">{attachments.length}</span>
+          {/* One `+`, not three buttons. What is behind it is occasional; what
+              stays on the bar is what you touch every turn. */}
+          <div className="vxc-pop" ref={plusRef}>
+            {drawerOpen && (
+              <ComposerDrawer
+                groups={drawerGroups}
+                onClose={closeDrawer}
+                label="Attach files, mention a file, or turn on voice"
+              />
             )}
-          </button>
+            <button
+              className="chat-toolbar-btn"
+              aria-label="Attach files, mention a file, or turn on voice"
+              title="Attach files, mention a file, or turn on voice"
+              aria-expanded={drawerOpen}
+              onClick={() => setDrawerOpen((v) => !v)}
+            >
+              <Plus size={15} strokeWidth={1.5} />
+              {attachments.length > 0 && (
+                <span className="attach-badge">{attachments.length}</span>
+              )}
+            </button>
+          </div>
 
           {/* Agent mode selector */}
           <div className="mode-selector">
@@ -3471,17 +3552,23 @@ export function AIChat({
             {isListening && <span className="mic-recording-badge">REC</span>}
           </button>
 
-          {/* Full-duplex conversation — an open mic, interruptible. */}
-          <DuplexVoiceButton
-            state={duplex.state}
-            enabled={voicePref.enabled}
-            onEnabledChange={voicePref.setEnabled}
-            active={duplex.active}
-            supported={duplex.supported}
-            onStart={duplex.start}
-            onStop={duplex.stop}
-            unsupportedHint="This webview cannot capture audio"
-          />
+          {/* Full-duplex conversation — an open mic, interruptible. The
+              toolbar carries the live start/stop; the opt-in that decides
+              whether this appears at all lives behind the `+`, so a feature
+              nobody has turned on costs no space here. */}
+          {voicePref.enabled && (
+            <DuplexVoiceButton
+              compact
+              state={duplex.state}
+              enabled={voicePref.enabled}
+              onEnabledChange={voicePref.setEnabled}
+              active={duplex.active}
+              supported={duplex.supported}
+              onStart={duplex.start}
+              onStop={duplex.stop}
+              unsupportedHint="This webview cannot capture audio"
+            />
+          )}
 
           {/* Send button */}
           <button
@@ -3496,6 +3583,12 @@ export function AIChat({
           </div>
         </div>
       </div>
+
+      {/* The keyboard contract, quiet and outside the frame. It used to be the
+          tail of the placeholder, where a narrow sidebar clipped it — and a
+          placeholder disappears the moment you start typing, which is exactly
+          when you might want to know what Enter does. */}
+      <div className="chat-input-hint">Enter sends · &#8679;Enter for a new line</div>
 
       {/* Image lightbox overlay */}
       {lightboxSrc && (

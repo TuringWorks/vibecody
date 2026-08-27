@@ -1,0 +1,163 @@
+/**
+ * Composer chrome shared by the VibeCody shells.
+ *
+ * Every value falls back to a literal, because these tokens come from the
+ * runtime theme (`applyThemeById`) or a host's `tokens.css`, and a shell that
+ * loads neither would otherwise render an invisible border on a transparent
+ * box rather than failing loudly.
+ *
+ * The frame needs `container-type: inline-size` on `.vxc-composer` so the bar
+ * wraps on the *composer's* width, not the window's — a chat panel docked in a
+ * wide IDE window is narrow while the window is not.
+ */
+
+.vxc-composer { container-type: inline-size; }
+
+/* One surface: what you are sending and the controls that send it sit inside a
+   single frame, so the controls read as part of the message rather than as a
+   strip of app chrome underneath it. */
+.vxc-frame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 8px 6px;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  border-radius: 12px;
+  background: var(--bg-tertiary, rgba(255, 255, 255, 0.03));
+  transition: border-color var(--transition-fast, 0.15s ease);
+}
+.vxc-frame:focus-within { border-color: var(--accent-blue, #6c8cff); }
+
+.vxc-frame__input {
+  width: 100%;
+  max-height: 260px;
+  overflow-y: auto;
+  resize: none;
+  border: none;
+  padding: 4px 4px 2px;
+  background: transparent;
+  color: var(--text-primary, #e2e4ea);
+  font-size: 13px;
+  font-family: inherit;
+  line-height: 1.5;
+}
+.vxc-frame__input:focus { outline: none; }
+.vxc-frame__input::placeholder { color: var(--text-tertiary, #8b8b8b); }
+.vxc-frame__input:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Shrink first, wrap only when the composer itself is narrow. Flex decides to
+   wrap from an item's *unshrunk* width, so allowing wrap unconditionally sends
+   the send button to a second line while the model name still has 100px of
+   slack to give up. */
+.vxc-bar { display: flex; align-items: center; flex-wrap: nowrap; gap: 6px; margin-top: 6px; }
+.vxc-bar > * { flex: none; }
+.vxc-spacer { flex: 1 1 0; min-width: 0; }
+@container (max-width: 470px) { .vxc-bar { flex-wrap: wrap; } }
+/* A composer that is *always* narrow — a 440px tray window — sits under the
+   wrap threshold permanently, so the default would leave it two-rowed forever.
+   This keeps one row and lets the model name give up width instead. Must stay
+   after the query above: same specificity, so source order decides. */
+.vxc-bar--tight { flex-wrap: nowrap; }
+/* The one item allowed to shrink. */
+.vxc-bar__shrink { flex: 0 1 auto; min-width: 0; }
+
+/* Quiet row under the frame: the keyboard contract, and anything describing
+   the run rather than the message. */
+.vxc-underrow { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; padding: 6px 4px 0; }
+.vxc-hint { margin-left: auto; padding-right: 4px; font-size: 11px; color: var(--text-tertiary, #8b8b8b); }
+@container (max-width: 420px) { .vxc-hint { display: none; } }
+
+/* ── Buttons on the bar ──────────────────────────────────────────────────── */
+
+.vxc-iconbtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; padding: 0;
+  border: none; border-radius: 7px;
+  background: transparent; color: var(--text-secondary, #6e7491);
+  cursor: pointer;
+  transition: background var(--transition-fast, 0.15s ease), color var(--transition-fast, 0.15s ease);
+}
+.vxc-iconbtn:hover:not(:disabled) {
+  background: var(--bg-elevated, rgba(255, 255, 255, 0.06));
+  color: var(--text-primary, #e2e4ea);
+}
+.vxc-iconbtn:disabled { opacity: 0.5; cursor: default; }
+.vxc-iconbtn[aria-expanded="true"] {
+  background: var(--bg-elevated, rgba(255, 255, 255, 0.06));
+  color: var(--text-primary, #e2e4ea);
+}
+
+.vxc-send {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; padding: 0;
+  border: none; border-radius: 50%;
+  background: var(--accent-blue, #6c8cff); color: var(--btn-primary-fg, #fff);
+  cursor: pointer;
+  transition: opacity var(--transition-fast, 0.15s ease), transform 0.1s;
+}
+.vxc-send:hover:not(:disabled) { opacity: 0.88; }
+.vxc-send:active:not(:disabled) { transform: scale(0.95); }
+.vxc-send:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* ── The `+` menu ────────────────────────────────────────────────────────── */
+
+.vxc-pop { position: relative; display: inline-flex; }
+
+.vxc-drawer {
+  position: absolute; bottom: calc(100% + 6px); left: 0;
+  width: 290px; max-width: min(290px, 88vw); max-height: 60vh; overflow-y: auto;
+  padding: 4px; z-index: 12;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  border-radius: 10px;
+  background: var(--bg-elevated, #222638);
+  box-shadow: var(--elevation-3, 0 8px 30px rgba(0, 0, 0, 0.45));
+}
+.vxc-drawer__group {
+  padding: 7px 8px 3px;
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--text-tertiary, #8b8b8b);
+}
+.vxc-drawer__item {
+  display: grid; grid-template-columns: auto 1fr auto;
+  align-items: center; column-gap: 9px;
+  width: 100%; padding: 6px 8px;
+  border: none; border-radius: 6px;
+  background: transparent; color: var(--text-primary, #e2e4ea);
+  text-align: left; font-family: inherit; cursor: pointer;
+}
+.vxc-drawer__item:hover:not(:disabled) { background: var(--bg-tertiary, rgba(255, 255, 255, 0.05)); }
+.vxc-drawer__item:disabled { opacity: 0.55; cursor: default; }
+.vxc-drawer__item > svg { grid-row: 1 / span 2; color: var(--text-secondary, #6e7491); }
+.vxc-drawer__label { font-size: 13px; }
+.vxc-drawer__sub {
+  grid-column: 2 / span 2;
+  font-size: 11px; line-height: 1.35;
+  color: var(--text-tertiary, #8b8b8b);
+}
+
+/* A switch, because this one is a standing setting rather than an action. */
+.vxc-drawer__switch {
+  grid-column: 3; grid-row: 1;
+  position: relative; width: 26px; height: 15px;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  border-radius: 8px;
+  background: var(--bg-secondary, rgba(0, 0, 0, 0.25));
+  transition: background var(--transition-fast, 0.15s ease);
+}
+.vxc-drawer__switch::after {
+  content: ""; position: absolute; top: 2px; left: 2px;
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--text-tertiary, #8b8b8b);
+  transition: transform var(--transition-fast, 0.15s ease), background var(--transition-fast, 0.15s ease);
+}
+.vxc-drawer__switch.is-on {
+  background: color-mix(in srgb, var(--accent-blue, #6c8cff) 40%, transparent);
+  border-color: var(--accent-blue, #6c8cff);
+}
+.vxc-drawer__switch.is-on::after { transform: translateX(11px); background: var(--accent-blue, #6c8cff); }
+
+@media (prefers-reduced-motion: reduce) {
+  .vxc-frame, .vxc-iconbtn, .vxc-send, .vxc-drawer__switch, .vxc-drawer__switch::after {
+    transition: none;
+  }
+}

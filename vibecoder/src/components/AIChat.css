@@ -1023,6 +1023,10 @@
 }
 
 .chat-toolbar-btn {
+    /* The attachment badge is `position: absolute` inside this button. Without
+       a positioned ancestor here it anchored to `.chat-input-card` instead —
+       the count sat at the top-right corner of the whole composer. */
+    position: relative;
     background: none;
     border: 1px solid var(--border-color);
     color: var(--text-secondary);
@@ -1724,4 +1728,22 @@
 
 .lightbox-close:hover {
     background: color-mix(in srgb, var(--error-color) 35%, transparent);
+}
+
+/* ── Composer hint ────────────────────────────────────────────────────────── */
+
+/* The keyboard contract. Outside the card, text-weight, and the first thing to
+   go when the sidebar is narrow — it is a reminder, not a control. */
+.chat-input-hint {
+    margin: -2px 14px 6px;
+    text-align: right;
+    font-size: 11px;
+    color: var(--text-tertiary, var(--text-secondary));
+    user-select: none;
+    /* Truncate rather than wrap. This sits *outside* `.chat-input-card`, which
+       is the only query container here, so a `@container` rule would never
+       match and the line would silently become two at narrow widths. */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }

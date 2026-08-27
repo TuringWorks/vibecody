@@ -27,6 +27,9 @@ vi.mock('lucide-react', () => ({
   Loader2: () => <span />,
   Download: () => <span />,
   ZoomIn: () => <span />,
+  AtSign: () => <span />,
+  AudioLines: () => <span />,
+  Plus: () => <span />,
 }));
 vi.mock('../../hooks/useToast', () => ({
   useToast: () => ({ toast: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), success: vi.fn() } }),
