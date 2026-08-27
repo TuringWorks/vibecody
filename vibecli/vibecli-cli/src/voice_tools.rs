@@ -67,9 +67,11 @@ pub fn contract(may_change: bool) -> &'static str {
              <tool_call name=\"write_file\"><path>src/main.rs</path><content>…</content></tool_call>\n\
              Paths are relative to the project root. Read a file before rewriting it — \
              write_file replaces the whole file, so anything you did not include is gone. \
-             You will be told whether the user agreed. Look only when the workspace block \
-             above does not already say enough — every look is a pause in the conversation. \
-             Never claim to have read or changed a file you did not."
+             You will be told whether the user agreed. If the workspace block above already \
+             answers, answer from it — every look is a pause the user hears. If it does not, \
+             look rather than saying you cannot tell: a question about what the project *is* \
+             is usually answered by its README. Never claim to have read or changed a file \
+             you did not."
         )
     } else {
         read_only_contract()
@@ -85,9 +87,10 @@ pub fn read_only_contract() -> &'static str {
      <tool_call name=\"list_dir\"><path>src</path></tool_call>\n\
      <tool_call name=\"search_files\"><query>fn main</query></tool_call>\n\
      Paths are relative to the project root. You will be given the result and \
-     can then answer. Look only when the workspace block above does not already \
-     say enough — every look is a pause in the conversation. Never claim to \
-     have read a file you did not."
+     can then answer. If the workspace block above already answers, answer from it — \
+     every look is a pause the user hears. If it does not, look rather than saying \
+     you cannot tell: a question about what the project *is* is usually answered by \
+     its README. Never claim to have read a file you did not."
 }
 
 /// Whether a turn is a tool call, decided from its first characters.

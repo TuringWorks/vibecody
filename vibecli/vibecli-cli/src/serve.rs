@@ -9865,7 +9865,24 @@ async fn voice_duplex_turn(
     // Answer about the project that is open, not about nothing. The rule stops
     // short of inviting a guess: an assistant that invents a project structure
     // out loud is worse than one that admits the context does not say.
+    //
+    // What "when it does not say enough" means depends on whether this turn has
+    // tools, and the two rules have to be written together or they contradict
+    // each other. They did: "say you cannot tell" came first and the tool
+    // contract came after, so asked to summarise a project whose README it
+    // could have opened, the assistant took the earlier, easier instruction and
+    // said "I cannot tell from what I can see". With tools, not looking is the
+    // failure — the refusal is what you say *after* looking.
+    let root_path = root.lock().await.clone();
+    let has_tools = root_path.is_some();
     let ctx_rule = match context.lock().await.as_deref() {
+        Some(c) if has_tools => format!(
+            "\n\nYou are talking to a developer about the workspace below. Answer from it \
+             when it says enough. When it does not, LOOK — open the file that would answer, \
+             then answer from what you read. \"I cannot tell\" is only true after you have \
+             looked. Never invent file names or contents.\n\n\
+             <workspace>\n{c}\n</workspace>"
+        ),
         Some(c) => format!(
             "\n\nYou are talking to a developer about the workspace below. Answer from it \
              when it says enough to answer, and say you cannot tell from what you can see \
@@ -9874,14 +9891,8 @@ async fn voice_duplex_turn(
         ),
         None => String::new(),
     };
-    // Tools only when there is a root to jail them to. The contract goes after
-    // the workspace block on purpose: look *only* when the block does not
-    // already answer, since every look is a pause the user hears.
-    let root_path = root.lock().await.clone();
-    let tool_rule = match &root_path {
-        Some(_) => crate::voice_tools::contract(true),
-        None => "",
-    };
+    // Tools only when there is a root to jail them to.
+    let tool_rule = if has_tools { crate::voice_tools::contract(true) } else { "" };
     let mut messages = vec![vibe_ai::provider::Message {
         role: vibe_ai::provider::MessageRole::System,
         content: format!(

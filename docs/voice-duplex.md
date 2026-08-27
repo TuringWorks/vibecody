@@ -359,6 +359,15 @@ per round**, **4k characters per result**, and the final pass must answer. A
 `{"type":"tool","text":"Reading README.md"}` event goes to the client so the
 caption can say what the pause is for.
 
+**When to look is a rule, and it changes with the tools.** Without a root the
+assistant is told to say it cannot tell from what it can see. With one, that
+sentence is only true *after* it has looked — so the rule becomes: answer from
+the `<workspace>` block when it says enough, and open the file that would
+answer when it does not. The two have to be written as one instruction. When
+"say you cannot tell" was stated first and the tool contract came after, asking
+the assistant to summarise a project made it take the earlier, easier rule and
+refuse — with the README a single `read_file` away.
+
 ### Changing something
 
 `write_file` and `apply_patch` are available too — but nothing changes until
