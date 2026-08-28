@@ -15,54 +15,97 @@ VibeCody is an AI-powered developer toolchain built in Rust. It gives you many w
 
 ## Choose Your Surface
 
-| | **VibeCLI** | **VibeCoder** |
-|---|---|---|
-| **Best for** | Terminal users, CI/CD, scripting | Visual editing, panel-rich workflows |
-| **Interface** | TUI (Ratatui) or REPL | Desktop app (Tauri + Monaco) |
-| **Setup time** | 2 minutes | 5 minutes (needs Node.js) |
-| **Works headless** | Yes | No |
-| **AI features** | All 25 providers, agent, review, skills | All CLI features + visual panels |
+| | **VibeCLI** | **VibeCoder** | **VibeAIChat** |
+|---|---|---|---|
+| **Best for** | Terminal, CI/CD, scripting | Visual editing, panel-rich workflows | Quick chat beside your work |
+| **Interface** | TUI (Ratatui) or REPL | Desktop app (Tauri + Monaco) | Small desktop window / menu bar |
+| **Install** | One-liner or a tarball | Download a `.dmg` / `.msi` / `.AppImage` | Same |
+| **Works headless** | Yes | No | No |
+| **AI features** | All 25 providers, agent, review, skills | All of it, plus visual panels | Chat, voice, providers |
 
-**Recommendation:** Start with VibeCLI. You can add VibeCoder later -- they share the same config and crates.
+**Recommendation:** if you live in a terminal, start with VibeCLI. Otherwise
+download VibeCoder — it starts the daemon for you, so there is nothing else to
+install and nothing to configure.
 
 
-## Install in 60 Seconds
+## Install
 
-Pick one method:
+Two paths, and which one you want depends on whether you intend to change the
+code.
 
-### Option A: Build from Source
+### For everyone: install the release build
 
-Requires Rust stable (1.75+) and Git.
+Signed, notarized, and built by CI with SHA-256 checksums. **No toolchain, no
+Rust, no Node.js.**
 
-```bash
-git clone https://github.com/TuringWorks/vibecody.git
-cd vibecody
-cargo build --release -p vibecli
-```
+**Desktop apps** — download from the [Releases page]({{ site.baseurl }}/release/):
 
-The binary lands at `./target/release/vibecli`. Optionally copy it to your PATH:
+| Platform | Take |
+|---|---|
+| macOS (Apple Silicon / Intel) | the `.dmg` for your architecture |
+| Windows | `-setup.exe` (installer) or `_en-US.msi` |
+| Linux | `.AppImage` (portable) or `.deb` |
 
-```bash
-cp target/release/vibecli /usr/local/bin/
-```
+The same three shells are published each release — **VibeCoder** (editor),
+**VibeDesk** (task shell), **VibeAIChat** (chat). Each starts the VibeCLI daemon
+on launch and reuses one already running, so installing more than one is fine.
 
-### Option B: One-Liner Installer
-
-Downloads the latest release binary for your platform (macOS and Linux, x86_64 and ARM):
+**VibeCLI** — one line, macOS and Linux, x86_64 and ARM:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/TuringWorks/vibecody/main/install.sh | sh
 ```
 
-The binary is installed to `~/.local/bin/vibecli` by default. Override with:
+It resolves the latest release, verifies the checksum, and installs to
+`~/.local/bin/vibecli`. Override the location with `INSTALL_DIR=/usr/local/bin`.
+Windows and anyone who prefers to see what they are running can take the
+`vibecli-*` archive from the Releases page directly.
+
+**Mobile and watch** — `.ipa`, `.apk`/`.aab`, watchOS `.app.zip` and Wear OS
+builds are on the same Releases page. iOS and watchOS are unsigned; sideload via
+AltStore / Sideloadly / Xcode.
+
+Check what you got:
 
 ```bash
-INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/TuringWorks/vibecody/main/install.sh | sh
+vibecli --version
 ```
 
-### Option C: Docker
+### For developers: git and make
 
-Run VibeCLI in a container with Ollama as a sidecar (no host dependencies):
+Building from source is for changing VibeCody, not for using it. It needs Rust
+stable and Node.js, and `make setup` installs both along with the system
+libraries:
+
+```bash
+git clone https://github.com/TuringWorks/vibecody.git
+cd vibecody
+make setup      # Rust, Node.js, system libs, npm deps
+make doctor     # verify the toolchain before you build anything
+```
+
+Then build or run whichever surface you are working on:
+
+```bash
+make cli                    # build target/release/vibecli
+make ui                     # run VibeCoder in dev mode
+make vibedesk               # run VibeDesk
+make aichat                 # run VibeAIChat
+make build-all              # everything CI builds
+```
+
+`make help` lists every target; `make help-surfaces` prints the
+`build-<surface>` / `test-<surface>` matrix. See the [Development
+Guide]({{ site.baseurl }}/development/).
+
+> **A source build is not a release build.** It is unsigned, unnotarized, and
+> built with your local toolchain. On macOS that means Gatekeeper will complain,
+> and `codesign -dv` will say `adhoc`. That is expected — it is not the artifact
+> the Releases page publishes.
+
+### Either way: Docker
+
+Runs the daemon with Ollama alongside it, no host dependencies and no API key:
 
 ```bash
 git clone https://github.com/TuringWorks/vibecody.git
@@ -70,7 +113,16 @@ cd vibecody
 docker-compose up
 ```
 
-This starts VibeCLI with a local Ollama instance. No API keys required.
+A prebuilt image tarball (`vibecli-docker-*.tar.gz`) ships with each release for
+air-gapped installs.
+
+### How much machine you need
+
+A cloud provider needs almost nothing — 2 GB of RAM will do. Running a model
+locally is a different question, and
+[Sizing & Hardware]({{ site.baseurl }}/sizing/) answers it: VRAM by model size
+and quantisation, what actually uses a GPU, and what the setup wizard decides
+for you.
 
 
 ## Your First Chat

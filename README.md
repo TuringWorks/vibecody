@@ -17,7 +17,32 @@
 
 ---
 
-## Quick Start
+## Install
+
+**If you just want to use VibeCody, don't build it.** Every release ships signed,
+notarized desktop apps and CLI binaries with SHA-256 checksums:
+
+```bash
+# VibeCLI (macOS / Linux, x86_64 and ARM)
+curl -fsSL https://raw.githubusercontent.com/TuringWorks/vibecody/main/install.sh | sh
+```
+
+Desktop apps — VibeCoder, VibeDesk, VibeAIChat — plus mobile and watch builds are
+on the [Releases page](https://github.com/TuringWorks/vibecody/releases/latest):
+`.dmg` for macOS, `-setup.exe` / `.msi` for Windows, `.AppImage` / `.deb` for
+Linux. Each desktop app starts the VibeCLI daemon itself; there is nothing else
+to install.
+
+Hardware requirements, including what actually needs a GPU:
+[Sizing & Hardware](https://turingworks.github.io/vibecody/sizing/).
+
+---
+
+## Building from source
+
+The rest of this README is for **developing** VibeCody. A source build is
+unsigned and uses your local toolchain — it is not the artifact the Releases
+page publishes.
 
 ### One-Command Setup (macOS / Linux / WSL)
 

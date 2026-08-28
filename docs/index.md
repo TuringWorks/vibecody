@@ -30,6 +30,8 @@ All surfaces are backed by a shared set of Rust crates for AI providers, text ed
 | [VibeCoder Reference](./vibecoder/) | Desktop editor features and setup |
 | [Design System](./design-system/) | Token-based UI system — colors, spacing, typography, components |
 | [Configuration Guide](./configuration/) | All configuration options for providers and UI |
+| [Sizing & Hardware](./sizing/) | RAM, disk and GPU — what needs one, VRAM by model size, what the setup wizard decides |
+| [Third-Party Services](./services/) | Every external service VibeCody can use, what each needs, and why none is required |
 | [Embedding Models](./embeddings/) | Semantic search / RAG — which embedding model, per-model indexes, provider setup |
 | [Memory Guide](./memory-guide/) | All memory layers — auto-recording, cognitive store, verbatim drawers, benchmarking |
 | [Memory Architecture](./memory-architecture/) | Detailed architecture: five stores, Context Assembler, Recap/Resume, storage security |
@@ -69,7 +71,7 @@ All providers support streaming. Local providers require no API key.
 - 1,144 skill files across 155 categories (142 REPL slash commands)
 - Voice input, local-first: a downloaded whisper model runs on the machine, with Groq Whisper as the fallback (`--voice` flag)
 - Tailscale pairing with QR code sharing and mDNS discovery
-- 18 gateway platforms (Telegram, Discord, Slack, Signal, Matrix, Teams, IRC, Twitch, and more)
+- 25 messaging gateway adapters (Telegram, Discord, Slack, Signal, Matrix, Teams, IRC, Twitch, LINE, Feishu, DingTalk, Nostr, and more)
 - Red team security pipeline and compliance reporting
 - Workflow orchestration with 8-stage Code Complete pipeline
 - MCP (Model Context Protocol) server — 51 tools including email, calendar, tasks, Notion, Jira, Home Assistant
