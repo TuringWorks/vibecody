@@ -174,7 +174,13 @@ fn main() {
     let obs: peer::Shared = Arc::new(Mutex::new(peer::Obs::default()));
     serve(port, arm, Arc::clone(&obs), t0);
 
-    let event_loop = EventLoopBuilder::new().build();
+    // A user-event loop, so the page's result *wakes* the loop instead of
+    // waiting to be noticed by the next poll. On the Windows runner the
+    // verdict — a passing one — sat in the mutex unread past the harness's own
+    // 90 s deadline, and the run was reported as a timeout on a transport that
+    // had connected, relayed audio and finished in about ten seconds.
+    let event_loop = EventLoopBuilder::<String>::with_user_event().build();
+    let proxy = event_loop.create_proxy();
     let window = WindowBuilder::new()
         .with_title(format!("gv1c {} — {}", arm.name(), engine()))
         .with_inner_size(tao::dpi::LogicalSize::new(760.0, 520.0))
@@ -189,7 +195,11 @@ fn main() {
     // undefined — the setting was on and the page never saw it.
     let webview = WebViewBuilder::new()
         .with_ipc_handler(move |req| {
-            if let Ok(mut g) = sink.lock() { *g = Some(req.body().to_string()); }
+            let body = req.body().to_string();
+            if let Ok(mut g) = sink.lock() { *g = Some(body.clone()); }
+            // The mutex stays as a fallback for a platform where the proxy
+            // send fails; the wake-up is what makes it timely.
+            let _ = proxy.send_event(body);
         })
         .build(&window)
         .expect("webview");
@@ -202,12 +212,16 @@ fn main() {
 
     let started = Instant::now();
     let mut code = 2;
+    let mut done = false;
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
         if let Event::WindowEvent { event: WindowEvent::CloseRequested, .. } = event {
             *control_flow = ControlFlow::Exit;
         }
-        let finished = result.lock().ok().and_then(|g| g.clone());
+        let finished = match &event {
+            Event::UserEvent(body) => Some(body.clone()),
+            _ => result.lock().ok().and_then(|g| g.clone()),
+        };
         if let Some(body) = finished {
             let mut v: serde_json::Value =
                 serde_json::from_str(&body).unwrap_or_else(|_| serde_json::json!({"raw": body}));
@@ -224,6 +238,7 @@ fn main() {
             let pretty = serde_json::to_string_pretty(&v).unwrap_or(body);
             let _ = std::fs::write(&out, &pretty);
             println!("{pretty}");
+            done = true;
             let verdict = v.get("verdict");
             let flag = |k: &str| {
                 verdict.and_then(|x| x.get(k)).and_then(|b| b.as_bool()).unwrap_or(false)
@@ -238,8 +253,11 @@ fn main() {
             };
             *control_flow = ControlFlow::Exit;
         }
-        // Never let a hung engine hang CI.
-        if started.elapsed().as_secs() > 90 {
+        // Never let a hung engine hang CI — but a result that arrived late is
+        // still a result. Overwriting its exit code here reported a passing
+        // Windows run as a harness timeout, because both branches ran in the
+        // same iteration once the verdict finally landed.
+        if !done && started.elapsed().as_secs() > 90 {
             eprintln!("gv1c: TIMEOUT after 90s on {}", engine());
             code = 2;
             *control_flow = ControlFlow::Exit;
