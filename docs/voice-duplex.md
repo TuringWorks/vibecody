@@ -108,7 +108,17 @@ microphone and speaker in one room.
 > permission request unless the embedder answers it, and neither `wry` nor
 > Tauri does. Until that is fixed, microphone capture does not work on Linux at
 > all — duplex or push-to-talk. See `tools/webview-probe`'s
-> `apply_linux_media_fix` for the two calls required.
+> `apply_linux_media_fix` for the calls required, and apply them **before**
+> loading the page: WebKitGTK settles which globals a page gets when its JS
+> context is created, so setting them afterwards changes nothing.
+>
+> **And WebRTC is not there to turn on.** Ubuntu 24.04's WebKitGTK
+> (2.52.3-0ubuntu0.24.04.1) exposes no `RTCPeerConnection` at all — measured on
+> a CI runner with everything else ruled out: `enable-webrtc` reads back true,
+> `MediaStream` and `navigator.mediaDevices` exist, and GStreamer's `webrtcbin`
+> and `nicesrc` are installed. It is compiled out of the distro build. A WebRTC
+> transport is therefore not an option in a Linux Tauri app on the stock
+> engine; the shipping path, this route's WebSocket, is unaffected.
 
 ## Choosing a voice engine
 

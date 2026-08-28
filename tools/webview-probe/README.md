@@ -38,7 +38,31 @@ cargo run -- --arm probe
 cargo run -- --arm aec                             # plays ~4s of 1 kHz tone
 ```
 
-Exit codes: **0** pass · **1** fail · **2** harness error or timeout (90 s).
+Exit codes: **0** pass · **1** fail · **2** harness error or timeout (90 s) ·
+**3** the engine does not expose the API this arm measures.
+
+3 is kept apart from 1 on purpose. "The transport failed" and "there was no
+transport to try" are different results, and collapsing them into one number
+is how an engine gets blamed for something it was never asked to do.
+
+## What Linux actually reports
+
+Ubuntu 24.04's WebKitGTK (2.52.3-0ubuntu0.24.04.1) **has no WebRTC**:
+`RTCPeerConnection` is `undefined`. Measured on a CI runner, with everything
+else ruled out first — `enable-webrtc` reads back `true` off the engine, the
+page is loaded *after* the switches are set, `MediaStream` and
+`navigator.mediaDevices` both exist, and GStreamer's `webrtcbin`, `nicesrc` and
+`opusenc` are all installed. It is the distro build, and no code here can turn
+it on.
+
+The Linux job therefore reports exit 3 as a **skip with a warning** and still
+uploads its result; macOS and Windows keep failing on 3, where losing the API
+would be a regression rather than a fact about the packaging. The arm re-arms
+itself: the day Ubuntu ships WebRTC, the run stops exiting 3 and has to pass.
+
+**This is a product fact, not just a CI one.** A WebRTC voice transport cannot
+work in a Linux Tauri app on the stock engine. The shipping path — the
+daemon's `/ws/voice/duplex` WebSocket — is unaffected.
 
 ## Linux needs a fix that wry does not apply
 
