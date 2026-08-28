@@ -563,10 +563,12 @@ fn main() -> anyhow::Result<()> {
         .with_title("VibeCody — full-duplex voice")
         .with_inner_size(tao::dpi::LogicalSize::new(820.0, 620.0))
         .build(&event_loop)?;
-    let webview = WebViewBuilder::new()
-        .with_url(format!("http://127.0.0.1:{}/", cfg.http_port))
-        .build(&window)?;
+    // Built empty, *then* navigated: WebKitGTK settles which globals a page
+    // gets when its JS context is created, so flipping the switches after
+    // `with_url` has already loaded it leaves the page without them.
+    let webview = WebViewBuilder::new().build(&window)?;
     apply_linux_media_fix(&webview);
+    webview.load_url(&format!("http://127.0.0.1:{}/", cfg.http_port))?;
 
     eprintln!("voice-duplex: model={} — talk when it says Listening", cfg.model);
     event_loop.run(move |event, _, control_flow| {

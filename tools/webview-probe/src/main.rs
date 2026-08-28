@@ -136,6 +136,31 @@ fn apply_linux_media_fix(webview: &wry::WebView) {
 #[cfg(not(target_os = "linux"))]
 fn apply_linux_media_fix(_webview: &wry::WebView) {}
 
+/// What the engine says about those switches *after* we set them.
+///
+/// Read back rather than assumed. A setter that silently does nothing and a
+/// setter called too late produce the same symptom — a missing global — and
+/// the difference decides whether the fix is ordering or a WebKitGTK built
+/// without `ENABLE_WEB_RTC`. Landing in the result JSON means the answer
+/// arrives with the failure instead of a run later.
+#[cfg(target_os = "linux")]
+fn engine_settings(webview: &wry::WebView) -> serde_json::Value {
+    use webkit2gtk::{SettingsExt, WebViewExt};
+    use wry::WebViewExtUnix;
+    match WebViewExt::settings(&webview.webview()) {
+        Some(s) => serde_json::json!({
+            "enable_media_stream": s.enables_media_stream(),
+            "enable_webaudio": s.enables_webaudio(),
+            "enable_webrtc": s.enables_webrtc(),
+        }),
+        None => serde_json::json!({ "error": "no WebKitSettings on this webview" }),
+    }
+}
+#[cfg(not(target_os = "linux"))]
+fn engine_settings(_webview: &wry::WebView) -> serde_json::Value {
+    serde_json::Value::Null
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let get = |k: &str| args.iter().position(|a| a == k).and_then(|i| args.get(i + 1)).cloned();
@@ -156,14 +181,22 @@ fn main() {
 
     let result: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
     let sink = Arc::clone(&result);
+    // Built empty, *then* navigated. WebKitGTK decides which globals a page
+    // gets when its JS context is created, so `enable-webrtc` flipped after
+    // `with_url` had already loaded the page left `RTCPeerConnection`
+    // undefined — the setting was on and the page never saw it.
     let webview = WebViewBuilder::new()
-        .with_url(format!("http://127.0.0.1:{port}/"))
         .with_ipc_handler(move |req| {
             if let Ok(mut g) = sink.lock() { *g = Some(req.body().to_string()); }
         })
         .build(&window)
         .expect("webview");
     apply_linux_media_fix(&webview);
+    let engine_cfg = engine_settings(&webview);
+    eprintln!("gv1c: engine settings {engine_cfg}");
+    webview
+        .load_url(&format!("http://127.0.0.1:{port}/"))
+        .expect("load page");
 
     let started = Instant::now();
     let mut code = 2;
@@ -181,6 +214,9 @@ fn main() {
                 map.insert("os".into(), serde_json::json!(std::env::consts::OS));
                 map.insert("arch".into(), serde_json::json!(std::env::consts::ARCH));
                 map.insert("arm".into(), serde_json::json!(arm.name()));
+                if !engine_cfg.is_null() {
+                    map.insert("engineSettings".into(), engine_cfg.clone());
+                }
                 if let Ok(o) = obs.lock() { map.insert("peer".into(), peer::snapshot(&o)); }
             }
             let pretty = serde_json::to_string_pretty(&v).unwrap_or(body);
