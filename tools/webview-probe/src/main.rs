@@ -108,6 +108,11 @@ fn serve(port: u16, arm: Arm, obs: peer::Shared, t0: Instant) {
 /// itself before it can claim to have *tested* Linux.
 #[cfg(target_os = "linux")]
 fn apply_linux_media_fix(webview: &wry::WebView) {
+    // `ObjectExt` is what carries `is::<T>()` — the downcast check that tells a
+    // microphone request apart from a geolocation one. It is a glib trait
+    // rather than a webkit2gtk one, which is why importing the webkit traits
+    // alone left the call unresolved.
+    use webkit2gtk::glib::ObjectExt;
     use webkit2gtk::{PermissionRequestExt, SettingsExt, UserMediaPermissionRequest, WebViewExt};
     use wry::WebViewExtUnix;
     let wv = webview.webview();
