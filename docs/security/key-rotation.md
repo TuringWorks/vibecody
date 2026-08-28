@@ -1,6 +1,12 @@
+---
+layout: page
+title: "Daemon Token Rotation"
+permalink: /security/key-rotation/
+---
+
 # Daemon Bearer Token Rotation
 
-> Companion to [`threat-model.md`](./threat-model.md) §7 item #20. Procedure for invalidating a leaked or stale `vibecli serve` bearer token.
+> Companion to [`threat-model.md`]({{ site.baseurl }}/security/threat-model/) §7 item #20. Procedure for invalidating a leaked or stale `vibecli serve` bearer token.
 
 ## Current behavior — implicit rotation on every restart
 
@@ -41,7 +47,7 @@ vibecli serve
 After step 3, clients that were authenticated with the old token (mobile, watch, VibeCoder tabs) will start receiving `401 Unauthorized`. They need the new token:
 
 - **VibeCoder**: reads `~/.vibecli/daemon.token` at IPC time on the same host — no user action required.
-- **Mobile / Watch**: re-pair through the daemon's `/pair` endpoint. Device keys (P-256 ECDSA per [AGENTS.md](../../AGENTS.md)) survive the rotation; only the *bearer* changes.
+- **Mobile / Watch**: re-pair through the daemon's `/pair` endpoint. Device keys (P-256 ECDSA per [AGENTS.md](https://github.com/TuringWorks/vibecody/blob/main/AGENTS.md)) survive the rotation; only the *bearer* changes.
 - **Manual API consumers** (scripts, `curl`, etc.): read the new value from `~/.vibecli/daemon.token` or copy from the startup banner.
 
 ## Verifying rotation succeeded
@@ -78,6 +84,6 @@ If you have a use case that requires any of the above, file an issue with the sc
 
 ## Related
 
-- [`threat-model.md`](./threat-model.md) §7 items #6 (constant-time bearer compare), #8 (per-IP rate limit), #20 (this document)
-- [`AGENTS.md`](../../AGENTS.md) — pairing, device keys, encrypted stores
+- [`threat-model.md`]({{ site.baseurl }}/security/threat-model/) §7 items #6 (constant-time bearer compare), #8 (per-IP rate limit), #20 (this document)
+- [`AGENTS.md`](https://github.com/TuringWorks/vibecody/blob/main/AGENTS.md) — pairing, device keys, encrypted stores
 - `serve.rs::require_auth` and `auth_util::bearer_matches` — the enforcement points

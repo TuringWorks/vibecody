@@ -135,3 +135,27 @@ describe("Given a reply missing the fields the panel reads", () => {
     expect(screen.getByText(/Quality Score/)).toBeTruthy();
   });
 });
+
+describe("Given a report on screen and code that has moved on since", () => {
+  it("When Re-run Review is pressed, Then the same review runs again", async () => {
+    await review({ summary: "first pass", issues: [issue({})], score: {} });
+
+    const calls = () => mockInvoke.mock.calls.filter(([cmd]) => cmd === "run_code_review");
+    expect(calls().length).toBe(1);
+
+    // The control that started this run lives on the Changes tab. Without a
+    // button here, re-reviewing means leaving the findings to go find it.
+    mockInvoke.mockImplementation((cmd: string) =>
+      cmd === "run_code_review"
+        ? Promise.resolve({ summary: "second pass", issues: [], score: {} })
+        : Promise.resolve(null),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Re-run Review/ }));
+
+    await waitFor(() => expect(screen.getByText("second pass")).toBeTruthy());
+    // Same arguments as the run being shown: this repeats the review, it does
+    // not quietly review something else.
+    expect(calls().length).toBe(2);
+    expect(calls()[1][1]).toEqual(calls()[0][1]);
+  });
+});

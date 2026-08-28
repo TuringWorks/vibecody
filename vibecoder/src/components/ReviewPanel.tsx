@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Lightbulb, ChevronDown } from 'lucide-react';
+import { Lightbulb, ChevronDown, RefreshCw } from 'lucide-react';
 import { FixWithAIButton } from './FixWithAIButton';
 import type { FixItem } from '../lib/fixWithAI';
 
@@ -340,12 +340,29 @@ export function ReviewPanel({ review, onOpenFile }: ReviewPanelProps) {
 
  {/* Summary card */}
  <div style={{ background: 'var(--bg-tertiary)', borderRadius: "var(--radius-sm)", padding: 12 }}>
- <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, marginBottom: 6, color: 'var(--text-primary)' }}>
+ <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+ <div style={{ fontSize: "var(--font-size-md)", fontWeight: 600, color: 'var(--text-primary)', flex: 1, minWidth: 0 }}>
  Review Summary {report.base_ref && (
  <span style={{ fontWeight: 400, color: 'var(--text-secondary)', fontSize: "var(--font-size-sm)" }}>
  ({report.base_ref || 'working tree'} → {report.target_ref || 'HEAD'})
  </span>
  )}
+ </div>
+ {/* Re-running belongs with the report, not only with the changes: the
+   * findings are what tell you the code has moved on, and the control
+   * that started this run is a tab away. Same base ref as the run being
+   * shown — this repeats the review, it does not configure a new one. */}
+ <button
+ onClick={() => void review.runReview()}
+ className="panel-btn panel-btn-secondary panel-btn-sm"
+ style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+ title={report.base_ref
+ ? `Review ${report.base_ref} → ${report.target_ref || 'HEAD'} again`
+ : 'Review the uncommitted changes again'}
+ >
+ <RefreshCw size={12} strokeWidth={1.5} />
+ Re-run Review
+ </button>
  </div>
  <p style={{ fontSize: "var(--font-size-base)", color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>{report.summary}</p>
  {report.files_reviewed.length > 0 && (
