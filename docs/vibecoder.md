@@ -6,17 +6,20 @@ permalink: /vibecoder/
 
 **AI-powered desktop code editor built with Tauri 2 and Monaco.** VibeCoder provides a VS Code-like editing experience with a native Rust backend, Monaco Editor frontend, integrated AI chat, autonomous agent mode, explicit-chord diff-mode AI editing (⌘.), terminal, Git panel, code review, and a WASM extension system.
 
-### What's new in 0.5.10
+### What's new in 0.5.11
 
-- **Security review of the whole workspace, from four panels** — Scanner, Red Team, Blue Team and Purple Team each review the project you have open with the model selected in the toolbar. Each team asks its own question: red finds the exploit, blue names the missing control and what would detect an attack, purple reports the attack that gets through what is already there. Prompts, docs and templates are reviewed too, not just code.
-- **Findings are verified before you see them** — the scanner re-checks each finding against the file it names and drops the ones it cannot stand up, instead of forwarding whatever the model said.
-- **"Fix with AI" on every panel that reports something to fix** — one hand-off that writes the finding, its file and the requested change into chat, rather than leaving you to retype it.
-- **Settings can turn features off and reorder them** — hide panels and tabs you do not use, reorder both, and host a tab in a panel other than the one it ships in.
-- **vLLM and LM Studio** join the provider list, on the shared OpenAI-compatible implementation that eight existing providers now share.
-- **Fixes to things that looked finished.** Generated code is written to the file the model names instead of `Component4.tsx`; Build runs the build system you selected rather than the first one detected; reasoning tags (`<thinking>`, `<think>`, namespaced variants) no longer reach the chat window, review comments, or a generated commit message; the long-context router's verdict disappears when you move the slider it was about, instead of describing a number nobody routed; the MCP client matches responses by id, so a server that speaks first is not read as an empty reply.
-- **The last plaintext credentials moved into the encrypted stores**, and `WorkspaceStore`'s `Debug` no longer prints its key.
+- **Full-duplex voice** — the microphone stays open while the assistant speaks and you can interrupt it mid-sentence. Measured end of speech to first audio: 134–158 ms. It is off until you turn it on, because it holds the microphone open for the whole session.
+- **It answers in the language you asked in**, detected every turn across 99 languages, and reads the answer in a voice that speaks it. Pinning a language suppresses detection, so the default is `auto`.
+- **A spoken turn can act on the project.** "Open that file" opens it in the editor rather than describing it, and the assistant sees the workspace, the file tree and the open file — context the typed chat path always had and the voice path never did.
+- **Settings → Voice** — engine, language and voice, with each engine row saying whether it can run here and why not. `make voice-sidecar` and `make voice-kokoro` install the engines; the neural one is Kokoro-82M, 28 voices across 9 languages.
+- **The composer is one `+` menu** instead of a row of permanent buttons, the send button no longer clips out of a narrow sidebar, and the card is a query container so its controls collapse on *its* width rather than the window's.
+- **Charcoal is the default theme**, including the first paint before any JavaScript runs. Existing installs keep the theme they chose.
+- **DOCX, EPUB and Pages documents open in the editor** as documents; EPUBs render as books, and export writes the rendered document rather than its markdown source.
+- **Every model gets its own context budget, read from its provider.** Chat compacted at a flat 80 000 characters and the agent loop pruned at 200 000 tokens; neither had anything to do with the model in front of you, and both failed silently — Ollama drops the *front* of an oversized prompt, taking the system prompt and tool contract with it.
+- **Source Control is four tabs** — Changes, Review, Tools, Settings — instead of collapsible sections stacked under the changes list.
+- **Fixes to things that looked finished.** The git diff showed almost every line as added, because the "before" side was rebuilt from a patch that does not contain the unchanged file. A history entry diffed against the working tree instead of its parent, so a commit looked like it changed nothing. Streamed replies re-parsed the whole transcript per token. The voice controls had been rendering with no stylesheet at all.
 
-Earlier releases: 0.5.9 brought the plugin marketplace, real connectors, and 27 Tauri commands the panels were already calling; 0.5.8 brought voice input, selectable embedding models, the SkillForge panel and signed macOS builds; 0.5.6 brought `/goal` durable execution intent and plugin governance.
+Earlier releases: 0.5.10 brought the four-panel workspace security review, verified findings, "Fix with AI" everywhere, and Settings that can hide and reorder panels; 0.5.9 brought the plugin marketplace, real connectors, and 27 Tauri commands the panels were already calling; 0.5.8 brought voice input, selectable embedding models, the SkillForge panel and signed macOS builds.
 
 ## Architecture Overview
 

@@ -8,16 +8,16 @@ permalink: /vibecli/
 
 VibeCLI provides two interaction modes: a rich **Terminal UI (TUI)** powered by Ratatui, and a **REPL** mode for quick, scriptable use. It also runs as an HTTP daemon (`--serve`) that powers VibeCoder, VibeMobile, and the new native VibeWatch clients.
 
-### What's new in 0.5.10
+### What's new in 0.5.11
 
-- **vLLM and LM Studio** — two more OpenAI-compatible providers, selectable like any other. Eight existing providers moved onto the same shared implementation, so a fix to one is a fix to all of them.
-- **Generated commit messages are sanitised before they reach `git log`** — a model that reasons out loud used to commit its `<thinking>` block, and the fence it wrapped the message in, as the subject line. Reasoning tags in every spelling we have seen (`<think>`, `<thinking>`, `<mm:think>`) are stripped, and an empty result is reported rather than committed.
-- **The last plaintext credentials moved into the encrypted stores.** `WorkspaceStore`'s `Debug` implementation redacts its key, so a `{:?}` in a log line cannot print it.
-- **MCP responses are matched by id** — a server that speaks before it is spoken to was read as an empty reply, which surfaced as a connector with no tools.
+- **The daemon speaks.** Full-duplex voice (`GET /ws/voice/duplex`) runs the whole pipeline here — voice-activity detection, turn-taking, transcription, the model call and speech synthesis — so a client contributes a microphone and speakers and nothing else. Language is detected per turn across 99 of them and the reply is spoken in a voice that matches.
+- **A speech engine you can install and choose.** `GET`/`PUT /voice/settings` holds the engine, language and voice for the machine, because the daemon is what speaks and three clients keeping local copies would be three settings disagreeing about one host. `make voice-sidecar` installs the streaming platform engine, `make voice-kokoro` the neural one, and `make voice-status` reports which will actually run. One engine is warmed at daemon start, since the neural one measured 6.6 s to first sample and paying that inside the socket handler is silence that looks like a broken microphone.
+- **`/superbrain`** — classify the task, then configure the vendor for it.
+- **Every model's context budget comes from its provider** — `context_window` on an OpenAI-compatible `/models`, `model_info` on Ollama's `/api/show`, `inputTokenLimit` on Gemini. There is deliberately no table of numbers: a hardcoded window per model id is a fact about someone else's product, wrong the moment they ship a revision.
 
-**Fixed:** documentation links that 404'd on the published site — the installer URL, a wrong org in several repository links, dead release assets, `.md` links that resolved to the domain root, and a plugin registry that was advertised but does not exist.
+**Fixed:** every `PUT` and `DELETE` route was unreachable from any browser client — they were missing from the CORS method list, so the preflight was refused before the request was sent and the caller got a transport error with no status to explain it. Also: a bare `whisper_server_bin` name was checked as a relative path and so never found; the streaming filter swallowed tool calls before the tool gate could see them, so the voice assistant could not use a single tool it was given.
 
-Earlier: 0.5.9 brought the `vibecli eval` harness, `/goal`, runs bounded from outside their own loops, `--exec` verification and credential redaction on the way in; 0.5.8 brought voice on every client, provider-agnostic embeddings, goal-driven loops, SkillForge and signed macOS binaries.
+Earlier: 0.5.10 brought vLLM and LM Studio, sanitised commit messages, and the last plaintext credentials moved into the encrypted stores; 0.5.9 brought the `vibecli eval` harness, `/goal`, runs bounded from outside their own loops, `--exec` verification and credential redaction on the way in; 0.5.8 brought voice on every client, provider-agnostic embeddings, goal-driven loops, SkillForge and signed macOS binaries.
 
 
 ## Installation

@@ -14,7 +14,113 @@ curl -fsSL https://raw.githubusercontent.com/TuringWorks/vibecody/main/install.s
 
 ---
 
-## v0.5.10 — Latest
+## v0.5.11 — Latest
+
+**Released:** August 28, 2026 &middot; [Release notes](https://github.com/TuringWorks/vibecody/releases/tag/v0.5.11) &middot; [Changelog](https://github.com/TuringWorks/vibecody/compare/v0.5.10...v0.5.11)
+
+137 commits since v0.5.10. The voice release: an open microphone you can talk
+over, a neural voice to answer in, and a spoken turn that can read your project
+and open a file in it. Alongside it, composers rebuilt around one `+` menu,
+Charcoal as the default theme everywhere, DOCX/EPUB/Pages editing, and every
+model's context budget read from its own provider instead of a constant.
+
+### Highlights
+
+- **Full-duplex voice.** The microphone stays open while the assistant speaks, and you can interrupt it mid-sentence. The whole pipeline — voice activity detection, turn-taking, transcription, the model call, synthesis — lives in the daemon, so a client contributes a microphone and speakers and nothing else. Measured end of speech to first audio: **134–158 ms**, down from 1076 ms in the first build. Push-to-talk stays, because it is the right control for dictating a long prompt and the only one that works without echo cancellation.
+- **Any language you speak in.** Detection runs *every* turn across 99 languages, the reply comes back in that language, and a voice that speaks it is chosen to read it. Code-switching mid-conversation is the normal case for multilingual speakers, not an edge case.
+- **A neural voice, and something that installs it.** Kokoro-82M through MLX — 28 voices, 9 languages, Apache-2.0, Apple Silicon. **Settings → Voice** in all three shells picks the engine, language and voice, and `make voice-sidecar` / `make voice-kokoro` install them. For most of this feature's life nothing built the speech sidecar at all, so every spoken reply came from the slowest path in the system default voice.
+- **A spoken turn can act.** "Open that file" opens it in the editor rather than describing it, and the assistant can see the project you have open — the workspace, the file tree, the open file — which the typed chat path had always had and the voice path never did.
+- **Composers rebuilt.** One `+` menu replaces the row of permanent buttons across all three shells, controls are grouped by what they describe rather than listed, and the send button is no longer clipped out of a narrow sidebar.
+- **Charcoal is the default theme**, on every surface, including the first paint before any JavaScript runs. Existing installs keep the theme they chose.
+- **DOCX, EPUB and Pages documents open in the editor** as documents, with EPUBs rendered as books.
+- **Every model gets its own context budget, read from its provider.** The agent loop pruned history at a flat 200 000 tokens and the chat panel compacted at 80 000 characters; neither number had anything to do with the model in front of you, and both failed silently.
+
+### Notable fixes
+
+- The voice assistant could not use a single one of the tools it was given — two independent defects, either sufficient on its own.
+- It read its own reasoning aloud before answering.
+- A question asked in Hindi was answered in fluent, correct English.
+- Every `PUT` and `DELETE` route in the daemon was unreachable from every browser client: they were missing from the CORS method list, so the browser refused the preflight before sending and the caller saw a transport error with no status.
+- The git diff showed almost every line as added — the "before" side was reconstructed from the patch, which does not contain the unchanged file.
+- VibeCoder rendered the voice controls with no stylesheet at all, for the whole life of the feature.
+- Streamed replies re-parsed the entire transcript per token in two shells.
+
+macOS builds are signed and notarized; see [Code signing](#code-signing) to
+check what you downloaded.
+
+### VibeCLI — Terminal AI Assistant
+
+| Platform | Download |
+|----------|----------|
+| macOS (Apple Silicon) | [`vibecli-aarch64-apple-darwin.tar.gz`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/vibecli-aarch64-apple-darwin.tar.gz) |
+| Linux (arm64) | [`vibecli-aarch64-linux.tar.gz`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/vibecli-aarch64-linux.tar.gz) |
+| Docker image (tarball) | [`vibecli-docker-v0.5.11.tar.gz`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/vibecli-docker-v0.5.11.tar.gz) |
+| macOS (Intel) | [`vibecli-x86_64-apple-darwin.tar.gz`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/vibecli-x86_64-apple-darwin.tar.gz) |
+| Linux (x86_64) | [`vibecli-x86_64-linux.tar.gz`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/vibecli-x86_64-linux.tar.gz) |
+| Windows (x86_64) | [`vibecli-x86_64-windows.zip`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/vibecli-x86_64-windows.zip) |
+
+### VibeCoder — Desktop Code Editor
+
+| Platform | Download |
+|----------|----------|
+| macOS (Apple Silicon, .app) | [`VibeCoder-macOS-arm64.app.zip`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeCoder-macOS-arm64.app.zip) |
+| macOS (Intel, .app) | [`VibeCoder-macOS-x64.app.zip`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeCoder-macOS-x64.app.zip) |
+| Linux (arm64, AppImage) | [`VibeCoder_0.5.11_aarch64.AppImage`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeCoder_0.5.11_aarch64.AppImage) |
+| macOS (Apple Silicon) | [`VibeCoder_0.5.11_aarch64.dmg`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeCoder_0.5.11_aarch64.dmg) |
+| Linux (x86_64, AppImage) | [`VibeCoder_0.5.11_amd64.AppImage`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeCoder_0.5.11_amd64.AppImage) |
+| Linux (x86_64, deb) | [`VibeCoder_0.5.11_amd64.deb`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeCoder_0.5.11_amd64.deb) |
+| Linux (arm64, deb) | [`VibeCoder_0.5.11_arm64.deb`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeCoder_0.5.11_arm64.deb) |
+| Windows (installer) | [`VibeCoder_0.5.11_x64-setup.exe`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeCoder_0.5.11_x64-setup.exe) |
+| macOS (Intel) | [`VibeCoder_0.5.11_x64.dmg`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeCoder_0.5.11_x64.dmg) |
+| Windows (MSI) | [`VibeCoder_0.5.11_x64_en-US.msi`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeCoder_0.5.11_x64_en-US.msi) |
+
+### VibeAIChat — Desktop AI Assistant
+
+| Platform | Download |
+|----------|----------|
+| Linux (arm64, AppImage) | [`VibeAIChat_0.5.11_aarch64.AppImage`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeAIChat_0.5.11_aarch64.AppImage) |
+| macOS (Apple Silicon) | [`VibeAIChat_0.5.11_aarch64.dmg`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeAIChat_0.5.11_aarch64.dmg) |
+| Linux (x86_64, AppImage) | [`VibeAIChat_0.5.11_amd64.AppImage`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeAIChat_0.5.11_amd64.AppImage) |
+| Linux (x86_64, deb) | [`VibeAIChat_0.5.11_amd64.deb`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeAIChat_0.5.11_amd64.deb) |
+| Linux (arm64, deb) | [`VibeAIChat_0.5.11_arm64.deb`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeAIChat_0.5.11_arm64.deb) |
+| Windows (installer) | [`VibeAIChat_0.5.11_x64-setup.exe`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeAIChat_0.5.11_x64-setup.exe) |
+| macOS (Intel) | [`VibeAIChat_0.5.11_x64.dmg`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeAIChat_0.5.11_x64.dmg) |
+| Windows (MSI) | [`VibeAIChat_0.5.11_x64_en-US.msi`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeAIChat_0.5.11_x64_en-US.msi) |
+
+### VibeDesk — Desktop Task Shell
+
+| Platform | Download |
+|----------|----------|
+| Linux (arm64, AppImage) | [`VibeDesk_0.5.11_aarch64.AppImage`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeDesk_0.5.11_aarch64.AppImage) |
+| macOS (Apple Silicon) | [`VibeDesk_0.5.11_aarch64.dmg`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeDesk_0.5.11_aarch64.dmg) |
+| Linux (x86_64, AppImage) | [`VibeDesk_0.5.11_amd64.AppImage`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeDesk_0.5.11_amd64.AppImage) |
+| Linux (x86_64, deb) | [`VibeDesk_0.5.11_amd64.deb`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeDesk_0.5.11_amd64.deb) |
+| Linux (arm64, deb) | [`VibeDesk_0.5.11_arm64.deb`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeDesk_0.5.11_arm64.deb) |
+| Windows (installer) | [`VibeDesk_0.5.11_x64-setup.exe`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeDesk_0.5.11_x64-setup.exe) |
+| macOS (Intel) | [`VibeDesk_0.5.11_x64.dmg`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeDesk_0.5.11_x64.dmg) |
+| Windows (MSI) | [`VibeDesk_0.5.11_x64_en-US.msi`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeDesk_0.5.11_x64_en-US.msi) |
+
+### VibeMobile — Flutter Companion
+
+| Platform | Download |
+|----------|----------|
+| Android (AAB) | [`VibeCody-Mobile-v0.5.11-android.aab`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeCody-Mobile-v0.5.11-android.aab) |
+| Android (APK) | [`VibeCody-Mobile-v0.5.11-android.apk`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeCody-Mobile-v0.5.11-android.apk) |
+| iOS (unsigned — sideload via AltStore / Sideloadly) | [`VibeCody-Mobile-v0.5.11-ios.ipa`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeCody-Mobile-v0.5.11-ios.ipa) |
+
+### VibeWatch — Apple Watch & Wear OS
+
+| Platform | Download |
+|----------|----------|
+| watchOS 10+ (unsigned — sideload via Xcode) | [`VibeCody-WatchOS-v0.5.11.app.zip`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeCody-WatchOS-v0.5.11.app.zip) |
+| Wear OS 3+ (AAB) | [`VibeCody-Wear-v0.5.11.aab`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeCody-Wear-v0.5.11.aab) |
+| Wear OS 3+ (APK) | [`VibeCody-Wear-v0.5.11.apk`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeCody-Wear-v0.5.11.apk) |
+
+[SHA256SUMS.txt](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/SHA256SUMS.txt)
+
+---
+
+## v0.5.10
 
 **Released:** August 21, 2026 &middot; [Release notes](https://github.com/TuringWorks/vibecody/releases/tag/v0.5.10) &middot; [Changelog](https://github.com/TuringWorks/vibecody/compare/v0.5.9...v0.5.10)
 

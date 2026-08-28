@@ -107,7 +107,7 @@ graph, skillforge and token-freshness status):
 {
   "status": "ok",
   "service": "vibecli",
-  "version": "0.5.10"
+  "version": "0.5.11"
 }
 ```
 
