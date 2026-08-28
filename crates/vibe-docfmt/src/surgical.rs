@@ -92,7 +92,12 @@ pub fn apply<A: BlockAdapter>(
     for op in ops.iter().rev() {
         match *op {
             DiffOp::Equal { .. } => {}
-            DiffOp::Replace { old_index, old_len, new_index, new_len } => {
+            DiffOp::Replace {
+                old_index,
+                old_len,
+                new_index,
+                new_len,
+            } => {
                 let overlap = old_len.min(new_len);
                 for k in 0..overlap {
                     let slot = &slots[old_index + k];
@@ -127,12 +132,18 @@ pub fn apply<A: BlockAdapter>(
                     }
                 }
             }
-            DiffOp::Delete { old_index, old_len, .. } => {
+            DiffOp::Delete {
+                old_index, old_len, ..
+            } => {
                 for k in (0..old_len).rev() {
                     remove_at(container, &slots[old_index + k].path)?;
                 }
             }
-            DiffOp::Insert { old_index, new_index, new_len } => {
+            DiffOp::Insert {
+                old_index,
+                new_index,
+                new_len,
+            } => {
                 let blocks = &new_blocks[new_index..new_index + new_len];
                 match old_index.checked_sub(1).and_then(|i| slots.get(i)) {
                     Some(anchor) => {

@@ -134,7 +134,9 @@ impl StreamFilter {
 
     fn is_suppressed(&self, name: &str) -> bool {
         let local = local_name(name);
-        self.suppressed.iter().any(|s| s.eq_ignore_ascii_case(local))
+        self.suppressed
+            .iter()
+            .any(|s| s.eq_ignore_ascii_case(local))
     }
 
     /// Feed one streamed chunk. Returns the text safe to print now, which may

@@ -25,13 +25,14 @@ fn book(chapters: &[(&str, &str)]) -> Vec<u8> {
         .iter()
         .enumerate()
         .map(|(i, _)| {
-            format!(
-                r#"<item id="c{i}" href="ch{i}.xhtml" media-type="application/xhtml+xml"/>"#
-            )
+            format!(r#"<item id="c{i}" href="ch{i}.xhtml" media-type="application/xhtml+xml"/>"#)
         })
         .collect();
-    let spine: String =
-        chapters.iter().enumerate().map(|(i, _)| format!(r#"<itemref idref="c{i}"/>"#)).collect();
+    let spine: String = chapters
+        .iter()
+        .enumerate()
+        .map(|(i, _)| format!(r#"<itemref idref="c{i}"/>"#))
+        .collect();
     let opf = format!(
         r#"<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0"><metadata><dc:title xmlns:dc="http://purl.org/dc/elements/1.1/">Test</dc:title></metadata><manifest>{manifest}<item id="css" href="style.css" media-type="text/css"/></manifest><spine>{spine}</spine></package>"#
@@ -67,7 +68,14 @@ fn reads_chapters_headings_lists_and_emphasis() {
     let blocks = &doc.sections[0].blocks;
     assert!(matches!(&blocks[0], Block::Heading { level: 1, .. }));
     assert!(matches!(&blocks[1], Block::Paragraph { spans } if spans[1].style.bold));
-    assert!(matches!(&blocks[2], Block::ListItem { ordered: false, level: 0, .. }));
+    assert!(matches!(
+        &blocks[2],
+        Block::ListItem {
+            ordered: false,
+            level: 0,
+            ..
+        }
+    ));
     assert!(matches!(&blocks[4], Block::ListItem { ordered: true, .. }));
     assert!(matches!(&blocks[5], Block::Code { text } if text == "code()"));
     assert!(matches!(&blocks[6], Block::Rule));
@@ -88,7 +96,10 @@ fn multi_chapter_buffers_carry_section_markers() {
     let bytes = book(&[("One", "<p>first</p>"), ("Two", "<p>second</p>")]);
     let doc = epub::read(&bytes).expect("read");
     let text = markdown::to_markdown(&doc);
-    assert!(text.contains(r#"<!-- vibedoc:section id="OEBPS/ch0.xhtml" title="One" -->"#), "{text}");
+    assert!(
+        text.contains(r#"<!-- vibedoc:section id="OEBPS/ch0.xhtml" title="One" -->"#),
+        "{text}"
+    );
 
     let parsed = markdown::from_markdown(DocFormat::Epub, &text);
     assert_eq!(parsed.sections.len(), 2);
@@ -107,13 +118,23 @@ fn editing_a_chapter_preserves_the_rest_of_the_container() {
     let rewritten = epub::write(&bytes, &edited).expect("write");
     let entries = zipedit::read_entries(&rewritten.bytes).expect("entries");
     assert_eq!(entries[0].name, "mimetype", "mimetype stays first");
-    assert_eq!(entries[0].compression, zip::CompressionMethod::Stored, "and stays stored");
-    assert!(zipedit::find(&entries, "OEBPS/style.css").is_some(), "stylesheet preserved");
+    assert_eq!(
+        entries[0].compression,
+        zip::CompressionMethod::Stored,
+        "and stays stored"
+    );
+    assert!(
+        zipedit::find(&entries, "OEBPS/style.css").is_some(),
+        "stylesheet preserved"
+    );
 
     let xhtml = zipedit::text(zipedit::find(&entries, "OEBPS/ch0.xhtml").unwrap()).unwrap();
     assert!(xhtml.contains("new text"));
     assert!(!xhtml.contains("old text"));
-    assert!(xhtml.contains("<img src=\"a.png\"/>"), "image kept: {xhtml}");
+    assert!(
+        xhtml.contains("<img src=\"a.png\"/>"),
+        "image kept: {xhtml}"
+    );
     assert!(xhtml.contains("style.css"), "chapter head preserved");
 }
 
@@ -138,8 +159,9 @@ fn adding_a_list_item_lands_inside_the_list() {
     let bytes = book(&[("One", "<ul><li>a</li></ul>")]);
     let doc = epub::read(&bytes).expect("read");
     let mut edited = doc.clone();
-    edited.sections[0].blocks =
-        markdown::from_markdown(DocFormat::Epub, "- a\n- b\n").sections[0].blocks.clone();
+    edited.sections[0].blocks = markdown::from_markdown(DocFormat::Epub, "- a\n- b\n").sections[0]
+        .blocks
+        .clone();
 
     let rewritten = epub::write(&bytes, &edited).expect("write");
     let entries = zipedit::read_entries(&rewritten.bytes).expect("entries");

@@ -187,9 +187,8 @@ pub fn get_diff(repo_path: &Path, file_path: &str) -> Result<String> {
 /// subdirectory of a checkout still resolves; `file_path` is relative to the
 /// repository root, matching [`get_diff`].
 pub fn file_at_head(repo_path: &Path, file_path: &str) -> Result<Option<String>> {
-    let root = discover_repo_root(repo_path).ok_or_else(|| {
-        anyhow::anyhow!("{} is not inside a git repository", repo_path.display())
-    })?;
+    let root = discover_repo_root(repo_path)
+        .ok_or_else(|| anyhow::anyhow!("{} is not inside a git repository", repo_path.display()))?;
     let repo = Repository::open(&root)?;
 
     // An unborn HEAD (a repo with no commits) is not an error here — there is
@@ -238,9 +237,8 @@ pub fn file_versions_at_commit(
     rev: &str,
     file_path: &str,
 ) -> Result<(Option<String>, Option<String>)> {
-    let root = discover_repo_root(repo_path).ok_or_else(|| {
-        anyhow::anyhow!("{} is not inside a git repository", repo_path.display())
-    })?;
+    let root = discover_repo_root(repo_path)
+        .ok_or_else(|| anyhow::anyhow!("{} is not inside a git repository", repo_path.display()))?;
     let repo = Repository::open(&root)?;
     let oid = repo.revparse_single(rev)?.id();
     let commit = repo.find_commit(oid)?;
@@ -2029,10 +2027,15 @@ mod file_at_head_tests {
         let body: String = (1..=500).map(|i| format!("line {i}\n")).collect();
         let (_dir, root) = repo_with("src/cli.ts", &body);
         // One line edited in the working tree.
-        fs::write(root.join("src/cli.ts"), body.replace("line 250\n", "line 250 edited\n"))
-            .expect("write");
+        fs::write(
+            root.join("src/cli.ts"),
+            body.replace("line 250\n", "line 250 edited\n"),
+        )
+        .expect("write");
 
-        let head = file_at_head(&root, "src/cli.ts").expect("ok").expect("tracked");
+        let head = file_at_head(&root, "src/cli.ts")
+            .expect("ok")
+            .expect("tracked");
         assert_eq!(head, body);
         assert_eq!(head.lines().count(), 500);
     }
@@ -2079,7 +2082,8 @@ mod file_at_head_tests {
         let tree_id = index.write_tree().expect("write_tree");
         let tree = repo.find_tree(tree_id).expect("tree");
         let sig = git2::Signature::now("t", "t@example.com").expect("sig");
-        repo.commit(Some("HEAD"), &sig, &sig, "init", &tree, &[]).expect("commit");
+        repo.commit(Some("HEAD"), &sig, &sig, "init", &tree, &[])
+            .expect("commit");
         drop(tree);
 
         assert!(file_at_head(&root, "bin").is_err());
@@ -2115,10 +2119,11 @@ mod file_versions_at_commit_tests {
         let tree_id = index.write_tree().expect("write_tree");
         let tree = repo.find_tree(tree_id).expect("tree");
         let sig = git2::Signature::now("t", "t@example.com").expect("sig");
-        let parents: Vec<git2::Commit<'_>> = match repo.head().ok().and_then(|h| h.peel_to_commit().ok()) {
-            Some(c) => vec![c],
-            None => vec![],
-        };
+        let parents: Vec<git2::Commit<'_>> =
+            match repo.head().ok().and_then(|h| h.peel_to_commit().ok()) {
+                Some(c) => vec![c],
+                None => vec![],
+            };
         let parent_refs: Vec<&git2::Commit<'_>> = parents.iter().collect();
         let oid = repo
             .commit(Some("HEAD"), &sig, &sig, msg, &tree, &parent_refs)

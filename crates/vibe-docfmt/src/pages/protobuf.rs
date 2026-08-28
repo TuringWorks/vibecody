@@ -58,7 +58,9 @@ impl Message {
                 // Groups (3/4) were removed from proto3 and do not appear in
                 // iWork archives; refusing beats mis-parsing the rest.
                 other => {
-                    return Err(DocError::Parse(format!("unsupported protobuf wire type {other}")))
+                    return Err(DocError::Parse(format!(
+                        "unsupported protobuf wire type {other}"
+                    )))
                 }
             };
             fields.push((number, value));
@@ -70,7 +72,10 @@ impl Message {
     pub fn serialize(&self) -> Vec<u8> {
         let mut out = Vec::new();
         for (number, value) in &self.fields {
-            write_varint(&mut out, (u64::from(*number) << 3) | u64::from(value.wire_type()));
+            write_varint(
+                &mut out,
+                (u64::from(*number) << 3) | u64::from(value.wire_type()),
+            );
             match value {
                 Value::Varint(v) => write_varint(&mut out, *v),
                 Value::Fixed64(b) => out.extend_from_slice(b),
@@ -122,7 +127,8 @@ impl Message {
             .iter()
             .position(|(n, v)| *n == number && matches!(v, Value::Bytes(_)))
             .unwrap_or(self.fields.len());
-        self.fields.retain(|(n, v)| !(*n == number && matches!(v, Value::Bytes(_))));
+        self.fields
+            .retain(|(n, v)| !(*n == number && matches!(v, Value::Bytes(_))));
         let at = at.min(self.fields.len());
         for (k, value) in values.into_iter().enumerate() {
             self.fields.insert(at + k, (number, Value::Bytes(value)));
@@ -131,7 +137,11 @@ impl Message {
 
     /// Set the first varint value of a field, appending if absent.
     pub fn set_varint(&mut self, number: u32, value: u64) {
-        match self.fields.iter_mut().find(|(n, v)| *n == number && matches!(v, Value::Varint(_))) {
+        match self
+            .fields
+            .iter_mut()
+            .find(|(n, v)| *n == number && matches!(v, Value::Varint(_)))
+        {
             Some(slot) => slot.1 = Value::Varint(value),
             None => self.fields.push((number, Value::Varint(value))),
         }
@@ -167,7 +177,9 @@ impl<'a> Cursor<'a> {
             }
             shift += 7;
             if shift >= 64 {
-                return Err(DocError::Parse("protobuf varint is longer than 64 bits".into()));
+                return Err(DocError::Parse(
+                    "protobuf varint is longer than 64 bits".into(),
+                ));
             }
         }
     }
@@ -232,7 +244,11 @@ mod tests {
     fn round_trips_bytes_exactly() {
         let bytes = sample();
         let parsed = Message::parse(&bytes).expect("parse");
-        assert_eq!(parsed.serialize(), bytes, "re-serialization is byte-identical");
+        assert_eq!(
+            parsed.serialize(),
+            bytes,
+            "re-serialization is byte-identical"
+        );
     }
 
     #[test]
@@ -245,7 +261,10 @@ mod tests {
         assert_eq!(again.varint(1), Some(150), "unrelated varint survived");
         assert_eq!(again.bytes_values(3), vec![&b"edited".to_vec()]);
         assert!(
-            again.fields.iter().any(|(n, v)| *n == 7 && matches!(v, Value::Fixed32([1, 2, 3, 4]))),
+            again
+                .fields
+                .iter()
+                .any(|(n, v)| *n == 7 && matches!(v, Value::Fixed32([1, 2, 3, 4]))),
             "unrelated fixed32 survived"
         );
     }

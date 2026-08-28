@@ -54,7 +54,10 @@ impl Element {
     }
 
     pub fn attr(&self, name: &str) -> Option<&str> {
-        self.attrs.iter().find(|(k, _)| k == name).map(|(_, v)| v.as_str())
+        self.attrs
+            .iter()
+            .find(|(k, _)| k == name)
+            .map(|(_, v)| v.as_str())
     }
 
     /// Set (or replace) an attribute. Invalidates the verbatim open tag.
@@ -143,7 +146,9 @@ pub fn parse(xml: &str) -> Result<XmlDoc, DocError> {
     let mut epilogue: Vec<Node> = Vec::new();
 
     loop {
-        let event = reader.read_event().map_err(|e| DocError::Parse(e.to_string()))?;
+        let event = reader
+            .read_event()
+            .map_err(|e| DocError::Parse(e.to_string()))?;
         match event {
             Event::Eof => break,
             Event::Start(e) => {
@@ -156,11 +161,19 @@ pub fn parse(xml: &str) -> Result<XmlDoc, DocError> {
                 if stack.is_empty() && root.is_none() {
                     root = Some(el);
                 } else {
-                    push_node(&mut stack, &mut prologue, &mut epilogue, &root, Node::Element(el));
+                    push_node(
+                        &mut stack,
+                        &mut prologue,
+                        &mut epilogue,
+                        &root,
+                        Node::Element(el),
+                    );
                 }
             }
             Event::End(_) => {
-                let Some(finished) = stack.pop() else { continue };
+                let Some(finished) = stack.pop() else {
+                    continue;
+                };
                 if stack.is_empty() {
                     root = Some(finished);
                 } else if let Some(parent) = stack.last_mut() {
@@ -169,7 +182,13 @@ pub fn parse(xml: &str) -> Result<XmlDoc, DocError> {
             }
             Event::Text(e) => {
                 let raw = String::from_utf8_lossy(e.as_ref()).into_owned();
-                push_node(&mut stack, &mut prologue, &mut epilogue, &root, Node::Text(raw));
+                push_node(
+                    &mut stack,
+                    &mut prologue,
+                    &mut epilogue,
+                    &root,
+                    Node::Text(raw),
+                );
             }
             Event::CData(e) => {
                 let raw = String::from_utf8_lossy(e.as_ref()).into_owned();
@@ -223,13 +242,23 @@ pub fn parse(xml: &str) -> Result<XmlDoc, DocError> {
             }
             Event::GeneralRef(e) => {
                 let raw = String::from_utf8_lossy(e.as_ref()).into_owned();
-                push_node(&mut stack, &mut prologue, &mut epilogue, &root, Node::Text(format!("&{raw};")));
+                push_node(
+                    &mut stack,
+                    &mut prologue,
+                    &mut epilogue,
+                    &root,
+                    Node::Text(format!("&{raw};")),
+                );
             }
         }
     }
 
     let root = root.ok_or_else(|| DocError::Parse("XML has no root element".into()))?;
-    Ok(XmlDoc { prologue, root, epilogue })
+    Ok(XmlDoc {
+        prologue,
+        root,
+        epilogue,
+    })
 }
 
 fn push_node(
@@ -259,7 +288,13 @@ fn element_from(e: &BytesStart<'_>, self_closing: bool) -> Result<Element, DocEr
             Ok((key, value))
         })
         .collect::<Result<Vec<_>, DocError>>()?;
-    Ok(Element { name, attrs, children: Vec::new(), self_closing, raw_open: Some(raw) })
+    Ok(Element {
+        name,
+        attrs,
+        children: Vec::new(),
+        self_closing,
+        raw_open: Some(raw),
+    })
 }
 
 /// Serialize an element's children — its inner markup, without the element's
@@ -324,7 +359,9 @@ fn write_element(el: &Element, out: &mut String) {
 
 /// Escape text for an XML text node.
 pub fn escape_text(text: &str) -> String {
-    text.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+    text.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
 }
 
 /// Escape a value for an XML attribute.

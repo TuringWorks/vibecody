@@ -2478,7 +2478,6 @@ pub struct SuperBrainTarget {
     /// guess at which model the user wants.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
-
 }
 
 #[cfg(test)]

@@ -6636,7 +6636,10 @@ mod context_budget_tests {
     #[tokio::test]
     async fn a_large_window_is_not_capped_at_the_default() {
         let budget = resolve_context_budget(None, &WindowProvider(Some(1_048_576))).await;
-        assert!(budget > DEFAULT_CONTEXT_BUDGET_TOKENS, "budget was {budget}");
+        assert!(
+            budget > DEFAULT_CONTEXT_BUDGET_TOKENS,
+            "budget was {budget}"
+        );
     }
 
     /// Unknown is not a number. Anthropic and OpenAI do not publish the field,

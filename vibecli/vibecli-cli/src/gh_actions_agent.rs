@@ -627,7 +627,10 @@ mod tests {
     #[test]
     fn test_new_agent() {
         let agent = GhActionsAgent::new();
-        assert!(agent.default_model.is_empty(), "generated CI must not name a vendor");
+        assert!(
+            agent.default_model.is_empty(),
+            "generated CI must not name a vendor"
+        );
         assert_eq!(agent.default_max_turns, 10);
         assert!(agent.secrets.is_empty());
     }

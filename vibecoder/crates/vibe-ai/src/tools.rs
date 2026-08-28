@@ -3211,10 +3211,7 @@ pub enum PathTag<'a> {
     ///
     /// `after_open` still points past the tag so a caller can skip it and
     /// keep scanning: one malformed tag must not discard the calls after it.
-    Rejected {
-        reason: String,
-        after_open: usize,
-    },
+    Rejected { reason: String, after_open: usize },
     /// The tag has not finished arriving yet. Callers scanning a partial
     /// stream should stop and retry on the next chunk.
     Incomplete,
@@ -3274,7 +3271,10 @@ pub fn sanitize_tool_path(raw: &str) -> Result<&str, String> {
     if let Some(c) = path.chars().find(|c| c.is_control()) {
         return Err(format!("path contains the control character {:?}", c));
     }
-    if let Some(c) = path.chars().find(|c| matches!(c, '"' | '<' | '>' | '|' | '\0')) {
+    if let Some(c) = path
+        .chars()
+        .find(|c| matches!(c, '"' | '<' | '>' | '|' | '\0'))
+    {
         return Err(format!("path contains {c:?}, so the tag was misread"));
     }
     if path.split(['/', '\\']).any(|part| part == "..") {
@@ -3341,13 +3341,25 @@ mod path_tag_tests {
     #[test]
     fn a_dotfile_is_not_mistaken_for_traversal() {
         let text = "<write_file path=\"..config/x.toml\">x</write_file>";
-        assert!(matches!(read(text), PathTag::Found { path: "..config/x.toml", .. }));
+        assert!(matches!(
+            read(text),
+            PathTag::Found {
+                path: "..config/x.toml",
+                ..
+            }
+        ));
     }
 
     #[test]
     fn a_half_arrived_tag_is_incomplete_not_garbage() {
-        assert_eq!(read_path_tag("<write_file path=\"src/ma", 0, OPEN), PathTag::Incomplete);
-        assert_eq!(read_path_tag("<write_file path=\"src/main.rs", 0, OPEN), PathTag::Incomplete);
+        assert_eq!(
+            read_path_tag("<write_file path=\"src/ma", 0, OPEN),
+            PathTag::Incomplete
+        );
+        assert_eq!(
+            read_path_tag("<write_file path=\"src/main.rs", 0, OPEN),
+            PathTag::Incomplete
+        );
         assert_eq!(
             read_path_tag("<write_file path=\"src/main.rs\"", 0, OPEN),
             PathTag::Incomplete

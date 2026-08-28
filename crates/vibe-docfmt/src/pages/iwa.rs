@@ -95,8 +95,14 @@ pub fn parse_stream(data: &[u8]) -> Result<Vec<Archive>, DocError> {
         // Strip the message infos: they are rebuilt from `messages` on the way
         // out, so a payload whose length changed cannot disagree with its info.
         let mut trimmed = info;
-        trimmed.fields.retain(|(n, v)| !(*n == INFO_MESSAGES && matches!(v, Value::Bytes(_))));
-        archives.push(Archive { identifier, info: trimmed, messages });
+        trimmed
+            .fields
+            .retain(|(n, v)| !(*n == INFO_MESSAGES && matches!(v, Value::Bytes(_))));
+        archives.push(Archive {
+            identifier,
+            info: trimmed,
+            messages,
+        });
     }
     Ok(archives)
 }
@@ -116,8 +122,10 @@ pub fn serialize_stream(archives: &[Archive]) -> Vec<u8> {
         for (k, message) in archive.messages.iter().enumerate() {
             let mut message_info = message.info.clone();
             message_info.set_varint(MESSAGE_LENGTH, message.payload.len() as u64);
-            info.fields
-                .insert(insert_at + k, (INFO_MESSAGES, Value::Bytes(message_info.serialize())));
+            info.fields.insert(
+                insert_at + k,
+                (INFO_MESSAGES, Value::Bytes(message_info.serialize())),
+            );
         }
         let info_bytes = info.serialize();
         write_varint(&mut out, info_bytes.len() as u64);
@@ -141,12 +149,20 @@ mod tests {
                 let mut info = Message::default();
                 info.set_varint(MESSAGE_TYPE, *type_id);
                 info.set_varint(MESSAGE_LENGTH, payload.len() as u64);
-                ArchivedMessage { type_id: *type_id, info, payload: payload.to_vec() }
+                ArchivedMessage {
+                    type_id: *type_id,
+                    info,
+                    payload: payload.to_vec(),
+                }
             })
             .collect();
         let mut info = Message::default();
         info.set_varint(INFO_IDENTIFIER, 42);
-        serialize_stream(&[Archive { identifier: 42, info, messages }])
+        serialize_stream(&[Archive {
+            identifier: 42,
+            info,
+            messages,
+        }])
     }
 
     #[test]
@@ -158,7 +174,11 @@ mod tests {
         assert_eq!(archives[0].messages.len(), 2);
         assert_eq!(archives[0].messages[0].type_id, 2001);
         assert_eq!(archives[0].messages[1].payload, b"second");
-        assert_eq!(serialize_stream(&archives), bytes, "re-serialization is byte-identical");
+        assert_eq!(
+            serialize_stream(&archives),
+            bytes,
+            "re-serialization is byte-identical"
+        );
     }
 
     #[test]

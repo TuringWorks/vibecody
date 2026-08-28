@@ -216,7 +216,13 @@ mod tests {
         let img = tauri::image::Image::from_bytes(bytes).expect("tray template decodes as PNG");
 
         let total = (img.width() * img.height()) as usize;
-        let opaque = img.rgba().iter().skip(3).step_by(4).filter(|&&a| a == 255).count();
+        let opaque = img
+            .rgba()
+            .iter()
+            .skip(3)
+            .step_by(4)
+            .filter(|&&a| a == 255)
+            .count();
 
         assert!(
             opaque * 2 < total,

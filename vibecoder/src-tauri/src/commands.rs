@@ -5340,7 +5340,9 @@ async fn process_tool_calls(
             vibe_ai::tools::PathTag::Found { path, after_open } => {
                 let resolved = resolve(path);
                 match workspace.file_system().read_file(&resolved).await {
-                    Ok(content) => output.push_str(&format!("Read file '{}':\n{}\n", path, content)),
+                    Ok(content) => {
+                        output.push_str(&format!("Read file '{}':\n{}\n", path, content))
+                    }
                     Err(e) => output.push_str(&format!("Failed to read file '{}': {}\n", path, e)),
                 }
                 search_from = after_open;
@@ -67803,7 +67805,10 @@ pub struct DocumentWarning {
 
 impl From<&vibe_docfmt::Warning> for DocumentWarning {
     fn from(warning: &vibe_docfmt::Warning) -> Self {
-        DocumentWarning { code: warning.code.clone(), message: warning.message.clone() }
+        DocumentWarning {
+            code: warning.code.clone(),
+            message: warning.message.clone(),
+        }
     }
 }
 

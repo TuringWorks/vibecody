@@ -1337,7 +1337,11 @@ struct VoiceTranscribeRequest {
 /// engine answers on a different flag and in a slightly different shape, so the
 /// normalising happens here rather than in three clients.
 async fn probe_voices(engine: &str, bin: &str, args: &[String]) -> Option<serde_json::Value> {
-    let flag = if engine == "kokoro" { "--voices" } else { "--list" };
+    let flag = if engine == "kokoro" {
+        "--voices"
+    } else {
+        "--list"
+    };
     let prog = crate::voice_duplex::resolve_bin(bin)?;
     let out = tokio::process::Command::new(prog)
         .args(args)
@@ -9916,12 +9920,13 @@ async fn handle_voice_duplex_ws(socket: WebSocket, state: ServeState, params: Ws
     // `af_heart`, the platform speaks `com.apple.voice.compact.en-US.Samantha`.
     // A client that has not chosen one gets the configured default for whichever
     // engine is actually running, rather than the other engine's vocabulary.
-    let voice = Arc::new(tokio::sync::Mutex::new(params.voice.clone().or_else(|| {
-        (cfg.voice.tts_engine == "kokoro").then(|| cfg.voice.kokoro_voice.clone())
-    })));
+    let voice = Arc::new(tokio::sync::Mutex::new(params.voice.clone().or_else(
+        || (cfg.voice.tts_engine == "kokoro").then(|| cfg.voice.kokoro_voice.clone()),
+    )));
     // Survives across turns: see `voice_duplex_turn`. Distinct from `carry`
     // below, which is the PCM remainder between frames.
-    let unanswered: Arc<tokio::sync::Mutex<Option<String>>> = Arc::new(tokio::sync::Mutex::new(None));
+    let unanswered: Arc<tokio::sync::Mutex<Option<String>>> =
+        Arc::new(tokio::sync::Mutex::new(None));
     let lang_mode = Arc::new(tokio::sync::Mutex::new(
         params.language.clone().unwrap_or_else(|| "en".into()),
     ));
@@ -9941,8 +9946,7 @@ async fn handle_voice_duplex_ws(socket: WebSocket, state: ServeState, params: Ws
     // The one approval a spoken turn can have outstanding. One, not a queue:
     // the assistant asks and then waits, so a second question cannot exist
     // until the first is answered or abandoned.
-    let approvals: crate::voice_tools::ApprovalSlot =
-        Arc::new(tokio::sync::Mutex::new(None));
+    let approvals: crate::voice_tools::ApprovalSlot = Arc::new(tokio::sync::Mutex::new(None));
     // Whether this client has somewhere to put a file. VibeCoder has an editor;
     // VibeDesk and VibeAIChat do not, and a tool they cannot honour would only
     // buy the user "I've opened that for you" with nothing on screen. Declared
@@ -9959,14 +9963,20 @@ async fn handle_voice_duplex_ws(socket: WebSocket, state: ServeState, params: Ws
     while let Some(Ok(msg)) = source.next().await {
         match msg {
             WsMessage::Text(t) => {
-                let Ok(v) = serde_json::from_str::<serde_json::Value>(&t) else { continue };
+                let Ok(v) = serde_json::from_str::<serde_json::Value>(&t) else {
+                    continue;
+                };
                 match v.get("type").and_then(|x| x.as_str()) {
                     Some("set_voice") => {
-                        *voice.lock().await = v.get("id").and_then(|x| x.as_str()).map(str::to_string);
+                        *voice.lock().await =
+                            v.get("id").and_then(|x| x.as_str()).map(str::to_string);
                     }
                     Some("set_language") => {
-                        *lang_mode.lock().await =
-                            v.get("lang").and_then(|x| x.as_str()).unwrap_or("en").to_string();
+                        *lang_mode.lock().await = v
+                            .get("lang")
+                            .and_then(|x| x.as_str())
+                            .unwrap_or("en")
+                            .to_string();
                     }
                     Some("approval") => {
                         // Anything that is not an explicit yes is a no: a
@@ -10010,7 +10020,10 @@ async fn handle_voice_duplex_ws(socket: WebSocket, state: ServeState, params: Ws
                 continue;
             }
             WsMessage::Binary(buf) => {
-                carry.extend(buf.chunks_exact(2).map(|c| i16::from_le_bytes([c[0], c[1]])));
+                carry.extend(
+                    buf.chunks_exact(2)
+                        .map(|c| i16::from_le_bytes([c[0], c[1]])),
+                );
             }
             WsMessage::Close(_) => break,
             _ => continue,
@@ -10291,9 +10304,18 @@ async fn voice_duplex_turn(
             }
             full.push_str(&speakable);
             if let Some(sentence) = split.push(&speakable) {
-                emit_sentence(&sentence, &tx, &tts, &voice, &gen, my_gen, t0, &mut first_audio,
-                              detected.as_deref())
-                    .await;
+                emit_sentence(
+                    &sentence,
+                    &tx,
+                    &tts,
+                    &voice,
+                    &gen,
+                    my_gen,
+                    t0,
+                    &mut first_audio,
+                    detected.as_deref(),
+                )
+                .await;
             }
         }
         if gen.is_stale(my_gen) {
@@ -10313,9 +10335,18 @@ async fn voice_duplex_turn(
             }
             full.push_str(&part);
             if let Some(sentence) = split.push(&part) {
-                emit_sentence(&sentence, &tx, &tts, &voice, &gen, my_gen, t0, &mut first_audio,
-                              detected.as_deref())
-                    .await;
+                emit_sentence(
+                    &sentence,
+                    &tx,
+                    &tts,
+                    &voice,
+                    &gen,
+                    my_gen,
+                    t0,
+                    &mut first_audio,
+                    detected.as_deref(),
+                )
+                .await;
             }
         }
 
@@ -10341,7 +10372,15 @@ async fn voice_duplex_turn(
                     true => crate::voice_tools::ANSWER_NOW.to_string(),
                     false => {
                         run_voice_tools(
-                            &calls, root, &tx, &tts, &voice, &gen, my_gen, t0, &approvals,
+                            &calls,
+                            root,
+                            &tx,
+                            &tts,
+                            &voice,
+                            &gen,
+                            my_gen,
+                            t0,
+                            &approvals,
                             detected.as_deref(),
                         )
                         .await
@@ -10367,7 +10406,18 @@ async fn voice_duplex_turn(
         }
 
         if let Some(sentence) = split.flush() {
-            emit_sentence(&sentence, &tx, &tts, &voice, &gen, my_gen, t0, &mut first_audio, detected.as_deref()).await;
+            emit_sentence(
+                &sentence,
+                &tx,
+                &tts,
+                &voice,
+                &gen,
+                my_gen,
+                t0,
+                &mut first_audio,
+                detected.as_deref(),
+            )
+            .await;
         }
         break;
     }
@@ -10467,7 +10517,18 @@ async fn run_voice_tools(
                 .into(),
             ));
             let mut spoken = None;
-            emit_sentence(&question, tx, tts, voice, gen, my_gen, t0, &mut spoken, lang).await;
+            emit_sentence(
+                &question,
+                tx,
+                tts,
+                voice,
+                gen,
+                my_gen,
+                t0,
+                &mut spoken,
+                lang,
+            )
+            .await;
 
             let approved = match tokio::time::timeout(vt::APPROVAL_TIMEOUT, recv).await {
                 Ok(Ok(v)) => v,
@@ -10496,7 +10557,11 @@ async fn run_voice_tools(
                 .to_string()
                 .into(),
         ));
-        let result = <crate::tool_executor::ToolExecutor as vibe_ai::agent::ToolExecutorTrait>::execute(&executor, call).await;
+        let result =
+            <crate::tool_executor::ToolExecutor as vibe_ai::agent::ToolExecutorTrait>::execute(
+                &executor, call,
+            )
+            .await;
         out.push_str(&format!(
             "Result of {} ({}):\n{}\n\n",
             result.tool_name,
@@ -10582,10 +10647,14 @@ fn resolve_in_workspace(
     // Canonicalise both sides before comparing: on macOS `/var` is a symlink to
     // `/private/var`, so an uncanonicalised root never prefixes a canonical
     // path and every open under a temp-dir workspace would be refused.
-    let root = root.canonicalize().map_err(|_| "the workspace root is gone")?;
+    let root = root
+        .canonicalize()
+        .map_err(|_| "the workspace root is gone")?;
     // Existence is part of the answer here, not an afterthought — you cannot
     // show a file that is not there, and `canonicalize` is where we find out.
-    let resolved = candidate.canonicalize().map_err(|_| "there is no such file")?;
+    let resolved = candidate
+        .canonicalize()
+        .map_err(|_| "there is no such file")?;
     if !resolved.starts_with(&root) {
         return Err("it is outside the project");
     }
@@ -10713,10 +10782,7 @@ async fn speak_sentence(
         // for this language. Kokoro covers nine and the recogniser detects 99,
         // so this is reachable by simply speaking Korean. Silence with no
         // explanation is indistinguishable from a broken microphone.
-        if first.is_none()
-            && !gen.is_stale(my_gen)
-            && sentence.chars().any(char::is_alphanumeric)
-        {
+        if first.is_none() && !gen.is_stale(my_gen) && sentence.chars().any(char::is_alphanumeric) {
             let why = match lang {
                 Some(l) => format!(
                     "The speech engine has no voice for {}. Set [voice] tts_engine = \"system\" \

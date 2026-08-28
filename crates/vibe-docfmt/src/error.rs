@@ -37,7 +37,10 @@ pub enum DocError {
 
 impl DocError {
     pub fn io(path: impl AsRef<std::path::Path>, source: std::io::Error) -> Self {
-        DocError::Io { path: path.as_ref().display().to_string(), source }
+        DocError::Io {
+            path: path.as_ref().display().to_string(),
+            source,
+        }
     }
 
     /// Short machine-readable kind, for the UI and for logs.

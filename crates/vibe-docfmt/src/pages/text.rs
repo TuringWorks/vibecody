@@ -51,8 +51,12 @@ impl Storage {
 
 /// Find every text storage in one `.iwa` stream.
 pub fn find_storages(iwa: &str, archives: &[Archive]) -> Vec<Storage> {
-    let typed: Vec<Storage> =
-        collect(iwa, archives, &|type_id| type_id == TEXT_STORAGE_TYPE, false);
+    let typed: Vec<Storage> = collect(
+        iwa,
+        archives,
+        &|type_id| type_id == TEXT_STORAGE_TYPE,
+        false,
+    );
     if !typed.is_empty() {
         return typed;
     }
@@ -70,22 +74,26 @@ fn collect(
         .iter()
         .enumerate()
         .flat_map(|(archive_index, archive)| {
-            archive.messages.iter().enumerate().filter_map(move |(message_index, message)| {
-                if !type_matches(message.type_id) {
-                    return None;
-                }
-                let parsed = Message::parse(&message.payload).ok()?;
-                let (field, chunks) = text_field(&parsed, guessed)?;
-                Some(Storage {
-                    iwa: iwa.to_string(),
-                    archive_index,
-                    message_index,
-                    archive_id: archive.identifier,
-                    field,
-                    chunks,
-                    guessed,
+            archive
+                .messages
+                .iter()
+                .enumerate()
+                .filter_map(move |(message_index, message)| {
+                    if !type_matches(message.type_id) {
+                        return None;
+                    }
+                    let parsed = Message::parse(&message.payload).ok()?;
+                    let (field, chunks) = text_field(&parsed, guessed)?;
+                    Some(Storage {
+                        iwa: iwa.to_string(),
+                        archive_index,
+                        message_index,
+                        archive_id: archive.identifier,
+                        field,
+                        chunks,
+                        guessed,
+                    })
                 })
-            })
         })
         .collect()
 }
@@ -107,7 +115,8 @@ fn text_field(message: &Message, strict: bool) -> Option<(u32, Vec<String>)> {
                 .collect::<Result<_, _>>()
                 .ok()?;
             let total: usize = chunks.iter().map(String::len).sum();
-            (total >= min_len && chunks.iter().all(|c| is_texty(c))).then_some((number, chunks, total))
+            (total >= min_len && chunks.iter().all(|c| is_texty(c)))
+                .then_some((number, chunks, total))
         })
         .max_by_key(|(_, _, total)| *total)
         .map(|(number, chunks, _)| (number, chunks))
@@ -119,7 +128,8 @@ fn is_texty(text: &str) -> bool {
     if text.is_empty() {
         return true;
     }
-    text.chars().all(|c| matches!(c, '\n' | '\r' | '\t' | '\u{2028}' | '\u{2029}') || !c.is_control())
+    text.chars()
+        .all(|c| matches!(c, '\n' | '\r' | '\t' | '\u{2028}' | '\u{2029}') || !c.is_control())
 }
 
 /// Report of one text substitution.
@@ -138,19 +148,34 @@ pub fn set_text(
     new_text: &str,
 ) -> Result<EditReport, DocError> {
     let archive = archives.get_mut(storage.archive_index).ok_or_else(|| {
-        DocError::Structure(format!("archive {} vanished mid-write", storage.archive_index))
+        DocError::Structure(format!(
+            "archive {} vanished mid-write",
+            storage.archive_index
+        ))
     })?;
-    let message = archive.messages.get_mut(storage.message_index).ok_or_else(|| {
-        DocError::Structure(format!("message {} vanished mid-write", storage.message_index))
-    })?;
+    let message = archive
+        .messages
+        .get_mut(storage.message_index)
+        .ok_or_else(|| {
+            DocError::Structure(format!(
+                "message {} vanished mid-write",
+                storage.message_index
+            ))
+        })?;
     let mut parsed = Message::parse(&message.payload)?;
 
     let old_text = storage.text();
-    let mut report = EditReport { remapped_indices: 0, length_changed: old_text != new_text };
+    let mut report = EditReport {
+        remapped_indices: 0,
+        length_changed: old_text != new_text,
+    };
 
     // Keep the original chunking: the boundaries move with the text.
     let chunks = rechunk(&old_text, new_text, &storage.chunks);
-    parsed.replace_bytes(storage.field, chunks.iter().map(|c| c.as_bytes().to_vec()).collect());
+    parsed.replace_bytes(
+        storage.field,
+        chunks.iter().map(|c| c.as_bytes().to_vec()).collect(),
+    );
 
     if old_text.chars().count() != new_text.chars().count() {
         let map = offset_map(&old_text, new_text);
@@ -179,7 +204,10 @@ fn rechunk(old_text: &str, new_text: &str, old_chunks: &[String]) -> Vec<String>
         let end = if i + 1 == old_chunks.len() {
             new_chars.len()
         } else {
-            map.get(old_pos).copied().unwrap_or(new_chars.len()).clamp(new_pos, new_chars.len())
+            map.get(old_pos)
+                .copied()
+                .unwrap_or(new_chars.len())
+                .clamp(new_pos, new_chars.len())
         };
         out.push(new_chars[new_pos..end].iter().collect());
         new_pos = end;
@@ -238,15 +266,17 @@ fn remap_indices(
             continue;
         }
         let values: Vec<Vec<u8>> = message.bytes_values(number).into_iter().cloned().collect();
-        let parsed: Option<Vec<Message>> =
-            values.iter().map(|b| Message::parse(b).ok()).collect();
+        let parsed: Option<Vec<Message>> = values.iter().map(|b| Message::parse(b).ok()).collect();
         let Some(mut children) = parsed else { continue };
 
         let mut changed = false;
         if is_index_table(&children, old_len) {
             for child in children.iter_mut() {
                 if let Some(index) = child.varint(1) {
-                    let mapped = map.get(index as usize).copied().unwrap_or(*map.last().unwrap_or(&0));
+                    let mapped = map
+                        .get(index as usize)
+                        .copied()
+                        .unwrap_or(*map.last().unwrap_or(&0));
                     if mapped as u64 != index {
                         child.set_varint(1, mapped as u64);
                         changed = true;
@@ -297,7 +327,9 @@ pub fn parses_as_message(bytes: &[u8]) -> bool {
 pub fn build_storage_payload(field: u32, chunks: &[&str]) -> Vec<u8> {
     let mut message = Message::default();
     for chunk in chunks {
-        message.fields.push((field, Value::Bytes(chunk.as_bytes().to_vec())));
+        message
+            .fields
+            .push((field, Value::Bytes(chunk.as_bytes().to_vec())));
     }
     message.serialize()
 }
@@ -329,17 +361,31 @@ mod tests {
             m
         };
         assert!(is_index_table(&[entry(0), entry(4), entry(9)], 20));
-        assert!(!is_index_table(&[entry(0)], 20), "a single entry is not enough");
-        assert!(!is_index_table(&[entry(3), entry(9)], 20), "a table starts at 0");
-        assert!(!is_index_table(&[entry(0), entry(4)], 3), "indices past the text are not a table");
-        assert!(!is_index_table(&[entry(0), entry(0)], 20), "indices must increase");
+        assert!(
+            !is_index_table(&[entry(0)], 20),
+            "a single entry is not enough"
+        );
+        assert!(
+            !is_index_table(&[entry(3), entry(9)], 20),
+            "a table starts at 0"
+        );
+        assert!(
+            !is_index_table(&[entry(0), entry(4)], 3),
+            "indices past the text are not a table"
+        );
+        assert!(
+            !is_index_table(&[entry(0), entry(0)], 20),
+            "indices must increase"
+        );
     }
 
     #[test]
     fn text_is_replaced_and_style_ranges_follow() {
         // A storage holding "hello world" plus a style table at 0 and 6.
         let mut payload = Message::default();
-        payload.fields.push((3, Value::Bytes(b"hello world".to_vec())));
+        payload
+            .fields
+            .push((3, Value::Bytes(b"hello world".to_vec())));
         let mut table = Message::default();
         for index in [0u64, 6] {
             let mut entry = Message::default();
@@ -402,7 +448,10 @@ mod tests {
 
         let parsed = Message::parse(&archives[0].messages[0].payload).expect("parse");
         assert_eq!(parsed.varint(2), Some(9));
-        assert!(parsed.fields.iter().any(|(n, v)| *n == 9 && matches!(v, Value::Fixed32(_))));
+        assert!(parsed
+            .fields
+            .iter()
+            .any(|(n, v)| *n == 9 && matches!(v, Value::Fixed32(_))));
     }
 
     #[test]

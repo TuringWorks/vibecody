@@ -29,16 +29,23 @@ pub fn read_entries(bytes: &[u8]) -> Result<Vec<ZipEntry>, DocError> {
         ZipArchive::new(Cursor::new(bytes)).map_err(|e| DocError::Container(e.to_string()))?;
     (0..archive.len())
         .map(|i| {
-            let mut file =
-                archive.by_index(i).map_err(|e| DocError::Container(e.to_string()))?;
+            let mut file = archive
+                .by_index(i)
+                .map_err(|e| DocError::Container(e.to_string()))?;
             let name = file.name().to_string();
             let compression = file.compression();
             let is_dir = file.is_dir();
             let mut data = Vec::with_capacity(file.size() as usize);
             if !is_dir {
-                file.read_to_end(&mut data).map_err(|e| DocError::Container(e.to_string()))?;
+                file.read_to_end(&mut data)
+                    .map_err(|e| DocError::Container(e.to_string()))?;
             }
-            Ok(ZipEntry { name, data, compression, is_dir })
+            Ok(ZipEntry {
+                name,
+                data,
+                compression,
+                is_dir,
+            })
         })
         .collect()
 }
@@ -62,11 +69,18 @@ pub fn write_entries(entries: &[ZipEntry]) -> Result<Vec<u8>, DocError> {
             _ => CompressionMethod::Deflated,
         };
         writer
-            .start_file(entry.name.clone(), SimpleFileOptions::default().compression_method(method))
+            .start_file(
+                entry.name.clone(),
+                SimpleFileOptions::default().compression_method(method),
+            )
             .map_err(|e| DocError::Container(e.to_string()))?;
-        writer.write_all(&entry.data).map_err(|e| DocError::Container(e.to_string()))?;
+        writer
+            .write_all(&entry.data)
+            .map_err(|e| DocError::Container(e.to_string()))?;
     }
-    let cursor = writer.finish().map_err(|e| DocError::Container(e.to_string()))?;
+    let cursor = writer
+        .finish()
+        .map_err(|e| DocError::Container(e.to_string()))?;
     Ok(cursor.into_inner())
 }
 

@@ -67,7 +67,9 @@ fn is_iwa(name: &str) -> bool {
     name.ends_with(".iwa")
 }
 
-fn load_from_zip(bytes: &[u8]) -> Result<(Vec<ZipEntry>, IwaHome, Vec<(String, Vec<u8>)>), DocError> {
+fn load_from_zip(
+    bytes: &[u8],
+) -> Result<(Vec<ZipEntry>, IwaHome, Vec<(String, Vec<u8>)>), DocError> {
     let entries = zipedit::read_entries(bytes)?;
     let flat: Vec<(String, Vec<u8>)> = entries
         .iter()
@@ -119,7 +121,11 @@ fn load_from_bundle(dir: &Path) -> Result<Vec<(String, Vec<u8>)>, DocError> {
             let entry = entry.map_err(|e| DocError::io(dir, e))?;
             let name = entry.file_name().to_string_lossy().into_owned();
             let path = entry.path();
-            let relative = if prefix.is_empty() { name.clone() } else { format!("{prefix}/{name}") };
+            let relative = if prefix.is_empty() {
+                name.clone()
+            } else {
+                format!("{prefix}/{name}")
+            };
             let file_type = entry.file_type().map_err(|e| DocError::io(&path, e))?;
             if file_type.is_dir() {
                 walk(&path, &relative, out)?;
@@ -144,11 +150,15 @@ fn load_from_bundle(dir: &Path) -> Result<Vec<(String, Vec<u8>)>, DocError> {
 fn parse_iwas(raw: &[(String, Vec<u8>)]) -> Result<Vec<IwaFile>, DocError> {
     raw.iter()
         .map(|(name, data)| {
-            let plain = snappy::decompress(data)
-                .map_err(|e| DocError::Parse(format!("{name}: {e}")))?;
-            let archives = iwa::parse_stream(&plain)
-                .map_err(|e| DocError::Parse(format!("{name}: {e}")))?;
-            Ok(IwaFile { name: name.clone(), archives, dirty: false })
+            let plain =
+                snappy::decompress(data).map_err(|e| DocError::Parse(format!("{name}: {e}")))?;
+            let archives =
+                iwa::parse_stream(&plain).map_err(|e| DocError::Parse(format!("{name}: {e}")))?;
+            Ok(IwaFile {
+                name: name.clone(),
+                archives,
+                dirty: false,
+            })
         })
         .collect()
 }
@@ -192,18 +202,29 @@ fn document_from(storages: &[(usize, Storage)]) -> Document {
              that are not body text",
         ));
     }
-    Document { format: DocFormat::Pages, sections, warnings }
+    Document {
+        format: DocFormat::Pages,
+        sections,
+        warnings,
+    }
 }
 
 fn paragraphs(textual: &str) -> Vec<Block> {
     textual
         .split('\n')
-        .map(|line| Block::Paragraph { spans: vec![Span::plain(line.to_string())] })
+        .map(|line| Block::Paragraph {
+            spans: vec![Span::plain(line.to_string())],
+        })
         .collect()
 }
 
 fn section_text(section: &Section) -> String {
-    section.blocks.iter().map(Block::plain_text).collect::<Vec<_>>().join("\n")
+    section
+        .blocks
+        .iter()
+        .map(Block::plain_text)
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 // ── Read ─────────────────────────────────────────────────────────────
@@ -234,7 +255,9 @@ pub fn preview_file(bytes: &[u8]) -> Option<(String, Vec<u8>)> {
 pub fn preview_bundle(dir: &Path) -> Option<(String, Vec<u8>)> {
     PREVIEW_NAMES.iter().find_map(|name| {
         let path = dir.join(name);
-        std::fs::read(&path).ok().map(|data| ("image/jpeg".to_string(), data))
+        std::fs::read(&path)
+            .ok()
+            .map(|data| ("image/jpeg".to_string(), data))
     })
 }
 
@@ -318,7 +341,11 @@ fn apply(raw: &[(String, Vec<u8>)], target: &Document) -> Result<Applied, DocErr
             .collect(),
         warnings: Vec::new(),
     };
-    Ok(Applied { files, effective, warnings })
+    Ok(Applied {
+        files,
+        effective,
+        warnings,
+    })
 }
 
 fn recompress(files: &[IwaFile]) -> Result<Vec<(String, Vec<u8>)>, DocError> {
@@ -377,7 +404,11 @@ pub fn write_bundle(dir: &Path, target: &Document) -> Result<BundleRewrite, DocE
         .into_iter()
         .map(|(name, data)| (dir.join(name), data))
         .collect();
-    Ok(BundleRewrite { files, effective: applied.effective, warnings: applied.warnings })
+    Ok(BundleRewrite {
+        files,
+        effective: applied.effective,
+        warnings: applied.warnings,
+    })
 }
 
 #[cfg(test)]
@@ -446,13 +477,25 @@ mod tests {
 
         let rewritten = write_file(&bytes, &edited).expect("write");
         let reread = read_file(&rewritten.bytes).expect("re-read");
-        assert_eq!(reread.sections[0].blocks[0].plain_text(), "New text, longer than before.");
+        assert_eq!(
+            reread.sections[0].blocks[0].plain_text(),
+            "New text, longer than before."
+        );
 
         let entries = zipedit::read_entries(&rewritten.bytes).expect("entries");
-        assert!(zipedit::find(&entries, "Data/image-1.png").is_some(), "assets preserved");
-        assert!(zipedit::find(&entries, "preview.jpg").is_some(), "preview preserved");
         assert!(
-            rewritten.warnings.iter().any(|w| w.code == "pages.write_unverified_in_app"),
+            zipedit::find(&entries, "Data/image-1.png").is_some(),
+            "assets preserved"
+        );
+        assert!(
+            zipedit::find(&entries, "preview.jpg").is_some(),
+            "preview preserved"
+        );
+        assert!(
+            rewritten
+                .warnings
+                .iter()
+                .any(|w| w.code == "pages.write_unverified_in_app"),
             "the limit of the guarantee is stated: {:?}",
             rewritten.warnings
         );
@@ -481,14 +524,19 @@ mod tests {
     fn multi_chunk_storages_keep_their_chunk_count() {
         let bytes = pages_file(&["Chunk one. ", "Chunk two."]);
         let doc = read_file(&bytes).expect("read");
-        assert_eq!(doc.sections[0].blocks[0].plain_text(), "Chunk one. Chunk two.");
+        assert_eq!(
+            doc.sections[0].blocks[0].plain_text(),
+            "Chunk one. Chunk two."
+        );
 
         let mut edited = doc.clone();
         edited.sections[0].blocks = paragraphs("Chunk one. Chunk two, extended.");
         let rewritten = write_file(&bytes, &edited).expect("write");
 
         let entries = zipedit::read_entries(&rewritten.bytes).expect("entries");
-        let iwa_bytes = &zipedit::find(&entries, "Index/Document.iwa").expect("iwa").data;
+        let iwa_bytes = &zipedit::find(&entries, "Index/Document.iwa")
+            .expect("iwa")
+            .data;
         let stream = snappy::decompress(iwa_bytes).expect("decompress");
         let archives = iwa::parse_stream(&stream).expect("parse");
         let parsed = Message::parse(&archives[0].messages[0].payload).expect("payload");

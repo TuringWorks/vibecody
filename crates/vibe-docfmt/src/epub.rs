@@ -122,13 +122,18 @@ fn spine(entries: &[ZipEntry]) -> Result<Vec<SpineItem>, DocError> {
             let (_, href, media) = items.iter().find(|(id, _, _)| id == idref)?;
             // Only XHTML documents carry readable text; an SVG cover in the
             // spine is skipped rather than rendered as an empty chapter.
-            let is_xhtml = media.contains("xhtml") || media.contains("text/html") || media.is_empty();
-            is_xhtml.then(|| SpineItem { path: resolve(&base_dir, href) })
+            let is_xhtml =
+                media.contains("xhtml") || media.contains("text/html") || media.is_empty();
+            is_xhtml.then(|| SpineItem {
+                path: resolve(&base_dir, href),
+            })
         })
         .collect();
 
     if chapters.is_empty() {
-        return Err(DocError::Parse("this EPUB's spine has no XHTML chapters".into()));
+        return Err(DocError::Parse(
+            "this EPUB's spine has no XHTML chapters".into(),
+        ));
     }
     Ok(chapters)
 }
@@ -145,12 +150,14 @@ pub fn read(bytes: &[u8]) -> Result<Document, DocError> {
         .iter()
         .map(|chapter| {
             let part = zipedit::find(&entries, &chapter.path).ok_or_else(|| {
-                DocError::Parse(format!("spine item {} is not in the container", chapter.path))
+                DocError::Parse(format!(
+                    "spine item {} is not in the container",
+                    chapter.path
+                ))
             })?;
             let xml = xmltree::parse_bytes(&part.data)?;
-            let body = body_of(&xml.root).ok_or_else(|| {
-                DocError::Parse(format!("{} has no <body>", chapter.path))
-            })?;
+            let body = body_of(&xml.root)
+                .ok_or_else(|| DocError::Parse(format!("{} has no <body>", chapter.path)))?;
             let slots = collect_slots(body, &mut warnings);
             Ok(Section {
                 id: chapter.path.clone(),
@@ -160,14 +167,20 @@ pub fn read(bytes: &[u8]) -> Result<Document, DocError> {
         })
         .collect::<Result<Vec<_>, DocError>>()?;
 
-    Ok(Document { format: DocFormat::Epub, sections, warnings })
+    Ok(Document {
+        format: DocFormat::Epub,
+        sections,
+        warnings,
+    })
 }
 
 fn body_of(root: &Element) -> Option<&Element> {
     if root.local_name() == "body" {
         return Some(root);
     }
-    root.children_named("body").next().or_else(|| root.find_descendant("body"))
+    root.children_named("body")
+        .next()
+        .or_else(|| root.find_descendant("body"))
 }
 
 fn body_of_mut(root: &mut Element) -> Option<&mut Element> {
@@ -175,9 +188,10 @@ fn body_of_mut(root: &mut Element) -> Option<&mut Element> {
         return Some(root);
     }
     fn walk(el: &mut Element) -> Option<&mut Element> {
-        let found = el.children.iter().position(
-            |n| matches!(n, Node::Element(e) if e.local_name() == "body"),
-        );
+        let found = el
+            .children
+            .iter()
+            .position(|n| matches!(n, Node::Element(e) if e.local_name() == "body"));
         if let Some(i) = found {
             return match el.children.get_mut(i) {
                 Some(Node::Element(e)) => Some(e),
@@ -222,16 +236,27 @@ fn block_of(el: &Element, warnings: &mut Vec<Warning>) -> Option<Block> {
         (!spans.iter().all(|s| s.text.trim().is_empty())).then_some(spans)
     };
     match el.local_name() {
-        "p" => Some(Block::Paragraph { spans: spans_if_text(el, warnings)? }),
+        "p" => Some(Block::Paragraph {
+            spans: spans_if_text(el, warnings)?,
+        }),
         name if is_heading(name) => {
             let level = name[1..].parse().unwrap_or(1);
-            Some(Block::Heading { level, spans: spans_if_text(el, warnings)? })
+            Some(Block::Heading {
+                level,
+                spans: spans_if_text(el, warnings)?,
+            })
         }
         "li" => {
             let ordered = false; // corrected by the caller, which knows the parent
-            Some(Block::ListItem { level: 0, ordered, spans: spans_if_text(el, warnings)? })
+            Some(Block::ListItem {
+                level: 0,
+                ordered,
+                spans: spans_if_text(el, warnings)?,
+            })
         }
-        "pre" => Some(Block::Code { text: el.text_content().trim_end_matches('\n').to_string() }),
+        "pre" => Some(Block::Code {
+            text: el.text_content().trim_end_matches('\n').to_string(),
+        }),
         "hr" => Some(Block::Rule),
         "table" => Some(table_block(el, warnings)),
         _ => None,
@@ -246,13 +271,30 @@ fn is_heading(name: &str) -> bool {
 fn is_container(name: &str) -> bool {
     matches!(
         name,
-        "div" | "section" | "article" | "main" | "blockquote" | "ul" | "ol" | "nav" | "aside" | "header" | "footer" | "figure"
+        "div"
+            | "section"
+            | "article"
+            | "main"
+            | "blockquote"
+            | "ul"
+            | "ol"
+            | "nav"
+            | "aside"
+            | "header"
+            | "footer"
+            | "figure"
     )
 }
 
 fn collect_slots(body: &Element, warnings: &mut Vec<Warning>) -> Vec<Slot> {
     let mut slots = Vec::new();
-    walk_slots(body, &mut Vec::new(), &ListCtx::default(), warnings, &mut slots);
+    walk_slots(
+        body,
+        &mut Vec::new(),
+        &ListCtx::default(),
+        warnings,
+        &mut slots,
+    );
     slots
 }
 
@@ -281,11 +323,17 @@ fn walk_slots(
                     spans,
                 },
             }),
-            Some(block) => out.push(Slot { path: path.clone(), block }),
+            Some(block) => out.push(Slot {
+                path: path.clone(),
+                block,
+            }),
             None if is_container(child.local_name()) => {
                 let name = child.local_name();
                 let nested = match name {
-                    "ul" | "ol" => ListCtx { depth: list.depth + 1, ordered: name == "ol" },
+                    "ul" | "ol" => ListCtx {
+                        depth: list.depth + 1,
+                        ordered: name == "ol",
+                    },
                     _ => list.clone(),
                 };
                 walk_slots(child, path, &nested, warnings, out);
@@ -304,16 +352,16 @@ fn table_block(el: &Element, warnings: &mut Vec<Warning>) -> Block {
 
 fn collect_rows(el: &Element, warnings: &mut Vec<Warning>, rows: &mut Vec<Vec<Vec<Span>>>) {
     for child in &el.children {
-        let Node::Element(child) = child else { continue };
+        let Node::Element(child) = child else {
+            continue;
+        };
         match child.local_name() {
             "tr" => {
                 let cells = child
                     .children
                     .iter()
                     .filter_map(|n| match n {
-                        Node::Element(cell)
-                            if matches!(cell.local_name(), "td" | "th") =>
-                        {
+                        Node::Element(cell) if matches!(cell.local_name(), "td" | "th") => {
                             Some(inline_spans(cell, warnings))
                         }
                         _ => None,
@@ -345,7 +393,10 @@ fn collect_inline(
             Node::Text(raw) => {
                 let text = normalize_ws_keep_edges(&xmltree::unescape_text(raw));
                 if !text.is_empty() {
-                    out.push(Span { text, style: style.clone() });
+                    out.push(Span {
+                        text,
+                        style: style.clone(),
+                    });
                 }
             }
             Node::Raw(_) => {}
@@ -361,7 +412,10 @@ fn collect_inline(
                         }
                     }
                     "br" => {
-                        out.push(Span { text: " ".to_string(), style: style.clone() });
+                        out.push(Span {
+                            text: " ".to_string(),
+                            style: style.clone(),
+                        });
                         continue;
                     }
                     "img" | "image" | "svg" => {
@@ -455,7 +509,10 @@ pub fn write(original: &[u8], target: &Document) -> Result<Rewrite, DocError> {
 
     for (chapter, section) in chapters.iter().zip(target.sections.iter()) {
         let part = zipedit::find(&entries, &chapter.path).ok_or_else(|| {
-            DocError::Parse(format!("spine item {} is not in the container", chapter.path))
+            DocError::Parse(format!(
+                "spine item {} is not in the container",
+                chapter.path
+            ))
         })?;
         let mut xml = xmltree::parse_bytes(&part.data)?;
         let body = body_of(&xml.root)
@@ -475,15 +532,25 @@ pub fn write(original: &[u8], target: &Document) -> Result<Rewrite, DocError> {
             );
         }
 
-        let mut adapter = XhtmlAdapter { warnings: Vec::new() };
+        let mut adapter = XhtmlAdapter {
+            warnings: Vec::new(),
+        };
         let body_mut = body_of_mut(&mut xml.root)
             .ok_or_else(|| DocError::Parse(format!("{} has no <body>", chapter.path)))?;
-        warnings.extend(surgical::apply(body_mut, &slots, &section.blocks, &mut adapter)?);
+        warnings.extend(surgical::apply(
+            body_mut,
+            &slots,
+            &section.blocks,
+            &mut adapter,
+        )?);
         warnings.extend(adapter.warnings);
 
         let data = xmltree::serialize(&xml).into_bytes();
         if !zipedit::replace(&mut entries, &chapter.path, data) {
-            return Err(DocError::Structure(format!("{} vanished mid-write", chapter.path)));
+            return Err(DocError::Structure(format!(
+                "{} vanished mid-write",
+                chapter.path
+            )));
         }
 
         effective_sections.push(Section {
@@ -678,7 +745,9 @@ impl XhtmlAdapter {
             )));
         }
         for (row_index, path) in row_paths.iter().enumerate() {
-            let Some(tr) = surgical::get_mut(el, path) else { continue };
+            let Some(tr) = surgical::get_mut(el, path) else {
+                continue;
+            };
             let cell_indices: Vec<usize> = tr
                 .children
                 .iter()
@@ -698,7 +767,9 @@ impl XhtmlAdapter {
                 )));
             }
             for (cell_index, node_index) in cell_indices.into_iter().enumerate() {
-                let Some(Node::Element(cell)) = tr.children.get_mut(node_index) else { continue };
+                let Some(Node::Element(cell)) = tr.children.get_mut(node_index) else {
+                    continue;
+                };
                 let spans = rows[row_index][cell_index].clone();
                 self.set_inline(cell, &spans);
             }

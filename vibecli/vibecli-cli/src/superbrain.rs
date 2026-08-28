@@ -71,7 +71,6 @@ pub struct RoutingDecision {
     pub confidence: f64,
 }
 
-
 // ── Category routing — which *kind* of task, not which vendor ────────────────
 
 /// A keyword rule that names a task category and nothing else.
@@ -112,27 +111,87 @@ pub struct RouteTarget {
 pub fn category_rules() -> Vec<CategoryRule> {
     vec![
         CategoryRule {
-            keywords: vec!["implement", "function", "code", "debug", "fix", "bug", "refactor", "class", "struct", "async", "test", "compile", "error", "rust", "python", "javascript", "typescript"].into_iter().map(String::from).collect(),
+            keywords: vec![
+                "implement",
+                "function",
+                "code",
+                "debug",
+                "fix",
+                "bug",
+                "refactor",
+                "class",
+                "struct",
+                "async",
+                "test",
+                "compile",
+                "error",
+                "rust",
+                "python",
+                "javascript",
+                "typescript",
+            ]
+            .into_iter()
+            .map(String::from)
+            .collect(),
             category: "code".into(),
             priority: 10,
         },
         CategoryRule {
-            keywords: vec!["calculate", "equation", "prove", "solve", "integral", "derivative", "matrix", "algebra", "theorem", "probability", "statistics"].into_iter().map(String::from).collect(),
+            keywords: vec![
+                "calculate",
+                "equation",
+                "prove",
+                "solve",
+                "integral",
+                "derivative",
+                "matrix",
+                "algebra",
+                "theorem",
+                "probability",
+                "statistics",
+            ]
+            .into_iter()
+            .map(String::from)
+            .collect(),
             category: "math".into(),
             priority: 10,
         },
         CategoryRule {
-            keywords: vec!["write a story", "poem", "creative", "brainstorm", "imagine", "story", "narrative", "fiction", "design"].into_iter().map(String::from).collect(),
+            keywords: vec![
+                "write a story",
+                "poem",
+                "creative",
+                "brainstorm",
+                "imagine",
+                "story",
+                "narrative",
+                "fiction",
+                "design",
+            ]
+            .into_iter()
+            .map(String::from)
+            .collect(),
             category: "creative".into(),
             priority: 10,
         },
         CategoryRule {
-            keywords: vec!["analyze", "compare", "evaluate", "review", "assess", "critique", "research", "explain"].into_iter().map(String::from).collect(),
+            keywords: vec![
+                "analyze", "compare", "evaluate", "review", "assess", "critique", "research",
+                "explain",
+            ]
+            .into_iter()
+            .map(String::from)
+            .collect(),
             category: "analysis".into(),
             priority: 8,
         },
         CategoryRule {
-            keywords: vec!["what is", "define", "who is", "when did", "where is", "list", "name"].into_iter().map(String::from).collect(),
+            keywords: vec![
+                "what is", "define", "who is", "when did", "where is", "list", "name",
+            ]
+            .into_iter()
+            .map(String::from)
+            .collect(),
             category: "factual".into(),
             priority: 5,
         },
@@ -457,12 +516,6 @@ pub fn available_modes() -> Vec<(&'static str, &'static str)> {
 mod tests {
     use super::*;
 
-
-
-
-
-
-
     #[test]
     fn test_chain_relay_prompt_step0() {
         let msgs = SuperBrainPrompts::chain_relay_prompt("What is AI?", &[], 0, 3);
@@ -608,7 +661,6 @@ mod tests {
         assert!(modes.iter().any(|(n, _)| *n == "Chain Relay"));
     }
 
-
     #[test]
     fn test_superbrain_mode_display() {
         assert_eq!(SuperBrainMode::SmartRouter.to_string(), "Smart Router");
@@ -619,7 +671,10 @@ mod tests {
     // ── Category routing: classify the task, configure the vendor ───────────
 
     fn session() -> RouteTarget {
-        RouteTarget { provider: "ollama".into(), model: Some("llama3.2".into()) }
+        RouteTarget {
+            provider: "ollama".into(),
+            model: Some("llama3.2".into()),
+        }
     }
 
     #[test]
@@ -627,7 +682,11 @@ mod tests {
         let class = classify("Write a binary search in Rust", &category_rules())
             .expect("a coding prompt must classify");
         assert_eq!(class.category, "code");
-        assert!(class.matched.iter().any(|k| k == "rust"), "{:?}", class.matched);
+        assert!(
+            class.matched.iter().any(|k| k == "rust"),
+            "{:?}",
+            class.matched
+        );
     }
 
     /// The point of the whole exercise: the category is keyword-derived, the
@@ -635,7 +694,15 @@ mod tests {
     #[test]
     fn no_category_rule_names_a_vendor() {
         let json = serde_json::to_string(&category_rules()).expect("serialize");
-        for vendor in ["claude", "anthropic", "openai", "gpt", "gemini", "groq", "ollama"] {
+        for vendor in [
+            "claude",
+            "anthropic",
+            "openai",
+            "gpt",
+            "gemini",
+            "groq",
+            "ollama",
+        ] {
             assert!(
                 !json.to_lowercase().contains(vendor),
                 "category rules must not name '{vendor}': {json}"
@@ -647,9 +714,17 @@ mod tests {
     fn a_configured_category_wins() {
         let routes = vec![(
             "code".to_string(),
-            RouteTarget { provider: "deepseek".into(), model: Some("deepseek-coder".into()) },
+            RouteTarget {
+                provider: "deepseek".into(),
+                model: Some("deepseek-coder".into()),
+            },
         )];
-        let r = resolve_route("Write a binary search in Rust", &category_rules(), &routes, &session());
+        let r = resolve_route(
+            "Write a binary search in Rust",
+            &category_rules(),
+            &routes,
+            &session(),
+        );
         assert_eq!(r.source, RouteSource::ConfiguredCategory);
         assert_eq!(r.target.provider, "deepseek");
         assert_eq!(r.category.as_deref(), Some("code"));
@@ -660,7 +735,12 @@ mod tests {
     /// back to a vendor this binary picked.
     #[test]
     fn an_unconfigured_category_uses_the_session_provider() {
-        let r = resolve_route("Write a binary search in Rust", &category_rules(), &[], &session());
+        let r = resolve_route(
+            "Write a binary search in Rust",
+            &category_rules(),
+            &[],
+            &session(),
+        );
         assert_eq!(r.source, RouteSource::SessionDefaultUnconfiguredCategory);
         assert_eq!(r.target, session());
         assert!(r.reason.contains("superbrain.routes.code"), "{}", r.reason);
@@ -684,11 +764,21 @@ mod tests {
     fn category_lookup_ignores_case() {
         let routes = vec![(
             "CODE".to_string(),
-            RouteTarget { provider: "mistral".into(), model: None },
+            RouteTarget {
+                provider: "mistral".into(),
+                model: None,
+            },
         )];
-        let r = resolve_route("refactor this function", &category_rules(), &routes, &session());
+        let r = resolve_route(
+            "refactor this function",
+            &category_rules(),
+            &routes,
+            &session(),
+        );
         assert_eq!(r.target.provider, "mistral");
-        assert_eq!(r.target.model, None, "an unset model must stay unset, not be invented");
+        assert_eq!(
+            r.target.model, None,
+            "an unset model must stay unset, not be invented"
+        );
     }
-
 }

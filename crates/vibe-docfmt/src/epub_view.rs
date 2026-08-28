@@ -203,7 +203,9 @@ pub fn read_book(bytes: &[u8]) -> Result<Book, DocError> {
         })
         .collect();
     if chapters.is_empty() {
-        return Err(DocError::Parse("this EPUB's spine has no readable chapters".into()));
+        return Err(DocError::Parse(
+            "this EPUB's spine has no readable chapters".into(),
+        ));
     }
 
     let toc = read_toc(&entries, &items, spine_el, &mut warnings);
@@ -288,7 +290,10 @@ fn read_toc(
     warnings: &mut Vec<Warning>,
 ) -> Vec<TocEntry> {
     // EPUB 3: the navigation document, marked in the manifest.
-    if let Some(nav) = items.iter().find(|i| i.properties.split_whitespace().any(|p| p == "nav")) {
+    if let Some(nav) = items
+        .iter()
+        .find(|i| i.properties.split_whitespace().any(|p| p == "nav"))
+    {
         if let Some(toc) = read_nav_document(entries, nav) {
             if !toc.is_empty() {
                 return toc;
@@ -370,7 +375,11 @@ fn collect_nav_points(parent: &Element, base: &str, level: u8, out: &mut Vec<Toc
             .and_then(|l| l.children_named("text").next())
             .map(|t| collapse_ws(&t.text_content()))
             .unwrap_or_default();
-        if let Some(src) = point.children_named("content").next().and_then(|c| c.attr("src")) {
+        if let Some(src) = point
+            .children_named("content")
+            .next()
+            .and_then(|c| c.attr("src"))
+        {
             out.push(TocEntry {
                 label,
                 path: resolve_href(base, src),
@@ -383,7 +392,9 @@ fn collect_nav_points(parent: &Element, base: &str, level: u8, out: &mut Vec<Toc
 }
 
 fn fragment_of(href: &str) -> Option<String> {
-    href.split_once('#').map(|(_, f)| f.to_string()).filter(|f| !f.is_empty())
+    href.split_once('#')
+        .map(|(_, f)| f.to_string())
+        .filter(|f| !f.is_empty())
 }
 
 fn find_element<'a>(el: &'a Element, test: &dyn Fn(&Element) -> bool) -> Option<&'a Element> {
@@ -406,8 +417,9 @@ fn read_cover(
 ) -> Option<Resource> {
     // EPUB 3 marks the cover in the manifest; EPUB 2 points at it from a
     // <meta name="cover" content="…"> in the metadata.
-    let by_property =
-        items.iter().find(|i| i.properties.split_whitespace().any(|p| p == "cover-image"));
+    let by_property = items
+        .iter()
+        .find(|i| i.properties.split_whitespace().any(|p| p == "cover-image"));
     let by_meta = package
         .children_named("metadata")
         .next()
@@ -419,21 +431,30 @@ fn read_cover(
         })
         .and_then(|id| items.iter().find(|i| i.id == id));
     let item = by_property.or(by_meta).or_else(|| {
-        items.iter().find(|i| i.media_type.starts_with("image/") && i.id.contains("cover"))
+        items
+            .iter()
+            .find(|i| i.media_type.starts_with("image/") && i.id.contains("cover"))
     })?;
 
     let entry = zipedit::find(entries, &item.path)?;
     if entry.data.len() > MAX_RESOURCE_BYTES {
         warnings.push(Warning::new(
             "epub.cover_too_large",
-            format!("the cover image is {} and was not loaded", human_size(entry.data.len())),
+            format!(
+                "the cover image is {} and was not loaded",
+                human_size(entry.data.len())
+            ),
         ));
         return None;
     }
     Some(Resource {
         path: item.path.clone(),
         href: item.path.clone(),
-        mime: if item.media_type.is_empty() { mime_for(&item.path).to_string() } else { item.media_type.clone() },
+        mime: if item.media_type.is_empty() {
+            mime_for(&item.path).to_string()
+        } else {
+            item.media_type.clone()
+        },
         data: entry.data.clone(),
     })
 }
@@ -474,9 +495,14 @@ pub fn read_chapter(bytes: &[u8], path: &str) -> Result<ChapterView, DocError> {
     for link in descendants(&xml.root, "link") {
         let is_stylesheet = link
             .attr("rel")
-            .map(|rel| rel.split_whitespace().any(|r| r.eq_ignore_ascii_case("stylesheet")))
+            .map(|rel| {
+                rel.split_whitespace()
+                    .any(|r| r.eq_ignore_ascii_case("stylesheet"))
+            })
             .unwrap_or(false);
-        let Some(href) = link.attr("href") else { continue };
+        let Some(href) = link.attr("href") else {
+            continue;
+        };
         if !is_stylesheet {
             continue;
         }
@@ -494,9 +520,13 @@ pub fn read_chapter(bytes: &[u8], path: &str) -> Result<ChapterView, DocError> {
     }
 
     // Then everything the markup points at.
-    for (tag, attrs) in
-        [("img", &["src"][..]), ("image", &["href", "xlink:href"]), ("source", &["src"]), ("audio", &["src"]), ("video", &["src", "poster"])]
-    {
+    for (tag, attrs) in [
+        ("img", &["src"][..]),
+        ("image", &["href", "xlink:href"]),
+        ("source", &["src"]),
+        ("audio", &["src"]),
+        ("video", &["src", "poster"]),
+    ] {
         for el in descendants(&xml.root, tag) {
             for attr in attrs {
                 if let Some(href) = el.attr(attr) {
@@ -545,7 +575,12 @@ impl Collector<'_> {
     }
 
     fn insert(&mut self, path: String, href: String) {
-        if path.is_empty() || self.resources.iter().any(|r| r.href == href && r.path == path) {
+        if path.is_empty()
+            || self
+                .resources
+                .iter()
+                .any(|r| r.href == href && r.path == path)
+        {
             return;
         }
         let Some(entry) = zipedit::find(self.entries, &path) else {
@@ -555,7 +590,8 @@ impl Collector<'_> {
             );
             return;
         };
-        if entry.data.len() > MAX_RESOURCE_BYTES || self.total + entry.data.len() > MAX_CHAPTER_BYTES
+        if entry.data.len() > MAX_RESOURCE_BYTES
+            || self.total + entry.data.len() > MAX_CHAPTER_BYTES
         {
             self.warn(
                 "epub.resource_too_large",
@@ -619,9 +655,14 @@ pub fn css_urls(css: &str) -> Vec<String> {
     let mut i = 0;
     while let Some(found) = css[i..].find("url(") {
         let start = i + found + 4;
-        let Some(end_rel) = css[start..].find(')') else { break };
+        let Some(end_rel) = css[start..].find(')') else {
+            break;
+        };
         let end = start + end_rel;
-        let raw = css[start..end].trim().trim_matches(['"', '\''].as_ref()).trim();
+        let raw = css[start..end]
+            .trim()
+            .trim_matches(['"', '\''].as_ref())
+            .trim();
         if !raw.is_empty() && !raw.starts_with("data:") && !raw.contains("://") {
             out.push(raw.to_string());
         }

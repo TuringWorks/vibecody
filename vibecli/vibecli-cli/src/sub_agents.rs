@@ -637,7 +637,10 @@ mod tests {
     #[test]
     fn roles_report_a_tier_not_a_vendor() {
         assert_eq!(SubAgentRole::Oracle.capability_tier(), CapabilityTier::Deep);
-        assert_eq!(SubAgentRole::Tester.capability_tier(), CapabilityTier::Standard);
+        assert_eq!(
+            SubAgentRole::Tester.capability_tier(),
+            CapabilityTier::Standard
+        );
     }
 
     /// The whole point: the default config may not name a model, and every
@@ -649,7 +652,10 @@ mod tests {
             // hide. This is a compile-time guarantee restated as a runtime one
             // so the intent survives a future edit.
             let tier = role.capability_tier();
-            assert!(matches!(tier, CapabilityTier::Deep | CapabilityTier::Standard));
+            assert!(matches!(
+                tier,
+                CapabilityTier::Deep | CapabilityTier::Standard
+            ));
         }
         assert!(
             SubAgentConfig::default().default_model.is_empty(),

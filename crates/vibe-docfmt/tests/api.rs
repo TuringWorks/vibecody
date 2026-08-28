@@ -87,7 +87,10 @@ fn write_fixture(dir: &Path, name: &str, bytes: &[u8]) -> std::path::PathBuf {
 fn detects_the_three_formats_and_nothing_else() {
     assert_eq!(detect_format(Path::new("/a/b.docx")), Some(DocFormat::Docx));
     assert_eq!(detect_format(Path::new("/a/b.EPUB")), Some(DocFormat::Epub));
-    assert_eq!(detect_format(Path::new("/a/b.pages")), Some(DocFormat::Pages));
+    assert_eq!(
+        detect_format(Path::new("/a/b.pages")),
+        Some(DocFormat::Pages)
+    );
     assert_eq!(detect_format(Path::new("/a/b.pdf")), None);
     assert_eq!(detect_format(Path::new("/a/b.md")), None);
 }
@@ -134,7 +137,11 @@ fn pages_reads_as_plain_text_saves_back_and_keeps_a_backup() {
     let path = write_fixture(dir.path(), "memo.pages", &pages_bytes("first\nsecond"));
 
     let buffer = read_text(&path).expect("read");
-    assert_eq!(buffer.syntax, Syntax::PlainText, "Pages has no emphasis to edit");
+    assert_eq!(
+        buffer.syntax,
+        Syntax::PlainText,
+        "Pages has no emphasis to edit"
+    );
     assert_eq!(buffer.text, "first\nsecond\n");
     assert!(
         buffer.warnings.iter().any(|w| w.code == "pages.text_only"),
@@ -153,7 +160,11 @@ fn pages_reads_as_plain_text_saves_back_and_keeps_a_backup() {
     // The backup is still the document as it was before the edit.
     let saved = vibe_docfmt::pages::read_file(&std::fs::read(&backup).expect("backup bytes"))
         .expect("backup is a readable Pages document");
-    assert_eq!(saved.sections[0].blocks[1].plain_text(), "second", "backup predates the edit");
+    assert_eq!(
+        saved.sections[0].blocks[1].plain_text(),
+        "second",
+        "backup predates the edit"
+    );
 }
 
 #[test]
@@ -170,7 +181,10 @@ fn pages_bundles_are_read_and_written_in_place() {
     let report = write_text(&bundle, "bundle text, revised\n").expect("write bundle");
     assert!(report.verified);
     let backup = report.backup.expect("bundle backup");
-    assert!(backup.exists(), "the bundle was copied before being written");
+    assert!(
+        backup.exists(),
+        "the bundle was copied before being written"
+    );
     assert_eq!(
         backup.parent(),
         bundle.parent(),
@@ -181,8 +195,14 @@ fn pages_bundles_are_read_and_written_in_place() {
         .filter_map(|e| e.ok().map(|e| e.file_name().to_string_lossy().into_owned()))
         .filter(|name| name.ends_with(".bak"))
         .collect();
-    assert!(stray.is_empty(), "no backup files left inside the package: {stray:?}");
-    assert_eq!(read_text(&bundle).expect("re-read").text, "bundle text, revised\n");
+    assert!(
+        stray.is_empty(),
+        "no backup files left inside the package: {stray:?}"
+    );
+    assert_eq!(
+        read_text(&bundle).expect("re-read").text,
+        "bundle text, revised\n"
+    );
 
     // The staging copy used for verification is cleaned up.
     let leftovers: Vec<String> = std::fs::read_dir(dir.path())
@@ -190,7 +210,10 @@ fn pages_bundles_are_read_and_written_in_place() {
         .filter_map(|e| e.ok().map(|e| e.file_name().to_string_lossy().into_owned()))
         .filter(|name| name.contains("staging"))
         .collect();
-    assert!(leftovers.is_empty(), "staging directory removed: {leftovers:?}");
+    assert!(
+        leftovers.is_empty(),
+        "staging directory removed: {leftovers:?}"
+    );
 }
 
 #[test]
@@ -200,10 +223,13 @@ fn a_refused_write_leaves_the_document_untouched() {
     let before = std::fs::read(&path).expect("before");
 
     // A storage marker that names a storage the document does not have.
-    let err = write_text(&path, "<<< vibedoc:storage nope >>>\nnew text\n")
-        .expect_err("refused");
+    let err = write_text(&path, "<<< vibedoc:storage nope >>>\nnew text\n").expect_err("refused");
     assert_eq!(err.kind(), "structure");
-    assert_eq!(std::fs::read(&path).expect("after"), before, "file is byte-identical");
+    assert_eq!(
+        std::fs::read(&path).expect("after"),
+        before,
+        "file is byte-identical"
+    );
 }
 
 #[test]
@@ -213,5 +239,8 @@ fn the_pages_preview_image_is_exposed_for_the_viewer() {
     let (mime, data) = read_preview(&path).expect("preview");
     assert_eq!(mime, "image/jpeg");
     assert_eq!(data, b"jpeg");
-    assert!(read_preview(Path::new("/a/b.docx")).is_none(), "only Pages embeds one");
+    assert!(
+        read_preview(Path::new("/a/b.docx")).is_none(),
+        "only Pages embeds one"
+    );
 }

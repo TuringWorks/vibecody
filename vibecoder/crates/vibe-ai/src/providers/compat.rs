@@ -207,7 +207,13 @@ impl AIProvider for CompatProvider {
                     req = req.bearer_auth(key);
                 }
             }
-            let body = req.send().await.ok()?.json::<serde_json::Value>().await.ok()?;
+            let body = req
+                .send()
+                .await
+                .ok()?
+                .json::<serde_json::Value>()
+                .await
+                .ok()?;
             crate::context_window::from_models_list(&body, &self.config.model)
         })
         .await

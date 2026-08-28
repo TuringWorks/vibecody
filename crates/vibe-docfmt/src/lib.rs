@@ -79,8 +79,8 @@ pub fn is_document_path(path: &Path) -> bool {
 
 /// Read a document into its editable buffer.
 pub fn read_text(path: &Path) -> Result<DocumentText, DocError> {
-    let format = detect_format(path)
-        .ok_or_else(|| DocError::Unsupported(path.display().to_string()))?;
+    let format =
+        detect_format(path).ok_or_else(|| DocError::Unsupported(path.display().to_string()))?;
     let document = read_document(path, format)?;
     let text = render(&document);
     Ok(DocumentText {
@@ -146,8 +146,8 @@ pub fn parse_text(format: DocFormat, text: &str) -> Document {
 /// The original is replaced only after the rewritten document has been re-read
 /// and found to carry exactly the text that was asked for.
 pub fn write_text(path: &Path, text: &str) -> Result<WriteReport, DocError> {
-    let format = detect_format(path)
-        .ok_or_else(|| DocError::Unsupported(path.display().to_string()))?;
+    let format =
+        detect_format(path).ok_or_else(|| DocError::Unsupported(path.display().to_string()))?;
     let target = parse_text(format, text);
 
     match format {
@@ -248,7 +248,9 @@ fn verify(bytes: &[u8], format: DocFormat, effective: &Document) -> Result<(), D
         DocFormat::Pages => pages::read_file(bytes),
     }
     .map_err(|e| {
-        DocError::Verification(format!("the rewritten document could not be read back: {e}"))
+        DocError::Verification(format!(
+            "the rewritten document could not be read back: {e}"
+        ))
     })?;
     compare(&reread, effective)
 }
@@ -263,7 +265,10 @@ fn compare(reread: &Document, effective: &Document) -> Result<(), DocError> {
         "the rewritten document does not read back as the text you saved{}. \
          Your file has not been changed.",
         first_difference(&want, &got)
-            .map(|d| format!(" (first difference at line {}: expected {:?}, found {:?})", d.0, d.1, d.2))
+            .map(|d| format!(
+                " (first difference at line {}: expected {:?}, found {:?})",
+                d.0, d.1, d.2
+            ))
             .unwrap_or_default()
     )))
 }
@@ -337,7 +342,10 @@ fn backup_file(path: &Path) -> Result<PathBuf, DocError> {
 }
 
 fn temp_path(path: &Path, suffix: &str) -> PathBuf {
-    let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
     path.with_file_name(format!("{name}.{suffix}"))
 }
 

@@ -93,7 +93,11 @@ fn empty_paragraphs_are_not_blocks_so_a_save_cannot_delete_them() {
     let body = format!("{}<w:p/>{}", para("one"), para("two"));
     let original = package(&body);
     let doc = docx::read(&original).expect("read");
-    assert_eq!(doc.sections[0].blocks.len(), 2, "spacer paragraph is not a block");
+    assert_eq!(
+        doc.sections[0].blocks.len(),
+        2,
+        "spacer paragraph is not a block"
+    );
 
     let rewritten = docx::write(&original, &doc).expect("write");
     let xml = document_xml(&rewritten.bytes);
@@ -118,8 +122,11 @@ fn editing_text_preserves_images_and_page_setup() {
     assert!(xml.contains("<w:drawing>"), "image run preserved");
     assert!(xml.contains("<w:pgSz"), "page setup preserved");
     assert!(
-        zipedit::find(&zipedit::read_entries(&rewritten.bytes).unwrap(), "word/media/image1.png")
-            .is_some(),
+        zipedit::find(
+            &zipedit::read_entries(&rewritten.bytes).unwrap(),
+            "word/media/image1.png"
+        )
+        .is_some(),
         "media part preserved"
     );
     // The image paragraph carries no text, so it is not a block and is untouched.
@@ -151,12 +158,17 @@ fn a_new_hyperlink_gets_a_relationship() {
     let entries = zipedit::read_entries(&rewritten.bytes).expect("entries");
     let rels = zipedit::text(zipedit::find(&entries, "word/_rels/document.xml.rels").unwrap())
         .expect("rels text");
-    assert!(rels.contains("https://vibecody.dev"), "relationship added: {rels}");
+    assert!(
+        rels.contains("https://vibecody.dev"),
+        "relationship added: {rels}"
+    );
 
     let reread = docx::read(&rewritten.bytes).expect("re-read");
     match &reread.sections[0].blocks[0] {
         Block::Paragraph { spans } => assert!(
-            spans.iter().any(|s| s.style.link.as_deref() == Some("https://vibecody.dev")),
+            spans
+                .iter()
+                .any(|s| s.style.link.as_deref() == Some("https://vibecody.dev")),
             "link reads back"
         ),
         other => panic!("expected paragraph, got {other:?}"),
@@ -170,7 +182,10 @@ fn code_blocks_are_reported_as_flattened_not_silently_changed() {
     let rewritten = docx::write(&original, &edited).expect("write");
 
     assert!(
-        rewritten.warnings.iter().any(|w| w.code == "docx.code_block_flattened"),
+        rewritten
+            .warnings
+            .iter()
+            .any(|w| w.code == "docx.code_block_flattened"),
         "degradation is reported: {:?}",
         rewritten.warnings
     );
@@ -200,7 +215,13 @@ fn a_bold_only_change_is_applied() {
     match &reread.sections[0].blocks[0] {
         Block::Paragraph { spans } => assert_eq!(
             spans[0],
-            Span { text: "word".into(), style: SpanStyle { bold: true, ..SpanStyle::plain() } }
+            Span {
+                text: "word".into(),
+                style: SpanStyle {
+                    bold: true,
+                    ..SpanStyle::plain()
+                }
+            }
         ),
         other => panic!("expected paragraph, got {other:?}"),
     }

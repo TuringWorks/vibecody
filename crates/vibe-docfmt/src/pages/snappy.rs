@@ -29,12 +29,12 @@ pub fn decompress(data: &[u8]) -> Result<Vec<u8>, DocError> {
                 "unsupported IWA block type 0x{kind:02x} at byte {offset}"
             )));
         }
-        let len = u32::from_le_bytes([data[offset + 1], data[offset + 2], data[offset + 3], 0])
-            as usize;
+        let len =
+            u32::from_le_bytes([data[offset + 1], data[offset + 2], data[offset + 3], 0]) as usize;
         let start = offset + 4;
-        let end = start.checked_add(len).ok_or_else(|| {
-            DocError::Parse("IWA block length overflows the stream".to_string())
-        })?;
+        let end = start
+            .checked_add(len)
+            .ok_or_else(|| DocError::Parse("IWA block length overflows the stream".to_string()))?;
         if end > data.len() {
             return Err(DocError::Parse(format!(
                 "IWA block at byte {offset} claims {len} bytes but only {} remain",
@@ -79,8 +79,9 @@ mod tests {
     fn round_trips_a_multi_block_payload() {
         // Two blocks' worth, with enough structure that Snappy actually
         // compresses rather than storing verbatim.
-        let payload: Vec<u8> =
-            (0..BLOCK_SIZE * 2 + 5).map(|i| ((i / 7) % 251) as u8).collect();
+        let payload: Vec<u8> = (0..BLOCK_SIZE * 2 + 5)
+            .map(|i| ((i / 7) % 251) as u8)
+            .collect();
         let compressed = compress(&payload).expect("compress");
         assert_eq!(compressed[0], 0x00, "block header type byte");
         assert_eq!(decompress(&compressed).expect("decompress"), payload);

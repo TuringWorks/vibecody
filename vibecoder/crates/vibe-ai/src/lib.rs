@@ -4,10 +4,10 @@ pub mod agent;
 pub mod agent_team;
 pub mod artifacts;
 pub mod catalog;
-/// Per-model context windows, read from each provider's own API.
-pub mod context_window;
 pub mod chat;
 pub mod config;
+/// Per-model context windows, read from each provider's own API.
+pub mod context_window;
 pub mod diffcomplete;
 pub mod ghost;
 pub mod hooks;

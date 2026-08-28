@@ -84,7 +84,11 @@ fn deflated_chapters_are_readable() {
     assert_eq!(chapter.compression, zip::CompressionMethod::Deflated);
 
     let view = epub_view::read_chapter(&bytes, "OEBPS/text/ch1.xhtml").expect("read chapter");
-    assert!(view.html.contains("The First Chapter"), "chapter body decoded: {}", view.html);
+    assert!(
+        view.html.contains("The First Chapter"),
+        "chapter body decoded: {}",
+        view.html
+    );
 }
 
 #[test]
@@ -108,13 +112,23 @@ fn reads_metadata_spine_and_cover() {
 #[test]
 fn reads_a_nested_epub3_table_of_contents() {
     let book = epub_view::read_book(&book_bytes()).expect("read book");
-    let labels: Vec<(&str, u8)> =
-        book.toc.iter().map(|e| (e.label.as_str(), e.level)).collect();
+    let labels: Vec<(&str, u8)> = book
+        .toc
+        .iter()
+        .map(|e| (e.label.as_str(), e.level))
+        .collect();
     assert_eq!(labels, vec![("One", 0), ("One, part two", 1), ("Two", 0)]);
 
     assert_eq!(book.toc[0].path, "OEBPS/text/ch1.xhtml");
-    assert_eq!(book.toc[1].fragment.as_deref(), Some("part2"), "the anchor is kept");
-    assert!(book.warnings.is_empty(), "a book with a nav document warns about nothing");
+    assert_eq!(
+        book.toc[1].fragment.as_deref(),
+        Some("part2"),
+        "the anchor is kept"
+    );
+    assert!(
+        book.warnings.is_empty(),
+        "a book with a nav document warns about nothing"
+    );
 }
 
 #[test]
@@ -146,8 +160,15 @@ fn falls_back_to_the_ncx_when_there_is_no_nav_document() {
     .expect("ncx book");
 
     let book = epub_view::read_book(&bytes).expect("read book");
-    let labels: Vec<(&str, u8)> = book.toc.iter().map(|e| (e.label.as_str(), e.level)).collect();
-    assert_eq!(labels, vec![("Opening", 0), ("A section", 1), ("Closing", 0)]);
+    let labels: Vec<(&str, u8)> = book
+        .toc
+        .iter()
+        .map(|e| (e.label.as_str(), e.level))
+        .collect();
+    assert_eq!(
+        labels,
+        vec![("Opening", 0), ("A section", 1), ("Closing", 0)]
+    );
     assert_eq!(book.toc[1].path, "OEBPS/text/ch1.xhtml");
 }
 
@@ -159,7 +180,10 @@ fn a_chapter_carries_the_images_it_references() {
         .iter()
         .find(|r| r.href == "../images/fig1.png")
         .expect("the image the chapter points at");
-    assert_eq!(image.path, "OEBPS/images/fig1.png", "resolved against the chapter's directory");
+    assert_eq!(
+        image.path, "OEBPS/images/fig1.png",
+        "resolved against the chapter's directory"
+    );
     assert_eq!(image.mime, "image/png");
     assert_eq!(image.data, b"png-bytes");
 }
@@ -167,7 +191,10 @@ fn a_chapter_carries_the_images_it_references() {
 #[test]
 fn stylesheets_come_with_their_own_relative_assets_resolved() {
     let view = epub_view::read_chapter(&book_bytes(), "OEBPS/text/ch1.xhtml").expect("chapter");
-    assert!(view.css.contains("font-family: Serif"), "linked stylesheet included");
+    assert!(
+        view.css.contains("font-family: Serif"),
+        "linked stylesheet included"
+    );
     assert!(view.css.contains("p.drop"), "inline <style> included");
     // `url(fonts/serif.woff2)` is relative to the stylesheet, which lives in a
     // different directory from the chapter — resolving it against the chapter
@@ -179,7 +206,9 @@ fn stylesheets_come_with_their_own_relative_assets_resolved() {
         view.css
     );
     assert!(
-        view.resources.iter().any(|r| r.path == "OEBPS/css/fonts/serif.woff2"),
+        view.resources
+            .iter()
+            .any(|r| r.path == "OEBPS/css/fonts/serif.woff2"),
         "the font travels with the chapter"
     );
 }
@@ -204,7 +233,9 @@ fn a_missing_resource_is_reported_not_skipped_silently() {
 
     let view = epub_view::read_chapter(&bytes, "OEBPS/text/ch1.xhtml").expect("chapter");
     assert!(
-        view.warnings.iter().any(|w| w.code == "epub.missing_resource"),
+        view.warnings
+            .iter()
+            .any(|w| w.code == "epub.missing_resource"),
         "a broken image is named: {:?}",
         view.warnings
     );
@@ -231,22 +262,43 @@ fn remote_and_inline_references_are_left_for_the_sanitiser() {
     .expect("book");
 
     let view = epub_view::read_chapter(&bytes, "ch1.xhtml").expect("chapter");
-    assert!(view.resources.is_empty(), "nothing was fetched for a remote or inline src");
     assert!(
-        !view.warnings.iter().any(|w| w.code == "epub.missing_resource"),
+        view.resources.is_empty(),
+        "nothing was fetched for a remote or inline src"
+    );
+    assert!(
+        !view
+            .warnings
+            .iter()
+            .any(|w| w.code == "epub.missing_resource"),
         "and neither is reported as missing from the book"
     );
 }
 
 #[test]
 fn paths_resolve_the_way_a_browser_would() {
-    assert_eq!(resolve_href("OEBPS/text/ch1.xhtml", "../images/a.png"), "OEBPS/images/a.png");
-    assert_eq!(resolve_href("OEBPS/text/ch1.xhtml", "ch2.xhtml"), "OEBPS/text/ch2.xhtml");
-    assert_eq!(resolve_href("OEBPS/text/ch1.xhtml", "./ch2.xhtml#x"), "OEBPS/text/ch2.xhtml");
-    assert_eq!(resolve_href("OEBPS/text/ch1.xhtml", "/top.xhtml"), "top.xhtml");
+    assert_eq!(
+        resolve_href("OEBPS/text/ch1.xhtml", "../images/a.png"),
+        "OEBPS/images/a.png"
+    );
+    assert_eq!(
+        resolve_href("OEBPS/text/ch1.xhtml", "ch2.xhtml"),
+        "OEBPS/text/ch2.xhtml"
+    );
+    assert_eq!(
+        resolve_href("OEBPS/text/ch1.xhtml", "./ch2.xhtml#x"),
+        "OEBPS/text/ch2.xhtml"
+    );
+    assert_eq!(
+        resolve_href("OEBPS/text/ch1.xhtml", "/top.xhtml"),
+        "top.xhtml"
+    );
     assert_eq!(resolve_href("ch1.xhtml", "images/a.png"), "images/a.png");
     // Percent-encoded spaces are common in hand-made books.
-    assert_eq!(resolve_href("a/b.xhtml", "my%20image.png"), "a/my image.png");
+    assert_eq!(
+        resolve_href("a/b.xhtml", "my%20image.png"),
+        "a/my image.png"
+    );
 }
 
 #[test]

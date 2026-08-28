@@ -206,7 +206,10 @@ mod tests {
     #[test]
     fn mistral_spelling_is_read() {
         let body = json!({"data": [{"id": "mistral-large-latest", "max_context_length": 128000}]});
-        assert_eq!(from_models_list(&body, "mistral-large-latest"), Some(128_000));
+        assert_eq!(
+            from_models_list(&body, "mistral-large-latest"),
+            Some(128_000)
+        );
     }
 
     #[test]

@@ -89,7 +89,8 @@ pub fn contract(may_change: bool, may_open: bool) -> String {
 /// both. Asked to "open the config", one reads it and describes it — which is
 /// an answer to a question the user did not ask, with their editor still
 /// showing whatever it showed before.
-const OPEN_CLAUSE: &str = "\n\nThe user has an editor open in front of them, so you can also put a \
+const OPEN_CLAUSE: &str =
+    "\n\nThe user has an editor open in front of them, so you can also put a \
      file on their screen:\n\
      <tool_call name=\"open_file\"><path>src/main.rs</path></tool_call>\n\
      Opening is not reading. When they ask you to open, show, pull up or bring up a file, \
@@ -213,7 +214,11 @@ pub fn is_read_only(call: &ToolCall) -> bool {
 /// speaker. Shell stays out of voice until there is a surface that shows
 /// exactly what would run.
 pub fn is_permitted(call: &ToolCall) -> bool {
-    is_read_only(call) || matches!(call, ToolCall::WriteFile { .. } | ToolCall::ApplyPatch { .. })
+    is_read_only(call)
+        || matches!(
+            call,
+            ToolCall::WriteFile { .. } | ToolCall::ApplyPatch { .. }
+        )
 }
 
 /// The question the user is asked, out loud and on screen. Says what will
@@ -337,7 +342,10 @@ mod pipeline_tests {
         ]);
         assert_eq!(spoken, "");
         let tool = tool.expect("the call after the reasoning block must survive");
-        assert!(!tool.contains("The user wants"), "reasoning leaked: {tool:?}");
+        assert!(
+            !tool.contains("The user wants"),
+            "reasoning leaked: {tool:?}"
+        );
         assert_eq!(
             vibe_ai::tools::parse_tool_calls(&tool).len(),
             1,
@@ -435,7 +443,11 @@ mod tests {
     #[test]
     fn a_tool_call_is_never_spoken() {
         assert_eq!(
-            spoken(&["<tool_", "call name=\"read_file\"><path>README.md</path>", "</tool_call>"]),
+            spoken(&[
+                "<tool_",
+                "call name=\"read_file\"><path>README.md</path>",
+                "</tool_call>"
+            ]),
             ""
         );
     }
@@ -443,7 +455,10 @@ mod tests {
     #[test]
     fn a_tool_turn_keeps_its_text_for_parsing() {
         let mut gate = ToolGate::default();
-        for t in ["<tool_call name=\"read_file\">", "<path>README.md</path></tool_call>"] {
+        for t in [
+            "<tool_call name=\"read_file\">",
+            "<path>README.md</path></tool_call>",
+        ] {
             assert_eq!(gate.push(t), "");
         }
         gate.finish();
@@ -467,7 +482,10 @@ mod tests {
     fn reads_run_unattended_and_writes_do_not() {
         assert!(is_read_only(&ToolCall::ReadFile { path: "a".into() }));
         assert!(is_read_only(&ToolCall::ListDirectory { path: ".".into() }));
-        assert!(!is_read_only(&ToolCall::WriteFile { path: "a".into(), content: "x".into() }));
+        assert!(!is_read_only(&ToolCall::WriteFile {
+            path: "a".into(),
+            content: "x".into()
+        }));
     }
 
     /// A spoken "yes" to `rm -rf` is the same word as a spoken "yes" to a
@@ -475,8 +493,13 @@ mod tests {
     /// stays out of voice entirely — approval is not enough for it.
     #[test]
     fn shell_is_not_reachable_by_voice_even_with_approval() {
-        assert!(!is_permitted(&ToolCall::Bash { command: "ls".into() }));
-        assert!(is_permitted(&ToolCall::WriteFile { path: "a".into(), content: "x".into() }));
+        assert!(!is_permitted(&ToolCall::Bash {
+            command: "ls".into()
+        }));
+        assert!(is_permitted(&ToolCall::WriteFile {
+            path: "a".into(),
+            content: "x".into()
+        }));
         assert!(is_permitted(&ToolCall::ReadFile { path: "a".into() }));
     }
 
@@ -499,7 +522,10 @@ mod tests {
     /// same failure as a spoken `<tool_call>`, with a file changed at the end.
     #[test]
     fn a_write_in_element_form_is_gated_too() {
-        assert_eq!(spoken(&["<write_file path=\"a.rs\">", "x</write_file>"]), "");
+        assert_eq!(
+            spoken(&["<write_file path=\"a.rs\">", "x</write_file>"]),
+            ""
+        );
     }
 
     /// The canonical dialect the contract teaches.

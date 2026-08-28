@@ -58,7 +58,11 @@ pub fn read(bytes: &[u8]) -> Result<Document, DocError> {
 
     Ok(Document {
         format: DocFormat::Docx,
-        sections: vec![Section { id: "body".to_string(), title: None, blocks }],
+        sections: vec![Section {
+            id: "body".to_string(),
+            title: None,
+            blocks,
+        }],
         warnings,
     })
 }
@@ -72,7 +76,10 @@ struct ReadCtx {
 
 impl ReadCtx {
     fn link_target(&self, id: &str) -> Option<&str> {
-        self.rels.iter().find(|(k, _)| k == id).map(|(_, v)| v.as_str())
+        self.rels
+            .iter()
+            .find(|(k, _)| k == id)
+            .map(|(_, v)| v.as_str())
     }
 
     fn is_ordered(&self, num_id: &str) -> bool {
@@ -138,8 +145,10 @@ fn read_numbering(entries: &[ZipEntry]) -> Result<Vec<(String, bool)>, DocError>
         .children_named("num")
         .filter_map(|num| {
             let num_id = num.attr("w:numId")?.to_string();
-            let abstract_id =
-                num.children_named("abstractNumId").next().and_then(|a| a.attr("w:val"))?;
+            let abstract_id = num
+                .children_named("abstractNumId")
+                .next()
+                .and_then(|a| a.attr("w:val"))?;
             let fmt = abstract_fmt
                 .iter()
                 .find(|(id, _)| id == abstract_id)
@@ -161,7 +170,10 @@ fn collect_slots(body: &Element, ctx: &ReadCtx, warnings: &mut Vec<Warning>) -> 
                 "tbl" => table_block(el, ctx, warnings),
                 _ => return None,
             };
-            Some(Slot { path: vec![i], block })
+            Some(Slot {
+                path: vec![i],
+                block,
+            })
         })
         .collect()
 }
@@ -196,8 +208,11 @@ fn paragraph_block(el: &Element, ctx: &ReadCtx, warnings: &mut Vec<Warning>) -> 
             .and_then(|l| l.attr("w:val"))
             .and_then(|v| v.parse::<u8>().ok())
             .unwrap_or(0);
-        let num_id =
-            num_pr.children_named("numId").next().and_then(|n| n.attr("w:val")).unwrap_or("");
+        let num_id = num_pr
+            .children_named("numId")
+            .next()
+            .and_then(|n| n.attr("w:val"))
+            .unwrap_or("");
         if !num_id.is_empty() && !ctx.numbering.iter().any(|(k, _)| k == num_id) {
             push_once(
                 warnings,
@@ -210,7 +225,11 @@ fn paragraph_block(el: &Element, ctx: &ReadCtx, warnings: &mut Vec<Warning>) -> 
                 ),
             );
         }
-        return Some(Block::ListItem { level, ordered: ctx.is_ordered(num_id), spans });
+        return Some(Block::ListItem {
+            level,
+            ordered: ctx.is_ordered(num_id),
+            spans,
+        });
     }
 
     Some(Block::Paragraph { spans })
@@ -231,7 +250,9 @@ fn paragraph_spans(el: &Element, ctx: &ReadCtx) -> Vec<Span> {
 
 fn collect_spans(el: &Element, ctx: &ReadCtx, link: Option<&str>, out: &mut Vec<Span>) {
     for child in &el.children {
-        let Node::Element(child) = child else { continue };
+        let Node::Element(child) = child else {
+            continue;
+        };
         match child.local_name() {
             "hyperlink" => {
                 let target = child
@@ -244,11 +265,22 @@ fn collect_spans(el: &Element, ctx: &ReadCtx, link: Option<&str>, out: &mut Vec<
             "r" => {
                 let style = run_style(child, link);
                 for run_child in &child.children {
-                    let Node::Element(rc) = run_child else { continue };
+                    let Node::Element(rc) = run_child else {
+                        continue;
+                    };
                     match rc.local_name() {
-                        "t" => out.push(Span { text: rc.text_content(), style: style.clone() }),
-                        "tab" => out.push(Span { text: "\t".to_string(), style: style.clone() }),
-                        "br" => out.push(Span { text: " ".to_string(), style: style.clone() }),
+                        "t" => out.push(Span {
+                            text: rc.text_content(),
+                            style: style.clone(),
+                        }),
+                        "tab" => out.push(Span {
+                            text: "\t".to_string(),
+                            style: style.clone(),
+                        }),
+                        "br" => out.push(Span {
+                            text: " ".to_string(),
+                            style: style.clone(),
+                        }),
                         _ => {}
                     }
                 }
@@ -305,8 +337,10 @@ fn table_block(el: &Element, ctx: &ReadCtx, warnings: &mut Vec<Warning>) -> Bloc
         .map(|tr| {
             tr.children_named("tc")
                 .map(|tc| {
-                    let paragraphs: Vec<Vec<Span>> =
-                        tc.children_named("p").map(|p| paragraph_spans(p, ctx)).collect();
+                    let paragraphs: Vec<Vec<Span>> = tc
+                        .children_named("p")
+                        .map(|p| paragraph_spans(p, ctx))
+                        .collect();
                     if paragraphs.len() > 1 {
                         push_once(
                             warnings,
@@ -351,8 +385,11 @@ pub fn write(original: &[u8], target: &Document) -> Result<Rewrite, DocError> {
     let mut read_warnings = Vec::new();
     let slots = collect_slots(body, &ctx, &mut read_warnings);
 
-    let target_blocks: Vec<Block> =
-        target.sections.iter().flat_map(|s| s.blocks.iter().cloned()).collect();
+    let target_blocks: Vec<Block> = target
+        .sections
+        .iter()
+        .flat_map(|s| s.blocks.iter().cloned())
+        .collect();
     let (effective_blocks, mut warnings) = degrade(target_blocks);
 
     let mut adapter = DocxAdapter {
@@ -365,11 +402,18 @@ pub fn write(original: &[u8], target: &Document) -> Result<Rewrite, DocError> {
     };
     let body_mut = find_body_mut(&mut xml.root)
         .ok_or_else(|| DocError::Parse("word/document.xml has no <w:body>".into()))?;
-    warnings.extend(surgical::apply(body_mut, &slots, &effective_blocks, &mut adapter)?);
+    warnings.extend(surgical::apply(
+        body_mut,
+        &slots,
+        &effective_blocks,
+        &mut adapter,
+    )?);
 
     let document_xml = xmltree::serialize(&xml);
     if !zipedit::replace(&mut entries, DOCUMENT_PART, document_xml.into_bytes()) {
-        return Err(DocError::Structure(format!("{DOCUMENT_PART} vanished mid-write")));
+        return Err(DocError::Structure(format!(
+            "{DOCUMENT_PART} vanished mid-write"
+        )));
     }
 
     apply_new_rels(&mut entries, &adapter.new_rels)?;
@@ -413,7 +457,10 @@ fn degrade(blocks: Vec<Block>) -> (Vec<Block>, Vec<Warning>) {
                     .map(|line| Block::Paragraph {
                         spans: vec![Span {
                             text: line.to_string(),
-                            style: SpanStyle { code: true, ..SpanStyle::plain() },
+                            style: SpanStyle {
+                                code: true,
+                                ..SpanStyle::plain()
+                            },
                         }],
                     })
                     .collect::<Vec<_>>()
@@ -449,7 +496,11 @@ impl DocxAdapter {
     }
 
     fn num_id_for(&mut self, ordered: bool) -> String {
-        let slot = if ordered { &mut self.ordered_num_id } else { &mut self.bullet_num_id };
+        let slot = if ordered {
+            &mut self.ordered_num_id
+        } else {
+            &mut self.bullet_num_id
+        };
         if let Some(id) = slot {
             return id.clone();
         }
@@ -487,9 +538,9 @@ impl BlockAdapter for DocxAdapter {
                     .into(),
             )),
             ("p", _) => rewrite_paragraph(el, block, self),
-            (other, _) => {
-                Err(DocError::Structure(format!("unexpected <w:{other}> in the document body")))
-            }
+            (other, _) => Err(DocError::Structure(format!(
+                "unexpected <w:{other}> in the document body"
+            ))),
         }
     }
 
@@ -499,7 +550,9 @@ impl BlockAdapter for DocxAdapter {
             // then strip the parts `rewrite` is about to set.
             Some(t) if t.local_name() == "p" => {
                 let mut clone = t.clone();
-                clone.children.retain(|n| matches!(n, Node::Element(e) if e.local_name() == "pPr"));
+                clone
+                    .children
+                    .retain(|n| matches!(n, Node::Element(e) if e.local_name() == "pPr"));
                 clone
             }
             _ => {
@@ -546,7 +599,9 @@ fn rewrite_table(
     }
     let mut warnings = Vec::new();
     for (row_index, tr_index) in existing_rows.into_iter().enumerate() {
-        let Some(Node::Element(tr)) = el.children.get_mut(tr_index) else { continue };
+        let Some(Node::Element(tr)) = el.children.get_mut(tr_index) else {
+            continue;
+        };
         let cell_indices: Vec<usize> = tr
             .children
             .iter()
@@ -567,19 +622,25 @@ fn rewrite_table(
             )));
         }
         for (cell_index, tc_index) in cell_indices.into_iter().enumerate() {
-            let Some(Node::Element(tc)) = tr.children.get_mut(tc_index) else { continue };
+            let Some(Node::Element(tc)) = tr.children.get_mut(tc_index) else {
+                continue;
+            };
             let first_p = tc.children.iter_mut().find_map(|n| match n {
                 Node::Element(e) if e.local_name() == "p" => Some(e),
                 _ => None,
             });
             match first_p {
                 Some(p) => {
-                    let block = Block::Paragraph { spans: row[cell_index].clone() };
+                    let block = Block::Paragraph {
+                        spans: row[cell_index].clone(),
+                    };
                     warnings.extend(rewrite_paragraph(p, &block, adapter)?);
                 }
                 None => {
                     let mut p = Element::new("w:p");
-                    let block = Block::Paragraph { spans: row[cell_index].clone() };
+                    let block = Block::Paragraph {
+                        spans: row[cell_index].clone(),
+                    };
                     rewrite_paragraph(&mut p, &block, adapter)?;
                     tc.children.push(Node::Element(p));
                 }
@@ -595,16 +656,21 @@ fn rewrite_paragraph(
     adapter: &mut DocxAdapter,
 ) -> Result<Vec<Warning>, DocError> {
     let spans: Vec<Span> = match block {
-        Block::Heading { spans, .. } | Block::Paragraph { spans } | Block::ListItem { spans, .. } => {
-            spans.clone()
-        }
+        Block::Heading { spans, .. }
+        | Block::Paragraph { spans }
+        | Block::ListItem { spans, .. } => spans.clone(),
         Block::Rule => Vec::new(),
         Block::Code { text } => vec![Span {
             text: text.clone(),
-            style: SpanStyle { code: true, ..SpanStyle::plain() },
+            style: SpanStyle {
+                code: true,
+                ..SpanStyle::plain()
+            },
         }],
         Block::Table { .. } => {
-            return Err(DocError::Structure("a table cannot be written as a paragraph".into()))
+            return Err(DocError::Structure(
+                "a table cannot be written as a paragraph".into(),
+            ))
         }
     };
 
@@ -637,7 +703,10 @@ fn rewrite_paragraph(
             _ => None,
         })
         .collect();
-    let insert_at = text_indices.first().copied().unwrap_or_else(|| el.children.len());
+    let insert_at = text_indices
+        .first()
+        .copied()
+        .unwrap_or_else(|| el.children.len());
     for index in text_indices.into_iter().rev() {
         el.children.remove(index);
     }
@@ -673,7 +742,9 @@ fn build_run(span: &Span, template: Option<&Element>, adapter: &mut DocxAdapter)
         .and_then(|t| t.children_named("rPr").next().cloned())
         .unwrap_or_else(|| Element::new("w:rPr"));
     // Start from the template's look, then set exactly what the model knows.
-    props.children.retain(|n| !matches!(n, Node::Element(e) if matches!(e.local_name(), "b" | "bCs" | "i" | "iCs")));
+    props.children.retain(
+        |n| !matches!(n, Node::Element(e) if matches!(e.local_name(), "b" | "bCs" | "i" | "iCs")),
+    );
     if span.style.bold {
         props.children.push(Node::Element(empty("w:b")));
     }
@@ -681,7 +752,9 @@ fn build_run(span: &Span, template: Option<&Element>, adapter: &mut DocxAdapter)
         props.children.push(Node::Element(empty("w:i")));
     }
     if span.style.code {
-        props.children.retain(|n| !matches!(n, Node::Element(e) if e.local_name() == "rFonts"));
+        props
+            .children
+            .retain(|n| !matches!(n, Node::Element(e) if e.local_name() == "rFonts"));
         let mut fonts = Element::new("w:rFonts");
         fonts.set_attr("w:ascii", MONO_FONTS[0]);
         fonts.set_attr("w:hAnsi", MONO_FONTS[0]);
@@ -722,7 +795,10 @@ fn empty(name: &str) -> Element {
 }
 
 fn apply_paragraph_props(el: &mut Element, block: &Block, adapter: &mut DocxAdapter) {
-    let props_index = el.children.iter().position(|n| matches!(n, Node::Element(e) if e.local_name() == "pPr"));
+    let props_index = el
+        .children
+        .iter()
+        .position(|n| matches!(n, Node::Element(e) if e.local_name() == "pPr"));
     let mut props = match props_index {
         Some(i) => match el.children.remove(i) {
             Node::Element(e) => e,
@@ -786,7 +862,10 @@ fn apply_paragraph_props(el: &mut Element, block: &Block, adapter: &mut DocxAdap
 
 // ── Package parts written on demand ──────────────────────────────────
 
-fn apply_new_rels(entries: &mut Vec<ZipEntry>, new_rels: &[(String, String)]) -> Result<(), DocError> {
+fn apply_new_rels(
+    entries: &mut Vec<ZipEntry>,
+    new_rels: &[(String, String)],
+) -> Result<(), DocError> {
     if new_rels.is_empty() {
         return Ok(());
     }
@@ -905,10 +984,11 @@ fn ensure_heading_styles(entries: &mut Vec<ZipEntry>, levels: &[u8]) -> Result<(
     let mut added = false;
     for level in levels {
         let style_id = format!("Heading{level}");
-        let exists = xml
-            .root
-            .children_named("style")
-            .any(|s| s.attr("w:styleId").map(|v| v.eq_ignore_ascii_case(&style_id)).unwrap_or(false));
+        let exists = xml.root.children_named("style").any(|s| {
+            s.attr("w:styleId")
+                .map(|v| v.eq_ignore_ascii_case(&style_id))
+                .unwrap_or(false)
+        });
         if exists {
             continue;
         }

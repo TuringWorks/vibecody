@@ -256,9 +256,7 @@ pub fn delete_model(model: &WhisperModel) -> Result<bool> {
 /// A value is validated here rather than on the way out: `model wisper` and
 /// `prefer_local yes` are typos, and writing them to config.toml would leave
 /// a file that looks configured and fails at the next transcription.
-pub fn parse_voice_setting(
-    args: &str,
-) -> Result<(Option<String>, Option<String>, Option<bool>)> {
+pub fn parse_voice_setting(args: &str) -> Result<(Option<String>, Option<String>, Option<bool>)> {
     let (key, value) = args
         .trim()
         .split_once(char::is_whitespace)

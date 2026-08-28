@@ -50,7 +50,10 @@ fn section_marker(section: &Section) -> String {
 }
 
 fn attr_escape(value: &str) -> String {
-    value.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', " ")
+    value
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\n', " ")
 }
 
 fn attr_unescape(value: &str) -> String {
@@ -80,7 +83,11 @@ fn blocks_to_markdown(blocks: &[Block]) -> String {
             Block::Paragraph { spans } => {
                 out.push_str(&format!("{}\n\n", spans_to_markdown(spans)));
             }
-            Block::ListItem { level, ordered, spans } => {
+            Block::ListItem {
+                level,
+                ordered,
+                spans,
+            } => {
                 let indent = "  ".repeat(*level as usize);
                 let bullet = if *ordered { "1." } else { "-" };
                 out.push_str(&format!("{indent}{bullet} {}\n", spans_to_markdown(spans)));
@@ -218,7 +225,11 @@ pub fn from_markdown(format: DocFormat, markdown: &str) -> Document {
         });
     }
     if doc.sections.is_empty() {
-        doc.sections.push(Section { id: String::new(), title: None, blocks: Vec::new() });
+        doc.sections.push(Section {
+            id: String::new(),
+            title: None,
+            blocks: Vec::new(),
+        });
     }
     doc
 }
@@ -237,7 +248,11 @@ fn split_sections(markdown: &str) -> Vec<RawSection> {
             if let Some(section) = current.take() {
                 sections.push(section);
             }
-            current = Some(RawSection { id, title, body: String::new() });
+            current = Some(RawSection {
+                id,
+                title,
+                body: String::new(),
+            });
             continue;
         }
         match current.as_mut() {
@@ -308,7 +323,9 @@ fn parse_blocks(body: &str) -> Vec<Block> {
                 let text = paragraph.join(" ");
                 paragraph.clear();
                 if !text.trim().is_empty() {
-                    blocks.push(Block::Paragraph { spans: parse_spans(text.trim()) });
+                    blocks.push(Block::Paragraph {
+                        spans: parse_spans(text.trim()),
+                    });
                 }
             }
         };
@@ -335,7 +352,9 @@ fn parse_blocks(body: &str) -> Vec<Block> {
                 i += 1;
             }
             i += 1; // closing fence (or end of buffer)
-            blocks.push(Block::Code { text: text.trim_end_matches('\n').to_string() });
+            blocks.push(Block::Code {
+                text: text.trim_end_matches('\n').to_string(),
+            });
             continue;
         }
 
@@ -349,7 +368,10 @@ fn parse_blocks(body: &str) -> Vec<Block> {
         if let Some(level) = heading_level(trimmed) {
             flush_paragraph!();
             let text = trimmed[level as usize..].trim();
-            blocks.push(Block::Heading { level, spans: parse_spans(text) });
+            blocks.push(Block::Heading {
+                level,
+                spans: parse_spans(text),
+            });
             i += 1;
             continue;
         }
@@ -372,14 +394,22 @@ fn parse_blocks(body: &str) -> Vec<Block> {
         let level = (indent / 2) as u8;
         if let Some(rest) = trimmed.strip_prefix("- ") {
             flush_paragraph!();
-            blocks.push(Block::ListItem { level, ordered: false, spans: parse_spans(rest.trim()) });
+            blocks.push(Block::ListItem {
+                level,
+                ordered: false,
+                spans: parse_spans(rest.trim()),
+            });
             i += 1;
             continue;
         }
         if let Some(marker) = ordered_marker_len(trimmed) {
             flush_paragraph!();
             let rest = trimmed[marker..].trim();
-            blocks.push(Block::ListItem { level, ordered: true, spans: parse_spans(rest) });
+            blocks.push(Block::ListItem {
+                level,
+                ordered: true,
+                spans: parse_spans(rest),
+            });
             i += 1;
             continue;
         }
@@ -404,9 +434,13 @@ fn heading_level(trimmed: &str) -> Option<u8> {
 }
 
 fn is_table_separator(row: &str) -> bool {
-    row.trim_matches('|')
-        .split('|')
-        .all(|cell| !cell.trim().is_empty() && cell.trim().chars().all(|c| c == '-' || c == ':' || c == ' '))
+    row.trim_matches('|').split('|').all(|cell| {
+        !cell.trim().is_empty()
+            && cell
+                .trim()
+                .chars()
+                .all(|c| c == '-' || c == ':' || c == ' ')
+    })
 }
 
 fn parse_table_row(row: &str) -> Vec<Vec<Span>> {
@@ -465,7 +499,10 @@ pub fn parse_spans(text: &str) -> Vec<Span> {
                     let inner: String = chars[i + 1..end].iter().collect();
                     spans.push(Span {
                         text: inner,
-                        style: SpanStyle { code: true, ..SpanStyle::plain() },
+                        style: SpanStyle {
+                            code: true,
+                            ..SpanStyle::plain()
+                        },
                     });
                     i = end + 1;
                 }
@@ -476,7 +513,11 @@ pub fn parse_spans(text: &str) -> Vec<Span> {
             },
             '*' | '_' => {
                 let double = chars.get(i + 1) == Some(&c);
-                let marker: String = if double { format!("{c}{c}") } else { c.to_string() };
+                let marker: String = if double {
+                    format!("{c}{c}")
+                } else {
+                    c.to_string()
+                };
                 match find_close_str(&chars, i + marker.len(), &marker) {
                     Some(end) => {
                         push_buf(&mut buf, &mut spans);
@@ -617,7 +658,11 @@ pub fn from_plain_text(text: &str) -> Document {
                 if let Some(section) = current.take() {
                     doc.sections.push(section);
                 }
-                current = Some(Section { id, title: None, blocks: Vec::new() });
+                current = Some(Section {
+                    id,
+                    title: None,
+                    blocks: Vec::new(),
+                });
             }
             None => {
                 let section = current.get_or_insert_with(|| Section {
@@ -625,7 +670,9 @@ pub fn from_plain_text(text: &str) -> Document {
                     title: None,
                     blocks: Vec::new(),
                 });
-                section.blocks.push(Block::Paragraph { spans: vec![Span::plain(line)] });
+                section.blocks.push(Block::Paragraph {
+                    spans: vec![Span::plain(line)],
+                });
             }
         }
     }
@@ -633,7 +680,11 @@ pub fn from_plain_text(text: &str) -> Document {
         doc.sections.push(section);
     }
     if doc.sections.is_empty() {
-        doc.sections.push(Section { id: String::new(), title: None, blocks: Vec::new() });
+        doc.sections.push(Section {
+            id: String::new(),
+            title: None,
+            blocks: Vec::new(),
+        });
     }
     doc
 }
@@ -644,7 +695,11 @@ mod tests {
     use crate::model::spans_text;
 
     fn doc(sections: Vec<Section>) -> Document {
-        Document { format: DocFormat::Epub, sections, warnings: Vec::new() }
+        Document {
+            format: DocFormat::Epub,
+            sections,
+            warnings: Vec::new(),
+        }
     }
 
     #[test]
@@ -654,14 +709,29 @@ mod tests {
         let parsed = from_markdown(DocFormat::Docx, source);
         let rendered = to_markdown(&parsed);
         assert_eq!(rendered.trim(), source.trim(), "render(parse(x)) == x");
-        assert_eq!(to_markdown(&from_markdown(DocFormat::Docx, &rendered)), rendered);
+        assert_eq!(
+            to_markdown(&from_markdown(DocFormat::Docx, &rendered)),
+            rendered
+        );
     }
 
     #[test]
     fn a_non_ascii_section_id_survives_the_marker() {
         let source = to_markdown(&doc(vec![
-            Section { id: "OEBPS/châpitre-1.xhtml".into(), title: Some("Café".into()), blocks: vec![Block::Paragraph { spans: vec![Span::plain("un")] }] },
-            Section { id: "OEBPS/ch2.xhtml".into(), title: None, blocks: vec![Block::Paragraph { spans: vec![Span::plain("two")] }] },
+            Section {
+                id: "OEBPS/châpitre-1.xhtml".into(),
+                title: Some("Café".into()),
+                blocks: vec![Block::Paragraph {
+                    spans: vec![Span::plain("un")],
+                }],
+            },
+            Section {
+                id: "OEBPS/ch2.xhtml".into(),
+                title: None,
+                blocks: vec![Block::Paragraph {
+                    spans: vec![Span::plain("two")],
+                }],
+            },
         ]));
         let parsed = from_markdown(DocFormat::Epub, &source);
         assert_eq!(parsed.sections[0].id, "OEBPS/châpitre-1.xhtml");
@@ -672,8 +742,16 @@ mod tests {
     #[test]
     fn a_quote_in_a_title_does_not_end_the_marker() {
         let source = to_markdown(&doc(vec![
-            Section { id: "a".into(), title: Some(r#"He said "go""#.into()), blocks: vec![] },
-            Section { id: "b".into(), title: None, blocks: vec![] },
+            Section {
+                id: "a".into(),
+                title: Some(r#"He said "go""#.into()),
+                blocks: vec![],
+            },
+            Section {
+                id: "b".into(),
+                title: None,
+                blocks: vec![],
+            },
         ]));
         let parsed = from_markdown(DocFormat::Epub, &source);
         assert_eq!(parsed.sections.len(), 2);
@@ -693,8 +771,20 @@ mod tests {
         let document = Document {
             format: DocFormat::Pages,
             sections: vec![
-                Section { id: "f.iwa:1:0".into(), title: None, blocks: vec![Block::Paragraph { spans: vec![Span::plain("body")] }] },
-                Section { id: "f.iwa:2:0".into(), title: None, blocks: vec![Block::Paragraph { spans: vec![Span::plain("header")] }] },
+                Section {
+                    id: "f.iwa:1:0".into(),
+                    title: None,
+                    blocks: vec![Block::Paragraph {
+                        spans: vec![Span::plain("body")],
+                    }],
+                },
+                Section {
+                    id: "f.iwa:2:0".into(),
+                    title: None,
+                    blocks: vec![Block::Paragraph {
+                        spans: vec![Span::plain("header")],
+                    }],
+                },
             ],
             warnings: Vec::new(),
         };

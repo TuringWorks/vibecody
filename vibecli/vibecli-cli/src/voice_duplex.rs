@@ -83,7 +83,11 @@ impl Vad {
                 self.in_speech = true;
                 return Turn::SpeechStart;
             }
-            return if self.in_speech { Turn::Speech } else { Turn::Silence };
+            return if self.in_speech {
+                Turn::Speech
+            } else {
+                Turn::Silence
+            };
         }
         self.speech_ms = 0;
         if self.in_speech {
@@ -491,15 +495,42 @@ pub fn clamp_context(s: &str) -> String {
 
 pub fn language_name(code: &str) -> &'static str {
     match code {
-        "en" => "English", "es" => "Spanish", "fr" => "French", "de" => "German",
-        "it" => "Italian", "pt" => "Portuguese", "nl" => "Dutch", "ru" => "Russian",
-        "pl" => "Polish", "uk" => "Ukrainian", "tr" => "Turkish", "ar" => "Arabic",
-        "he" => "Hebrew", "hi" => "Hindi", "bn" => "Bengali", "ta" => "Tamil",
-        "te" => "Telugu", "kn" => "Kannada", "ja" => "Japanese", "ko" => "Korean",
-        "zh" => "Chinese", "vi" => "Vietnamese", "th" => "Thai", "id" => "Indonesian",
-        "ms" => "Malay", "sv" => "Swedish", "da" => "Danish", "nb" => "Norwegian",
-        "fi" => "Finnish", "cs" => "Czech", "sk" => "Slovak", "hu" => "Hungarian",
-        "ro" => "Romanian", "el" => "Greek", "mr" => "Marathi", "ur" => "Urdu",
+        "en" => "English",
+        "es" => "Spanish",
+        "fr" => "French",
+        "de" => "German",
+        "it" => "Italian",
+        "pt" => "Portuguese",
+        "nl" => "Dutch",
+        "ru" => "Russian",
+        "pl" => "Polish",
+        "uk" => "Ukrainian",
+        "tr" => "Turkish",
+        "ar" => "Arabic",
+        "he" => "Hebrew",
+        "hi" => "Hindi",
+        "bn" => "Bengali",
+        "ta" => "Tamil",
+        "te" => "Telugu",
+        "kn" => "Kannada",
+        "ja" => "Japanese",
+        "ko" => "Korean",
+        "zh" => "Chinese",
+        "vi" => "Vietnamese",
+        "th" => "Thai",
+        "id" => "Indonesian",
+        "ms" => "Malay",
+        "sv" => "Swedish",
+        "da" => "Danish",
+        "nb" => "Norwegian",
+        "fi" => "Finnish",
+        "cs" => "Czech",
+        "sk" => "Slovak",
+        "hu" => "Hungarian",
+        "ro" => "Romanian",
+        "el" => "Greek",
+        "mr" => "Marathi",
+        "ur" => "Urdu",
         _ => "the same language the user spoke",
     }
 }
@@ -507,15 +538,42 @@ pub fn language_name(code: &str) -> &'static str {
 /// Whisper reports a language *name*; the rest of the pipeline speaks codes.
 pub fn code_for(name: &str) -> String {
     match name {
-        "english" => "en", "spanish" => "es", "french" => "fr", "german" => "de",
-        "italian" => "it", "portuguese" => "pt", "dutch" => "nl", "russian" => "ru",
-        "polish" => "pl", "ukrainian" => "uk", "turkish" => "tr", "arabic" => "ar",
-        "hebrew" => "he", "hindi" => "hi", "bengali" => "bn", "tamil" => "ta",
-        "telugu" => "te", "kannada" => "kn", "japanese" => "ja", "korean" => "ko",
-        "chinese" => "zh", "vietnamese" => "vi", "thai" => "th", "indonesian" => "id",
-        "malay" => "ms", "swedish" => "sv", "danish" => "da", "norwegian" => "nb",
-        "finnish" => "fi", "czech" => "cs", "slovak" => "sk", "hungarian" => "hu",
-        "romanian" => "ro", "greek" => "el", "marathi" => "mr", "urdu" => "ur",
+        "english" => "en",
+        "spanish" => "es",
+        "french" => "fr",
+        "german" => "de",
+        "italian" => "it",
+        "portuguese" => "pt",
+        "dutch" => "nl",
+        "russian" => "ru",
+        "polish" => "pl",
+        "ukrainian" => "uk",
+        "turkish" => "tr",
+        "arabic" => "ar",
+        "hebrew" => "he",
+        "hindi" => "hi",
+        "bengali" => "bn",
+        "tamil" => "ta",
+        "telugu" => "te",
+        "kannada" => "kn",
+        "japanese" => "ja",
+        "korean" => "ko",
+        "chinese" => "zh",
+        "vietnamese" => "vi",
+        "thai" => "th",
+        "indonesian" => "id",
+        "malay" => "ms",
+        "swedish" => "sv",
+        "danish" => "da",
+        "norwegian" => "nb",
+        "finnish" => "fi",
+        "czech" => "cs",
+        "slovak" => "sk",
+        "hungarian" => "hu",
+        "romanian" => "ro",
+        "greek" => "el",
+        "marathi" => "mr",
+        "urdu" => "ur",
         other => other,
     }
     .to_string()
@@ -562,12 +620,18 @@ pub async fn transcribe_server(
     write_wav(&path, pcm, rate)?;
     let out = Command::new("curl")
         .args([
-            "-sS", "-m", "60",
+            "-sS",
+            "-m",
+            "60",
             &format!("{server}/inference"),
-            "-F", &format!("file=@{}", path.display()),
-            "-F", &format!("language={}", lang.unwrap_or("auto")),
-            "-F", "response_format=verbose_json",
-            "-F", "temperature=0",
+            "-F",
+            &format!("file=@{}", path.display()),
+            "-F",
+            &format!("language={}", lang.unwrap_or("auto")),
+            "-F",
+            "response_format=verbose_json",
+            "-F",
+            "temperature=0",
         ])
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -576,7 +640,12 @@ pub async fn transcribe_server(
     let _ = std::fs::remove_file(&path);
     let out = out?;
     let v: serde_json::Value = serde_json::from_slice(&out.stdout)?;
-    let text = v.get("text").and_then(|t| t.as_str()).unwrap_or("").trim().to_string();
+    let text = v
+        .get("text")
+        .and_then(|t| t.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
     // Only report a language when detection actually ran. Falling back to the
     // requested one manufactures a fact nobody measured.
     let detected = if lang.is_none() {
@@ -620,13 +689,19 @@ pub async fn ensure_whisper_server(bin: &str, model: &str, port: u16) -> Option<
     // we can find a binary to start one — checking the binary first meant a
     // perfectly good running server was ignored because `whisper-server` is not
     // a path relative to the daemon's working directory.
-    if tokio::net::TcpStream::connect(("127.0.0.1", port)).await.is_ok() {
+    if tokio::net::TcpStream::connect(("127.0.0.1", port))
+        .await
+        .is_ok()
+    {
         return Some(url);
     }
 
     let bin = resolve_bin(bin)?;
     if !std::path::Path::new(model).exists() {
-        tracing::warn!(model, "voice: speech model not found; duplex voice unavailable");
+        tracing::warn!(
+            model,
+            "voice: speech model not found; duplex voice unavailable"
+        );
         return None;
     }
     Command::new(&bin)
@@ -637,7 +712,10 @@ pub async fn ensure_whisper_server(bin: &str, model: &str, port: u16) -> Option<
         .ok()?;
     // Poll to a deadline; a cold model load is seconds, not milliseconds.
     for _ in 0..60 {
-        if tokio::net::TcpStream::connect(("127.0.0.1", port)).await.is_ok() {
+        if tokio::net::TcpStream::connect(("127.0.0.1", port))
+            .await
+            .is_ok()
+        {
             return Some(url);
         }
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
@@ -961,18 +1039,26 @@ mod tests {
         let mine = g.current();
         assert!(!g.is_stale(mine));
         g.bump();
-        assert!(g.is_stale(mine), "a superseded turn must stop producing audio");
+        assert!(
+            g.is_stale(mine),
+            "a superseded turn must stop producing audio"
+        );
     }
 
     #[test]
     fn wav_roundtrips_through_the_decoder_at_the_declared_rate() {
-        let pcm: Vec<i16> = (0..800).map(|i| ((i as f32 / 8.0).sin() * 10_000.0) as i16).collect();
+        let pcm: Vec<i16> = (0..800)
+            .map(|i| ((i as f32 / 8.0).sin() * 10_000.0) as i16)
+            .collect();
         let path = std::env::temp_dir().join(format!("vd-test-{}.wav", std::process::id()));
         write_wav(&path, &pcm, 16_000).unwrap();
         let bytes = std::fs::read(&path).unwrap();
         std::fs::remove_file(&path).ok();
         let audio = decode_wav(&bytes);
-        assert_eq!(audio.rate, 16_000, "the declared rate must be read, not assumed");
+        assert_eq!(
+            audio.rate, 16_000,
+            "the declared rate must be read, not assumed"
+        );
         assert_eq!(audio.pcm.len(), pcm.len());
     }
 

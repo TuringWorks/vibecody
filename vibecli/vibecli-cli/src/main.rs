@@ -16891,14 +16891,17 @@ async fn main() -> Result<()> {
                                         }
                                         println!();
                                     }
-                                    let known: Vec<String> = category_rules()
-                                        .into_iter()
-                                        .map(|r| r.category)
-                                        .collect();
+                                    let known: Vec<String> =
+                                        category_rules().into_iter().map(|r| r.category).collect();
                                     println!("  categories: {}\n", known.join(", "));
                                 }
                                 "explain" if !rest.is_empty() => {
-                                    let r = resolve_route(&rest, &category_rules(), &routes, &session_target);
+                                    let r = resolve_route(
+                                        &rest,
+                                        &category_rules(),
+                                        &routes,
+                                        &session_target,
+                                    );
                                     println!("Route: {}\n  {}\n", label(&r.target), r.reason);
                                 }
                                 "consensus" | "chain" if rest.is_empty() => {
@@ -16930,7 +16933,8 @@ async fn main() -> Result<()> {
                                                     model: t.model.clone().unwrap_or_default(),
                                                     role: "contributor".into(),
                                                     content: text,
-                                                    duration_ms: started.elapsed().as_millis() as u64,
+                                                    duration_ms: started.elapsed().as_millis()
+                                                        as u64,
                                                     tokens: None,
                                                 });
                                             }
@@ -16961,17 +16965,28 @@ async fn main() -> Result<()> {
                                     let total = panel.len();
                                     let mut contributions: Vec<ModelContribution> = Vec::new();
                                     for (i, t) in panel.iter().enumerate() {
-                                        let msgs = SuperBrainPrompts::chain_relay_prompt(&rest, &contributions, i, total);
+                                        let msgs = SuperBrainPrompts::chain_relay_prompt(
+                                            &rest,
+                                            &contributions,
+                                            i,
+                                            total,
+                                        );
                                         let started = std::time::Instant::now();
                                         match ask(t, &msgs).await {
                                             Ok(text) => {
-                                                println!("  ✔ step {}/{} {}", i + 1, total, label(t));
+                                                println!(
+                                                    "  ✔ step {}/{} {}",
+                                                    i + 1,
+                                                    total,
+                                                    label(t)
+                                                );
                                                 contributions.push(ModelContribution {
                                                     provider: t.provider.clone(),
                                                     model: t.model.clone().unwrap_or_default(),
                                                     role: format!("step {}", i + 1),
                                                     content: text,
-                                                    duration_ms: started.elapsed().as_millis() as u64,
+                                                    duration_ms: started.elapsed().as_millis()
+                                                        as u64,
                                                     tokens: None,
                                                 });
                                             }
@@ -16980,8 +16995,18 @@ async fn main() -> Result<()> {
                                             // rest is not the refinement it
                                             // would claim to be.
                                             Err(e) => {
-                                                println!("  ✘ step {}/{} {} — {}", i + 1, total, label(t), e);
-                                                println!("\nChain stopped at step {} of {}.\n", i + 1, total);
+                                                println!(
+                                                    "  ✘ step {}/{} {} — {}",
+                                                    i + 1,
+                                                    total,
+                                                    label(t),
+                                                    e
+                                                );
+                                                println!(
+                                                    "\nChain stopped at step {} of {}.\n",
+                                                    i + 1,
+                                                    total
+                                                );
                                                 break;
                                             }
                                         }
@@ -17006,8 +17031,18 @@ async fn main() -> Result<()> {
                                 // than reporting an unknown subcommand.
                                 _ => {
                                     let prompt = args.trim();
-                                    let r = resolve_route(prompt, &category_rules(), &routes, &session_target);
-                                    println!("[SmartRouter → {} → {}]\n  {}\n", r.category.as_deref().unwrap_or("unclassified"), label(&r.target), r.reason);
+                                    let r = resolve_route(
+                                        prompt,
+                                        &category_rules(),
+                                        &routes,
+                                        &session_target,
+                                    );
+                                    println!(
+                                        "[SmartRouter → {} → {}]\n  {}\n",
+                                        r.category.as_deref().unwrap_or("unclassified"),
+                                        label(&r.target),
+                                        r.reason
+                                    );
                                     match ask(&r.target, &user_msg(prompt)).await {
                                         Ok(text) => println!("{text}\n"),
                                         Err(e) => println!("{} failed: {}\n", label(&r.target), e),

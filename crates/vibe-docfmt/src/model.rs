@@ -73,7 +73,12 @@ pub struct SpanStyle {
 
 impl SpanStyle {
     pub const fn plain() -> Self {
-        SpanStyle { bold: false, italic: false, code: false, link: None }
+        SpanStyle {
+            bold: false,
+            italic: false,
+            code: false,
+            link: None,
+        }
     }
 
     pub fn is_plain(&self) -> bool {
@@ -90,7 +95,10 @@ pub struct Span {
 
 impl Span {
     pub fn plain(text: impl Into<String>) -> Self {
-        Span { text: text.into(), style: SpanStyle::plain() }
+        Span {
+            text: text.into(),
+            style: SpanStyle::plain(),
+        }
     }
 }
 
@@ -98,13 +106,26 @@ impl Span {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Block {
-    Heading { level: u8, spans: Vec<Span> },
-    Paragraph { spans: Vec<Span> },
-    ListItem { level: u8, ordered: bool, spans: Vec<Span> },
+    Heading {
+        level: u8,
+        spans: Vec<Span>,
+    },
+    Paragraph {
+        spans: Vec<Span>,
+    },
+    ListItem {
+        level: u8,
+        ordered: bool,
+        spans: Vec<Span>,
+    },
     /// Preformatted text; `text` keeps its own newlines.
-    Code { text: String },
+    Code {
+        text: String,
+    },
     /// First row is treated as the header row.
-    Table { rows: Vec<Vec<Vec<Span>>> },
+    Table {
+        rows: Vec<Vec<Vec<Span>>>,
+    },
     Rule,
 }
 
@@ -119,7 +140,10 @@ impl Block {
             Block::Table { rows } => rows
                 .iter()
                 .map(|row| {
-                    row.iter().map(|cell| spans_text(cell)).collect::<Vec<_>>().join("\t")
+                    row.iter()
+                        .map(|cell| spans_text(cell))
+                        .collect::<Vec<_>>()
+                        .join("\t")
                 })
                 .collect::<Vec<_>>()
                 .join("\n"),
@@ -157,7 +181,10 @@ pub struct Warning {
 
 impl Warning {
     pub fn new(code: impl Into<String>, message: impl Into<String>) -> Self {
-        Warning { code: code.into(), message: message.into() }
+        Warning {
+            code: code.into(),
+            message: message.into(),
+        }
     }
 }
 
@@ -171,7 +198,11 @@ pub struct Document {
 
 impl Document {
     pub fn new(format: DocFormat) -> Self {
-        Document { format, sections: Vec::new(), warnings: Vec::new() }
+        Document {
+            format,
+            sections: Vec::new(),
+            warnings: Vec::new(),
+        }
     }
 
     /// Total number of blocks across all sections.
