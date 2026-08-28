@@ -68,6 +68,7 @@ Coverage, so the ✅ is not read as more than it is: only **macOS arm64** runs t
 | Pinned facts injected into prompt | ❌ | ✅ | Persist across sessions |
 | Voice input (push-to-talk) | ✅ | ✅ | Shared hook → daemon `/voice/transcribe`; see [Voice Input](#voice-input) for every client. ⚠ **Not functional on Linux** — WebKitGTK denies mic capture unless the embedder enables it, and neither wry nor Tauri does |
 | **Full-duplex voice** (open mic, interruptible) | ❌ | ✅ | Daemon `/ws/voice/duplex`; VibeCoder + VibeDesk + VibeAIChat. Needs echo cancellation, which a terminal has no way to do — VibeCLI keeps push-to-talk by design, not by omission. Measured on macOS only. See [Full-duplex voice](/vibecody/voice-duplex/) |
+| Voice engine settings (engine · language · voice) | ❌ | ✅ | Settings → Voice in all three shells; daemon-owned via `GET`/`PUT /voice/settings`, so one machine has one answer. Engines are installed with `make voice-sidecar` / `make voice-kokoro` |
 | Image/file attachments | ✅ | ✅ | Up to 10 files, 20 MB each |
 | Slash commands | ✅ | ✅ | `/fix`, `/explain`, `/test`, etc. |
 | @ file mentions | ✅ | ✅ | Add file content to context |
@@ -508,6 +509,14 @@ model (`/voice download base`). ffmpeg is additionally required to transcribe
 non-WAV audio locally, which includes everything the browser clients record;
 without it those recordings fall back to the cloud. `GET /voice/status` reports
 exactly which of these is present.
+
+**Which voice speaks back.** Set in **Settings → Voice** in VibeCoder, VibeDesk
+or VibeAIChat — engine, language and voice, over
+[`GET`/`PUT /voice/settings`](/vibecody/api-reference/#get-voicesettings). The
+setting lives in the daemon rather than in each app, because the daemon is what
+speaks; a client contributes a microphone and speakers. Install an engine with
+`make voice-sidecar` (streaming platform speech) or `make voice-kokoro` (neural,
+Apple Silicon), and ask `make voice-status` which one will actually run.
 
 ---
 

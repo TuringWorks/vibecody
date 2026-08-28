@@ -61172,6 +61172,17 @@ pub(crate) async fn port_open(port: u16) -> bool {
     vibecli_cli::daemon_bootstrap::port_is_occupied(port).await
 }
 
+/// The port the daemon runs on — `VIBECLI_DAEMON_PORT` (legacy
+/// `VIBEDESK_DAEMON_PORT`), else 7878.
+///
+/// The frontend needs it: the shared voice hooks build their own URLs
+/// (`useVoiceSettings`, `useVoiceDuplex`) and without this command they fall
+/// back to 7878 with no way to know the daemon had been moved.
+#[tauri::command]
+pub fn daemon_port() -> u16 {
+    vibecli_cli::daemon_bootstrap::default_port()
+}
+
 /// Return the current daemon status (is it reachable, and did VibeCoder spawn it?).
 ///
 /// `running` means **VibeCLI** answered `/health`, not merely that something

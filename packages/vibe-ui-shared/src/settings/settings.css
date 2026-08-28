@@ -112,3 +112,16 @@
 .vx-voice-engine:disabled { opacity: 0.6; cursor: default; }
 .vx-voice-engine__label { font-size: 13px; font-weight: 600; }
 .vx-voice-engine__detail { font-size: 11px; color: var(--text-tertiary, var(--text-secondary)); }
+
+/* A save that failed. Above the controls rather than in place of them: the
+   settings are still valid and still worth showing. */
+.vx-set-error {
+  font-size: 12px;
+  line-height: 1.4;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--error-color, #d9534f);
+  color: var(--error-color, #d9534f);
+  background: color-mix(in srgb, var(--error-color, #d9534f) 10%, transparent);
+}

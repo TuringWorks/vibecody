@@ -105,6 +105,11 @@ make docker             Build Docker image
 make icons              Regenerate every app icon from the shared brand mark
 make icons-check        Fail if a committed icon is stale (see assets/brand/)
 
+# Voice (speech synthesis — macOS)
+make voice-sidecar      Build + install the streaming speech sidecar
+make voice-kokoro       Install the neural (Kokoro) engine — Apple Silicon
+make voice-status       Report which engine the daemon will actually use
+
 # Mobile (Flutter — iOS / Android)
 make mobile-setup       flutter pub get
 make mobile-ios         Build iOS .app (unsigned, simulator-friendly)

@@ -133,6 +133,7 @@ pub fn run() {
             // A WebSocket cannot set an Authorization header, so /ws/voice/duplex
             // takes ?token= and the frontend needs the effective token to build it.
             vibe_desktop_voice::daemon_token_effective,
+            commands::daemon_port,
         ])
         .run(tauri::generate_context!())
         .expect("error while running vibedesk");

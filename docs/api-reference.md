@@ -24,6 +24,12 @@ On startup, a **Bearer token** is printed to stderr. All authenticated endpoints
 | **Auth** | `Authorization: Bearer <token>` |
 | **Max body** | 1 MB |
 | **CORS origins** | `localhost`, `127.0.0.1`, `tauri://localhost` |
+| **CORS methods** | `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS` |
+
+A method the router serves has to appear in that list or the request is
+unreachable from any browser client: the preflight is refused before the
+request is sent, and the caller sees the browser's own transport error
+(`Load failed` in WKWebView) with no status code to explain it.
 
 
 ## Authentication
@@ -496,6 +502,73 @@ and `ffmpeg`.
 Browser clients record WebM, so on a machine with a local model but no ffmpeg
 their recordings can only be transcribed in the cloud — the `503` says so
 explicitly rather than blaming the Whisper runtime.
+
+### GET /voice/settings
+
+Which speech engine speaks the assistant's replies, and what else this machine
+could run. This is the daemon's own setting rather than a per-client preference:
+the daemon is what speaks, so three clients keeping local copies would be three
+settings disagreeing about one machine.
+
+**Response** `200 OK`:
+
+```json
+{
+  "engine": "kokoro",
+  "engines": [
+    { "id": "system", "label": "System", "available": true,
+      "detail": "The platform voice. Fastest to speak." },
+    { "id": "kokoro", "label": "Neural (Kokoro)", "available": true,
+      "detail": "Natural voices, 9 languages. Slower to start speaking." }
+  ],
+  "voice": "af_heart",
+  "language": "auto",
+  "voices": [
+    { "id": "af_heart", "name": "Heart", "lang": "en", "quality": "neural" }
+  ],
+  "languages": ["en", "en-gb", "es", "fr", "hi", "it", "ja", "pt", "zh"]
+}
+```
+
+Every engine is listed whether or not it can run here, and an unavailable one
+carries in `detail` *why* — the command that would install it. A client that
+hides the unavailable engines leaves the user with no way to discover that the
+neural one exists; one that greys them out with no reason shows what reads as a
+bug.
+
+`voices` comes from the engine itself (the sidecar's `--voices`), not from a
+table in the daemon, which would be wrong the moment someone installs a language
+pack. `language: "auto"` detects per turn.
+
+### PUT /voice/settings
+
+Change the engine, the language, or the voice. Send only the fields you are
+changing.
+
+```bash
+curl -X PUT http://localhost:7878/voice/settings \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"engine":"kokoro","voice":"af_heart"}'
+```
+
+**Response** `200 OK` — the settings as they now stand:
+
+```json
+{ "engine": "kokoro", "voice": "af_heart", "language": "auto" }
+```
+
+Selecting an engine writes its sidecar paths too: `"kokoro"` with no interpreter
+configured is a setting that reads back correctly and does nothing. Changing any
+of the three drops the parked warm engine, or the next reply would be spoken by
+the voice you just changed away from.
+
+**Errors:** `400` with an `error` string when the requested engine cannot run
+here. That string is the whole answer — "the neural engine is not installed. Run:
+make voice-kokoro" — so surface it verbatim rather than the status code.
+
+Changing the engine changes which voices exist, so re-read `GET /voice/settings`
+after a change rather than echoing the patch back into your UI.
 
 ### GET /sessions
 

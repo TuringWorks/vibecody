@@ -328,7 +328,7 @@ The AI panel (toggle with **AI Chat** in the header) has **246 panel components 
 | **Manager** | `ManagerView` | Multi-agent orchestration: task board, worktrees, parallel execution |
 | **Hooks** | `HooksPanel` | Configure event-driven hooks (PreToolUse, PostToolUse, etc.) |
 | **Jobs** | `BackgroundJobsPanel` | Submit tasks to VibeCLI daemon; live SSE stream; job persistence across restarts |
-| **Keys** | `SettingsPanel` | BYOK API key management for all cloud providers |
+| **Keys** | `SettingsPanel` | BYOK API key management for all cloud providers. Its **Voice** section sets the speech engine, language and voice the daemon speaks with — shared with VibeDesk and VibeAIChat, since the daemon is what speaks. See [Choosing a voice engine](/vibecody/voice-duplex/#choosing-a-voice-engine) |
 | **Counsel** | `CounselPanel` | Multi-LLM deliberation: structured debates between multiple AI providers with role-based personas, voting, and synthesis |
 | **Compare** | `MultiModelPanel` | Side-by-side dual-provider comparison: provider/model selectors, timing/tokens, Ctrl+Enter |
 | **Model Wizard** | `ModelWizardPanel` | Guided model selection wizard for optimal provider/model choice |
@@ -586,7 +586,7 @@ The AI panel (toggle with **AI Chat** in the header) has **246 panel components 
 | `ArenaPanel` | `src/components/ArenaPanel.tsx` | Blind A/B model comparison with voting, leaderboard, and Send winner to Chat |
 | `CostPanel` | `src/components/CostPanel.tsx` | AI cost observatory with per-provider breakdown, budget limit, and history |
 | `AutofixPanel` | `src/components/AutofixPanel.tsx` | Codemod auto-fix with linter detection, diff preview, and apply/revert |
-| `SettingsPanel` | `src/components/SettingsPanel.tsx` | BYOK API key management for all cloud providers |
+| `SettingsPanel` | `src/components/SettingsPanel.tsx` | BYOK API key management for all cloud providers, plus Profile, Appearance, Panels & Tabs, OAuth, Customizations, Embeddings, Integrations, Voice, Sessions and Background Jobs |
 | `SpecPanel` | `src/components/SpecPanel.tsx` | Spec-driven development with AI task generation |
 | `WorkflowPanel` | `src/components/WorkflowPanel.tsx` | Code Complete 8-stage workflow with pipeline visualization and checklists |
 | `RedTeamPanel` | `src/components/RedTeamPanel.tsx` | Autonomous pentest pipeline with 5-stage visualization and CVSS findings |

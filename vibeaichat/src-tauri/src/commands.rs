@@ -61,6 +61,10 @@ const VIBECLI_SERVICE_NAME: &str = vibecli_cli::daemon_bootstrap::SERVICE_NAME;
 
 /// Default daemon port. `VIBECLI_DAEMON_PORT` (legacy `VIBEDESK_DAEMON_PORT`)
 /// overrides it.
+/// Exposed to the frontend too: the shared voice hooks ask for the port
+/// rather than assuming 7878, and an unregistered command left them
+/// silently falling back to the default on a machine that had moved it.
+#[tauri::command]
 pub fn daemon_port() -> u16 {
     vibecli_cli::daemon_bootstrap::default_port()
 }

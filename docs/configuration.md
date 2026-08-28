@@ -1433,6 +1433,14 @@ VibeCLI saves REPL command history to `~/.vibecli/history.txt`. This file is cre
 
 ### `[voice]`
 
+**These keys have a UI.** Engine, language and voice are set in **Settings →
+Voice** in any of the three desktop shells, or over
+[`PUT /voice/settings`](/vibecody/api-reference/#put-voicesettings), and the
+install targets (`make voice-sidecar`, `make voice-kokoro`) write the sidecar
+paths for you. Editing this block by hand is the fallback for a headless
+machine, not the intended path — a feature that only works once someone writes a
+config file does not work.
+
 ```toml
 [voice]
 # Resident whisper-server for the full-duplex route. Running it resident rather
@@ -1478,5 +1486,9 @@ kokoro_voice = "af_heart"
 
 A `whisper-server` **already listening** on `whisper_server_port` is reused as-is,
 so these keys only matter when the daemon has to start one itself.
+
+`make voice-status` reports which engine will *actually* run, which is not
+always the one named here: `tts_engine = "kokoro"` with no working interpreter
+is a setting that reads back correctly and speaks in the platform voice.
 
 See [Full-duplex voice](/vibecody/voice-duplex/).

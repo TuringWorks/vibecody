@@ -56,6 +56,18 @@ Use this table as a pre-flight checklist. Cross-cutting changes that miss a surf
 | `vscode-extension/src/api-client.ts` | VS Code if editor-relevant |
 | `packages/agent-sdk/src/index.ts` | SDK method if public-facing |
 | `docs/WATCH-INTEGRATION.md` / `docs/connectivity.md` / `docs/vibecli.md` | Docs for the new route |
+| `build_router`'s `CorsLayer::allow_methods` | **Only if the route uses a method not already listed.** See below |
+
+**A method missing from CORS makes the route unreachable, not protected.** The
+browser refuses the preflight *before sending anything*, so the caller never
+receives a status code it could explain — it gets the bare transport error,
+which in WKWebView reads `Load failed` and in Chrome reads `Failed to fetch`.
+Both point the user at their network rather than at the daemon. `PUT` and
+`DELETE` were absent from the list while the router served three and fifteen of
+them respectively; every one was dead from every browser client, and the panel
+that finally noticed was the one added last. Access control is `require_auth`'s
+job; CORS decides only whether the request may be *sent*.
+`preflight_allows_every_method_the_router_serves` holds the list to the router.
 
 ### Touching voice input
 
@@ -73,7 +85,9 @@ downloading for it.
 |---|---|
 | `vibecli/vibecli-cli/src/voice.rs` | `VoiceDispatcher` — the only place that talks to Groq or whisper.cpp |
 | `vibecli/vibecli-cli/src/voice_duplex.rs` | VAD, turn-taking, barge-in, TTS engines, language mapping — the duplex pipeline |
-| `vibecli/vibecli-cli/src/serve.rs` | `POST /voice/transcribe`, `GET /voice/status`, `GET /ws/voice/duplex` |
+| `vibecli/vibecli-cli/src/serve.rs` | `POST /voice/transcribe`, `GET /voice/status`, `GET`/`PUT /voice/settings`, `GET /ws/voice/duplex` |
+| `packages/vibe-ui-shared/src/settings/VoiceSection.tsx` + `voice/useVoiceSettings.ts` | The Settings → Voice pane, shared by all three shells |
+| `Makefile` → `voice-sidecar` / `voice-kokoro` / `voice-status` | What installs an engine. A feature nothing installs is a feature nobody has |
 | `packages/vibe-ui-shared/src/voice/` | `useVoiceInput` + `VoiceButton` (push-to-talk), `useVoiceDuplex` + `DuplexVoiceButton` (duplex) — every webview shell |
 | `crates/vibe-desktop-voice/` | `transcribe_audio` / `voice_status` / `daemon_token_effective` Tauri commands, registered by all three shells |
 | `tools/webview-probe/` | Measures AEC, capture and transport on the engine each platform ships. Run it before claiming a surface works |
@@ -115,6 +129,20 @@ Rules that are easy to get wrong and produce silent failures:
 - **Stop SoX with SIGINT/SIGTERM, never SIGKILL.** SoX finalises the WAV header
   on a graceful signal; killed outright it leaves a header claiming zero frames,
   which every decoder reads as an empty file.
+- **Shared UI reaches only the shells that import it.** VibeCoder does not use
+  `SettingsView` — it has an older sidebar of its own — so a section defined
+  privately inside `SettingsView` shipped to two shells of three and the third
+  silently had none. Same shape as `voice.css`, which VibeCoder never imported
+  and rendered the voice controls unstyled for the whole life of the feature.
+  A new shared pane goes in its own exported module and gets wired into all
+  three; `tsc` has nothing to say about a shell that simply does not ask.
+- **A speech engine nothing installs does not exist.** `tts_sidecar` was unset
+  on every real machine for the life of the feature because the only reference
+  to building the sidecar was a hint string in a prototype's error message. The
+  code was correct, inert, and the symptom was "the assistant sounds
+  mechanical". Ship the install target with the engine, and make
+  `discover_sidecar` find it beside the daemon binary so no config file is
+  needed — [Zero-Config First](#zero-config-first--the-user-experience-contract).
 - **Never swallow a voice failure.** Denied permission, missing API key, absent
   SoX and an unsupported webview all look identical to "the button does nothing"
   unless each is reported. The daemon's `503` body carries setup guidance —

@@ -8488,9 +8488,22 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
     .into_iter()
     .filter_map(|s| s.parse::<HeaderValue>().ok())
     .collect();
+    // PUT and DELETE are in the list because the router serves them: three PUT
+    // routes and fifteen DELETE ones. Leaving them out does not make those
+    // routes safer, it makes them unreachable from every browser client — the
+    // preflight is refused before the request is sent, and the caller sees the
+    // browser's bare network error ("Load failed" in WKWebView), not a status
+    // code it could explain. `PUT /voice/settings` failed exactly this way.
     let cors = CorsLayer::new()
         .allow_origin(origins)
-        .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::OPTIONS])
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::PATCH,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
         .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION, header::ACCEPT]);
 
     // Rate limiter: 60 requests per 60 seconds (global across all authed endpoints)
@@ -13800,6 +13813,43 @@ mod tests {
             let body = body_string(resp.into_body()).await;
             let json: serde_json::Value = serde_json::from_str(&body).unwrap();
             assert_eq!(json["status"], "ok");
+        }
+
+        // ── CORS preflight ─────────────────────────────────────────────
+
+        /// Every method the router actually serves has to be in the preflight
+        /// answer. A missing one is not a locked door, it is an invisible one:
+        /// the browser refuses before sending, and the client reports the
+        /// transport error ("Load failed") with no status to explain it. PUT
+        /// was missing, which is why the Voice settings tab could read its
+        /// settings and never save one.
+        async fn preflight_methods(method: &str) -> String {
+            let (app, _tmp) = test_app("test-token");
+            let req = Request::builder()
+                .method(Method::OPTIONS)
+                .uri("/voice/settings")
+                .header("origin", "tauri://localhost")
+                .header("access-control-request-method", method)
+                .header("access-control-request-headers", "authorization")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            resp.headers()
+                .get("access-control-allow-methods")
+                .map(|v| v.to_str().unwrap_or_default().to_string())
+                .unwrap_or_default()
+        }
+
+        #[tokio::test]
+        async fn preflight_allows_every_method_the_router_serves() {
+            let allowed = preflight_methods("PUT").await;
+            for m in ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] {
+                assert!(
+                    allowed.contains(m),
+                    "{m} is served by the router but missing from \
+                     access-control-allow-methods ({allowed})"
+                );
+            }
         }
 
         #[test]

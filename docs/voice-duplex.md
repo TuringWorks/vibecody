@@ -112,6 +112,17 @@ microphone and speaker in one room.
 
 ## Choosing a voice engine
 
+**Settings → Voice**, in VibeCoder, VibeDesk or VibeAIChat. Engine, language and
+voice, with each engine row carrying whether it is available on this machine
+*and why not* — a greyed-out option with no reason reads as a bug rather than as
+missing setup.
+
+The settings live in the daemon, not in each app's local storage. The daemon is
+what speaks; a client contributes a microphone and speakers. Three per-app
+copies would be three settings disagreeing about one machine. They are read and
+written over [`GET`/`PUT /voice/settings`](/vibecody/api-reference/#get-voicesettings),
+so the CLI and any other client see the same choice.
+
 Two engines, and the choice is a latency/quality trade with no free answer.
 
 | `[voice] tts_engine` | first audio | needs | platforms |
@@ -131,27 +142,67 @@ the best installed voice automatically.
 about 8× slower to first audio than the platform engine — see the numbers in
 `tools/tts-bench`, which measures both rather than estimating.
 
-### Turning on Kokoro
+### Installing the engines
 
-The daemon cannot ship a Python environment, so this is explicit setup:
+The daemon cannot ship a Swift compiler or a Python environment, so both engines
+are an install step. Each is one target:
 
 ```bash
-uv venv --python 3.12 ~/.vibecli/tts
-VIRTUAL_ENV=~/.vibecli/tts uv pip install mlx-audio "misaki[en]"
+make voice-sidecar   # streaming speech for the platform engine (macOS)
+make voice-kokoro    # the neural engine (Apple Silicon)
+make voice-status    # which engine the daemon will actually use
 ```
 
-```toml
-[voice]
-tts_engine = "kokoro"
-tts_sidecar = "~/.vibecli/tts/bin/python"
-tts_sidecar_args = ["/path/to/tools/voice-duplex/sidecar/tts_kokoro.py"]
-kokoro_voice = "af_heart"
-```
+`voice-sidecar` is the one to run first, and for most of this feature's life
+nothing ran it. Without it `tts_sidecar` is unset, `Tts::open` falls through to
+batch synthesis, and every spoken reply is one `say` process per utterance in
+the system default voice — the slowest path and the least natural voice, which
+is what "the assistant sounds mechanical" usually means. It installs beside the
+daemon binary, where `discover_sidecar` looks first, so that copy is guaranteed
+to match the daemon that spawns it and **no configuration file is needed at
+all**.
+
+`voice-kokoro` builds the Python environment, installs `mlx-audio` and
+`misaki[en]`, fetches the spaCy model, runs a selftest, and only then writes the
+config. The selftest is not ceremony: misaki downloads that spaCy model on
+*first use* by shelling out to `uv`, which fails with "No virtual environment
+found" when the daemon spawns the sidecar and takes the sidecar with it. Better
+to fetch it at setup time, when someone is watching.
+
+`voice-status` answers the question that previously had no answer — which engine
+will run, and if it is not the one you configured, why not.
+
+Selecting an engine in **Settings → Voice** writes its sidecar paths too:
+`tts_engine = "kokoro"` with no interpreter configured is a setting that reads
+back correctly and does nothing.
 
 If the interpreter or the packages are missing, the daemon **says so on the
 socket** and falls back to the platform voice. It does not fall back silently:
 that failure is inaudible in the only sense that matters, because it sounds
 exactly like never having configured anything.
+
+### Warm at daemon start, not at socket open
+
+Kokoro measured **6.6 s** to load its model and speak its first sample. Paid
+inside the WebSocket handler that is 6.6 s between pressing the voice button and
+the `ready` event — silence that looks exactly like a microphone that does not
+work. One engine is spawned when the daemon boots and parked; the first
+conversation takes it and a replacement warms behind it.
+
+Only when voice is configured. Loading a neural model on every daemon start
+would be a real cost imposed on everyone who never speaks. And a second
+concurrent conversation opens its own rather than sharing the parked one: a
+barge-in in one session must not cancel the other's speech. Changing the engine,
+language or voice drops the parked engine, or the next reply would be spoken by
+the voice you just changed away from.
+
+### The voice list comes from the engine
+
+The picker's 28 voices across 9 languages are what the sidecar reports to
+`--voices`, not a table in the daemon — a table is wrong the moment someone
+installs a language pack. They are grouped by language in the picker because a
+voice belongs to one: an English voice reading Hindi is not accented, it is the
+wrong sounds.
 
 ### Kokoro speaks nine languages, not 99
 
@@ -362,6 +413,10 @@ in Arabic script; `ggml-small` and `ggml-medium` produce identical correct text
 and `small` is 3× faster, so `small` is the default and the floor.
 
 ## Configuration
+
+Engine, language and voice are set in **Settings → Voice** (or over
+`PUT /voice/settings`) and need no file. What follows is the rest of the
+`[voice]` block, which has no UI:
 
 ```toml
 [voice]

@@ -994,6 +994,7 @@ pub fn run() {
             // A WebSocket cannot set an Authorization header, so /ws/voice/duplex
             // takes ?token= and the frontend needs the effective token to build it.
             vibe_desktop_voice::daemon_token_effective,
+            commands::daemon_port,
             commands::transcribe_audio_file,
             commands::text_to_speech,
             // Gap Closure: Webhook Automations

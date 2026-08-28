@@ -16,16 +16,22 @@ import {
   Sun, Moon, Eye, EyeOff, ChevronRight, CheckCircle, MinusCircle, AlertCircle,
   Loader2, Zap, Plug,
   Mail, CalendarDays, ClipboardList, MessageSquare, Search, Mic, Home, Server,
-  Briefcase, Boxes, LayoutList,
+  Briefcase, Boxes, LayoutList, AudioLines,
 } from "lucide-react";
 import { THEMES, applyThemeById, DEFAULT_DARK_THEME_ID, type ThemeDef } from "../theme/themes";
 import { EmbeddingModelPicker } from "./EmbeddingModelPicker";
 import { LayoutSection } from "./settings/LayoutSection";
 import { ExperimentalBadge } from "./ExperimentalBadge";
+// The Voice pane is shared with VibeDesk and VibeAIChat — the daemon owns
+// these settings, so three copies would be three UIs over one machine.
+// VibeCoder has its own sidebar rather than the shared `SettingsView`,
+// which is why the section is imported instead of coming along with it.
+import { VoiceSection } from "@vibe/shared/settings/VoiceSection";
+import "@vibe/shared/settings/settings.css";
 
 /* ── Types ──────────────────────────────────────────────────────────── */
 
-export type SettingsSection = "profile" | "appearance" | "layout" | "oauth" | "customizations" | "apikeys" | "embeddings" | "integrations" | "sessions" | "jobs";
+export type SettingsSection = "profile" | "appearance" | "layout" | "oauth" | "customizations" | "apikeys" | "embeddings" | "integrations" | "voice" | "sessions" | "jobs";
 
 /** Where a deep link (`vibecoder:open-settings`) should land. */
 export interface SettingsTarget { section: SettingsSection; category?: IntegrationCategory }
@@ -1888,6 +1894,7 @@ const SECTIONS: { key: SettingsSection; label: string; icon: React.ReactNode }[]
   { key: "apikeys", label: "API Keys", icon: <Key size={16} /> },
   { key: "embeddings", label: "Embeddings", icon: <Boxes size={16} /> },
   { key: "integrations", label: "Integrations", icon: <Plug size={16} /> },
+  { key: "voice", label: "Voice", icon: <AudioLines size={16} /> },
   { key: "sessions", label: "Sessions", icon: <MessageSquare size={16} /> },
   { key: "jobs", label: "Background Jobs", icon: <Briefcase size={16} /> },
 ];
@@ -1940,6 +1947,7 @@ export function SettingsPanel({ onClose, workspacePath, target }: {
         {section === "apikeys" && <ApiKeysSection />}
         {section === "embeddings" && <EmbeddingModelPicker workspacePath={workspacePath ?? null} />}
         {section === "integrations" && <IntegrationsSection initialCategory={target?.category} />}
+        {section === "voice" && <VoiceSection />}
         {section === "sessions" && <SessionsSection />}
         {section === "jobs" && <JobsSection />}
       </div>
