@@ -54,6 +54,7 @@ COPY crates/vibe-eval/Cargo.toml crates/vibe-eval/Cargo.toml
 COPY crates/vibe-sync-ext/Cargo.toml crates/vibe-sync-ext/Cargo.toml
 COPY crates/vibe-alloc-count/Cargo.toml crates/vibe-alloc-count/Cargo.toml
 COPY crates/vibe-http-pool/Cargo.toml crates/vibe-http-pool/Cargo.toml
+COPY crates/vibe-docfmt/Cargo.toml crates/vibe-docfmt/Cargo.toml
 COPY kodegraph/Cargo.toml kodegraph/Cargo.toml
 COPY skilllensai-rs/Cargo.toml skilllensai-rs/Cargo.toml
 COPY skilloptai-rs/Cargo.toml skilloptai-rs/Cargo.toml
@@ -92,6 +93,7 @@ RUN mkdir -p vibecli/vibecli-cli/src && echo 'fn main() {}' > vibecli/vibecli-cl
     mkdir -p crates/vibe-sync-ext/src && echo '' > crates/vibe-sync-ext/src/lib.rs && \
     mkdir -p crates/vibe-alloc-count/src && echo '' > crates/vibe-alloc-count/src/lib.rs && \
     mkdir -p crates/vibe-http-pool/src && echo '' > crates/vibe-http-pool/src/lib.rs && \
+    mkdir -p crates/vibe-docfmt/src && echo '' > crates/vibe-docfmt/src/lib.rs && \
     mkdir -p kodegraph/src && echo '' > kodegraph/src/lib.rs && \
     mkdir -p skilllensai-rs/src && echo '' > skilllensai-rs/src/lib.rs && \
     mkdir -p skilloptai-rs/src && echo '' > skilloptai-rs/src/lib.rs && \
@@ -125,6 +127,7 @@ COPY crates/vibe-eval/src/ crates/vibe-eval/src/
 COPY crates/vibe-sync-ext/src/ crates/vibe-sync-ext/src/
 COPY crates/vibe-alloc-count/src/ crates/vibe-alloc-count/src/
 COPY crates/vibe-http-pool/src/ crates/vibe-http-pool/src/
+COPY crates/vibe-docfmt/src/ crates/vibe-docfmt/src/
 COPY kodegraph/src/ kodegraph/src/
 COPY skilllensai-rs/src/ skilllensai-rs/src/
 COPY skilloptai-rs/src/ skilloptai-rs/src/
