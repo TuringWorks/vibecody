@@ -712,6 +712,64 @@ On macOS, apps launched from Finder or the Dock may not inherit the full shell P
 
 ---
 
+## Daemon
+
+Every desktop client autostarts the VibeCLI daemon and talks to it over
+`127.0.0.1:7878`. When a panel fails for no visible reason, check the daemon
+before anything else.
+
+```bash
+curl -s http://127.0.0.1:7878/health
+```
+
+| What you see | Cause | Fix |
+|---|---|---|
+| No answer at all | Not running, or still starting | A cold daemon has been **measured at ~16 s** to first answer. Poll to a deadline, do not check once: `until curl -sf .../health; do sleep 2; done` |
+| An answer without `"service": "vibecli"` | Another program holds port 7878 | Free the port, or set `VIBECLI_DAEMON_PORT` (legacy `VIBEDESK_DAEMON_PORT`) |
+| `/health` fine, everything else `401` | Stale bearer token | The token is regenerated on **every** daemon start and written to `~/.vibecli/daemon.token`. Restart the client so it re-reads; anything caching one across a restart breaks |
+| `401` from a WebSocket route | A handshake cannot send headers | `/ws/collab/{room_id}` and `/ws/voice/duplex` take `?token=` instead |
+| A daemon-side fix appears to do nothing | You rebuilt the source but not the binary that is running | The installed binary is what serves. Rebuild **and** restart the process |
+
+`vibecli --version` tells you what the installed binary is; it is not
+necessarily what your source tree says.
+
+## Deployments
+
+Platform-specific tables live in each [deployment
+guide]({{ site.baseurl }}/guides/). These apply to all of them.
+
+| Problem | Cause | Fix |
+|---|---|---|
+| `/health` refuses right after `terraform apply` | Image pull plus a ~16 s cold start | Poll to a deadline before concluding failure |
+| Reachable from the host, not from your laptop | Firewall or security group | Check the provider's inbound rules for 7878 |
+| Reachable from anywhere | Several templates open 7878 to `0.0.0.0/0` | Restrict the source range, or drop the rule and use [Tailscale]({{ site.baseurl }}/connectivity/). A token that rotates every restart is a poor fit for a public address |
+| Every request `401` | The token is on the server, not on your client | `ssh` in and read `~/.vibecli/daemon.token` |
+| "No provider configured" | Fresh host, no key and no local model | `vibecli set-key <provider> <key>` on the host, or run Ollama beside it |
+| Serverless instance is slow on first request every time | Scaled to zero, paying the cold start per request | Pin a minimum instance |
+| Local model OOMs or crawls | Cloud tiers are CPU-only, and RAM is the bound | [Sizing]({{ site.baseurl }}/sizing/). `lite` tiers are relays, not inference hosts |
+| Phone or watch cannot find the daemon | Not on the same LAN, so mDNS cannot work | Tailscale or ngrok — see [Connectivity]({{ site.baseurl }}/connectivity/) |
+
+## Voice
+
+| Problem | Cause | Fix |
+|---|---|---|
+| The voice sounds mechanical | The speech sidecar was never installed, so synthesis falls back to one `say` per utterance in the system default voice | `make voice-sidecar`, then `make voice-status` to confirm which engine will run |
+| Long silence before the first word | A neural engine loading its model — measured at 6.6 s — or a large model thinking | The engine is warmed at daemon start; restart the daemon after changing it. For the model, pin a small one in **Settings → Voice** |
+| Nothing is spoken, but the reply appears as text | The selected voice cannot speak the detected language | A Kokoro voice belongs to one language. Pick one that matches, or use the platform engine, which covers far more |
+| Answers arrive in the wrong language | A pinned language suppresses detection rather than biasing it | Set language to `auto` |
+| Settings → Voice cannot save | The daemon predates the route, or is not running | Check `/health`, and that the binary is current |
+| No microphone at all, on Linux | WebKitGTK denies capture unless the embedder enables it, and neither wry nor Tauri does | **No fix today.** Not a configuration problem — voice input is unavailable in all three shells on Linux |
+| The assistant talks over itself | No echo cancellation on that surface | Full duplex needs AEC; use push-to-talk where it is unavailable |
+
+## Pairing, mobile and watch
+
+| Problem | Cause | Fix |
+|---|---|---|
+| The QR code will not scan | Emulators have no camera | URL-only and URL + Bearer pairing work everywhere; QR is never the only path |
+| Paired, then stopped working | The daemon restarted and rotated its token | Re-pair, or supply the current token |
+| The watch cannot reach the daemon directly | Expected — it relays through the phone | Make sure the phone is paired and reachable |
+| Found on Wi-Fi, lost on cellular | mDNS is LAN-only | Tailscale or ngrok |
+
 ## Still Stuck?
 
 If none of the above solutions resolve your issue:

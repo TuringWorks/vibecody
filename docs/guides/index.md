@@ -58,7 +58,7 @@ egress and storage are what usually move the number.
 | Platform | Service | Free tier | Est. monthly | Notes |
 |----------|---------|-----------|-------------:|-------|
 | [Oracle Cloud](./oracle-cloud/) | Container Instances | **Always-free ARM** | **$0** | 4 ARM cores + 24 GB |
-| [DigitalOcean](./digitalocean/) | Droplet + Docker | $200 credit | $12–48 | Simplest VM path |
+| [DigitalOcean](./digitalocean/) | Droplet + Docker | $200 credit | $24–96 | Simplest VM path |
 | [Linode / Akamai](./linode/) | Linode + Docker | — | $12–48 | Simplest VM path |
 | [Google Cloud](./gcp/) | Cloud Run | $300 credit | $10–50 | Scales to zero |
 | [AWS](./aws/) | ECS Fargate + ALB | 12-month | $15–60 | Most IAM control |

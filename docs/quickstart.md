@@ -217,19 +217,26 @@ You can also use `/agent <task>` from the REPL to start agent tasks interactivel
 
 ## Connect a Cloud Provider
 
-Local Ollama works out of the box, but cloud providers give you access to larger models. Here is how to connect Claude as an example.
+Local Ollama works with no key at all. Cloud providers give you larger models.
 
-**Step 1:** Get an API key from [console.anthropic.com](https://console.anthropic.com/).
+**Step 1:** Get an API key — for Claude, from
+[console.anthropic.com](https://console.anthropic.com/).
 
-**Step 2:** Set the environment variable:
+**Step 2:** Store it. `set-key` writes to the **encrypted ProfileStore**
+(`~/.vibecli/profile_settings.db`), which every surface reads — CLI, the three
+desktop shells, mobile, watch:
 
 ```bash
-export ANTHROPIC_API_KEY="sk-ant-your-key-here"
+vibecli set-key claude sk-ant-your-key-here
 ```
 
-Add the line to your `~/.bashrc` or `~/.zshrc` to persist it.
+> **Prefer this over an environment variable.** `ANTHROPIC_API_KEY` and
+> `OPENAI_API_KEY` are still honoured as a fallback, but an exported variable
+> reaches only the shell that exported it — the desktop apps, launched from
+> Finder or a launcher, will not see it. And a key in `~/.bashrc` is a plaintext
+> secret on disk. Nothing should ever put a key in `config.toml`.
 
-**Step 3:** Launch with Claude:
+**Step 3:** Launch with it:
 
 ```bash
 vibecli --provider claude
@@ -239,29 +246,31 @@ Expected output:
 
 ```sh
 VibeCLI v0.5.11 — AI coding assistant
-Provider: claude (claude-sonnet-4-6)
+Provider: claude (claude-opus-5)
 
 vibecli>
 ```
 
-**Step 4:** Verify it works:
+**Step 4:** Verify:
 
 ```sh
 vibecli> Hello, which model am I talking to?
 ```
 
-You should see Claude identify itself. Done.
+Other providers follow the same pattern — `vibecli set-key <provider> <key>`,
+then `--provider <provider>`. The default model per provider comes from the
+registry, so you only pass `--model` to override it:
 
-Other providers use the same pattern:
+| Provider | `set-key` name | Default model |
+|---|---|---|
+| Claude | `claude` | `claude-opus-5` |
+| OpenAI | `openai` | `gpt-5.6-sol` |
+| Gemini | `gemini` | `gemini-3.6-flash` |
+| Grok | `grok` | `grok-4.5` |
+| Ollama | *(none needed)* | whatever you have pulled |
 
-| Provider | Env Variable | Launch Flag |
-|----------|-------------|-------------|
-| OpenAI | `OPENAI_API_KEY` | `--provider openai` |
-| Gemini | `GEMINI_API_KEY` | `--provider gemini` |
-| Grok | `GROK_API_KEY` | `--provider grok` |
-| Ollama | *(none)* | `--provider ollama` |
-
-See the [Configuration Guide](/vibecody/configuration/) for all 25 providers.
+All 25 providers and what each needs: [Third-Party
+Services]({{ site.baseurl }}/services/).
 
 
 ## Your First Code Review
@@ -328,50 +337,78 @@ You are up and running. Here is where to go next:
 
 ## Common Issues
 
-### 1. "Connection refused" when using Ollama
+### "Connection refused" when using Ollama
 
-Ollama must be running before you launch VibeCLI.
-
-```bash
-# Start the Ollama server
-ollama serve
-
-# In another terminal, pull a model if you have not already
-ollama pull glm-5.2:cloud
-
-# Now launch VibeCLI
-vibecli
-```
-
-### 2. "API key not found" for cloud providers
-
-Make sure the environment variable is exported in your current shell:
+Ollama has to be running before VibeCLI can reach it:
 
 ```bash
-# Check if it is set
-echo $ANTHROPIC_API_KEY
-
-# If empty, export it
-export ANTHROPIC_API_KEY="sk-ant-your-key-here"
+ollama serve                 # in one terminal
+ollama pull qwen2.5-coder:7b # a local model — see /sizing/ for what fits
+vibecli --provider ollama
 ```
 
-To persist the key, add the `export` line to your `~/.bashrc` or `~/.zshrc`. In VibeCoder, you can also store keys securely via the **Settings** panel, which saves them to the encrypted ProfileStore (`~/.vibecli/profile_settings.db`).
+### "API key not found" for a cloud provider
 
-> **Security note:** Never store API keys in plaintext files such as `config.toml` or `.json` files. VibeCody's encrypted ProfileStore is the only safe persistent storage for secrets.
-
-### 3. "cargo build" fails with missing dependencies
-
-On Linux, you may need system libraries for TLS and terminal support:
+Store the key rather than exporting it:
 
 ```bash
-# Ubuntu/Debian
-sudo apt install pkg-config libssl-dev
-
-# Fedora
-sudo dnf install openssl-devel
-
-# macOS (if using Homebrew OpenSSL)
-brew install openssl
+vibecli set-key claude sk-ant-...
 ```
 
-Then retry `cargo build --release -p vibecli`.
+An exported `ANTHROPIC_API_KEY` works for the shell you exported it in, and not
+for a desktop app launched from Finder or a launcher — which is the usual reason
+this appears to be set and still fails. Never put a key in `config.toml`.
+
+### The desktop app says the daemon is unavailable
+
+The shells autostart the daemon on `127.0.0.1:7878`. Three distinct causes,
+which look identical on screen:
+
+```bash
+curl -s http://127.0.0.1:7878/health
+```
+
+- **No answer** — the daemon is not running, or is still starting. A cold
+  daemon has been **measured at ~16 s** to first answer; give it that long
+  before concluding anything.
+- **Answers, but without `"service": "vibecli"`** — something else holds port
+  7878. Free the port or set `VIBECLI_DAEMON_PORT`.
+- **Answers correctly, but panels still fail with 401** — a stale token. It is
+  regenerated on **every** daemon start; restart the app so it re-reads.
+
+### The voice reply sounds robotic, or nothing is spoken
+
+Speech has an install step, and for most of this feature's life nothing ran it:
+
+```bash
+make voice-sidecar   # streaming platform speech (macOS)
+make voice-kokoro    # the neural engine (Apple Silicon)
+make voice-status    # which engine will ACTUALLY run
+```
+
+Ask `voice-status` before concluding the voice is broken. On macOS, also check
+System Settings → Accessibility → Spoken Content → Manage Voices — Apple's
+Enhanced and Premium voices are neural, free, and not installed by default.
+
+**Voice input does not work on Linux at all** in any of the three shells:
+WebKitGTK denies microphone capture unless the embedder enables it, and neither
+wry nor Tauri does. Not a configuration problem — there is no setting that fixes
+it today.
+
+### A source build fails on missing system libraries
+
+Only relevant if you are building from source. On Linux:
+
+```bash
+sudo apt install pkg-config libssl-dev     # Ubuntu/Debian
+sudo dnf install openssl-devel             # Fedora
+```
+
+`make doctor` checks the whole toolchain and is faster than discovering these
+one compile error at a time.
+
+### Something else
+
+[Troubleshooting]({{ site.baseurl }}/troubleshooting/) covers the rest; each
+[deployment guide]({{ site.baseurl }}/guides/) has a section for its own
+platform.

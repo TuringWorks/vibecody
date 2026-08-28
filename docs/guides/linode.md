@@ -7,7 +7,7 @@ parent: Deployment Guides
 
 Run VibeCody on a Linode instance with Docker Compose.
 
-**Setup time:** 5 minutes | **Cost:** $12–48/month
+**Setup time:** 5 minutes | **Cost:** $12–48/month (provider list price, read August 2026)
 
 ## Quick Start
 
