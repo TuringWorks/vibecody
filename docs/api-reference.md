@@ -34,7 +34,24 @@ request is sent, and the caller sees the browser's own transport error
 
 ## Authentication
 
-All endpoints except `/health`, `/webhook/github`, `/pair`, `/acp/v1/capabilities`, and `/ws/collab/:room_id` require a Bearer token.
+Every route requires `Authorization: Bearer <token>` except the ones below, and
+"except" covers three different mechanisms rather than one:
+
+**No credential at all** — `/health`, `/models`, `/web`, `/favicon.svg`,
+`/pair`, `/acp/v1/capabilities`, `/v1/capabilities`, `/mobile/beacon`,
+`/.well-known/mcp.json`.
+
+**Authenticated by query parameter** — `/ws/collab/{room_id}` and
+`/ws/voice/duplex`. These bypass the bearer middleware because a WebSocket
+handshake cannot set headers; each validates `?token=` itself with a
+constant-time compare and answers `401 Invalid token` when it does not match.
+They are not open.
+
+**Authenticated by signature** — `/webhook/github` verifies
+`X-Hub-Signature-256` against the configured webhook secret.
+
+Everything else is a `401` without the header. There is no unauthenticated
+mode, so a client that omits it is completely broken, not degraded.
 
 ```bash
 # Token is printed on startup:
@@ -231,7 +248,7 @@ data:
 
 ### POST /agent
 
-Start a background agent task. Returns immediately with a session ID. Subscribe to events via `GET /stream/:session_id`.
+Start a background agent task. Returns immediately with a session ID. Subscribe to events via `GET /stream/{session_id}`.
 
 **Request body:**
 
@@ -274,7 +291,7 @@ curl -X POST http://localhost:7878/agent \
 ```
 
 
-### GET /stream/:session_id
+### GET /stream/{session_id}
 
 Subscribe to real-time agent events via SSE. Connect after calling `POST /agent`.
 
@@ -392,7 +409,7 @@ curl http://localhost:7878/jobs \
 ```
 
 
-### GET /jobs/:id
+### GET /jobs/{id}
 
 Get a single job record by session ID.
 
@@ -406,7 +423,7 @@ curl http://localhost:7878/jobs/a1b2c3d4... \
 **Errors:** `404` if not found.
 
 
-### POST /jobs/:id/cancel
+### POST /jobs/{id}/cancel
 
 Cancel a running job. Removes the SSE stream and marks the job as cancelled.
 
@@ -619,7 +636,7 @@ curl http://localhost:7878/sessions.json \
 ```
 
 
-### GET /view/:id
+### GET /view/{id}
 
 HTML page for a specific session with full conversation history.
 
@@ -629,7 +646,7 @@ curl http://localhost:7878/view/a1b2c3d4... \
 ```
 
 
-### GET /share/:id
+### GET /share/{id}
 
 Read-only shareable session view. Displays a "Shared" banner at the top.
 
@@ -699,7 +716,7 @@ interrupts itself every sentence. Surfaces without it should use
 
 ---
 
-### WS /ws/collab/:room_id
+### WS /ws/collab/{room_id}
 
 WebSocket endpoint for real-time CRDT collaboration. No Bearer token required (public).
 
@@ -717,7 +734,7 @@ websocat ws://localhost:7878/ws/collab/my-room
 |--------|------|-------------|
 | `POST` | `/collab/rooms` | Create a new collaboration room |
 | `GET` | `/collab/rooms` | List all active rooms |
-| `GET` | `/collab/rooms/:room_id/peers` | List peers in a room |
+| `GET` | `/collab/rooms/{room_id}/peers` | List peers in a room |
 
 
 ### POST /acp/v1/tasks
@@ -752,7 +769,7 @@ curl -X POST http://localhost:7878/acp/v1/tasks \
 ```
 
 
-### GET /acp/v1/tasks/:id
+### GET /acp/v1/tasks/{id}
 
 Get ACP task status.
 
@@ -807,7 +824,7 @@ GitHub App webhook endpoint. No Bearer token required. Uses HMAC-SHA256 signatur
 Unhandled event types return `{"status": "ignored"}`.
 
 
-### POST /webhook/skill/:skill_name
+### POST /webhook/skill/{skill_name}
 
 Trigger a skill by its `webhook_trigger` name. Requires authentication.
 
@@ -1137,15 +1154,15 @@ Durable execution-intent primitive. See [design/goal/README.md](https://github.c
 |---|---|---|
 | `POST` | `/v1/goals` | Create. Body: `{ title, statement?, workspace?, success_criteria?, tags?, parent_goal_id? }`. Returns 201 + `Goal`. 409 on `(workspace, title)` conflict. |
 | `GET` | `/v1/goals` | List. Query: `status`, `workspace`, `tag`, `limit` (default 50). Returns `{ goals, count }`. |
-| `GET` | `/v1/goals/:id` | Detail. Returns `{ goal, links }`. |
-| `PATCH` | `/v1/goals/:id` | Partial update. `workspace` and `parent_goal_id` use double-`Option` semantics (omit / `null` / value). Editing `statement` or `success_criteria` auto-clears `current_plan`. |
-| `DELETE` | `/v1/goals/:id` | Hard delete; links cascade. |
-| `POST` | `/v1/goals/:id/plan` | Generate `ExecutionPlan` via `PlannerAgent`. Body: `{ provider?, model? }`. Per-request override honored when both are present and the API key resolves (env or `profile_settings.db`); otherwise falls back to the daemon's configured provider. Response carries `plan_provider_override_applied`, `plan_provider_requested`, `plan_model_requested`. |
-| `POST` | `/v1/goals/:id/link` | Attach a session / job / recap / note. Body: `{ kind, target_id, note? }`. |
-| `POST` | `/v1/goals/:id/start` | Spawn a session bound to this goal. Body: `{ task?, provider?, model? }`. Returns `{ session_id, link_id, goal_id }`. |
-| `POST` | `/v1/goals/:id/recap` | Cross-store aggregate recap. Body: `{ provider?, model? }`. When both fields are supplied and the named provider is reachable, the daemon synthesizes the headline + bullets via LLM and sets `recap_synthesizer: "llm"`. Otherwise the heuristic fold runs and `recap_synthesizer: "heuristic"` is returned. Per-target recaps are still collected via two-phase store split. |
-| `GET` | `/v1/goals/:id/children` | One-level tree query. Returns `{ parent_goal_id, children, count }`. Walk iteratively for a full tree. |
-| `GET` | `/v1/goals/:id/tree` | Recursive subtree walk. Query: `depth` (default 3, clamped to 1..10). Returns `{ root, depth, tree: { goal, children, [truncated, direct_child_count, cycle] } }`. Re-visited nodes set `cycle: true` so clients don't recurse. |
+| `GET` | `/v1/goals/{id}` | Detail. Returns `{ goal, links }`. |
+| `PATCH` | `/v1/goals/{id}` | Partial update. `workspace` and `parent_goal_id` use double-`Option` semantics (omit / `null` / value). Editing `statement` or `success_criteria` auto-clears `current_plan`. |
+| `DELETE` | `/v1/goals/{id}` | Hard delete; links cascade. |
+| `POST` | `/v1/goals/{id}/plan` | Generate `ExecutionPlan` via `PlannerAgent`. Body: `{ provider?, model? }`. Per-request override honored when both are present and the API key resolves (env or `profile_settings.db`); otherwise falls back to the daemon's configured provider. Response carries `plan_provider_override_applied`, `plan_provider_requested`, `plan_model_requested`. |
+| `POST` | `/v1/goals/{id}/link` | Attach a session / job / recap / note. Body: `{ kind, target_id, note? }`. |
+| `POST` | `/v1/goals/{id}/start` | Spawn a session bound to this goal. Body: `{ task?, provider?, model? }`. Returns `{ session_id, link_id, goal_id }`. |
+| `POST` | `/v1/goals/{id}/recap` | Cross-store aggregate recap. Body: `{ provider?, model? }`. When both fields are supplied and the named provider is reachable, the daemon synthesizes the headline + bullets via LLM and sets `recap_synthesizer: "llm"`. Otherwise the heuristic fold runs and `recap_synthesizer: "heuristic"` is returned. Per-target recaps are still collected via two-phase store split. |
+| `GET` | `/v1/goals/{id}/children` | One-level tree query. Returns `{ parent_goal_id, children, count }`. Walk iteratively for a full tree. |
+| `GET` | `/v1/goals/{id}/tree` | Recursive subtree walk. Query: `depth` (default 3, clamped to 1..10). Returns `{ root, depth, tree: { goal, children, [truncated, direct_child_count, cycle] } }`. Re-visited nodes set `cycle: true` so clients don't recurse. |
 | `GET` | `/v1/goals/current` | Look up the pinned goal. Query: `workspace?` (empty / absent = global slot). Returns `{ workspace, goal_id, pinned_at, goal }` or `{ workspace, goal_id: null }`. |
 | `PUT` | `/v1/goals/current` | Pin or replace the current goal. Body: `{ goal_id, workspace? }`. 404 if `goal_id` is unknown. |
 | `DELETE` | `/v1/goals/current` | Clear the pin. Query: `workspace?`. Returns `{ workspace, removed }`. |
@@ -1157,8 +1174,8 @@ The Apple Watch / Wear OS never hits `/v1/*` directly. Use the curated read-only
 | Method | Path | Notes |
 |---|---|---|
 | `GET` | `/watch/goals` | Active goals only, ≤25, slim payload (`{ id, title, status, workspace_label, updated_at, pinned }`). `pinned` is `true` when the row is the workspace-specific OR global current pin (G11.2). Older daemons that lack the field decode cleanly on the watch side. |
-| `GET` | `/watch/goals/:id` | Envelope `{ goal, links, pinned }` (G12.1 added `pinned: bool` at the envelope level so the watch detail / tile can render the ★ without a separate `/v1/goals/current` lookup; watch never hits `/v1/*`). |
-| `POST` | `/watch/goals/:id/start` | Curated wrapper for `do_v1_exec_goal_start`. Body: `{ task? }`. Returns `{ session_id, link_id, goal_id }`. |
+| `GET` | `/watch/goals/{id}` | Envelope `{ goal, links, pinned }` (G12.1 added `pinned: bool` at the envelope level so the watch detail / tile can render the ★ without a separate `/v1/goals/current` lookup; watch never hits `/v1/*`). |
+| `POST` | `/watch/goals/{id}/start` | Curated wrapper for `do_v1_exec_goal_start`. Body: `{ task? }`. Returns `{ session_id, link_id, goal_id }`. |
 
 ## Plugins & connectors — `/api/vibedesk/plugins/*`, `/api/vibedesk/connectors/*`
 

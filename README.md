@@ -159,13 +159,13 @@ make test-watch         Wear OS unit tests (gradle test)
 
 ```txt
 vibecody/
-├── Cargo.toml                  # Workspace root (9 members)
+├── Cargo.toml                  # Workspace root (36 members)
 ├── Dockerfile                  # Multi-stage musl build (Alpine runtime)
 ├── docker-compose.yml          # VibeCLI + Ollama sidecar (air-gapped)
 ├── install.sh                  # One-liner installer (SHA-256 verified)
 ├── vibecli/
 │   └── vibecli-cli/            # CLI binary (TUI + REPL + HTTP daemon)
-│       ├── src/                # ~354 modules
+│       ├── src/                # 436 modules
 │       │   ├── main.rs         # Entry point, command routing
 │       │   ├── config.rs       # TOML config (~/.vibecli/config.toml)
 │       │   ├── serve.rs        # HTTP daemon for VS Code ext / SDK / mobile / watch
@@ -176,13 +176,13 @@ vibecody/
 │       │   ├── mdns_announce.rs / tailscale.rs / ngrok.rs  # zero-config connectivity
 │       │   ├── pairing.rs      # one-time pairing URL + QR rendering
 │       │   └── tui/            # Ratatui TUI (app, ui, components)
-│       ├── tests/              # 62+ BDD / integration harnesses
+│       ├── tests/              # 89 BDD / integration harnesses
 │       └── skills/             # 1,144 skill files (155 categories)
 ├── vibecoder/
 │   ├── src/                    # React + TypeScript frontend
 │   │   ├── App.tsx             # Root component
 │   │   └── components/         # 246 *Panel.tsx + 41 composite dashboards (303 top-level components)
-│   ├── src-tauri/              # Tauri Rust backend (1,349 commands)
+│   ├── src-tauri/              # Tauri Rust backend (1,367 commands)
 │   └── crates/                 # Shared Rust library crates
 │       ├── vibe-core/          # Text buffer, FS, workspace, Git, index
 │       ├── vibe-ai/            # 23 provider backends + failover + openai_compat; agents, hooks, planner
@@ -426,9 +426,9 @@ sudo pacman -S webkit2gtk-4.1 gtk3 libappindicator-gtk3 librsvg patchelf openssl
 
 ## Running Tests
 
-**16,102 test functions + 89 BDD/integration harnesses** across the workspace.
+**17,170 test functions + 89 BDD/integration harnesses** across the workspace.
 
-> Counted at v0.5.10 by `#[test]` / `#[tokio::test]` attributes across `crates/`,
+> Counted at v0.5.11 by `#[test]` / `#[tokio::test]` attributes across `crates/`,
 > `vibecli/`, `vibecoder/crates/` and `vibecoder/src-tauri/`, plus harness files in
 > `vibecli/vibecli-cli/tests/`. A count is not a pass rate — run `make test` for that.
 

@@ -100,7 +100,7 @@ Full rules + the surfaces to touch: [AGENTS.md → Touching daemon startup, heal
 
 ### Calling a daemon route — every client needs the bearer token
 
-Nearly every daemon route sits behind `require_auth`. Only `/health`, `/models`, `/web`, `/favicon.svg`, `/webhook/github`, `/pair`, `/acp/v1/capabilities`, `/v1/capabilities`, `/ws/collab/{room_id}`, `/mobile/beacon` are public.
+Nearly every daemon route sits behind `require_auth`. Genuinely public: `/health`, `/models`, `/web`, `/favicon.svg`, `/pair`, `/acp/v1/capabilities`, `/v1/capabilities`, `/mobile/beacon`, `/.well-known/mcp.json`. Bypass the middleware but authenticate themselves: `/ws/collab/{room_id}` and `/ws/voice/duplex` (`?token=`, since a WebSocket cannot set a header), and `/webhook/github` (`X-Hub-Signature-256`).
 
 - **Panels use `daemonFetch()`** (`vibecoder/src/lib/daemonFetch.ts`); the **Agent SDK** and **VS Code extension** use their `authedFetch()`. A plain `fetch` to a protected route is a silent 100% 401 — that was the state of both clients until recently.
 - **SSE**: `EventSource` can't set headers — append `?token=` (the daemon accepts it for exactly this case).

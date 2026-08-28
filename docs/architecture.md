@@ -21,7 +21,7 @@ vibecody/                          ← Cargo workspace root
 │       └── skills/                ← 1,144 skill files (155 categories)
 ├── vibecoder/
 │   ├── src/                       ← React + TypeScript frontend (246 panels + 41 composites)
-│   ├── src-tauri/                 ← Binary: Tauri desktop app (1,349 Tauri commands)
+│   ├── src-tauri/                 ← Binary: Tauri desktop app (1,367 Tauri commands)
 │   └── crates/
 │       ├── vibe-core/             ← Library: editor primitives
 │       ├── vibe-ai/               ← Library: AI providers + agent (23 backends + failover + openai_compat)
@@ -632,9 +632,9 @@ See [`memory-architecture.md`]({{ site.baseurl }}/memory-architecture/) for comp
 
 ## Testing Strategy
 
-**16,102 test functions + 89 BDD / integration harnesses** across the workspace (0 failures in CI).
-
-Counted at v0.5.10 by `#[test]` / `#[tokio::test]` attribute. A count is not a pass rate.
+**17,170 test functions + 89 BDD / integration harnesses** across the workspace,
+counted at v0.5.11 by `#[test]` / `#[tokio::test]` attribute. A count is not a
+pass rate — run `make test`, or read the CI run for the commit you care about.
 
 | Crate | Tests | Key coverage areas |
 |-------|-------|--------------------|

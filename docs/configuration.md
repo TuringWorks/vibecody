@@ -1239,69 +1239,101 @@ OpenMemory is a persistent, structured memory store with five cognitive sectors,
 
 ### Configuration
 
+The section is **`[memory.openmemory]`**, nested under `[memory]` — not a
+top-level `[openmemory]`. These are every key `OpenMemoryConfig` in
+`vibecli/vibecli-cli/src/config.rs` actually reads, with its real default:
+
 ```toml
-[openmemory]
-enabled = true              # Enable the cognitive memory engine (default: true)
-auto_inject = true          # Inject context into every agent turn (default: true)
-max_context_tokens = 1200   # Hard cap on injected context tokens (default: 1200)
-decay_enabled = true        # Run salience decay each session (default: true)
-consolidate_on_exit = false # Run sleep-cycle consolidation when the REPL exits
-encryption = false          # XOR obfuscation at rest — NOT cryptographic; see memory-guide.md
-
-# Verbatim drawer layer (MemPalace techniques)
-drawer_chunk_size = 800     # Characters per verbatim chunk (default: 800)
-drawer_overlap = 100        # Overlap between adjacent chunks (default: 100)
-drawer_dedup_threshold = 0.85   # Cosine near-dedup threshold (default: 0.85)
-
-# 4-layer context tuning
-l1_tokens = 700             # Token budget for Essential Story (L1) layer
-l2_limit = 8                # Max results from scoped semantic search (L2)
-l3_threshold = 3            # Trigger L3 (verbatim drawers) when L2 < this many results
+[memory.openmemory]
+enabled = true                # Enable the cognitive memory engine (default: true)
+auto_inject = true            # Inject context into every agent turn (default: true)
+auto_save_sessions = true     # Save completed sessions into the store (default: true)
+auto_reflect_interval = 10    # Sessions between reflection passes (default: 10)
+dedup_threshold = 0.8         # Cosine near-dedup threshold (default: 0.8)
+max_memories_in_context = 8   # Max memories injected per turn (default: 8)
+encryption_passphrase = ""    # Empty = no obfuscation. See the warning below
 ```
+
+The enclosing `[memory]` section has two keys of its own:
+
+```toml
+[memory]
+auto_record = false           # Summarise finished sessions into ~/.vibecli/memory.md
+min_session_steps = 3         # Tool-use steps before auto-recording triggers (default: 3)
+```
+
+> **Config parsing does not reject unknown keys.** A misspelled key, or one from
+> an older version of this page, is read as valid TOML, ignored, and reported
+> nowhere. If a setting appears to do nothing, check it against the list above
+> before assuming the feature is broken.
 
 ### Storage paths
 
-| Surface | Default path |
-|---------|-------------|
-| VibeCLI global | `~/.local/share/vibecli/openmemory/` |
-| VibeCLI project-scoped | `<workspace>/.vibecli/openmemory/` |
-| VibeCoder | `~/.local/share/vibecoder/openmemory/` |
+The base is `dirs::data_dir()`, so it differs by platform — the table below is
+not a Linux path that happens to work elsewhere:
 
-Each store contains four files: `memories.json`, `waypoints.json`, `facts.json`, `drawers.json`.
+| Surface | macOS | Linux |
+|---|---|---|
+| VibeCLI global | `~/Library/Application Support/vibecli/openmemory/` | `~/.local/share/vibecli/openmemory/` |
+| VibeCoder | `~/Library/Application Support/vibecoder/openmemory/` | `~/.local/share/vibecoder/openmemory/` |
+| VibeCLI project-scoped | `<workspace>/.vibecli/openmemory/` | `<workspace>/.vibecli/openmemory/` |
+
+On Windows `dirs::data_dir()` resolves under `%APPDATA%`.
+
+Each store contains four files: `memories.json`, `waypoints.json`,
+`temporal_facts.json` and `drawers.json`.
 
 ### At-rest obfuscation (not encryption)
 
-Run `/openmemory encrypt` in the REPL or set `encryption = true` in `config.toml`. The key is stored at `<store>/.key` (mode 0600).
+**This is a repeating-key XOR, not a cipher.** `MemoryEncryption::encrypt` in
+`vibecli/vibecli-cli/src/open_memory.rs` is `byte ^ key_byte ^ nonce_byte`, and
+key derivation is an ad-hoc mixing loop rather than PBKDF2 or Argon2. It raises
+the bar against someone casually reading the JSON on disk and does nothing
+against anyone trying. **Do not put secrets in memories.**
+
+The passphrase lives in the encrypted ProfileStore, **not** in `config.toml` —
+`load_memory_store()` reads the ProfileStore key `openmemory_passphrase` and
+nothing reads the `encryption_passphrase` config field:
+
+```bash
+vibecli set-key default openmemory_passphrase <passphrase>
+```
 
 > ⚠️ **This is not encryption.** The implementation is a repeating-key XOR (`open_memory.rs`), not AES-256-GCM. It deters casual disk inspection and provides no cryptographic or integrity guarantee. Keep secrets in the ProfileStore instead — see [memory-guide.md](/vibecody/memory-guide/) and [security.md](/vibecody/security/).
 
-To use a passphrase instead of a stored key:
+(There is no `VIBECLI_MEMORY_KEY` environment variable; this page used to claim
+one. The ProfileStore key above is the only route.)
 
-```bash
-VIBECLI_MEMORY_KEY="$(pass show vibecli/memory)" vibecli
-```
+### Decay rates
 
-### Tuning decay rates
+Each sector loses salience at its own rate when a memory is not accessed. These
+are **compile-time constants** in `MemorySector::decay_rate`, not settings —
+there is no `[openmemory.decay]` section and no `purge_threshold` key, though
+this page previously documented both:
 
-Each sector has an independent decay rate (fraction of salience lost per day when a memory is not accessed):
+| Sector | Rate / day | Half-salience at |
+|---|---:|---|
+| Emotional | 0.020 | ~50 days |
+| Episodic | 0.015 | ~67 days |
+| Procedural | 0.008 | ~125 days |
+| Semantic | 0.005 | ~200 days |
+| Reflective | 0.001 | ~1000 days |
+
+Changing them means changing that function.
+
+### Disabling memory injection
+
+There are **no `--no-memory`, `--memory-scope` or `--dry-run-memory` flags** —
+this page listed all three and none has ever existed in `Cli`. Turn injection
+off in config instead:
 
 ```toml
-[openmemory.decay]
-episodic   = 0.015   # ~67 days to half-salience
-semantic   = 0.005   # ~200 days to half-salience
-procedural = 0.008   # ~125 days to half-salience
-emotional  = 0.020   # ~50 days to half-salience
-reflective = 0.001   # ~1000 days to half-salience (very persistent)
-purge_threshold = 0.05  # Remove memories below 5% salience
+[memory.openmemory]
+enabled = false      # nothing is retrieved or injected
+auto_inject = false  # the store still records; nothing is injected per turn
 ```
 
-### Disabling memory injection for a session
-
-```bash
-vibecli --no-memory                    # Skip injection entirely
-vibecli --memory-scope ./my-project    # Use project-scoped store only
-vibecli --dry-run-memory "query"       # Print what would be injected, then exit
-```
+Inspect what the store holds with `/openmemory` in the REPL.
 
 
 ## Rules Directory

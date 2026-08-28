@@ -17,7 +17,7 @@ A single platform that:
 - Eliminates fragmentation between environment, training, evaluation, optimization, and deployment
 - Supports multi-agent, multi-environment, distributed RL at production scale
 - Bridges the research-to-production gap that plagues every existing RL tool
-- Leverages VibeCody's 25 AI providers, agent framework, sandbox, VibeCoder, and 142 REPL slash commands
+- Leverages VibeCody's 25 AI providers, agent framework, sandbox, VibeCoder, and 134 REPL slash commands
 
 ---
 

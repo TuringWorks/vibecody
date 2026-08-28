@@ -192,10 +192,13 @@ not breaking users mid-upgrade.
 
 ### Calling a daemon route from any client
 
-**Almost every daemon route is behind `require_auth`.** The public set is small
-and fixed: `/health`, `/models`, `/web`, `/favicon.svg`, `/webhook/github`,
-`/pair`, `/acp/v1/capabilities`, `/v1/capabilities`, `/ws/collab/{room_id}`,
-`/mobile/beacon`. Anything else needs a bearer token — **there is no
+**Almost every daemon route is behind `require_auth`.** Bypassing it is not the
+same as being open, and the set splits three ways. **No credential:**
+`/health`, `/models`, `/web`, `/favicon.svg`, `/pair`, `/acp/v1/capabilities`,
+`/v1/capabilities`, `/mobile/beacon`, `/.well-known/mcp.json`. **Own token
+check:** `/ws/collab/{room_id}` and `/ws/voice/duplex` — a WebSocket cannot set
+a header, so each validates `?token=` itself. **Own signature check:**
+`/webhook/github` (`X-Hub-Signature-256`). Anything else needs a bearer token — **there is no
 unauthenticated mode**, so a client that omits the header is 100 % broken, not
 degraded.
 

@@ -102,7 +102,7 @@ An alphabetical reference of terms used throughout VibeCody's documentation and 
 
 **Red Team** — The offensive security module for penetration testing simulation. Generates attack scenarios, tracks findings by severity, and produces remediation recommendations.
 
-**REPL (Read-Eval-Print Loop)** — VibeCLI's interactive command-line interface where you type prompts and commands. Supports 93+ slash commands (e.g., `/agent`, `/config`, `/session`, `/counsel`, `/superbrain`) powered by Rustyline.
+**REPL (Read-Eval-Print Loop)** — VibeCLI's interactive command-line interface where you type prompts and commands. Supports 134 slash commands (e.g., `/agent`, `/config`, `/session`, `/counsel`, `/superbrain`) powered by Rustyline.
 
 **Sandbox** — An isolated execution environment (Docker or Podman container) that restricts what the agent can access on the host system. Configured via the `[sandbox]` section in `config.toml`.
 

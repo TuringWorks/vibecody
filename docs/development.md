@@ -43,7 +43,7 @@ vibecody/
 │   │   ├── App.tsx               # Root component, keyboard shortcuts
 │   │   └── components/           # 246 panel components (plus 41 composites)
 │   ├── src-tauri/src/
-│   │   ├── lib.rs                # Tauri command registration (1,349 commands)
+│   │   ├── lib.rs                # Tauri command registration (1,367 commands)
 │   │   ├── commands.rs           # All Tauri command implementations
 │   │   └── agent_executor.rs     # Agent tool execution for VibeCoder
 │   └── crates/
@@ -128,7 +128,7 @@ npm run typecheck    # TypeScript type checking
 ### Running Tests
 
 ```bash
-# Full workspace (16,102 test functions)
+# Full workspace (17,170 test functions)
 cargo test --workspace --exclude vibe-collab
 
 # Single crate with output
@@ -217,12 +217,14 @@ Key components:
 
 Two executor implementations:
 
-- **`vibecli/src/tool_executor.rs`** — CLI executor with sandbox support, SSRF validation, command blocklist
+- **`vibecli/vibecli-cli/src/tool_executor.rs`** — CLI executor with sandbox support, SSRF validation, command blocklist
 - **`vibecoder/src-tauri/src/agent_executor.rs`** — Tauri executor with workspace-boundary path validation, command blocklist, 120s timeout
 
 ### Tauri Commands
 
-VibeCoder exposes 1,349 Tauri commands. Each is a `#[tauri::command]` function in `commands.rs`:
+VibeCoder registers **1,367** Tauri commands in `generate_handler!`. Most are
+`#[tauri::command]` functions in `commands.rs` (1,362 of them); the rest come from
+shared crates such as `vibe-desktop-voice` and `vibe-desktop-settings`:
 
 ```rust
 #[tauri::command]

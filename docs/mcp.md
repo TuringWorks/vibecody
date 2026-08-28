@@ -4,7 +4,7 @@ title: MCP — Model Context Protocol
 permalink: /mcp/
 ---
 
-VibeCody is a fully-featured MCP host. The MCP panel inside VibeCoder/VibeAIChat is the unified surface for managing servers, browsing the plugin directory, viewing the lazy-loaded tool registry, and inspecting cache metrics. This page documents the user-facing surface; the underlying client lives in `crates/vibe-ai/src/mcp.rs`.
+VibeCody is a fully-featured MCP host. The MCP panel inside VibeCoder/VibeAIChat is the unified surface for managing servers, browsing the plugin directory, viewing the lazy-loaded tool registry, and inspecting cache metrics. This page documents the user-facing surface; the underlying client lives in `vibecoder/crates/vibe-ai/src/mcp.rs`.
 
 ---
 
@@ -178,7 +178,7 @@ The Tools tab probes all servers in parallel, but rendering is gated by `serverT
 
 ## Related
 
-- **MCP client core:** `crates/vibe-ai/src/mcp.rs` — connect, list_tools, call_tool
+- **MCP client core:** `vibecoder/crates/vibe-ai/src/mcp.rs` — connect, list_tools, call_tool
 - **Source:** `vibecoder/src/components/McpPanel.tsx` (902 LOC) · backend in `vibecoder/src-tauri/src/commands.rs`
 - **Tests:** `vibecoder/src/components/__tests__/McpPanel.test.tsx`
 - **Sandbox:** [`docs/sandbox`]({{ site.baseurl }}/sandbox/) — note that MCP server subprocesses are NOT sandboxed in the current Tier-0

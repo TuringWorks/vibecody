@@ -34,7 +34,7 @@ Earlier releases: 0.5.10 brought the four-panel workspace security review, verif
                            │ Tauri IPC (invoke / events)
 ┌──────────────────────────▼───────────────────────────────────────┐
 │                   Tauri Rust Backend                             │
-│  commands.rs    — 1,349 Tauri commands (files, git, AI, agent …)│
+│  commands.rs    — 1,367 Tauri commands (files, git, AI, agent …)│
 │  agent_executor — ToolExecutorTrait for agent tool calls         │
 │  flow.rs        — Flow Awareness Engine (activity tracking)      │
 │  memory.rs      — Workspace + global AI rules (.vibecoder.md)    │
@@ -1357,7 +1357,7 @@ VibeCoder implements WCAG 2.1 Level AA accessibility:
 
 ## Testing
 
-**16,102 test functions** across the workspace (counted at v0.5.10 by `#[test]` / `#[tokio::test]` attribute).
+**17,170 test functions** across the workspace (counted at v0.5.11 by `#[test]` / `#[tokio::test]` attribute).
 
 | Crate | Tests | Key coverage areas |
 |-------|-------|--------------------|

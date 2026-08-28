@@ -14581,7 +14581,9 @@ async fn main() -> Result<()> {
                                     }
                                 }
                                 "encrypt" => {
-                                    println!("Encryption is configured via ~/.vibecli/config.toml [openmemory] section.\n  Set encryption_passphrase = \"your-key\" to enable AES-256-GCM encryption.\n");
+                                    println!(
+                                        "At-rest obfuscation is configured in the encrypted ProfileStore, not config.toml:\n                                           vibecli set-key default openmemory_passphrase <passphrase>\n\n                                         This is a repeating-key XOR, NOT encryption. It stops a casual reader of\n                                           the JSON on disk and nothing more — do not store secrets in memories.\n"
+                                    );
                                 }
                                 "import" => {
                                     let parts: Vec<&str> = rest.splitn(2, ' ').collect();

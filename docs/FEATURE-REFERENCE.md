@@ -599,7 +599,14 @@ alert_threshold = 0.8   # alert at 80% of budget
 ### OpenTelemetry
 
 ```bash
-vibecli --otel-endpoint http://localhost:4318 agent "task"
+# There is no --otel-endpoint flag; OTLP export is configured in
+# ~/.vibecli/config.toml:
+#
+#   [otel]
+#   enabled = true
+#   endpoint = "http://localhost:4318"
+#   service_name = "vibecli"
+vibecli agent "task"
 ```
 
 Exports spans for: tool calls, API requests, agent steps, session lifecycle.

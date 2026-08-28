@@ -1187,16 +1187,28 @@ impl Default for DrawerStore {
 
 // ─── Encryption ──────────────────────────────────────────────────────────────
 
-/// AES-256-GCM encryption for memory content at rest.
-/// OpenMemory lists encryption as "available via hooks, not implemented".
-/// We implement it as a first-class feature.
+/// At-rest **obfuscation** for memory content — a repeating-key XOR stream, not
+/// a cipher.
+///
+/// Named and documented honestly because the alternative has already cost us:
+/// this type claimed "AES-256-GCM" for its whole life while `encrypt()` was
+/// `byte ^ key_byte ^ nonce_byte`, and `/openmemory encrypt` repeated the claim
+/// to users. Anyone who read either and decided this was safe for secrets was
+/// misled by us. It raises the bar against a casual reader of the JSON on disk
+/// and **nothing else** — it is not confidentiality, and it must never be
+/// described as encryption in user-facing text.
+///
+/// Key derivation is likewise not PBKDF2 or Argon2: it is an ad-hoc mixing
+/// loop. Replacing this with a real AEAD is worth doing; until then the naming
+/// tells the truth.
 pub struct MemoryEncryption {
-    /// Encryption key (32 bytes for AES-256).
+    /// Derived 32-byte key material for the XOR stream.
     key: [u8; 32],
 }
 
 impl MemoryEncryption {
-    /// Create from a passphrase using PBKDF2-like derivation.
+    /// Derive key material from a passphrase with an ad-hoc mixing loop.
+    /// Not PBKDF2, not Argon2, and not a KDF with any analysis behind it.
     pub fn from_passphrase(passphrase: &str) -> Self {
         let mut key = [0u8; 32];
         // Simple key derivation (in production, use PBKDF2/Argon2)
@@ -1216,7 +1228,7 @@ impl MemoryEncryption {
         Self { key }
     }
 
-    /// XOR-based encryption (simplified; real implementation would use AES-GCM crate).
+    /// XOR the plaintext with the derived key and a nonce. Obfuscation only.
     pub fn encrypt(&self, plaintext: &str) -> Vec<u8> {
         let nonce = generate_nonce();
         let mut ciphertext = Vec::with_capacity(12 + plaintext.len());

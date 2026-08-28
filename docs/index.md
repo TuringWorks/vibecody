@@ -68,13 +68,13 @@ All providers support streaming. Local providers require no API key.
 ### VibeCLI Highlights
 
 - Rich TUI powered by [Ratatui](https://ratatui.rs/) with REPL mode (readline history, tab completion)
-- 1,144 skill files across 155 categories (142 REPL slash commands)
+- 1,144 skill files across 155 categories (134 REPL slash commands)
 - Voice input, local-first: a downloaded whisper model runs on the machine, with Groq Whisper as the fallback (`--voice` flag)
 - Tailscale pairing with QR code sharing and mDNS discovery
 - 25 messaging gateway adapters (Telegram, Discord, Slack, Signal, Matrix, Teams, IRC, Twitch, LINE, Feishu, DingTalk, Nostr, and more)
 - Red team security pipeline and compliance reporting
 - Workflow orchestration with 8-stage Code Complete pipeline
-- MCP (Model Context Protocol) server — 51 tools including email, calendar, tasks, Notion, Jira, Home Assistant
+- MCP (Model Context Protocol) server — 44 tools including email, calendar, tasks, Notion, Jira, Home Assistant
 - Productivity integrations: Gmail/Outlook, Google/Outlook Calendar, Todoist, Notion, Jira, Home Assistant
 - 12-platform deployment: AWS, GCP, Azure, Oracle Cloud, DigitalOcean, Linode, macOS, Linux, Windows, Raspberry Pi 3/4/5
 - Session persistence with `/sessions` and `/resume` commands

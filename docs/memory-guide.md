@@ -510,17 +510,16 @@ A standalone rules-and-facts editor. Add, edit, or delete persistent user rules 
 
 All three memory systems feed into agent context automatically. You can tune the injection behaviour per-session:
 
-### VibeCLI flags
+### Turning memory off
 
-```bash
-# Disable memory injection for this session
-vibecli --no-memory
+There is no command-line flag for this. `--no-memory`, `--memory-scope` and
+`--dry-run-memory` were documented here for a long time and none of them exists
+in the argument parser — they are configuration, in `~/.vibecli/config.toml`:
 
-# Use a specific project store (project-scoped Wing)
-vibecli --memory-scope ./payment-service
-
-# Show what context would be injected without running
-vibecli --dry-run-memory "what is our testing strategy?"
+```toml
+[memory.openmemory]
+enabled = false      # retrieve and inject nothing
+auto_inject = false  # keep recording, stop injecting per turn
 ```
 
 ### In the REPL
