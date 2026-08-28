@@ -287,9 +287,51 @@ def selftest() -> int:
     return 1 if bad else 0
 
 
+# Named voices per language. Kokoro ships more, but these are the ones with a
+# distinct enough character to be worth offering: a settings list of 54
+# near-identical names is not a choice, it is a scrolling exercise.
+VOICES = {
+    "en": ["af_heart", "af_bella", "af_nicole", "am_michael", "am_fenrir", "am_puck"],
+    "en-gb": ["bf_emma", "bf_isabella", "bm_george", "bm_lewis"],
+    "es": ["ef_dora", "em_alex"],
+    "fr": ["ff_siwis"],
+    "hi": ["hf_alpha", "hf_beta", "hm_omega", "hm_psi"],
+    "it": ["if_sara", "im_nicola"],
+    "ja": ["jf_alpha", "jf_gongitsune", "jm_kumo"],
+    "pt": ["pf_dora", "pm_alex"],
+    "zh": ["zf_xiaobei", "zf_xiaoni", "zm_yunjian", "zm_yunxi"],
+}
+
+
+def list_voices() -> int:
+    """`--voices` — what a settings screen can offer, as JSON.
+
+    Language is part of the identity, not a filter applied afterwards: a voice
+    is trained on one language and reading another with it produces the wrong
+    sounds rather than an accent.
+    """
+    out = []
+    for lang, names in VOICES.items():
+        for n in names:
+            out.append({
+                "id": n,
+                # `af_heart` → `Heart`. The prefix encodes language and gender
+                # and is noise in a list already grouped by language.
+                "name": n.split("_", 1)[1].replace("_", " ").title(),
+                "lang": lang,
+                "quality": "neural",
+                "gender": "female" if n[1] == "f" else "male",
+            })
+    print(json.dumps({"engine": "kokoro", "voices": out,
+                      "languages": sorted(LANGS)}))
+    return 0
+
+
 def main():
     if "--selftest" in sys.argv:
         return selftest()
+    if "--voices" in sys.argv:
+        return list_voices()
     try:
         eng = Engine()
     except Exception as e:  # noqa: BLE001

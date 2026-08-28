@@ -191,8 +191,19 @@ impl Tts {
     /// [success-assuming](../../AGENTS.md) failure: the user configures a
     /// neural voice, hears the platform one, and has nothing to read.
     pub async fn open(sidecar_bin: Option<&str>, args: &[String]) -> (Self, Option<String>) {
-        let Some(bin) = sidecar_bin.map(str::trim).filter(|b| !b.is_empty()) else {
-            return (Tts::Batch, None);
+        let discovered;
+        let bin = match sidecar_bin.map(str::trim).filter(|b| !b.is_empty()) {
+            Some(b) => b,
+            None => match discover_sidecar() {
+                Some(p) => {
+                    discovered = p;
+                    &discovered
+                }
+                // No sidecar anywhere: batch synthesis, which every platform
+                // has. Not a warning — this is the documented floor, not a
+                // misconfiguration.
+                None => return (Tts::Batch, None),
+            },
         };
         // `resolve_bin`, not `Path::exists`: a bare command name is not a path,
         // and checking it as one reported "not found" for a program sitting on
@@ -641,6 +652,40 @@ pub async fn ensure_whisper_server(bin: &str, model: &str, port: u16) -> Option<
 /// whether it sits in the daemon's working directory, which it never does, so
 /// the engine was reported missing on a machine that had it installed. Walk
 /// `PATH` when the name contains no separator.
+/// Find the streaming speech sidecar without being told where it is.
+///
+/// Zero-config is the contract: a feature that only works once someone writes
+/// a config file does not work. Nothing built or installed the sidecar for most
+/// of this feature's life, so `tts_sidecar` was unset on every real machine,
+/// `Tts::open` fell straight through to batch, and every spoken reply came from
+/// `say` with no voice argument — which is the slowest path *and* the least
+/// natural voice. The engine work was inert and the symptom was "it sounds
+/// mechanical".
+///
+/// Searched in the order a real install produces them: beside the running
+/// binary first, because that is what `make install` lays down and it is the
+/// copy guaranteed to match this daemon.
+fn discover_sidecar() -> Option<String> {
+    let names = ["vibecli-tts"];
+    let mut roots: Vec<std::path::PathBuf> = Vec::new();
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            roots.push(dir.to_path_buf());
+        }
+    }
+    if let Some(home) = dirs::home_dir() {
+        roots.push(home.join(".vibecli").join("sidecars"));
+    }
+    roots
+        .iter()
+        .flat_map(|d| names.iter().map(move |n| d.join(n)))
+        .find(|p| p.is_file())
+        .map(|p| p.to_string_lossy().to_string())
+        // A sidecar on PATH is the developer's case: `cargo run` puts the
+        // binary somewhere unrelated to where the sidecar was installed.
+        .or_else(|| names.iter().find_map(|n| resolve_bin(n)))
+}
+
 pub fn resolve_bin(bin: &str) -> Option<String> {
     let p = std::path::Path::new(bin);
     if p.components().count() > 1 || bin.starts_with('/') {

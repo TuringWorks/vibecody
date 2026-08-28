@@ -252,6 +252,53 @@ stage-artifacts: ## Copy freshly-built bundles into dist/ before the next build 
 
 test-apps: test-ui test-aichat test-vibedesk ## Test all three Tauri shells
 
+# ── Voice: the speech sidecar ─────────────────────────────────────────────────
+#
+# Nothing built this for most of its life, so `tts_sidecar` was unset on every
+# real machine and the daemon fell through to `say` — one process per utterance,
+# no streaming, and the system default voice. The feature existed in the code
+# and not on anyone's machine, and the symptom was "the assistant sounds
+# mechanical".
+#
+# Installed beside the daemon binary, which is where `discover_sidecar` looks
+# first: that copy is guaranteed to match the daemon that spawns it.
+
+VIBECLI_BIN_DIR ?= $(HOME)/.local/bin
+
+voice-sidecar: ## Build + install the streaming speech sidecar (macOS)
+	@test "$$(uname)" = "Darwin" || { echo "voice-sidecar is macOS-only; other platforms use batch synthesis"; exit 0; }
+	swiftc -O tools/voice-duplex/sidecar/tts.swift -o target/release/vibecli-tts
+	@mkdir -p "$(VIBECLI_BIN_DIR)"
+	install -m 0755 target/release/vibecli-tts "$(VIBECLI_BIN_DIR)/vibecli-tts"
+	@echo "installed $(VIBECLI_BIN_DIR)/vibecli-tts"
+	@"$(VIBECLI_BIN_DIR)/vibecli-tts" --list >/dev/null 2>&1 	  && echo "  verified: it runs and can enumerate voices" 	  || echo "  WARNING: installed but --list failed; the daemon will fall back to batch"
+
+# Kokoro is opt-in and cannot be zero-config: it needs a Python environment the
+# daemon cannot ship. This is the whole setup, in one target.
+voice-kokoro: ## Install the neural (Kokoro) speech engine — Apple Silicon
+	@test "$$(uname -m)" = "arm64" || { echo "Kokoro via MLX needs Apple Silicon"; exit 1; }
+	command -v uv >/dev/null || { echo "needs uv: brew install uv"; exit 1; }
+	test -d "$(HOME)/.vibecli/tts" || uv venv --python 3.12 "$(HOME)/.vibecli/tts"
+	VIRTUAL_ENV="$(HOME)/.vibecli/tts" uv pip install -q mlx-audio "misaki[en]"
+	# misaki downloads this spaCy model on *first use* by shelling out to `uv`,
+	# and the daemon spawns the sidecar with no VIRTUAL_ENV — so that install
+	# fails with "No virtual environment found" and takes the sidecar with it.
+	# Fetch it now, when there is someone watching, not mid-conversation.
+	VIRTUAL_ENV="$(HOME)/.vibecli/tts" uv pip install -q \
+	  "en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"
+	@env -u VIRTUAL_ENV "$(HOME)/.vibecli/tts/bin/python" -c \
+	  "import spacy; spacy.load('en_core_web_sm')" \
+	  || { echo "spaCy model missing — the sidecar would die on its first English sentence"; exit 1; }
+	@mkdir -p "$(HOME)/.vibecli/sidecars"
+	install -m 0755 tools/voice-duplex/sidecar/tts_kokoro.py "$(HOME)/.vibecli/sidecars/tts_kokoro.py"
+	@"$(HOME)/.vibecli/sidecars/tts_kokoro.py" --selftest >/dev/null 2>&1 	  || { echo "sidecar selftest failed — not writing config"; exit 1; }
+	./scripts/voice-config.sh kokoro
+	@echo
+	@echo "Restart the daemon for this to take effect."
+
+voice-status: ## Which speech engine the daemon will actually use
+	./scripts/voice-config.sh --status
+
 # ── macOS code signing ────────────────────────────────────────────────────────
 # `tauri build` signs the .app bundles when APPLE_SIGNING_IDENTITY is exported,
 # but nothing signs the standalone binaries that ship in the tarballs. This

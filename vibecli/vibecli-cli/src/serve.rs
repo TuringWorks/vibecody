@@ -1207,6 +1207,53 @@ const VOICE_STATUS_TTL: Duration = Duration::from_secs(60);
 
 type VoiceStatusCache = std::sync::Mutex<Option<(std::time::Instant, crate::voice::VoiceStatus)>>;
 
+/// A speech engine spawned and warmed before anyone asks for it.
+///
+/// Warming is not free and it is not small: the neural engine measured **6.6 s**
+/// to load its model and produce its first sample. Paid inside
+/// `handle_voice_duplex_ws`, that is 6.6 s between pressing the voice button
+/// and the `ready` event — silence that looks exactly like a microphone that
+/// does not work.
+///
+/// So one engine is spawned at daemon start and parked here. The first
+/// conversation takes it and starts speaking immediately; a replacement is
+/// warmed in the background for the next one. A second concurrent conversation
+/// finds the spare empty and opens its own, paying the cost it would have paid
+/// anyway — sharing one synthesiser between two sessions would let a barge-in
+/// in one cancel the other's speech.
+type TtsSpare = tokio::sync::Mutex<Option<crate::voice_duplex::Tts>>;
+
+fn tts_spare() -> &'static TtsSpare {
+    static SPARE: std::sync::OnceLock<TtsSpare> = std::sync::OnceLock::new();
+    SPARE.get_or_init(|| tokio::sync::Mutex::new(None))
+}
+
+/// Fill the warm spare, unless it already holds one.
+///
+/// Only ever spawns a *streaming* engine: the batch path has nothing to warm —
+/// it shells out per utterance — and parking a `Tts::Batch` here would make
+/// every later caller think a warm engine was waiting.
+async fn warm_tts_spare() {
+    {
+        if tts_spare().lock().await.is_some() {
+            return;
+        }
+    }
+    let cfg = crate::config::Config::load().unwrap_or_default();
+    let (tts, warning) = crate::voice_duplex::Tts::open(
+        cfg.voice.tts_sidecar.as_deref(),
+        &cfg.voice.tts_sidecar_args,
+    )
+    .await;
+    if let Some(w) = warning {
+        tracing::warn!("voice: {w}");
+    }
+    if tts.is_streaming() {
+        tracing::info!("voice: speech engine warmed and ready");
+        *tts_spare().lock().await = Some(tts);
+    }
+}
+
 fn voice_status_cache() -> &'static VoiceStatusCache {
     static CACHE: std::sync::OnceLock<VoiceStatusCache> = std::sync::OnceLock::new();
     CACHE.get_or_init(|| std::sync::Mutex::new(None))
@@ -1283,6 +1330,181 @@ struct VoiceTranscribeRequest {
 ///
 /// Clients call this once to decide whether to render a mic button at all, and
 /// to explain *why* it is disabled when it is.
+/// Ask a speech sidecar what it can do.
+///
+/// The sidecar is the authority on its own voices — the alternative is a table
+/// in the daemon that is wrong the moment anyone installs a language pack. Each
+/// engine answers on a different flag and in a slightly different shape, so the
+/// normalising happens here rather than in three clients.
+async fn probe_voices(engine: &str, bin: &str, args: &[String]) -> Option<serde_json::Value> {
+    let flag = if engine == "kokoro" { "--voices" } else { "--list" };
+    let prog = crate::voice_duplex::resolve_bin(bin)?;
+    let out = tokio::process::Command::new(prog)
+        .args(args)
+        .arg(flag)
+        .output()
+        .await
+        .ok()?;
+    let v: serde_json::Value = serde_json::from_slice(&out.stdout).ok()?;
+    let voices: Vec<serde_json::Value> = v
+        .get("voices")?
+        .as_array()?
+        .iter()
+        // Sound effects, not assistants. The Swift sidecar flags them; nothing
+        // else needs to know the rule.
+        .filter(|x| x.get("novelty").and_then(|n| n.as_bool()) != Some(true))
+        .map(|x| {
+            serde_json::json!({
+                "id": x.get("id").and_then(|i| i.as_str()).unwrap_or_default(),
+                "name": x.get("name").and_then(|i| i.as_str()).unwrap_or_default(),
+                "lang": x.get("lang").and_then(|i| i.as_str()).unwrap_or_default(),
+                "quality": x.get("quality").and_then(|i| i.as_str()).unwrap_or("default"),
+            })
+        })
+        .collect();
+    Some(serde_json::json!({
+        "voices": voices,
+        "languages": v.get("languages").cloned().unwrap_or(serde_json::json!([])),
+    }))
+}
+
+/// Where the Kokoro engine lives once `make voice-kokoro` has run.
+fn kokoro_paths() -> Option<(String, String)> {
+    let home = dirs::home_dir()?;
+    let py = home.join(".vibecli/tts/bin/python");
+    let sc = home.join(".vibecli/sidecars/tts_kokoro.py");
+    (py.is_file() && sc.is_file())
+        .then(|| (py.to_string_lossy().into(), sc.to_string_lossy().into()))
+}
+
+/// `GET /voice/settings` — what is configured, and what could be.
+///
+/// Reports availability per engine rather than listing every engine as a live
+/// option: offering "neural" on a machine where it was never installed produces
+/// a setting that appears to apply and silently does nothing.
+async fn voice_settings_get(_state: State<ServeState>) -> Json<serde_json::Value> {
+    let cfg = crate::config::Config::load().unwrap_or_default().voice;
+    let kokoro = kokoro_paths();
+
+    let (bin, args) = match cfg.tts_sidecar.clone() {
+        Some(b) => (Some(b), cfg.tts_sidecar_args.clone()),
+        None => (None, Vec::new()),
+    };
+    let caps = match &bin {
+        Some(b) => probe_voices(&cfg.tts_engine, b, &args).await,
+        None => None,
+    };
+
+    Json(serde_json::json!({
+        "engine": cfg.tts_engine,
+        "engines": [
+            {
+                "id": "system",
+                "label": "System",
+                // True on every platform: batch synthesis is the floor and
+                // always works, so this option can never be a dead end.
+                "available": true,
+                "detail": "The platform voice. Fastest to speak.",
+            },
+            {
+                "id": "kokoro",
+                "label": "Neural (Kokoro)",
+                "available": kokoro.is_some(),
+                "detail": if kokoro.is_some() {
+                    "Natural voices, 9 languages. Slower to start speaking."
+                } else {
+                    "Not installed — run: make voice-kokoro"
+                },
+            },
+        ],
+        "voice": cfg.kokoro_voice,
+        "language": cfg.language,
+        "voices": caps.as_ref().and_then(|c| c.get("voices").cloned())
+            .unwrap_or(serde_json::json!([])),
+        "languages": caps.as_ref().and_then(|c| c.get("languages").cloned())
+            .unwrap_or(serde_json::json!([])),
+    }))
+}
+
+#[derive(Deserialize)]
+struct VoiceSettingsPut {
+    engine: Option<String>,
+    voice: Option<String>,
+    language: Option<String>,
+}
+
+/// `PUT /voice/settings` — change the engine, voice or language.
+///
+/// Writing the sidecar paths as well as the engine name, because "kokoro" with
+/// no interpreter configured is a setting that reads back correctly and does
+/// nothing. Selecting an engine means selecting the thing that runs it.
+async fn voice_settings_put(
+    State(_state): State<ServeState>,
+    Json(body): Json<VoiceSettingsPut>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let mut cfg = crate::config::Config::load().unwrap_or_default();
+
+    if let Some(e) = body.engine.as_deref() {
+        match e {
+            "kokoro" => match kokoro_paths() {
+                Some((py, sc)) => {
+                    cfg.voice.tts_engine = "kokoro".into();
+                    cfg.voice.tts_sidecar = Some(py);
+                    cfg.voice.tts_sidecar_args = vec![sc];
+                }
+                None => {
+                    return json_error(
+                        StatusCode::BAD_REQUEST,
+                        "The neural engine is not installed. Run: make voice-kokoro".to_string(),
+                    );
+                }
+            },
+            "system" => {
+                cfg.voice.tts_engine = "system".into();
+                // Cleared, not pointed at the system sidecar: `Tts::open`
+                // discovers that one itself, and a stale absolute path here
+                // would outlive the binary it names.
+                cfg.voice.tts_sidecar = None;
+                cfg.voice.tts_sidecar_args = Vec::new();
+            }
+            other => {
+                return json_error(
+                    StatusCode::BAD_REQUEST,
+                    format!("Unknown speech engine {other:?}"),
+                );
+            }
+        }
+    }
+    if let Some(v) = body.voice {
+        cfg.voice.kokoro_voice = v;
+    }
+    if let Some(l) = body.language {
+        cfg.voice.language = l;
+    }
+
+    if let Err(e) = cfg.save() {
+        return json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Could not save settings: {e}"),
+        );
+    }
+
+    // The parked engine belongs to the *old* configuration. Drop it and warm a
+    // replacement, or the next conversation would speak in the voice the user
+    // just changed away from.
+    *tts_spare().lock().await = None;
+    tokio::spawn(warm_tts_spare());
+
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "engine": cfg.voice.tts_engine,
+            "voice": cfg.voice.kokoro_voice,
+            "language": cfg.voice.language,
+        })),
+    )
+}
+
 async fn voice_status(_state: State<ServeState>) -> (StatusCode, Json<serde_json::Value>) {
     let cached = voice_status_cache()
         .lock()
@@ -8370,6 +8592,10 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
             post(voice_transcribe).layer(DefaultBodyLimit::max(VOICE_UPLOAD_LIMIT_BYTES)),
         )
         .route("/voice/status", get(voice_status))
+        .route(
+            "/voice/settings",
+            get(voice_settings_get).put(voice_settings_put),
+        )
         // MemPalace verbatim drawer + benchmark endpoints
         .route("/memory/chunk", post(memory_chunk))
         .route("/memory/drawers/stats", get(memory_drawers_stats))
@@ -9400,6 +9626,20 @@ pub async fn serve(
     // token.
     let listener = tokio::net::TcpListener::bind(&addr).await?;
 
+    // Warm the speech engine now, in the background, so the first spoken turn
+    // does not pay for it. Only when one is actually configured: spawning a
+    // Python interpreter and loading a neural model on every daemon start would
+    // be a real cost imposed on everyone who never uses voice.
+    //
+    // Detached, and never awaited — the listener is already bound and nothing
+    // about serving HTTP should wait on a speech model.
+    {
+        let vcfg = crate::config::Config::load().unwrap_or_default().voice;
+        if vcfg.tts_sidecar.is_some() || vcfg.tts_engine != "system" {
+            tokio::spawn(warm_tts_spare());
+        }
+    }
+
     // Write the full token to a file (mode 0600) instead of logging it.
     //
     // This is a hard failure, not a warning. The token is freshly random for
@@ -9609,11 +9849,24 @@ async fn handle_voice_duplex_ws(socket: WebSocket, state: ServeState, params: Ws
         cfg.voice.whisper_server_port,
     )
     .await;
-    let (tts_raw, tts_warning) = vd::Tts::open(
-        cfg.voice.tts_sidecar.as_deref(),
-        &cfg.voice.tts_sidecar_args,
-    )
-    .await;
+    // Take the engine warmed at daemon start, if it is still there. Opening one
+    // here instead costs 6.6 s of silence before `ready` on the neural engine.
+    let spare = tts_spare().lock().await.take();
+    let (tts_raw, tts_warning) = match spare {
+        Some(t) => {
+            // Warm the next one now rather than when the next conversation
+            // starts, which is the moment that cannot afford it.
+            tokio::spawn(warm_tts_spare());
+            (t, None)
+        }
+        None => {
+            vd::Tts::open(
+                cfg.voice.tts_sidecar.as_deref(),
+                &cfg.voice.tts_sidecar_args,
+            )
+            .await
+        }
+    };
     let streaming = tts_raw.is_streaming();
     let tts = Arc::new(tokio::sync::Mutex::new(tts_raw));
     say(serde_json::json!({

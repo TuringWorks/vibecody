@@ -92,3 +92,23 @@
   right: 6px;
   color: var(--accent-blue);
 }
+
+/* ── Voice settings ────────────────────────────────────────────────────────── */
+
+.vx-voice-engines { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 4px; }
+
+.vx-voice-engine {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 9px 12px; text-align: left;
+  border: 1px solid var(--border-color); border-radius: 8px;
+  background: var(--bg-secondary); color: var(--text-primary);
+  cursor: pointer; font-family: inherit;
+  transition: border-color var(--transition-fast, .15s ease);
+}
+.vx-voice-engine:hover:not(:disabled) { border-color: var(--text-secondary); }
+.vx-voice-engine.is-active { border-color: var(--accent-blue); }
+/* Dimmed but still readable: the row carries the reason it is unavailable, and
+   a reason nobody can read is the same as no reason. */
+.vx-voice-engine:disabled { opacity: 0.6; cursor: default; }
+.vx-voice-engine__label { font-size: 13px; font-weight: 600; }
+.vx-voice-engine__detail { font-size: 11px; color: var(--text-tertiary, var(--text-secondary)); }
