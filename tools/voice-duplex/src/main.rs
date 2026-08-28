@@ -423,10 +423,21 @@ async fn serve_ws(cfg: Arc<Cfg>) -> anyhow::Result<()> {
 
 #[cfg(target_os = "linux")]
 fn apply_linux_media_fix(webview: &wry::WebView) {
+    // `is::<T>()` is a glib trait method, not a webkit2gtk one. Without this
+    // import the function does not compile — which nothing here noticed,
+    // because no workflow builds this tool on Linux.
+    use webkit2gtk::glib::ObjectExt;
     use webkit2gtk::{PermissionRequestExt, SettingsExt, UserMediaPermissionRequest, WebViewExt};
     use wry::WebViewExtUnix;
     let wv = webview.webview();
-    if let Some(s) = WebViewExt::settings(&wv) { s.set_enable_media_stream(true); s.set_enable_webaudio(true); }
+    // Three switches, all off by default: capture, WebAudio, and WebRTC. The
+    // third is why `RTCPeerConnection` is undefined on this engine rather than
+    // merely blocked — measured by `tools/webview-probe` on a CI runner.
+    if let Some(s) = WebViewExt::settings(&wv) {
+        s.set_enable_media_stream(true);
+        s.set_enable_webaudio(true);
+        s.set_enable_webrtc(true);
+    }
     wv.connect_permission_request(|_, req| {
         if req.is::<UserMediaPermissionRequest>() { req.allow(); return true; }
         false

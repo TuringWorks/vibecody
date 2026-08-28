@@ -42,14 +42,21 @@ Exit codes: **0** pass · **1** fail · **2** harness error or timeout (90 s).
 
 ## Linux needs a fix that wry does not apply
 
-WebKitGTK ships media capture **off**, and denies the permission request unless
-the embedder answers it. Checked against wry 0.53.5: it never sets
-`enable-media-stream`, and connects no `permission-request` signal. Tauri 2.11
-adds neither.
+WebKitGTK ships media capture **and WebRTC** off, and denies the permission
+request unless the embedder answers it. Checked against wry 0.53.5: it sets
+neither `enable-media-stream` nor `enable-webrtc`, and connects no
+`permission-request` signal. Tauri 2.11 adds none of them.
 
-`apply_linux_media_fix` in `src/main.rs` does both, via
-`WebViewExtUnix::webview()`. **The same two calls are what the shipping shells
+`apply_linux_media_fix` in `src/main.rs` does all three, via
+`WebViewExtUnix::webview()`. **The same calls are what the shipping shells
 need**, reachable from Tauri through `WebviewWindow::with_webview()`.
+
+`enable-webrtc` is the one that hides best. Off, the constructor is not merely
+blocked — it is absent, so the page fails with `Can't find variable:
+RTCPeerConnection` and any capability check reads it as "this engine cannot do
+WebRTC". That is what the first Linux run of the transport arm measured, and
+this arm had never run on Linux before: the build failed there, and the two
+engines that did run were green.
 
 ## Reading a result
 

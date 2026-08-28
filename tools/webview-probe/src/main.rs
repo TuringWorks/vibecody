@@ -100,12 +100,13 @@ fn serve(port: u16, arm: Arm, obs: peer::Shared, t0: Instant) {
     });
 }
 
-/// WebKitGTK ships media capture **off**, and denies the permission request
-/// unless the embedder answers it. wry does neither: it never sets
-/// `enable-media-stream`, and connects no `permission-request` signal (checked
-/// against wry 0.53.5). Tauri does not add them either — so this is what every
-/// Tauri app on Linux is missing, and it is why the harness must apply it
-/// itself before it can claim to have *tested* Linux.
+/// WebKitGTK ships media capture **and WebRTC** off, and denies the permission
+/// request unless the embedder answers it. wry does none of the three: it sets
+/// neither `enable-media-stream` nor `enable-webrtc`, and connects no
+/// `permission-request` signal (checked against wry 0.53.5). Tauri does not add
+/// them either — so this is what every Tauri app on Linux is missing, and it is
+/// why the harness must apply it itself before it can claim to have *tested*
+/// Linux.
 #[cfg(target_os = "linux")]
 fn apply_linux_media_fix(webview: &wry::WebView) {
     // `ObjectExt` is what carries `is::<T>()` — the downcast check that tells a
@@ -119,6 +120,13 @@ fn apply_linux_media_fix(webview: &wry::WebView) {
     if let Some(settings) = WebViewExt::settings(&wv) {
         settings.set_enable_media_stream(true);
         settings.set_enable_webaudio(true);
+        // And WebRTC, which is a *separate* switch and also off. Not merely
+        // unusable: the constructor does not exist, so the page fails with
+        // `Can't find variable: RTCPeerConnection` — measured on the runner,
+        // the first time this arm ever ran on Linux. A feature detection that
+        // asks `if (window.RTCPeerConnection)` therefore reports "this engine
+        // cannot do WebRTC" when what it means is "nobody turned it on".
+        settings.set_enable_webrtc(true);
     }
     wv.connect_permission_request(|_, req| {
         if req.is::<UserMediaPermissionRequest>() { req.allow(); return true; }
