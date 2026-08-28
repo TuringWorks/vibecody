@@ -854,6 +854,27 @@ pub struct VoiceConfig {
     /// Silence timeout in ms for live mic capture — stop recording after this much silence.
     #[serde(default = "VoiceConfig::default_silence_timeout")]
     pub silence_timeout_ms: u64,
+    /// Provider for spoken replies, when speech should not run on whichever
+    /// model the app's composer is set to.
+    ///
+    /// A spoken turn is a latency budget, not a coding task: measured here, a
+    /// 20B local model answered a one-sentence question in **5.0 s** warm and
+    /// **42 s** cold (26.6 s of model load plus 12.0 s of prefill), while the
+    /// rest of the pipeline — 0.6 s of end-of-turn silence, 0.58 s of
+    /// recognition, milliseconds of speech — is rounding error. Pointing this
+    /// at a small model is the single largest thing anyone can do about it.
+    ///
+    /// Empty or absent → the client's own selection is used, exactly as
+    /// before. Set, it wins over the client: choosing a voice model means
+    /// choosing it for every surface, otherwise the setting would appear to
+    /// apply and quietly do nothing on the shell that sends its own.
+    #[serde(default)]
+    pub provider: Option<String>,
+    /// Model for spoken replies. Only honoured together with `provider` — one
+    /// half of the pair is not a choice, it is a typo, and
+    /// `chat_provider_for` would silently fall back to the daemon's own.
+    #[serde(default)]
+    pub model: Option<String>,
 }
 
 impl Default for VoiceConfig {
@@ -874,6 +895,8 @@ impl Default for VoiceConfig {
             local_model: Self::default_local_model(),
             language: Self::default_language(),
             silence_timeout_ms: Self::default_silence_timeout(),
+            provider: None,
+            model: None,
         }
     }
 }

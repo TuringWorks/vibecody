@@ -278,8 +278,17 @@ and treats an empty block as *clear* rather than *unchanged* — closing a proje
 mid-conversation must not leave the assistant answering about the old one.
 
 VibeCoder sends the same material the typed chat path sends: pinned memory, the
-context block, the open file, and the head of the file tree. VibeDesk and
-VibeAIChat send nothing, because neither has a workspace open to describe.
+context block, the open file, and the head of the file tree. VibeDesk sends the
+scoped project's root, README and file tree — the repo a task runs in is the
+project a spoken question is about. VibeAIChat sends nothing, having no
+workspace to describe.
+
+In VibeDesk the session is owned by the shell, not by the composer: the
+conversation pane is remounted on every chat switch and replaced by every
+full-screen overlay, and a hook mounted below that line took the socket, the
+microphone and the daemon's per-socket history down with it — clicking a chat
+ended the conversation mid-sentence, silently. The pane registers itself as the
+place completed turns are written; the session outlives it.
 
 Without this the assistant answered *"I don't have any information about that"*
 about the project on screen beside it — voice was the one surface that never
@@ -306,7 +315,58 @@ to say why.
 
 Words from a turn superseded before it spoke are now **carried into the next
 turn**, and the client is told with a `carried` event so nothing vanishes
-silently either way.
+silently either way. That rule now holds wherever the supersession lands —
+during recognition, and equally while the model was still generating, which
+used to drop the words with no event at all.
+
+An interruption the user *did* hear is remembered instead. The exchange
+happened: the question was asked, part of an answer was spoken, and both are on
+screen. Leaving it out of the conversation history is how the assistant came to
+have no idea what it had just been asked — barge-in is normal here, so the
+memory was emptiest exactly when the user had been talking most. An interrupted
+turn is recorded with whatever was actually said (or a note that nothing was,
+which is a fact about the turn rather than an empty answer).
+
+The history is the last six exchanges, and it lives on the socket. Closing the
+conversation ends it — nothing is persisted, and a spoken conversation does not
+resume after the microphone is closed.
+
+## Which model answers
+
+Whichever the client sends — unless `[voice] provider` / `[voice] model` is set
+in the daemon's config (via `PUT /voice/settings`), which wins over every
+client. Both halves or neither: given one, `chat_provider_for` builds no
+override and silently uses the daemon's own provider.
+
+The setting is there because the model is nearly the whole latency budget.
+Measured on a 24 GB Mac against a 20B local model, with a system prompt carrying
+a README and 400 file paths (4.0k tokens):
+
+| | warm | cold |
+|---|---:|---:|
+| Recognition (`whisper-server`, `small`) | 0.58 s | 0.58 s |
+| Model → first content | **5.0 s** | **42.0 s** (26.6 s load + 12.0 s prefill) |
+| Speech, first audio | ms | ms |
+
+Ollama evicts an idle model after about five minutes, so the cold column is not
+a first-run cost — it is what the first turn after a pause costs. The `ready`
+event names the provider and model that will actually answer, so a client whose
+own selection was overridden can say so rather than leaving the user to wonder
+why the voice sounds like a different model.
+
+## A voice that cannot speak the language
+
+Kokoro covers nine languages and the recogniser identifies ninety-nine, and a
+voice belongs to exactly one: `hf_alpha` is Hindi and returns **no audio at
+all** for an English sentence. The reply still arrives, is written into the chat
+and is never spoken — every turn, for as long as that voice is selected, which
+is indistinguishable from a microphone that does not work.
+
+A sentence the configured engine cannot say is now spoken by the platform
+voice, which exists everywhere, and the `notice` says which language was
+missing and how to fix it properly. If neither engine can speak it, that is what
+the notice says instead — there is nothing left to try, and silence with no
+explanation is the one outcome worth refusing.
 
 ## Reasoning models say the answer, not the deliberation
 

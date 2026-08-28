@@ -278,6 +278,21 @@ impl Tts {
             Tts::Batch => synthesize_wav(text, voice).await.map(Some),
         }
     }
+
+    /// The platform voice, whatever engine is configured — the floor that
+    /// exists on every machine.
+    ///
+    /// The neural engine covers nine languages and the recogniser identifies
+    /// ninety-nine, and a voice belongs to exactly one: `hf_alpha` is Hindi and
+    /// produces **nothing at all** for an English sentence. That is a reply
+    /// that arrives as text, is written into the chat, and is never spoken —
+    /// which from where the user sits is a microphone that does not work.
+    ///
+    /// No voice id is passed: the ids are per-engine and not interchangeable,
+    /// so handing `say` a Kokoro voice name is another way to produce silence.
+    pub async fn synthesize_system(&self, text: &str) -> Result<Audio> {
+        synthesize_wav(text, None).await
+    }
 }
 
 impl Sidecar {

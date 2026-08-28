@@ -13,6 +13,7 @@ import { useApprovals } from "../hooks/useApprovals";
 import { formatCost, formatTokens, useJobUsage } from "../hooks/useJobUsage";
 import type { Task, TaskHistory } from "../hooks/useTasks";
 import type { ComposerPrefs } from "../hooks/useComposerPrefs";
+import type { VoiceSession } from "../hooks/useVoiceSession";
 import type { Attachment } from "../lib/attachments";
 import type { QuickAction } from "./QuickActionDrawer";
 import { helpText, type SlashAction } from "./slashCommands";
@@ -28,6 +29,12 @@ interface SessionStreamProps {
   prefs: ComposerPrefs;
   onPref: <K extends keyof ComposerPrefs>(key: K, value: ComposerPrefs[K]) => void;
   onProviderModel: (provider: string, model: string | undefined) => void;
+  /** The project's tracked paths, for @-mention completion in the composer. */
+  projectFiles: string[];
+  /** The shell's voice session. This pane registers itself as the place a
+   *  completed spoken turn is written down; the session itself outlives the
+   *  pane, which is remounted on every chat switch. */
+  voice: VoiceSession;
   draft: string;
   onDraft: (text: string) => void;
   attachments: Attachment[];
@@ -78,6 +85,8 @@ export function SessionStream({
   prefs,
   onPref,
   onProviderModel,
+  projectFiles,
+  voice,
   draft,
   onDraft,
   attachments,
@@ -92,6 +101,13 @@ export function SessionStream({
   const { items, state, sessionId, startedAt, runTask, attach, stop, loadItems, appendSystem, appendTurn } =
     useAgentStream();
   const usage = useJobUsage(daemonUrl, sessionId, state === "running");
+  // Spoken turns land in *this* pane's conversation. The voice session outlives
+  // the pane (it is remounted on every chat switch), so the pane hands over its
+  // writer on mount rather than being wired to one for the life of the app.
+  const registerSink = voice.registerSink;
+  useEffect(() => {
+    registerSink(appendTurn);
+  }, [registerSink, appendTurn]);
   const approvals = useApprovals(daemonUrl, daemonOnline);
   const [title, setTitle] = useState<string>(selectedTask?.title ?? "New chat");
   const [elapsed, setElapsed] = useState(0);
@@ -391,11 +407,11 @@ export function SessionStream({
         onDraft={onDraft}
         attachments={attachments}
         onAttachments={onAttachments}
-        scopePath={runRoot}
         onSubmit={submit}
         onStop={() => stop(daemonUrl)}
         onQuickAction={onQuickAction}
-        onVoiceTurn={appendTurn}
+        projectFiles={projectFiles}
+        voice={voice}
         onSlash={(action) => {
           // Three commands act on this pane; the rest are the shell's.
           if (action === "stop") stop(daemonUrl);

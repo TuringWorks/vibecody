@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { useModels } from "../hooks/useModels";
+import { useModels, type DaemonModel } from "../hooks/useModels";
 
 interface ProviderPillProps {
   daemonUrl: string;
@@ -32,9 +32,22 @@ export function ProviderPill({ daemonUrl, daemonOnline, provider, model, onSelec
   // Prefer a LOCAL model (avoids the daemon's cloud picker-default, which can
   // return transient 500s); fall back to the first model of any kind. A model
   // restored from settings counts as "selected", so this never overrides it.
+  //
+  // Skip anything the daemon says this machine cannot load. Picking by name
+  // alone made the default a 19.8 GB model on a 24 GB machine, and Ollama
+  // answers that with `model requires 19.7 GiB but only 17.3 GiB are
+  // available` — HTTP 500, which is not in the retry classifier, so every run
+  // and every spoken turn failed on a model nobody chose. The flag is only
+  // ever set when the daemon can state a real budget; where it cannot, this
+  // is the same first-match it always was.
   useEffect(() => {
     if (model || models.length === 0) return;
-    const pick = models.find((m) => !m.name!.includes("cloud")) ?? models[0];
+    const loadable = models.filter((m) => !m.may_not_load);
+    const pick =
+      loadable.find((m) => !m.name!.includes("cloud")) ??
+      loadable[0] ??
+      models.find((m) => !m.name!.includes("cloud")) ??
+      models[0];
     if (pick?.name) onSelect(pick.provider, pick.name);
   }, [models, model, onSelect]);
 
@@ -59,11 +72,11 @@ export function ProviderPill({ daemonUrl, daemonOnline, provider, model, onSelec
   // Group models by provider for a readable menu, honoring the filter.
   const groups = useMemo(() => {
     const needle = filter.trim().toLowerCase();
-    const byProvider = new Map<string, string[]>();
+    const byProvider = new Map<string, DaemonModel[]>();
     for (const m of models) {
       const name = m.name!;
       if (needle && !`${m.provider}/${name}`.toLowerCase().includes(needle)) continue;
-      byProvider.set(m.provider, [...(byProvider.get(m.provider) ?? []), name]);
+      byProvider.set(m.provider, [...(byProvider.get(m.provider) ?? []), m]);
     }
     return [...byProvider.entries()];
   }, [models, filter]);
@@ -91,7 +104,8 @@ export function ProviderPill({ daemonUrl, daemonOnline, provider, model, onSelec
             {groups.map(([prov, list]) => (
               <div key={prov}>
                 <div className="vx-pill-menu__group">{prov}</div>
-                {list.map((name) => {
+                {list.map((m) => {
+                  const name = m.name!;
                   const active = provider === prov && model === name;
                   return (
                     <button
@@ -99,6 +113,11 @@ export function ProviderPill({ daemonUrl, daemonOnline, provider, model, onSelec
                       role="menuitemradio"
                       aria-checked={active}
                       className={`vx-pill-menu__item${active ? " is-active" : ""}`}
+                      // Listed, not hidden, and not disabled: the limit is
+                      // raisable and the daemon is describing one machine, not
+                      // ruling on the model. The reason travels with the row so
+                      // a refusal later is not a surprise.
+                      title={m.load_note}
                       onClick={() => {
                         onSelect(prov, name);
                         setOpen(false);
@@ -106,6 +125,9 @@ export function ProviderPill({ daemonUrl, daemonOnline, provider, model, onSelec
                       }}
                     >
                       <span className="vx-pill-menu__item-name">{name}</span>
+                      {m.may_not_load && (
+                        <span className="vx-pill-menu__item-warn">may not fit</span>
+                      )}
                       {active && <span aria-hidden>✓</span>}
                     </button>
                   );

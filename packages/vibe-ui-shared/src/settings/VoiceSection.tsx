@@ -42,6 +42,13 @@ export function VoiceSection() {
     return acc;
   }, {});
 
+  // Named rows only: the catalog's first entry is the active provider itself,
+  // which has no addressable model name and would select nothing.
+  const modelsByProvider = (settings.models ?? []).reduce<Record<string, string[]>>((acc, m) => {
+    if (m.name) (acc[m.provider] ||= []).push(m.name);
+    return acc;
+  }, {});
+
   return (
     <div className="vx-set-section">
       {error && (
@@ -83,6 +90,35 @@ export function VoiceSection() {
         <option value="auto">{langName("auto")}</option>
         {settings.languages.map((c) => (
           <option key={c} value={c}>{langName(c)}</option>
+        ))}
+      </select>
+
+      <h4 className="vx-set-h">Model for spoken replies</h4>
+      <p className="vx-set-hint">
+        A spoken turn is silence while it waits, and the model is nearly all of
+        it: measured here, a 20B answered in 5.0s warm and 42s cold, against
+        0.58s to recognise the speech and milliseconds to say the reply. Pick a
+        small model and speech stays quick however large a model the app is set
+        to for writing code.
+      </p>
+      <select
+        className="vx-set-select"
+        value={settings.provider && settings.model ? `${settings.provider}/${settings.model}` : ""}
+        disabled={saving}
+        onChange={(e) => {
+          // Provider and model travel together — the daemon refuses half a
+          // pair, and "" for both is how the choice goes back to the app.
+          const [provider, ...rest] = e.target.value.split("/");
+          update(e.target.value ? { provider, model: rest.join("/") } : { provider: "", model: "" });
+        }}
+      >
+        <option value="">Use the model the app has selected</option>
+        {Object.entries(modelsByProvider).map(([prov, ms]) => (
+          <optgroup key={prov} label={prov}>
+            {ms.map((m) => (
+              <option key={`${prov}/${m}`} value={`${prov}/${m}`}>{m}</option>
+            ))}
+          </optgroup>
         ))}
       </select>
 

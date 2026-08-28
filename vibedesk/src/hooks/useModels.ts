@@ -6,6 +6,13 @@ export interface DaemonModel {
   name?: string;
   provider: string;
   active?: boolean;
+  /** Stored weights, for locally-installed models. Absent when unknown. */
+  size_bytes?: number;
+  /** The daemon can state this machine's GPU budget and this model exceeds it.
+   *  Absent everywhere the budget is unknowable — never a guess. */
+  may_not_load?: boolean;
+  /** The two numbers behind `may_not_load`, in words. */
+  load_note?: string;
 }
 
 // The daemon's /models endpoint is the single source of truth for the catalog

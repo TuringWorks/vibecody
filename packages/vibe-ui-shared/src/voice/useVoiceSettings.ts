@@ -32,6 +32,15 @@ export interface VoiceChoice {
   quality: string;
 }
 
+/** One addressable model, as the daemon's catalog reports it. */
+export interface VoiceModel {
+  id: string;
+  /** Absent on the synthetic "active provider" row, which cannot be addressed. */
+  name?: string;
+  provider: string;
+  active?: boolean;
+}
+
 export interface VoiceSettings {
   engine: string;
   engines: VoiceEngine[];
@@ -39,6 +48,19 @@ export interface VoiceSettings {
   language: string;
   voices: VoiceChoice[];
   languages: string[];
+  /**
+   * The model that answers a spoken turn, when it should not be the one the
+   * app's composer is set to. Null on both → the client's own selection.
+   *
+   * Worth having its own setting because the two jobs have different budgets:
+   * the composer picks a model to write code with, and a spoken reply is
+   * measured in seconds of silence — 5.0 s warm and 42 s cold on a 20B here,
+   * against 0.58 s of recognition and milliseconds of speech.
+   */
+  provider: string | null;
+  model: string | null;
+  /** Everything this daemon can address — the same rows the model pickers show. */
+  models: VoiceModel[];
 }
 
 async function daemonBase(): Promise<{ url: string; token: string }> {
@@ -87,7 +109,15 @@ export function useVoiceSettings() {
   }, [load]);
 
   const update = useCallback(
-    async (patch: Partial<Pick<VoiceSettings, "engine" | "voice" | "language">>) => {
+    async (
+      patch: Partial<Pick<VoiceSettings, "engine" | "voice" | "language">> & {
+        /** Both together, or both `""` to hand the choice back to the client.
+         *  The daemon rejects half a pair rather than storing a setting that
+         *  reads back as a choice and behaves as none. */
+        provider?: string;
+        model?: string;
+      },
+    ) => {
       setSaving(true);
       try {
         const { url, token } = await daemonBase();

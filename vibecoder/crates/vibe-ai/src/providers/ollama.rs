@@ -25,6 +25,15 @@ use std::sync::{LazyLock, Mutex};
 /// (all 2026-06-16) and `deepseek-v3.1:671b` (2026-07-15).
 ///
 /// Source: <https://ollama.com/search?c=cloud>
+/// One model Ollama has pulled, and what it costs to load.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InstalledModel {
+    /// Exactly as Ollama reports it, tag included — that is what must be sent back.
+    pub name: String,
+    /// Stored weights in bytes. 0 when Ollama reports none (a cloud entry).
+    pub size_bytes: u64,
+}
+
 pub const OLLAMA_CLOUD_MODELS: &[&str] = &[
     "glm-5.2:cloud",
     "glm-5.1:cloud",
@@ -461,12 +470,29 @@ impl OllamaProvider {
 
     /// List available Ollama models that support chat.
     ///
-    /// Fetches all models from `/api/tags`, then probes each with a minimal
-    /// `/api/chat` request to filter out completion-only models (e.g. codellama)
-    /// and embedding models (e.g. nomic-embed-text).
+    /// Names only. [`list_models_detailed`](Self::list_models_detailed) is the
+    /// same listing with the size each model needs in order to load.
+    pub async fn list_models(base_url: Option<String>) -> Result<Vec<String>> {
+        Ok(Self::list_models_detailed(base_url)
+            .await?
+            .into_iter()
+            .map(|m| m.name)
+            .collect())
+    }
+
+    /// List available Ollama models that support chat, with their sizes.
+    ///
+    /// Fetches all models from `/api/tags` and drops embedding models (e.g.
+    /// nomic-embed-text), which are not chat models.
+    ///
+    /// The size is what Ollama reports for the stored weights, and it is the
+    /// number that decides whether a model can run at all: asked for a 19.8 GB
+    /// model on a 24 GB machine, Ollama answers `model requires 19.7 GiB but
+    /// only 17.3 GiB are available` with HTTP 500 — measured. A picker that
+    /// cannot see the size cannot avoid offering that model as its default.
     ///
     /// Auth is sent only when `OLLAMA_API_KEY` is set.
-    pub async fn list_models(base_url: Option<String>) -> Result<Vec<String>> {
+    pub async fn list_models_detailed(base_url: Option<String>) -> Result<Vec<InstalledModel>> {
         let base_url = base_url.unwrap_or_else(|| "http://127.0.0.1:11434".to_string());
         let api_key = std::env::var("OLLAMA_API_KEY").ok();
         let client = reqwest::Client::builder()
@@ -489,6 +515,10 @@ impl OllamaProvider {
         #[derive(Deserialize)]
         struct ModelInfo {
             name: String,
+            /// Bytes of stored weights. A cloud-hosted entry stores nothing
+            /// locally and reports none, which stays 0 rather than a guess.
+            #[serde(default)]
+            size: u64,
             #[serde(default)]
             details: ModelDetails,
         }
@@ -507,13 +537,16 @@ impl OllamaProvider {
         // Embedding models are not chat models. The classifier lives in
         // `vibe_embed::catalog` so this filter and the embedding-model picker
         // can never disagree about which is which — they read the same rule.
-        let chat_models: Vec<String> = list
+        let chat_models: Vec<InstalledModel> = list
             .models
             .into_iter()
             .filter(|m| {
                 !vibe_embed::catalog::looks_like_embedding_model(&m.name, &m.details.family)
             })
-            .map(|m| m.name)
+            .map(|m| InstalledModel {
+                name: m.name,
+                size_bytes: m.size,
+            })
             .collect();
 
         Ok(chat_models)

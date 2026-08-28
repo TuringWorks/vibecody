@@ -20,6 +20,7 @@ import type { QuickAction } from "../components/QuickActionDrawer";
 import type { SlashAction } from "../components/slashCommands";
 import { useProjects } from "../hooks/useProjects";
 import { useComposerPrefs } from "../hooks/useComposerPrefs";
+import { useVoiceSession } from "../hooks/useVoiceSession";
 import { useLayoutPrefs, clampEnvWidth } from "../hooks/useLayoutPrefs";
 import type { Task, useTasks } from "../hooks/useTasks";
 import type { Attachment } from "../lib/attachments";
@@ -105,6 +106,19 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
   // Without this they always reported the daemon's own repo.
   const scopePath =
     selectedTask?.worktree_path || selectedTask?.project_path || activeProject || undefined;
+
+  // The voice conversation, and the file list it shares with @-mention
+  // completion. Owned here for the reason this layer exists: the pane below is
+  // remounted on every chat switch and replaced outright by every full-screen
+  // overlay, and mounted down there the microphone was closed — mid-sentence,
+  // silently — by clicking a chat or opening Settings.
+  const voice = useVoiceSession({
+    daemonUrl,
+    daemonOnline,
+    root: scopePath,
+    provider: prefs.provider,
+    model: prefs.model,
+  });
 
   function openSideChat() {
     setSideChatOpened(true);
@@ -412,6 +426,8 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
             prefs={prefs}
             onPref={setPref}
             onProviderModel={setProviderModel}
+            projectFiles={voice.files}
+            voice={voice}
             draft={drafts[draftKey] ?? ""}
             onDraft={setDraft}
             attachments={attachments[draftKey] ?? EMPTY_ATTACHMENTS}

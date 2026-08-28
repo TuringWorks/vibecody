@@ -4,12 +4,9 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { useVoiceInput } from "@vibe/shared/voice/useVoiceInput";
 import { VoiceButton } from "@vibe/shared/voice/VoiceButton";
-import { useVoiceDuplex } from "@vibe/shared/voice/useVoiceDuplex";
 import { DuplexVoiceButton } from "@vibe/shared/voice/DuplexVoiceButton";
 import { VoiceTranscript } from "@vibe/shared/voice/VoiceTranscript";
 import { VoiceApproval } from "@vibe/shared/voice/VoiceApproval";
-import { useVoiceDuplexPreference } from "@vibe/shared/voice/useVoiceDuplexPreference";
-import { buildVoiceContext, findReadme, VOICE_CONTEXT_LIMITS } from "@vibe/shared/voice/voiceContext";
 import { tauriTranscriber } from "@vibe/shared/voice/transcribers";
 import { ApprovalPill, type ApprovalTier } from "./ApprovalPill";
 import { ProviderPill } from "./ProviderPill";
@@ -20,7 +17,8 @@ import { describe as describeSandbox, type SandboxPolicy } from "../lib/sandbox"
 import { QuickActionDrawer, type QuickAction } from "./QuickActionDrawer";
 import { useClickAway } from "@vibe/shared/hooks/useClickAway";
 import type { ComposerPrefs } from "../hooks/useComposerPrefs";
-import { findMention, rankFiles, useProjectFiles } from "../hooks/useProjectFiles";
+import { findMention, rankFiles } from "../hooks/useProjectFiles";
+import type { VoiceSession } from "../hooks/useVoiceSession";
 import { findSlash, matchSlash, type SlashAction } from "./slashCommands";
 import { composeWithAttachments, formatBytes, type Attachment } from "../lib/attachments";
 
@@ -62,17 +60,20 @@ interface TaskPromptProps {
    *  draft — switching chats must not silently discard them. */
   attachments: Attachment[];
   onAttachments: (next: Attachment[]) => void;
-  /** Repo whose files back @-mention completion. */
-  scopePath?: string;
   onSubmit: (payload: ComposerSubmit) => void;
   onStop: () => void;
   onQuickAction: (action: QuickAction) => void;
   /** Run a slash command. Handled by the shell — the composer only picks it. */
   onSlash: (action: SlashAction) => void;
-  /** A completed spoken turn, for the conversation above. Without it a voice
-   *  conversation left no record at all: it was heard, answered, and never
-   *  written down. */
-  onVoiceTurn: (role: "user" | "assistant", text: string) => void;
+  /** The project's tracked paths, for @-mention completion. Fetched above this
+   *  component because the voice session needs the same list and this subtree
+   *  is remounted on every chat switch — two hooks would mean two `list_files`
+   *  round trips per switch for one answer. */
+  projectFiles: string[];
+  /** The voice conversation, owned by the shell. It cannot live here: this
+   *  subtree is remounted per chat, and the hook's teardown closes the socket
+   *  and the microphone — see `useVoiceSession`. */
+  voice: VoiceSession;
 }
 
 /** Grow the textarea with its content, up to a scrollable ceiling. */
@@ -88,38 +89,6 @@ const MAX_ROWS_PX = 260;
  * NOTE: there is intentionally NO Cmd+K inline edit — targeted edits use the
  * ⌘. diffcomplete surface (see pdm/08 §1).
  */
-/**
- * The project's README, for the voice context block.
- *
- * Voice gets one round trip and no tools, so a listing of paths is everything
- * it will ever know unless the file that names the project is in the block
- * too. Failure is silence: a repo without a README is normal.
- */
-function useProjectReadme(root: string | undefined, tree: readonly string[]): string | null {
-  const [readme, setReadme] = useState<string | null>(null);
-  const rel = useMemo(() => (tree.length ? findReadme(tree) : undefined), [tree]);
-
-  useEffect(() => {
-    if (!root || !rel) {
-      setReadme(null);
-      return;
-    }
-    let alive = true;
-    invoke<Attachment>("read_attachment", { path: `${root.replace(/\/+$/, "")}/${rel}` })
-      .then((a) => {
-        if (alive) setReadme(a.text.slice(0, VOICE_CONTEXT_LIMITS.readme * 2));
-      })
-      .catch(() => {
-        if (alive) setReadme(null);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [root, rel]);
-
-  return readme;
-}
-
 export function TaskPrompt({
   daemonUrl,
   daemonOnline,
@@ -131,12 +100,12 @@ export function TaskPrompt({
   onDraft,
   attachments,
   onAttachments,
-  scopePath,
   onSubmit,
   onStop,
   onQuickAction,
   onSlash,
-  onVoiceTurn,
+  projectFiles,
+  voice: session,
 }: TaskPromptProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [sandboxOpen, setSandboxOpen] = useState(false);
@@ -149,9 +118,6 @@ export function TaskPrompt({
   // way every shell and chat client behaves.
   const history = useRef<string[]>([]);
   const historyPos = useRef<number | null>(null);
-  // @-mention completion over the project's tracked files: naming a file in a
-  // prompt shouldn't mean retyping its path from memory.
-  const projectFiles = useProjectFiles(daemonUrl, daemonOnline, scopePath);
   const [caret, setCaret] = useState(0);
   const [mentionCursor, setMentionCursor] = useState(0);
 
@@ -246,40 +212,11 @@ export function TaskPrompt({
   const transcribe = useMemo(() => tauriTranscriber(daemonUrl), [daemonUrl]);
   const voice = useVoiceInput({ onTranscript: appendTranscript, transcribe });
 
-  // Full-duplex conversation, on the same provider/model the composer will use
-  // for a typed task. Push-to-talk above stays: it dictates *into* the
-  // composer, where this speaks a whole turn without touching the draft.
-  const voicePref = useVoiceDuplexPreference();
-  // `onTurn` fires once per completed turn — the transcription, then the whole
-  // reply — which is what the conversation above wants. The live,
-  // sentence-by-sentence text is `duplex.turns`, rendered as a caption.
-  const onTurnRef = useRef(onVoiceTurn);
-  onTurnRef.current = onVoiceTurn;
-  // What the spoken turn knows about the project. VibeDesk sent nothing at all
-  // until now — the hook has taken a `context` since the daemon learned to
-  // accept one, and only VibeCoder ever passed it, so a voice question here was
-  // answered with no idea which repo was open.
-  const readme = useProjectReadme(scopePath, projectFiles);
-  const voiceContext = useMemo(
-    () => buildVoiceContext({ root: scopePath, readme, tree: projectFiles }),
-    [scopePath, readme, projectFiles],
-  );
-
-  const duplex = useVoiceDuplex({
-    enabled: voicePref.enabled,
-    daemonUrl,
-    provider: prefs.provider,
-    model: prefs.model,
-    // `auto`, not a pinned language. Pinning one does not merely bias the
-    // recogniser — it *suppresses* the detection result, so every turn came
-    // back labelled English, the reply rule never fired, and a question asked
-    // in Hindi was answered in English. Detection runs per turn because
-    // code-switching mid-conversation is normal for multilingual speakers.
-    language: "auto",
-    context: voiceContext,
-    workspaceRoot: scopePath ?? null,
-    onTurn: (turn) => onTurnRef.current(turn.role, turn.text),
-  });
+  // Full-duplex conversation. Push-to-talk above stays: it dictates *into* the
+  // composer, where this speaks a whole turn without touching the draft. The
+  // session itself belongs to the shell — a microphone must not be closed by a
+  // chat switch — so this component only renders its controls.
+  const duplex = session.duplex;
 
   const canSubmit = (!!draft.trim() || attachments.length > 0) && !busy && daemonOnline;
 
@@ -531,14 +468,14 @@ export function TaskPrompt({
                 onClose={closeDrawer}
                 onAttach={pickAttachments}
                 voice={{
-                  enabled: voicePref.enabled,
+                  enabled: session.enabled,
                   supported: duplex.supported && daemonOnline,
                   unsupportedHint: duplexHint,
                   onEnabledChange: (on) => {
                     // Switching off must close the microphone, not just hide
                     // the control holding it open.
                     if (!on) duplex.stop();
-                    voicePref.setEnabled(on);
+                    session.setEnabled(on);
                   },
                 }}
               />
@@ -575,8 +512,8 @@ export function TaskPrompt({
           <DuplexVoiceButton
             compact
             state={duplex.state}
-            enabled={voicePref.enabled}
-            onEnabledChange={voicePref.setEnabled}
+            enabled={session.enabled}
+            onEnabledChange={session.setEnabled}
             active={duplex.active}
             supported={duplex.supported && daemonOnline}
             onStart={duplex.start}

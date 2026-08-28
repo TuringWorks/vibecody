@@ -526,9 +526,30 @@ settings disagreeing about one machine.
   "voices": [
     { "id": "af_heart", "name": "Heart", "lang": "en", "quality": "neural" }
   ],
-  "languages": ["en", "en-gb", "es", "fr", "hi", "it", "ja", "pt", "zh"]
+  "languages": ["en", "en-gb", "es", "fr", "hi", "it", "ja", "pt", "zh"],
+  "provider": "ollama",
+  "model": "llama3.2:latest",
+  "models": [
+    { "id": "ollama/llama3.2:latest", "name": "llama3.2:latest", "provider": "ollama",
+      "size_bytes": 2019393189 }
+  ]
 }
 ```
+
+`provider` and `model` are the model that answers a **spoken** turn, and both
+are `null` until someone sets them — in which case the model the client sends
+answers, as it always did. `models` is the same catalog `GET /models` returns,
+included here so a settings pane does not need a second source for the same
+question.
+
+The setting exists because the two jobs have different budgets. The composer
+picks a model to write code with; a spoken turn is silence while it waits, and
+the model is nearly all of it — measured on a 24 GB Mac, a 20B answered a
+one-sentence question in **5.0 s** warm and **42 s** cold (26.6 s of model load,
+12.0 s of prefill), against **0.58 s** of recognition and milliseconds of
+speech. When it is set it wins over the provider/model the client sends: a
+setting that deferred to the client would be visible, saved, and inert on all
+three desktop shells, every one of which sends its own pair.
 
 Every engine is listed whether or not it can run here, and an unavailable one
 carries in `detail` *why* — the command that would install it. A client that
@@ -555,8 +576,16 @@ curl -X PUT http://localhost:7878/voice/settings \
 **Response** `200 OK` — the settings as they now stand:
 
 ```json
-{ "engine": "kokoro", "voice": "af_heart", "language": "auto" }
+{ "engine": "kokoro", "voice": "af_heart", "language": "auto",
+  "provider": "ollama", "model": "llama3.2:latest" }
 ```
+
+`provider` and `model` travel together: send both to choose the model that
+answers spoken turns, or both as `""` to hand the choice back to the client.
+Half a pair is refused with `400` rather than stored — the daemon needs both to
+build an override and falls back to its own provider given one, so a stored half
+would read back as a choice and behave as none. Omit both fields to leave the
+setting alone; that is a different request from clearing it.
 
 Selecting an engine writes its sidecar paths too: `"kokoro"` with no interpreter
 configured is a setting that reads back correctly and does nothing. Changing any

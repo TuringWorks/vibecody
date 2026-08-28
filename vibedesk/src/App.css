@@ -400,6 +400,9 @@ html, body, #root {
 .vx-pill-menu__label { flex: 1 1 auto; }
 .vx-pill-menu__hint { flex: 1 0 100%; font-size: 11px; font-weight: 400; color: var(--text-tertiary); line-height: 1.4; }
 .vx-pill-menu__item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A model this machine probably cannot load. Marked, not hidden and not
+   disabled: the GPU budget it exceeds is raisable, and the row still selects. */
+.vx-pill-menu__item-warn { flex: 0 0 auto; font-size: 10px; font-weight: 500; color: var(--accent-orange); }
 .vx-pill-menu--models { min-width: 260px; max-width: 340px; }
 /* The filter stays pinned while the (often long) model list scrolls. */
 .vx-pill-menu__filter { width: 100%; margin-bottom: 4px; padding: 6px 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-tertiary); color: var(--text-primary); font-size: 12px; font-family: inherit; }

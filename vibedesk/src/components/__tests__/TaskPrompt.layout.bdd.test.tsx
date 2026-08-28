@@ -28,19 +28,11 @@ vi.mock("@vibe/shared/voice/useVoiceInput", () => ({
     toggle: vi.fn(),
   }),
 }));
-vi.mock("@vibe/shared/voice/useVoiceDuplex", () => ({
-  useVoiceDuplex: () => ({
-    state: { status: "idle" },
-    turns: [],
-    active: false,
-    supported: true,
-    start: vi.fn(),
-    stop: vi.fn(),
-  }),
-}));
+
 
 import { TaskPrompt, type ComposerSubmit } from "../TaskPrompt";
 import { LOCKED_SANDBOX } from "../../lib/sandbox";
+import { voiceSessionStub } from "./voiceSessionStub";
 
 type Props = React.ComponentProps<typeof TaskPrompt>;
 
@@ -58,7 +50,8 @@ function props(overrides: Partial<Props> = {}): Props {
       sandbox: LOCKED_SANDBOX,
       isolate: false,
     },
-    onVoiceTurn: vi.fn(),
+    projectFiles: [],
+    voice: voiceSessionStub(),
     onPref: vi.fn(),
     onProviderModel: vi.fn(),
     draft: "",

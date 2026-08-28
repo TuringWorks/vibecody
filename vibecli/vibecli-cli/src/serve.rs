@@ -1129,6 +1129,56 @@ async fn health(State(state): State<ServeState>) -> impl IntoResponse {
 /// The provider ids match the daemon's `create_provider`, so any model a client
 /// selects round-trips back to a buildable provider.
 async fn list_models(State(state): State<ServeState>) -> impl IntoResponse {
+    Json(serde_json::json!({ "models": catalog_rows(&state).await }))
+}
+
+/// What this machine can plausibly hand a local model, in bytes — or `None`
+/// when the daemon has no honest way to say.
+///
+/// macOS only, and deliberately: on unified memory Metal offers roughly 75% of
+/// physical RAM as its working set, which is the number Ollama itself checks.
+/// Measured against it — a 24 GB machine, asked for a 19.8 GB model, was
+/// refused with `only 17.3 GiB are available (after 512.0 MiB overhead)`, and
+/// 75% of 24 GB is 18.0 GB. Close enough to rule that model out, and nowhere
+/// near a promise about the ones it does not rule out.
+///
+/// Everywhere else the budget is a discrete GPU's VRAM or a driver's guess and
+/// this process cannot see it, so it says nothing rather than inventing a
+/// bound: a wrong "fits" is worse than no answer.
+fn gpu_budget_bytes() -> Option<u64> {
+    #[cfg(target_os = "macos")]
+    {
+        static BUDGET: std::sync::OnceLock<Option<u64>> = std::sync::OnceLock::new();
+        *BUDGET.get_or_init(|| {
+            let mut bytes: u64 = 0;
+            let mut len = std::mem::size_of::<u64>();
+            // SAFETY: `hw.memsize` is a documented u64 sysctl; the pointer and
+            // length describe a live local that outlives the call.
+            let rc = unsafe {
+                libc::sysctlbyname(
+                    c"hw.memsize".as_ptr(),
+                    (&raw mut bytes).cast(),
+                    &raw mut len,
+                    std::ptr::null_mut(),
+                    0,
+                )
+            };
+            (rc == 0 && bytes > 0).then(|| bytes / 4 * 3)
+        })
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        None
+    }
+}
+
+/// Every model this daemon can address, newest-first by source: the active
+/// provider, what Ollama actually has installed, then the static catalogs.
+///
+/// Extracted so `/voice/settings` offers the same list the model pickers do —
+/// a second copy would be a second answer to "what can I choose", and the two
+/// would disagree the first time a provider was added to one of them.
+async fn catalog_rows(state: &ServeState) -> Vec<serde_json::Value> {
     let mut models: Vec<serde_json::Value> = Vec::new();
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
 
@@ -1145,10 +1195,34 @@ async fn list_models(State(state): State<ServeState>) -> impl IntoResponse {
         "active": true,
     }));
 
-    // 2. Live local Ollama models (real / installed).
-    if let Ok(ollama_models) = vibe_ai::providers::ollama::OllamaProvider::list_models(None).await {
+    // 2. Live local Ollama models (real / installed), with what they cost to
+    //    load. A picker with no size picks by name, and a name says nothing
+    //    about whether the machine can run the thing — see `gpu_budget_bytes`.
+    let budget = gpu_budget_bytes();
+    if let Ok(ollama_models) =
+        vibe_ai::providers::ollama::OllamaProvider::list_models_detailed(None).await
+    {
         for m in ollama_models {
-            push(&mut models, format!("ollama/{m}"), &m, "ollama");
+            let too_big = budget.is_some_and(|b| m.size_bytes > b);
+            push(&mut models, format!("ollama/{}", m.name), &m.name, "ollama");
+            // Annotate the row just pushed. `push` de-duplicates, so this is
+            // the row it created — and a name already seen was not pushed.
+            if let Some(row) = models.last_mut().filter(|r| r["name"] == m.name.as_str()) {
+                if m.size_bytes > 0 {
+                    row["size_bytes"] = serde_json::json!(m.size_bytes);
+                }
+                if too_big {
+                    // "may not", not "will not": the limit is raisable on
+                    // macOS (`iogpu.wired_limit_mb`) and this is one number
+                    // about one machine, not a verdict about the model.
+                    row["may_not_load"] = serde_json::json!(true);
+                    row["load_note"] = serde_json::json!(format!(
+                        "needs {:.1} GB; this machine can offer about {:.1} GB to the GPU",
+                        m.size_bytes as f64 / 1e9,
+                        budget.unwrap_or(0) as f64 / 1e9,
+                    ));
+                }
+            }
         }
     }
 
@@ -1167,7 +1241,7 @@ async fn list_models(State(state): State<ServeState>) -> impl IntoResponse {
         }
     }
 
-    Json(serde_json::json!({ "models": models }))
+    models
 }
 
 /// Serve the VibeCody Web client — browser-based zero-install mode.
@@ -1386,7 +1460,7 @@ fn kokoro_paths() -> Option<(String, String)> {
 /// Reports availability per engine rather than listing every engine as a live
 /// option: offering "neural" on a machine where it was never installed produces
 /// a setting that appears to apply and silently does nothing.
-async fn voice_settings_get(_state: State<ServeState>) -> Json<serde_json::Value> {
+async fn voice_settings_get(State(state): State<ServeState>) -> Json<serde_json::Value> {
     let cfg = crate::config::Config::load().unwrap_or_default().voice;
     let kokoro = kokoro_paths();
 
@@ -1427,7 +1501,40 @@ async fn voice_settings_get(_state: State<ServeState>) -> Json<serde_json::Value
             .unwrap_or(serde_json::json!([])),
         "languages": caps.as_ref().and_then(|c| c.get("languages").cloned())
             .unwrap_or(serde_json::json!([])),
+        // Which model answers a spoken turn. Null means "whatever the client
+        // sends", which is what every shell did before this existed — the
+        // composer's coding model, and the reason a spoken answer inherited a
+        // 20B model's generation time.
+        "provider": cfg.provider,
+        "model": cfg.model,
+        // The same rows the model pickers show, so the choice can be made here
+        // without the pane carrying a catalog of its own.
+        "models": catalog_rows(&state).await,
     }))
+}
+
+/// Read a voice-model override out of a stored or submitted provider/model pair.
+///
+/// `Ok(None)` — nothing chosen, so whichever model the client sends answers.
+/// `Ok(Some(pair))` — that pair answers, on every surface.
+/// `Err` — half a pair, which is a typo rather than a choice: `chat_provider_for`
+/// needs both and silently falls back to the daemon's own provider given one,
+/// so storing it would read back as a setting and behave as none.
+fn voice_model_pair(
+    provider: Option<&str>,
+    model: Option<&str>,
+) -> Result<Option<(String, String)>, &'static str> {
+    fn clean(v: Option<&str>) -> Option<&str> {
+        v.map(str::trim).filter(|s| !s.is_empty())
+    }
+    match (clean(provider), clean(model)) {
+        (Some(p), Some(m)) => Ok(Some((p.to_string(), m.to_string()))),
+        (None, None) => Ok(None),
+        _ => Err(concat!(
+            "A voice model needs both a provider and a model. Send both, ",
+            "or send both empty to use whichever model the app has selected."
+        )),
+    }
 }
 
 #[derive(Deserialize)]
@@ -1435,6 +1542,11 @@ struct VoiceSettingsPut {
     engine: Option<String>,
     voice: Option<String>,
     language: Option<String>,
+    /// Provider + model for spoken replies. An empty string clears the
+    /// override and hands the choice back to the client — distinct from an
+    /// absent field, which leaves the current setting alone.
+    provider: Option<String>,
+    model: Option<String>,
 }
 
 /// `PUT /voice/settings` — change the engine, voice or language.
@@ -1485,6 +1597,17 @@ async fn voice_settings_put(
     if let Some(l) = body.language {
         cfg.voice.language = l;
     }
+    // Absent means "leave it alone"; present-and-empty means "clear it". The
+    // two are different requests and one `Option` cannot express both.
+    if body.provider.is_some() || body.model.is_some() {
+        match voice_model_pair(body.provider.as_deref(), body.model.as_deref()) {
+            Ok(pair) => {
+                cfg.voice.provider = pair.as_ref().map(|(p, _)| p.clone());
+                cfg.voice.model = pair.map(|(_, m)| m);
+            }
+            Err(why) => return json_error(StatusCode::BAD_REQUEST, why.to_string()),
+        }
+    }
 
     if let Err(e) = cfg.save() {
         return json_error(
@@ -1505,6 +1628,8 @@ async fn voice_settings_put(
             "engine": cfg.voice.tts_engine,
             "voice": cfg.voice.kokoro_voice,
             "language": cfg.voice.language,
+            "provider": cfg.voice.provider,
+            "model": cfg.voice.model,
         })),
     )
 }
@@ -9860,6 +9985,27 @@ async fn handle_voice_duplex_ws(socket: WebSocket, state: ServeState, params: Ws
     };
 
     let cfg = crate::config::Config::load().unwrap_or_default();
+    // A configured voice model wins over the client's selection. That is the
+    // point of the setting: the composer picks the model that writes code, and
+    // a spoken turn is a latency budget — measured here, 5.0 s warm and 42 s
+    // cold on a 20B, against 0.58 s of recognition and milliseconds of speech.
+    // Deferring to the client instead would leave the setting visible, saved,
+    // and inert on every shell that sends a pair (all three desktop ones do).
+    //
+    // Half a pair is not a choice — `chat_provider_for` requires both and would
+    // fall through to the daemon's own provider, discarding the client's
+    // selection for nothing — so it is both or neither.
+    let (want_provider, want_model) =
+        match voice_model_pair(cfg.voice.provider.as_deref(), cfg.voice.model.as_deref()) {
+            Ok(Some((p, m))) => (Some(p), Some(m)),
+            Ok(None) => (params.provider.clone(), params.model.clone()),
+            // A hand-edited config. Say so once, here, rather than answering
+            // every turn on a provider nobody picked and never mentioning it.
+            Err(why) => {
+                tracing::warn!("voice: ignoring [voice] provider/model — {why}");
+                (params.provider.clone(), params.model.clone())
+            }
+        };
     let asr_server = vd::ensure_whisper_server(
         &cfg.voice.whisper_server_bin,
         &cfg.voice.whisper_server_model,
@@ -9892,6 +10038,12 @@ async fn handle_voice_duplex_ws(socket: WebSocket, state: ServeState, params: Ws
         "tts": if streaming { "streaming" } else { "batch" },
         "engine": cfg.voice.tts_engine,
         "language": params.language.clone().unwrap_or_else(|| "en".into()),
+        // Which model is actually going to answer. A client that sent its own
+        // pair and is being overridden by the voice setting has no other way
+        // to know, and "why is it answering like a different model" is not a
+        // question a user should have to ask a log for.
+        "provider": want_provider.clone(),
+        "model": want_model.clone(),
     }));
     // A configured engine that did not start is worth a sentence on screen. The
     // failure is otherwise inaudible in the only sense that matters: it sounds
@@ -9910,8 +10062,8 @@ async fn handle_voice_duplex_ws(socket: WebSocket, state: ServeState, params: Ws
 
     let provider = chat_provider_for(
         &state.provider,
-        params.provider.as_deref(),
-        params.model.as_deref(),
+        want_provider.as_deref(),
+        want_model.as_deref(),
     );
     let gen = vd::Generation::default();
     let history: Arc<tokio::sync::Mutex<Vec<(String, String)>>> =
@@ -10281,6 +10433,15 @@ async fn voice_duplex_turn(
 
         while let Some(tok) = stream.next().await {
             if gen.is_stale(my_gen) {
+                abandon_turn(
+                    &text,
+                    &full,
+                    first_audio.is_some(),
+                    &history,
+                    &unanswered,
+                    &tx,
+                )
+                .await;
                 return;
             }
             let Ok(tok) = tok else { continue };
@@ -10319,6 +10480,15 @@ async fn voice_duplex_turn(
             }
         }
         if gen.is_stale(my_gen) {
+            abandon_turn(
+                &text,
+                &full,
+                first_audio.is_some(),
+                &history,
+                &unanswered,
+                &tx,
+            )
+            .await;
             return;
         }
 
@@ -10423,6 +10593,15 @@ async fn voice_duplex_turn(
     }
 
     if gen.is_stale(my_gen) {
+        abandon_turn(
+            &text,
+            &full,
+            first_audio.is_some(),
+            &history,
+            &unanswered,
+            &tx,
+        )
+        .await;
         return;
     }
     // Nothing was spoken. Say which of the reasons it was and stop there,
@@ -10449,12 +10628,71 @@ async fn voice_duplex_turn(
         "first_audio_ms": first_audio,
         "llm_ttft_ms": ttft, "total_ms": t0.elapsed().as_millis()
     }));
+    remember(&history, text, full).await;
+    say(serde_json::json!({"type": "state", "state": "listening"}));
+}
+
+/// How many completed exchanges a spoken conversation carries.
+///
+/// Small on purpose: every pair is re-sent on every turn, ahead of a system
+/// prompt that already holds the workspace, and a spoken conversation is the
+/// one place where prompt size is paid in silence.
+const VOICE_HISTORY_TURNS: usize = 6;
+
+/// Record one exchange, oldest first out.
+async fn remember(
+    history: &Arc<tokio::sync::Mutex<Vec<(String, String)>>>,
+    user: String,
+    assistant: String,
+) {
     let mut h = history.lock().await;
-    h.push((text, full));
-    if h.len() > 6 {
+    h.push((user, assistant));
+    if h.len() > VOICE_HISTORY_TURNS {
         h.remove(0);
     }
-    say(serde_json::json!({"type": "state", "state": "listening"}));
+}
+
+/// A turn the user interrupted. What happens to it depends on whether they
+/// heard anything.
+///
+/// Nothing spoken yet → the user is still forming the thought, so the words
+/// join the next turn (the same rule the pre-transcription check applies; this
+/// one covers being interrupted while the model was still generating, which
+/// used to drop them silently).
+///
+/// Something spoken → that *was* an exchange. It is on the user's screen
+/// either way, and leaving it out of the history is how the assistant came to
+/// have no idea what it had just been asked: barge-in is normal in a duplex
+/// conversation, so the memory was empty exactly when it mattered.
+async fn abandon_turn(
+    text: &str,
+    spoken: &str,
+    heard_audio: bool,
+    history: &Arc<tokio::sync::Mutex<Vec<(String, String)>>>,
+    unanswered: &Arc<tokio::sync::Mutex<Option<String>>>,
+    tx: &tokio::sync::mpsc::UnboundedSender<WsMessage>,
+) {
+    if !heard_audio {
+        let mut c = unanswered.lock().await;
+        *c = Some(match c.take() {
+            Some(prev) => format!("{prev} {text}"),
+            None => text.to_string(),
+        });
+        let _ = tx.send(WsMessage::Text(
+            serde_json::json!({"type": "carried", "text": text})
+                .to_string()
+                .into(),
+        ));
+        return;
+    }
+    // What the assistant managed to say, or a statement that it did not get to
+    // finish. Not an empty string: several providers reject an empty assistant
+    // message, and "" would also read to the model as an answer it gave.
+    let said = match spoken.trim() {
+        "" => "(interrupted before answering)".to_string(),
+        s => s.to_string(),
+    };
+    remember(history, text.to_string(), said).await;
 }
 
 /// Execute the read-only calls of one round and format them for the model.
@@ -10778,18 +11016,45 @@ async fn speak_sentence(
             }
             let _ = tx.send(WsMessage::Binary(encode_audio(&chunk).into()));
         }
-        // No audio at all for something speakable means the engine has no voice
-        // for this language. Kokoro covers nine and the recogniser detects 99,
-        // so this is reachable by simply speaking Korean. Silence with no
-        // explanation is indistinguishable from a broken microphone.
+        // No audio at all for something speakable means the configured voice
+        // cannot say this language. Kokoro covers nine, the recogniser detects
+        // 99, and a voice belongs to exactly one — a Hindi voice returns
+        // nothing for an English sentence, which is reachable by speaking
+        // English with `hf_alpha` selected, not by anything exotic.
+        //
+        // So speak it with the platform voice, which every machine has, rather
+        // than reporting the silence and leaving it. A reply that arrives as
+        // text and is never said aloud is, from where the user sits, a
+        // microphone that does not work — and it was the *whole* reply, every
+        // turn, for as long as that voice stayed selected.
         if first.is_none() && !gen.is_stale(my_gen) && sentence.chars().any(char::is_alphanumeric) {
-            let why = match lang {
-                Some(l) => format!(
-                    "The speech engine has no voice for {}. Set [voice] tts_engine = \"system\" \
-                     for wider language coverage.",
+            let spoke = match t.synthesize_system(sentence).await {
+                Ok(audio) if !gen.is_stale(my_gen) => {
+                    first = Some(t0.elapsed().as_millis());
+                    let _ = tx.send(WsMessage::Binary(encode_audio(&audio).into()));
+                    true
+                }
+                Ok(_) => return first,
+                // Both engines silent. Say so — there is nothing left to try.
+                Err(e) => {
+                    tracing::warn!("voice: platform fallback failed: {e}");
+                    false
+                }
+            };
+            let why = match (lang, spoke) {
+                (Some(l), true) => format!(
+                    "The neural voice cannot speak {0}, so this reply used the platform voice. \
+                     Pick a voice for {0} in Settings → Voice, or set the engine to System.",
                     crate::voice_duplex::language_name(l)
                 ),
-                None => "The speech engine produced no audio for that reply.".to_string(),
+                (None, true) => "The neural voice produced no audio, so this reply used the \
+                                 platform voice."
+                    .to_string(),
+                (Some(l), false) => format!(
+                    "Neither the neural voice nor the platform voice could speak {}.",
+                    crate::voice_duplex::language_name(l)
+                ),
+                (None, false) => "The speech engine produced no audio for that reply.".to_string(),
             };
             let _ = tx.send(WsMessage::Text(
                 serde_json::json!({"type": "notice", "message": why})
@@ -13916,6 +14181,112 @@ mod tests {
                      access-control-allow-methods ({allowed})"
                 );
             }
+        }
+
+        // ── The voice model override ───────────────────────────────────
+
+        #[test]
+        fn a_voice_model_needs_both_halves_or_neither() {
+            use super::super::voice_model_pair as pair;
+            // Nothing chosen: the client's own selection answers, exactly as
+            // it did before the setting existed.
+            assert_eq!(pair(None, None), Ok(None));
+            assert_eq!(pair(Some(""), Some("  ")), Ok(None));
+            assert_eq!(
+                pair(Some("ollama"), Some("llama3.2:latest")),
+                Ok(Some(("ollama".into(), "llama3.2:latest".into())))
+            );
+            // Half a pair is refused rather than stored. Stored, it would read
+            // back as a choice and behave as none — `chat_provider_for` needs
+            // both and quietly uses the daemon's own provider given one.
+            assert!(pair(Some("ollama"), None).is_err());
+            assert!(pair(None, Some("llama3.2:latest")).is_err());
+            assert!(pair(Some("ollama"), Some("")).is_err());
+        }
+
+        /// An interrupted turn still happened, and the assistant has to know it.
+        ///
+        /// Barge-in is normal in a duplex conversation — it is the reason the
+        /// microphone stays open — and every abandoned turn used to leave the
+        /// history untouched while the transcript stayed on the user's screen.
+        /// The memory was therefore emptiest exactly when the user had been
+        /// talking most.
+        #[tokio::test]
+        async fn an_interrupted_turn_is_remembered_once_it_has_been_heard() {
+            use std::sync::Arc;
+            let history = Arc::new(tokio::sync::Mutex::new(Vec::new()));
+            let unanswered = Arc::new(tokio::sync::Mutex::new(None));
+            let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+
+            super::super::abandon_turn(
+                "what does the daemon do",
+                "It runs the",
+                true,
+                &history,
+                &unanswered,
+                &tx,
+            )
+            .await;
+
+            assert_eq!(
+                history.lock().await.as_slice(),
+                &[(
+                    "what does the daemon do".to_string(),
+                    "It runs the".to_string()
+                )]
+            );
+            assert!(unanswered.lock().await.is_none());
+        }
+
+        #[tokio::test]
+        async fn a_turn_the_user_never_heard_joins_the_next_one() {
+            // "plus fifty one." <pause> "minus fifty four." is one instruction
+            // said in two breaths. Nothing was spoken, so nothing was
+            // interrupted — the words belong to the turn still forming.
+            use std::sync::Arc;
+            let history = Arc::new(tokio::sync::Mutex::new(Vec::new()));
+            let unanswered = Arc::new(tokio::sync::Mutex::new(None));
+            let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+
+            super::super::abandon_turn("plus fifty one", "", false, &history, &unanswered, &tx)
+                .await;
+            super::super::abandon_turn("minus fifty four", "", false, &history, &unanswered, &tx)
+                .await;
+
+            assert!(history.lock().await.is_empty());
+            assert_eq!(
+                unanswered.lock().await.as_deref(),
+                Some("plus fifty one minus fifty four")
+            );
+        }
+
+        #[tokio::test]
+        async fn an_interrupted_turn_never_records_an_empty_answer() {
+            // Several providers reject an empty assistant message, and "" would
+            // read to the model as an answer it gave.
+            use std::sync::Arc;
+            let history = Arc::new(tokio::sync::Mutex::new(Vec::new()));
+            let unanswered = Arc::new(tokio::sync::Mutex::new(None));
+            let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+
+            super::super::abandon_turn("are you there", "   ", true, &history, &unanswered, &tx)
+                .await;
+
+            let h = history.lock().await;
+            assert_eq!(h.len(), 1);
+            assert!(!h[0].1.trim().is_empty());
+        }
+
+        #[tokio::test]
+        async fn the_spoken_history_forgets_the_oldest_exchange_first() {
+            use std::sync::Arc;
+            let history = Arc::new(tokio::sync::Mutex::new(Vec::new()));
+            for i in 0..super::super::VOICE_HISTORY_TURNS + 2 {
+                super::super::remember(&history, format!("q{i}"), format!("a{i}")).await;
+            }
+            let h = history.lock().await;
+            assert_eq!(h.len(), super::super::VOICE_HISTORY_TURNS);
+            assert_eq!(h.first().unwrap().0, "q2");
         }
 
         #[test]
