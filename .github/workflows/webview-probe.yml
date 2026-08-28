@@ -35,7 +35,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev xvfb pulseaudio \
-            gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-nice
+            gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-nice \
+            gstreamer1.0-tools
           # WebKitGTK's WebRTC is GStreamer's: the peer connection is built out
           # of the `bad` plugin set plus libnice for ICE. They arrive as apt
           # *recommends* of the webkit package, which is a chain that can break
@@ -53,12 +54,23 @@ jobs:
       - name: What this WebKitGTK is
         if: runner.os == 'Linux'
         run: |
-          pkg-config --modversion webkit2gtk-4.1 || true
+          echo "webkit2gtk-4.1: $(pkg-config --modversion webkit2gtk-4.1 || echo unknown)"
           lib=$(ls /usr/lib/*/libwebkit2gtk-4.1.so.0 2>/dev/null | head -1)
           echo "lib: $lib"
-          echo "RTCPeerConnection strings: $(strings -a "$lib" | grep -c '^RTCPeerConnection$' || true)"
-          echo "MediaStream strings: $(strings -a "$lib" | grep -c '^MediaStream$' || true)"
-          gst-inspect-1.0 webrtcbin >/dev/null 2>&1 && echo "gst webrtcbin: present" || echo "gst webrtcbin: MISSING"
+          echo "JS bindings for RTCPeerConnection: $(nm -D --defined-only "$lib" 2>/dev/null | grep -c RTCPeerConnection)"
+          echo "RTCPeerConnection strings: $(strings -a "$lib" | grep -c '^RTCPeerConnection$')"
+          # A missing *tool* must not be reported as a missing *element* — that
+          # is the same class of mistake as a success-assuming fallback, and it
+          # printed "webrtcbin: MISSING" on a runner where nothing had looked.
+          if command -v gst-inspect-1.0 >/dev/null 2>&1; then
+            for el in webrtcbin nicesrc opusenc; do
+              gst-inspect-1.0 "$el" >/dev/null 2>&1 \
+                && echo "gst $el: present" || echo "gst $el: missing"
+            done
+          else
+            echo "gst-inspect-1.0: not installed — element presence not checked"
+          fi
+          dpkg -l | grep -E 'gstreamer1.0-(plugins|nice|tools)|libnice|webkit2gtk' | awk '{print $2, $3}'
 
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
