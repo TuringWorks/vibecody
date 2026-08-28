@@ -17,6 +17,25 @@ const withTimeout = (p, ms, tag) =>
 <script>
 (async () => {
 try {
+  // What this engine exposes, named before anything is attempted. Without
+  // this the run died on `ReferenceError: Can't find variable:
+  // RTCPeerConnection` — a message that reads like a broken page and is
+  // actually the engine reporting that it has no WebRTC at all.
+  R.caps = {
+    RTCPeerConnection: typeof RTCPeerConnection,
+    MediaStream: typeof MediaStream,
+    mediaDevices: typeof navigator.mediaDevices,
+    AudioContext: typeof (window.AudioContext || window.webkitAudioContext),
+  };
+  if (typeof RTCPeerConnection === "undefined") {
+    // Not a failure of the transport — the transport was never reachable.
+    // Kept apart from `pass:false` so a build that cannot do WebRTC at all is
+    // never confused with one where the connection failed.
+    say("RTCPeerConnection is not exposed by this engine");
+    R.verdict = { pass:false, unsupported:true, why:"no RTCPeerConnection in this engine build" };
+    return report();
+  }
+
   const ac = new (window.AudioContext || window.webkitAudioContext)();
   try { await Promise.race([ac.resume(), sleep(2000)]); } catch(e){}
   R.acState = ac.state;

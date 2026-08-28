@@ -45,6 +45,21 @@ jobs:
           pulseaudio --start || true
           pactl load-module module-null-sink sink_name=probe || true
 
+      # Which WebKitGTK this is, and whether the pieces WebRTC needs are even
+      # present. Printed rather than assumed: `enable-webrtc` reads back true
+      # on this runner and `RTCPeerConnection` is still undefined, and the only
+      # thing that distinguishes "we set it wrong" from "this build has no
+      # WebRTC compiled in" is the library itself.
+      - name: What this WebKitGTK is
+        if: runner.os == 'Linux'
+        run: |
+          pkg-config --modversion webkit2gtk-4.1 || true
+          lib=$(ls /usr/lib/*/libwebkit2gtk-4.1.so.0 2>/dev/null | head -1)
+          echo "lib: $lib"
+          echo "RTCPeerConnection strings: $(strings -a "$lib" | grep -c '^RTCPeerConnection$' || true)"
+          echo "MediaStream strings: $(strings -a "$lib" | grep -c '^MediaStream$' || true)"
+          gst-inspect-1.0 webrtcbin >/dev/null 2>&1 && echo "gst webrtcbin: present" || echo "gst webrtcbin: MISSING"
+
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:

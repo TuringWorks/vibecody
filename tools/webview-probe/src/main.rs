@@ -14,7 +14,9 @@
 //!   manual, per-platform measurement.
 //! * `--arm probe` — capability report only.
 //!
-//! Exit codes: 0 pass · 1 fail · 2 harness error.
+//! Exit codes: 0 pass · 1 fail · 2 harness error · 3 the engine does not expose
+//! the API this arm measures (kept apart from a failure: a WebKitGTK built
+//! without WebRTC has no `RTCPeerConnection` to fail with).
 
 mod peer;
 
@@ -222,7 +224,18 @@ fn main() {
             let pretty = serde_json::to_string_pretty(&v).unwrap_or(body);
             let _ = std::fs::write(&out, &pretty);
             println!("{pretty}");
-            code = if v.get("verdict").and_then(|x| x.get("pass")).and_then(|b| b.as_bool()).unwrap_or(false) { 0 } else { 1 };
+            let verdict = v.get("verdict");
+            let flag = |k: &str| {
+                verdict.and_then(|x| x.get(k)).and_then(|b| b.as_bool()).unwrap_or(false)
+            };
+            code = match (flag("pass"), flag("unsupported")) {
+                (true, _) => 0,
+                // The engine never offered the API. Reporting that as a failed
+                // transport would blame the transport for something it was
+                // never given a chance to do.
+                (false, true) => 3,
+                (false, false) => 1,
+            };
             *control_flow = ControlFlow::Exit;
         }
         // Never let a hung engine hang CI.
