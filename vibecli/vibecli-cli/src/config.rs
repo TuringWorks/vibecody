@@ -170,7 +170,7 @@ pub struct Config {
     /// ```toml
     /// [poolside]
     /// enabled = true
-    /// model = "poolside/laguna-s-2.1"   # or laguna-xs-2.1, laguna-m-1
+    /// model = "poolside/laguna-s-2.1"   # or poolside/laguna-xs-2.1, poolside/laguna-m-1
     /// api_url = "https://inference.poolside.ai/v1"   # optional, default shown
     /// ```
     ///

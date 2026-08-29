@@ -1351,7 +1351,21 @@ async fn catalog_rows(state: &ServeState) -> Vec<serde_json::Value> {
     // 4. Every other provider's static catalog.
     for (provider, names) in vibe_ai::catalog::PROVIDER_MODELS {
         for name in *names {
-            push(&mut models, format!("{provider}/{name}"), name, provider);
+            // `name` is the string a client sends as the model; `id` only has
+            // to be unique. Most names are bare, so the id namespaces them.
+            //
+            // A name that already carries its provider's namespace is left
+            // alone. Poolside's API model parameter is itself
+            // `poolside/laguna-s-2.1`, and blindly composing published
+            // `poolside/poolside/laguna-s-2.1` — which the API rejects just as
+            // firmly as the bare name. A name namespaced by someone *else*
+            // (groq's `openai/gpt-oss-120b`) still gets the prefix, because
+            // that is a different Groq-hosted model from `openai`'s own.
+            let id = match name.starts_with(&format!("{provider}/")) {
+                true => (*name).to_string(),
+                false => format!("{provider}/{name}"),
+            };
+            push(&mut models, id, name, provider);
         }
     }
 

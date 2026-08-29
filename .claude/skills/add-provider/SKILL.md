@@ -53,7 +53,7 @@ Nothing in the build fails when these are skipped, which is exactly why `poolsid
 
 Sidebar nav (`docs/_config.yml`) lists only a curated handful of providers, so a new page does not need an entry there.
 
-**Write the docs from the implementation, not from the vendor's marketing page.** Four surfaces name the model ids and base URL — the provider module, `catalog.rs`, `useModelRegistry.ts`, and the `commands.rs` engine wiring — and they can disagree. `poolside` ships `laguna-s-2.1` in the catalog and `poolside/laguna-s-2.1` in the other three; `config.rs` documented `malibu` at `api.poolside.ai`, which was never any of them. Reconcile before writing, and say so in the page when you cannot.
+**Write the docs from the implementation, not from the vendor's marketing page.** Four surfaces name the model ids and base URL — the provider module, `catalog.rs`, `useModelRegistry.ts`, and the `commands.rs` engine wiring — and they can disagree. `poolside` shipped `laguna-s-2.1` in the catalog and `poolside/laguna-s-2.1` in the other three; `config.rs` documented `malibu` at `api.poolside.ai`, which was never any of them. Both are fixed. **A catalog `name` is the string a client sends as the model, so it must be what the vendor's API accepts** — clients send it verbatim — while the published `id` only has to be unique. Reconcile before writing, and say so in the page when you cannot.
 
 ## Constraints that still apply
 

@@ -63,11 +63,17 @@ vibecli --provider poolside --model poolside/laguna-xs-2.1
 
 See [Poolside's supported-models list](https://docs.poolside.ai/get-started/supported-models) for the authoritative set — the table above is what VibeCody ships as its picker defaults, not a live query.
 
-> **Known inconsistency.** The daemon's `/models` catalog lists these three
-> without the `poolside/` prefix (`laguna-s-2.1`), while the CLI default, the
-> VibeCoder registry and the Tauri engine all use the prefixed form. If a
-> daemon-driven picker hands you a bare `laguna-*` id and the API rejects it,
-> pass the prefixed name explicitly with `--model`.
+> **Model ids are fully qualified.** Always `poolside/laguna-s-2.1`, never the
+> bare `laguna-s-2.1` — the API answers a bare name with
+> `{"error":"please check the model you provided"}`.
+>
+> Fixed in v0.5.11. The daemon's `/models` used to publish these three without
+> the prefix, so a picker that sends the model name verbatim — which they do —
+> handed the API an id it refused. Poolside is the one provider whose own model
+> parameter is namespaced, so `/models` no longer repeats the provider when a
+> name already carries it: the published id and the API's id are now the same
+> string. A model named for a *different* namespace (Groq's
+> `openai/gpt-oss-120b`) is unaffected.
 
 ## Best For
 

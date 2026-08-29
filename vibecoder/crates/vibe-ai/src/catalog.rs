@@ -200,7 +200,20 @@ const MINIMAX: &[&str] = &["MiniMax-M3", "MiniMax-M2.7"];
 
 const SAMBANOVA: &[&str] = &["Meta-Llama-3.3-70B-Instruct"];
 
-const POOLSIDE: &[&str] = &["laguna-s-2.1", "laguna-xs-2.1", "laguna-m-1"];
+// Fully qualified, because `name` is the string a client sends as the model
+// and Poolside's API rejects the bare form: `laguna-s-2.1` comes back as
+// `{"error":"please check the model you provided"}` while
+// `poolside/laguna-s-2.1` succeeds (measured against inference.poolside.ai).
+//
+// Clients do send `name` verbatim — `ProviderPill.tsx` calls
+// `onSelect(pick.provider, pick.name)` — so a bare entry here is an id the
+// picker hands over and the API refuses. `catalog_rows` does not double the
+// namespace when a name already carries it; see the test below.
+const POOLSIDE: &[&str] = &[
+    "poolside/laguna-s-2.1",
+    "poolside/laguna-xs-2.1",
+    "poolside/laguna-m-1",
+];
 
 const VIBECLI_MISTRALRS: &[&str] = &[
     "meta-llama/Llama-3.1-8B-Instruct",
@@ -333,6 +346,66 @@ mod tests {
             .ancestors()
             .find(|dir| dir.join("vscode-extension").is_dir() && dir.join("vibecli").is_dir())
             .map(std::path::Path::to_path_buf)
+    }
+
+    /// `name` is the string a client sends as the model, so it has to be what
+    /// the provider's API accepts.
+    ///
+    /// Clients do send it verbatim — `ProviderPill.tsx` calls
+    /// `onSelect(pick.provider, pick.name)`. Poolside is the one provider whose
+    /// API model parameter is itself namespaced, so a bare `laguna-s-2.1` here
+    /// is an id the picker hands over and the API refuses with
+    /// `{"error":"please check the model you provided"}`.
+    #[test]
+    fn poolside_names_are_the_ids_its_api_accepts() {
+        assert!(
+            POOLSIDE.contains(&"poolside/laguna-s-2.1"),
+            "clients send `name` verbatim, so it must be the API's own id"
+        );
+        for name in POOLSIDE {
+            assert!(name.starts_with("poolside/"), "`{name}` would be rejected bare");
+        }
+    }
+
+    /// Mirrors `serve.rs::catalog_rows`, which is the only thing that turns a
+    /// catalog entry into a published id.
+    fn composed_id(provider: &str, name: &str) -> String {
+        match name.starts_with(&format!("{provider}/")) {
+            true => name.to_string(),
+            false => format!("{provider}/{name}"),
+        }
+    }
+
+    /// The published id must not repeat the namespace.
+    ///
+    /// This is the trap: prefixing a catalog name without teaching the composer
+    /// about it publishes `poolside/poolside/laguna-s-2.1`, which the API also
+    /// rejects. Verified on the wire against a running daemon, after making
+    /// exactly that mistake.
+    #[test]
+    fn a_published_id_never_doubles_the_provider_namespace() {
+        assert_eq!(
+            composed_id("poolside", "poolside/laguna-s-2.1"),
+            "poolside/laguna-s-2.1"
+        );
+        // A name namespaced by someone *else* still gets the provider prefix —
+        // `groq`'s `openai/gpt-oss-120b` is a Groq-hosted OpenAI model, and its
+        // id is `groq/openai/gpt-oss-120b`.
+        assert_eq!(
+            composed_id("groq", "openai/gpt-oss-120b"),
+            "groq/openai/gpt-oss-120b"
+        );
+        assert_eq!(composed_id("claude", "claude-opus-5"), "claude/claude-opus-5");
+
+        for (provider, names) in PROVIDER_MODELS {
+            for name in *names {
+                let id = composed_id(provider, name);
+                assert!(
+                    !id.starts_with(&format!("{provider}/{provider}/")),
+                    "`{id}` repeats the `{provider}` namespace"
+                );
+            }
+        }
     }
 
     /// Every catalog provider must be selectable from the VS Code settings UI.
