@@ -463,7 +463,7 @@ impl GeminiProvider {
                 })
             }))
             .collect();
-        let defs = crate::tools::tool_definitions_for(texts.into_iter())?;
+        let defs = crate::tools::tool_definitions_for(texts)?;
         let declarations: Vec<FunctionDeclaration> = defs
             .iter()
             .filter_map(|def| {
