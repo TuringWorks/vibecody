@@ -23,7 +23,7 @@
 //! and never in a `*.toml`, a `*.json`, or an environment variable.
 
 use std::collections::HashMap;
-use vibe_ai::harness::{ModelProfile, ProfileOverride, ResolvedProfile};
+use vibe_ai::harness::{ProfileOverride, ResolvedProfile};
 
 use crate::profile_store::ProfileStore;
 
@@ -120,11 +120,6 @@ pub fn delete(store: &ProfileStore, profile_id: &str, key: &str) -> Result<(), S
 /// needs to tell "you chose this" from "we ship this".
 pub fn resolve(provider: &str, model: &str) -> ResolvedProfile {
     vibe_ai::harness::resolve(provider, model)
-}
-
-/// What this pair will actually be sent.
-pub fn effective(provider: &str, model: &str) -> ModelProfile {
-    vibe_ai::harness::profile_for(provider, model)
 }
 
 #[cfg(test)]

@@ -325,7 +325,6 @@ const NATIVE_TOOL_PROVIDERS: &[&str] = &[
     // OpenAI and the APIs that copy its `/chat/completions` shape.
     "openai",
     "azure-openai",
-    "azure_openai",
     "grok",
     "xai",
     "openrouter",
@@ -388,10 +387,18 @@ pub fn family_default(provider: &str) -> ModelProfile {
 
 /// Provider ids reach this module from a toolbar string, a CLI flag, a daemon
 /// request body and four client lists, so they arrive in more than one shape.
-/// Matching is case-insensitive and treats `_` and `-` as the same character;
-/// beyond that, aliases are spelled out in the tables rather than guessed at.
+///
+/// Case is folded and `_` is folded to `-`, because `azure_openai` and
+/// `azure-openai` are one provider spelled two ways and no caller should have
+/// to know which spelling this module wants. Anything beyond that — `anthropic`
+/// for `claude`, `xai` for `grok` — is a real alias and is spelled out in the
+/// tables rather than guessed at by rewriting strings.
+///
+/// This is also what makes the storage key canonical: an override saved from a
+/// client that says `azure_openai` has to be found by one that says
+/// `azure-openai`, or it saves successfully and never applies.
 fn normalise_provider(provider: &str) -> String {
-    provider.trim().to_lowercase()
+    provider.trim().to_lowercase().replace('_', "-")
 }
 
 // ── Layer 2: built-in model overrides ───────────────────────────────────────
@@ -636,6 +643,38 @@ mod tests {
         with_no_overrides(|| {
             assert!(profile_for("Claude", "m").sends_tool_schemas());
             assert!(profile_for("  OpenAI  ", "m").sends_tool_schemas());
+        });
+    }
+
+    /// `azure_openai` and `azure-openai` are one provider spelled two ways, and
+    /// both spellings are in use across the clients. If they resolved to
+    /// different keys, an override saved from one client would be invisible to
+    /// the other — it would save successfully and never apply.
+    #[test]
+    fn underscores_and_hyphens_are_the_same_provider() {
+        with_no_overrides(|| {
+            assert_eq!(
+                profile_for("azure_openai", "gpt-4o"),
+                profile_for("azure-openai", "gpt-4o")
+            );
+            assert_eq!(
+                override_key("azure_openai", "gpt-4o"),
+                override_key("azure-openai", "gpt-4o")
+            );
+            assert_eq!(
+                provider_wide_key("vibecli_mistralrs"),
+                provider_wide_key("vibecli-mistralrs")
+            );
+        });
+    }
+
+    /// Folding separators must not turn a real alias into a rewrite rule: these
+    /// are different providers that happen to share a prefix, and the tables
+    /// name them individually.
+    #[test]
+    fn folding_does_not_merge_distinct_providers() {
+        with_no_overrides(|| {
+            assert_ne!(override_key("vercel", "m"), override_key("vercel-ai", "m"));
         });
     }
 
