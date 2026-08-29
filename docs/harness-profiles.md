@@ -26,17 +26,32 @@ All of those are fixed, and each is covered by a test that fails against the old
 
 ## What a profile contains
 
-| Field | Meaning | Shipped default |
-|---|---|---|
-| `tool_transport` | `native` puts tool schemas on the wire; `prose` describes them in the system prompt and parses calls out of the reply. | `native` for every provider whose API takes schemas, `prose` otherwise |
-| `prompt_dialect` | `compact` drops the per-tool XML catalogue; `full` keeps it. | `compact` wherever the transport is `native` |
-| `prompt_cache` | Ask the API to cache the system prefix. | on for Anthropic, off elsewhere |
-| `max_output_tokens` | Cap on the reply. | **absent** |
-| `temperature` | Sampling temperature. | **absent** |
-| `context_window_fallback` | Window to assume when the provider's API does not publish one. | **absent** |
-| `thinking_budgets` | Per-effort-tier reasoning budget, in tokens. | **absent** |
-| `parallel_tool_calls` | Whether the model may emit several tool calls per turn. | **absent** |
-| `system_prompt_suffix` | Extra instructions for this pair, appended last. | **absent** |
+| Field | Meaning | Shipped default | Honoured by |
+|---|---|---|---|
+| `tool_transport` | `native` puts tool schemas on the wire; `prose` describes them in the system prompt and parses calls out of the reply. | `native` for every provider whose API takes schemas, `prose` otherwise | all |
+| `prompt_dialect` | `compact` drops the per-tool XML catalogue; `full` keeps it. | `compact` wherever the transport is `native` | all |
+| `context_window_fallback` | Window to assume when the provider's API does not publish one. | **absent** | all |
+| `system_prompt_suffix` | Extra instructions for this pair, appended last. | **absent** | all |
+| `max_output_tokens` | Cap on the reply. | **absent** | providers with a cap field |
+| `temperature` | Sampling temperature. | **absent** | providers with a temperature field |
+| `parallel_tool_calls` | Whether the model may emit several tool calls per turn. | **absent** | the OpenAI-shaped family |
+| `thinking_budgets` | Per-effort-tier reasoning budget, in **tokens**. | **absent** | Claude, Gemini |
+| `prompt_cache` | Ask the API to cache the system prefix. | on for Anthropic, off elsewhere | Claude |
+
+### Not every knob reaches every provider
+
+The last four are provider-specific, and the difference is real rather than
+cosmetic: `prompt_cache` is Anthropic's `cache_control`, `parallel_tool_calls`
+is an OpenAI-shaped request field, and a thinking budget is a *token count* —
+OpenAI's reasoning dial is an effort word, so a number means nothing to it.
+
+The daemon reports which fields apply as `honored_fields` on every
+`/harness/profile` response, because it owns the request builders and is the
+only thing that knows. The settings panel draws controls only for those.
+
+Offering the rest everywhere would let you turn on a setting that saves, reads
+back as changed, and does nothing — the same success-assuming failure this
+codebase watches for in return values, arrived at through the UI instead.
 
 ### Why so many defaults are absent
 

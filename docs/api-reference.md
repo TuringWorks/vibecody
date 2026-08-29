@@ -406,6 +406,12 @@ Absent fields — `max_output_tokens`, `temperature`, `context_window_fallback`,
 `thinking_budgets` — mean *the provider decides*. They are never zero and never
 unlimited: VibeCody ships no vendor number it cannot verify.
 
+`honored_fields` lists the fields this provider can actually act on.
+`prompt_cache` is Anthropic-only, `parallel_tool_calls` is OpenAI-shaped, and a
+token thinking budget means nothing to a provider whose reasoning dial is an
+effort word. Clients render controls only for the fields listed; setting one of
+the others stores fine but would never reach a request.
+
 ### PUT /harness/profile
 
 Set an override for one pair. The body is a **patch** — only the fields being

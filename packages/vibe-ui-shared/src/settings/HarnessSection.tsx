@@ -97,6 +97,26 @@ export type ProfileOverride = Partial<Omit<ModelProfile, "prompt_cache">> & {
   prompt_cache?: boolean;
 };
 
+/**
+ * Which profile fields the selected provider can actually act on.
+ *
+ * Not every knob reaches every API — `prompt_cache` is Anthropic's
+ * `cache_control`, `parallel_tool_calls` is an OpenAI-shaped request field —
+ * and the daemon is the one that knows, because it owns the request builders.
+ * Rendering a control the provider ignores would let someone turn on a setting
+ * that saves, reads back as "changed", and does nothing.
+ */
+export type ProfileField =
+  | "tool_transport"
+  | "prompt_dialect"
+  | "max_output_tokens"
+  | "temperature"
+  | "parallel_tool_calls"
+  | "thinking_budgets"
+  | "prompt_cache"
+  | "context_window_fallback"
+  | "system_prompt_suffix";
+
 export interface ResolvedProfile {
   provider: string;
   model: string;
@@ -104,6 +124,7 @@ export interface ResolvedProfile {
   builtin: ModelProfile;
   provider_override?: ProfileOverride;
   model_override?: ProfileOverride;
+  honored_fields: ProfileField[];
 }
 
 /**
@@ -130,6 +151,12 @@ function asResolvedProfile(value: unknown): ResolvedProfile | null {
     builtin: v.builtin,
     provider_override: v.provider_override as ProfileOverride | undefined,
     model_override: v.model_override as ProfileOverride | undefined,
+    // An older daemon does not send this. Falling back to "everything" would
+    // reinstate the controls that do nothing, so fall back to the four the
+    // agent loop acts on for every provider — the honest subset.
+    honored_fields: Array.isArray(v.honored_fields)
+      ? (v.honored_fields as ProfileField[])
+      : ["tool_transport", "prompt_dialect", "context_window_fallback", "system_prompt_suffix"],
   };
 }
 
@@ -251,6 +278,8 @@ export function HarnessSection() {
 
   const effective = resolved?.effective;
   const overridden = (key: keyof ModelProfile) => override[key as keyof ProfileOverride] !== undefined;
+  /** Whether this provider can act on a field at all. */
+  const honors = (field: ProfileField) => resolved?.honored_fields.includes(field) ?? false;
 
   return (
     <div style={{ maxWidth: 720 }}>
@@ -302,6 +331,7 @@ export function HarnessSection() {
 
       {effective && (
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {honors("tool_transport") && (
           <Row
             label="Tool transport"
             help="Native sends the tool schemas on the wire. Prose describes them in the system prompt and parses calls out of the reply — the escape hatch for a model whose native tool calling is worse than its prose."
@@ -318,7 +348,9 @@ export function HarnessSection() {
               <option value="prose">Prose catalogue</option>
             </select>
           </Row>
+          )}
 
+          {honors("prompt_dialect") && (
           <Row
             label="System prompt"
             help="Compact drops the per-tool XML catalogue — about 4,000 tokens on every turn — which a model receiving the schemas does not also need."
@@ -335,7 +367,9 @@ export function HarnessSection() {
               <option value="full">Full catalogue</option>
             </select>
           </Row>
+          )}
 
+          {honors("prompt_cache") && (
           <Row
             label="Prompt caching"
             help="Asks the API to cache the system prefix where it supports it. The agent's system prompt is thousands of tokens and is resent on every turn."
@@ -348,7 +382,9 @@ export function HarnessSection() {
               onChange={(e) => set("prompt_cache", e.target.checked)}
             />
           </Row>
+          )}
 
+          {honors("max_output_tokens") && (
           <Row
             label="Max output tokens"
             help="Left empty on purpose: a cap written from memory is a claim about someone else's product. Empty means the provider's own default stands."
@@ -362,7 +398,9 @@ export function HarnessSection() {
               onCommit={(n) => set("max_output_tokens", n)}
             />
           </Row>
+          )}
 
+          {honors("context_window_fallback") && (
           <Row
             label="Context window fallback"
             help="Used only when the provider's API does not publish this model's window. It never overrides a number the API actually reported."
@@ -376,7 +414,9 @@ export function HarnessSection() {
               onCommit={(n) => set("context_window_fallback", n)}
             />
           </Row>
+          )}
 
+          {honors("temperature") && (
           <Row
             label="Temperature"
             help="Empty means the provider's own default."
@@ -391,7 +431,9 @@ export function HarnessSection() {
               onCommit={(n) => set("temperature", n)}
             />
           </Row>
+          )}
 
+          {honors("system_prompt_suffix") && (
           <Row
             label="Model instructions"
             help="Appended to the agent system prompt for this pair only, after everything else — so a per-model reminder can correct the general prompt rather than be corrected by it."
@@ -411,6 +453,7 @@ export function HarnessSection() {
               style={{ ...inputStyle, width: 320, resize: "vertical" }}
             />
           </Row>
+          )}
         </div>
       )}
     </div>

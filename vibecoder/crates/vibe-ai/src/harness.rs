@@ -470,6 +470,90 @@ pub fn provider_wide_key(provider: &str) -> String {
     format!("{}/*", normalise_provider(provider))
 }
 
+// ── Which knobs a provider actually honours ─────────────────────────────────
+
+/// A profile field, for saying which ones a given provider can act on.
+///
+/// Not every knob reaches every API. `prompt_cache` is Anthropic's
+/// `cache_control`; `thinking_budgets` is a *token* budget, which only Claude
+/// and Gemini expose (OpenAI takes an effort word, not a number);
+/// `parallel_tool_calls` is an OpenAI-shaped request field.
+///
+/// A settings surface that offers all of them everywhere lets a user turn on a
+/// setting that saves, reads back as changed, and does nothing — the
+/// success-assuming failure this codebase names as its dominant bug family,
+/// arrived at through the UI instead of through a return value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProfileField {
+    ToolTransport,
+    PromptDialect,
+    MaxOutputTokens,
+    Temperature,
+    ParallelToolCalls,
+    ThinkingBudgets,
+    PromptCache,
+    ContextWindowFallback,
+    SystemPromptSuffix,
+}
+
+/// Knobs every provider honours, because the agent loop — not the provider —
+/// is what acts on them.
+const UNIVERSAL: &[ProfileField] = &[
+    ProfileField::ToolTransport,
+    ProfileField::PromptDialect,
+    ProfileField::ContextWindowFallback,
+    ProfileField::SystemPromptSuffix,
+];
+
+/// Providers whose request builders send `parallel_tool_calls` — the
+/// OpenAI-shaped family. Claude, Gemini and Bedrock express the same idea
+/// differently or not at all, so the field would be ignored or rejected.
+const PARALLEL_TOOL_CALLS: &[&str] = &[
+    "openai", "azure-openai", "grok", "xai", "openrouter", "copilot", "groq", "cerebras",
+    "together", "fireworks", "sambanova", "minimax", "zhipu", "mistral", "deepseek",
+    "perplexity", "poolside", "vercel", "vercel-ai", "vllm", "lmstudio",
+];
+
+/// Providers whose request builders send a temperature or an output cap.
+const SAMPLING: &[&str] = &[
+    "claude", "anthropic", "openai", "azure-openai", "grok", "xai", "openrouter", "copilot",
+    "gemini", "google", "bedrock", "aws-bedrock", "groq", "cerebras", "together", "fireworks",
+    "sambanova", "minimax", "zhipu", "mistral", "deepseek", "perplexity", "poolside", "vercel",
+    "vercel-ai", "vllm", "lmstudio",
+];
+
+/// Which fields `provider` can actually act on.
+///
+/// Callers render or accept only these. Setting one of the others still
+/// *stores* fine — the resolver is generic — but it would never reach a
+/// request, and offering it would be the lie described on [`ProfileField`].
+pub fn honored_fields(provider: &str) -> Vec<ProfileField> {
+    let id = normalise_provider(provider);
+    let mut fields = UNIVERSAL.to_vec();
+    if SAMPLING.contains(&id.as_str()) {
+        fields.push(ProfileField::MaxOutputTokens);
+        fields.push(ProfileField::Temperature);
+    }
+    if PARALLEL_TOOL_CALLS.contains(&id.as_str()) {
+        fields.push(ProfileField::ParallelToolCalls);
+    }
+    if THINKING_BUDGET_PROVIDERS.contains(&id.as_str()) {
+        fields.push(ProfileField::ThinkingBudgets);
+    }
+    if PROMPT_CACHE_PROVIDERS.contains(&id.as_str()) {
+        fields.push(ProfileField::PromptCache);
+    }
+    fields
+}
+
+/// Providers taking a thinking budget denominated in **tokens**.
+///
+/// OpenAI is absent deliberately: its reasoning dial is an effort word
+/// (`reasoning_effort`), already driven by the toolbar's effort tier, and a
+/// token count means nothing to it.
+const THINKING_BUDGET_PROVIDERS: &[&str] = &["claude", "anthropic", "gemini", "google"];
+
 // ── Resolution ──────────────────────────────────────────────────────────────
 
 /// The harness settings for `provider`/`model`, with every layer applied.
@@ -519,6 +603,9 @@ pub struct ResolvedProfile {
     /// The user's patch for this exact model, if they set one.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_override: Option<ProfileOverride>,
+    /// Which fields this provider can actually act on. A surface that offers
+    /// the others lets a user set something that saves and does nothing.
+    pub honored_fields: Vec<ProfileField>,
 }
 
 /// [`profile_for`], plus the provenance a settings panel needs.
@@ -535,6 +622,7 @@ pub fn resolve(provider: &str, model: &str) -> ResolvedProfile {
         builtin,
         provider_override: guard.get(&provider_wide_key(provider)).cloned(),
         model_override: guard.get(&override_key(provider, model)).cloned(),
+        honored_fields: honored_fields(provider),
     }
 }
 
@@ -845,6 +933,87 @@ mod tests {
                 assert_eq!(p.temperature, None, "{provider}/{model}");
                 assert!(p.thinking_budgets.is_empty(), "{provider}/{model}");
             }
+        });
+    }
+
+    // ── Honoured fields ─────────────────────────────────────────────────
+
+    /// The four the agent loop acts on reach every provider, including one
+    /// this build has never heard of.
+    #[test]
+    fn the_universal_knobs_are_honored_everywhere() {
+        for provider in ["claude", "openai", "gemini", "bedrock", "ollama", "who-is-this"] {
+            let fields = honored_fields(provider);
+            for f in [
+                ProfileField::ToolTransport,
+                ProfileField::PromptDialect,
+                ProfileField::ContextWindowFallback,
+                ProfileField::SystemPromptSuffix,
+            ] {
+                assert!(fields.contains(&f), "{provider} should honour {f:?}");
+            }
+        }
+    }
+
+    /// Only `claude.rs` reads `prompt_cache` — it is Anthropic's
+    /// `cache_control`. Offering it on OpenAI would be a switch that saves,
+    /// reads back as changed, and does nothing.
+    #[test]
+    fn prompt_cache_is_offered_only_where_it_is_read() {
+        assert!(honored_fields("claude").contains(&ProfileField::PromptCache));
+        assert!(honored_fields("anthropic").contains(&ProfileField::PromptCache));
+        for provider in ["openai", "gemini", "bedrock", "ollama", "groq"] {
+            assert!(
+                !honored_fields(provider).contains(&ProfileField::PromptCache),
+                "{provider} does not read prompt_cache and must not offer it"
+            );
+        }
+    }
+
+    /// A thinking budget is a *token count*. OpenAI's reasoning dial is an
+    /// effort word, so a number means nothing to it.
+    #[test]
+    fn token_thinking_budgets_are_offered_only_to_claude_and_gemini() {
+        for provider in ["claude", "gemini"] {
+            assert!(honored_fields(provider).contains(&ProfileField::ThinkingBudgets), "{provider}");
+        }
+        for provider in ["openai", "bedrock", "ollama", "groq"] {
+            assert!(!honored_fields(provider).contains(&ProfileField::ThinkingBudgets), "{provider}");
+        }
+    }
+
+    #[test]
+    fn parallel_tool_calls_is_offered_only_to_the_openai_shaped_family() {
+        for provider in ["openai", "groq", "openrouter", "azure_openai"] {
+            assert!(
+                honored_fields(provider).contains(&ProfileField::ParallelToolCalls),
+                "{provider}"
+            );
+        }
+        // These express it differently or not at all; the field would be
+        // ignored or rejected.
+        for provider in ["claude", "gemini", "bedrock", "ollama"] {
+            assert!(
+                !honored_fields(provider).contains(&ProfileField::ParallelToolCalls),
+                "{provider}"
+            );
+        }
+    }
+
+    /// Separator folding applies here too, or a client spelling it one way
+    /// would be offered a different set of knobs from one spelling it the
+    /// other.
+    #[test]
+    fn honored_fields_folds_separators() {
+        assert_eq!(honored_fields("azure_openai"), honored_fields("azure-openai"));
+    }
+
+    #[test]
+    fn resolve_reports_the_honored_fields() {
+        with_no_overrides(|| {
+            let r = resolve("openai", "gpt-5.5");
+            assert!(r.honored_fields.contains(&ProfileField::ParallelToolCalls));
+            assert!(!r.honored_fields.contains(&ProfileField::PromptCache));
         });
     }
 

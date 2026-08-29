@@ -284,6 +284,25 @@ export type HarnessOverride = Partial<HarnessProfile>;
  * sent. Keeping them apart is what lets a caller tell "the user chose this"
  * from "we default to this".
  */
+/**
+ * Which profile fields a provider can actually act on.
+ *
+ * `prompt_cache` is Anthropic's `cache_control`; `parallel_tool_calls` is an
+ * OpenAI-shaped request field; a thinking budget is a token count, which means
+ * nothing to a provider whose reasoning dial is an effort word. Setting a field
+ * outside this list stores fine but never reaches a request.
+ */
+export type HarnessProfileField =
+  | 'tool_transport'
+  | 'prompt_dialect'
+  | 'max_output_tokens'
+  | 'temperature'
+  | 'parallel_tool_calls'
+  | 'thinking_budgets'
+  | 'prompt_cache'
+  | 'context_window_fallback'
+  | 'system_prompt_suffix';
+
 export interface ResolvedHarnessProfile {
   provider: string;
   model: string;
@@ -291,6 +310,8 @@ export interface ResolvedHarnessProfile {
   builtin: HarnessProfile;
   provider_override?: HarnessOverride;
   model_override?: HarnessOverride;
+  /** The fields this provider honours. Others store but do nothing. */
+  honored_fields: HarnessProfileField[];
 }
 
 export class VibeCLIClient {

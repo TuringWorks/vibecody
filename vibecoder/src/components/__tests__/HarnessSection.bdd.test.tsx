@@ -69,12 +69,25 @@ function reply(body: unknown, ok = true, status = 200) {
   });
 }
 
+const ALL_FIELDS = [
+  "tool_transport",
+  "prompt_dialect",
+  "max_output_tokens",
+  "temperature",
+  "parallel_tool_calls",
+  "thinking_budgets",
+  "prompt_cache",
+  "context_window_fallback",
+  "system_prompt_suffix",
+];
+
 function resolved(overrides: Record<string, unknown> = {}) {
   return {
     provider: "anthropic",
     model: "*",
     effective: { ...NATIVE_PROFILE },
     builtin: { ...NATIVE_PROFILE },
+    honored_fields: ALL_FIELDS,
     ...overrides,
   };
 }
@@ -221,5 +234,54 @@ describe("Given the daemon cannot be reached", () => {
     await waitFor(() => {
       expect(screen.getByText(/Unreadable response/)).toBeTruthy();
     });
+  });
+});
+
+describe("Given a provider that cannot act on every knob", () => {
+  /**
+   * Only `claude.rs` reads `prompt_cache` — it is Anthropic's `cache_control`.
+   * The panel used to draw the checkbox for every provider, so toggling it on
+   * OpenAI saved, read back as "changed", and did nothing: the
+   * success-assuming failure this codebase names as its dominant bug family,
+   * arrived at through the UI instead of a return value.
+   */
+  it("When the daemon says a field is not honored, Then no control is drawn for it", async () => {
+    mockDaemonFetch.mockReturnValue(
+      reply(
+        resolved({
+          provider: "openai",
+          honored_fields: ALL_FIELDS.filter((f) => f !== "prompt_cache"),
+        })
+      )
+    );
+    render(<HarnessSection />);
+
+    await screen.findByDisplayValue("Native schemas");
+    expect(screen.queryByLabelText("Reset Prompt caching")).toBeNull();
+  });
+
+  it("When a field is honored, Then its control is drawn", async () => {
+    mockDaemonFetch.mockReturnValue(reply(resolved()));
+    render(<HarnessSection />);
+
+    expect(await screen.findByLabelText("Reset Prompt caching")).toBeTruthy();
+  });
+
+  /**
+   * An older daemon sends no `honored_fields`. Treating that as "everything"
+   * would put the do-nothing controls straight back, so the fallback is the
+   * four the agent loop acts on for every provider.
+   */
+  it("When the daemon is older and sends no list, Then only the universal knobs show", async () => {
+    const { honored_fields: _omitted, ...withoutList } = resolved();
+    mockDaemonFetch.mockReturnValue(reply(withoutList));
+    render(<HarnessSection />);
+
+    await screen.findByDisplayValue("Native schemas");
+    expect(screen.queryByLabelText("Reset Prompt caching")).toBeNull();
+    expect(screen.queryByLabelText("Reset Temperature")).toBeNull();
+    // ...but the ones the agent loop always honors are still offered.
+    expect(screen.getByLabelText("Reset Tool transport")).toBeTruthy();
+    expect(screen.getByLabelText("Reset Context window fallback")).toBeTruthy();
   });
 });
