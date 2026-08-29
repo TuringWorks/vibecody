@@ -249,6 +249,11 @@ mod connectors;
 #[allow(dead_code)]
 mod plugin_catalog;
 mod review;
+// Declared here as well as in lib.rs because `serve.rs` — which the binary
+// does compile — names it. Per this crate's CLAUDE.md, a `mod` line in main.rs
+// costs a second compilation of the module, so it is added only when the
+// binary actually references it, which it now does.
+mod harness_profiles;
 mod serve;
 use plugin::PluginLoader;
 mod profile;

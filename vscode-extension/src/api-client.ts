@@ -252,6 +252,68 @@ export interface GhostCompleteResponse {
   truncated: boolean;
 }
 
+/**
+ * Per-(provider, model) harness settings — what a model is *given* beyond the
+ * conversation: whether tool schemas ride on the wire, which system prompt goes
+ * with that choice, the output cap and the reasoning budget.
+ *
+ * An absent field means "the provider decides", never zero and never
+ * unlimited. The daemon deliberately ships no vendor numbers it cannot verify.
+ */
+export interface HarnessProfile {
+  /** `native` sends tool schemas; `prose` describes them in the system prompt. */
+  tool_transport: 'native' | 'prose';
+  /** `compact` drops the per-tool XML catalogue a native pair does not need. */
+  prompt_dialect: 'full' | 'compact';
+  max_output_tokens?: number;
+  temperature?: number;
+  parallel_tool_calls?: boolean;
+  thinking_budgets?: { low?: number; medium?: number; high?: number; xhigh?: number };
+  prompt_cache: boolean;
+  context_window_fallback?: number;
+  system_prompt_suffix?: string;
+}
+
+/** A patch: only the fields a user changed. An empty patch resets the pair. */
+export type HarnessOverride = Partial<HarnessProfile>;
+
+/**
+ * A resolved profile with its provenance.
+ *
+ * `builtin` is what this build ships; `effective` is what will actually be
+ * sent. Keeping them apart is what lets a caller tell "the user chose this"
+ * from "we default to this".
+ */
+/**
+ * Which profile fields a provider can actually act on.
+ *
+ * `prompt_cache` is Anthropic's `cache_control`; `parallel_tool_calls` is an
+ * OpenAI-shaped request field; a thinking budget is a token count, which means
+ * nothing to a provider whose reasoning dial is an effort word. Setting a field
+ * outside this list stores fine but never reaches a request.
+ */
+export type HarnessProfileField =
+  | 'tool_transport'
+  | 'prompt_dialect'
+  | 'max_output_tokens'
+  | 'temperature'
+  | 'parallel_tool_calls'
+  | 'thinking_budgets'
+  | 'prompt_cache'
+  | 'context_window_fallback'
+  | 'system_prompt_suffix';
+
+export interface ResolvedHarnessProfile {
+  provider: string;
+  model: string;
+  effective: HarnessProfile;
+  builtin: HarnessProfile;
+  provider_override?: HarnessOverride;
+  model_override?: HarnessOverride;
+  /** The fields this provider honours. Others store but do nothing. */
+  honored_fields: HarnessProfileField[];
+}
+
 export class VibeCLIClient {
   private baseUrl: string;
   private explicitToken?: string;
@@ -374,6 +436,71 @@ export class VibeCLIClient {
    * not a notification storm. `null` and "no models" are different — callers
    * that care can tell them apart.
    */
+/**
+   * The harness profile for one (provider, model) pair.
+   *
+   * Omit `model` to address the provider-wide entry, which is also the only
+   * one that applies to a model this build has never listed. `null` on
+   * failure — the daemon being unreachable is not a profile of defaults.
+   */
+  async harnessProfile(
+    provider: string,
+    model?: string
+  ): Promise<ResolvedHarnessProfile | null> {
+    try {
+      const params = new URLSearchParams({ provider, model: model ?? '*' });
+      const res = await this.authedFetch(`${this.baseUrl}/harness/profile?${params}`);
+      if (!res.ok) return null;
+      return (await res.json()) as ResolvedHarnessProfile;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Set a harness override for one pair, returning the newly resolved profile.
+   *
+   * An empty patch deletes the override instead of storing a patch of nothing,
+   * so the pair returns to whatever this build ships — including a default that
+   * improves in a later release.
+   */
+  async setHarnessProfile(
+    provider: string,
+    model: string | undefined,
+    patch: HarnessOverride
+  ): Promise<ResolvedHarnessProfile | null> {
+    try {
+      const params = new URLSearchParams({ provider, model: model ?? '*' });
+      const empty = Object.values(patch).every((v) => v === undefined);
+      const res = await this.authedFetch(`${this.baseUrl}/harness/profile?${params}`, {
+        method: empty ? 'DELETE' : 'PUT',
+        headers: { 'content-type': 'application/json' },
+        ...(empty ? {} : { body: JSON.stringify(patch) }),
+      });
+      if (!res.ok) return null;
+      return (await res.json()) as ResolvedHarnessProfile;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Every harness override currently in effect. `null` on failure. */
+  async harnessProfiles(): Promise<{
+    overrides: Record<string, HarnessOverride>;
+    profiles: ResolvedHarnessProfile[];
+  } | null> {
+    try {
+      const res = await this.authedFetch(`${this.baseUrl}/harness/profiles`);
+      if (!res.ok) return null;
+      return (await res.json()) as {
+        overrides: Record<string, HarnessOverride>;
+        profiles: ResolvedHarnessProfile[];
+      };
+    } catch {
+      return null;
+    }
+  }
+
   async listEmbeddingModels(): Promise<EmbeddingModelsResponse | null> {
     try {
       const res = await this.authedFetch(`${this.baseUrl}/embeddings/models`);

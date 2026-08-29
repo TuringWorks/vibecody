@@ -855,6 +855,29 @@ esac
 ```
 
 
+## Model Harness Profiles
+
+Provider setup above covers *which* model answers. The harness covers what that
+model is **given**: tool schemas on the wire or a prose catalogue in the system
+prompt, which prompt goes with that choice, the output cap, the reasoning
+budget, and any per-model instructions.
+
+These are not `config.toml` settings. They live in the encrypted `ProfileStore`
+(`~/.vibecli/profile_settings.db`) with every other user setting, and are edited
+in **Settings → Model Harness** or over the daemon's `/harness/profile` route.
+
+Only what you actually change is stored, and only for the pair you changed it
+for. Everything else tracks the shipped default, so an improvement in a later
+release reaches you rather than being frozen at whatever was current when you
+first opened the panel.
+
+Defaults for output caps, temperatures, context windows and thinking budgets
+are deliberately **absent** — absent meaning "the provider decides", never zero
+and never unlimited. VibeCody asserts no number about a vendor's product that it
+cannot verify.
+
+Full reference: [Model Harness Profiles](/vibecody/harness-profiles/).
+
 ## Cloud AI Backends
 
 Serving, training, eval, and routing across DigitalOcean, Azure, Google, AWS,

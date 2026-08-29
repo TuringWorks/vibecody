@@ -1128,6 +1128,120 @@ async fn health(State(state): State<ServeState>) -> impl IntoResponse {
 ///
 /// The provider ids match the daemon's `create_provider`, so any model a client
 /// selects round-trips back to a buildable provider.
+// ── Harness profiles ────────────────────────────────────────────────────────
+//
+// What a given (provider, model) pair is *given*: tool transport, prompt
+// dialect, output cap, thinking budgets. Resolved by `vibe_ai::harness`;
+// persisted by `crate::harness_profiles` in the encrypted ProfileStore.
+//
+// Authenticated, like every route that reads or writes user settings. These
+// are not secrets, but a writable knob that changes what every client sends to
+// a paid API is not something an unauthenticated caller should be able to turn.
+
+#[derive(Debug, Deserialize)]
+struct HarnessProfileQuery {
+    provider: String,
+    /// Absent or `"*"` addresses the provider-wide patch rather than one model.
+    #[serde(default)]
+    model: Option<String>,
+}
+
+impl HarnessProfileQuery {
+    /// The model this query addresses, with an absent model meaning the
+    /// provider-wide entry.
+    fn model(&self) -> &str {
+        match self.model.as_deref() {
+            None | Some("") => "*",
+            Some(m) => m,
+        }
+    }
+
+    fn key(&self) -> String {
+        match self.model() {
+            "*" => vibe_ai::harness::provider_wide_key(&self.provider),
+            model => vibe_ai::harness::override_key(&self.provider, model),
+        }
+    }
+}
+
+/// Open the store and answer which profile id to use, or an error response.
+fn open_profile_store() -> Result<(crate::profile_store::ProfileStore, String), (StatusCode, String)>
+{
+    let store = crate::profile_store::ProfileStore::new().map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Could not open the settings store: {e}"),
+        )
+    })?;
+    let profile_id = store
+        .get_default_profile_id()
+        .unwrap_or_else(|_| "default".to_string());
+    Ok((store, profile_id))
+}
+
+/// The resolved profile for one pair, with provenance.
+async fn harness_profile(Query(q): Query<HarnessProfileQuery>) -> impl IntoResponse {
+    Json(crate::harness_profiles::resolve(&q.provider, q.model()))
+}
+
+/// Every override currently in effect, plus the built-in defaults they modify.
+///
+/// The defaults are returned alongside so a settings surface can render "you
+/// changed this" without a second round trip per pair.
+async fn harness_profiles_list() -> impl IntoResponse {
+    let overrides = vibe_ai::harness::overrides();
+    let resolved: Vec<_> = overrides
+        .keys()
+        .filter_map(|key| {
+            let (provider, model) = key.split_once('/')?;
+            Some(crate::harness_profiles::resolve(provider, model))
+        })
+        .collect();
+    Json(serde_json::json!({
+        "overrides": overrides,
+        "profiles": resolved,
+    }))
+}
+
+/// Write one override.
+///
+/// The body is a *patch* — only the fields the user changed. An empty patch
+/// deletes the entry, which is what "reset to default" must do: a stored patch
+/// of nothing would pin the pair to today's defaults forever.
+async fn put_harness_profile(
+    Query(q): Query<HarnessProfileQuery>,
+    Json(patch): Json<vibe_ai::harness::ProfileOverride>,
+) -> impl IntoResponse {
+    let (store, profile_id) = match open_profile_store() {
+        Ok(v) => v,
+        Err(e) => return e.into_response(),
+    };
+    match crate::harness_profiles::save(&store, &profile_id, &q.key(), &patch) {
+        Ok(()) => Json(crate::harness_profiles::resolve(&q.provider, q.model())).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Could not save the harness profile: {e}"),
+        )
+            .into_response(),
+    }
+}
+
+/// Drop one override, returning the pair to its built-in default.
+async fn delete_harness_profile(Query(q): Query<HarnessProfileQuery>) -> impl IntoResponse {
+    let (store, profile_id) = match open_profile_store() {
+        Ok(v) => v,
+        Err(e) => return e.into_response(),
+    };
+    match crate::harness_profiles::delete(&store, &profile_id, &q.key()) {
+        Ok(()) => Json(crate::harness_profiles::resolve(&q.provider, q.model())).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Could not delete the harness profile: {e}"),
+        )
+            .into_response(),
+    }
+}
+
 async fn list_models(State(state): State<ServeState>) -> impl IntoResponse {
     Json(serde_json::json!({ "models": catalog_rows(&state).await }))
 }
@@ -8648,6 +8762,11 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/jobs/{id}", get(get_job))
         .route("/jobs/{id}/cancel", post(cancel_job))
         // VibeDesk task API (VX-112): task-card CRUD + lifecycle status.
+        .route(
+            "/harness/profile",
+            get(harness_profile).put(put_harness_profile).delete(delete_harness_profile),
+        )
+        .route("/harness/profiles", get(harness_profiles_list))
         .route("/api/tasks", post(create_task).get(list_tasks))
         .route(
             "/api/tasks/{id}",
@@ -9255,6 +9374,13 @@ pub async fn serve(
     // `vibecli set-key huggingface hf_...` shouldn't have to also export
     // the env var. AGENTS.md → Zero-Config First.
     hydrate_hf_token_from_profile_store();
+
+    // Install the user's per-(provider, model) harness overrides before any
+    // provider is built. `vibe_ai::harness` resolves from a process-global map
+    // that starts empty, so a profile saved in a previous session applies only
+    // once this has run — and it has to run before the first request, not
+    // lazily on the first save.
+    crate::harness_profiles::install_from_default_profile();
 
     // Run the TurboQuant codec self-check once. Surfaced via /health so
     // operators can detect kernel regressions without needing to load a
@@ -14907,6 +15033,75 @@ mod tests {
                 .unwrap();
             let resp = app.oneshot(req).await.unwrap();
             assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        }
+
+        /// A writable knob that changes what every client sends to a paid API
+        /// is not something an unauthenticated caller should be able to turn.
+        #[tokio::test]
+        async fn harness_profile_without_auth_returns_401() {
+            let (app, _tmp) = test_app_with_inference("secret-token");
+            let req = Request::builder()
+                .uri("/harness/profile?provider=claude&model=claude-opus-5")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        }
+
+        #[tokio::test]
+        async fn harness_profiles_list_without_auth_returns_401() {
+            let (app, _tmp) = test_app_with_inference("secret-token");
+            let req = Request::builder()
+                .uri("/harness/profiles")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        }
+
+        /// The read path answers from the built-in table and touches no store,
+        /// so it can be exercised without one.
+        #[tokio::test]
+        async fn harness_profile_with_auth_returns_the_resolved_pair() {
+            let (app, _tmp) = test_app_with_inference("secret-token");
+            let req = Request::builder()
+                .uri("/harness/profile?provider=claude&model=claude-opus-5")
+                .header("authorization", "Bearer secret-token")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::OK);
+            let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            assert_eq!(json["provider"], "claude");
+            assert_eq!(json["model"], "claude-opus-5");
+            assert_eq!(json["effective"]["tool_transport"], "native");
+            assert_eq!(json["effective"]["prompt_dialect"], "compact");
+            // No override set, so the pair reports none and `effective`
+            // matches what this build ships.
+            assert!(json.get("model_override").is_none());
+            assert_eq!(json["effective"], json["builtin"]);
+        }
+
+        /// An omitted model addresses the provider-wide entry rather than
+        /// 400-ing or silently resolving some arbitrary model.
+        #[tokio::test]
+        async fn harness_profile_without_a_model_addresses_the_provider() {
+            let (app, _tmp) = test_app_with_inference("secret-token");
+            let req = Request::builder()
+                .uri("/harness/profile?provider=openai")
+                .header("authorization", "Bearer secret-token")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::OK);
+            let body = axum::body::to_bytes(resp.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+            assert_eq!(json["model"], "*");
         }
 
         #[tokio::test]

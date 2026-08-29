@@ -1,9 +1,10 @@
 import { useState, type ReactNode } from "react";
-import { X, KeyRound, Palette, UserCircle, Check, Trash2, AudioLines } from "lucide-react";
+import { X, KeyRound, Palette, UserCircle, Check, Trash2, AudioLines, SlidersHorizontal } from "lucide-react";
 import { useProviderSettings, KEYED_PROVIDERS, LOCAL_PROVIDERS } from "../hooks/useProviderSettings";
 import { useTheme, type ThemeMode } from "../hooks/useTheme";
 import { AccountSection } from "./AccountSection";
 import { VoiceSection } from "./VoiceSection";
+import { HarnessSection } from "./HarnessSection";
 
 /** A tab contributed by the host app, appended after the shared ones. */
 export interface SettingsTab {
@@ -28,6 +29,7 @@ type Tab = string;
 const SHARED_TABS: { id: string; label: string; icon: typeof KeyRound }[] = [
   { id: "providers", label: "Providers", icon: KeyRound },
   { id: "appearance", label: "Appearance", icon: Palette },
+  { id: "harness", label: "Model Harness", icon: SlidersHorizontal },
   { id: "voice", label: "Voice", icon: AudioLines },
   { id: "account", label: "Account", icon: UserCircle },
 ];
@@ -64,6 +66,7 @@ export function SettingsView({ onClose, extraTabs = [] }: SettingsViewProps) {
         <div className="vx-settings__panel">
           {tab === "providers" && <ProvidersSection />}
           {tab === "appearance" && <AppearanceSection />}
+          {tab === "harness" && <HarnessSection />}
           {tab === "voice" && <VoiceSection />}
           {tab === "account" && <AccountSection />}
           {extraTabs.find((t) => t.id === tab)?.render()}
