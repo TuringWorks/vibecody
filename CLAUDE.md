@@ -61,6 +61,33 @@ Every panel that calls an LLM MUST use the provider and model selected in the to
 
 Full rule + audit checklist: [AGENTS.md → Provider-Agnostic Panels — STRICT](./AGENTS.md#provider-agnostic-panels--strict).
 
+### Harness profiles — what a (provider, model) pair is *given*
+
+`vibe_ai::harness::profile_for(provider, model)` is the single answer to tool
+transport, prompt dialect, output cap, thinking budget and per-model
+instructions. Four layers: provider family → built-in model prefix → the user's
+`<provider>/*` patch → their `<provider>/<model>` patch.
+
+- **Providers override `harness_profile()`**; `advertises_native_tools()` is
+  derived from it so the two cannot disagree. A provider that forgets the
+  override silently drops to the prose path.
+- **Never declare a provider native without checking its endpoint has a `tools`
+  field.** `vibecli-mistralrs` looks OpenAI-shaped and posts to the daemon's own
+  `/api/chat`, which has none — serde drops it silently, and the model would
+  lose the XML catalogue too and be left with nothing.
+- **Ship no vendor number you cannot verify.** Output caps, context windows and
+  temperatures default to `None` = *the provider decides*, for the reason
+  `context_window.rs` documents. A test fails if one is added.
+- **Store the patch, not the resolved profile** — an empty patch is a delete, so
+  a default that later improves still reaches the user.
+
+Routes: `/harness/profile` (GET/PUT/DELETE) + `/harness/profiles`, all
+authenticated. UI: `packages/vibe-ui-shared/src/settings/HarnessSection.tsx`,
+one panel for all three desktop shells. Measure a change with
+`vibecli --eval run --suite models --provider X --model Y`.
+
+Full rules: [AGENTS.md → Tuning the harness](./AGENTS.md#tuning-the-harness-per-provider-model) · [docs/harness-profiles.md](./docs/harness-profiles.md).
+
 ### Functional style & language idioms — Rust, TypeScript, Swift, Kotlin, Dart
 
 Write new code and refactor existing code toward a functional style: **pure functions over immutable data, effects pushed to the edges, total error handling.**

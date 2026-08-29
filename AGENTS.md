@@ -258,11 +258,64 @@ does not have. Both paths now advertise schemas:
 | where | what decides |
 |---|---|
 | `vibe_ai::tools::tool_definitions_for` | reads the system prompt's marker: `## Available Tools` → the agent's 14 tools, `## File Tools` → the chat panel's 5 |
-| `ollama.rs`, `compat.rs` | put those schemas on the request; a model that rejects the `tools` field is remembered and retried without it |
-| `AIProvider::advertises_native_tools` | providers that send schemas get the compact system prompt (`tools::agent_system_prompt`) — the catalogue is the same information paid for twice |
+| `vibe_ai::harness::profile_for` | whether *this* `(provider, model)` pair gets schemas at all, and which prompt goes with that choice |
+| every provider's request builder | puts the schemas on the request in its own vendor's shape; a model that rejects the `tools` field is retried without it (`openai_compat::is_tools_unsupported`) |
+| `AIProvider::harness_profile` | each provider overrides it; `advertises_native_tools` is *derived* from it so the two cannot disagree |
 
 Renaming either marker heading silently drops every local model back to
 prompt-only tools. Both are pinned by tests; keep them that way.
+
+**This used to be true of two providers.** For a long time only `ollama.rs` and
+the `compat.rs` family sent schemas, and the other nine — Claude, OpenAI,
+Gemini, Bedrock, Grok, OpenRouter, Azure, Copilot, vibecli-mistralrs — were
+handed the ~15 KB XML catalogue instead, about 4,000 tokens on every turn, with
+their calls recovered by regex from prose. Eight of them send schemas now. The
+ninth does not, and the reason is the rule worth remembering:
+
+**Do not declare a provider native without checking that the endpoint it
+actually posts to has a `tools` field.** `vibecli-mistralrs` looks
+OpenAI-shaped and is not — it posts Ollama-style NDJSON to the daemon's own
+`/api/chat`, whose `inference::backend::ChatRequest` has no `tools`. serde drops
+unknown fields silently, so declaring it native would send schemas that never
+arrive *and* strip the catalogue that was the model's only remaining
+description of its tools. It would be left with nothing, and nothing would say
+so.
+
+**Turning the schemas on is half the job.** Five reply paths could not have read
+the answer, and each failure was silent in its own way: Claude and Gemini
+required a `text` field on every content block, so a reply containing a tool
+call failed to deserialise outright; Claude, Gemini and the OpenAI-compatible
+non-streaming path read only the *first* block or choice, dropping a tool call
+that followed prose; Bedrock filtered reply blocks on `text`, which a `toolUse`
+block does not have. When adding a provider, exercise both halves of the round
+trip before believing either.
+
+### Tuning the harness per (provider, model)
+
+`vibe_ai::harness` is the one place that answers "what should this pair be
+given" — tool transport, prompt dialect, output cap, thinking budget, per-model
+instructions. Four layers, each overriding only the fields it sets: provider
+family → built-in model prefix → the user's `<provider>/*` patch → the user's
+`<provider>/<model>` patch.
+
+| Also touch | Why |
+|---|---|
+| the provider's `harness_profile()` | the trait default is conservative; a provider that never overrides it silently drops to the prose path |
+| `harness::NATIVE_TOOL_PROVIDERS` | and only after checking the endpoint really takes a `tools` field |
+| `vibecli::harness_profiles` | storage — patches in the encrypted ProfileStore, never a resolved profile |
+| `packages/vibe-ui-shared/src/settings/HarnessSection.tsx` | one panel, all three desktop shells |
+| `docs/harness-profiles.md` | the reference page |
+
+**Ship no vendor number you cannot verify.** The built-in table asserts
+transport and dialect — facts about our own request builders — and nothing
+else. Output caps, context windows, temperatures and thinking budgets ship
+`None`, meaning *the provider decides*, for the reason `context_window.rs`
+already documents: a limit written from memory is wrong the moment a vendor
+ships a revision. `no_provider_ships_an_invented_limit` fails if one is added.
+
+**Store the patch, not the profile.** A stored resolved profile freezes today's
+defaults into the user's settings, so improving a default would never reach
+anyone who had opened the panel once. An empty patch is therefore a *delete*.
 
 **2. One wire format.** Native calls are transcribed to
 `<tool_call name="…">…</tool_call>`, and both executors read it — the agent
