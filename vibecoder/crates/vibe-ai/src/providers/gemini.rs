@@ -220,8 +220,14 @@ pub struct ToolDeclaration {
 pub struct FunctionDeclaration {
     pub name: String,
     pub description: String,
+    /// The parameters' JSON Schema, as an object.
+    ///
+    /// Was `Option<String>`, which serialises a schema as a quoted *string* —
+    /// the API reads that as a scalar and the declaration describes no
+    /// parameters at all. Nothing constructed one, so the mistake was never
+    /// visible; it would have become visible the moment tools were sent.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub parameters: Option<String>,
+    pub parameters: Option<serde_json::Value>,
 }
 
 // ─── Response types ─────────────────────────────────────────────────────────
@@ -246,12 +252,70 @@ pub struct Candidate {
 
 #[derive(Debug, Deserialize)]
 pub struct CandidateContent {
-    pub parts: Vec<CandidateTextPart>,
+    /// Absent on a candidate blocked before any content was produced, which
+    /// the API does send — a required field here would turn a safety block
+    /// into an unexplained parse failure.
+    #[serde(default)]
+    pub parts: Vec<CandidatePart>,
 }
 
+/// One part of a Gemini reply.
+///
+/// `text` is optional because it genuinely is: a part carrying a
+/// `functionCall` has no text at all. Requiring it — which is what
+/// `CandidateTextPart` did — meant a reply containing a function call failed
+/// to deserialise outright, reported as an unparseable response for a turn the
+/// model had completed. That made sending tool declarations pointless, so both
+/// halves had to change together.
 #[derive(Debug, Deserialize)]
-pub struct CandidateTextPart {
-    pub text: String,
+#[serde(rename_all = "camelCase")]
+pub struct CandidatePart {
+    #[serde(default)]
+    pub text: Option<String>,
+    #[serde(default)]
+    pub function_call: Option<ResponseFunctionCall>,
+    /// Gemini 2.5+ marks reasoning parts with `thought: true` rather than a
+    /// separate block type.
+    #[serde(default)]
+    pub thought: bool,
+}
+
+/// A model-issued function call in a reply.
+#[derive(Debug, Deserialize)]
+pub struct ResponseFunctionCall {
+    pub name: String,
+    /// Arguments as a JSON object. Gemini sends an object here, unlike the
+    /// OpenAI family which sends a JSON *string*.
+    #[serde(default)]
+    pub args: Option<serde_json::Value>,
+}
+
+/// Every part of a candidate, rendered into the one text format the agent
+/// parses.
+///
+/// All parts, not just the first. Gemini routinely answers with a text part
+/// *and* a `functionCall` part, and reading `parts[0]` alone dropped whichever
+/// came second — which, for a tool-calling turn, is the whole point of it.
+pub fn render_candidate_parts(parts: &[CandidatePart]) -> String {
+    let mut out = String::new();
+    for part in parts {
+        match (&part.text, &part.function_call) {
+            (_, Some(call)) => {
+                out.push_str(&crate::tools::render_tool_call(
+                    &call.name,
+                    call.args.as_ref(),
+                ));
+            }
+            (Some(text), None) if part.thought && !text.is_empty() => {
+                out.push_str("<thinking>");
+                out.push_str(text);
+                out.push_str("</thinking>\n");
+            }
+            (Some(text), None) => out.push_str(text),
+            (None, None) => {}
+        }
+    }
+    out
 }
 
 /// Safety rating on a response candidate.
@@ -374,6 +438,56 @@ impl GeminiProvider {
         format!("{}/models/{}:{}", base, model, action)
     }
 
+    /// This pair's harness settings.
+    pub fn profile(&self) -> crate::harness::ModelProfile {
+        crate::harness::profile_for("gemini", &self.config.model)
+    }
+
+    /// Tool declarations for this conversation, in Gemini's shape.
+    ///
+    /// The conversation is inspected through its text parts because that is
+    /// where the tool prompt lives: these callers pass `system: None` and put
+    /// the system prompt in `contents` as a user turn, so looking only at
+    /// `system_instruction` would never find the marker.
+    fn tools_for(&self, messages: &[Content], system: Option<&str>) -> Option<Vec<ToolDeclaration>> {
+        let profile = self.profile();
+        if !profile.sends_tool_schemas() {
+            return None;
+        }
+        let texts: Vec<&str> = system
+            .into_iter()
+            .chain(messages.iter().flat_map(|c| {
+                c.parts.iter().filter_map(|p| match p {
+                    Part::Text { text } => Some(text.as_str()),
+                    _ => None,
+                })
+            }))
+            .collect();
+        let defs = crate::tools::tool_definitions_for(texts.into_iter())?;
+        let declarations: Vec<FunctionDeclaration> = defs
+            .iter()
+            .filter_map(|def| {
+                let function = def.get("function")?;
+                Some(FunctionDeclaration {
+                    name: function.get("name")?.as_str()?.to_string(),
+                    description: function
+                        .get("description")
+                        .and_then(|d| d.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    parameters: function.get("parameters").cloned(),
+                })
+            })
+            .collect();
+        // One `ToolDeclaration` holding every function, which is the shape the
+        // API expects — not one declaration per function.
+        (!declarations.is_empty()).then(|| {
+            vec![ToolDeclaration {
+                function_declarations: declarations,
+            }]
+        })
+    }
+
     /// Construct a `GeminiRequest` from message contents and optional system instruction.
     pub fn build_request(&self, messages: &[Content], system: Option<&str>) -> GeminiRequest {
         let system_instruction = system.map(|s| Content {
@@ -388,16 +502,22 @@ impl GeminiProvider {
             contents: messages.to_vec(),
             system_instruction,
             generation_config: GenerationConfig {
-                temperature: self.config.temperature,
+                // An explicit config value is the caller's decision and wins;
+                // the profile only fills in what the caller left open.
+                temperature: self.config.temperature.or(self.profile().temperature),
                 top_p: None,
                 top_k: None,
-                max_output_tokens: self.config.max_tokens.map(|t| t as u32),
+                max_output_tokens: self
+                    .config
+                    .max_tokens
+                    .map(|t| t as u32)
+                    .or(self.profile().max_output_tokens),
                 candidate_count: None,
                 stop_sequences: None,
                 thinking_config: self.thinking_config(),
             },
             safety_settings: Self::default_safety_settings(),
-            tools: None,
+            tools: self.tools_for(messages, system),
         }
     }
 
@@ -444,11 +564,12 @@ impl GeminiProvider {
             }
         }
 
+        // Every part, not just the first: a tool-calling turn is a text part
+        // *and* a functionCall part, and reading `parts[0]` dropped whichever
+        // came second.
         if let Some(candidates) = response.candidates {
             if let Some(candidate) = candidates.first() {
-                if let Some(part) = candidate.content.parts.first() {
-                    return Ok(part.text.clone());
-                }
+                return Ok(render_candidate_parts(&candidate.content.parts));
             }
         }
 
@@ -473,8 +594,8 @@ impl GeminiProvider {
         let response: GeminiResponse = serde_json::from_str(cleaned).ok()?;
         let candidates = response.candidates?;
         let candidate = candidates.first()?;
-        let part = candidate.content.parts.first()?;
-        Some(part.text.clone())
+        let rendered = render_candidate_parts(&candidate.content.parts);
+        (!rendered.is_empty()).then_some(rendered)
     }
 
     /// Create a `Part::FunctionCall` convenience helper.
@@ -589,6 +710,10 @@ impl GeminiProvider {
 
 #[async_trait]
 impl AIProvider for GeminiProvider {
+    fn harness_profile(&self) -> crate::harness::ModelProfile {
+        self.profile()
+    }
+
     fn name(&self) -> &str {
         &self.display_name
     }
@@ -737,10 +862,10 @@ impl AIProvider for GeminiProvider {
                         if let Ok(resp) = serde_json::from_str::<GeminiResponse>(&json_str) {
                             if let Some(candidates) = resp.candidates {
                                 if let Some(candidate) = candidates.first() {
-                                    if let Some(part) = candidate.content.parts.first() {
-                                        if !part.text.is_empty() {
-                                            return Some((Ok(part.text.clone()), (stream, buf)));
-                                        }
+                                    let rendered =
+                                        render_candidate_parts(&candidate.content.parts);
+                                    if !rendered.is_empty() {
+                                        return Some((Ok(rendered), (stream, buf)));
                                     }
                                 }
                             }
@@ -770,13 +895,10 @@ impl AIProvider for GeminiProvider {
                                     buf.clear();
                                     if let Some(candidates) = resp.candidates {
                                         if let Some(candidate) = candidates.first() {
-                                            if let Some(part) = candidate.content.parts.first() {
-                                                if !part.text.is_empty() {
-                                                    return Some((
-                                                        Ok(part.text.clone()),
-                                                        (stream, buf),
-                                                    ));
-                                                }
+                                            let rendered =
+                                                render_candidate_parts(&candidate.content.parts);
+                                            if !rendered.is_empty() {
+                                                return Some((Ok(rendered), (stream, buf)));
                                             }
                                         }
                                     }
@@ -1086,6 +1208,10 @@ mod tests {
         assert_eq!(req.model, "gemini-2.5-pro");
         assert_eq!(req.contents.len(), 1);
         assert!(req.system_instruction.is_none());
+        // Was `assert!(req.tools.is_none())`, which pinned the hobbling in
+        // place: this provider declared a `tools` field and hardcoded it off,
+        // so Gemini was never told its tools were callable. A plain
+        // conversation still sends none — that part was always right.
         assert!(req.tools.is_none());
     }
 
@@ -1509,11 +1635,17 @@ mod tests {
         let buf = r#"[{"candidates":[{"content":{"parts":[{"text":"hello"}]}}]},{"candidates":[{"content":{"parts":[{"text":" world"}]}}]}]"#;
         let (json1, rest1) = extract_json_object(buf).unwrap();
         let r1: GeminiResponse = serde_json::from_str(&json1).unwrap();
-        assert_eq!(r1.candidates.unwrap()[0].content.parts[0].text, "hello");
+        assert_eq!(
+            r1.candidates.unwrap()[0].content.parts[0].text.as_deref(),
+            Some("hello")
+        );
 
         let (json2, rest2) = extract_json_object(&rest1).unwrap();
         let r2: GeminiResponse = serde_json::from_str(&json2).unwrap();
-        assert_eq!(r2.candidates.unwrap()[0].content.parts[0].text, " world");
+        assert_eq!(
+            r2.candidates.unwrap()[0].content.parts[0].text.as_deref(),
+            Some(" world")
+        );
         assert_eq!(rest2.trim(), "]");
     }
 
@@ -1529,9 +1661,115 @@ mod tests {
         let (json, _) = extract_json_object(buf).unwrap();
         let r: GeminiResponse = serde_json::from_str(&json).unwrap();
         assert_eq!(
-            r.candidates.unwrap()[0].content.parts[0].text,
-            "code: { x }"
+            r.candidates.unwrap()[0].content.parts[0].text.as_deref(),
+            Some("code: { x }")
         );
+    }
+
+    // ── tool declarations and function-call parts ────────────────────────
+
+    /// The provider declared a `tools` field and hardcoded it to `None`, with
+    /// a test pinning that in place. Gemini was never told its tools were
+    /// callable.
+    #[test]
+    fn a_tool_conversation_now_carries_function_declarations() {
+        let p = GeminiProvider::new(test_config());
+        let contents = vec![Content {
+            role: "user".into(),
+            parts: vec![Part::Text {
+                text: format!(
+                    "preamble\n{}\n- write_file",
+                    crate::tools::CHAT_TOOL_PROMPT_MARKER
+                ),
+            }],
+        }];
+        let req = p.build_request(&contents, None);
+        let tools = req.tools.expect("a tool conversation declares tools");
+        // One declaration holding every function, which is the shape the API
+        // expects — not one declaration per function.
+        assert_eq!(tools.len(), 1);
+        assert_eq!(
+            tools[0].function_declarations.len(),
+            crate::tools::CHAT_TOOL_NAMES.len()
+        );
+    }
+
+    /// The schema must serialise as an object. It was typed `Option<String>`,
+    /// which would have sent a quoted string the API reads as a scalar — a
+    /// declaration describing no parameters at all.
+    #[test]
+    fn function_parameters_serialise_as_an_object_not_a_string() {
+        let p = GeminiProvider::new(test_config());
+        let contents = vec![Content {
+            role: "user".into(),
+            parts: vec![Part::Text {
+                text: format!("{}\n- write_file", crate::tools::CHAT_TOOL_PROMPT_MARKER),
+            }],
+        }];
+        let req = p.build_request(&contents, None);
+        let json = serde_json::to_value(&req).unwrap();
+        // The wire key, not the Rust field name — `ToolDeclaration` is
+        // `rename_all = "camelCase"`, and it is the wire the API reads.
+        let declarations = &json["tools"][0]["functionDeclarations"];
+        assert!(declarations.is_array(), "got {declarations}");
+        let params = &declarations[0]["parameters"];
+        assert!(params.is_object(), "got {params}");
+        assert_eq!(params["type"], "object");
+        assert!(params["properties"].is_object());
+    }
+
+    /// A part carrying a `functionCall` has no `text`. Requiring one made the
+    /// whole reply fail to deserialise — reported as an unparseable response
+    /// for a turn the model had completed.
+    #[test]
+    fn a_function_call_part_parses_and_becomes_a_tool_call() {
+        let json = r#"{"candidates":[{"content":{"parts":[
+            {"functionCall":{"name":"read_file","args":{"path":"src/main.rs"}}}
+        ]}}]}"#;
+        let text = GeminiProvider::parse_response(json).expect("a functionCall reply must parse");
+        assert_eq!(
+            text,
+            r#"<tool_call name="read_file"><path>src/main.rs</path></tool_call>"#
+        );
+        assert_eq!(crate::tools::parse_tool_calls(&text).len(), 1);
+    }
+
+    /// Gemini routinely answers with a text part *and* a functionCall part.
+    #[test]
+    fn text_and_a_function_call_in_one_candidate_both_survive() {
+        let json = r#"{"candidates":[{"content":{"parts":[
+            {"text":"Reading it now."},
+            {"functionCall":{"name":"read_file","args":{"path":"a.rs"}}}
+        ]}}]}"#;
+        let text = GeminiProvider::parse_response(json).unwrap();
+        assert!(text.starts_with("Reading it now."));
+        assert_eq!(crate::tools::parse_tool_calls(&text).len(), 1);
+    }
+
+    /// A candidate blocked before producing content has no `parts` array at
+    /// all; a required field would turn that into an unexplained parse error.
+    #[test]
+    fn a_candidate_with_no_parts_parses_to_empty() {
+        let json = r#"{"candidates":[{"content":{}}]}"#;
+        assert_eq!(GeminiProvider::parse_response(json).unwrap(), "");
+    }
+
+    #[test]
+    fn a_thought_part_is_wrapped() {
+        let json = r#"{"candidates":[{"content":{"parts":[
+            {"text":"weighing it","thought":true},
+            {"text":"done"}
+        ]}}]}"#;
+        assert_eq!(
+            GeminiProvider::parse_response(json).unwrap(),
+            "<thinking>weighing it</thinking>\ndone"
+        );
+    }
+
+    #[test]
+    fn a_prose_only_reply_is_unchanged() {
+        let json = r#"{"candidates":[{"content":{"parts":[{"text":"just prose"}]}}]}"#;
+        assert_eq!(GeminiProvider::parse_response(json).unwrap(), "just prose");
     }
 
     #[test]
