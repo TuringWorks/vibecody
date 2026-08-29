@@ -793,12 +793,16 @@ pub static TOOL_SYSTEM_PROMPT_COMPACT: LazyLock<String> = LazyLock::new(|| {
     )
 });
 
-/// The agent system prompt to use against a provider that does — or does not —
-/// put the tool schemas on the wire.
-pub fn agent_system_prompt(native_tools: bool) -> &'static str {
-    match native_tools {
-        true => TOOL_SYSTEM_PROMPT_COMPACT.as_str(),
-        false => TOOL_SYSTEM_PROMPT,
+/// The agent system prompt for a given dialect.
+///
+/// Takes the dialect rather than a `native_tools` bool so the prompt and the
+/// transport stay separable: a pair that sends schemas but still wants the full
+/// catalogue is a legitimate thing to configure, and it is expressible now
+/// instead of being implied by a boolean that means two things at once.
+pub fn agent_system_prompt(dialect: crate::harness::PromptDialect) -> &'static str {
+    match dialect {
+        crate::harness::PromptDialect::Compact => TOOL_SYSTEM_PROMPT_COMPACT.as_str(),
+        crate::harness::PromptDialect::Full => TOOL_SYSTEM_PROMPT,
     }
 }
 
@@ -2372,9 +2376,12 @@ Some text in between
 
     #[test]
     fn prompt_selection_follows_the_provider() {
-        assert_eq!(agent_system_prompt(false), TOOL_SYSTEM_PROMPT);
         assert_eq!(
-            agent_system_prompt(true),
+            agent_system_prompt(crate::harness::PromptDialect::Full),
+            TOOL_SYSTEM_PROMPT
+        );
+        assert_eq!(
+            agent_system_prompt(crate::harness::PromptDialect::Compact),
             TOOL_SYSTEM_PROMPT_COMPACT.as_str()
         );
     }
