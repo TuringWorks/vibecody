@@ -1,214 +1,174 @@
 /**
- * Behavioural tests for the `useModelRegistry` hook — the TTL cache and the
- * dynamic Ollama refresh.
+ * Behavioural tests for the `useModelRegistry` hook — now a binding over the
+ * shared `useDaemonModels`.
  *
- * Split from useModelRegistry.bdd.test.ts, which became a pure registry-integrity
- * guard when the phantom `gemini-3.5-pro` was found. That rewrite dropped every
- * test that actually *ran* the hook, leaving refresh, caching and the loading
- * flag with no coverage at all. Those are restored here.
+ * VibeCoder used to build its own provider→model matrix from `STATIC_MODELS`
+ * plus a client-side `ollama_list_models` merge, so every model change had to
+ * be made twice: once in `vibe-ai/src/catalog.rs` for the daemon and every thin
+ * client, and again in TypeScript here. It reads the daemon's `/models` now,
+ * and `STATIC_MODELS` is demoted to a first-run fallback.
  *
- * The division of labour: that file asserts things about the static tables and
- * never mounts anything; this file mounts the hook and asserts what it does.
+ * These scenarios are the previous ones carried over — the requirements did not
+ * change, only where the list comes from:
  *
- * Scenarios:
- *  1. Static providers are available on first mount (no cache, no backend)
- *  2. modelsForProvider returns the static list / [] for an unknown provider
- *  3. refresh() calls invoke("ollama_list_models")
- *  4. Dynamic Ollama models replace the static list when the backend responds
- *  5. When the Ollama backend throws, the static list is kept
- *  6. The cache is written to localStorage after a refresh
- *  7. A fresh cache (< 2h) is used on mount without calling the backend
- *  8. An expired cache (>= 2h) is ignored and triggers a refresh
- *  9. The loading flag is true during refresh and false after
+ *  1. Providers are available on first mount with no cache and no daemon
+ *  2. modelsForProvider returns a list / [] for an unknown provider
+ *  3. The hook asks the daemon, not Ollama directly
+ *  4. Daemon rows replace the static fallback
+ *  5. When the daemon is unreachable, the fallback is kept
+ *  6. A successful read is cached
+ *  7. A cache is served on mount before the daemon answers
+ *  8. The cache is superseded by a live answer, not trusted over it
+ *  9. The loading flag is true during the first read and false after
+ * 10. An empty daemon answer does not blank the picker
  */
 
-import { renderHook, act, waitFor } from "@testing-library/react";
+import { renderHook, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-
-// ── Mock Tauri invoke ──────────────────────────────────────────────────────────
 
 const mockInvoke = vi.fn();
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: (...args: unknown[]) => mockInvoke(...args),
 }));
 
-import {
-  useModelRegistry,
-  STATIC_MODELS,
-  ALL_PROVIDERS,
-  CACHE_KEY,
-} from "../useModelRegistry";
+import { useModelRegistry, STATIC_MODELS, ALL_PROVIDERS } from "../useModelRegistry";
 
-// Imported, not re-declared: a local copy silently went stale when the hook
-// bumped the key (it is on `:v3` now), so these tests wrote to a key nothing
-// reads and every cache assertion passed vacuously.
-const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+/** Must match `DAEMON_MODELS_CACHE_KEY` in the hook. */
+const CACHE = "vibecody:daemon-models:v1";
+
+function rows(...pairs: [string, string][]) {
+  return pairs.map(([provider, name]) => ({ id: `${provider}/${name}`, name, provider }));
+}
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  mockInvoke.mockReset();
   localStorage.clear();
-  // Default posture: Ollama not running.
-  mockInvoke.mockRejectedValue(new Error("Ollama not running"));
 });
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
-// ── Scenario 1: static providers without cache or backend ─────────────────────
-
-describe("Given no cache and no backend", () => {
-  it("When the hook mounts, Then every known provider is listed", () => {
+describe("Given no cache and no daemon", () => {
+  it("When the hook mounts, Then the static fallback still lists providers", async () => {
+    mockInvoke.mockRejectedValue(new Error("daemon down"));
     const { result } = renderHook(() => useModelRegistry());
-    for (const p of ALL_PROVIDERS) {
-      expect(result.current.providers).toContain(p);
-    }
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.providers).toEqual(ALL_PROVIDERS);
+    expect(result.current.source).toBe("fallback");
   });
-});
 
-// ── Scenario 2: modelsForProvider ─────────────────────────────────────────────
-
-describe("Given the hook has loaded", () => {
-  it('When modelsForProvider("openai") is called, Then it returns the static OpenAI list', () => {
+  it("When a provider is unknown, Then modelsForProvider returns []", async () => {
+    mockInvoke.mockRejectedValue(new Error("daemon down"));
     const { result } = renderHook(() => useModelRegistry());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.modelsForProvider("nonesuch")).toEqual([]);
     expect(result.current.modelsForProvider("openai")).toEqual(STATIC_MODELS.openai);
   });
-
-  it("When modelsForProvider() is given an unknown provider, Then it returns an empty array", () => {
-    const { result } = renderHook(() => useModelRegistry());
-    expect(result.current.modelsForProvider("unknown-provider")).toEqual([]);
-  });
 });
 
-// ── Scenarios 3 & 4: dynamic Ollama refresh ───────────────────────────────────
-
-describe("Given Ollama is running and returns models", () => {
-  beforeEach(() => {
-    mockInvoke.mockResolvedValue(["llama3.2", "mistral", "phi3"]);
-  });
-
-  it('When refresh() is called, Then invoke("ollama_list_models") is called', async () => {
-    const { result } = renderHook(() => useModelRegistry());
-    await act(async () => {
-      await result.current.refresh();
-    });
-    expect(mockInvoke).toHaveBeenCalledWith("ollama_list_models");
-  });
-
-  it('When refresh() resolves, Then modelsForProvider("ollama") returns the dynamic list', async () => {
-    const { result } = renderHook(() => useModelRegistry());
-    await act(async () => {
-      await result.current.refresh();
-    });
-    expect(result.current.modelsForProvider("ollama")).toContain("llama3.2");
-    expect(result.current.modelsForProvider("ollama")).toContain("mistral");
-  });
-});
-
-// ── Scenario 5: the backend failing must not empty the picker ─────────────────
-
-describe("Given Ollama is not running (invoke throws)", () => {
-  it('When refresh() is called, Then modelsForProvider("ollama") keeps the static list', async () => {
-    const { result } = renderHook(() => useModelRegistry());
-    const staticOllama = [...STATIC_MODELS.ollama];
-    await act(async () => {
-      await result.current.refresh();
-    });
-    expect(result.current.modelsForProvider("ollama")).toEqual(staticOllama);
-  });
-});
-
-// ── Scenario 6: the cache is written after a refresh ──────────────────────────
-
-describe("Given a successful refresh", () => {
-  beforeEach(() => {
-    mockInvoke.mockResolvedValue(["qwen3", "gemma2"]);
-  });
-
-  it("When refresh() completes, Then localStorage holds the cache key", async () => {
-    const { result } = renderHook(() => useModelRegistry());
-    await act(async () => {
-      await result.current.refresh();
-    });
-    expect(localStorage.getItem(CACHE_KEY)).not.toBeNull();
-  });
-
-  it("When refresh() completes, Then the cached ollama models include the dynamic list", async () => {
-    const { result } = renderHook(() => useModelRegistry());
-    await act(async () => {
-      await result.current.refresh();
-    });
-    const cached = JSON.parse(localStorage.getItem(CACHE_KEY)!);
-    expect(cached.models.ollama).toContain("qwen3");
-  });
-});
-
-// ── Scenario 7: a fresh cache is used without hitting the backend ─────────────
-
-describe("Given a fresh cache (< 2 hours old) in localStorage", () => {
-  it("When the hook mounts, Then the cached models are used without calling invoke", async () => {
-    const cachedOllamaModels = ["cached-model-1", "cached-model-2"];
-    localStorage.setItem(
-      CACHE_KEY,
-      JSON.stringify({
-        providers: ALL_PROVIDERS,
-        models: { ...STATIC_MODELS, ollama: cachedOllamaModels },
-        updatedAt: Date.now() - 1000, // 1 second old
-      }),
-    );
-
-    const { result } = renderHook(() => useModelRegistry());
-    await waitFor(() => {
-      expect(result.current.modelsForProvider("ollama")).toEqual(cachedOllamaModels);
-    });
-    expect(mockInvoke).not.toHaveBeenCalled();
-  });
-});
-
-// ── Scenario 8: an expired cache triggers a refresh ───────────────────────────
-
-describe("Given an expired cache (>= 2 hours old) in localStorage", () => {
-  beforeEach(() => {
-    mockInvoke.mockResolvedValue(["fresh-model"]);
-    localStorage.setItem(
-      CACHE_KEY,
-      JSON.stringify({
-        providers: ALL_PROVIDERS,
-        models: { ...STATIC_MODELS },
-        updatedAt: Date.now() - TWO_HOURS_MS - 1, // just over the TTL
-      }),
-    );
-  });
-
-  it('When the hook mounts, Then invoke("ollama_list_models") is called', async () => {
+describe("Given the daemon answers", () => {
+  it("When the hook mounts, Then it asks the daemon rather than Ollama directly", async () => {
+    mockInvoke.mockResolvedValue(rows(["ollama", "qwen3-coder"]));
     renderHook(() => useModelRegistry());
-    await waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith("ollama_list_models");
-    });
+
+    // The daemon already merges live Ollama tags, the cloud list and every
+    // keyed provider; asking Ollama here would be a second, narrower source.
+    await waitFor(() =>
+      expect(mockInvoke).toHaveBeenCalledWith("list_daemon_models", expect.anything())
+    );
+    expect(mockInvoke).not.toHaveBeenCalledWith("ollama_list_models");
+  });
+
+  it("When rows arrive, Then they replace the static fallback", async () => {
+    mockInvoke.mockResolvedValue(
+      rows(["ollama", "qwen3-coder"], ["ollama", "glm-5.3:cloud"], ["claude", "claude-opus-5"])
+    );
+    const { result } = renderHook(() => useModelRegistry());
+
+    await waitFor(() => expect(result.current.source).toBe("live"));
+    expect(result.current.modelsForProvider("ollama")).toEqual([
+      "qwen3-coder",
+      "glm-5.3:cloud",
+    ]);
+    expect(result.current.modelsForProvider("claude")).toEqual(["claude-opus-5"]);
+  });
+
+  it("Then only providers the daemon actually serves are offered", async () => {
+    mockInvoke.mockResolvedValue(rows(["claude", "claude-opus-5"]));
+    const { result } = renderHook(() => useModelRegistry());
+
+    // Offering a provider the daemon cannot build produces a selection that
+    // fails at request time.
+    await waitFor(() => expect(result.current.source).toBe("live"));
+    expect(result.current.providers).toEqual(["claude"]);
+  });
+
+  it("Then the answer is cached", async () => {
+    mockInvoke.mockResolvedValue(rows(["claude", "claude-opus-5"]));
+    const { result } = renderHook(() => useModelRegistry());
+
+    await waitFor(() => expect(result.current.source).toBe("live"));
+    expect(JSON.parse(localStorage.getItem(CACHE) ?? "[]")).toHaveLength(1);
+  });
+
+  /**
+   * An empty success is not an answer worth keeping over a good one — caching
+   * it would blank the picker and persist the blank.
+   */
+  it("When the answer is empty, Then the picker is not blanked", async () => {
+    localStorage.setItem(CACHE, JSON.stringify(rows(["claude", "claude-opus-5"])));
+    mockInvoke.mockResolvedValue([]);
+    const { result } = renderHook(() => useModelRegistry());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.modelsForProvider("claude")).toEqual(["claude-opus-5"]);
+    expect(result.current.source).toBe("cache");
   });
 });
 
-// ── Scenario 9: the loading flag ──────────────────────────────────────────────
-
-describe("Given a slow backend response", () => {
-  it("When refresh() is in flight, Then loading is true; after completion it is false", async () => {
-    let resolve!: () => void;
-    mockInvoke.mockReturnValue(
-      new Promise<string[]>((r) => {
-        resolve = () => r([]);
-      }),
-    );
-
+describe("Given a cached answer from a previous session", () => {
+  it("When the hook mounts, Then the cache is shown before the daemon replies", () => {
+    localStorage.setItem(CACHE, JSON.stringify(rows(["claude", "cached-model"])));
+    mockInvoke.mockReturnValue(new Promise(() => {})); // never settles
     const { result } = renderHook(() => useModelRegistry());
-    const refreshPromise = act(async () => {
-      result.current.refresh();
-    });
 
-    await waitFor(() => expect(result.current.loading).toBe(true));
+    expect(result.current.source).toBe("cache");
+    expect(result.current.modelsForProvider("claude")).toEqual(["cached-model"]);
+  });
 
-    act(() => {
-      resolve();
-    });
-    await refreshPromise;
+  it("When the daemon replies, Then the live answer wins over the cache", async () => {
+    localStorage.setItem(CACHE, JSON.stringify(rows(["claude", "stale-model"])));
+    mockInvoke.mockResolvedValue(rows(["claude", "fresh-model"]));
+    const { result } = renderHook(() => useModelRegistry());
 
-    expect(result.current.loading).toBe(false);
+    await waitFor(() => expect(result.current.source).toBe("live"));
+    expect(result.current.modelsForProvider("claude")).toEqual(["fresh-model"]);
+  });
+
+  it("When the daemon is unreachable, Then the cache is kept, not the fallback", async () => {
+    localStorage.setItem(CACHE, JSON.stringify(rows(["claude", "cached-model"])));
+    mockInvoke.mockRejectedValue(new Error("daemon down"));
+    const { result } = renderHook(() => useModelRegistry());
+
+    // The cache is the daemon's own previous answer, so it beats a hardcoded
+    // list that may name models this daemon never served.
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.source).toBe("cache");
+    expect(result.current.modelsForProvider("claude")).toEqual(["cached-model"]);
+  });
+});
+
+describe("Given a slow daemon", () => {
+  it("When the first read is in flight, Then loading is true; after it, false", async () => {
+    let settle: (v: unknown) => void = () => {};
+    mockInvoke.mockReturnValue(new Promise((res) => (settle = res)));
+    const { result } = renderHook(() => useModelRegistry());
+
+    expect(result.current.loading).toBe(true);
+    settle(rows(["claude", "claude-opus-5"]));
+    await waitFor(() => expect(result.current.loading).toBe(false));
   });
 });

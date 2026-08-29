@@ -5,9 +5,13 @@
  * All panels that need model selection import this hook to get
  * consistent, fast model dropdowns without redundant API calls.
  */
-import { useState, useEffect, useCallback, useRef } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { OLLAMA_CHAT_MODELS, OLLAMA_CLOUD_MODELS } from "../constants/ollamaModels";
+import { useCallback, useMemo } from "react";
+import {
+  useDaemonModels,
+  providersOf,
+  type DaemonModel,
+} from "@vibe/shared/hooks/useDaemonModels";
+import { OLLAMA_CHAT_MODELS } from "../constants/ollamaModels";
 
 /**
  * Versioned: bump when the static catalog / merge logic changes so a stale
@@ -22,6 +26,19 @@ import { OLLAMA_CHAT_MODELS, OLLAMA_CLOUD_MODELS } from "../constants/ollamaMode
 // v3 (2026-08-05): retired-model sweep — a v2 cache still holds
 // deepseek-v3.1:671b-cloud and friends, which now 410.
 export const CACHE_KEY = "vibecody:model-registry:v3";
+
+/**
+ * Where the list actually comes from now.
+ *
+ * VibeCoder used to build its own provider→model matrix from `STATIC_MODELS`
+ * plus a client-side merge of `ollama_list_models`, which meant every model
+ * change had to be made twice — once in `vibe-ai/src/catalog.rs` for the
+ * daemon and every thin client, and again here. The daemon's `/models` already
+ * merges live Ollama tags, the cloud list and every keyed provider, so this
+ * reads that instead and `STATIC_MODELS` is demoted to a first-run fallback.
+ */
+const DAEMON_URL = "http://localhost:7878";
+const DAEMON_MODELS_CACHE_KEY = "vibecody:daemon-models:v1";
 const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 /**
@@ -138,6 +155,20 @@ export const STATIC_MODELS: Record<string, string[]> = {
 };
 
 export const ALL_PROVIDERS = Object.keys(STATIC_MODELS);
+
+/**
+ * `STATIC_MODELS` in the daemon's own row shape, for a first run that has never
+ * reached a daemon.
+ *
+ * Tier 3 and nothing else: once `/models` has answered even once, its response
+ * is cached and this is never consulted again. It exists so a fresh install
+ * shows a picker before the daemon finishes autostarting — not as a second
+ * catalog to maintain.
+ */
+const STATIC_FALLBACK_ROWS: DaemonModel[] = Object.entries(STATIC_MODELS).flatMap(
+  ([provider, names]) =>
+    names.map((name) => ({ id: `${provider}/${name}`, name, provider }))
+);
 
 /**
  * Preferred default provider for panels that need an initial selection.
@@ -318,25 +349,9 @@ export interface ModelRegistryData {
   updatedAt: number;
 }
 
-function loadCache(): ModelRegistryData | null {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    if (!raw) return null;
-    const data: ModelRegistryData = JSON.parse(raw);
-    if (Date.now() - data.updatedAt > CACHE_TTL_MS) return null;
-    return data;
-  } catch {
-    return null;
-  }
-}
-
-function saveCache(data: ModelRegistryData) {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-  } catch {
-    // localStorage full — ignore
-  }
-}
+// The registry's own cache read/write are gone: `useDaemonModels` owns the
+// cache now, and it stores the daemon's rows rather than a matrix derived from
+// them. `CACHE_KEY` stays exported because other modules still clear it.
 
 /**
  * Hook that provides the cached provider→model matrix.
@@ -349,84 +364,52 @@ function saveCache(data: ModelRegistryData) {
  * - `lastUpdated`: Timestamp of last cache update
  */
 export function useModelRegistry() {
-  const [data, setData] = useState<ModelRegistryData>(() => {
-    const cached = loadCache();
-    if (cached) return cached;
-    return {
-      providers: ALL_PROVIDERS,
-      models: { ...STATIC_MODELS },
-      updatedAt: 0,
-    };
+  const { models: rows, source, loading, refresh } = useDaemonModels({
+    daemonUrl: DAEMON_URL,
+    cacheKey: DAEMON_MODELS_CACHE_KEY,
+    fallback: STATIC_FALLBACK_ROWS,
+    pollMs: CACHE_TTL_MS,
   });
-  const [loading, setLoading] = useState(false);
-  const refreshedRef = useRef(false);
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    try {
-      // Fetch Ollama models dynamically
-      let ollamaModels: string[] = [];
-      let ollamaReachable = false;
-      try {
-        const result = await invoke<string[]>("ollama_list_models");
-        if (result && result.length > 0) {
-          ollamaModels = result;
-          ollamaReachable = true;
-        }
-      } catch {
-        // Ollama not running — will fall back to OLLAMA_CHAT_MODELS
-      }
-
-      // Merge with static models.
-      const models = { ...STATIC_MODELS };
-      // When Ollama is reachable, show only cloud models + locally-pulled models.
-      // The full static catalog (OLLAMA_CHAT_MODELS) includes many older/superseded
-      // models that confuse the dropdown — only fall back to it when the daemon
-      // is unreachable so users can still pick a model to pull.
-      if (ollamaReachable) {
-        const seen = new Set<string>();
-        models.ollama = [
-          ...OLLAMA_CLOUD_MODELS,
-          ...ollamaModels,
-        ].filter((m) => (seen.has(m) ? false : (seen.add(m), true)));
-      }
-      // If Ollama is unreachable, static fallback is already set via { ...STATIC_MODELS }.
-
-      const newData: ModelRegistryData = {
-        providers: ALL_PROVIDERS,
-        models,
-        updatedAt: Date.now(),
-      };
-      setData(newData);
-      saveCache(newData);
-    } catch {
-      // Keep existing data on error
+  // One provider→models matrix, derived from whichever tier answered. Derived
+  // with `useMemo` rather than mirrored into state: state that only ever
+  // restates a prop goes stale the moment the prop changes.
+  const models = useMemo(() => {
+    const matrix: Record<string, string[]> = {};
+    for (const row of rows) {
+      if (!row.name) continue;
+      (matrix[row.provider] ??= []).push(row.name);
     }
-    setLoading(false);
-  }, []);
+    return matrix;
+  }, [rows]);
 
-  // Auto-refresh on mount if cache is stale
-  useEffect(() => {
-    if (!refreshedRef.current) {
-      refreshedRef.current = true;
-      if (data.updatedAt === 0 || Date.now() - data.updatedAt > CACHE_TTL_MS) {
-        refresh();
-      }
-    }
-  }, [data.updatedAt, refresh]);
+  // Providers the daemon actually serves, in catalog order. `ALL_PROVIDERS` is
+  // the static superset and is only right when nothing has answered — offering
+  // a provider the daemon cannot build is how a picker produces a selection
+  // that fails at request time.
+  const providers = useMemo(() => {
+    // On the fallback tier the rows *are* `STATIC_MODELS`, whose provider set
+    // is `ALL_PROVIDERS` by definition — deriving it from rows instead would
+    // quietly drop any provider whose static list is empty (`vercel_ai`), which
+    // is a behaviour change nobody asked for.
+    if (source === "fallback") return ALL_PROVIDERS;
+    const seen = providersOf(rows);
+    return seen.length > 0 ? seen : ALL_PROVIDERS;
+  }, [rows, source]);
 
   const modelsForProvider = useCallback(
-    (provider: string): string[] => {
-      return data.models[provider] || [];
-    },
-    [data.models]
+    (provider: string): string[] => models[provider] ?? [],
+    [models]
   );
 
   return {
-    providers: data.providers,
+    providers,
     modelsForProvider,
     loading,
     refresh,
-    lastUpdated: data.updatedAt,
+    /** Which tier the list came from: `live`, `cache`, or `fallback`. */
+    source,
+    /** Kept for callers that render a freshness stamp. */
+    lastUpdated: source === "live" ? Date.now() : 0,
   };
 }

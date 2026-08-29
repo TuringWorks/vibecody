@@ -1,5 +1,6 @@
 import { memo, useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { SettingsView, type SettingsTab } from "@vibe/shared/settings/SettingsView";
+import { useDaemonModels } from "@vibe/shared/hooks/useDaemonModels";
 import { Plug } from "lucide-react";
 import { visibleAnswer } from "@vibe/shared/lib/thinking";
 import { Markdown } from "@vibe/shared/markdown/Markdown";
@@ -174,22 +175,15 @@ async function loadDaemonToken(): Promise<string> {
 // ── Model catalog — daemon is the single source of truth ─────────────────────
 // The daemon's /models endpoint (vibe-ai/src/catalog.rs) returns the full
 // catalog for every provider, including ollama local + cloud. VibeAIChat renders
-// exactly that and caches the last success, so the picker survives a brief
-// disconnect without carrying its own hardcoded list.
+// exactly that.
+//
+// The fetch-cache-degrade logic now lives in `@vibe/shared/hooks/useDaemonModels`,
+// shared with VibeDesk and VibeCoder. It used to be inlined here, and the copy
+// had drifted: this file's row type carried only `id`/`name`/`provider`, so the
+// `may_not_load` GPU-budget flag the daemon sends never reached the picker and
+// VibeAIChat could offer a model that fails every turn on this machine.
 
 const MODELS_CACHE_KEY = "vibeaichat_models_cache";
-
-type ModelRow = { id: string; name?: string; provider?: string };
-
-function readModelsCache(): ModelRow[] {
-  try {
-    const raw = localStorage.getItem(MODELS_CACHE_KEY);
-    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
-    return Array.isArray(parsed) ? (parsed as ModelRow[]) : [];
-  } catch {
-    return [];
-  }
-}
 
 // Friendly labels for the provider dropdown; the providers themselves are
 // derived from the daemon's model list. Unknown ids fall back to the raw id.
@@ -233,7 +227,13 @@ export default function App() {
   const [daemonOk, setDaemonOk]     = useState<boolean | null>(null);
   const [pinned, setPinned]         = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [availableModels, setAvailableModels] = useState<ModelRow[]>(readModelsCache);
+  const { models: availableModels } = useDaemonModels({
+    daemonUrl,
+    cacheKey: MODELS_CACHE_KEY,
+    // VibeAIChat carries no catalog of its own, so there is no tier-3 list:
+    // offline it serves the daemon's own last answer, or nothing.
+    pollMs: 30_000,
+  });
   const [selectedModel, setSelectedModel] = useState(() => loadSetting(MODEL_KEY, ""));
 
   // Full-duplex conversation. Push-to-talk (`useVoiceInput`, below) stays: it
@@ -281,15 +281,8 @@ export default function App() {
       try {
         await invoke("check_daemon", { url: daemonUrl });
         setDaemonOk(true);
-        // The daemon is the single source of truth for the model catalog.
-        // Keep addressable rows (drop the synthetic active entry), cache them
-        // so the picker survives a brief disconnect.
-        try {
-          const models = await invoke<ModelRow[]>("list_daemon_models", { url: daemonUrl });
-          const named = models.filter(m => !!m.name);
-          setAvailableModels(named);
-          localStorage.setItem(MODELS_CACHE_KEY, JSON.stringify(named));
-        } catch { /* daemon may not support /models yet — keep cache */ }
+        // Model discovery is `useDaemonModels`' job now — it polls on the same
+        // cadence and owns the cache, so this effect only reports health.
       } catch {
         setDaemonOk(false);
       }

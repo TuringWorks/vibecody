@@ -4838,6 +4838,26 @@ fn daemon_bearer_token() -> Result<String, String> {
 /// confirmation flow were both entirely non-functional, with nothing on screen
 /// explaining why.
 ///
+/// The daemon's model catalog, verbatim.
+///
+/// Same shape and name as VibeDesk's and VibeAIChat's, so all three shells
+/// share one frontend hook (`@vibe/shared/hooks/useDaemonModels`). VibeCoder
+/// used to maintain a parallel copy of the catalog in TypeScript instead, which
+/// had to be edited alongside `vibe-ai/src/catalog.rs` every time a model
+/// changed.
+///
+/// `/models` is public — no bearer needed — and the daemon has already merged
+/// live Ollama tags, the cloud list and every keyed provider into one answer.
+#[tauri::command]
+pub async fn list_daemon_models(url: String) -> Result<Vec<serde_json::Value>, String> {
+    let models_url = format!("{}/models", url.trim_end_matches('/'));
+    let resp = reqwest::get(&models_url)
+        .await
+        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    let body: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    Ok(body["models"].as_array().cloned().unwrap_or_default())
+}
+
 /// **Re-read, never cached here.** `vibecli serve` mints a fresh random token on
 /// every start (implicit rotation, see docs/security/key-rotation.md), so a
 /// token captured once goes stale the moment the daemon restarts — which
