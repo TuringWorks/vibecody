@@ -22,13 +22,17 @@ import {
 import { THEMES, applyThemeById, DEFAULT_DARK_THEME_ID, type ThemeDef } from "../theme/themes";
 import { EmbeddingModelPicker } from "./EmbeddingModelPicker";
 import { LayoutSection } from "./settings/LayoutSection";
-import { HarnessSection } from "./settings/HarnessSection";
+
 import { ExperimentalBadge } from "./ExperimentalBadge";
 // The Voice pane is shared with VibeDesk and VibeAIChat — the daemon owns
 // these settings, so three copies would be three UIs over one machine.
 // VibeCoder has its own sidebar rather than the shared `SettingsView`,
 // which is why the section is imported instead of coming along with it.
 import { VoiceSection } from "@vibe/shared/settings/VoiceSection";
+// Shared for the same reason VoiceSection is: a settings pane defined inside
+// one shell reaches that shell only. VibeDesk and VibeAIChat get this from
+// `SettingsView`; VibeCoder's own sidebar imports it.
+import { HarnessSection } from "@vibe/shared/settings/HarnessSection";
 import "@vibe/shared/settings/settings.css";
 
 /* ── Types ──────────────────────────────────────────────────────────── */

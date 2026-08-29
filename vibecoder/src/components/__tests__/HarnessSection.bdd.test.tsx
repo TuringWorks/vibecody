@@ -18,29 +18,18 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+/**
+ * The panel builds its own authenticated request from `invoke("daemon_port")`
+ * and `invoke("daemon_token_effective")`, the same way `useVoiceSettings` does,
+ * so the seam under test is `fetch` rather than a helper.
+ */
 const mockDaemonFetch = vi.fn();
-vi.mock("../../lib/daemonFetch", () => ({
-  daemonFetch: (...args: unknown[]) => mockDaemonFetch(...args),
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: (cmd: string) =>
+    cmd === "daemon_port" ? Promise.resolve(7878) : Promise.resolve("test-token"),
 }));
 
-vi.mock("../../hooks/useModelRegistry", async () => {
-  const actual = await vi.importActual<Record<string, unknown>>(
-    "../../hooks/useModelRegistry"
-  );
-  return {
-    ...actual,
-    useModelRegistry: () => ({
-      providers: ["claude", "openai"],
-      modelsForProvider: (p: string) =>
-        p === "claude" ? ["claude-opus-5", "claude-sonnet-5"] : ["gpt-5.5"],
-      loading: false,
-      refresh: async () => {},
-      lastUpdated: 0,
-    }),
-  };
-});
-
-import { HarnessSection } from "../settings/HarnessSection";
+import { HarnessSection } from "@vibe/shared/settings/HarnessSection";
 
 /**
  * Block body, not an expression body.
@@ -51,9 +40,18 @@ import { HarnessSection } from "../settings/HarnessSection";
  */
 beforeEach(() => {
   mockDaemonFetch.mockReset();
+  // `/models` is a separate, public call the panel makes to populate its model
+  // list. It is not what these scenarios are about, so it answers empty and
+  // everything else goes to the mock under test.
+  vi.stubGlobal("fetch", (url: string, init?: RequestInit) =>
+    String(url).includes("/models")
+      ? Promise.resolve({ ok: true, json: () => Promise.resolve({ models: [] }) })
+      : mockDaemonFetch(url, init)
+  );
 });
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
@@ -73,7 +71,7 @@ function reply(body: unknown, ok = true, status = 200) {
 
 function resolved(overrides: Record<string, unknown> = {}) {
   return {
-    provider: "claude",
+    provider: "anthropic",
     model: "*",
     effective: { ...NATIVE_PROFILE },
     builtin: { ...NATIVE_PROFILE },

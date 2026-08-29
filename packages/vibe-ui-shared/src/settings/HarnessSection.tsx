@@ -1,6 +1,12 @@
 /**
  * HarnessSection — per-(provider, model) harness tuning.
  *
+ * In the shared package, and exported, for the reason `VoiceSection` records:
+ * a section defined privately inside one shell's settings screen reaches that
+ * shell only, and the others silently have no such tab. VibeCoder imports this
+ * into its own older sidebar; VibeDesk and VibeAIChat get it from
+ * `SettingsView`.
+ *
  * The harness is everything a model is *given* that is not the conversation:
  * whether tool schemas ride on the wire or are described in prose, which system
  * prompt is paired with that choice, the output cap, the reasoning budget, and
@@ -20,17 +26,48 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RotateCcw, Loader2, AlertCircle, Check } from "lucide-react";
-import { daemonFetch } from "../../lib/daemonFetch";
-import {
-  ALL_PROVIDERS,
-  PROVIDER_DEFAULT_MODEL,
-  useModelRegistry,
-} from "../../hooks/useModelRegistry";
-
-const DAEMON = "http://localhost:7878";
+import { invoke } from "@tauri-apps/api/core";
+import { KEYED_PROVIDERS } from "../hooks/useProviderSettings";
 
 /** Addresses every model a provider serves. */
 const ALL_MODELS = "*";
+
+/**
+ * The daemon's address and bearer token.
+ *
+ * Same shape as `useVoiceSettings`: the port comes from the host shell when it
+ * exposes the command, and the token rotates on every daemon start so it is
+ * read per call rather than cached. Every `/harness/*` route is authenticated —
+ * a plain fetch would be a silent 401.
+ */
+async function daemonBase(): Promise<{ url: string; token: string }> {
+  let url = "http://127.0.0.1:7878";
+  try {
+    url = `http://127.0.0.1:${await invoke<number>("daemon_port")}`;
+  } catch {
+    /* a host without the command falls back to the default port */
+  }
+  let token = "";
+  try {
+    token = (await invoke<string | null>("daemon_token_effective", { explicit: null })) ?? "";
+  } catch {
+    /* an unauthenticated daemon */
+  }
+  return { url, token };
+}
+
+async function daemonFetch(path: string, init?: RequestInit): Promise<Response> {
+  const { url, token } = await daemonBase();
+  const headers = new Headers(init?.headers);
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  return fetch(`${url}${path}`, { ...init, headers });
+}
+
+/** One row of the daemon's `/models` listing. */
+interface ModelRow {
+  id?: string;
+  provider?: string;
+}
 
 export type ToolTransport = "native" | "prose";
 export type PromptDialect = "full" | "compact";
@@ -105,25 +142,52 @@ type Status =
   | { kind: "error"; message: string };
 
 export function HarnessSection() {
-  const registry = useModelRegistry();
-  const [provider, setProvider] = useState<string>("claude");
+  const [catalog, setCatalog] = useState<ModelRow[]>([]);
+  const [provider, setProvider] = useState<string>("anthropic");
   const [model, setModel] = useState<string>(ALL_MODELS);
   const [resolved, setResolved] = useState<ResolvedProfile | null>(null);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
 
+  // The daemon's `/models` is the source of truth for what a client can
+  // address — a hardcoded list here would drift from the provider the daemon
+  // can actually build. Public route, so no token is needed.
+  useEffect(() => {
+    let live = true;
+    void (async () => {
+      try {
+        const { url } = await daemonBase();
+        const res = await fetch(`${url}/models`);
+        if (!res.ok) return;
+        const body: unknown = await res.json();
+        const rows =
+          typeof body === "object" && body !== null && Array.isArray((body as { models?: unknown }).models)
+            ? ((body as { models: ModelRow[] }).models)
+            : [];
+        if (live) setCatalog(rows);
+      } catch {
+        // No catalog just means the model list falls back to "All models",
+        // which is the entry most people want anyway.
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, []);
+
   const models = useMemo(() => {
-    const list = registry.modelsForProvider(provider);
-    const preferred = PROVIDER_DEFAULT_MODEL[provider];
+    const list = catalog
+      .filter((m) => m.provider === provider && typeof m.id === "string")
+      .map((m) => m.id as string);
     // The provider-wide entry first: it is the setting most people want, and
-    // it is the only one that applies to a model this build has never listed.
-    return [ALL_MODELS, ...(preferred && !list.includes(preferred) ? [preferred] : []), ...list];
-  }, [registry, provider]);
+    // the only one that applies to a model this build has never listed.
+    return [ALL_MODELS, ...Array.from(new Set(list))];
+  }, [catalog, provider]);
 
   const load = useCallback(async (p: string, m: string) => {
     setStatus({ kind: "loading" });
     try {
       const params = new URLSearchParams({ provider: p, model: m });
-      const res = await daemonFetch(`${DAEMON}/harness/profile?${params}`);
+      const res = await daemonFetch(`/harness/profile?${params}`);
       if (!res.ok) {
         setStatus({ kind: "error", message: `Daemon returned ${res.status}` });
         return;
@@ -158,7 +222,7 @@ export function HarnessSection() {
       try {
         const params = new URLSearchParams({ provider, model });
         const empty = Object.values(patch).every((v) => v === undefined);
-        const res = await daemonFetch(`${DAEMON}/harness/profile?${params}`, {
+        const res = await daemonFetch(`/harness/profile?${params}`, {
           // An empty patch is a delete, so the pair returns to whatever this
           // build ships — including a default that improves later.
           method: empty ? "DELETE" : "PUT",
@@ -210,9 +274,9 @@ export function HarnessSection() {
             }}
             style={inputStyle}
           >
-            {ALL_PROVIDERS.map((p) => (
-              <option key={p} value={p}>
-                {p}
+            {KEYED_PROVIDERS.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.id}
               </option>
             ))}
           </select>
