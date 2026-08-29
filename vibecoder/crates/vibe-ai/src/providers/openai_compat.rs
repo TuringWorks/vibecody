@@ -107,9 +107,13 @@ pub struct ChatChoice {
 /// nothing.
 #[derive(Debug, Deserialize)]
 pub struct ResponseMessage {
-    /// Absent when the turn was entirely tool calls or entirely reasoning —
-    /// hence `default`, not a required field.
-    #[serde(default)]
+    /// Absent when the turn was entirely tool calls or entirely reasoning.
+    ///
+    /// Both *missing* and *explicitly null* have to be tolerated: OpenAI sends
+    /// `"content": null` for precisely the tool-call turn this type exists to
+    /// read, and `#[serde(default)]` alone does not accept a null into a
+    /// `String` — the whole response would fail to parse.
+    #[serde(default, deserialize_with = "null_as_empty_string")]
     pub content: String,
     #[serde(default)]
     pub tool_calls: Option<Vec<NativeToolCall>>,
@@ -118,6 +122,14 @@ pub struct ResponseMessage {
     pub reasoning_content: Option<String>,
     #[serde(default)]
     pub reasoning: Option<String>,
+}
+
+/// `null` and a missing field both read as an empty string.
+fn null_as_empty_string<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Ok(Option::<String>::deserialize(deserializer)?.unwrap_or_default())
 }
 
 impl ResponseMessage {
@@ -264,13 +276,33 @@ struct SseAccumulator {
     thinking_open: bool,
     tool_name: Option<String>,
     tool_args: String,
+    /// Bytes received that do not yet end a line.
+    ///
+    /// An HTTP chunk boundary falls wherever the network puts it, not on a
+    /// newline. Splitting each chunk with `lines()` therefore hands the parser
+    /// a truncated JSON event and then an orphan fragment — both fail to parse,
+    /// both are skipped as "malformed", and the token in them is gone with no
+    /// error anywhere. The Copilot provider had already hit this and grown its
+    /// own line buffer; this is that fix, in the parser every provider shares.
+    line_buf: String,
 }
 
 impl SseAccumulator {
     /// Feed one chunk of SSE text; returns the text to emit downstream.
+    ///
+    /// Only whole lines are parsed. A trailing partial line is held until the
+    /// chunk that completes it arrives.
     fn push(&mut self, text: &str) -> String {
+        self.line_buf.push_str(text);
+        let consumed = self.line_buf.rfind('\n').map(|i| i + 1).unwrap_or(0);
+        let complete: String = self.line_buf.drain(..consumed).collect();
+        self.parse_lines(&complete)
+    }
+
+    fn parse_lines(&mut self, text: &str) -> String {
         let mut out = String::new();
         for line in text.lines() {
+            let line = line.trim_end_matches('\r');
             let Some(data) = line.strip_prefix("data: ") else {
                 continue;
             };
@@ -320,8 +352,14 @@ impl SseAccumulator {
     }
 
     /// Close anything still open at the end of the stream.
+    ///
+    /// A stream that ends without a trailing newline leaves its last event in
+    /// `line_buf`; it is a complete event, just unterminated, so it is parsed
+    /// here rather than discarded.
     fn finish(&mut self) -> String {
-        let mut out = self.flush_tool_call();
+        let tail = std::mem::take(&mut self.line_buf);
+        let mut out = self.parse_lines(&tail);
+        out.push_str(&self.flush_tool_call());
         if self.thinking_open {
             out.push_str("</thinking>\n");
             self.thinking_open = false;
@@ -732,6 +770,69 @@ mod tests {
     /// out with tool schemas, and a plain one must not — an endpoint that is
     /// handed tools it was never asked for answers with calls the panel has
     /// nowhere to run.
+    /// An HTTP chunk boundary falls wherever the network puts it. Splitting
+    /// each chunk on newlines hands the parser a truncated event and then an
+    /// orphan fragment, both of which are skipped as malformed — the token in
+    /// them vanishes with no error. This is the case that proves the buffer.
+    #[test]
+    fn an_event_split_across_chunks_is_not_lost() {
+        let mut acc = SseAccumulator::default();
+        let mut out = String::new();
+        // One event, cut in half mid-JSON.
+        out.push_str(&acc.push("data: {\"choices\":[{\"delta\":{\"cont"));
+        out.push_str(&acc.push("ent\":\"hello\"}}]}\n"));
+        out.push_str(&acc.finish());
+        assert_eq!(out, "hello");
+    }
+
+    /// The boundary can also fall between events rather than inside one.
+    #[test]
+    fn events_split_at_a_chunk_boundary_all_arrive() {
+        let mut acc = SseAccumulator::default();
+        let mut out = String::new();
+        out.push_str(&acc.push("data: {\"choices\":[{\"delta\":{\"content\":\"a\"}}]}\ndata: {\"cho"));
+        out.push_str(&acc.push("ices\":[{\"delta\":{\"content\":\"b\"}}]}\n"));
+        out.push_str(&acc.finish());
+        assert_eq!(out, "ab");
+    }
+
+    /// A stream whose final event has no trailing newline is still a complete
+    /// event — dropping it would lose the last token of every such reply.
+    #[test]
+    fn a_final_event_without_a_newline_is_still_parsed() {
+        let mut acc = SseAccumulator::default();
+        let mut out = String::new();
+        out.push_str(&acc.push("data: {\"choices\":[{\"delta\":{\"content\":\"tail\"}}]}"));
+        out.push_str(&acc.finish());
+        assert_eq!(out, "tail");
+    }
+
+    /// A tool call split across chunks has to survive the same way — this is
+    /// the shape that actually drives the agent loop.
+    #[test]
+    fn a_tool_call_split_across_chunks_survives() {
+        let mut acc = SseAccumulator::default();
+        let mut out = String::new();
+        out.push_str(&acc.push(
+            "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"function\":{\"name\":\"read_f",
+        ));
+        out.push_str(&acc.push(
+            "ile\",\"arguments\":\"{\\\"path\\\":\\\"a.rs\\\"}\"}}]}}]}\n",
+        ));
+        out.push_str(&acc.finish());
+        assert_eq!(out, r#"<tool_call name="read_file"><path>a.rs</path></tool_call>"#);
+    }
+
+    /// CRLF line endings are legal in SSE and some proxies emit them.
+    #[test]
+    fn crlf_line_endings_parse() {
+        let mut acc = SseAccumulator::default();
+        let mut out = String::new();
+        out.push_str(&acc.push("data: {\"choices\":[{\"delta\":{\"content\":\"x\"}}]}\r\n"));
+        out.push_str(&acc.finish());
+        assert_eq!(out, "x");
+    }
+
     #[test]
     fn tools_ride_along_only_when_the_conversation_asked_for_them() {
         let chat = [Message {
@@ -825,6 +926,26 @@ mod tests {
             .message
             .into_text();
         assert_eq!(text, "<thinking>thinking hard</thinking>\ndone");
+    }
+
+    /// OpenAI sends `"content": null` for exactly the turn this type exists to
+    /// read. `#[serde(default)]` does not accept a null into a `String`, so
+    /// without the custom deserializer the whole response fails to parse and
+    /// the turn is reported as an API error rather than a tool call.
+    #[test]
+    fn a_null_content_parses_rather_than_failing_the_turn() {
+        let body: ChatResponse = serde_json::from_str(
+            r#"{"choices":[{"message":{"content":null,"tool_calls":[{"function":{"name":"build","arguments":"{}"}}]}}]}"#,
+        )
+        .expect("a null content must parse");
+        let text = body
+            .choices
+            .into_iter()
+            .next()
+            .expect("one choice")
+            .message
+            .into_text();
+        assert_eq!(text, r#"<tool_call name="build"></tool_call>"#);
     }
 
     /// A reply with neither reasoning nor tool calls must come through exactly

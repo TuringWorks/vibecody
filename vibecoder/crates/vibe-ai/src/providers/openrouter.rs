@@ -9,7 +9,6 @@ use crate::provider::{
 };
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use futures::stream::StreamExt;
 use serde::{Deserialize, Serialize};
 
 const OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
@@ -23,9 +22,33 @@ struct ORRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     max_tokens: Option<usize>,
     stream: bool,
+    /// Native tool schemas. OpenRouter proxies the OpenAI function-calling
+    /// shape to every upstream that supports it; this provider sent none, so
+    /// its models learned about tools only from the system prompt's catalogue.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tools: Option<Vec<serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    parallel_tool_calls: Option<bool>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+impl ORRequest {
+    /// The same request without tools. OpenRouter fronts hundreds of upstreams
+    /// and not all of them implement function calling, so the turn degrades to
+    /// the prose path rather than failing.
+    fn without_tools(&self) -> Self {
+        Self {
+            model: self.model.clone(),
+            messages: self.messages.clone(),
+            temperature: self.temperature,
+            max_tokens: self.max_tokens,
+            stream: self.stream,
+            tools: None,
+            parallel_tool_calls: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct ORMessage {
     role: String,
     content: String,
@@ -46,22 +69,8 @@ struct ORResponse {
 
 #[derive(Debug, Deserialize)]
 struct ORChoice {
-    message: ORMessage,
-}
-
-#[derive(Debug, Deserialize)]
-struct ORStreamResponse {
-    choices: Vec<ORStreamChoice>,
-}
-
-#[derive(Debug, Deserialize)]
-struct ORStreamChoice {
-    delta: ORDelta,
-}
-
-#[derive(Debug, Deserialize)]
-struct ORDelta {
-    content: Option<String>,
+    /// The shared reply type, which carries tool calls and reasoning.
+    message: super::openai_compat::ResponseMessage,
 }
 
 /// OpenRouter provider — access 300+ models through a single API key.
@@ -122,6 +131,68 @@ impl OpenRouterProvider {
             .header("Authorization", format!("Bearer {}", api_key))
             .header("HTTP-Referer", &self.site_url)
             .header("X-Title", &self.app_name)
+    }
+
+    fn profile(&self) -> crate::harness::ModelProfile {
+        crate::harness::profile_for("openrouter", &self.config.model)
+    }
+
+    fn build_request(
+        &self,
+        messages: &[Message],
+        context: Option<String>,
+        stream: bool,
+    ) -> ORRequest {
+        let profile = self.profile();
+        let tools = super::openai_compat::ChatRequest::tools_for(messages, &profile);
+        ORRequest {
+            model: self.config.model.clone(),
+            messages: self.build_messages(messages, context),
+            temperature: self.config.temperature.or(profile.temperature),
+            max_tokens: self
+                .config
+                .max_tokens
+                .or(profile.max_output_tokens.map(|t| t as usize)),
+            stream,
+            parallel_tool_calls: super::openai_compat::ChatRequest::parallel_for(
+                tools.as_ref(),
+                &profile,
+            ),
+            tools,
+        }
+    }
+
+    /// POST `request`, retrying once without tools if the upstream rejects the
+    /// field itself.
+    async fn send(&self, api_key: &str, request: &ORRequest) -> Result<reqwest::Response> {
+        let resp = self
+            .client_with_headers(api_key)
+            .json(request)
+            .send()
+            .await
+            .context("OpenRouter request failed")?;
+        if resp.status().is_success() {
+            return Ok(resp);
+        }
+        let err = resp.text().await?;
+        if request.tools.is_none() || !super::openai_compat::is_tools_unsupported(&err) {
+            anyhow::bail!("OpenRouter API error: {}", err);
+        }
+        tracing::warn!(
+            model = %self.config.model,
+            "OpenRouter upstream does not accept native tool definitions — retrying without them",
+        );
+        let retry = self
+            .client_with_headers(api_key)
+            .json(&request.without_tools())
+            .send()
+            .await
+            .context("OpenRouter request failed")?;
+        if !retry.status().is_success() {
+            let err = retry.text().await?;
+            anyhow::bail!("OpenRouter API error: {}", err);
+        }
+        Ok(retry)
     }
 }
 
@@ -202,35 +273,20 @@ impl AIProvider for OpenRouterProvider {
             .api_key
             .as_ref()
             .context("OpenRouter API key not set (OPENROUTER_API_KEY)")?;
-        let request = ORRequest {
-            model: self.config.model.clone(),
-            messages: self.build_messages(messages, context),
-            temperature: self.config.temperature,
-            max_tokens: self.config.max_tokens,
-            stream: false,
-        };
-        let resp = self
-            .client_with_headers(api_key)
-            .json(&request)
-            .send()
-            .await
-            .context("OpenRouter request failed")?;
-
-        if !resp.status().is_success() {
-            let err = resp.text().await?;
-            anyhow::bail!("OpenRouter API error: {}", err);
-        }
+        let request = self.build_request(messages, context, false);
+        let resp = self.send(api_key, &request).await?;
         let body: ORResponse = resp
             .json()
             .await
             .context("Failed to parse OpenRouter response")?;
+        // `into_text`, not `.content`: a tool-call turn has an empty content.
         let text = body
             .choices
-            .first()
+            .into_iter()
+            .next()
             .context("No choices")?
             .message
-            .content
-            .clone();
+            .into_text();
         let usage = body.usage.map(|u| TokenUsage {
             prompt_tokens: u.prompt_tokens,
             completion_tokens: u.completion_tokens,
@@ -252,48 +308,17 @@ impl AIProvider for OpenRouterProvider {
             .api_key
             .as_ref()
             .context("OpenRouter API key not set")?;
-        let request = ORRequest {
-            model: self.config.model.clone(),
-            messages: self.build_messages(messages, None),
-            temperature: self.config.temperature,
-            max_tokens: self.config.max_tokens,
-            stream: true,
-        };
-        let resp = self
-            .client_with_headers(api_key)
-            .json(&request)
-            .send()
-            .await
-            .context("OpenRouter stream failed")?;
+        let request = self.build_request(messages, None, true);
+        let resp = self.send(api_key, &request).await?;
+        // The shared SSE parser. OpenRouter is where reasoning models are most
+        // often reached, and this loop read `delta.content` alone — the reason
+        // `openai_compat` learned to read OpenRouter's `reasoning` field in the
+        // first place, a fix this provider was not benefiting from.
+        Ok(super::openai_compat::parse_sse_stream(resp))
+    }
 
-        if !resp.status().is_success() {
-            let err = resp.text().await?;
-            anyhow::bail!("OpenRouter API error: {}", err);
-        }
-        let stream = resp
-            .bytes_stream()
-            .map(|chunk| {
-                let chunk = chunk?;
-                let text = String::from_utf8_lossy(&chunk);
-                let mut content = String::new();
-                for line in text.lines() {
-                    if let Some(data) = line.strip_prefix("data: ") {
-                        if data == "[DONE]" {
-                            continue;
-                        }
-                        if let Ok(r) = serde_json::from_str::<ORStreamResponse>(data) {
-                            if let Some(c) =
-                                r.choices.first().and_then(|ch| ch.delta.content.as_ref())
-                            {
-                                content.push_str(c);
-                            }
-                        }
-                    }
-                }
-                Ok(content)
-            })
-            .boxed();
-        Ok(stream)
+    fn harness_profile(&self) -> crate::harness::ModelProfile {
+        self.profile()
     }
 
     async fn chat_with_images(
@@ -420,6 +445,8 @@ mod tests {
             temperature: Some(0.5),
             max_tokens: Some(2048),
             stream: false,
+            tools: None,
+            parallel_tool_calls: None,
         };
         let json = serde_json::to_value(&req).unwrap();
         assert_eq!(json["model"], "anthropic/claude-3.5-sonnet");
@@ -441,6 +468,8 @@ mod tests {
             temperature: None,
             max_tokens: None,
             stream: false,
+            tools: None,
+            parallel_tool_calls: None,
         };
         let json = serde_json::to_value(&req).unwrap();
         assert!(json.get("temperature").is_none());
@@ -455,6 +484,8 @@ mod tests {
             temperature: None,
             max_tokens: None,
             stream: true,
+            tools: None,
+            parallel_tool_calls: None,
         };
         let json = serde_json::to_value(&req).unwrap();
         assert_eq!(json["stream"], true);
@@ -481,14 +512,14 @@ mod tests {
     #[test]
     fn or_stream_response_deser() {
         let json = r#"{"choices":[{"delta":{"content":"tok"}}]}"#;
-        let resp: ORStreamResponse = serde_json::from_str(json).unwrap();
+        let resp: super::super::openai_compat::StreamResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.choices[0].delta.content.as_ref().unwrap(), "tok");
     }
 
     #[test]
     fn or_stream_response_deser_null_content() {
         let json = r#"{"choices":[{"delta":{"content":null}}]}"#;
-        let resp: ORStreamResponse = serde_json::from_str(json).unwrap();
+        let resp: super::super::openai_compat::StreamResponse = serde_json::from_str(json).unwrap();
         assert!(resp.choices[0].delta.content.is_none());
     }
 

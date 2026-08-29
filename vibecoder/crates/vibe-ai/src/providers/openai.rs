@@ -6,7 +6,6 @@ use crate::provider::{
 };
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use futures::stream::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -22,9 +21,40 @@ struct OpenAIRequest {
     /// Reasoning effort (gap C5) — GPT-5.x / o-series only; omitted otherwise.
     #[serde(skip_serializing_if = "Option::is_none")]
     reasoning_effort: Option<String>,
+    /// Native tool schemas for this conversation.
+    ///
+    /// This provider sent none at all until now: the tools were described only
+    /// in the ~15 KB XML catalogue in the system prompt, and the model's calls
+    /// were regex-parsed back out of its prose, while the Chat Completions API
+    /// had offered first-class function calling the whole time.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tools: Option<Vec<Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    parallel_tool_calls: Option<bool>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+impl OpenAIRequest {
+    /// The same request with no tools, for an endpoint that rejects the field.
+    ///
+    /// Azure deployments and OpenAI-compatible proxies sitting behind this
+    /// provider's `api_url` do not all implement function calling; the turn has
+    /// to degrade to what worked before rather than fail, since the prompt
+    /// still describes the tools in prose.
+    fn without_tools(&self) -> Self {
+        Self {
+            model: self.model.clone(),
+            messages: self.messages.clone(),
+            temperature: self.temperature,
+            max_tokens: self.max_tokens,
+            stream: self.stream,
+            reasoning_effort: self.reasoning_effort.clone(),
+            tools: None,
+            parallel_tool_calls: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct OpenAIMessage {
     role: String,
     content: Value,
@@ -45,22 +75,10 @@ struct OpenAIResponse {
 
 #[derive(Debug, Deserialize)]
 struct OpenAIChoice {
-    message: OpenAIMessage,
-}
-
-#[derive(Debug, Deserialize)]
-struct OpenAIStreamResponse {
-    choices: Vec<OpenAIStreamChoice>,
-}
-
-#[derive(Debug, Deserialize)]
-struct OpenAIStreamChoice {
-    delta: OpenAIDelta,
-}
-
-#[derive(Debug, Deserialize)]
-struct OpenAIDelta {
-    content: Option<String>,
+    /// The shared reply type, not `OpenAIMessage`: a reply can carry tool calls
+    /// and reasoning that a request never does, and reading it as the request
+    /// shape is what silently discarded both.
+    message: super::openai_compat::ResponseMessage,
 }
 
 /// OpenAI provider
@@ -109,6 +127,78 @@ impl OpenAIProvider {
         self.config
             .effort
             .map(|e| e.openai_reasoning_effort().to_string())
+    }
+
+    /// This pair's harness settings — tool transport, output cap, temperature.
+    fn profile(&self) -> crate::harness::ModelProfile {
+        crate::harness::profile_for("openai", &self.config.model)
+    }
+
+    /// Build one request, with tools attached when the conversation asked for
+    /// them and this pair is on the native transport.
+    fn build_request(
+        &self,
+        messages: &[Message],
+        context: Option<String>,
+        stream: bool,
+    ) -> OpenAIRequest {
+        let profile = self.profile();
+        let tools = super::openai_compat::ChatRequest::tools_for(messages, &profile);
+        OpenAIRequest {
+            model: self.config.model.clone(),
+            messages: self.build_messages(messages, context),
+            // An explicit config value is the caller's decision and wins; the
+            // profile only fills in what the caller left open.
+            temperature: self.config.temperature.or(profile.temperature),
+            max_tokens: self
+                .config
+                .max_tokens
+                .or(profile.max_output_tokens.map(|t| t as usize)),
+            reasoning_effort: self.reasoning_effort(),
+            stream,
+            parallel_tool_calls: super::openai_compat::ChatRequest::parallel_for(
+                tools.as_ref(),
+                &profile,
+            ),
+            tools,
+        }
+    }
+
+    /// POST `request`, retrying once without tools if the endpoint rejects the
+    /// field itself. Returns the successful response.
+    async fn send(&self, api_key: &str, request: &OpenAIRequest) -> Result<reqwest::Response> {
+        let post = |body: &OpenAIRequest| {
+            self.client
+                .post(self.api_url())
+                .header("Authorization", format!("Bearer {}", api_key))
+                .json(body)
+                .send()
+        };
+        let response = post(request)
+            .await
+            .context("Failed to send request to OpenAI")?;
+        if response.status().is_success() {
+            return Ok(response);
+        }
+
+        let status = response.status().as_u16();
+        let error_text = response.text().await?;
+        if request.tools.is_none() || !super::openai_compat::is_tools_unsupported(&error_text) {
+            anyhow::bail!("{}", Self::translate_api_error(status, &error_text));
+        }
+        tracing::warn!(
+            model = %self.config.model,
+            "OpenAI endpoint does not accept native tool definitions — retrying without them",
+        );
+        let retry = post(&request.without_tools())
+            .await
+            .context("Failed to send request to OpenAI")?;
+        if !retry.status().is_success() {
+            let status = retry.status().as_u16();
+            let error_text = retry.text().await?;
+            anyhow::bail!("{}", Self::translate_api_error(status, &error_text));
+        }
+        Ok(retry)
     }
 
     /// Translate a raw OpenAI API error response into a user-friendly message.
@@ -251,46 +341,24 @@ impl AIProvider for OpenAIProvider {
             .api_key
             .as_ref()
             .context("OpenAI API key not found")?;
-        let request = OpenAIRequest {
-            model: self.config.model.clone(),
-            messages: self.build_messages(messages, context),
-            temperature: self.config.temperature,
-            max_tokens: self.config.max_tokens,
-            reasoning_effort: self.reasoning_effort(),
-            stream: false,
-        };
-
-        let response = self
-            .client
-            .post(self.api_url())
-            .header("Authorization", format!("Bearer {}", api_key))
-            .json(&request)
-            .send()
-            .await
-            .context("Failed to send request to OpenAI")?;
-
-        if !response.status().is_success() {
-            let status = response.status().as_u16();
-            let error_text = response.text().await?;
-            anyhow::bail!("{}", Self::translate_api_error(status, &error_text));
-        }
+        let request = self.build_request(messages, context, false);
+        let response = self.send(api_key, &request).await?;
 
         let openai_response: OpenAIResponse = response
             .json()
             .await
             .context("Failed to parse OpenAI response")?;
 
-        let content = openai_response
+        // `into_text` and not `.content`: a turn made entirely of tool calls
+        // has an empty content, and reading only that field reports a model
+        // that called a tool as one that said nothing.
+        let text = openai_response
             .choices
-            .first()
+            .into_iter()
+            .next()
             .context("No choices in OpenAI response")?
             .message
-            .content
-            .clone();
-        let text = match content {
-            Value::String(s) => s,
-            other => other.to_string(),
-        };
+            .into_text();
 
         let usage = openai_response.usage.map(|u| TokenUsage {
             prompt_tokens: u.prompt_tokens,
@@ -314,59 +382,14 @@ impl AIProvider for OpenAIProvider {
             .api_key
             .as_ref()
             .context("OpenAI API key not found")?;
-        let request = OpenAIRequest {
-            model: self.config.model.clone(),
-            messages: self.build_messages(messages, None), // Context handled in build_messages
-            temperature: self.config.temperature,
-            max_tokens: self.config.max_tokens,
-            reasoning_effort: self.reasoning_effort(),
-            stream: true,
-        };
+        let request = self.build_request(messages, None, true); // context handled in build_messages
+        let response = self.send(api_key, &request).await?;
 
-        let response = self
-            .client
-            .post(self.api_url())
-            .header("Authorization", format!("Bearer {}", api_key))
-            .json(&request)
-            .send()
-            .await
-            .context("Failed to send request to OpenAI")?;
-
-        if !response.status().is_success() {
-            let status = response.status().as_u16();
-            let error_text = response.text().await?;
-            anyhow::bail!("{}", Self::translate_api_error(status, &error_text));
-        }
-
-        let stream = response.bytes_stream();
-
-        let completion_stream = stream
-            .map(|chunk| {
-                let chunk = chunk?;
-                let chunk_str = String::from_utf8_lossy(&chunk);
-                // OpenAI stream format is "data: {json}\n\n"
-                // We need to parse multiple lines
-                let mut content = String::new();
-
-                for line in chunk_str.lines() {
-                    if let Some(data) = line.strip_prefix("data: ") {
-                        if data == "[DONE]" {
-                            continue;
-                        }
-                        if let Ok(response) = serde_json::from_str::<OpenAIStreamResponse>(data) {
-                            if let Some(choice) = response.choices.first() {
-                                if let Some(delta_content) = &choice.delta.content {
-                                    content.push_str(delta_content);
-                                }
-                            }
-                        }
-                    }
-                }
-                Ok(content)
-            })
-            .boxed();
-
-        Ok(completion_stream)
+        // The shared SSE parser rather than a second hand-rolled one. This
+        // provider's own parser read `delta.content` and nothing else, so a
+        // reasoning model's turn arrived empty and a native tool call was
+        // dropped outright — both already solved once in `openai_compat`.
+        Ok(super::openai_compat::parse_sse_stream(response))
     }
 
     fn supports_vision(&self) -> bool {
@@ -394,45 +417,46 @@ impl AIProvider for OpenAIProvider {
             .api_key
             .as_ref()
             .context("OpenAI API key not found")?;
+        // A vision turn is still a tool-capable turn: the model can look at a
+        // screenshot and then call a tool about it, so the schemas ride along
+        // here for the same reason they do on the text path.
+        let profile = self.profile();
+        let tools = super::openai_compat::ChatRequest::tools_for(messages, &profile);
         let request = OpenAIRequest {
             model: self.config.model.clone(),
             messages: self.build_vision_messages(messages, images, context),
-            temperature: self.config.temperature,
-            max_tokens: self.config.max_tokens,
+            temperature: self.config.temperature.or(profile.temperature),
+            max_tokens: self
+                .config
+                .max_tokens
+                .or(profile.max_output_tokens.map(|t| t as usize)),
             reasoning_effort: self.reasoning_effort(),
             stream: false,
+            parallel_tool_calls: super::openai_compat::ChatRequest::parallel_for(
+                tools.as_ref(),
+                &profile,
+            ),
+            tools,
         };
 
-        let response = self
-            .client
-            .post(self.api_url())
-            .header("Authorization", format!("Bearer {}", api_key))
-            .json(&request)
-            .send()
-            .await
-            .context("Failed to send vision request to OpenAI")?;
-
-        if !response.status().is_success() {
-            let error_text = response.text().await?;
-            anyhow::bail!("OpenAI vision API error: {}", error_text);
-        }
+        let response = self.send(api_key, &request).await?;
 
         let openai_response: OpenAIResponse = response
             .json()
             .await
             .context("Failed to parse OpenAI vision response")?;
 
-        let content = openai_response
+        Ok(openai_response
             .choices
-            .first()
+            .into_iter()
+            .next()
             .context("No choices in OpenAI vision response")?
             .message
-            .content
-            .clone();
-        match content {
-            Value::String(s) => Ok(s),
-            other => Ok(other.to_string()),
-        }
+            .into_text())
+    }
+
+    fn harness_profile(&self) -> crate::harness::ModelProfile {
+        self.profile()
     }
 
     fn with_effort(

@@ -5,7 +5,6 @@ use crate::provider::{
 };
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use futures::stream::StreamExt;
 use serde::{Deserialize, Serialize};
 
 // Grok API is compatible with OpenAI
@@ -18,9 +17,31 @@ struct GrokRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     max_tokens: Option<usize>,
     stream: bool,
+    /// Native tool schemas. Grok speaks the OpenAI function-calling shape;
+    /// this provider sent none until now, so its models were told about tools
+    /// only by the XML catalogue in the system prompt.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tools: Option<Vec<serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    parallel_tool_calls: Option<bool>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+impl GrokRequest {
+    /// The same request without tools, for an endpoint that rejects the field.
+    fn without_tools(&self) -> Self {
+        Self {
+            model: self.model.clone(),
+            messages: self.messages.clone(),
+            temperature: self.temperature,
+            max_tokens: self.max_tokens,
+            stream: self.stream,
+            tools: None,
+            parallel_tool_calls: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct GrokMessage {
     role: String,
     content: String,
@@ -33,22 +54,10 @@ struct GrokResponse {
 
 #[derive(Debug, Deserialize)]
 struct GrokChoice {
-    message: GrokMessage,
-}
-
-#[derive(Debug, Deserialize)]
-struct GrokStreamResponse {
-    choices: Vec<GrokStreamChoice>,
-}
-
-#[derive(Debug, Deserialize)]
-struct GrokStreamChoice {
-    delta: GrokDelta,
-}
-
-#[derive(Debug, Deserialize)]
-struct GrokDelta {
-    content: Option<String>,
+    /// The shared reply type: it carries tool calls and reasoning, which the
+    /// request-side `GrokMessage` does not, and reading a reply as the request
+    /// shape is what discarded both.
+    message: super::openai_compat::ResponseMessage,
 }
 
 /// Grok provider
@@ -89,6 +98,73 @@ impl GrokProvider {
             }
         }
         grok_messages
+    }
+}
+
+impl GrokProvider {
+    const CHAT_URL: &'static str = "https://api.x.ai/v1/chat/completions";
+
+    fn profile(&self) -> crate::harness::ModelProfile {
+        crate::harness::profile_for("grok", &self.config.model)
+    }
+
+    fn build_request(
+        &self,
+        messages: &[Message],
+        context: Option<String>,
+        stream: bool,
+    ) -> GrokRequest {
+        let profile = self.profile();
+        let tools = super::openai_compat::ChatRequest::tools_for(messages, &profile);
+        GrokRequest {
+            model: self.config.model.clone(),
+            messages: self.build_messages(messages, context),
+            temperature: self.config.temperature.or(profile.temperature),
+            max_tokens: self
+                .config
+                .max_tokens
+                .or(profile.max_output_tokens.map(|t| t as usize)),
+            stream,
+            parallel_tool_calls: super::openai_compat::ChatRequest::parallel_for(
+                tools.as_ref(),
+                &profile,
+            ),
+            tools,
+        }
+    }
+
+    /// POST `request`, retrying once without tools if the endpoint rejects the
+    /// field itself rather than anything about the conversation.
+    async fn send(&self, api_key: &str, request: &GrokRequest) -> Result<reqwest::Response> {
+        let post = |body: &GrokRequest| {
+            self.client
+                .post(Self::CHAT_URL)
+                .header("Authorization", format!("Bearer {}", api_key))
+                .json(body)
+                .send()
+        };
+        let response = post(request)
+            .await
+            .context("Failed to send request to Grok")?;
+        if response.status().is_success() {
+            return Ok(response);
+        }
+        let error_text = response.text().await?;
+        if request.tools.is_none() || !super::openai_compat::is_tools_unsupported(&error_text) {
+            anyhow::bail!("Grok API error: {}", error_text);
+        }
+        tracing::warn!(
+            model = %self.config.model,
+            "Grok endpoint does not accept native tool definitions — retrying without them",
+        );
+        let retry = post(&request.without_tools())
+            .await
+            .context("Failed to send request to Grok")?;
+        if !retry.status().is_success() {
+            let error_text = retry.text().await?;
+            anyhow::bail!("Grok API error: {}", error_text);
+        }
+        Ok(retry)
     }
 }
 
@@ -154,38 +230,23 @@ impl AIProvider for GrokProvider {
             .api_key
             .as_ref()
             .context("Grok API key not found")?;
-        let request = GrokRequest {
-            model: self.config.model.clone(),
-            messages: self.build_messages(messages, context),
-            temperature: self.config.temperature,
-            max_tokens: self.config.max_tokens,
-            stream: false,
-        };
-
-        let response = self
-            .client
-            .post("https://api.x.ai/v1/chat/completions")
-            .header("Authorization", format!("Bearer {}", api_key))
-            .json(&request)
-            .send()
-            .await
-            .context("Failed to send request to Grok")?;
-
-        if !response.status().is_success() {
-            let error_text = response.text().await?;
-            anyhow::bail!("Grok API error: {}", error_text);
-        }
+        let request = self.build_request(messages, context, false);
+        let response = self.send(api_key, &request).await?;
 
         let grok_response: GrokResponse = response
             .json()
             .await
             .context("Failed to parse Grok response")?;
 
-        grok_response
+        // `into_text`, not `.content`: a turn made entirely of tool calls has
+        // an empty content field.
+        Ok(grok_response
             .choices
-            .first()
-            .map(|c| c.message.content.clone())
-            .context("No choices in Grok response")
+            .into_iter()
+            .next()
+            .context("No choices in Grok response")?
+            .message
+            .into_text())
     }
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
@@ -194,55 +255,17 @@ impl AIProvider for GrokProvider {
             .api_key
             .as_ref()
             .context("Grok API key not found")?;
-        let request = GrokRequest {
-            model: self.config.model.clone(),
-            messages: self.build_messages(messages, None),
-            temperature: self.config.temperature,
-            max_tokens: self.config.max_tokens,
-            stream: true,
-        };
+        let request = self.build_request(messages, None, true);
+        let response = self.send(api_key, &request).await?;
 
-        let response = self
-            .client
-            .post("https://api.x.ai/v1/chat/completions")
-            .header("Authorization", format!("Bearer {}", api_key))
-            .json(&request)
-            .send()
-            .await
-            .context("Failed to send request to Grok")?;
+        // The shared SSE parser, not a fourth hand-rolled copy: this one read
+        // `delta.content` alone, so a reasoning turn arrived empty and a native
+        // tool call was dropped.
+        Ok(super::openai_compat::parse_sse_stream(response))
+    }
 
-        if !response.status().is_success() {
-            let error_text = response.text().await?;
-            anyhow::bail!("Grok API error: {}", error_text);
-        }
-
-        let stream = response.bytes_stream();
-
-        let completion_stream = stream
-            .map(|chunk| {
-                let chunk = chunk?;
-                let chunk_str = String::from_utf8_lossy(&chunk);
-                let mut content = String::new();
-
-                for line in chunk_str.lines() {
-                    if let Some(data) = line.strip_prefix("data: ") {
-                        if data == "[DONE]" {
-                            continue;
-                        }
-                        if let Ok(response) = serde_json::from_str::<GrokStreamResponse>(data) {
-                            if let Some(choice) = response.choices.first() {
-                                if let Some(delta_content) = &choice.delta.content {
-                                    content.push_str(delta_content);
-                                }
-                            }
-                        }
-                    }
-                }
-                Ok(content)
-            })
-            .boxed();
-
-        Ok(completion_stream)
+    fn harness_profile(&self) -> crate::harness::ModelProfile {
+        self.profile()
     }
 }
 
@@ -406,6 +429,8 @@ mod tests {
             temperature: None,
             max_tokens: None,
             stream: false,
+            tools: None,
+            parallel_tool_calls: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         assert!(
@@ -426,23 +451,30 @@ mod tests {
             temperature: Some(0.3),
             max_tokens: Some(2048),
             stream: false,
+            tools: None,
+            parallel_tool_calls: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         assert!(json.contains("\"temperature\""));
         assert!(json.contains("\"max_tokens\""));
     }
 
+    // Grok's stream is decoded by the shared parser now, so these assert
+    // against the type that actually reads it. Kept rather than deleted: they
+    // are the evidence that the wire shape Grok emits still parses.
     #[test]
     fn grok_stream_response_deser() {
         let json = r#"{"choices":[{"delta":{"content":"tok"}}]}"#;
-        let resp: GrokStreamResponse = serde_json::from_str(json).unwrap();
+        let resp: super::super::openai_compat::StreamResponse =
+            serde_json::from_str(json).unwrap();
         assert_eq!(resp.choices[0].delta.content.as_deref(), Some("tok"));
     }
 
     #[test]
     fn grok_stream_response_deser_null_content() {
         let json = r#"{"choices":[{"delta":{}}]}"#;
-        let resp: GrokStreamResponse = serde_json::from_str(json).unwrap();
+        let resp: super::super::openai_compat::StreamResponse =
+            serde_json::from_str(json).unwrap();
         assert!(resp.choices[0].delta.content.is_none());
     }
 
@@ -484,6 +516,8 @@ mod tests {
             temperature: None,
             max_tokens: None,
             stream: false,
+            tools: None,
+            parallel_tool_calls: None,
         };
         let json = serde_json::to_value(&req).unwrap();
         assert_eq!(json["model"], "grok-3-mini");
@@ -498,6 +532,8 @@ mod tests {
             temperature: None,
             max_tokens: None,
             stream: true,
+            tools: None,
+            parallel_tool_calls: None,
         };
         let json = serde_json::to_value(&req).unwrap();
         assert_eq!(json["stream"], true);
@@ -534,7 +570,8 @@ mod tests {
     #[test]
     fn grok_stream_response_deser_multiple_choices() {
         let json = r#"{"choices":[{"delta":{"content":"a"}},{"delta":{"content":"b"}}]}"#;
-        let resp: GrokStreamResponse = serde_json::from_str(json).unwrap();
+        let resp: super::super::openai_compat::StreamResponse =
+            serde_json::from_str(json).unwrap();
         assert_eq!(resp.choices.len(), 2);
         assert_eq!(resp.choices[1].delta.content.as_deref(), Some("b"));
     }
@@ -558,6 +595,8 @@ mod tests {
             temperature: Some(0.0),
             max_tokens: Some(1),
             stream: false,
+            tools: None,
+            parallel_tool_calls: None,
         };
         let json = serde_json::to_value(&req).unwrap();
         assert_eq!(json["temperature"], 0.0);
