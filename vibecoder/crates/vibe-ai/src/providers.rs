@@ -166,6 +166,91 @@ mod display_name_tests {
         }
     }
 
+    /// Every provider, in the shape the daemon builds it, with what it decides
+    /// about tools.
+    ///
+    /// `harness_profile` has to be overridden per provider — the trait default
+    /// is the conservative profile — so a provider whose request builder sends
+    /// schemas while its `harness_profile` was never wired would advertise
+    /// `false`, get the full XML catalogue, and describe its tools twice. That
+    /// is invisible at runtime and free to catch here.
+    fn every_provider() -> Vec<(&'static str, Arc<dyn AIProvider>)> {
+        let m = "test-model-id";
+        vec![
+            ("azure_openai", Arc::new(AzureOpenAIProvider::new(config(m)))),
+            ("bedrock", Arc::new(BedrockProvider::new(config(m)))),
+            ("cerebras", Arc::new(CerebrasProvider::new(config(m)))),
+            ("claude", Arc::new(ClaudeProvider::new(config(m)))),
+            ("copilot", Arc::new(CopilotProvider::new(config(m)))),
+            ("deepseek", Arc::new(DeepSeekProvider::new(config(m)))),
+            ("fireworks", Arc::new(FireworksProvider::new(config(m)))),
+            ("gemini", Arc::new(GeminiProvider::new(config(m)))),
+            ("grok", Arc::new(GrokProvider::new(config(m)))),
+            ("groq", Arc::new(GroqProvider::new(config(m)))),
+            ("minimax", Arc::new(MiniMaxProvider::new(config(m)))),
+            ("mistral", Arc::new(MistralProvider::new(config(m)))),
+            ("ollama", Arc::new(OllamaProvider::new(config(m)))),
+            ("openai", Arc::new(OpenAIProvider::new(config(m)))),
+            ("openrouter", Arc::new(OpenRouterProvider::new(config(m)))),
+            ("perplexity", Arc::new(PerplexityProvider::new(config(m)))),
+            ("poolside", Arc::new(PoolsideProvider::new(config(m)))),
+            ("sambanova", Arc::new(SambaNovaProvider::new(config(m)))),
+            ("together", Arc::new(TogetherProvider::new(config(m)))),
+            ("vercel_ai", Arc::new(VercelAIProvider::new(config(m)))),
+            (
+                "vibecli-mistralrs",
+                Arc::new(vibecli_mistralrs::VibeCliMistralRsProvider::new(config(m))),
+            ),
+            ("zhipu", Arc::new(ZhipuProvider::new(config(m)))),
+        ]
+    }
+
+    /// The eight whose APIs take tool schemas, plus the families that already
+    /// sent them. `vibecli-mistralrs` is absent on purpose — the daemon route
+    /// it posts to has no `tools` field, so declaring it native would strip its
+    /// catalogue and send schemas that are silently dropped.
+    #[test]
+    fn every_provider_that_can_send_schemas_says_so() {
+        const PROSE: &[&str] = &["vibecli-mistralrs"];
+        for (id, provider) in every_provider() {
+            let expected = !PROSE.contains(&id);
+            assert_eq!(
+                provider.advertises_native_tools(),
+                expected,
+                "{id} advertises_native_tools() disagrees with its harness profile — \
+                 a provider that sends schemas must not also get the XML catalogue, \
+                 and one that sends none must keep it"
+            );
+        }
+    }
+
+    /// The transport and the prompt are one decision. A pair that sends schemas
+    /// and *also* the full catalogue describes its tools twice; one that sends
+    /// neither has nothing to call.
+    #[test]
+    fn the_transport_and_the_prompt_dialect_agree() {
+        use crate::harness::{PromptDialect, ToolTransport};
+        for (id, provider) in every_provider() {
+            let profile = provider.harness_profile();
+            let expected = match profile.tool_transport {
+                ToolTransport::Native => PromptDialect::Compact,
+                ToolTransport::Prose => PromptDialect::Full,
+            };
+            assert_eq!(profile.prompt_dialect, expected, "{id}");
+        }
+    }
+
+    /// No provider ships a vendor number nobody measured.
+    #[test]
+    fn no_provider_ships_an_invented_limit() {
+        for (id, provider) in every_provider() {
+            let profile = provider.harness_profile();
+            assert_eq!(profile.max_output_tokens, None, "{id}");
+            assert_eq!(profile.context_window_fallback, None, "{id}");
+            assert_eq!(profile.temperature, None, "{id}");
+        }
+    }
+
     #[test]
     fn model_ids_with_slashes_and_colons_survive() {
         assert_eq!(
