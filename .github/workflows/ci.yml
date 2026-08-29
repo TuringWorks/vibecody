@@ -29,12 +29,39 @@ jobs:
   rust-checks:
     name: Rust (${{ matrix.check }})
     runs-on: ubuntu-latest
+    env:
+      # Debug info is most of what a `cargo test` build writes to disk, and
+      # nothing here reads it: a failing test prints its name and its panic
+      # message either way. The test job died with `rustc-LLVM ERROR: IO
+      # failure on output stream: No space left on device` — which reads like a
+      # compiler crash and is a full disk. The cached target archive alone is
+      # 13.4 GB against ~14 GB free on the runner.
+      #
+      # Expect one slow run after this lands: the profile change invalidates
+      # the cache, and what it saves afterwards is much smaller.
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+      # Incremental state is large, and a CI job compiles each crate once.
+      CARGO_INCREMENTAL: "0"
     strategy:
       fail-fast: false
       matrix:
         check: [fmt, clippy, test]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # ~25 GB of preinstalled SDKs this workspace never touches, removed
+      # before the cache is restored so the restore has somewhere to land.
+      # Only the CodeQL bundle goes from the hosted tool cache — the rest of
+      # that directory is what other jobs' setup actions resolve against.
+      - name: Free disk space
+        if: matrix.check == 'clippy' || matrix.check == 'test'
+        run: |
+          df -h / | tail -1
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                      /usr/local/share/boost /usr/share/swift \
+                      /opt/hostedtoolcache/CodeQL || true
+          df -h / | tail -1
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
