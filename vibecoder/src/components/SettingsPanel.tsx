@@ -7,6 +7,7 @@
  *   3. OAuth Login — Google, GitHub, GitLab, Bitbucket, Microsoft, Apple
  *   4. Saved Customizations — Export/import/reset workspace preferences
  *   5. API Keys — BYOK provider keys (existing functionality preserved)
+ *   6. Model Harness — per-(provider, model) tool transport, prompt dialect, caps
  */
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -16,11 +17,12 @@ import {
   Sun, Moon, Eye, EyeOff, ChevronRight, CheckCircle, MinusCircle, AlertCircle,
   Loader2, Zap, Plug,
   Mail, CalendarDays, ClipboardList, MessageSquare, Search, Mic, Home, Server,
-  Briefcase, Boxes, LayoutList, AudioLines,
+  Briefcase, Boxes, LayoutList, AudioLines, SlidersHorizontal,
 } from "lucide-react";
 import { THEMES, applyThemeById, DEFAULT_DARK_THEME_ID, type ThemeDef } from "../theme/themes";
 import { EmbeddingModelPicker } from "./EmbeddingModelPicker";
 import { LayoutSection } from "./settings/LayoutSection";
+import { HarnessSection } from "./settings/HarnessSection";
 import { ExperimentalBadge } from "./ExperimentalBadge";
 // The Voice pane is shared with VibeDesk and VibeAIChat — the daemon owns
 // these settings, so three copies would be three UIs over one machine.
@@ -31,7 +33,7 @@ import "@vibe/shared/settings/settings.css";
 
 /* ── Types ──────────────────────────────────────────────────────────── */
 
-export type SettingsSection = "profile" | "appearance" | "layout" | "oauth" | "customizations" | "apikeys" | "embeddings" | "integrations" | "voice" | "sessions" | "jobs";
+export type SettingsSection = "profile" | "appearance" | "layout" | "oauth" | "customizations" | "apikeys" | "harness" | "embeddings" | "integrations" | "voice" | "sessions" | "jobs";
 
 /** Where a deep link (`vibecoder:open-settings`) should land. */
 export interface SettingsTarget { section: SettingsSection; category?: IntegrationCategory }
@@ -1892,6 +1894,7 @@ const SECTIONS: { key: SettingsSection; label: string; icon: React.ReactNode }[]
   { key: "oauth", label: "OAuth Login", icon: <LogIn size={16} /> },
   { key: "customizations", label: "Customizations", icon: <Save size={16} /> },
   { key: "apikeys", label: "API Keys", icon: <Key size={16} /> },
+  { key: "harness", label: "Model Harness", icon: <SlidersHorizontal size={16} /> },
   { key: "embeddings", label: "Embeddings", icon: <Boxes size={16} /> },
   { key: "integrations", label: "Integrations", icon: <Plug size={16} /> },
   { key: "voice", label: "Voice", icon: <AudioLines size={16} /> },
@@ -1945,6 +1948,7 @@ export function SettingsPanel({ onClose, workspacePath, target }: {
         {section === "oauth" && <OAuthSection />}
         {section === "customizations" && <CustomizationsSection />}
         {section === "apikeys" && <ApiKeysSection />}
+        {section === "harness" && <HarnessSection />}
         {section === "embeddings" && <EmbeddingModelPicker workspacePath={workspacePath ?? null} />}
         {section === "integrations" && <IntegrationsSection initialCategory={target?.category} />}
         {section === "voice" && <VoiceSection />}
