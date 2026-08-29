@@ -3785,6 +3785,23 @@ async fn main() -> Result<()> {
         default_hook(info);
     }));
 
+    // ── Harness overrides ────────────────────────────────────────────────
+    // The user's per-(provider, model) settings live in the encrypted
+    // ProfileStore and are resolved from a process-global map that starts
+    // empty, so nothing applies until they are installed.
+    //
+    // This has to happen in the CLI as well as in `serve`, and before the
+    // early intercepts below: `--eval` and a plain agent run both build
+    // providers without ever entering the daemon. Installing only in `serve`
+    // meant a profile saved in the panel changed what VibeCoder sent and left
+    // `vibecli` on the built-in defaults — a setting that saves and silently
+    // does not apply, which is the whole failure this subsystem exists to
+    // remove.
+    //
+    // Best-effort: no store is the ordinary first-run case and means "no
+    // overrides", not an error.
+    crate::harness_profiles::install_from_default_profile();
+
     // ── Early intercepts: commands with their own flag namespaces bypass Clap
     //    so their sub-flags don't need to appear on the main Cli struct.
     {

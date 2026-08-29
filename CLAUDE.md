@@ -80,6 +80,10 @@ instructions. Four layers: provider family → built-in model prefix → the use
   `context_window.rs` documents. A test fails if one is added.
 - **Store the patch, not the resolved profile** — an empty patch is a delete, so
   a default that later improves still reaches the user.
+- **Install overrides in every entry point that builds a provider** —
+  `main.rs` *and* `serve.rs`. The resolver's map is process-global and starts
+  empty; installing only in `serve` left `vibecli` and `--eval` on the built-in
+  defaults while the panel appeared to change them.
 
 Routes: `/harness/profile` (GET/PUT/DELETE) + `/harness/profiles`, all
 authenticated. UI: `packages/vibe-ui-shared/src/settings/HarnessSection.tsx`,

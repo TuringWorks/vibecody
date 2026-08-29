@@ -303,6 +303,7 @@ family → built-in model prefix → the user's `<provider>/*` patch → the use
 | the provider's `harness_profile()` | the trait default is conservative; a provider that never overrides it silently drops to the prose path |
 | `harness::NATIVE_TOOL_PROVIDERS` | and only after checking the endpoint really takes a `tools` field |
 | `vibecli::harness_profiles` | storage — patches in the encrypted ProfileStore, never a resolved profile |
+| **both** `main.rs` and `serve.rs` | `install_from_default_profile()` — the resolver's map is process-global and starts empty, so an override applies only where it has been installed |
 | `packages/vibe-ui-shared/src/settings/HarnessSection.tsx` | one panel, all three desktop shells |
 | `docs/harness-profiles.md` | the reference page |
 
@@ -316,6 +317,14 @@ ships a revision. `no_provider_ships_an_invented_limit` fails if one is added.
 **Store the patch, not the profile.** A stored resolved profile freezes today's
 defaults into the user's settings, so improving a default would never reach
 anyone who had opened the panel once. An empty patch is therefore a *delete*.
+
+**Install the overrides in every entry point that builds a provider.** They
+were installed in `serve()` only at first, so a profile saved in the panel
+changed what VibeCoder sent and left `vibecli` — and therefore `--eval`, which
+drives the CLI surface — on the built-in defaults. A setting that saves and
+silently does not apply is the failure this whole subsystem exists to remove,
+and it is easy to reintroduce: the map is process-global and starts empty, so a
+new entry point inherits nothing.
 
 **2. One wire format.** Native calls are transcribed to
 `<tool_call name="…">…</tool_call>`, and both executors read it — the agent
