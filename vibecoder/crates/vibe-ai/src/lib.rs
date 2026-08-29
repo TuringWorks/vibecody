@@ -10,6 +10,9 @@ pub mod config;
 pub mod context_window;
 pub mod diffcomplete;
 pub mod ghost;
+/// Per-(provider, model) harness settings — tool transport, prompt dialect,
+/// and the tuning knobs the user can override.
+pub mod harness;
 pub mod hooks;
 pub mod mcp;
 pub mod multi_agent;
@@ -35,6 +38,10 @@ pub use agent::{
 pub use artifacts::{AgentArtifact, Annotation, Artifact, ArtifactStore, ReviewIssueRef, TaskItem};
 pub use chat::ChatEngine;
 pub use config::AIConfig;
+pub use harness::{
+    profile_for as harness_profile_for, EffortBudgets, ModelProfile, ProfileOverride, PromptDialect,
+    ResolvedProfile, ToolTransport,
+};
 pub use hooks::{HookConfig, HookDecision, HookEvent, HookHandler, HookRunner};
 pub use mcp::{McpClient, McpServerConfig, McpTool};
 pub use multi_agent::{

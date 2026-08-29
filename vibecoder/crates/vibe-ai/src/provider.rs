@@ -325,6 +325,21 @@ pub trait AIProvider: Send + Sync {
         None
     }
 
+    /// The harness settings for this provider's configured model — tool
+    /// transport, prompt dialect, output cap, thinking budgets.
+    ///
+    /// Implementations answer with
+    /// `crate::harness::profile_for(<their own id>, &self.config.model)`,
+    /// passing their id as a literal rather than reading `provider_type` from
+    /// the config: the config is filled in by callers and a wrong string there
+    /// would silently move a provider onto the prose path.
+    ///
+    /// The default is [`ModelProfile::conservative`], which is exactly the
+    /// behaviour this trait had before profiles existed.
+    fn harness_profile(&self) -> crate::harness::ModelProfile {
+        crate::harness::ModelProfile::conservative()
+    }
+
     /// True when this provider puts `crate::tools::tool_definitions_for` on the
     /// wire, so the model receives tools as callable functions.
     ///
@@ -333,8 +348,13 @@ pub trait AIProvider: Send + Sync {
     /// (`crate::tools::agent_system_prompt`). Providers that describe tools in
     /// prose only must answer `false`, or the model loses the catalogue and has
     /// nothing left telling it what the tools are.
+    ///
+    /// Derived from [`AIProvider::harness_profile`] so the two cannot disagree:
+    /// a provider that sends schemas and a prompt that says it does not is the
+    /// failure this pairing exists to prevent. Override only if a provider must
+    /// answer differently from its own profile.
     fn advertises_native_tools(&self) -> bool {
-        false
+        self.harness_profile().sends_tool_schemas()
     }
 
     /// Return a clone of this provider with a per-request effort tier applied
