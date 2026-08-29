@@ -617,6 +617,10 @@ pub fn write_wav(path: &std::path::Path, pcm: &[i16], rate: u32) -> Result<()> {
     Ok(())
 }
 
+/// Serial number for the per-turn scratch file, so overlapping turns cannot
+/// share (and delete) each other's upload.
+static ASR_SEQ: AtomicU64 = AtomicU64::new(0);
+
 /// Transcribe through a resident `whisper-server`, returning text and, when
 /// auto-detecting, the language it heard.
 ///
@@ -631,7 +635,16 @@ pub async fn transcribe_server(
     rate: u32,
     lang: Option<&str>,
 ) -> Result<(String, Option<String>)> {
-    let path = std::env::temp_dir().join(format!("vibe-asr-{}.wav", std::process::id()));
+    // One scratch file per turn, not per process. Barge-in makes two turns in
+    // flight at once the normal case, and both used to write — and delete —
+    // `vibe-asr-<pid>.wav`: the superseded turn's `remove_file` took the file
+    // the live turn was still uploading, curl exited 26 with nothing on stdout,
+    // and the user saw `asr: EOF while parsing a value at line 1 column 0`.
+    let path = std::env::temp_dir().join(format!(
+        "vibe-asr-{}-{}.wav",
+        std::process::id(),
+        ASR_SEQ.fetch_add(1, Ordering::Relaxed)
+    ));
     write_wav(&path, pcm, rate)?;
     let out = Command::new("curl")
         .args([
@@ -649,12 +662,41 @@ pub async fn transcribe_server(
             "temperature=0",
         ])
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
+        // Keep curl's own diagnosis. Discarding it turned every transport
+        // failure — refused connection, vanished upload, 60 s timeout — into
+        // the same JSON parse error about an empty body, which names neither
+        // the engine nor what went wrong with it.
+        .stderr(Stdio::piped())
         .output()
         .await;
     let _ = std::fs::remove_file(&path);
     let out = out?;
-    let v: serde_json::Value = serde_json::from_slice(&out.stdout)?;
+    let why = || {
+        let e = String::from_utf8_lossy(&out.stderr);
+        let first = e.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
+        if first.is_empty() {
+            String::new()
+        } else {
+            format!(" — {first}")
+        }
+    };
+    if !out.status.success() {
+        anyhow::bail!(
+            "curl exited {} talking to {server}/inference{}",
+            out.status.code().map_or_else(|| "on a signal".into(), |c| c.to_string()),
+            why()
+        );
+    }
+    if out.stdout.is_empty() {
+        anyhow::bail!("empty reply from {server}/inference{}", why());
+    }
+    let v: serde_json::Value = serde_json::from_slice(&out.stdout).map_err(|e| {
+        // The body is the evidence: an HTML error page or a plain-text 404 from
+        // something else listening on the port reads nothing like whisper.
+        let body = String::from_utf8_lossy(&out.stdout);
+        let head: String = body.chars().take(200).collect();
+        anyhow::anyhow!("{server}/inference did not answer JSON ({e}): {head}")
+    })?;
     let text = v
         .get("text")
         .and_then(|t| t.as_str())
@@ -1096,6 +1138,31 @@ mod tests {
         // An explicit path is taken at face value, present or not.
         assert_eq!(resolve_bin("/nonexistent/whisper-server"), None);
         assert!(resolve_bin("/bin/sh").is_some());
+    }
+
+    #[tokio::test]
+    async fn a_transport_failure_names_the_transport() {
+        // A dead port stands in for every way the upload can fail. curl writes
+        // its diagnosis to stderr and nothing to stdout, and the old code
+        // discarded stderr and fed the empty stdout to serde — so the user was
+        // told `asr: EOF while parsing a value at line 1 column 0`, which names
+        // neither the engine nor the failure.
+        let dead = {
+            let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            l.local_addr().unwrap().port()
+        };
+        let err = transcribe_server(&format!("http://127.0.0.1:{dead}"), &[0i16; 320], 16_000, None)
+            .await
+            .expect_err("a refused connection is not a transcript")
+            .to_string();
+        assert!(
+            !err.contains("EOF while parsing"),
+            "the parser must not be the one reporting a transport failure: {err}"
+        );
+        assert!(
+            err.contains(&dead.to_string()),
+            "the message must name the engine that was called: {err}"
+        );
     }
 
     #[test]

@@ -19,19 +19,27 @@
  * Requires an Ollama Cloud / Turbo token (Settings → Providers → "Ollama Cloud /
  * Turbo"); without one, selecting these will fail at request time.
  *
- * Every tag below was verified against a live `POST /api/show` on 2026-08-05 —
- * Ollama Cloud returns `410 Gone` for a retired model (with its retirement
- * date) and `404` for a tag that never existed, so this list is checked, not
- * transcribed. Re-verify the same way when refreshing; the listing page shows
- * base names without their `:cloud` / `:<size>-cloud` suffix.
+ * Every tag below is verified against a live `POST /api/show` — Ollama Cloud
+ * returns `410 Gone` for a retired model (with its retirement date) and `404`
+ * for a tag that never existed, so this list is checked, not transcribed.
+ * Re-verify the same way when refreshing; the listing page shows base names
+ * without their `:cloud` / `:<size>-cloud` suffix, so the suffix has to be
+ * probed rather than assumed.
  *
  * Retired and removed on 2026-08-05: `glm-4.6` (2026-06-16), `kimi-k2:1t`
  * (2026-06-16), `minimax-m2` (2026-06-16), `deepseek-v3.1:671b` (2026-07-15).
  *
- * Source: https://ollama.com/search?c=cloud   ·  Last verified: 2026-08-05
+ * Re-verified 2026-08-29: all seventeen existing tags still answer `200`,
+ * so nothing was retired this round. Added `glm-5.3` and `glm-5.3-flash` —
+ * the two entries on the listing page missing here. Both are cloud-only
+ * (`404` without the `:cloud` suffix).
+ *
+ * Source: https://ollama.com/search?c=cloud   ·  Last verified: 2026-08-29
  */
 export const OLLAMA_CLOUD_MODELS: string[] = [
-  "glm-5.2:cloud",              // Z.ai · coding-agent flagship
+  "glm-5.3:cloud",              // Z.ai · 753B MoE · 1M ctx · thinking + tools
+  "glm-5.3-flash:cloud", // temporarily removed for the drift check
+  "glm-5.2:cloud",              // Z.ai · previous coding-agent flagship
   "glm-5.1:cloud",              // Z.ai · previous flagship
   "kimi-k3:cloud",              // Moonshot · 3T-class
   "kimi-k2.7-code:cloud",       // Moonshot · coding

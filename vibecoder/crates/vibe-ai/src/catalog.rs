@@ -408,6 +408,52 @@ mod tests {
         }
     }
 
+    /// The Rust and TypeScript cloud-model lists must hold the same tags.
+    ///
+    /// Both files carry a "keep in sync" comment and nothing enforced it. A tag
+    /// added to one and not the other is a model the desktop offers and the
+    /// daemon does not — or the reverse — and the only symptom is a picker
+    /// entry that fails at request time.
+    ///
+    /// These are cloud tags, never reported by a local `/api/tags`, so there is
+    /// no live source to reconcile against at runtime: the two static lists are
+    /// the whole truth and have to agree.
+    #[test]
+    fn the_cloud_model_lists_agree_across_languages() {
+        let Some(root) = repo_root() else {
+            return; // vendored outside the monorepo — nothing to check against
+        };
+        let Ok(text) =
+            std::fs::read_to_string(root.join("vibecoder/src/constants/ollamaModels.ts"))
+        else {
+            return;
+        };
+        let Some(start) = text.find("export const OLLAMA_CLOUD_MODELS") else {
+            return;
+        };
+        let Some(len) = text[start..].find("\n];") else {
+            return;
+        };
+
+        let ts: Vec<&str> = text[start..start + len]
+            .lines()
+            .filter_map(|line| line.trim().strip_prefix('"'))
+            .filter_map(|rest| rest.split('"').next())
+            .collect();
+
+        assert!(
+            !ts.is_empty(),
+            "parsed no tags out of ollamaModels.ts — the shape changed and this \
+             test silently stopped checking anything"
+        );
+        assert_eq!(
+            ts,
+            crate::providers::ollama::OLLAMA_CLOUD_MODELS.to_vec(),
+            "ollamaModels.ts and providers/ollama.rs disagree about the cloud \
+             models (order included, so the two files stay readable side by side)"
+        );
+    }
+
     /// Every catalog provider must be selectable from the VS Code settings UI.
     ///
     /// `vibecli.provider` is a closed `enum` in the extension manifest, so a

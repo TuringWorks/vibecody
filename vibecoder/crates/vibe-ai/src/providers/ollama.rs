@@ -18,11 +18,20 @@ use std::sync::{LazyLock, Mutex};
 /// ollama.com. Requires an Ollama Cloud / Turbo token (`OLLAMA_API_KEY` env or
 /// the encrypted ProfileStore key).
 ///
-/// Keep in sync with `vibecoder/src/constants/ollamaModels.ts`. Every tag was
-/// verified against a live `POST /api/show` on 2026-08-05: Ollama Cloud answers
-/// `410 Gone` for a retired model and `404` for a tag that never existed.
-/// Retired and removed that day: `glm-4.6`, `kimi-k2:1t`, `minimax-m2`
-/// (all 2026-06-16) and `deepseek-v3.1:671b` (2026-07-15).
+/// Keep in sync with `vibecoder/src/constants/ollamaModels.ts`. Every tag is
+/// verified against a live `POST /api/show`: Ollama Cloud answers `410 Gone`
+/// for a retired model — with its retirement date — and `404` for a tag that
+/// never existed, so this list is checked rather than transcribed. The listing
+/// page shows base names without their `:cloud` / `:<size>-cloud` suffix, so
+/// the suffix has to be probed, not assumed.
+///
+/// Retired and removed 2026-08-05: `glm-4.6`, `kimi-k2:1t`, `minimax-m2` (all
+/// 2026-06-16) and `deepseek-v3.1:671b` (2026-07-15).
+///
+/// Re-verified 2026-08-29: all seventeen existing tags still answer `200`, so
+/// nothing was retired this round. Added `glm-5.3` and `glm-5.3-flash`, the two
+/// entries on the listing page that were missing here. Both are cloud-only —
+/// they answer `404` without the `:cloud` suffix.
 ///
 /// Source: <https://ollama.com/search?c=cloud>
 /// One model Ollama has pulled, and what it costs to load.
@@ -35,6 +44,10 @@ pub struct InstalledModel {
 }
 
 pub const OLLAMA_CLOUD_MODELS: &[&str] = &[
+    // Z.ai · 753B MoE, 1M context, thinking + tools (measured via /api/show).
+    "glm-5.3:cloud",
+    // Z.ai · 321B, 1M context, and the only cloud entry reporting `vision`.
+    "glm-5.3-flash:cloud",
     "glm-5.2:cloud",
     "glm-5.1:cloud",
     "kimi-k3:cloud",
