@@ -371,6 +371,80 @@ data: {"type":"complete","content":"Added input validation for all 3 handler fun
 | `404` | `Session '<id>' not found` |
 
 
+### GET /harness/profile
+
+The harness settings for one `(provider, model)` pair — what that model is
+*given* beyond the conversation. See [Model Harness Profiles](/vibecody/harness-profiles/).
+
+**Query**: `provider` (required), `model` (optional — omit or pass `*` for the
+provider-wide entry).
+
+**Response** `200 OK`:
+
+```json
+{
+  "provider": "claude",
+  "model": "claude-opus-5",
+  "effective": {
+    "tool_transport": "native",
+    "prompt_dialect": "compact",
+    "prompt_cache": true
+  },
+  "builtin": {
+    "tool_transport": "native",
+    "prompt_dialect": "compact",
+    "prompt_cache": true
+  }
+}
+```
+
+`effective` is what will actually be sent; `builtin` is what this build ships.
+`provider_override` and `model_override` appear only when set, and name exactly
+the fields the user changed.
+
+Absent fields — `max_output_tokens`, `temperature`, `context_window_fallback`,
+`thinking_budgets` — mean *the provider decides*. They are never zero and never
+unlimited: VibeCody ships no vendor number it cannot verify.
+
+### PUT /harness/profile
+
+Set an override for one pair. The body is a **patch** — only the fields being
+changed. Returns the newly resolved profile in the shape above.
+
+**Query**: `provider` (required), `model` (optional).
+
+```json
+{ "tool_transport": "prose", "prompt_dialect": "full" }
+```
+
+Takes effect on the next request; no daemon restart is needed.
+
+### DELETE /harness/profile
+
+Remove an override, returning the pair to its built-in default. Returns the
+newly resolved profile.
+
+An empty `PUT` body does the same thing, deliberately: storing a patch of
+nothing would pin the pair to today's defaults, so an improved default in a
+later release would never reach it.
+
+### GET /harness/profiles
+
+Every override currently in effect, plus each one resolved.
+
+**Response** `200 OK`:
+
+```json
+{
+  "overrides": {
+    "ollama/qwen3-coder": { "tool_transport": "prose" }
+  },
+  "profiles": [
+    { "provider": "ollama", "model": "qwen3-coder", "effective": {}, "builtin": {} }
+  ]
+}
+```
+
 ### GET /jobs
 
 List all persisted job records, sorted by most recent first.

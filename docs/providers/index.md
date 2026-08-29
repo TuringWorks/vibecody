@@ -207,3 +207,15 @@ api_key_helper = "~/.vibecli/get-key.sh claude"
 ```
 
 The script must print the API key to stdout and exit with code 0.
+
+
+## Tuning a provider's harness
+
+Which tools a provider's models receive — machine-readable schemas or a prose
+catalogue — and which system prompt goes with that choice are per-provider
+decisions, and per-model where you want them to be. So are the output cap, the
+reasoning budget, and any instructions that apply to one model alone.
+
+VibeCody ships defaults for every provider listed here and lets you change them
+per `(provider, model)` pair, in **Settings → Model Harness** or over
+`/harness/profile`. See [Model Harness Profiles](/vibecody/harness-profiles/).
