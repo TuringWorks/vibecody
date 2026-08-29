@@ -13,7 +13,6 @@ use crate::provider::{
 };
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
-use futures::stream::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -58,9 +57,32 @@ struct ChatRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     max_tokens: Option<usize>,
     stream: bool,
+    /// Native tool schemas. The Copilot chat endpoint is OpenAI-shaped and
+    /// takes them; this provider sent none, so its models were told about
+    /// tools only by the XML catalogue in the system prompt.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tools: Option<Vec<serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    parallel_tool_calls: Option<bool>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+impl ChatRequest {
+    /// The same request without tools, for a model the endpoint does not offer
+    /// function calling for.
+    fn without_tools(&self) -> Self {
+        Self {
+            model: self.model.clone(),
+            messages: self.messages.clone(),
+            temperature: self.temperature,
+            max_tokens: self.max_tokens,
+            stream: self.stream,
+            tools: None,
+            parallel_tool_calls: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct ChatMessage {
     role: String,
     content: String,
@@ -75,28 +97,14 @@ struct ChatResponse {
 
 #[derive(Debug, Deserialize)]
 struct ChatChoice {
-    message: ChatMessage,
+    /// The shared reply type, which carries tool calls and reasoning.
+    message: super::openai_compat::ResponseMessage,
 }
 
 #[derive(Debug, Deserialize)]
 struct ChatUsage {
     prompt_tokens: u32,
     completion_tokens: u32,
-}
-
-#[derive(Debug, Deserialize)]
-struct StreamResponse {
-    choices: Vec<StreamChoice>,
-}
-
-#[derive(Debug, Deserialize)]
-struct StreamChoice {
-    delta: StreamDelta,
-}
-
-#[derive(Debug, Deserialize)]
-struct StreamDelta {
-    content: Option<String>,
 }
 
 // ── Provider ──────────────────────────────────────────────────────────────────
@@ -214,6 +222,76 @@ impl CopilotProvider {
     }
 }
 
+impl CopilotProvider {
+    fn profile(&self) -> crate::harness::ModelProfile {
+        crate::harness::profile_for("copilot", &self.config.model)
+    }
+
+    fn build_request(
+        &self,
+        messages: &[Message],
+        context: Option<String>,
+        stream: bool,
+    ) -> ChatRequest {
+        let profile = self.profile();
+        let tools = super::openai_compat::ChatRequest::tools_for(messages, &profile);
+        ChatRequest {
+            model: self.config.model.clone(),
+            messages: self.build_messages(messages, context),
+            temperature: self.config.temperature.or(profile.temperature),
+            max_tokens: self
+                .config
+                .max_tokens
+                .or(profile.max_output_tokens.map(|t| t as usize)),
+            stream,
+            parallel_tool_calls: super::openai_compat::ChatRequest::parallel_for(
+                tools.as_ref(),
+                &profile,
+            ),
+            tools,
+        }
+    }
+
+    /// POST `request` to the Copilot chat endpoint, retrying once without
+    /// tools if it rejects the field itself. Copilot fronts several upstream
+    /// model families and not all of them offer function calling.
+    async fn send(&self, token: &str, request: &ChatRequest) -> Result<reqwest::Response> {
+        let url = format!("{}/chat/completions", COPILOT_BASE_URL);
+        let post = |body: &ChatRequest| {
+            self.client
+                .post(&url)
+                .header("Authorization", format!("Bearer {}", token))
+                .header("Copilot-Integration-Id", "vscode-chat")
+                .header("Editor-Version", "vscode/1.85.0")
+                .header("User-Agent", "vibecli/0.1")
+                .json(body)
+                .send()
+        };
+        let resp = post(request).await.context("Copilot request failed")?;
+        if resp.status().is_success() {
+            return Ok(resp);
+        }
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        if request.tools.is_none() || !super::openai_compat::is_tools_unsupported(&body) {
+            bail!("Copilot API error {}: {}", status, body);
+        }
+        tracing::warn!(
+            model = %self.config.model,
+            "Copilot endpoint does not accept native tool definitions — retrying without them",
+        );
+        let retry = post(&request.without_tools())
+            .await
+            .context("Copilot request failed")?;
+        if !retry.status().is_success() {
+            let status = retry.status();
+            let body = retry.text().await.unwrap_or_default();
+            bail!("Copilot API error {}: {}", status, body);
+        }
+        Ok(retry)
+    }
+}
+
 #[async_trait]
 impl AIProvider for CopilotProvider {
     fn name(&self) -> &str {
@@ -266,43 +344,21 @@ impl AIProvider for CopilotProvider {
         context: Option<String>,
     ) -> Result<CompletionResponse> {
         let copilot_token = self.get_copilot_token().await?;
-        let request = ChatRequest {
-            model: self.config.model.clone(),
-            messages: self.build_messages(messages, context),
-            temperature: self.config.temperature,
-            max_tokens: self.config.max_tokens,
-            stream: false,
-        };
-        let url = format!("{}/chat/completions", COPILOT_BASE_URL);
-        let resp = self
-            .client
-            .post(&url)
-            .header("Authorization", format!("Bearer {}", copilot_token))
-            .header("Copilot-Integration-Id", "vscode-chat")
-            .header("Editor-Version", "vscode/1.85.0")
-            .header("User-Agent", "vibecli/0.1")
-            .json(&request)
-            .send()
-            .await
-            .context("Copilot request failed")?;
-
-        if !resp.status().is_success() {
-            let status = resp.status();
-            let body = resp.text().await.unwrap_or_default();
-            bail!("Copilot API error {}: {}", status, body);
-        }
+        let request = self.build_request(messages, context, false);
+        let resp = self.send(&copilot_token, &request).await?;
 
         let body: ChatResponse = resp
             .json()
             .await
             .context("Failed to parse Copilot response")?;
+        // `into_text`, not `.content`: a tool-call turn has an empty content.
         let text = body
             .choices
-            .first()
+            .into_iter()
+            .next()
             .context("No choices")?
             .message
-            .content
-            .clone();
+            .into_text();
         let usage = body.usage.map(|u| TokenUsage {
             prompt_tokens: u.prompt_tokens,
             completion_tokens: u.completion_tokens,
@@ -320,61 +376,18 @@ impl AIProvider for CopilotProvider {
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
         let copilot_token = self.get_copilot_token().await?;
-        let request = ChatRequest {
-            model: self.config.model.clone(),
-            messages: self.build_messages(messages, None),
-            temperature: self.config.temperature,
-            max_tokens: self.config.max_tokens,
-            stream: true,
-        };
-        let url = format!("{}/chat/completions", COPILOT_BASE_URL);
-        let resp = self
-            .client
-            .post(&url)
-            .header("Authorization", format!("Bearer {}", copilot_token))
-            .header("Copilot-Integration-Id", "vscode-chat")
-            .header("Editor-Version", "vscode/1.85.0")
-            .header("User-Agent", "vibecli/0.1")
-            .json(&request)
-            .send()
-            .await
-            .context("Copilot stream request failed")?;
+        let request = self.build_request(messages, None, true);
+        let resp = self.send(&copilot_token, &request).await?;
 
-        if !resp.status().is_success() {
-            let status = resp.status();
-            let body = resp.text().await.unwrap_or_default();
-            bail!("Copilot API error {}: {}", status, body);
-        }
+        // The shared parser. Its line buffering came from this very loop —
+        // Copilot was the only provider that had noticed chunk boundaries split
+        // SSE lines — so nothing is lost by delegating, and tool calls and
+        // reasoning are gained.
+        Ok(super::openai_compat::parse_sse_stream(resp))
+    }
 
-        // Buffer SSE lines across chunk boundaries — HTTP chunks may split mid-line
-        let mut line_buf = String::new();
-        let stream = resp
-            .bytes_stream()
-            .map(move |chunk| {
-                let chunk = chunk?;
-                let text = String::from_utf8_lossy(&chunk);
-                line_buf.push_str(&text);
-                let mut content = String::new();
-                while let Some(nl) = line_buf.find('\n') {
-                    let line = line_buf[..nl].trim_end_matches('\r').to_string();
-                    line_buf = line_buf[nl + 1..].to_string();
-                    if let Some(data) = line.strip_prefix("data: ") {
-                        if data == "[DONE]" {
-                            continue;
-                        }
-                        if let Ok(r) = serde_json::from_str::<StreamResponse>(data) {
-                            if let Some(c) =
-                                r.choices.first().and_then(|ch| ch.delta.content.as_ref())
-                            {
-                                content.push_str(c);
-                            }
-                        }
-                    }
-                }
-                Ok(content)
-            })
-            .boxed();
-        Ok(stream)
+    fn harness_profile(&self) -> crate::harness::ModelProfile {
+        self.profile()
     }
 
     async fn chat_with_images(
@@ -588,6 +601,8 @@ mod tests {
             temperature: None,
             max_tokens: None,
             stream: true,
+            tools: None,
+            parallel_tool_calls: None,
         };
         let json = serde_json::to_value(&req).unwrap();
         assert_eq!(json["stream"], true);
@@ -605,6 +620,8 @@ mod tests {
             temperature: Some(0.75),
             max_tokens: Some(1024),
             stream: false,
+            tools: None,
+            parallel_tool_calls: None,
         };
         let json = serde_json::to_value(&req).unwrap();
         assert_eq!(json["temperature"], 0.75);
@@ -616,7 +633,7 @@ mod tests {
     #[test]
     fn stream_response_deser() {
         let json = r#"{"choices":[{"delta":{"content":"streamed token"}}]}"#;
-        let resp: StreamResponse = serde_json::from_str(json).unwrap();
+        let resp: super::super::openai_compat::StreamResponse = serde_json::from_str(json).unwrap();
         assert_eq!(
             resp.choices[0].delta.content.as_ref().unwrap(),
             "streamed token"
@@ -626,14 +643,14 @@ mod tests {
     #[test]
     fn stream_response_deser_null_content() {
         let json = r#"{"choices":[{"delta":{"content":null}}]}"#;
-        let resp: StreamResponse = serde_json::from_str(json).unwrap();
+        let resp: super::super::openai_compat::StreamResponse = serde_json::from_str(json).unwrap();
         assert!(resp.choices[0].delta.content.is_none());
     }
 
     #[test]
     fn stream_response_deser_empty_choices() {
         let json = r#"{"choices":[]}"#;
-        let resp: StreamResponse = serde_json::from_str(json).unwrap();
+        let resp: super::super::openai_compat::StreamResponse = serde_json::from_str(json).unwrap();
         assert!(resp.choices.is_empty());
     }
 
@@ -825,6 +842,8 @@ mod tests {
             temperature: None,
             max_tokens: None,
             stream: false,
+            tools: None,
+            parallel_tool_calls: None,
         };
         let json = serde_json::to_value(&req).unwrap();
         assert_eq!(json["messages"].as_array().unwrap().len(), 3);
@@ -843,7 +862,7 @@ mod tests {
     #[test]
     fn stream_response_deser_missing_content_field() {
         let json = r#"{"choices":[{"delta":{}}]}"#;
-        let resp: StreamResponse = serde_json::from_str(json).unwrap();
+        let resp: super::super::openai_compat::StreamResponse = serde_json::from_str(json).unwrap();
         assert!(resp.choices[0].delta.content.is_none());
     }
 

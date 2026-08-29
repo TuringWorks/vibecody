@@ -331,8 +331,6 @@ const NATIVE_TOOL_PROVIDERS: &[&str] = &[
     "openrouter",
     "copilot",
     "github-copilot",
-    "vibecli-mistralrs",
-    "vibecli_mistralrs",
     // Google Gemini — `functionDeclarations` + `functionCall` parts.
     "gemini",
     "google",
@@ -359,6 +357,19 @@ const NATIVE_TOOL_PROVIDERS: &[&str] = &[
     "lmstudio",
 ];
 
+/// `vibecli-mistralrs` is deliberately **absent** from the list above.
+///
+/// It looks like an OpenAI-shaped provider and is not: it posts Ollama-style
+/// NDJSON to the VibeCLI daemon's own `/api/chat`, whose request type
+/// (`vibecli::inference::backend::ChatRequest`) has `model`, `messages`,
+/// `stream`, `options` and `backend` — and no `tools`. serde drops unknown
+/// fields silently, so declaring it native would send schemas that never
+/// arrive *and* strip the XML catalogue that was the model's only remaining
+/// description of the tools. It would be left with nothing.
+///
+/// Move it into the list when the daemon's inference route learns to forward
+/// tool definitions, not before.
+///
 /// Providers that support Anthropic-style prompt caching of the system prefix.
 const PROMPT_CACHE_PROVIDERS: &[&str] = &["claude", "anthropic"];
 
@@ -565,7 +576,7 @@ mod tests {
 
     #[test]
     fn the_previously_hobbled_providers_now_get_schemas() {
-        // The nine that sent no tool schemas at all before this module.
+        // The eight whose APIs take tool schemas and that sent none.
         with_no_overrides(|| {
             for provider in [
                 "claude",
@@ -576,7 +587,6 @@ mod tests {
                 "openrouter",
                 "azure-openai",
                 "copilot",
-                "vibecli-mistralrs",
             ] {
                 let p = profile_for(provider, "any-model");
                 assert!(p.sends_tool_schemas(), "{provider} should send tool schemas");
@@ -585,6 +595,22 @@ mod tests {
                     PromptDialect::Compact,
                     "{provider} sends schemas, so it must not also get the XML catalogue"
                 );
+            }
+        });
+    }
+
+    /// The ninth provider that sends no schemas stays on the prose path,
+    /// because the endpoint it talks to has no `tools` field to send them in.
+    /// Declaring it native would strip its XML catalogue — its only remaining
+    /// description of the tools — while the schemas it was given instead were
+    /// silently dropped by serde at the daemon.
+    #[test]
+    fn vibecli_mistralrs_stays_on_the_prose_path() {
+        with_no_overrides(|| {
+            for id in ["vibecli-mistralrs", "vibecli_mistralrs"] {
+                let p = profile_for(id, "Qwen/Qwen2.5-0.5B-Instruct");
+                assert!(!p.sends_tool_schemas(), "{id}");
+                assert_eq!(p.prompt_dialect, PromptDialect::Full, "{id}");
             }
         });
     }
