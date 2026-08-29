@@ -12,6 +12,9 @@ pub mod agent_trust;
 pub mod auth_util;
 #[allow(dead_code)]
 pub mod browser_agent;
+/// Persistence for per-(provider, model) harness profiles — the storage half
+/// of `vibe_ai::harness`.
+pub mod harness_profiles;
 pub mod cost_router;
 pub mod counsel;
 pub mod diff_review;
