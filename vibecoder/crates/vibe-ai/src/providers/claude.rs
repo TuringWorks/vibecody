@@ -26,8 +26,13 @@ struct ClaudeRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     temperature: Option<f32>,
     stream: bool,
+    /// The system prompt.
+    ///
+    /// A `Value` rather than a `String` because the API accepts either a plain
+    /// string or an array of blocks, and only the array form can carry
+    /// `cache_control`. Which one is sent depends on the pair's profile.
     #[serde(skip_serializing_if = "Option::is_none")]
-    system: Option<String>,
+    system: Option<Value>,
     /// Extended thinking — only serialized when present.
     #[serde(skip_serializing_if = "Option::is_none")]
     thinking: Option<ThinkingConfig>,
@@ -354,11 +359,39 @@ impl ClaudeProvider {
     ///
     /// An explicit `thinking_budget_tokens` always wins; otherwise the per-request
     /// `effort` tier (gap C5) derives the budget — `Effort::Low` disables thinking.
+    /// The system prompt as the API should receive it for this pair.
+    ///
+    /// Plain string normally. When the pair has prompt caching on, the array
+    /// form with a `cache_control` breakpoint, so Anthropic caches the prefix
+    /// instead of re-reading it every turn.
+    ///
+    /// This is the one profile knob whose default is a behaviour change rather
+    /// than a passthrough, and it is worth it: the agent's system prompt runs
+    /// to thousands of tokens — tool catalogue, repo map, skills, rules — and
+    /// is resent unchanged on every turn of every run.
+    fn system_block(&self, system: Option<String>) -> Option<Value> {
+        let text = system?;
+        match self.profile().prompt_cache {
+            false => Some(Value::String(text)),
+            true => Some(serde_json::json!([{
+                "type": "text",
+                "text": text,
+                "cache_control": { "type": "ephemeral" },
+            }])),
+        }
+    }
+
     fn thinking_config(&self) -> Option<ThinkingConfig> {
         let budget = self
             .config
             .thinking_budget_tokens
-            .or_else(|| self.config.effort.and_then(|e| e.claude_thinking_budget()))?;
+            .or_else(|| {
+                // The pair's own per-tier budget, falling back to the global
+                // `Effort` table for tiers it does not set.
+                self.config
+                    .effort
+                    .and_then(|e| self.profile().thinking_budget(e))
+            })?;
         Some(ThinkingConfig {
             thinking_type: "enabled".to_string(),
             budget_tokens: budget,
@@ -439,6 +472,7 @@ impl ClaudeProvider {
         stream: bool,
     ) -> ClaudeRequest {
         let profile = self.profile();
+        let system = self.system_block(system);
         ClaudeRequest {
             model: self.config.model.clone(),
             messages: claude_messages,
@@ -761,6 +795,53 @@ mod tests {
         let resp: ClaudeResponse = serde_json::from_str(json).unwrap();
         assert_eq!(render_content_blocks(&resp.content), "hello world");
         assert_eq!(resp.usage.unwrap().output_tokens, 5);
+    }
+
+    // ── prompt caching ───────────────────────────────────────────────────
+
+    /// The agent's system prompt runs to thousands of tokens and is resent
+    /// unchanged on every turn of every run. Without a cache breakpoint
+    /// Anthropic re-reads all of it each time.
+    #[test]
+    fn the_system_prompt_carries_a_cache_breakpoint() {
+        let p = ClaudeProvider::new(test_config());
+        assert!(p.profile().prompt_cache, "claude caches by default");
+        let req = p.assemble(vec![], Some("the long system prompt".into()), None, false);
+        let json = serde_json::to_value(&req).unwrap();
+        assert_eq!(json["system"][0]["type"], "text");
+        assert_eq!(json["system"][0]["text"], "the long system prompt");
+        assert_eq!(json["system"][0]["cache_control"]["type"], "ephemeral");
+    }
+
+    /// With caching off the plain string form is sent, exactly as before.
+    #[test]
+    fn caching_off_sends_the_plain_string_form() {
+        let p = ClaudeProvider::new(test_config());
+        let overrides = std::collections::HashMap::from([(
+            crate::harness::override_key("claude", &p.config.model),
+            crate::harness::ProfileOverride {
+                prompt_cache: Some(false),
+                ..Default::default()
+            },
+        )]);
+        // Through the shared guard: the override map is process-wide, so
+        // setting it directly would race every other test that resolves a
+        // profile.
+        let json = crate::harness::with_overrides_for_test(overrides, || {
+            let req = p.assemble(vec![], Some("plain".into()), None, false);
+            serde_json::to_value(&req).unwrap()
+        });
+        assert_eq!(json["system"], "plain");
+    }
+
+    /// No system prompt means no `system` field at all — not an empty block
+    /// the API would reject.
+    #[test]
+    fn no_system_prompt_sends_no_system_field() {
+        let p = ClaudeProvider::new(test_config());
+        let req = p.assemble(vec![], None, None, false);
+        let json = serde_json::to_value(&req).unwrap();
+        assert!(json.get("system").is_none());
     }
 
     // ── content blocks ───────────────────────────────────────────────────

@@ -531,31 +531,38 @@ pub fn resolve(provider: &str, model: &str) -> ResolvedProfile {
     }
 }
 
+/// Run `f` with exactly `map` installed as the override set, then clear it.
+///
+/// The override map is process-wide, so any test that installs one races every
+/// other test that resolves a profile — including tests in other modules of
+/// this crate, which cannot see this module's private lock. One shared,
+/// poison-tolerant guard lives here so all of them serialise on it.
+#[cfg(test)]
+pub(crate) fn with_overrides_for_test<T>(
+    map: HashMap<String, ProfileOverride>,
+    f: impl FnOnce() -> T,
+) -> T {
+    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    set_overrides(map);
+    let out = f();
+    set_overrides(HashMap::new());
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::provider::Effort;
 
-    /// The override map is process-wide, so **every** test that resolves a
-    /// profile has to serialise on it — readers included.
+    /// Every test that resolves a profile serialises on one guard — readers
+    /// included.
     ///
-    /// Only the writers took this lock at first, and the read-only default
+    /// Only the writers took a lock at first, and the read-only default
     /// assertions failed intermittently: a neighbouring test's overrides were
     /// still installed when they ran. That is the shared-state flake this
-    /// codebase names as the top cause of "timing" failures, so both helpers
-    /// below take the lock and neither test body touches the statics directly.
-    ///
-    /// Poison-tolerant: one failing test must not cascade into the rest.
-    static OVERRIDE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
-    /// Run `f` with exactly `map` installed, then clear it.
-    fn with_overrides<T>(map: HashMap<String, ProfileOverride>, f: impl FnOnce() -> T) -> T {
-        let _guard = OVERRIDE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        set_overrides(map);
-        let out = f();
-        set_overrides(HashMap::new());
-        out
-    }
+    /// codebase names as the top cause of "timing" failures.
+    use super::with_overrides_for_test as with_overrides;
 
     /// Run `f` with no overrides installed — what a fresh process looks like.
     fn with_no_overrides<T>(f: impl FnOnce() -> T) -> T {

@@ -537,8 +537,18 @@ impl GeminiProvider {
         // thinkingBudget 0 (range 128–32768). Only Flash accepts 0. So on the
         // Low tier (budget 0), clamp Pro to the documented minimum (128).
         let is_pro = m.contains("pro");
+        let profile = self.profile();
         self.config.effort.map(|e| {
-            let mut budget = e.gemini_thinking_budget();
+            // The pair's own per-tier budget when it sets one, otherwise the
+            // global `Effort` table. `thinking_budget` returns tokens as `u32`;
+            // Gemini's field is a signed `i32` because 0 is meaningful here
+            // (thinking off), so the conversion is saturating rather than a
+            // cast that could wrap a large configured value to a negative.
+            let mut budget = profile
+                .thinking_budgets
+                .get(e)
+                .map(|t| i32::try_from(t).unwrap_or(i32::MAX))
+                .unwrap_or_else(|| e.gemini_thinking_budget());
             if is_pro && budget < 128 {
                 budget = 128;
             }
