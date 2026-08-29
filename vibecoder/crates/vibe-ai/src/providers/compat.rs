@@ -43,6 +43,12 @@ pub enum Auth {
 /// Everything that distinguishes one OpenAI-compatible provider from another.
 #[derive(Debug, Clone, Copy)]
 pub struct CompatSpec {
+    /// The provider id the rest of the stack routes on — `"cerebras"`,
+    /// `"lmstudio"`. Distinct from `label`, which is prose for humans: the id
+    /// has to match the daemon's `create_provider` arms and the harness
+    /// profile table, and lowercasing a label to guess it would silently
+    /// produce `"lm studio"`.
+    pub id: &'static str,
     /// Shown to the user, e.g. `"Cerebras"`, and used in error messages.
     pub label: &'static str,
     /// Used when `ProviderConfig::api_url` is not set. Includes the version
@@ -52,16 +58,23 @@ pub struct CompatSpec {
 }
 
 impl CompatSpec {
-    pub const fn cloud(label: &'static str, base: &'static str, env_var: &'static str) -> Self {
+    pub const fn cloud(
+        id: &'static str,
+        label: &'static str,
+        base: &'static str,
+        env_var: &'static str,
+    ) -> Self {
         Self {
+            id,
             label,
             default_base_url: base,
             auth: Auth::ApiKey { env_var },
         }
     }
 
-    pub const fn local(label: &'static str, base: &'static str) -> Self {
+    pub const fn local(id: &'static str, label: &'static str, base: &'static str) -> Self {
         Self {
+            id,
             label,
             default_base_url: base,
             auth: Auth::LocalOptional,
@@ -74,10 +87,10 @@ impl CompatSpec {
 }
 
 /// vLLM's OpenAI-compatible server, `vllm serve` / `python -m vllm.entrypoints.openai.api_server`.
-pub const VLLM: CompatSpec = CompatSpec::local("vLLM", "http://localhost:8000/v1");
+pub const VLLM: CompatSpec = CompatSpec::local("vllm", "vLLM", "http://localhost:8000/v1");
 
 /// LM Studio's local server (Developer tab → Start Server).
-pub const LM_STUDIO: CompatSpec = CompatSpec::local("LM Studio", "http://localhost:1234/v1");
+pub const LM_STUDIO: CompatSpec = CompatSpec::local("lmstudio", "LM Studio", "http://localhost:1234/v1");
 
 /// An OpenAI-compatible provider, behaviour identical to the hand-written
 /// twelve, with the differences supplied by `spec`.
@@ -142,13 +155,21 @@ impl CompatProvider {
         context: Option<String>,
         stream: bool,
     ) -> ChatRequest {
+        let profile = self.harness_profile();
+        let tools = ChatRequest::tools_for(messages, &profile);
         ChatRequest {
             model: self.config.model.clone(),
             messages: openai_compat::build_messages(messages, context),
-            temperature: self.config.temperature,
-            max_tokens: self.config.max_tokens,
+            // An explicit setting on the provider is the caller's decision and
+            // wins; the profile only fills in what the caller left open.
+            temperature: self.config.temperature.or(profile.temperature),
+            max_tokens: self
+                .config
+                .max_tokens
+                .or(profile.max_output_tokens.map(|t| t as usize)),
             stream,
-            tools: ChatRequest::tools_for(messages),
+            parallel_tool_calls: ChatRequest::parallel_for(tools.as_ref(), &profile),
+            tools,
         }
     }
 
@@ -248,10 +269,11 @@ impl AIProvider for CompatProvider {
         Ok(self.chat_response(messages, context).await?.text)
     }
 
-    /// Every provider built on this shape sends the schemas — see
-    /// `make_request`.
-    fn advertises_native_tools(&self) -> bool {
-        true
+    /// Answered by the pair's profile, like every other provider — the
+    /// hardcoded `true` here predated profiles and could not be turned off for
+    /// a model whose native tool calling is worse than its prose.
+    fn harness_profile(&self) -> crate::harness::ModelProfile {
+        crate::harness::profile_for(self.spec.id, &self.config.model)
     }
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
@@ -282,7 +304,7 @@ mod tests {
     use super::*;
 
     const CLOUD: CompatSpec =
-        CompatSpec::cloud("Testly", "https://api.testly.ai/v1", "TESTLY_API_KEY");
+        CompatSpec::cloud("testly", "Testly", "https://api.testly.ai/v1", "TESTLY_API_KEY");
 
     fn config(model: &str) -> ProviderConfig {
         ProviderConfig {
@@ -410,11 +432,11 @@ mod tests {
 /// dozen.
 #[macro_export]
 macro_rules! openai_compat_provider {
-    ($ty:ident, $label:literal, $base:expr, $env:literal) => {
+    ($ty:ident, $id:literal, $label:literal, $base:expr, $env:literal) => {
         /// The provider's identity, as data. Public so the daemon can describe
         /// it without constructing one.
         pub const SPEC: $crate::providers::compat::CompatSpec =
-            $crate::providers::compat::CompatSpec::cloud($label, $base, $env);
+            $crate::providers::compat::CompatSpec::cloud($id, $label, $base, $env);
 
         #[doc = concat!("`", $label, "`, an OpenAI-compatible provider.")]
         pub struct $ty($crate::providers::compat::CompatProvider);
@@ -485,8 +507,11 @@ macro_rules! openai_compat_provider {
             /// Delegated like every other capability: the inner
             /// `CompatProvider` is the one that builds the request, so it is
             /// the one that knows whether schemas ride along.
+            fn harness_profile(&self) -> $crate::harness::ModelProfile {
+                $crate::provider::AIProvider::harness_profile(&self.0)
+            }
             fn advertises_native_tools(&self) -> bool {
-                self.0.advertises_native_tools()
+                $crate::provider::AIProvider::advertises_native_tools(&self.0)
             }
             /// Delegated for the same reason as the rest: the inner provider
             /// holds the base URL, the key and the model id.

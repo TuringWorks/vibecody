@@ -31,15 +31,44 @@ pub struct ChatRequest {
     /// native calls are transcribed back to `<tool_call>` markup.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tools: Option<Vec<serde_json::Value>>,
+    /// Whether the model may emit several tool calls in one turn.
+    ///
+    /// Absent unless the pair's profile says something. Sending
+    /// `parallel_tool_calls` to an endpoint that has never heard of it is a
+    /// 400 on providers that reject unknown fields, so silence is the only
+    /// safe default.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parallel_tool_calls: Option<bool>,
 }
 
 impl ChatRequest {
-    /// The tools this conversation expects, or `None` for a plain chat.
+    /// The tools this conversation expects, or `None` for a plain chat or a
+    /// pair configured onto the prose path.
     ///
-    /// Providers call this instead of hand-writing the field so one rule —
-    /// `vibe_ai::tools::tool_definitions_for` — decides for all of them.
-    pub fn tools_for(messages: &[Message]) -> Option<Vec<serde_json::Value>> {
+    /// Providers call this instead of hand-writing the field so two rules
+    /// decide for all of them: `tools::tool_definitions_for` answers *which*
+    /// vocabulary this conversation asked for, and the pair's
+    /// [`ModelProfile`](crate::harness::ModelProfile) answers whether the
+    /// schemas go on the wire at all. Both have to agree — a conversation with
+    /// no tool prompt gets no schemas even on a native pair, and a pair pinned
+    /// to `Prose` gets none even when the prompt asks for tools.
+    pub fn tools_for(
+        messages: &[Message],
+        profile: &crate::harness::ModelProfile,
+    ) -> Option<Vec<serde_json::Value>> {
+        if !profile.sends_tool_schemas() {
+            return None;
+        }
         crate::tools::tool_definitions_for(messages.iter().map(|m| m.content.as_str()))
+    }
+
+    /// `parallel_tool_calls` for this request: only meaningful alongside
+    /// schemas, so it stays absent when there are none.
+    pub fn parallel_for(
+        tools: Option<&Vec<serde_json::Value>>,
+        profile: &crate::harness::ModelProfile,
+    ) -> Option<bool> {
+        tools.and(profile.parallel_tool_calls)
     }
 }
 
@@ -64,7 +93,69 @@ pub struct ChatResponse {
 
 #[derive(Debug, Deserialize)]
 pub struct ChatChoice {
-    pub message: ChatMessage,
+    pub message: ResponseMessage,
+}
+
+/// The assistant message in a **non-streaming** reply.
+///
+/// Separate from [`ChatMessage`], which is what we send, because the two
+/// genuinely differ: a reply can carry structured tool calls and reasoning that
+/// a request never does. Sharing one type is how the non-streaming path came to
+/// drop native tool calls on the floor — `ChatMessage` had `content` and
+/// nothing else, so a turn whose whole substance was a `tool_calls` array
+/// deserialised to an empty string and the caller saw a model that had said
+/// nothing.
+#[derive(Debug, Deserialize)]
+pub struct ResponseMessage {
+    /// Absent when the turn was entirely tool calls or entirely reasoning —
+    /// hence `default`, not a required field.
+    #[serde(default)]
+    pub content: String,
+    #[serde(default)]
+    pub tool_calls: Option<Vec<NativeToolCall>>,
+    /// Reasoning, under either of the two names vendors use for it.
+    #[serde(default)]
+    pub reasoning_content: Option<String>,
+    #[serde(default)]
+    pub reasoning: Option<String>,
+}
+
+impl ResponseMessage {
+    /// This message as the text the rest of the stack consumes: reasoning in a
+    /// `<thinking>` wrapper, then prose, then any tool calls transcribed to
+    /// `<tool_call>` markup.
+    ///
+    /// The same shape the streaming accumulator produces, so a caller cannot
+    /// tell which path a turn came down — which is the point, since the agent
+    /// parses one format.
+    pub fn into_text(self) -> String {
+        let mut out = String::new();
+        if let Some(reasoning) = self
+            .reasoning_content
+            .as_deref()
+            .or(self.reasoning.as_deref())
+            .filter(|t| !t.is_empty())
+        {
+            out.push_str("<thinking>");
+            out.push_str(reasoning);
+            out.push_str("</thinking>\n");
+        }
+        out.push_str(&self.content);
+        for call in self.tool_calls.iter().flatten() {
+            let Some(function) = call.function.as_ref() else {
+                continue;
+            };
+            let Some(name) = function.name.as_deref() else {
+                continue;
+            };
+            let args = function
+                .arguments
+                .as_deref()
+                .and_then(|a| serde_json::from_str::<serde_json::Value>(a).ok());
+            out.push_str(&crate::tools::render_tool_call(name, args.as_ref()));
+        }
+        out
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -91,7 +182,7 @@ pub struct StreamDelta {
     /// Native (structured) tool calls, emitted by some hosted models instead
     /// of the `<tool_call>` markup the agent parses. Transcribed on the way out.
     #[serde(default)]
-    pub tool_calls: Option<Vec<StreamToolCall>>,
+    pub tool_calls: Option<Vec<NativeToolCall>>,
 }
 
 impl StreamDelta {
@@ -104,14 +195,19 @@ impl StreamDelta {
     }
 }
 
+/// One structured tool call, in either a streaming delta or a complete reply.
+///
+/// Named for what it is rather than where it arrives: the non-streaming path
+/// deserialises the identical shape, and giving it a second name would invite
+/// a second, subtly different transcription.
 #[derive(Debug, Deserialize)]
-pub struct StreamToolCall {
+pub struct NativeToolCall {
     #[serde(default)]
-    pub function: Option<StreamToolFunction>,
+    pub function: Option<NativeToolFunction>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct StreamToolFunction {
+pub struct NativeToolFunction {
     #[serde(default)]
     pub name: Option<String>,
     /// OpenAI streams arguments as a JSON *string*, assembled across deltas.
@@ -302,6 +398,9 @@ fn without_tools(request: &ChatRequest) -> ChatRequest {
         max_tokens: request.max_tokens,
         stream: request.stream,
         tools: None,
+        // Dropped with the tools it qualifies: an endpoint that rejected
+        // `tools` will reject the switch that configures them just as fast.
+        parallel_tool_calls: None,
     }
 }
 
@@ -350,13 +449,16 @@ pub async fn send_chat_request(
         .json()
         .await
         .with_context(|| format!("Failed to parse {} response", provider_label))?;
+    // `into_text` and not `.content`: a turn made entirely of tool calls has an
+    // empty `content`, and reading only that field is how this path used to
+    // report a model that had in fact called a tool as one that said nothing.
     let text = body
         .choices
-        .first()
+        .into_iter()
+        .next()
         .context("No choices")?
         .message
-        .content
-        .clone();
+        .into_text();
     let usage = body.usage.map(|u| TokenUsage {
         prompt_tokens: u.prompt_tokens,
         completion_tokens: u.completion_tokens,
@@ -497,6 +599,7 @@ mod tests {
             max_tokens: None,
             stream: false,
             tools: None,
+            parallel_tool_calls: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         assert!(json.contains("\"model\":\"gpt-4\""));
@@ -638,14 +741,108 @@ mod tests {
                 crate::tools::CHAT_TOOL_PROMPT_MARKER
             ),
         }];
-        let defs = ChatRequest::tools_for(&chat).expect("chat conversations carry tools");
+        let native = crate::harness::ModelProfile::native_tools();
+        let defs = ChatRequest::tools_for(&chat, &native).expect("chat conversations carry tools");
         assert_eq!(defs.len(), crate::tools::CHAT_TOOL_NAMES.len());
 
         let plain = [Message {
             role: crate::provider::MessageRole::User,
             content: "what is a monad".to_string(),
         }];
-        assert!(ChatRequest::tools_for(&plain).is_none());
+        assert!(ChatRequest::tools_for(&plain, &native).is_none());
+    }
+
+    /// Both conditions have to hold. A pair pinned to the prose path gets no
+    /// schemas even when the conversation's prompt asks for tools — that
+    /// setting is the escape hatch for a model whose native tool calling is
+    /// worse than its prose, so it has to actually suppress them.
+    #[test]
+    fn a_prose_pair_sends_no_schemas_even_for_a_tool_conversation() {
+        let chat = [Message {
+            role: crate::provider::MessageRole::System,
+            content: format!(
+                "preamble\n{}\n- write_file",
+                crate::tools::CHAT_TOOL_PROMPT_MARKER
+            ),
+        }];
+        let prose = crate::harness::ModelProfile::conservative();
+        assert!(ChatRequest::tools_for(&chat, &prose).is_none());
+    }
+
+    #[test]
+    fn parallel_tool_calls_is_absent_without_tools() {
+        let profile = crate::harness::ModelProfile {
+            parallel_tool_calls: Some(true),
+            ..crate::harness::ModelProfile::native_tools()
+        };
+        // Set alongside schemas...
+        let tools = vec![serde_json::json!({"type": "function"})];
+        assert_eq!(
+            ChatRequest::parallel_for(Some(&tools), &profile),
+            Some(true)
+        );
+        // ...and absent without them, since it would qualify nothing and some
+        // endpoints reject unknown fields outright.
+        assert_eq!(ChatRequest::parallel_for(None, &profile), None);
+    }
+
+    /// A turn whose entire substance is a tool call has an empty `content`.
+    /// Reading only that field is how the non-streaming path used to report a
+    /// model that had called a tool as one that said nothing at all.
+    #[test]
+    fn a_non_streaming_tool_call_survives_into_the_text() {
+        let body: ChatResponse = serde_json::from_str(
+            r#"{"choices":[{"message":{"content":"","tool_calls":[{"function":{"name":"read_file","arguments":"{\"path\":\"src/main.rs\"}"}}]}}]}"#,
+        )
+        .expect("parses");
+        let text = body
+            .choices
+            .into_iter()
+            .next()
+            .expect("one choice")
+            .message
+            .into_text();
+        assert_eq!(
+            text,
+            r#"<tool_call name="read_file"><path>src/main.rs</path></tool_call>"#
+        );
+        assert_eq!(crate::tools::parse_tool_calls(&text).len(), 1);
+    }
+
+    /// The two paths have to produce the same shape or the agent parses one of
+    /// them and not the other.
+    #[test]
+    fn a_non_streaming_reply_wraps_reasoning_like_the_stream_does() {
+        let body: ChatResponse = serde_json::from_str(
+            r#"{"choices":[{"message":{"content":"done","reasoning_content":"thinking hard"}}]}"#,
+        )
+        .expect("parses");
+        let text = body
+            .choices
+            .into_iter()
+            .next()
+            .expect("one choice")
+            .message
+            .into_text();
+        assert_eq!(text, "<thinking>thinking hard</thinking>\ndone");
+    }
+
+    /// A reply with neither reasoning nor tool calls must come through exactly
+    /// as it did before this path learned about either.
+    #[test]
+    fn a_plain_reply_is_unchanged() {
+        let body: ChatResponse =
+            serde_json::from_str(r#"{"choices":[{"message":{"content":"just prose"}}]}"#)
+                .expect("parses");
+        assert_eq!(
+            body.choices
+                .into_iter()
+                .next()
+                .expect("one choice")
+                .message
+                .into_text(),
+            "just prose"
+        );
     }
 
     #[test]
@@ -657,6 +854,7 @@ mod tests {
             max_tokens: None,
             stream: false,
             tools: None,
+            parallel_tool_calls: None,
         };
         let json = serde_json::to_string(&req).expect("serialize");
         assert!(
@@ -707,6 +905,7 @@ mod tests {
             max_tokens: Some(512),
             stream: true,
             tools: Some(crate::tools::chat_tool_definitions()),
+            parallel_tool_calls: None,
         };
         let stripped = without_tools(&req);
         assert!(stripped.tools.is_none());

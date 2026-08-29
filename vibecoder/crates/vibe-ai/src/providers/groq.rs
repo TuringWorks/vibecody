@@ -9,7 +9,7 @@
 
 pub const GROQ_BASE_URL: &str = "https://api.groq.com/openai/v1";
 
-crate::openai_compat_provider!(GroqProvider, "Groq", GROQ_BASE_URL, "GROQ_API_KEY");
+crate::openai_compat_provider!(GroqProvider, "groq", "Groq", GROQ_BASE_URL, "GROQ_API_KEY");
 
 #[cfg(test)]
 mod tests {
@@ -120,6 +120,7 @@ mod tests {
             max_tokens: None,
             stream: false,
             tools: None,
+            parallel_tool_calls: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         assert!(!json.contains("temperature"));
@@ -135,6 +136,7 @@ mod tests {
             max_tokens: Some(4096),
             stream: true,
             tools: None,
+            parallel_tool_calls: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         assert!(json.contains("\"temperature\""));

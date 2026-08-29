@@ -60,13 +60,21 @@ impl ZhipuProvider {
         context: Option<String>,
         stream: bool,
     ) -> ChatRequest {
+        let profile = crate::harness::profile_for("zhipu", &self.config.model);
+        let tools = ChatRequest::tools_for(messages, &profile);
         ChatRequest {
             model: self.config.model.clone(),
             messages: openai_compat::build_messages(messages, context),
-            temperature: self.config.temperature,
-            max_tokens: self.config.max_tokens,
+            // An explicit setting on the provider is the caller's decision and
+            // wins; the profile only fills in what the caller left open.
+            temperature: self.config.temperature.or(profile.temperature),
+            max_tokens: self
+                .config
+                .max_tokens
+                .or(profile.max_output_tokens.map(|t| t as usize)),
             stream,
-            tools: ChatRequest::tools_for(messages),
+            parallel_tool_calls: ChatRequest::parallel_for(tools.as_ref(), &profile),
+            tools,
         }
     }
 
@@ -175,6 +183,14 @@ fn base64_url_encode(data: &[u8]) -> String {
 impl AIProvider for ZhipuProvider {
     fn name(&self) -> &str {
         &self.display_name
+    }
+
+    /// This provider sent tool schemas but answered `advertises_native_tools`
+    /// with the trait default of `false`, so the model received the schemas
+    /// *and* the full XML catalogue describing the same tools again. The
+    /// profile answers both questions now, so they cannot disagree.
+    fn harness_profile(&self) -> crate::harness::ModelProfile {
+        crate::harness::profile_for("zhipu", &self.config.model)
     }
 
     async fn is_available(&self) -> bool {
@@ -379,6 +395,7 @@ mod tests {
             max_tokens: None,
             stream: false,
             tools: None,
+            parallel_tool_calls: None,
         };
         let json = serde_json::to_value(&req).unwrap();
         assert_eq!(json["model"], "glm-4");
@@ -443,6 +460,7 @@ mod tests {
             max_tokens: Some(2048),
             stream: true,
             tools: None,
+            parallel_tool_calls: None,
         };
         let json = serde_json::to_value(&req).unwrap();
         assert_eq!(json["model"], "glm-4-flash");
@@ -464,6 +482,7 @@ mod tests {
             max_tokens: None,
             stream: false,
             tools: None,
+            parallel_tool_calls: None,
         };
         let json = serde_json::to_value(&req).unwrap();
         assert_eq!(json["model"], "glm-3-turbo");

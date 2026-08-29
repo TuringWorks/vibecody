@@ -11,6 +11,7 @@ pub const MISTRAL_BASE_URL: &str = "https://api.mistral.ai/v1";
 
 crate::openai_compat_provider!(
     MistralProvider,
+    "mistral",
     "Mistral",
     MISTRAL_BASE_URL,
     "MISTRAL_API_KEY"
@@ -233,6 +234,7 @@ mod tests {
             max_tokens: None,
             stream: false,
             tools: None,
+            parallel_tool_calls: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         let val: serde_json::Value = serde_json::from_str(&json).unwrap();
@@ -261,6 +263,7 @@ mod tests {
             max_tokens: Some(2048),
             stream: true,
             tools: None,
+            parallel_tool_calls: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         let val: serde_json::Value = serde_json::from_str(&json).unwrap();
@@ -352,6 +355,7 @@ mod tests {
             max_tokens: Some(100),
             stream: false,
             tools: None,
+            parallel_tool_calls: None,
         };
         let val = serde_json::to_value(&req).unwrap();
         assert_eq!(val["model"], "open-mistral-nemo");

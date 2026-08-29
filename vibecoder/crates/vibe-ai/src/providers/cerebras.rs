@@ -8,6 +8,7 @@ pub const CEREBRAS_BASE_URL: &str = "https://api.cerebras.ai/v1";
 
 crate::openai_compat_provider!(
     CerebrasProvider,
+    "cerebras",
     "Cerebras",
     CEREBRAS_BASE_URL,
     "CEREBRAS_API_KEY"
@@ -230,6 +231,7 @@ mod tests {
             max_tokens: None,
             stream: false,
             tools: None,
+            parallel_tool_calls: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         let val: serde_json::Value = serde_json::from_str(&json).unwrap();
@@ -257,6 +259,7 @@ mod tests {
             max_tokens: Some(512),
             stream: true,
             tools: None,
+            parallel_tool_calls: None,
         };
         let json = serde_json::to_string(&req).unwrap();
         let val: serde_json::Value = serde_json::from_str(&json).unwrap();
@@ -354,6 +357,7 @@ mod tests {
             max_tokens: Some(1),
             stream: false,
             tools: None,
+            parallel_tool_calls: None,
         };
         let val = serde_json::to_value(&req).unwrap();
         assert_eq!(val["model"], "llama3.1-8b");
