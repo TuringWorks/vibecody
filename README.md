@@ -2,6 +2,66 @@
 
 **VibeCody** is an AI-powered developer toolchain built entirely in Rust. It combines a terminal-first CLI coding assistant (**VibeCLI**) with a full-featured desktop code editor (**VibeCoder**), both powered by a shared library of AI and editor primitives.
 
+> **Want to use VibeCody?** [Download a release.](#install) You do not need
+> this repository, Rust, or Node.js.
+>
+> **Want to change VibeCody?** Then clone it —
+> [building from source](#for-developers-building-from-source) is for
+> development, and the rest of this README is written for that.
+
+---
+
+## Install
+
+Every release is built by CI and published with SHA-256 checksums. Nothing here
+needs a toolchain.
+
+### Desktop — VibeCoder, VibeDesk, VibeAIChat
+
+Take the file for your platform from the
+[**latest release**](https://github.com/TuringWorks/vibecody/releases/latest):
+
+| Platform | File |
+|---|---|
+| macOS (Apple Silicon) | `<App>_<version>_aarch64.dmg` |
+| macOS (Intel) | `<App>_<version>_x64.dmg` |
+| Windows | `<App>_<version>_x64-setup.exe`, or the `_x64_en-US.msi` |
+| Linux (x86_64) | `<App>_<version>_amd64.AppImage` (portable) or `_amd64.deb` |
+| Linux (arm64) | `<App>_<version>_arm64.deb` |
+
+Each app starts the VibeCLI daemon itself and reuses one that is already
+running, so installing more than one shell is fine and there is nothing else to
+set up.
+
+### Terminal — VibeCLI
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/TuringWorks/vibecody/main/install.sh | sh
+```
+
+macOS and Linux, x86_64 and ARM. It resolves the latest release, checks the
+download against that release's `SHA256SUMS.txt`, and installs to
+`~/.local/bin/vibecli` — set `INSTALL_DIR` to put it somewhere else. A mismatch
+aborts; a sums file it cannot fetch is a warning and the install continues, so
+verify by hand if that matters to you. On Windows, or to read the script before
+running it, take the `vibecli-*` archive from the release page directly.
+
+```bash
+vibecli --version
+```
+
+### Phone and watch
+
+`.apk` / `.aab`, `.ipa`, watchOS `.app.zip` and Wear OS builds ship on the same
+release. **iOS and watchOS builds are unsigned** — sideload via AltStore,
+Sideloadly or Xcode. macOS builds are Developer ID signed and notarized when the
+release carries the signing credentials; the release notes say when they do not.
+
+Full walkthrough, including what each surface is for:
+[Quickstart](https://turingworks.github.io/vibecody/quickstart/) ·
+[every published artifact](https://turingworks.github.io/vibecody/release/) ·
+[hardware requirements](https://turingworks.github.io/vibecody/sizing/).
+
 ---
 
 ## Projects
@@ -17,32 +77,12 @@
 
 ---
 
-## Install
+## For developers: building from source
 
-**If you just want to use VibeCody, don't build it.** Every release ships signed,
-notarized desktop apps and CLI binaries with SHA-256 checksums:
-
-```bash
-# VibeCLI (macOS / Linux, x86_64 and ARM)
-curl -fsSL https://raw.githubusercontent.com/TuringWorks/vibecody/main/install.sh | sh
-```
-
-Desktop apps — VibeCoder, VibeDesk, VibeAIChat — plus mobile and watch builds are
-on the [Releases page](https://github.com/TuringWorks/vibecody/releases/latest):
-`.dmg` for macOS, `-setup.exe` / `.msi` for Windows, `.AppImage` / `.deb` for
-Linux. Each desktop app starts the VibeCLI daemon itself; there is nothing else
-to install.
-
-Hardware requirements, including what actually needs a GPU:
-[Sizing & Hardware](https://turingworks.github.io/vibecody/sizing/).
-
----
-
-## Building from source
-
-The rest of this README is for **developing** VibeCody. A source build is
-unsigned and uses your local toolchain — it is not the artifact the Releases
-page publishes.
+**This is not how to install VibeCody** — for that, see [Install](#install)
+above. Build from source when you intend to change the code: a source build is
+unsigned, uses your local toolchain, and is not the artifact the release
+publishes. Everything from here on assumes that is what you are doing.
 
 ### One-Command Setup (macOS / Linux / WSL)
 

@@ -2,7 +2,7 @@
 # VibeCLI installer — downloads the latest release binary for your platform.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/vibecody/vibecody/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/TuringWorks/vibecody/main/install.sh | sh
 #
 # Or with a specific version:
 #   VERSION=v0.2.0 sh install.sh
