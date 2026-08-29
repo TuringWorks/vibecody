@@ -89,6 +89,20 @@ struct ConverseRequest {
     system: Option<Vec<SystemBlock>>,
     #[serde(rename = "inferenceConfig", skip_serializing_if = "Option::is_none")]
     inference_config: Option<InferenceConfig>,
+    /// Native tool schemas, in Converse's `toolConfig` shape.
+    ///
+    /// This provider sent none: models reached through Bedrock — Claude among
+    /// them — were told about tools only by the XML catalogue in the system
+    /// prompt, even though Converse exposes the same tool use their native
+    /// APIs do.
+    #[serde(rename = "toolConfig", skip_serializing_if = "Option::is_none")]
+    tool_config: Option<ToolConfig>,
+}
+
+/// Converse's tool container. The API expects `{"tools": [{"toolSpec": …}]}`.
+#[derive(Debug, Serialize)]
+struct ToolConfig {
+    tools: Vec<serde_json::Value>,
 }
 
 #[derive(Debug, Serialize)]
@@ -131,9 +145,42 @@ struct ConverseOutMessage {
     content: Vec<ConverseOutContent>,
 }
 
+/// One block of a Converse reply.
+///
+/// Both fields optional because a block is one or the other: a `text` block
+/// has no `toolUse`, and a `toolUse` block has no `text`.
 #[derive(Debug, Deserialize)]
 struct ConverseOutContent {
     text: Option<String>,
+    #[serde(rename = "toolUse")]
+    tool_use: Option<ConverseToolUse>,
+}
+
+/// A model-issued tool call in a Converse reply.
+#[derive(Debug, Deserialize)]
+struct ConverseToolUse {
+    name: String,
+    /// Arguments as a JSON object.
+    #[serde(default)]
+    input: Option<serde_json::Value>,
+}
+
+/// Every block of a Converse reply, rendered into the one text format the
+/// agent parses.
+fn render_converse_content(blocks: &[ConverseOutContent]) -> String {
+    let mut out = String::new();
+    for block in blocks {
+        if let Some(text) = &block.text {
+            out.push_str(text);
+        }
+        if let Some(call) = &block.tool_use {
+            out.push_str(&crate::tools::render_tool_call(
+                &call.name,
+                call.input.as_ref(),
+            ));
+        }
+    }
+    out
 }
 
 #[derive(Debug, Deserialize)]
@@ -242,6 +289,7 @@ impl BedrockProvider {
             }
         }
 
+        let profile = self.profile();
         ConverseRequest {
             messages: chat_msgs,
             system: if system_blocks.is_empty() {
@@ -250,10 +298,35 @@ impl BedrockProvider {
                 Some(system_blocks)
             },
             inference_config: Some(InferenceConfig {
-                max_tokens: self.config.max_tokens,
-                temperature: self.config.temperature,
+                // An explicit config value is the caller's decision and wins;
+                // the profile only fills in what the caller left open.
+                max_tokens: self
+                    .config
+                    .max_tokens
+                    .or(profile.max_output_tokens.map(|t| t as usize)),
+                temperature: self.config.temperature.or(profile.temperature),
             }),
+            tool_config: self.tool_config_for(messages, &profile),
         }
+    }
+
+    /// This pair's harness settings.
+    fn profile(&self) -> crate::harness::ModelProfile {
+        crate::harness::profile_for("bedrock", &self.config.model)
+    }
+
+    /// Tool schemas for this conversation, in Converse's shape.
+    fn tool_config_for(
+        &self,
+        messages: &[Message],
+        profile: &crate::harness::ModelProfile,
+    ) -> Option<ToolConfig> {
+        if !profile.sends_tool_schemas() {
+            return None;
+        }
+        let defs = crate::tools::tool_definitions_for(messages.iter().map(|m| m.content.as_str()))?;
+        let tools = crate::tools::to_bedrock_shape(&defs);
+        (!tools.is_empty()).then_some(ToolConfig { tools })
     }
 
     async fn converse(
@@ -339,6 +412,10 @@ fn epoch_days_to_ymd(z: u64) -> (u32, u32, u32) {
 
 #[async_trait]
 impl AIProvider for BedrockProvider {
+    fn harness_profile(&self) -> crate::harness::ModelProfile {
+        self.profile()
+    }
+
     fn name(&self) -> &str {
         &self.display_name
     }
@@ -370,14 +447,9 @@ impl AIProvider for BedrockProvider {
         context: Option<String>,
     ) -> Result<CompletionResponse> {
         let resp = self.converse(messages, context).await?;
-        let text = resp
-            .output
-            .message
-            .content
-            .iter()
-            .filter_map(|c| c.text.clone())
-            .collect::<Vec<_>>()
-            .join("");
+        // Every block, tool calls included — a `toolUse` block has no `text`,
+        // so filtering on `text` alone dropped exactly the turns that matter.
+        let text = render_converse_content(&resp.output.message.content);
         let usage = resp.usage.map(|u| TokenUsage {
             prompt_tokens: u.input_tokens.unwrap_or(0),
             completion_tokens: u.output_tokens.unwrap_or(0),
@@ -702,6 +774,82 @@ mod tests {
         assert_eq!(encoded, model_id);
     }
 
+    // ── tool config and tool use ────────────────────────────────────────
+
+    /// Converse exposes the same tool use the underlying models' native APIs
+    /// do. This provider sent none, so a Claude model reached through Bedrock
+    /// was hobbled in a way the same model reached directly was not.
+    #[test]
+    fn a_tool_conversation_carries_a_tool_config() {
+        let provider = BedrockProvider::new(test_bedrock_config());
+        let messages = vec![Message {
+            role: MessageRole::System,
+            content: format!(
+                "preamble\n{}\n- write_file",
+                crate::tools::CHAT_TOOL_PROMPT_MARKER
+            ),
+        }];
+        let req = provider.build_converse_request(&messages, None);
+        let json = serde_json::to_value(&req).unwrap();
+        let tools = &json["toolConfig"]["tools"];
+        assert!(tools.is_array(), "got {tools}");
+        assert_eq!(
+            tools.as_array().map(|t| t.len()),
+            Some(crate::tools::CHAT_TOOL_NAMES.len())
+        );
+        // Converse nests the schema two levels deeper than OpenAI does.
+        assert!(tools[0]["toolSpec"]["name"].is_string());
+        assert_eq!(tools[0]["toolSpec"]["inputSchema"]["json"]["type"], "object");
+    }
+
+    #[test]
+    fn a_plain_conversation_carries_no_tool_config() {
+        let provider = BedrockProvider::new(test_bedrock_config());
+        let messages = vec![Message {
+            role: MessageRole::User,
+            content: "what is a monad".into(),
+        }];
+        let req = provider.build_converse_request(&messages, None);
+        assert!(req.tool_config.is_none());
+        let json = serde_json::to_value(&req).unwrap();
+        assert!(json.get("toolConfig").is_none());
+    }
+
+    /// A `toolUse` block has no `text`, so filtering the reply on `text` alone
+    /// dropped exactly the turns that matter.
+    #[test]
+    fn a_tool_use_block_becomes_a_tool_call() {
+        let json = r#"{"output":{"message":{"content":[
+            {"toolUse":{"toolUseId":"t1","name":"read_file","input":{"path":"a.rs"}}}
+        ]}}}"#;
+        let resp: ConverseResponse = serde_json::from_str(json).unwrap();
+        let text = render_converse_content(&resp.output.message.content);
+        assert_eq!(
+            text,
+            r#"<tool_call name="read_file"><path>a.rs</path></tool_call>"#
+        );
+        assert_eq!(crate::tools::parse_tool_calls(&text).len(), 1);
+    }
+
+    #[test]
+    fn text_and_a_tool_use_in_one_reply_both_survive() {
+        let json = r#"{"output":{"message":{"content":[
+            {"text":"Reading it."},
+            {"toolUse":{"name":"read_file","input":{"path":"a.rs"}}}
+        ]}}}"#;
+        let resp: ConverseResponse = serde_json::from_str(json).unwrap();
+        let text = render_converse_content(&resp.output.message.content);
+        assert!(text.starts_with("Reading it."));
+        assert_eq!(crate::tools::parse_tool_calls(&text).len(), 1);
+    }
+
+    #[test]
+    fn a_prose_only_reply_is_unchanged() {
+        let json = r#"{"output":{"message":{"content":[{"text":"just prose"}]}}}"#;
+        let resp: ConverseResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(render_converse_content(&resp.output.message.content), "just prose");
+    }
+
     // ── build_converse_request ──────────────────────────────────────────
 
     fn test_bedrock_config() -> ProviderConfig {
@@ -991,6 +1139,7 @@ mod tests {
             }],
             system: None,
             inference_config: None,
+            tool_config: None,
         };
         let val = serde_json::to_value(&req).unwrap();
         assert!(val.get("system").is_none());
