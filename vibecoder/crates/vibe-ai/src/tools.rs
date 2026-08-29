@@ -757,6 +757,71 @@ fn tool(
     })
 }
 
+/// Our tool definitions in Anthropic's Messages API shape.
+///
+/// The definitions are authored once, in OpenAI's
+/// `{type, function: {name, description, parameters}}` form, because that is
+/// what most of the providers here speak. Anthropic flattens the same three
+/// fields and renames `parameters` to `input_schema`. Converting is strictly
+/// better than keeping a second hand-written catalogue: a tool added to one
+/// list and forgotten in the other is a tool that exists for some models and
+/// not others, with nothing to catch it.
+///
+/// Entries that do not carry a `function.name` are dropped rather than
+/// guessed at — a tool with no name is not callable under any shape.
+pub fn to_anthropic_shape(definitions: &[serde_json::Value]) -> Vec<serde_json::Value> {
+    definitions
+        .iter()
+        .filter_map(|def| {
+            let function = def.get("function")?;
+            let name = function.get("name")?.as_str()?;
+            Some(serde_json::json!({
+                "name": name,
+                "description": function
+                    .get("description")
+                    .and_then(|d| d.as_str())
+                    .unwrap_or(""),
+                "input_schema": function
+                    .get("parameters")
+                    .cloned()
+                    .unwrap_or_else(|| serde_json::json!({"type": "object", "properties": {}})),
+            }))
+        })
+        .collect()
+}
+
+/// Our tool definitions in the AWS Bedrock Converse `toolConfig.tools` shape.
+///
+/// Converse wraps each tool in a `toolSpec` and nests the JSON Schema one
+/// level deeper again, under `inputSchema.json`. Same source list as every
+/// other shape, for the same reason.
+pub fn to_bedrock_shape(definitions: &[serde_json::Value]) -> Vec<serde_json::Value> {
+    definitions
+        .iter()
+        .filter_map(|def| {
+            let function = def.get("function")?;
+            let name = function.get("name")?.as_str()?;
+            Some(serde_json::json!({
+                "toolSpec": {
+                    "name": name,
+                    "description": function
+                        .get("description")
+                        .and_then(|d| d.as_str())
+                        .unwrap_or(""),
+                    "inputSchema": {
+                        "json": function
+                            .get("parameters")
+                            .cloned()
+                            .unwrap_or_else(|| {
+                                serde_json::json!({"type": "object", "properties": {}})
+                            }),
+                    },
+                }
+            }))
+        })
+        .collect()
+}
+
 /// [`TOOL_SYSTEM_PROMPT`] with the per-tool XML catalogue replaced by a
 /// three-line pointer, for providers that send the tools as machine-readable
 /// schemas.
@@ -3382,5 +3447,90 @@ mod path_tag_tests {
     #[test]
     fn surrounding_whitespace_is_trimmed() {
         assert_eq!(sanitize_tool_path("  src/main.rs  "), Ok("src/main.rs"));
+    }
+}
+
+#[cfg(test)]
+mod schema_shape_tests {
+    use super::*;
+
+    /// Every tool must survive every shape. A tool that converts under one
+    /// vendor's schema and vanishes under another exists for some models and
+    /// not others, and nothing else in the stack would notice.
+    #[test]
+    fn every_agent_tool_survives_every_shape() {
+        let defs = tool_definitions();
+        assert_eq!(defs.len(), AVAILABLE_TOOL_NAMES.len());
+        assert_eq!(to_anthropic_shape(&defs).len(), defs.len());
+        assert_eq!(to_bedrock_shape(&defs).len(), defs.len());
+    }
+
+    #[test]
+    fn the_anthropic_shape_keeps_name_description_and_schema() {
+        let defs = tool_definitions();
+        let converted = to_anthropic_shape(&defs);
+        let original = defs[0]["function"].clone();
+        let first = &converted[0];
+        assert_eq!(first["name"], original["name"]);
+        assert_eq!(first["description"], original["description"]);
+        // `parameters` becomes `input_schema`, byte for byte.
+        assert_eq!(first["input_schema"], original["parameters"]);
+        assert!(first.get("parameters").is_none());
+        assert!(first.get("type").is_none());
+    }
+
+    #[test]
+    fn the_bedrock_shape_nests_under_tool_spec_and_input_schema_json() {
+        let defs = tool_definitions();
+        let converted = to_bedrock_shape(&defs);
+        let original = defs[0]["function"].clone();
+        let spec = &converted[0]["toolSpec"];
+        assert_eq!(spec["name"], original["name"]);
+        assert_eq!(spec["inputSchema"]["json"], original["parameters"]);
+    }
+
+    #[test]
+    fn the_shapes_agree_on_which_tools_exist() {
+        let defs = tool_definitions();
+        let anthropic: Vec<_> = to_anthropic_shape(&defs)
+            .iter()
+            .map(|t| t["name"].as_str().unwrap_or_default().to_string())
+            .collect();
+        let bedrock: Vec<_> = to_bedrock_shape(&defs)
+            .iter()
+            .map(|t| t["toolSpec"]["name"].as_str().unwrap_or_default().to_string())
+            .collect();
+        assert_eq!(anthropic, bedrock);
+        assert_eq!(anthropic, AVAILABLE_TOOL_NAMES.to_vec());
+    }
+
+    /// A malformed entry is dropped, not converted into a nameless tool the
+    /// model can see but never successfully call.
+    #[test]
+    fn an_entry_without_a_name_is_dropped() {
+        let junk = vec![
+            serde_json::json!({"function": {"description": "no name here"}}),
+            serde_json::json!({"not_a_function": true}),
+        ];
+        assert!(to_anthropic_shape(&junk).is_empty());
+        assert!(to_bedrock_shape(&junk).is_empty());
+    }
+
+    /// A tool with no parameters still needs a schema — an absent
+    /// `input_schema` is rejected by the API outright.
+    #[test]
+    fn a_tool_without_parameters_still_gets_an_object_schema() {
+        let bare = vec![serde_json::json!({"function": {"name": "ping"}})];
+        let converted = to_anthropic_shape(&bare);
+        assert_eq!(converted[0]["input_schema"]["type"], "object");
+        let bedrock = to_bedrock_shape(&bare);
+        assert_eq!(bedrock[0]["toolSpec"]["inputSchema"]["json"]["type"], "object");
+    }
+
+    #[test]
+    fn the_chat_tool_set_converts_too() {
+        let defs = chat_tool_definitions();
+        assert_eq!(to_anthropic_shape(&defs).len(), CHAT_TOOL_NAMES.len());
+        assert_eq!(to_bedrock_shape(&defs).len(), CHAT_TOOL_NAMES.len());
     }
 }

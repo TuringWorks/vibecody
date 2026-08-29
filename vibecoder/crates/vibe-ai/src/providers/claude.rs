@@ -31,10 +31,38 @@ struct ClaudeRequest {
     /// Extended thinking — only serialized when present.
     #[serde(skip_serializing_if = "Option::is_none")]
     thinking: Option<ThinkingConfig>,
+    /// Native tool schemas, in Anthropic's flattened shape.
+    ///
+    /// This provider sent none until now: the tools existed only as the ~15 KB
+    /// XML catalogue in the system prompt, and the model's calls were
+    /// regex-parsed back out of its prose, while the Messages API had offered
+    /// first-class tool use the whole time.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tools: Option<Vec<Value>>,
+}
+
+impl ClaudeRequest {
+    /// The same request with no tools, for an endpoint or model that rejects
+    /// the field.
+    fn without_tools(&self) -> Self {
+        Self {
+            model: self.model.clone(),
+            messages: self.messages.clone(),
+            max_tokens: self.max_tokens,
+            temperature: self.temperature,
+            stream: self.stream,
+            system: self.system.clone(),
+            thinking: self.thinking.as_ref().map(|t| ThinkingConfig {
+                thinking_type: t.thinking_type.clone(),
+                budget_tokens: t.budget_tokens,
+            }),
+            tools: None,
+        }
+    }
 }
 
 /// Supports both text-only (String) and vision (array of content blocks).
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 struct ClaudeMessage {
     role: String,
     content: Value, // String or array for vision
@@ -48,14 +76,59 @@ struct ClaudeUsage {
 
 #[derive(Debug, Deserialize)]
 struct ClaudeResponse {
-    content: Vec<ClaudeContent>,
+    /// Raw blocks — see [`render_content_blocks`] for why they are not typed.
+    content: Vec<Value>,
     #[serde(default)]
     usage: Option<ClaudeUsage>,
 }
 
-#[derive(Debug, Deserialize)]
-struct ClaudeContent {
-    text: String,
+/// Every block of a Claude reply, rendered into the one text format the agent
+/// parses.
+///
+/// Blocks are read as raw JSON rather than a tagged enum on purpose. A reply
+/// is a *list* of blocks and they are not all text: a turn that calls a tool
+/// carries a `tool_use` block with no `text` field at all. Modelling that as
+/// `#[serde(tag = "type")]` would make an unfamiliar or untagged block fail
+/// the whole reply — turning a turn the model completed successfully into an
+/// API error. Nothing here can fail: an unrecognised block contributes
+/// nothing and the rest of the turn still arrives.
+///
+/// All blocks are rendered, not just the first. A turn is routinely prose
+/// *then* a tool call, and reading `content[0]` alone silently dropped
+/// whichever came second.
+fn render_content_blocks(blocks: &[Value]) -> String {
+    let mut out = String::new();
+    for block in blocks {
+        // An absent `type` is treated as text, which is what a block carrying
+        // a `text` field and nothing else can only be.
+        match block.get("type").and_then(|t| t.as_str()) {
+            Some("tool_use") | None if block.get("name").is_some() => {
+                if let Some(name) = block.get("name").and_then(|n| n.as_str()) {
+                    out.push_str(&crate::tools::render_tool_call(name, block.get("input")));
+                }
+            }
+            Some("thinking") => {
+                if let Some(text) = block
+                    .get("thinking")
+                    .and_then(|t| t.as_str())
+                    .filter(|t| !t.is_empty())
+                {
+                    out.push_str("<thinking>");
+                    out.push_str(text);
+                    out.push_str("</thinking>\n");
+                }
+            }
+            Some("text") | None => {
+                if let Some(text) = block.get("text").and_then(|t| t.as_str()) {
+                    out.push_str(text);
+                }
+            }
+            // A block type this build does not know about. Ignored rather than
+            // fatal: a new one must not break a working reply.
+            Some(_) => {}
+        }
+    }
+    out
 }
 
 #[derive(Debug, Deserialize)]
@@ -63,11 +136,129 @@ struct ClaudeStreamResponse {
     #[serde(rename = "type")]
     event_type: String,
     delta: Option<ClaudeDelta>,
+    /// Present on `content_block_start`; says what kind of block is opening.
+    content_block: Option<ClaudeStreamBlock>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ClaudeStreamBlock {
+    #[serde(rename = "type")]
+    block_type: String,
+    /// The tool's name, on a `tool_use` block.
+    #[serde(default)]
+    name: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 struct ClaudeDelta {
+    #[serde(default)]
     text: Option<String>,
+    /// Extended-thinking text, streamed as `thinking_delta`.
+    #[serde(default)]
+    thinking: Option<String>,
+    /// A tool call's arguments, streamed as `input_json_delta` in fragments of
+    /// a JSON string that are only parseable once the block closes.
+    #[serde(default)]
+    partial_json: Option<String>,
+}
+
+/// Assembles Claude's SSE event stream into the one text format the agent
+/// parses.
+///
+/// State spans events for the same two reasons the OpenAI-compatible
+/// accumulator's does — a `<thinking>` wrapper opens once, and a tool call's
+/// arguments arrive in fragments — plus a third specific to this API: the
+/// tool's *name* arrives on `content_block_start` while its arguments arrive
+/// on later `content_block_delta` events, so the name has to be held.
+#[derive(Debug, Default)]
+struct ClaudeSseAccumulator {
+    thinking_open: bool,
+    tool_name: Option<String>,
+    tool_args: String,
+    /// Bytes not yet forming a whole line. An HTTP chunk boundary falls
+    /// wherever the network puts it, and a truncated event parses as nothing.
+    line_buf: String,
+}
+
+impl ClaudeSseAccumulator {
+    fn push(&mut self, text: &str) -> String {
+        self.line_buf.push_str(text);
+        let consumed = self.line_buf.rfind('\n').map(|i| i + 1).unwrap_or(0);
+        let complete: String = self.line_buf.drain(..consumed).collect();
+        self.parse_lines(&complete)
+    }
+
+    fn parse_lines(&mut self, text: &str) -> String {
+        let mut out = String::new();
+        for line in text.lines() {
+            let Some(data) = line.trim_end_matches('\r').strip_prefix("data: ") else {
+                continue;
+            };
+            let Ok(event) = serde_json::from_str::<ClaudeStreamResponse>(data) else {
+                continue;
+            };
+            match event.event_type.as_str() {
+                "content_block_start" => {
+                    // A new block ends whatever the last one was.
+                    out.push_str(&self.flush_tool_call());
+                    if let Some(block) = event.content_block {
+                        if block.block_type == "tool_use" {
+                            out.push_str(&self.close_thinking());
+                            self.tool_name = block.name;
+                        }
+                    }
+                }
+                "content_block_delta" => {
+                    let Some(delta) = event.delta else { continue };
+                    if let Some(thinking) = delta.thinking.filter(|t| !t.is_empty()) {
+                        if !self.thinking_open {
+                            out.push_str("<thinking>");
+                            self.thinking_open = true;
+                        }
+                        out.push_str(&thinking);
+                    }
+                    if let Some(text) = delta.text.filter(|t| !t.is_empty()) {
+                        out.push_str(&self.close_thinking());
+                        out.push_str(&text);
+                    }
+                    if let Some(fragment) = delta.partial_json {
+                        self.tool_args.push_str(&fragment);
+                    }
+                }
+                "content_block_stop" => out.push_str(&self.flush_tool_call()),
+                _ => {}
+            }
+        }
+        out
+    }
+
+    /// Close anything still open at the end of the stream, including a final
+    /// event that arrived without a trailing newline.
+    fn finish(&mut self) -> String {
+        let tail = std::mem::take(&mut self.line_buf);
+        let mut out = self.parse_lines(&tail);
+        out.push_str(&self.flush_tool_call());
+        out.push_str(&self.close_thinking());
+        out
+    }
+
+    fn close_thinking(&mut self) -> String {
+        match std::mem::take(&mut self.thinking_open) {
+            true => "</thinking>\n".to_string(),
+            false => String::new(),
+        }
+    }
+
+    /// Emit the in-flight tool call, if any, as `<tool_call>` markup.
+    fn flush_tool_call(&mut self) -> String {
+        let Some(name) = self.tool_name.take() else {
+            self.tool_args.clear();
+            return String::new();
+        };
+        let args = std::mem::take(&mut self.tool_args);
+        let parsed = serde_json::from_str::<Value>(&args).ok();
+        crate::tools::render_tool_call(&name, parsed.as_ref())
+    }
 }
 
 /// Claude AI provider (Anthropic)
@@ -220,6 +411,95 @@ impl ClaudeProvider {
     }
 }
 
+impl ClaudeProvider {
+    fn profile(&self) -> crate::harness::ModelProfile {
+        crate::harness::profile_for("claude", &self.config.model)
+    }
+
+    /// Tool schemas for this conversation, in Anthropic's shape.
+    fn tools_for(&self, messages: &[Message]) -> Option<Vec<Value>> {
+        let profile = self.profile();
+        if !profile.sends_tool_schemas() {
+            return None;
+        }
+        let defs =
+            crate::tools::tool_definitions_for(messages.iter().map(|m| m.content.as_str()))?;
+        Some(crate::tools::to_anthropic_shape(&defs))
+    }
+
+    /// Assemble a request from already-built messages.
+    ///
+    /// Takes the messages rather than building them because the vision path
+    /// builds a different shape but wants every other decision here identical.
+    fn assemble(
+        &self,
+        claude_messages: Vec<ClaudeMessage>,
+        system: Option<String>,
+        tools: Option<Vec<Value>>,
+        stream: bool,
+    ) -> ClaudeRequest {
+        let profile = self.profile();
+        ClaudeRequest {
+            model: self.config.model.clone(),
+            messages: claude_messages,
+            // The existing 16_384 stays the floor for every model that has no
+            // configured cap. It is not a measured limit for any particular
+            // model and this change does not make it one — it is what shipped,
+            // kept so nothing regresses on the way to being told a real figure.
+            max_tokens: self
+                .config
+                .max_tokens
+                .or(profile.max_output_tokens.map(|t| t as usize))
+                .or(Some(16_384)),
+            temperature: self.config.temperature.or(profile.temperature),
+            stream,
+            system,
+            thinking: self.thinking_config(),
+            tools,
+        }
+    }
+
+    /// POST `request`, retrying once without tools if the API rejects the
+    /// field itself rather than anything about the conversation.
+    async fn send(&self, api_key: &str, request: &ClaudeRequest) -> Result<reqwest::Response> {
+        let post = |body: &ClaudeRequest| {
+            self.client
+                .post(self.api_url())
+                .header("x-api-key", api_key)
+                .header("anthropic-version", "2023-06-01")
+                .header("content-type", "application/json")
+                .json(body)
+                .send()
+        };
+        let response = post(request)
+            .await
+            .context("Failed to send request to Claude")?;
+        if response.status().is_success() {
+            return Ok(response);
+        }
+        let status = response.status().as_u16();
+        let error_text = response.text().await?;
+        if request.tools.is_none()
+            || !super::openai_compat::is_tools_unsupported(&error_text)
+        {
+            anyhow::bail!("{}", Self::translate_api_error(status, &error_text));
+        }
+        tracing::warn!(
+            model = %self.config.model,
+            "Claude endpoint does not accept tool definitions — retrying without them",
+        );
+        let retry = post(&request.without_tools())
+            .await
+            .context("Failed to send request to Claude")?;
+        if !retry.status().is_success() {
+            let status = retry.status().as_u16();
+            let error_text = retry.text().await?;
+            anyhow::bail!("{}", Self::translate_api_error(status, &error_text));
+        }
+        Ok(retry)
+    }
+}
+
 #[async_trait]
 impl AIProvider for ClaudeProvider {
     fn name(&self) -> &str {
@@ -268,43 +548,17 @@ impl AIProvider for ClaudeProvider {
             .context("Claude API key not found")?;
         let (claude_messages, system) = self.build_messages(messages, context);
 
-        let request = ClaudeRequest {
-            model: self.config.model.clone(),
-            messages: claude_messages,
-            max_tokens: self.config.max_tokens.or(Some(16_384)),
-            temperature: self.config.temperature,
-            stream: false,
-            system,
-            thinking: self.thinking_config(),
-        };
-
-        let response = self
-            .client
-            .post(self.api_url())
-            .header("x-api-key", &api_key)
-            .header("anthropic-version", "2023-06-01")
-            .header("content-type", "application/json")
-            .json(&request)
-            .send()
-            .await
-            .context("Failed to send request to Claude")?;
-
-        if !response.status().is_success() {
-            let status = response.status().as_u16();
-            let error_text = response.text().await?;
-            anyhow::bail!("{}", Self::translate_api_error(status, &error_text));
-        }
+        let request = self.assemble(claude_messages, system, self.tools_for(messages), false);
+        let response = self.send(&api_key, &request).await?;
 
         let claude_response: ClaudeResponse = response
             .json()
             .await
             .context("Failed to parse Claude response")?;
 
-        let text = claude_response
-            .content
-            .first()
-            .map(|c| c.text.clone())
-            .context("No content in Claude response")?;
+        // Every block, not just the first: a turn is routinely prose *then* a
+        // tool call, and reading `content[0]` dropped whichever came second.
+        let text = render_content_blocks(&claude_response.content);
 
         let usage = claude_response.usage.map(|u| TokenUsage {
             prompt_tokens: u.input_tokens,
@@ -326,43 +580,15 @@ impl AIProvider for ClaudeProvider {
             .context("Claude API key not found")?;
         let (claude_messages, system) = self.build_messages(messages, context);
 
-        let request = ClaudeRequest {
-            model: self.config.model.clone(),
-            messages: claude_messages,
-            max_tokens: self.config.max_tokens.or(Some(16_384)),
-            temperature: self.config.temperature,
-            stream: false,
-            system,
-            thinking: self.thinking_config(),
-        };
-
-        let response = self
-            .client
-            .post(self.api_url())
-            .header("x-api-key", &api_key)
-            .header("anthropic-version", "2023-06-01")
-            .header("content-type", "application/json")
-            .json(&request)
-            .send()
-            .await
-            .context("Failed to send request to Claude")?;
-
-        if !response.status().is_success() {
-            let status = response.status().as_u16();
-            let error_text = response.text().await?;
-            anyhow::bail!("{}", Self::translate_api_error(status, &error_text));
-        }
+        let request = self.assemble(claude_messages, system, self.tools_for(messages), false);
+        let response = self.send(&api_key, &request).await?;
 
         let claude_response: ClaudeResponse = response
             .json()
             .await
             .context("Failed to parse Claude response")?;
 
-        claude_response
-            .content
-            .first()
-            .map(|c| c.text.clone())
-            .context("No content in Claude response")
+        Ok(render_content_blocks(&claude_response.content))
     }
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
@@ -373,59 +599,31 @@ impl AIProvider for ClaudeProvider {
             .context("Claude API key not found")?;
         let (claude_messages, system) = self.build_messages(messages, None);
 
-        let request = ClaudeRequest {
-            model: self.config.model.clone(),
-            messages: claude_messages,
-            max_tokens: self.config.max_tokens.or(Some(16_384)),
-            temperature: self.config.temperature,
-            stream: true,
-            system,
-            thinking: self.thinking_config(),
-        };
+        let request = self.assemble(claude_messages, system, self.tools_for(messages), true);
+        let response = self.send(&api_key, &request).await?;
 
-        let response = self
-            .client
-            .post(self.api_url())
-            .header("x-api-key", &api_key)
-            .header("anthropic-version", "2023-06-01")
-            .header("content-type", "application/json")
-            .json(&request)
-            .send()
-            .await
-            .context("Failed to send request to Claude")?;
-
-        if !response.status().is_success() {
-            let status = response.status().as_u16();
-            let error_text = response.text().await?;
-            anyhow::bail!("{}", Self::translate_api_error(status, &error_text));
-        }
-
-        let stream = response.bytes_stream();
-
-        let completion_stream = stream
-            .map(|chunk| {
+        let acc = std::sync::Arc::new(std::sync::Mutex::new(ClaudeSseAccumulator::default()));
+        let tail = acc.clone();
+        Ok(response
+            .bytes_stream()
+            .map(move |chunk| {
                 let chunk = chunk?;
-                let chunk_str = String::from_utf8_lossy(&chunk);
-                let mut content = String::new();
-
-                for line in chunk_str.lines() {
-                    if let Some(data) = line.strip_prefix("data: ") {
-                        if let Ok(response) = serde_json::from_str::<ClaudeStreamResponse>(data) {
-                            if response.event_type == "content_block_delta" {
-                                if let Some(delta) = response.delta {
-                                    if let Some(text) = delta.text {
-                                        content.push_str(&text);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                Ok(content)
+                let text = String::from_utf8_lossy(&chunk);
+                Ok(acc
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .push(text.as_ref()))
             })
-            .boxed();
+            // A stream that ends without closing its last block still has to
+            // release whatever the accumulator is holding.
+            .chain(futures::stream::once(async move {
+                Ok(tail.lock().unwrap_or_else(|e| e.into_inner()).finish())
+            }))
+            .boxed())
+    }
 
-        Ok(completion_stream)
+    fn harness_profile(&self) -> crate::harness::ModelProfile {
+        self.profile()
     }
 
     fn supports_vision(&self) -> bool {
@@ -449,41 +647,16 @@ impl AIProvider for ClaudeProvider {
             .context("Claude API key not found")?;
         let (claude_messages, system) = self.build_vision_messages(messages, images);
 
-        let request = ClaudeRequest {
-            model: self.config.model.clone(),
-            messages: claude_messages,
-            max_tokens: self.config.max_tokens.or(Some(16_384)),
-            temperature: self.config.temperature,
-            stream: false,
-            system,
-            thinking: self.thinking_config(),
-        };
-
-        let response = self
-            .client
-            .post(self.api_url())
-            .header("x-api-key", &api_key)
-            .header("anthropic-version", "2023-06-01")
-            .header("content-type", "application/json")
-            .json(&request)
-            .send()
-            .await
-            .context("Failed to send vision request to Claude")?;
-
-        if !response.status().is_success() {
-            let error_text = response.text().await?;
-            anyhow::bail!("Claude vision API error: {}", error_text);
-        }
+        // A vision turn is still a tool-capable turn: the model can read a
+        // screenshot and then call a tool about it.
+        let request = self.assemble(claude_messages, system, self.tools_for(messages), false);
+        let response = self.send(&api_key, &request).await?;
 
         let claude_response: ClaudeResponse = response
             .json()
             .await
             .context("Failed to parse Claude vision response")?;
-        claude_response
-            .content
-            .first()
-            .map(|c| c.text.clone())
-            .context("No content in Claude vision response")
+        Ok(render_content_blocks(&claude_response.content))
     }
 
     fn with_effort(
@@ -573,6 +746,7 @@ mod tests {
             stream: false,
             system: None,
             thinking: None,
+            tools: None,
         };
         let json = serde_json::to_value(&req).unwrap();
         assert_eq!(json["model"], "claude-sonnet-4-20250514");
@@ -585,8 +759,163 @@ mod tests {
         let json =
             r#"{"content":[{"text":"hello world"}],"usage":{"input_tokens":10,"output_tokens":5}}"#;
         let resp: ClaudeResponse = serde_json::from_str(json).unwrap();
-        assert_eq!(resp.content[0].text, "hello world");
+        assert_eq!(render_content_blocks(&resp.content), "hello world");
         assert_eq!(resp.usage.unwrap().output_tokens, 5);
+    }
+
+    // ── content blocks ───────────────────────────────────────────────────
+
+    /// The reason this provider needed changing at all: the Messages API
+    /// returns tool calls as `tool_use` blocks, and nothing here read them.
+    #[test]
+    fn a_tool_use_block_becomes_a_tool_call() {
+        let json = r#"{"content":[
+            {"type":"tool_use","id":"tu_1","name":"read_file","input":{"path":"src/main.rs"}}
+        ]}"#;
+        let resp: ClaudeResponse = serde_json::from_str(json).unwrap();
+        let text = render_content_blocks(&resp.content);
+        assert_eq!(
+            text,
+            r#"<tool_call name="read_file"><path>src/main.rs</path></tool_call>"#
+        );
+        assert_eq!(crate::tools::parse_tool_calls(&text).len(), 1);
+    }
+
+    /// A turn is routinely prose *then* a tool call. Reading `content[0]`
+    /// alone — which is what shipped — dropped whichever came second.
+    #[test]
+    fn prose_and_a_tool_call_in_one_turn_both_survive() {
+        let json = r#"{"content":[
+            {"type":"text","text":"Let me look at that file.\n"},
+            {"type":"tool_use","name":"read_file","input":{"path":"a.rs"}}
+        ]}"#;
+        let resp: ClaudeResponse = serde_json::from_str(json).unwrap();
+        let text = render_content_blocks(&resp.content);
+        assert!(text.starts_with("Let me look at that file."));
+        assert_eq!(crate::tools::parse_tool_calls(&text).len(), 1);
+    }
+
+    #[test]
+    fn two_tool_calls_in_one_turn_both_survive() {
+        let json = r#"{"content":[
+            {"type":"tool_use","name":"read_file","input":{"path":"a.rs"}},
+            {"type":"tool_use","name":"read_file","input":{"path":"b.rs"}}
+        ]}"#;
+        let resp: ClaudeResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            crate::tools::parse_tool_calls(&render_content_blocks(&resp.content)).len(),
+            2
+        );
+    }
+
+    #[test]
+    fn a_thinking_block_is_wrapped() {
+        let json = r#"{"content":[
+            {"type":"thinking","thinking":"weighing it up"},
+            {"type":"text","text":"done"}
+        ]}"#;
+        let resp: ClaudeResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            render_content_blocks(&resp.content),
+            "<thinking>weighing it up</thinking>\ndone"
+        );
+    }
+
+    /// A block type this build has never seen must contribute nothing and
+    /// break nothing — never turn a completed turn into an API error.
+    #[test]
+    fn an_unknown_block_type_is_ignored_not_fatal() {
+        let json = r#"{"content":[
+            {"type":"some_future_block","payload":{"a":1}},
+            {"type":"text","text":"still here"}
+        ]}"#;
+        let resp: ClaudeResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(render_content_blocks(&resp.content), "still here");
+    }
+
+    // ── streaming ────────────────────────────────────────────────────────
+
+    #[test]
+    fn a_streamed_tool_call_is_assembled_across_events() {
+        let mut acc = ClaudeSseAccumulator::default();
+        let mut out = String::new();
+        for event in [
+            r#"data: {"type":"content_block_start","content_block":{"type":"tool_use","name":"read_file"}}"#,
+            r#"data: {"type":"content_block_delta","delta":{"type":"input_json_delta","partial_json":"{\"path\":"}}"#,
+            r#"data: {"type":"content_block_delta","delta":{"type":"input_json_delta","partial_json":"\"a.rs\"}"}}"#,
+            r#"data: {"type":"content_block_stop"}"#,
+        ] {
+            out.push_str(&acc.push(&format!("{event}\n")));
+        }
+        out.push_str(&acc.finish());
+        assert_eq!(
+            out,
+            r#"<tool_call name="read_file"><path>a.rs</path></tool_call>"#
+        );
+    }
+
+    #[test]
+    fn streamed_text_is_unchanged() {
+        let mut acc = ClaudeSseAccumulator::default();
+        let mut out = String::new();
+        out.push_str(&acc.push(
+            "data: {\"type\":\"content_block_delta\",\"delta\":{\"type\":\"text_delta\",\"text\":\"hi\"}}\n",
+        ));
+        out.push_str(&acc.finish());
+        assert_eq!(out, "hi");
+    }
+
+    /// Extended thinking streams as its own delta type; before this it was
+    /// dropped, so a high-effort turn showed nothing until the prose began.
+    #[test]
+    fn streamed_thinking_is_wrapped_once_and_closed_by_prose() {
+        let mut acc = ClaudeSseAccumulator::default();
+        let mut out = String::new();
+        for event in [
+            r#"data: {"type":"content_block_delta","delta":{"type":"thinking_delta","thinking":"weigh"}}"#,
+            r#"data: {"type":"content_block_delta","delta":{"type":"thinking_delta","thinking":"ing"}}"#,
+            r#"data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"done"}}"#,
+        ] {
+            out.push_str(&acc.push(&format!("{event}\n")));
+        }
+        out.push_str(&acc.finish());
+        assert_eq!(out, "<thinking>weighing</thinking>\ndone");
+    }
+
+    /// A turn that is only thinking still has to close its wrapper.
+    #[test]
+    fn a_thinking_only_stream_is_closed_at_the_end() {
+        let mut acc = ClaudeSseAccumulator::default();
+        let mut out = String::new();
+        out.push_str(&acc.push(
+            "data: {\"type\":\"content_block_delta\",\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"hm\"}}\n",
+        ));
+        out.push_str(&acc.finish());
+        assert_eq!(out, "<thinking>hm</thinking>\n");
+    }
+
+    /// The same chunk-boundary hazard as every other SSE parser here.
+    #[test]
+    fn a_claude_event_split_across_chunks_is_not_lost() {
+        let mut acc = ClaudeSseAccumulator::default();
+        let mut out = String::new();
+        out.push_str(&acc.push(
+            "data: {\"type\":\"content_block_delta\",\"delta\":{\"type\":\"text_de",
+        ));
+        out.push_str(&acc.push("lta\",\"text\":\"split\"}}\n"));
+        out.push_str(&acc.finish());
+        assert_eq!(out, "split");
+    }
+
+    #[test]
+    fn a_stream_ending_without_a_block_stop_still_emits_the_call() {
+        let mut acc = ClaudeSseAccumulator::default();
+        let mut out = String::new();
+        out.push_str(&acc.push(
+            "data: {\"type\":\"content_block_start\",\"content_block\":{\"type\":\"tool_use\",\"name\":\"build\"}}\n",
+        ));
+        out.push_str(&acc.finish());
+        assert_eq!(out, r#"<tool_call name="build"></tool_call>"#);
     }
 
     // ── translate_api_error tests ────────────────────────────────────────────
