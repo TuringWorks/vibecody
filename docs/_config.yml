@@ -57,6 +57,9 @@ sidebar:
   - title: Documents
     icon: book
     url: /documents/
+  - title: Archives
+    icon: package
+    url: /archives/
   - title: VibeMobile
     icon: smartphone
     url: /vibemobile/

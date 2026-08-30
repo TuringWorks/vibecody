@@ -139,6 +139,8 @@ Coverage, so the ✅ is not read as more than it is: only **macOS arm64** runs t
 | PDF / EPUB viewer | ✅ | Page and chapter navigation |
 | DOCX / EPUB editing | ✅ | Edit as Markdown, saved back into the original file |
 | Apple Pages editing | ✅ | Text only — see [documents.md](/vibecody/documents/) for what is and is not preserved |
+| PDF text editing | ✅ | One line per line of the page: a line's words can change or the line can go, but a PDF does not re-flow, so a line cannot be added — see [documents.md](/vibecody/documents/) |
+| Archive browsing (ZIP / TAR family) | ✅ | Read-only inside the archive; editing extracts it to a folder named after it — see [archives.md](/vibecody/archives/) |
 
 ---
 

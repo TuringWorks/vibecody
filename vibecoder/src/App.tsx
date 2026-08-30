@@ -18,6 +18,19 @@ import { DiffCompleteModal } from "./components/DiffCompleteModal";
 import { Terminal } from "./components/Terminal";
 import { BrowserPanel } from "./components/BrowserPanel";
 import { detectLanguage, getFileIcon } from "./utils/fileUtils";
+import {
+  archiveDisplayPath,
+  isArchiveFile,
+  isArchiveMemberPath,
+  isArchivePath,
+  joinArchivePath,
+  splitArchivePath,
+} from "./utils/archive";
+import {
+  ArchiveExtractModal,
+  describeExtraction,
+  type ArchiveExtractResult,
+} from "./components/ArchiveExtractModal";
 import { mergeListings, missingDirs, pruneExpanded, visibleDirs } from "./utils/fileTree";
 import { createLspBridge, fileUri, type LspBridge, type LspLanguageSupport } from "./lib/lsp";
 import { LspStatus } from "./components/LspStatus";
@@ -85,6 +98,9 @@ interface OpenFile {
   isDocument?: boolean;
   /** Base64-encoded binary data for images and documents */
   base64Data?: string;
+  /** True for a file read out of an archive. The editor refuses edits and
+   *  offers extraction instead — see `utils/archive.ts`. */
+  isReadOnly?: boolean;
 }
 
 /** Drives ⌘ vs Ctrl in the shortcut labels. Module scope: it cannot change
@@ -175,6 +191,9 @@ function App() {
 
   // Context Menu
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; file: FileEntry } | null>(null);
+  // Virtual path whose edit (or explicit "Extract") raised the
+  // extract-to-edit prompt. `null` = no prompt showing.
+  const [extractPrompt, setExtractPrompt] = useState<string | null>(null);
   const [pendingDeleteFile, setPendingDeleteFile] = useState<{ name: string; path: string } | null>(null);
 
   // Resizable Panes State
@@ -474,7 +493,12 @@ function App() {
   // List a directory and write the result into the tree cache.
   const listDirInto = async (path: string): Promise<FileEntry[] | null> => {
     try {
-      const entries = await invoke<FileEntry[]>("list_directory", { path });
+      // An archive is a folder as far as the tree is concerned, but its
+      // "directories" are member paths inside a container — nothing `read_dir`
+      // can open, hence a separate command.
+      const entries = isArchivePath(path)
+        ? await invoke<FileEntry[]>("list_archive", { path })
+        : await invoke<FileEntry[]>("list_directory", { path });
       setDirContents(prev => {
         const next = new Map(prev);
         next.set(path, entries);
@@ -541,15 +565,29 @@ function App() {
     if (!currentDirectory) return;
     const sep = currentDirectory.includes("\\") ? "\\" : "/";
     const root = currentDirectory.endsWith(sep) ? currentDirectory.slice(0, -1) : currentDirectory;
-    if (!filePath.startsWith(root + sep) && filePath !== root) return;
-    const relative = filePath.slice(root.length + 1);
+    // For a file inside an archive the on-disk part of the chain stops at the
+    // archive; everything past it is virtual and is walked separately below.
+    const member = splitArchivePath(filePath);
+    const onDisk = member ? member.archive : filePath;
+    if (!onDisk.startsWith(root + sep) && onDisk !== root) return;
+    const relative = onDisk.slice(root.length + 1);
     const parts = relative.split(sep);
-    parts.pop(); // drop filename
+    parts.pop(); // drop filename (or the archive's own name)
     const chain: string[] = [root];
     let cur = root;
     for (const part of parts) {
       cur = cur + sep + part;
       chain.push(cur);
+    }
+    if (member) {
+      chain.push(onDisk); // the archive node itself
+      const inner = member.inner.split("/");
+      inner.pop(); // drop the member's file name
+      let innerPath = "";
+      for (const part of inner) {
+        innerPath = innerPath ? `${innerPath}/${part}` : part;
+        chain.push(joinArchivePath(onDisk, innerPath));
+      }
     }
     // Lazy-load every dir on the chain. ensureDirContents is a no-op when
     // already cached, so this is cheap on a hot path.
@@ -589,6 +627,84 @@ function App() {
     }
   };
 
+  /**
+   * Open a file that lives inside an archive.
+   *
+   * Always read-only, and deliberately outside the LSP path: the language
+   * server would be handed a URI with no file behind it, and every request
+   * about it would fail one at a time rather than once, here.
+   *
+   * Images and PDFs render from bytes alone, so those open in place. EPUB,
+   * DOCX and Pages are parsed by the backend *from a real path* — there is no
+   * file behind a member — so rather than open a tab that cannot render, they
+   * go straight to the extract prompt, which is the answer anyway.
+   */
+  const openArchiveMember = async (path: string, filename: string) => {
+    // An archive inside an archive. Browsing it would mean decoding the inner
+    // container out of the outer one's bytes, in memory; extraction lands it
+    // on disk where it is browsable for real.
+    if (isArchiveFile(filename)) {
+      setExtractPrompt(path);
+      return;
+    }
+    const rendersFromBytes = isImageFile(filename) || /\.pdf$/i.test(filename);
+    if (isDocumentFile(filename) && !rendersFromBytes) {
+      setExtractPrompt(path);
+      return;
+    }
+    if (rendersFromBytes) {
+      const base64Data = await invoke<string>("read_archive_file_base64", { path });
+      setOpenFiles(prev => [...prev, {
+        path,
+        content: isImageFile(filename) ? `[Image: ${filename}]` : `[Document: ${filename}]`,
+        language: "plaintext",
+        isDirty: false,
+        isReadOnly: true,
+        isImage: isImageFile(filename),
+        isDocument: !isImageFile(filename),
+        base64Data,
+      }]);
+    } else {
+      const content = await invoke<string>("read_archive_file", { path });
+      setOpenFiles(prev => [...prev, {
+        path,
+        content,
+        language: detectLanguage(filename),
+        isDirty: false,
+        isReadOnly: true,
+      }]);
+    }
+    setActiveFilePath(path);
+    invoke("track_flow_event", { kind: "file_open", data: path }).catch(() => {});
+  };
+
+  /**
+   * Finish an extract-to-edit: show the new folder in the tree, and swap the
+   * read-only tab for the writable file that came out of the archive.
+   */
+  const handleExtracted = async (result: ArchiveExtractResult) => {
+    const source = extractPrompt;
+    setExtractPrompt(null);
+    toast.success(describeExtraction(result));
+    const sep = result.destination.includes("\\") ? "\\" : "/";
+    const parent = result.destination.slice(0, result.destination.lastIndexOf(sep));
+    if (parent) await refreshDir(parent);
+    // Close the read-only tab first: two tabs for what the user thinks of as
+    // one file, one of them silently refusing edits, is the confusing state.
+    if (source && isArchiveMemberPath(source)) closeFile(source);
+
+    // An archive that came out of an archive gets browsed, not opened — its
+    // bytes in Monaco would be exactly the mojibake the tree exists to avoid.
+    if (result.opened_path && !isArchiveFile(result.opened_path)) {
+      await openFile(result.opened_path);
+      return;
+    }
+    const target = result.opened_path ?? result.destination;
+    await revealFile(target);
+    await ensureDirContents(target);
+    setExpandedDirs(prev => new Set(prev).add(target));
+  };
+
   const openFile = async (path: string) => {
     // VS Code "reveal in explorer": expand parents in the tree no matter
     // how the open was triggered (palette, search, git diff, recents).
@@ -601,6 +717,22 @@ function App() {
 
     try {
       const filename = path.split('/').pop() || path.split('\\').pop() || '';
+
+      // ── Inside an archive → read-only, no LSP ───────────────────
+      if (isArchiveMemberPath(path)) {
+        await openArchiveMember(path, filename);
+        return;
+      }
+
+      // ── The archive itself → browse it, don't decode it ─────────
+      // The tree toggles these rather than opening them, but the palette,
+      // recent files and "reveal" all route through here too, and a zip's
+      // bytes in Monaco are no use to anybody.
+      if (isArchiveFile(filename)) {
+        await ensureDirContents(path);
+        setExpandedDirs(prev => new Set(prev).add(path));
+        return;
+      }
 
       // ── Image files → read as base64 binary ────────────────────
       if (isImageFile(filename)) {
@@ -719,6 +851,12 @@ function App() {
 
   const saveFile = async () => {
     if (!activeFilePath || !activeFile) return;
+    // A member of an archive has no writable path. Offer the extraction rather
+    // than failing the save — the same prompt an attempted keystroke raises.
+    if (activeFile.isReadOnly && isArchiveMemberPath(activeFilePath)) {
+      setExtractPrompt(activeFilePath);
+      return;
+    }
     try {
       await invoke("write_file", { path: activeFilePath, content: activeFile.content });
 
@@ -738,6 +876,10 @@ function App() {
   };
 
   const handleEditorChange = (value: string | undefined) => {
+    // Monaco's read-only model should never emit a change; if some other path
+    // (a code action, a paste handler) manages one, an archive member still
+    // must not become dirty — there is nowhere to save it to.
+    if (activeFile?.isReadOnly) return;
     if (value !== undefined && activeFilePath) {
       setOpenFiles(prev => prev.map(f =>
         f.path === activeFilePath ? { ...f, content: value, isDirty: true } : f
@@ -838,6 +980,14 @@ function App() {
   const handleEditorDidMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
+
+    // Typing into a file that came out of an archive. Monaco's own answer is a
+    // silent no-op, which reads as a broken editor; this turns the keystroke
+    // into the offer to extract.
+    editor.onDidAttemptReadOnlyEdit(() => {
+      const path = activeFilePathRef.current;
+      if (path && isArchiveMemberPath(path)) setExtractPrompt(path);
+    });
 
     // Register VibeCoder theme with Monaco so the editor matches the app theme
     defineEditorTheme(monaco);
@@ -1057,7 +1207,8 @@ function App() {
     const listed = await Promise.all(
       targets.map(async (dir): Promise<readonly [string, FileEntry[] | null]> => {
         try {
-          return [dir, await invoke<FileEntry[]>("list_directory", { path: dir })] as const;
+          const command = isArchivePath(dir) ? "list_archive" : "list_directory";
+          return [dir, await invoke<FileEntry[]>(command, { path: dir })] as const;
         } catch {
           // Gone — deleted or renamed underneath us. Drop it instead of
           // keeping a listing that renders children which no longer exist.
@@ -1665,8 +1816,14 @@ function App() {
   // the indent (workspace root = 0, its children = 1, etc.). Folder click
   // toggles expansion; file click opens it.
   const renderTreeNode = (entry: FileEntry, depth: number): React.ReactNode => {
-    const isExpanded = entry.is_directory && expandedDirs.has(entry.path);
-    const isActive = !entry.is_directory && activeFilePath === entry.path;
+    // An archive is a folder as far as the tree is concerned: expandable,
+    // browsable, read-only inside. `is_directory` stays false, so the icon,
+    // the context menu and Copy Path keep treating it as the file it is.
+    // A nested archive is not expandable: see `openArchiveMember`.
+    const isExpandable =
+      entry.is_directory || (isArchiveFile(entry.name) && !isArchiveMemberPath(entry.path));
+    const isExpanded = isExpandable && expandedDirs.has(entry.path);
+    const isActive = !isExpandable && activeFilePath === entry.path;
     const children = isExpanded ? dirContents.get(entry.path) : undefined;
     const gitChar = gitStatus
       ? (() => {
@@ -1685,10 +1842,10 @@ function App() {
           tabIndex={0}
           style={{ paddingLeft: `${depth * 12 + 8}px` }}
           title={entry.path}
-          onClick={() => entry.is_directory ? toggleDir(entry.path) : openFile(entry.path)}
+          onClick={() => isExpandable ? toggleDir(entry.path) : openFile(entry.path)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
-              if (entry.is_directory) toggleDir(entry.path);
+              if (isExpandable) toggleDir(entry.path);
               else openFile(entry.path);
             }
           }}
@@ -1697,7 +1854,7 @@ function App() {
             setContextMenu({ x: e.clientX, y: e.clientY, file: entry });
           }}
         >
-          {entry.is_directory ? (
+          {isExpandable ? (
             <Icon name={isExpanded ? "chevron-down" : "chevron-right"} size={12} />
           ) : (
             <span style={{ display: "inline-block", width: 12, flexShrink: 0 }} />
@@ -2186,7 +2343,7 @@ function App() {
                   key={file.path}
                   className={`tab ${activeFilePath === file.path ? "active" : ""}`}
                   onClick={() => setActiveFilePath(file.path)}
-                  title={file.path}
+                  title={isArchiveMemberPath(file.path) ? archiveDisplayPath(file.path) : file.path}
                   onContextMenu={(e) => {
                     e.preventDefault();
                     setContextMenu({
@@ -2202,6 +2359,14 @@ function App() {
                     });
                   }}
                 >
+                  {file.isReadOnly && (
+                    <Icon
+                      name="lock"
+                      size={10}
+                      style={{ flexShrink: 0, opacity: 0.7 }}
+                      aria-label="Read-only"
+                    />
+                  )}
                   <span className="tab-name">
                     {file.path.split('/').pop() || file.path.split('\\').pop()}
                   </span>
@@ -2300,6 +2465,30 @@ function App() {
                   </button>
                 </div>
               )}
+              {/* Read-only strip for a file being browsed inside an archive.
+                  Monaco alone would just refuse the keystroke; this says why,
+                  and puts the way out one click away. */}
+              {activeFile?.isReadOnly && isArchiveMemberPath(activeFile.path) && (
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "3px 10px", flexShrink: 0,
+                  background: "var(--bg-secondary)",
+                  borderBottom: "1px solid var(--border-color)",
+                  fontSize: 12,
+                }}>
+                  <Icon name="lock" size={12} style={{ color: "var(--text-secondary)", flexShrink: 0 }} />
+                  <span style={{ color: "var(--text-secondary)" }}>
+                    Read-only — {archiveDisplayPath(activeFile.path)}
+                  </span>
+                  <button
+                    className="btn-secondary"
+                    onClick={() => setExtractPrompt(activeFile.path)}
+                    style={{ marginLeft: "auto", fontSize: 11, padding: "2px 8px" }}
+                  >
+                    Extract to edit
+                  </button>
+                </div>
+              )}
               {/* Editor area. AI writes go straight to disk and are reviewed in
                   Source Control, so nothing overlays Monaco here any more. */}
               <div style={{ height: 'calc(100% - 35px)', position: 'relative' }}>
@@ -2348,6 +2537,13 @@ function App() {
                       onMount={handleEditorDidMount}
                       options={{
                         ...MONACO_OVERFLOW_OPTIONS,
+                        // Files read out of an archive: there is no writable
+                        // path behind the model, so the edit is refused here
+                        // and `onDidAttemptReadonlyEdit` offers the extraction.
+                        readOnly: activeFile.isReadOnly === true,
+                        readOnlyMessage: {
+                          value: "Inside an archive — extract it to edit.",
+                        },
                         minimap: { enabled: true },
                         fontSize: 14,
                         lineNumbers: "on",
@@ -2790,6 +2986,12 @@ function App() {
       )}
 
       {/* Context Menu */}
+      <ArchiveExtractModal
+        path={extractPrompt}
+        onCancel={() => setExtractPrompt(null)}
+        onExtracted={handleExtracted}
+      />
+
       {contextMenu && (
         <div
           className="context-menu"
@@ -2829,6 +3031,27 @@ function App() {
               <div style={{ height: 1, background: 'var(--border-color)', margin: '4px 0' }} />
             </>
           )}
+          {/* An archive, or something inside one: extraction is the only
+              mutation either can offer. */}
+          {(isArchiveFile(contextMenu.file.name) || isArchiveMemberPath(contextMenu.file.path)) && (
+            <>
+              <div
+                className="context-menu-item"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const target = contextMenu.file.path;
+                  setContextMenu(null);
+                  setExtractPrompt(target);
+                }}
+                style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-tertiary)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              >
+                {isArchiveMemberPath(contextMenu.file.path) ? "Extract to Edit\u2026" : "Extract Archive\u2026"}
+              </div>
+              <div style={{ height: 1, background: 'var(--border-color)', margin: '4px 0' }} />
+            </>
+          )}
           <div
             className="context-menu-item"
             onClick={(e) => {
@@ -2845,9 +3068,11 @@ function App() {
           >
             Copy Path
           </div>
-          {/* Workspace root can't be renamed or deleted from the explorer.
-              Anything else gets the standard mutation actions. */}
-          {contextMenu.file.path !== currentDirectory && (
+          {/* Workspace root can't be renamed or deleted from the explorer, and
+              neither can anything inside an archive — the container would have
+              to be rewritten. Everything else gets the mutation actions. */}
+          {contextMenu.file.path !== currentDirectory &&
+            !isArchiveMemberPath(contextMenu.file.path) && (
             <>
               <div
                 className="context-menu-item"

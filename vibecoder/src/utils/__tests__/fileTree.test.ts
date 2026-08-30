@@ -100,3 +100,26 @@ describe('isUnderAny', () => {
     expect(isUnderAny('C:\\ws\\src2\\a.ts', ['C:\\ws\\src'], '\\')).toBe(false);
   });
 });
+
+describe('archive nodes in the tree cache', () => {
+  it('drops a vanished archive\'s member listings along with it', () => {
+    // `dist.zip!/src` is beneath `dist.zip` even though no filesystem
+    // separator joins them.
+    expect(isUnderAny('/w/dist.zip!/src', ['/w/dist.zip'], '/')).toBe(true);
+    expect(isUnderAny('/w/dist.zip', ['/w/dist.zip'], '/')).toBe(true);
+    expect(isUnderAny('/w/other.zip!/src', ['/w/dist.zip'], '/')).toBe(false);
+  });
+
+  it('prunes both the cache and the expanded set for a deleted archive', () => {
+    const cache = new Map([
+      ['/w', [{ path: '/w/dist.zip' }]],
+      ['/w/dist.zip', [{ path: '/w/dist.zip!/src' }]],
+      ['/w/dist.zip!/src', [{ path: '/w/dist.zip!/src/main.rs' }]],
+    ]);
+    const merged = mergeListings(cache, [['/w/dist.zip', null]], ['/w/dist.zip'], '/');
+    expect([...merged.keys()]).toEqual(['/w']);
+
+    const expanded = new Set(['/w', '/w/dist.zip', '/w/dist.zip!/src']);
+    expect([...pruneExpanded(expanded, ['/w/dist.zip'], '/')]).toEqual(['/w']);
+  });
+});

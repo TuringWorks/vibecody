@@ -1,5 +1,6 @@
 //! VibeCoder Core - Text buffer, file system, workspace, indexing, and context management
 
+pub mod archive;
 pub mod buffer;
 pub mod context;
 pub mod diff;
@@ -18,6 +19,7 @@ pub mod workspace;
 // already depends on git2 so the rusqlite add is small.
 pub mod sonar_rules;
 
+pub use archive::{ArchiveEntry, ArchiveKind, ArchiveMember, ExtractOutcome};
 pub use buffer::TextBuffer as Buffer;
 pub use context::ContextBuilder;
 pub use diff::{DiffEngine, DiffHunk};

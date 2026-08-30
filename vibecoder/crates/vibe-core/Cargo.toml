@@ -41,6 +41,16 @@ reqwest.workspace = true
 vibe-embed = { path = "../../../crates/vibe-embed" }
 async-trait.workspace = true
 
+# Archive browsing (read-only) + extract-to-edit. `zip` is the same major the
+# docfmt container helpers use; `lzma-rs` is pure Rust and decompress-only,
+# which is all the xz path needs and avoids vendoring liblzma's C source.
+zip = "8"
+tar = "0.4"
+flate2 = "1"
+bzip2 = "0.6"
+zstd = "0.13"
+lzma-rs = "0.3"
+
 # SQLite — for sonar_rules local rule store. Same workspace dep used
 # by the daemon's session/workspace stores.
 rusqlite.workspace = true

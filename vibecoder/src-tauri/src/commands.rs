@@ -616,6 +616,201 @@ pub async fn list_directory(
         .map_err(|e| e.to_string())
 }
 
+// ── Archives — read-only browsing, and extract-to-edit ──────────────────────
+//
+// The explorer treats an archive as a folder it can expand. Every path below
+// may be either the archive itself (`/w/dist.zip`) or a member of it
+// (`/w/dist.zip!/src/main.rs`); `vibe_core::archive` owns the split and every
+// bound. Only the *container* is resolved against the workspace boundary —
+// a member path is not a filesystem path, so `safe_resolve_path` would reject
+// all of them.
+//
+// All of it is blocking work (decompression, disk), hence `spawn_blocking`:
+// a 300 MB tarball indexed on the async runtime would stall every other
+// command for the duration.
+
+/// Resolve the on-disk archive behind a possibly-virtual path, and return it
+/// with the member path inside it (empty string = the archive's root).
+async fn resolve_archive_path(
+    path: &str,
+    state: &tauri::State<'_, AppState>,
+) -> Result<(PathBuf, String), String> {
+    let (container, inner) = match vibe_core::archive::split_virtual(path) {
+        Some((container, inner)) => (container.to_string(), inner.to_string()),
+        None => (path.to_string(), String::new()),
+    };
+    let workspace = state.workspace.lock().await;
+    let resolved = safe_resolve_path(&workspace, &container)?;
+    Ok((resolved, inner))
+}
+
+/// List one level inside an archive.
+#[tauri::command]
+pub async fn list_archive(
+    path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<vibe_core::archive::ArchiveEntry>, String> {
+    let (archive, inner) = resolve_archive_path(&path, &state).await?;
+    tokio::task::spawn_blocking(move || vibe_core::archive::list_dir(&archive, &inner))
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())
+}
+
+/// Read a member of an archive as text. Fails on non-UTF-8 so the caller falls
+/// back to [`read_archive_file_base64`] rather than showing mojibake.
+#[tauri::command]
+pub async fn read_archive_file(
+    path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    let (archive, inner) = resolve_archive_path(&path, &state).await?;
+    let bytes = tokio::task::spawn_blocking(move || vibe_core::archive::read_member(&archive, &inner))
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())?;
+    String::from_utf8(bytes).map_err(|_| format!("{path} is not UTF-8 text"))
+}
+
+/// Read a member of an archive as base64 — images, PDFs, anything binary.
+#[tauri::command]
+pub async fn read_archive_file_base64(
+    path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<String, String> {
+    use base64::Engine;
+    let (archive, inner) = resolve_archive_path(&path, &state).await?;
+    let bytes = tokio::task::spawn_blocking(move || vibe_core::archive::read_member(&archive, &inner))
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())?;
+    Ok(base64::engine::general_purpose::STANDARD.encode(&bytes))
+}
+
+/// What extracting the archive behind `path` would do — everything the
+/// "extract to edit?" prompt needs to state the outcome *before* the user
+/// agrees to it.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ArchiveExtractPlan {
+    /// Absolute path of the archive file.
+    pub archive: String,
+    /// The archive's own file name.
+    pub archive_name: String,
+    /// Member path inside the archive, empty when `path` named the archive.
+    pub member: String,
+    /// Folder the extraction will create — the archive's name without its
+    /// extension, suffixed `-1`, `-2`, … if that name is already taken.
+    pub destination: String,
+    /// Just the folder's name, for the prompt's one-line summary.
+    pub destination_name: String,
+    /// Where `member` will land once extracted, absolute. `None` when `path`
+    /// named the archive rather than a file inside it.
+    pub member_destination: Option<String>,
+    /// True when the archive's plain name was taken and the destination had to
+    /// be suffixed — worth saying out loud, since it means a previous
+    /// extraction is still sitting there.
+    pub renamed_to_avoid_collision: bool,
+}
+
+#[tauri::command]
+pub async fn plan_archive_extraction(
+    path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<ArchiveExtractPlan, String> {
+    let (archive, member) = resolve_archive_path(&path, &state).await?;
+    tokio::task::spawn_blocking(move || {
+        let archive_name = archive
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default();
+        if !vibe_core::archive::is_archive_file(&archive_name) {
+            return Err(format!("{archive_name} is not an archive"));
+        }
+        let destination = vibe_core::archive::extraction_dir(&archive);
+        let plain = archive
+            .parent()
+            .unwrap_or_else(|| std::path::Path::new("."))
+            .join(vibe_core::archive::strip_archive_extension(&archive_name));
+        let member_destination = (!member.is_empty())
+            .then(|| destination.join(&member).to_string_lossy().to_string());
+        Ok(ArchiveExtractPlan {
+            archive: archive.to_string_lossy().to_string(),
+            archive_name,
+            member,
+            destination_name: destination
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default(),
+            renamed_to_avoid_collision: destination != plain,
+            destination: destination.to_string_lossy().to_string(),
+            member_destination,
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// The result of an extraction, plus where the file the user wanted to edit
+/// ended up.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ArchiveExtractResult {
+    pub destination: String,
+    pub files: usize,
+    pub directories: usize,
+    pub skipped: usize,
+    pub bytes: u64,
+    /// Absolute path of the extracted counterpart of the member in the request,
+    /// ready to open for editing. `None` when the whole archive was extracted
+    /// without a particular file in mind, or when the member did not survive
+    /// extraction (a symlink, say).
+    pub opened_path: Option<String>,
+}
+
+/// Extract the archive behind `path` into a sibling folder named after it.
+///
+/// This is the one write path in the archive feature: an edit to a member
+/// becomes an extraction, because rewriting a member in place would mean
+/// re-encoding a container we do not necessarily understand.
+#[tauri::command]
+pub async fn extract_archive(
+    path: String,
+    destination: Option<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<ArchiveExtractResult, String> {
+    let (archive, member) = resolve_archive_path(&path, &state).await?;
+    // A caller-chosen destination is a real filesystem path and gets the full
+    // workspace-boundary check; the default is a sibling of the archive, which
+    // is inside the workspace by construction.
+    let destination = match destination {
+        Some(dest) => {
+            let workspace = state.workspace.lock().await;
+            Some(safe_resolve_path(&workspace, &dest)?)
+        }
+        None => None,
+    };
+    tokio::task::spawn_blocking(move || {
+        let outcome = vibe_core::archive::extract_to(&archive, destination.as_deref())
+            .map_err(|e| e.to_string())?;
+        // The archive is unchanged, but a stale index would now be answering
+        // for a folder the user is about to edit — drop it and re-read.
+        vibe_core::archive::clear_index_cache();
+        let opened_path = (!member.is_empty())
+            .then(|| outcome.dest.join(&member))
+            .filter(|p| p.exists())
+            .map(|p| p.to_string_lossy().to_string());
+        Ok(ArchiveExtractResult {
+            destination: outcome.dest.to_string_lossy().to_string(),
+            files: outcome.files,
+            directories: outcome.directories,
+            skipped: outcome.skipped,
+            bytes: outcome.bytes,
+            opened_path,
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 /// Sandbox file commands — no workspace boundary restriction.
 /// Only blocks `..` traversal and requires absolute paths.
 
@@ -31919,53 +32114,86 @@ pub async fn get_cloud_agent_status(container_id: String) -> Result<serde_json::
 
 // ── Phase 8.18: Compliance Reporting ──────────────────────────────────────────
 
+/// Scan a workspace and score it against a compliance framework.
+///
+/// This used to return a fixed list describing VibeCody's own security
+/// features — the same answer for every project, and a two-control 100% for
+/// any framework outside SOC 2 and FedRAMP. It now delegates to the scanner in
+/// `vibecli::compliance`, which gathers evidence from the workspace itself and
+/// reports what it could not determine instead of assuming a pass.
 #[tauri::command]
-pub async fn generate_compliance_report(framework: String) -> Result<serde_json::Value, String> {
-    let controls: Vec<serde_json::Value> = match framework.as_str() {
-        "SOC2" => vec![
-            serde_json::json!({"id":"CC1.1","name":"Security Governance","status":"implemented","evidence":["MIT License","Open source codebase"],"notes":"Fully open source with transparent development"}),
-            serde_json::json!({"id":"CC6.1","name":"Logical Access Security","status":"implemented","evidence":["Bearer token auth (serve.rs)","CORS localhost restriction","Rate limiting 60req/60s"],"notes":"API endpoints protected"}),
-            serde_json::json!({"id":"CC6.6","name":"Encryption in Transit","status":"partial","evidence":["HTTPS supported","TLS cert checking"],"notes":"HTTPS available; HTTP for local dev"}),
-            serde_json::json!({"id":"CC6.7","name":"Encryption at Rest","status":"partial","evidence":["Config file permissions 0o600"],"notes":"File permissions enforced; OS-level encryption"}),
-            serde_json::json!({"id":"CC7.2","name":"Security Monitoring","status":"implemented","evidence":["OpenTelemetry tracing","Session audit trail","Secret redaction in logs"],"notes":"Full observability pipeline"}),
-            serde_json::json!({"id":"CC8.1","name":"Change Management","status":"implemented","evidence":["Approval policy system","Hooks pre/post execution","Git checkpoints"],"notes":"Multi-level approval with hooks"}),
-            serde_json::json!({"id":"CC9.1","name":"Risk Mitigation","status":"implemented","evidence":["Command blocklist","Path traversal prevention","Sandbox mode","Red team scanning"],"notes":"Multiple security layers"}),
-        ],
-        "FedRAMP" => vec![
-            serde_json::json!({"id":"AC-2","name":"Account Management","status":"implemented","evidence":["Bearer token auth","API key management"],"notes":"Token-based access control"}),
-            serde_json::json!({"id":"AU-2","name":"Audit Events","status":"implemented","evidence":["Session trace store","OTLP export","JSONL audit logs"],"notes":"Comprehensive audit trail"}),
-            serde_json::json!({"id":"SC-8","name":"Transmission Confidentiality","status":"partial","evidence":["HTTPS support","TLS verification"],"notes":"Local HTTP; remote HTTPS"}),
-            serde_json::json!({"id":"SI-2","name":"Flaw Remediation","status":"implemented","evidence":["cargo audit CI","OWASP scanner","BugBot"],"notes":"Automated vulnerability scanning"}),
-        ],
-        _ => vec![
-            serde_json::json!({"id":"GEN-1","name":"Access Control","status":"implemented","evidence":["Auth system"],"notes":"Bearer token authentication"}),
-            serde_json::json!({"id":"GEN-2","name":"Audit Logging","status":"implemented","evidence":["Trace system"],"notes":"Full session audit trail"}),
-        ],
-    };
-    let total = controls.len();
-    let implemented = controls
+pub async fn generate_compliance_report(
+    framework: String,
+    workspace_path: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let root = workspace_path
+        .filter(|p| !p.trim().is_empty())
+        .map(std::path::PathBuf::from)
+        .or_else(|| std::env::current_dir().ok())
+        .ok_or_else(|| "No workspace is open — open a folder to scan.".to_string())?;
+
+    // A full-tree scan is blocking I/O; keep it off the async runtime's worker.
+    let report = tokio::task::spawn_blocking(move || {
+        vibecli_cli::compliance::generate_report_for_path(&framework, &root)
+    })
+    .await
+    .map_err(|e| format!("Compliance scan failed to run: {e}"))?
+    .map_err(|e| e.to_string())?;
+
+    let summary = &report.summary;
+    let controls: Vec<serde_json::Value> = report
+        .controls
         .iter()
-        .filter(|c| c["status"] == "implemented")
-        .count();
-    let partial = controls.iter().filter(|c| c["status"] == "partial").count();
-    let gaps = total - implemented - partial;
-    let applicable = total;
-    let pct = if applicable > 0 {
-        ((implemented as f64 + partial as f64 * 0.5) / applicable as f64) * 100.0
-    } else {
-        100.0
-    };
+        .map(|c| {
+            serde_json::json!({
+                "id": c.id,
+                "name": c.name,
+                "description": c.description,
+                "status": control_status_slug(&c.status),
+                "evidence": c.evidence,
+                "notes": c.notes,
+            })
+        })
+        .collect();
+
     Ok(serde_json::json!({
-        "framework": framework,
+        "framework": report.framework.label(),
+        "generated_at": report.generated_at,
+        "scope": {
+            "root": report.scope.root,
+            "files_seen": report.scope.files_seen,
+            "files_read": report.scope.files_read,
+            "truncated": report.scope.truncated,
+            "files_too_large": report.scope.files_too_large,
+            "git_tracked_files": report.scope.git_tracked_files,
+        },
         "controls": controls,
         "summary": {
-            "total": total,
-            "implemented": implemented,
-            "partial": partial,
-            "gaps": gaps,
-            "percentage": pct,
+            "total": summary.total_controls,
+            "implemented": summary.implemented,
+            "partial": summary.partial,
+            "gaps": summary.not_implemented,
+            "not_applicable": summary.not_applicable,
+            "not_assessed": summary.not_assessed,
+            "scored": summary.scored,
+            // `null` when nothing could be scored — a rate over zero controls
+            // is "n/a", never 0%.
+            "percentage": summary.compliance_percentage,
         }
     }))
+}
+
+/// Wire-format status slug. The panel switches on these, so they are part of
+/// the contract with the UI and stay in sync with `ControlStatus`.
+fn control_status_slug(status: &vibecli_cli::compliance::ControlStatus) -> &'static str {
+    use vibecli_cli::compliance::ControlStatus;
+    match status {
+        ControlStatus::Implemented => "implemented",
+        ControlStatus::PartiallyImplemented => "partial",
+        ControlStatus::NotImplemented => "not_implemented",
+        ControlStatus::NotApplicable => "not_applicable",
+        ControlStatus::NotAssessed => "not_assessed",
+    }
 }
 
 // ── Phase 7.34: Project Scaffolding ───────────────────────────────────────────
@@ -67848,13 +68076,13 @@ mod redteam_workspace_tests {
     }
 }
 
-// ── Rich documents: DOCX, EPUB, Apple Pages ──────────────────────────────────
+// ── Rich documents: DOCX, EPUB, PDF, Apple Pages ─────────────────────────────
 //
-// These three formats open in the editor as text — Markdown for DOCX and EPUB,
-// plain text for Pages — and save back into the original container. The heavy
-// lifting (and every honesty guarantee) lives in `vibe-docfmt`; these commands
-// resolve the path against the workspace and move the work off the async
-// runtime, because parsing a large book is CPU-bound.
+// These four formats open in the editor as text — Markdown for DOCX and EPUB,
+// plain text for Pages and PDF — and save back into the original container. The
+// heavy lifting (and every honesty guarantee) lives in `vibe-docfmt`; these
+// commands resolve the path against the workspace and move the work off the
+// async runtime, because parsing a large book is CPU-bound.
 
 /// Something the reader or writer could not do faithfully.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -67875,13 +68103,14 @@ impl From<&vibe_docfmt::Warning> for DocumentWarning {
 /// A document opened as an editable text buffer.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DocumentTextResponse {
-    /// `docx` | `epub` | `pages`
+    /// `docx` | `epub` | `pages` | `pdf`
     pub format: String,
     /// Monaco language id for the buffer: `markdown` or `plaintext`.
     pub language: String,
     pub text: String,
-    /// Sections in the buffer — chapters for EPUB, text storages for Pages.
-    /// Their markers must survive an edit, so the UI can show the count.
+    /// Sections in the buffer — chapters for EPUB, pages for PDF, text
+    /// storages for Pages. Their markers must survive an edit, so the UI can
+    /// show the count.
     pub sections: usize,
     pub warnings: Vec<DocumentWarning>,
     pub writable: bool,
@@ -67892,7 +68121,7 @@ pub struct DocumentTextResponse {
 pub struct DocumentWriteResponse {
     pub format: String,
     pub bytes_written: u64,
-    /// Where the pre-edit copy was kept, when the writer made one (Pages).
+    /// Where the pre-edit copy was kept, when the writer made one (Pages, PDF).
     pub backup: Option<String>,
     pub warnings: Vec<DocumentWarning>,
     /// Always true: the write is only reported after the file has been re-read
@@ -67913,7 +68142,7 @@ pub fn is_rich_document(path: String) -> bool {
     vibe_docfmt::is_document_path(Path::new(&path))
 }
 
-/// Open a DOCX / EPUB / Pages document as an editable text buffer.
+/// Open a DOCX / EPUB / PDF / Pages document as an editable text buffer.
 #[tauri::command]
 pub async fn read_document_text(
     path: String,

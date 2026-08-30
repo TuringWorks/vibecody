@@ -12,6 +12,8 @@
  * editor.
  */
 
+import { ARCHIVE_SEPARATOR } from "./archive";
+
 /** Minimal shape the tree cache needs — the real `FileEntry` satisfies it. */
 export interface TreeEntry {
   path: string;
@@ -33,9 +35,19 @@ export function missingDirs<E extends TreeEntry>(listed: ReadonlyArray<Listing<E
   return listed.filter(([, entries]) => entries === null).map(([dir]) => dir);
 }
 
-/** Is `path` one of the missing directories, or inside one? */
+/**
+ * Is `path` one of the missing directories, or inside one?
+ *
+ * "Inside" covers both separators the tree uses: the filesystem's, and the
+ * archive separator. A cached listing for `dist.zip!/src` is beneath
+ * `dist.zip`, so deleting the archive has to drop it — matching on the
+ * filesystem separator alone left those entries behind, and a new archive of
+ * the same name would have shown the old contents.
+ */
 export function isUnderAny(path: string, dirs: readonly string[], sep: string): boolean {
-  return dirs.some(dir => path === dir || path.startsWith(dir + sep));
+  return dirs.some(
+    dir => path === dir || path.startsWith(dir + sep) || path.startsWith(dir + ARCHIVE_SEPARATOR),
+  );
 }
 
 /**
