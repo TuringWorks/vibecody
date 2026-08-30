@@ -832,10 +832,10 @@ Scan your codebase and git history for leaked secrets: API keys, passwords, toke
 
 ### **Compliance Reporting**
 
-Generate compliance reports for SOC2, HIPAA, PCI-DSS, and GDPR. VibeCody maps your codebase controls to compliance frameworks and identifies gaps.
+Scan a project and score it against SOC 2, FedRAMP, HIPAA, GDPR, or ISO 27001. VibeCody looks for the evidence each control needs, cites the file and line it found, and reports the rest as gaps. Controls that no repository can evidence — vendor contracts, personnel screening — are marked *Not assessed* and left out of the score.
 
 ```bash
-/policy compliance --framework soc2 --output compliance-report.md
+vibecli --compliance report --framework soc2 --output compliance-report.md
 ```
 
 *Works on: all*

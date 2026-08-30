@@ -1,8 +1,18 @@
 #![allow(dead_code, clippy::upper_case_acronyms)]
-//! Compliance report generation for SOC2/FedRAMP preparation.
+//! Compliance reports generated from a scan of the user's project.
+//!
+//! The report model lives here; the evidence gathering and the per-framework
+//! control catalogues live in [`crate::compliance_scan`]. A report is only ever
+//! as good as what the scanner actually saw, so every report carries its
+//! [`ScanScope`] — the directory scanned, how many files were read, and whether
+//! a scan budget was hit — and the score is computed over scored controls only.
+
+use std::path::Path;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+
+use crate::compliance_scan;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ComplianceFramework {
@@ -11,6 +21,29 @@ pub enum ComplianceFramework {
     HIPAA,
     GDPR,
     ISO27001,
+}
+
+impl ComplianceFramework {
+    pub fn label(&self) -> &'static str {
+        match self {
+            ComplianceFramework::SOC2 => "SOC 2",
+            ComplianceFramework::FedRAMP => "FedRAMP",
+            ComplianceFramework::HIPAA => "HIPAA",
+            ComplianceFramework::GDPR => "GDPR",
+            ComplianceFramework::ISO27001 => "ISO 27001",
+        }
+    }
+
+    pub fn parse(input: &str) -> Option<Self> {
+        match input.trim().to_lowercase().replace([' ', '-', '_'], "").as_str() {
+            "soc2" => Some(ComplianceFramework::SOC2),
+            "fedramp" | "nist80053" => Some(ComplianceFramework::FedRAMP),
+            "hipaa" => Some(ComplianceFramework::HIPAA),
+            "gdpr" => Some(ComplianceFramework::GDPR),
+            "iso27001" | "iso" | "iso27k" => Some(ComplianceFramework::ISO27001),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,12 +62,55 @@ pub enum ControlStatus {
     PartiallyImplemented,
     NotImplemented,
     NotApplicable,
+    /// The control cannot be evidenced by a repository — personnel screening,
+    /// vendor contracts, physical access. Kept out of the score's denominator
+    /// so the percentage describes only what was measured.
+    NotAssessed,
+}
+
+impl ControlStatus {
+    pub fn label(&self) -> &'static str {
+        match self {
+            ControlStatus::Implemented => "Implemented",
+            ControlStatus::PartiallyImplemented => "Partial",
+            ControlStatus::NotImplemented => "Gap",
+            ControlStatus::NotApplicable => "N/A",
+            ControlStatus::NotAssessed => "Not assessed",
+        }
+    }
+
+    /// Whether this control counts toward the compliance percentage.
+    pub fn is_scored(&self) -> bool {
+        matches!(
+            self,
+            ControlStatus::Implemented
+                | ControlStatus::PartiallyImplemented
+                | ControlStatus::NotImplemented
+        )
+    }
+}
+
+/// What the scan actually covered. A report without this cannot be trusted:
+/// a truncated scan and a clean project produce the same absent evidence.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScanScope {
+    pub root: String,
+    pub files_seen: usize,
+    pub files_read: usize,
+    /// The whole-scan budget was exhausted — findings are a lower bound.
+    pub truncated: bool,
+    /// Files skipped for exceeding the per-file size limit.
+    pub files_too_large: usize,
+    /// Files tracked by git, or `None` when the root is not a git checkout
+    /// (in which case the committed-credential checks did not run).
+    pub git_tracked_files: Option<usize>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComplianceReport {
     pub framework: ComplianceFramework,
     pub generated_at: u64,
+    pub scope: ScanScope,
     pub controls: Vec<ComplianceControl>,
     pub summary: ComplianceSummary,
 }
@@ -46,248 +122,137 @@ pub struct ComplianceSummary {
     pub partial: usize,
     pub not_implemented: usize,
     pub not_applicable: usize,
-    pub compliance_percentage: f64,
+    pub not_assessed: usize,
+    /// Controls the scan could actually decide — the percentage's denominator.
+    pub scored: usize,
+    /// `None` when nothing was scored: a rate over zero controls is not 0%.
+    pub compliance_percentage: Option<f64>,
 }
 
-/// Generate a SOC2 compliance report based on VibeCody's security features.
-pub fn generate_soc2_report() -> ComplianceReport {
-    let controls = vec![
-        ComplianceControl {
-            id: "CC1.1".to_string(),
-            name: "Security Governance".to_string(),
-            description: "Organization demonstrates commitment to integrity and ethical values"
-                .to_string(),
-            status: ControlStatus::Implemented,
-            evidence: vec![
-                "MIT License".to_string(),
-                "Open source codebase".to_string(),
-            ],
-            notes: "Fully open source with transparent development".to_string(),
-        },
-        ComplianceControl {
-            id: "CC6.1".to_string(),
-            name: "Logical Access Security".to_string(),
-            description: "Logical access security over information assets".to_string(),
-            status: ControlStatus::Implemented,
-            evidence: vec![
-                "Bearer token authentication (serve.rs)".to_string(),
-                "CORS localhost restriction".to_string(),
-                "Rate limiting (60 req/60s)".to_string(),
-            ],
-            notes: "API endpoints protected with bearer tokens and rate limiting".to_string(),
-        },
-        ComplianceControl {
-            id: "CC6.6".to_string(),
-            name: "Encryption in Transit".to_string(),
-            description: "Data transmitted between entities is protected".to_string(),
-            status: ControlStatus::PartiallyImplemented,
-            evidence: vec![
-                "HTTPS supported".to_string(),
-                "TLS cert checking (check_tls_cert)".to_string(),
-            ],
-            notes: "HTTPS available but HTTP used for local development".to_string(),
-        },
-        ComplianceControl {
-            id: "CC6.7".to_string(),
-            name: "Encryption at Rest".to_string(),
-            description: "Data at rest is protected".to_string(),
-            status: ControlStatus::PartiallyImplemented,
-            evidence: vec!["Config file permissions 0o600 (config.rs)".to_string()],
-            notes: "File permissions enforced; full encryption depends on OS".to_string(),
-        },
-        ComplianceControl {
-            id: "CC7.2".to_string(),
-            name: "Security Monitoring".to_string(),
-            description: "System monitoring and anomaly detection".to_string(),
-            status: ControlStatus::Implemented,
-            evidence: vec![
-                "OpenTelemetry tracing (otel.rs)".to_string(),
-                "Session audit trail (session_store.rs)".to_string(),
-                "Secret redaction in logs (trace.rs)".to_string(),
-            ],
-            notes: "Full observability pipeline with OTLP export and secret redaction".to_string(),
-        },
-        ComplianceControl {
-            id: "CC8.1".to_string(),
-            name: "Change Management".to_string(),
-            description: "Changes to infrastructure and software are authorized".to_string(),
-            status: ControlStatus::Implemented,
-            evidence: vec![
-                "Approval policy system (policy.rs)".to_string(),
-                "Hooks pre/post execution (hooks.rs)".to_string(),
-                "Git checkpoint system".to_string(),
-            ],
-            notes: "Multi-level approval policies with hook-based authorization".to_string(),
-        },
-        ComplianceControl {
-            id: "CC9.1".to_string(),
-            name: "Risk Mitigation".to_string(),
-            description: "Risk mitigation activities are implemented".to_string(),
-            status: ControlStatus::Implemented,
-            evidence: vec![
-                "Command blocklist (tool_executor.rs)".to_string(),
-                "Path traversal prevention (safe_resolve_path)".to_string(),
-                "Sandbox mode (--sandbox flag)".to_string(),
-                "Red team scanning (redteam.rs)".to_string(),
-            ],
-            notes: "Multiple layers of security controls".to_string(),
-        },
-    ];
-
-    build_report(ComplianceFramework::SOC2, controls)
-}
-
-/// Generate a FedRAMP compliance report based on VibeCody's security features.
-pub fn generate_fedramp_report() -> ComplianceReport {
-    let controls = vec![
-        ComplianceControl {
-            id: "AC-2".to_string(),
-            name: "Account Management".to_string(),
-            description: "Manage information system accounts".to_string(),
-            status: ControlStatus::PartiallyImplemented,
-            evidence: vec![
-                "Bearer token auth (serve.rs)".to_string(),
-                "Cryptographic session IDs".to_string(),
-            ],
-            notes: "Token-based access; no multi-user account management yet".to_string(),
-        },
-        ComplianceControl {
-            id: "AU-2".to_string(),
-            name: "Audit Events".to_string(),
-            description: "Determine auditable events".to_string(),
-            status: ControlStatus::Implemented,
-            evidence: vec![
-                "JSONL trace logging".to_string(),
-                "SQLite session store".to_string(),
-                "OpenTelemetry spans".to_string(),
-            ],
-            notes: "Comprehensive audit trail for all agent actions".to_string(),
-        },
-        ComplianceControl {
-            id: "SC-13".to_string(),
-            name: "Cryptographic Protection".to_string(),
-            description: "Use cryptographic mechanisms to protect information".to_string(),
-            status: ControlStatus::PartiallyImplemented,
-            evidence: vec![
-                "SHA-256 installer verification".to_string(),
-                "TLS for API calls".to_string(),
-            ],
-            notes: "Cryptographic verification for installs; TLS for transit".to_string(),
-        },
-        ComplianceControl {
-            id: "SI-10".to_string(),
-            name: "Information Input Validation".to_string(),
-            description: "Check validity of information inputs".to_string(),
-            status: ControlStatus::Implemented,
-            evidence: vec![
-                "Path traversal prevention".to_string(),
-                "Command blocklist (8 regex patterns)".to_string(),
-                "XSS escape in session viewer".to_string(),
-            ],
-            notes: "Input validation at multiple layers".to_string(),
-        },
-        ComplianceControl {
-            id: "RA-5".to_string(),
-            name: "Vulnerability Scanning".to_string(),
-            description: "Scan for vulnerabilities in the system".to_string(),
-            status: ControlStatus::Implemented,
-            evidence: vec![
-                "Red team module (redteam.rs)".to_string(),
-                "BugBot OWASP/CWE scanner (bugbot.rs)".to_string(),
-                "cargo audit CI job".to_string(),
-            ],
-            notes: "Automated vulnerability scanning with 15 CWE patterns".to_string(),
-        },
-    ];
-
-    build_report(ComplianceFramework::FedRAMP, controls)
-}
-
-/// Generate a report for a given framework string (used by REPL and Tauri).
-pub fn generate_report_for(framework: &str) -> Result<ComplianceReport> {
-    match framework.to_lowercase().as_str() {
-        "soc2" | "soc 2" => Ok(generate_soc2_report()),
-        "fedramp" | "fed_ramp" => Ok(generate_fedramp_report()),
-        _ => anyhow::bail!(
-            "Unsupported framework: {}. Supported: soc2, fedramp",
+/// Scan `root` and score it against `framework`.
+pub fn generate_report_for_path(framework: &str, root: &Path) -> Result<ComplianceReport> {
+    let framework = ComplianceFramework::parse(framework).ok_or_else(|| {
+        anyhow::anyhow!(
+            "Unsupported framework: {}. Supported: soc2, fedramp, hipaa, gdpr, iso27001",
             framework
-        ),
+        )
+    })?;
+    if !root.is_dir() {
+        anyhow::bail!("Not a directory: {}", root.display());
     }
+    // Report the path the user can act on, not the `.` they typed.
+    let root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
+    let facts = compliance_scan::scan(&root);
+    let controls = compliance_scan::assess(&framework, &facts);
+    let scope = ScanScope {
+        root: facts.root.clone(),
+        files_seen: facts.files_seen,
+        files_read: facts.files_read,
+        truncated: facts.scan_truncated,
+        files_too_large: facts.files_too_large,
+        git_tracked_files: facts.git_tracked,
+    };
+    Ok(build_report(framework, scope, controls))
+}
+
+/// Scan the current working directory.
+pub fn generate_report_for(framework: &str) -> Result<ComplianceReport> {
+    let cwd = std::env::current_dir()?;
+    generate_report_for_path(framework, &cwd)
 }
 
 fn build_report(
     framework: ComplianceFramework,
+    scope: ScanScope,
     controls: Vec<ComplianceControl>,
 ) -> ComplianceReport {
-    let total = controls.len();
-    let implemented = controls
-        .iter()
-        .filter(|c| matches!(c.status, ControlStatus::Implemented))
-        .count();
-    let partial = controls
-        .iter()
-        .filter(|c| matches!(c.status, ControlStatus::PartiallyImplemented))
-        .count();
-    let not_impl = controls
-        .iter()
-        .filter(|c| matches!(c.status, ControlStatus::NotImplemented))
-        .count();
-    let na = controls
-        .iter()
-        .filter(|c| matches!(c.status, ControlStatus::NotApplicable))
-        .count();
-    let applicable = total - na;
-    let pct = if applicable > 0 {
-        ((implemented as f64 + partial as f64 * 0.5) / applicable as f64) * 100.0
-    } else {
-        100.0
-    };
+    let count = |want: ControlStatus| controls.iter().filter(|c| c.status == want).count();
+    let implemented = count(ControlStatus::Implemented);
+    let partial = count(ControlStatus::PartiallyImplemented);
+    let not_impl = count(ControlStatus::NotImplemented);
+    let na = count(ControlStatus::NotApplicable);
+    let not_assessed = count(ControlStatus::NotAssessed);
+    let scored = implemented + partial + not_impl;
+    // A partially implemented control is half a control, and nothing the scan
+    // could not decide is allowed to inflate the denominator.
+    let pct = (scored > 0)
+        .then(|| ((implemented as f64) + (partial as f64) * 0.5) / (scored as f64) * 100.0);
 
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
 
     ComplianceReport {
         framework,
         generated_at: now,
-        controls,
+        scope,
         summary: ComplianceSummary {
-            total_controls: total,
+            total_controls: controls.len(),
             implemented,
             partial,
             not_implemented: not_impl,
             not_applicable: na,
+            not_assessed,
+            scored,
             compliance_percentage: pct,
         },
+        controls,
     }
 }
 
-/// Export report as markdown.
+/// Export a report as markdown.
 pub fn report_to_markdown(report: &ComplianceReport) -> String {
-    let mut md = format!("# {:?} Compliance Report\n\n", report.framework);
+    let s = &report.summary;
+    let score = match s.compliance_percentage {
+        Some(p) => format!("{p:.1}%"),
+        None => "n/a (no control could be scored)".to_string(),
+    };
+    let mut md = format!("# {} Compliance Report\n\n", report.framework.label());
+    md.push_str(&format!("**Project:** `{}`\n\n", report.scope.root));
     md.push_str(&format!(
-        "**Compliance: {:.1}%** ({} implemented, {} partial, {} gaps)\n\n",
-        report.summary.compliance_percentage,
-        report.summary.implemented,
-        report.summary.partial,
-        report.summary.not_implemented,
+        "**Compliance: {score}** over {} scored controls ({} implemented, {} partial, {} gaps). \
+{} control(s) could not be assessed from source.\n\n",
+        s.scored, s.implemented, s.partial, s.not_implemented, s.not_assessed,
     ));
-    md.push_str("| ID | Control | Status | Evidence |\n");
-    md.push_str("|---|---|---|---|\n");
+    md.push_str(&format!(
+        "Scanned {} files, read {}.{}{}{}\n\n",
+        report.scope.files_seen,
+        report.scope.files_read,
+        if report.scope.truncated {
+            " Scan budget reached — evidence below is a lower bound."
+        } else {
+            ""
+        },
+        if report.scope.files_too_large > 0 {
+            format!(
+                " {} file(s) were larger than the per-file limit and were not read.",
+                report.scope.files_too_large
+            )
+        } else {
+            String::new()
+        },
+        if report.scope.git_tracked_files.is_none() {
+            " Not a git checkout, so committed-credential checks did not run."
+        } else {
+            ""
+        },
+    ));
+    md.push_str("| ID | Control | Status | Evidence | Notes |\n");
+    md.push_str("|---|---|---|---|---|\n");
     for c in &report.controls {
-        let status_str = match c.status {
-            ControlStatus::Implemented => "Implemented",
-            ControlStatus::PartiallyImplemented => "Partial",
-            ControlStatus::NotImplemented => "Gap",
-            ControlStatus::NotApplicable => "N/A",
+        let evidence = if c.evidence.is_empty() {
+            "—".to_string()
+        } else {
+            c.evidence.join("<br>")
         };
         md.push_str(&format!(
-            "| {} | {} | {} | {} |\n",
+            "| {} | {} | {} | {} | {} |\n",
             c.id,
             c.name,
-            status_str,
-            c.evidence.join(", ")
+            c.status.label(),
+            evidence,
+            c.notes,
         ));
     }
     md
@@ -296,214 +261,190 @@ pub fn report_to_markdown(report: &ComplianceReport) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::path::PathBuf;
 
-    #[test]
-    fn test_soc2_report() {
-        let report = generate_soc2_report();
-        assert_eq!(report.framework, ComplianceFramework::SOC2);
-        assert!(!report.controls.is_empty());
-        assert!(report.summary.total_controls > 0);
-        assert!(report.generated_at > 0);
-        assert_eq!(
-            report.summary.total_controls,
-            report.summary.implemented
-                + report.summary.partial
-                + report.summary.not_implemented
-                + report.summary.not_applicable
-        );
+    fn fixture(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "vibecody-compliance-report-{}-{}",
+            name,
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).expect("create fixture dir");
+        dir
+    }
+
+    fn write(root: &Path, rel: &str, body: &str) {
+        let path = root.join(rel);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("create parent");
+        }
+        fs::write(path, body).expect("write fixture");
     }
 
     #[test]
-    fn test_compliance_percentage() {
-        // SOC2 report has 5 Implemented + 2 PartiallyImplemented = 7 controls, 0 N/A
-        // pct = (5 + 2*0.5) / 7 * 100 = 6/7 * 100 = 85.71...
-        let report = generate_soc2_report();
-        let expected = (5.0 + 2.0 * 0.5) / 7.0 * 100.0;
+    fn framework_parse_accepts_the_names_the_ui_sends() {
+        for name in ["SOC2", "soc 2", "FedRAMP", "HIPAA", "GDPR", "ISO27001"] {
+            assert!(
+                ComplianceFramework::parse(name).is_some(),
+                "{name} should parse"
+            );
+        }
+        assert!(ComplianceFramework::parse("PCI-DSS").is_none());
+    }
+
+    #[test]
+    fn unsupported_framework_is_an_error_not_a_placeholder_report() {
+        let root = fixture("unsupported");
+        let err = generate_report_for_path("pci-dss", &root);
+        assert!(err.is_err());
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn missing_directory_is_an_error() {
+        let missing = std::env::temp_dir().join("vibecody-compliance-does-not-exist");
+        assert!(generate_report_for_path("soc2", &missing).is_err());
+    }
+
+    #[test]
+    fn empty_project_does_not_score_a_hundred_percent() {
+        let root = fixture("empty");
+        let report = generate_report_for_path("soc2", &root).expect("report");
+        assert_eq!(report.summary.compliance_percentage, Some(0.0));
+        assert!(report.summary.not_implemented > 0);
+        assert!(report.summary.not_assessed > 0);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn unassessable_controls_stay_out_of_the_denominator() {
+        let root = fixture("denominator");
+        let report = generate_report_for_path("fedramp", &root).expect("report");
+        let s = &report.summary;
+        assert_eq!(s.scored, s.implemented + s.partial + s.not_implemented);
+        assert_eq!(s.total_controls, s.scored + s.not_assessed + s.not_applicable);
+        assert!(s.scored < s.total_controls, "FedRAMP has organisational controls");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn report_reflects_the_scanned_project_not_vibecody() {
+        let root = fixture("reflects");
+        write(&root, "LICENSE", "MIT");
+        write(&root, "CONTRIBUTING.md", "contribute");
+        write(&root, "README.md", "a project");
+        let report = generate_report_for_path("soc2", &root).expect("report");
+        // The report canonicalises the root, and on macOS `/var` resolves to
+        // `/private/var` — compare canonical paths, not the string passed in.
+        let expected = root.canonicalize().unwrap_or_else(|_| root.clone());
+        assert_eq!(report.scope.root, expected.display().to_string());
+        assert!(report.scope.files_seen >= 3);
+        let cc11 = report
+            .controls
+            .iter()
+            .find(|c| c.id == "CC1.1")
+            .expect("CC1.1");
+        assert_eq!(cc11.status, ControlStatus::Implemented);
+        assert!(cc11.evidence.iter().any(|e| e.contains("LICENSE")));
+        // Nothing in this fixture proves encryption at rest.
+        let cc67 = report
+            .controls
+            .iter()
+            .find(|c| c.id == "CC6.7")
+            .expect("CC6.7");
+        assert_eq!(cc67.status, ControlStatus::NotImplemented);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn percentage_rises_only_with_evidence() {
+        let bare = fixture("bare");
+        let bare_report = generate_report_for_path("soc2", &bare).expect("report");
+
+        let equipped = fixture("equipped");
+        write(&equipped, "LICENSE", "MIT");
+        write(&equipped, "CONTRIBUTING.md", "contribute");
+        write(&equipped, "README.md", "docs");
+        write(&equipped, "SECURITY.md", "report issues here");
+        write(&equipped, ".github/workflows/ci.yml", "run: cargo test\n");
+        write(&equipped, ".github/pull_request_template.md", "checklist");
+        write(&equipped, "Cargo.lock", "# lock");
+        write(&equipped, "src/auth.rs", "fn f() { require_auth(); }\n");
+        let equipped_report = generate_report_for_path("soc2", &equipped).expect("report");
+
+        let bare_pct = bare_report.summary.compliance_percentage.unwrap_or(0.0);
+        let equipped_pct = equipped_report.summary.compliance_percentage.unwrap_or(0.0);
         assert!(
-            (report.summary.compliance_percentage - expected).abs() < 0.01,
-            "Expected {:.2}, got {:.2}",
-            expected,
-            report.summary.compliance_percentage
+            equipped_pct > bare_pct,
+            "evidence should move the score: {bare_pct} -> {equipped_pct}"
         );
+        assert!(
+            equipped_pct < 100.0,
+            "a fixture with no crypto or backups must not be fully compliant"
+        );
+        let _ = fs::remove_dir_all(&bare);
+        let _ = fs::remove_dir_all(&equipped);
     }
 
     #[test]
-    fn test_report_to_markdown() {
-        let report = generate_soc2_report();
+    fn markdown_carries_the_scope_and_the_gaps() {
+        let root = fixture("markdown");
+        write(&root, "README.md", "hello");
+        let report = generate_report_for_path("gdpr", &root).expect("report");
         let md = report_to_markdown(&report);
-        assert!(md.contains("# SOC2 Compliance Report"));
-        assert!(md.contains("| ID | Control | Status | Evidence |"));
-        assert!(md.contains("CC1.1"));
-        assert!(md.contains("Security Governance"));
-        assert!(md.contains("Implemented"));
-        assert!(md.contains("Partial"));
+        assert!(md.contains("# GDPR Compliance Report"));
+        assert!(md.contains(&root.display().to_string()));
+        assert!(md.contains("could not be assessed from source"));
+        assert!(md.contains("| ID | Control | Status | Evidence | Notes |"));
+        assert!(md.contains("Art. 17"));
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
-    fn test_control_serde() {
-        let control = ComplianceControl {
-            id: "TEST-1".to_string(),
-            name: "Test Control".to_string(),
-            description: "A test".to_string(),
-            status: ControlStatus::Implemented,
-            evidence: vec!["evidence1".to_string()],
-            notes: "notes".to_string(),
-        };
-        let json = serde_json::to_string(&control).expect("serialize");
-        let deserialized: ComplianceControl = serde_json::from_str(&json).expect("deserialize");
-        assert_eq!(deserialized.id, "TEST-1");
-        assert_eq!(deserialized.status, ControlStatus::Implemented);
-        assert_eq!(deserialized.evidence.len(), 1);
+    fn every_framework_produces_a_report() {
+        let root = fixture("all-frameworks");
+        write(&root, "README.md", "hello");
+        for fw in ["soc2", "fedramp", "hipaa", "gdpr", "iso27001"] {
+            let report = generate_report_for_path(fw, &root)
+                .unwrap_or_else(|e| panic!("{fw} should produce a report: {e}"));
+            assert!(
+                report.controls.len() >= 10,
+                "{fw} returned only {} controls",
+                report.controls.len()
+            );
+            assert!(
+                report.summary.scored > 0,
+                "{fw} scored nothing at all — the percentage would be meaningless"
+            );
+        }
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
-    fn test_fedramp_report() {
-        let report = generate_fedramp_report();
-        assert_eq!(report.framework, ComplianceFramework::FedRAMP);
-        assert!(!report.controls.is_empty());
-        assert!(report.summary.total_controls > 0);
+    fn report_serde_roundtrip() {
+        let root = fixture("serde");
+        write(&root, "README.md", "hello");
+        let report = generate_report_for_path("soc2", &root).expect("report");
+        let json = serde_json::to_string(&report).expect("serialize");
+        let parsed: ComplianceReport = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(parsed.framework, ComplianceFramework::SOC2);
+        assert_eq!(parsed.controls.len(), report.controls.len());
+        assert_eq!(parsed.summary.scored, report.summary.scored);
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
-    fn test_generate_report_for() {
-        let soc2 = generate_report_for("soc2").unwrap();
-        assert_eq!(soc2.framework, ComplianceFramework::SOC2);
-
-        let fedramp = generate_report_for("fedramp").unwrap();
-        assert_eq!(fedramp.framework, ComplianceFramework::FedRAMP);
-
-        let err = generate_report_for("unknown");
-        assert!(err.is_err());
-    }
-
-    #[test]
-    fn test_generate_report_for_case_variants() {
-        assert!(generate_report_for("SOC2").is_ok());
-        assert!(generate_report_for("Soc2").is_ok());
-        assert!(generate_report_for("soc 2").is_ok());
-        assert!(generate_report_for("FedRAMP").is_ok());
-        assert!(generate_report_for("FEDRAMP").is_ok());
-        assert!(generate_report_for("fed_ramp").is_ok());
-    }
-
-    #[test]
-    fn test_generate_report_for_unsupported() {
-        let err = generate_report_for("hipaa");
-        assert!(err.is_err());
-        let msg = err.unwrap_err().to_string();
-        assert!(msg.contains("Unsupported framework"));
-    }
-
-    #[test]
-    fn test_soc2_control_ids() {
-        let report = generate_soc2_report();
-        let ids: Vec<&str> = report.controls.iter().map(|c| c.id.as_str()).collect();
-        assert!(ids.contains(&"CC1.1"));
-        assert!(ids.contains(&"CC6.1"));
-        assert!(ids.contains(&"CC6.6"));
-        assert!(ids.contains(&"CC9.1"));
-    }
-
-    #[test]
-    fn test_fedramp_control_ids() {
-        let report = generate_fedramp_report();
-        let ids: Vec<&str> = report.controls.iter().map(|c| c.id.as_str()).collect();
-        assert!(ids.contains(&"AC-2"));
-        assert!(ids.contains(&"AU-2"));
-        assert!(ids.contains(&"SC-13"));
-        assert!(ids.contains(&"SI-10"));
-        assert!(ids.contains(&"RA-5"));
-    }
-
-    #[test]
-    fn test_fedramp_summary_counts() {
-        let report = generate_fedramp_report();
+    fn summary_counts_partition_the_catalogue() {
+        let root = fixture("partition");
+        write(&root, "README.md", "hello");
+        let report = generate_report_for_path("iso27001", &root).expect("report");
         let s = &report.summary;
         assert_eq!(
             s.total_controls,
-            s.implemented + s.partial + s.not_implemented + s.not_applicable
+            s.implemented + s.partial + s.not_implemented + s.not_applicable + s.not_assessed
         );
-    }
-
-    #[test]
-    fn test_fedramp_compliance_percentage() {
-        let report = generate_fedramp_report();
-        assert!(report.summary.compliance_percentage > 0.0);
-        assert!(report.summary.compliance_percentage <= 100.0);
-    }
-
-    #[test]
-    fn test_report_to_markdown_fedramp() {
-        let report = generate_fedramp_report();
-        let md = report_to_markdown(&report);
-        assert!(md.contains("FedRAMP Compliance Report"));
-        assert!(md.contains("AC-2"));
-        assert!(md.contains("Account Management"));
-    }
-
-    #[test]
-    fn test_control_status_serde_all_variants() {
-        for status in [
-            ControlStatus::Implemented,
-            ControlStatus::PartiallyImplemented,
-            ControlStatus::NotImplemented,
-            ControlStatus::NotApplicable,
-        ] {
-            let json = serde_json::to_string(&status).unwrap();
-            let parsed: ControlStatus = serde_json::from_str(&json).unwrap();
-            assert_eq!(parsed, status);
-        }
-    }
-
-    #[test]
-    fn test_framework_serde_all_variants() {
-        for fw in [
-            ComplianceFramework::SOC2,
-            ComplianceFramework::FedRAMP,
-            ComplianceFramework::HIPAA,
-            ComplianceFramework::GDPR,
-            ComplianceFramework::ISO27001,
-        ] {
-            let json = serde_json::to_string(&fw).unwrap();
-            let parsed: ComplianceFramework = serde_json::from_str(&json).unwrap();
-            assert_eq!(parsed, fw);
-        }
-    }
-
-    #[test]
-    fn test_report_serde_roundtrip() {
-        let report = generate_soc2_report();
-        let json = serde_json::to_string(&report).unwrap();
-        let parsed: ComplianceReport = serde_json::from_str(&json).unwrap();
-        assert_eq!(parsed.framework, ComplianceFramework::SOC2);
-        assert_eq!(parsed.controls.len(), report.controls.len());
-        assert!(
-            (parsed.summary.compliance_percentage - report.summary.compliance_percentage).abs()
-                < 0.001
-        );
-    }
-
-    #[test]
-    fn test_markdown_contains_table_headers() {
-        let report = generate_soc2_report();
-        let md = report_to_markdown(&report);
-        assert!(md.contains("| ID | Control | Status | Evidence |"));
-        assert!(md.contains("|---|---|---|---|"));
-    }
-
-    #[test]
-    fn test_control_with_empty_evidence() {
-        let control = ComplianceControl {
-            id: "T-1".to_string(),
-            name: "Test".to_string(),
-            description: "Desc".to_string(),
-            status: ControlStatus::NotApplicable,
-            evidence: vec![],
-            notes: String::new(),
-        };
-        let json = serde_json::to_string(&control).unwrap();
-        let parsed: ComplianceControl = serde_json::from_str(&json).unwrap();
-        assert!(parsed.evidence.is_empty());
-        assert_eq!(parsed.status, ControlStatus::NotApplicable);
+        let _ = fs::remove_dir_all(&root);
     }
 }

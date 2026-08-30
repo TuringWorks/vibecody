@@ -405,7 +405,7 @@ one.
 
 | Command | Description |
 |---------|-------------|
-| `/compliance soc2\|fedramp` | Generate compliance reports (SOC2/FedRAMP) |
+| `/compliance soc2\|fedramp\|hipaa\|gdpr\|iso27001` | Scan the working directory and score it against a framework |
 | `/vulnscan <sub>` | Vulnerability scanner: `scan`, `deps`, `file`, `lockfile`, `sarif`, `report`, `summary`, `db-update`, `db-status`, `cache-clear` |
 | `/verify full\|quick\|security\|performance\|testing` | Structured verification checklist |
 | `/trust scores\|history\|config\|explain` | Agent trust scoring |

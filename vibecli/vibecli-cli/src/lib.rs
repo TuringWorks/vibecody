@@ -391,6 +391,7 @@ pub mod code_replay;
 pub mod code_review_agent;
 pub mod compliance;
 pub mod compliance_controls;
+pub mod compliance_scan;
 pub mod compressed_hnsw;
 pub mod container_tool_executor;
 pub mod context_bundles;

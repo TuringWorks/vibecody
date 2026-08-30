@@ -292,6 +292,55 @@ Each trace entry includes:
 
 Traces can be reviewed in the VibeCoder Traces panel or exported for external analysis. The compliance controls module supports configurable retention policies and automatic PII redaction.
 
+## Compliance Reports
+
+The Compliance panel in VibeCoder and `vibecli --compliance report` score **the
+project you have open** against a control framework by scanning it. The scan is
+evidence-based: it walks the workspace, records the file and line that
+demonstrates each control, and reports everything else as a gap.
+
+```bash
+vibecli --compliance report --framework soc2                 # scan the working directory
+vibecli --compliance report --framework gdpr --path ~/code/app
+vibecli --compliance report --framework iso27001 --format json --output report.json
+```
+
+Frameworks: `soc2`, `fedramp` (NIST 800-53 subset), `hipaa`, `gdpr`, `iso27001`.
+
+### How a control is scored
+
+Each control names the signals that would evidence it — a CI pipeline, a
+lockfile, TLS configuration, an audit log, a documented runbook. The scanner
+looks for them in file paths and file contents:
+
+| Result | Meaning |
+|---|---|
+| **Implemented** | Every required signal was found, with the files cited as evidence. |
+| **Partial** | Some required signals were found; the notes name what is missing. |
+| **Gap** | No supporting evidence was found, or a finding blocks the control. |
+| **Not assessed** | The control cannot be evidenced by a repository at all. |
+
+Findings — a credential file tracked in git, a credential literal in source —
+cap the controls they touch at **Gap**, whatever else was found.
+
+### What the score does and does not say
+
+The percentage is computed over **scored controls only**. Personnel screening,
+vendor contracts and physical access leave no trace in a repository, so those
+controls are reported as *Not assessed* and excluded from the denominator
+rather than counted as passes. If nothing could be scored the report says
+`n/a`, never `0%`.
+
+Every report carries the scope of its own scan — the directory, the number of
+files seen and read, whether a scan budget was reached, and whether the
+directory was a git checkout (the committed-credential checks are skipped when
+it is not). A truncated scan and a clean project produce the same absent
+evidence, so the report always says which one it was.
+
+A passing report is a starting point for an audit, not an audit result: the
+scanner sees that TLS is configured somewhere in the tree, not that every
+endpoint uses it.
+
 ## Air-Gapped Mode
 
 For environments with no internet access:

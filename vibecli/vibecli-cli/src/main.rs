@@ -289,6 +289,7 @@ mod acp;
 mod acp_stdio;
 mod cloud_agent;
 mod compliance;
+mod compliance_scan;
 mod github_app;
 mod marketplace;
 mod mermaid_ascii;
@@ -871,17 +872,32 @@ fn run_compliance_command(args: &[String]) {
         "report" => {
             let format = get_flag("--format").unwrap_or_else(|| "markdown".to_string());
             let output = get_flag("--output");
-            let report = compliance::generate_report_for("soc2")
-                .unwrap_or_else(|_| compliance::generate_soc2_report());
-            let md = compliance::report_to_markdown(&report);
+            let framework = get_flag("--framework").unwrap_or_else(|| "soc2".to_string());
+            // The report is a scan of a project, so it needs one. Default to
+            // the working directory rather than reporting on nothing.
+            let root = get_flag("--path")
+                .map(std::path::PathBuf::from)
+                .or_else(|| std::env::current_dir().ok())
+                .unwrap_or_else(|| std::path::PathBuf::from("."));
+            let report = match compliance::generate_report_for_path(&framework, &root) {
+                Ok(r) => r,
+                Err(e) => {
+                    eprintln!("Error: {e}");
+                    std::process::exit(1);
+                }
+            };
+            let rendered = match format.as_str() {
+                "json" => serde_json::to_string_pretty(&report)
+                    .unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}")),
+                _ => compliance::report_to_markdown(&report),
+            };
             if let Some(path) = output {
-                match std::fs::write(&path, &md) {
+                match std::fs::write(&path, &rendered) {
                     Ok(_) => println!("Compliance report written to: {}", path),
                     Err(e) => eprintln!("Error writing report: {}", e),
                 }
             } else {
-                println!("Compliance Report (format: {})\n", format);
-                println!("{}", md);
+                println!("{}", rendered);
             }
         }
         "retention" => {
@@ -3144,6 +3160,10 @@ mod mobile_gateway;
 pub mod pencil_connector;
 pub mod penpot_connector;
 mod proactive_agent;
+// The compliance scanner reuses `discover_files` from here rather than
+// walking the tree a second way.
+#[allow(dead_code)]
+mod proactive_scanner;
 #[allow(dead_code)]
 #[allow(dead_code)]
 mod signed_agent_card;
@@ -11747,7 +11767,9 @@ async fn main() -> Result<()> {
 
                         "/compliance" => {
                             let framework = if args.is_empty() { "SOC2" } else { args.trim() };
-                            match compliance::generate_report_for(framework) {
+                            let root = std::env::current_dir()?;
+                            println!("Scanning {} for {framework} evidence...", root.display());
+                            match compliance::generate_report_for_path(framework, &root) {
                                 Ok(report) => {
                                     let md = compliance::report_to_markdown(&report);
                                     println!("{md}");
