@@ -1,6 +1,6 @@
 /**
  * DocumentViewer — renders PDF, EPUB, DOCX and Apple Pages files in the editor
- * area, and hands the three editable ones to the text editor on request.
+ * area, and hands any of them to the text editor on request.
  *
  * PDF:  Renders pages to <canvas> elements using a built-in PDF.js-style
  *       decoder via the browser's native PDF rendering, falling back to
@@ -81,7 +81,7 @@ interface DocumentViewerProps {
 
 // ── PDF Viewer Sub-component ─────────────────────────────────────────
 
-function PdfViewer({ filePath, base64Data }: DocumentViewerProps) {
+function PdfViewer({ filePath, base64Data, onEditText }: DocumentViewerProps & EditableProps) {
   const [scale, setScale] = useState(1.0);
   const [error, setError] = useState<string | null>(null);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
@@ -154,6 +154,14 @@ function PdfViewer({ filePath, base64Data }: DocumentViewerProps) {
             Reset
           </button>
         </div>
+        {onEditText && (
+          <>
+            <div className="toolbar-separator" />
+            <div className="toolbar-group">
+              <EditTextButton onEditText={onEditText} />
+            </div>
+          </>
+        )}
         <div className="file-info">
           <span className="info-badge">PDF</span>
           <span className="info-badge">{fileName}</span>
@@ -829,7 +837,7 @@ export function DocumentViewer({ filePath, base64Data }: DocumentViewerProps) {
   const onEditText = editableFormat ? () => setMode("text") : undefined;
 
   if (ext === "pdf") {
-    return <PdfViewer filePath={filePath} base64Data={base64Data} />;
+    return <PdfViewer filePath={filePath} base64Data={base64Data} onEditText={onEditText} />;
   }
 
   if (ext === "epub") {

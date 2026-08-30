@@ -18,6 +18,8 @@ pub enum DocFormat {
     Epub,
     /// Apple Pages document or bundle (`.pages`).
     Pages,
+    /// Portable Document Format (`.pdf`).
+    Pdf,
 }
 
 impl DocFormat {
@@ -27,18 +29,20 @@ impl DocFormat {
             DocFormat::Docx => "docx",
             DocFormat::Epub => "epub",
             DocFormat::Pages => "pages",
+            DocFormat::Pdf => "pdf",
         }
     }
 
     /// Which text syntax the editable buffer for this format uses.
     ///
-    /// Pages is plain text on purpose: its reader recovers paragraph text but
-    /// not emphasis, so presenting the buffer as Markdown would invite the user
+    /// Pages and PDF are plain text on purpose. Their readers recover the words
+    /// and nothing else — a PDF has no paragraphs at all, only glyphs at
+    /// coordinates — so presenting the buffer as Markdown would invite the user
     /// to type `**bold**` and have it stored literally.
     pub const fn syntax(self) -> Syntax {
         match self {
             DocFormat::Docx | DocFormat::Epub => Syntax::Markdown,
-            DocFormat::Pages => Syntax::PlainText,
+            DocFormat::Pages | DocFormat::Pdf => Syntax::PlainText,
         }
     }
 }

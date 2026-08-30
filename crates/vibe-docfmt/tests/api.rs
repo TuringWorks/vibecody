@@ -84,14 +84,14 @@ fn write_fixture(dir: &Path, name: &str, bytes: &[u8]) -> std::path::PathBuf {
 }
 
 #[test]
-fn detects_the_three_formats_and_nothing_else() {
+fn detects_the_four_formats_and_nothing_else() {
     assert_eq!(detect_format(Path::new("/a/b.docx")), Some(DocFormat::Docx));
     assert_eq!(detect_format(Path::new("/a/b.EPUB")), Some(DocFormat::Epub));
     assert_eq!(
         detect_format(Path::new("/a/b.pages")),
         Some(DocFormat::Pages)
     );
-    assert_eq!(detect_format(Path::new("/a/b.pdf")), None);
+    assert_eq!(detect_format(Path::new("/a/b.pdf")), Some(DocFormat::Pdf));
     assert_eq!(detect_format(Path::new("/a/b.md")), None);
 }
 

@@ -1,10 +1,12 @@
 //! Read and write rich document formats as text.
 //!
-//! Three formats — DOCX, EPUB and Apple Pages — become an editable text buffer:
-//! Markdown where the format has structure to carry it, plain text for Pages,
-//! whose archives yield paragraphs and nothing more. Saving edits the *original*
-//! container, so everything the text model does not describe (images, styles,
-//! page setup, metadata) is carried across untouched.
+//! Four formats — DOCX, EPUB, Apple Pages and PDF — become an editable text
+//! buffer: Markdown where the format has structure to carry it, plain text for
+//! Pages, whose archives yield paragraphs and nothing more, and for PDF, which
+//! has no paragraphs at all — only glyphs at coordinates that a reader
+//! reconstructs into lines. Saving edits the *original* container, so everything
+//! the text model does not describe (images, styles, page setup, metadata) is
+//! carried across untouched.
 //!
 //! Nothing is written until it has been checked. [`write_text`] rewrites into
 //! memory, re-reads the result, compares it against the text the caller asked
@@ -20,6 +22,7 @@ pub mod error;
 pub mod markdown;
 pub mod model;
 pub mod pages;
+pub mod pdf;
 pub mod surgical;
 pub mod xmltree;
 pub mod zipedit;
@@ -68,6 +71,7 @@ pub fn detect_format(path: &Path) -> Option<DocFormat> {
         "docx" => Some(DocFormat::Docx),
         "epub" => Some(DocFormat::Epub),
         "pages" => Some(DocFormat::Pages),
+        "pdf" => Some(DocFormat::Pdf),
         _ => None,
     }
 }
@@ -105,6 +109,7 @@ pub fn read_document(path: &Path, format: DocFormat) -> Result<Document, DocErro
                 pages::read_file(&read_bytes(path)?)
             }
         }
+        DocFormat::Pdf => pdf::read(&read_bytes(path)?),
     }
 }
 
@@ -137,7 +142,7 @@ pub fn render(document: &Document) -> String {
 pub fn parse_text(format: DocFormat, text: &str) -> Document {
     match format.syntax() {
         Syntax::Markdown => markdown::from_markdown(format, text),
-        Syntax::PlainText => markdown::from_plain_text(text),
+        Syntax::PlainText => markdown::from_plain_text(format, text),
     }
 }
 
@@ -175,6 +180,24 @@ pub fn write_text(path: &Path, text: &str) -> Result<WriteReport, DocError> {
                 format,
                 bytes_written,
                 backup: None,
+                warnings: rewrite.warnings,
+                verified: true,
+            })
+        }
+        DocFormat::Pdf => {
+            let original = read_bytes(path)?;
+            let rewrite = pdf::write(&original, &target)?;
+            verify(&rewrite.bytes, format, &rewrite.effective)?;
+            let bytes_written = rewrite.bytes.len() as u64;
+            // A PDF writer rebuilds the file rather than patching a container,
+            // so the original is kept beside it — the same rule Pages follows,
+            // for the same reason.
+            let backup = backup_file(path)?;
+            replace_file(path, &rewrite.bytes)?;
+            Ok(WriteReport {
+                format,
+                bytes_written,
+                backup: Some(backup),
                 warnings: rewrite.warnings,
                 verified: true,
             })
@@ -246,6 +269,7 @@ fn verify(bytes: &[u8], format: DocFormat, effective: &Document) -> Result<(), D
         DocFormat::Docx => docx::read(bytes),
         DocFormat::Epub => epub::read(bytes),
         DocFormat::Pages => pages::read_file(bytes),
+        DocFormat::Pdf => pdf::read(bytes),
     }
     .map_err(|e| {
         DocError::Verification(format!(

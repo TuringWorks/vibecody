@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Read and write rich document formats (DOCX, EPUB, Apple Pages) as text"
+description = "Read and write rich document formats (DOCX, EPUB, PDF, Apple Pages) as text"
 
 [dependencies]
 serde.workspace = true
@@ -13,8 +13,11 @@ similar.workspace = true
 quick-xml = "0.41"
 zip = "8"
 snap = "1"
+lopdf = { version = "0.38", default-features = false }
 
 [dev-dependencies]
 tempfile = "3"
+# The PDF tests build their fixtures with the same library the reader uses.
+lopdf = { version = "0.38", default-features = false }
 # The integration tests build DOCX/EPUB fixtures with the same ZIP helpers.
 zip = "8"

@@ -136,7 +136,7 @@ fn editing_text_preserves_images_and_page_setup() {
 #[test]
 fn round_trips_markdown_through_the_file() {
     let original = package(&para("start"));
-    let source = "# Heading\n\nsome **bold** and *italic* and `code`\n\n- one\n- two\n\n1. first\n";
+    let source = "# Heading\n\nsome **bold** and _italic_ and `code`\n\n- one\n- two\n\n1. first\n";
     let edited = markdown::from_markdown(DocFormat::Docx, source);
     let rewritten = docx::write(&original, &edited).expect("write");
 

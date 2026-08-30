@@ -2779,6 +2779,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e1d926b4d407d372f141f93bb444696142c29d32962ccbd3531117cf3aa0bfa9"
 
 [[package]]
+name = "ecb"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1a8bfa975b1aec2145850fcaa1c6fe269a16578c44705a532ae3edc92b8881c7"
+dependencies = [
+ "cipher 0.4.4",
+]
+
+[[package]]
 name = "ecdsa"
 version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3176,6 +3185,16 @@ dependencies = [
  "libc",
  "thiserror 1.0.69",
  "winapi",
+]
+
+[[package]]
+name = "filetime"
+version = "0.2.29"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c287a33c7f0a620c38e641e7f60827713987b3c0f26e8ddc9462cc69cf75759"
+dependencies = [
+ "cfg-if",
+ "libc",
 ]
 
 [[package]]
@@ -5541,6 +5560,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "lopdf"
+version = "0.38.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c7184fdea2bc3cd272a1acec4030c321a8f9875e877b3f92a53f2f6033fdc289"
+dependencies = [
+ "aes 0.8.4",
+ "bitflags 2.12.1",
+ "cbc",
+ "ecb",
+ "encoding_rs",
+ "flate2",
+ "getrandom 0.3.4",
+ "indexmap 2.14.0",
+ "itoa",
+ "log",
+ "md-5",
+ "nom 8.0.0",
+ "nom_locate",
+ "rand 0.9.4",
+ "rangemap",
+ "sha2 0.10.9",
+ "stringprep",
+ "thiserror 2.0.18",
+ "ttf-parser",
+ "weezl",
+]
+
+[[package]]
 name = "lrtable"
 version = "0.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5579,6 +5626,16 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_repr",
+]
+
+[[package]]
+name = "lzma-rs"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "297e814c836ae64db86b36cf2a557ba54368d03f6afcd7d947c266692f71115e"
+dependencies = [
+ "byteorder",
+ "crc",
 ]
 
 [[package]]
@@ -8058,6 +8115,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "rangemap"
+version = "1.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f93e7e49bb0bf967717f7bd674458b3d6b0c5f48ec7e3038166026a69fc22223"
+
+[[package]]
 name = "ratatui"
 version = "0.30.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10388,6 +10451,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "tar"
+version = "0.4.46"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f6221d9a6003c78398e3b239969f352578258df48c8eb051caadae0015bc840"
+dependencies = [
+ "filetime",
+ "libc",
+ "xattr",
+]
+
+[[package]]
 name = "target-lexicon"
 version = "0.12.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10700,7 +10774,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
@@ -11619,6 +11693,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
+name = "ttf-parser"
+version = "0.25.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2df906b07856748fa3f6e0ad0cbaa047052d4a7dd609e231c4f72cee8c36f31"
+
+[[package]]
 name = "tungstenite"
 version = "0.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12228,9 +12308,12 @@ version = "0.5.11"
 dependencies = [
  "anyhow",
  "async-trait",
+ "bzip2",
  "criterion",
  "cucumber",
+ "flate2",
  "git2",
+ "lzma-rs",
  "notify",
  "portable-pty",
  "rand 0.10.2",
@@ -12241,12 +12324,15 @@ dependencies = [
  "serde",
  "serde_json",
  "similar",
+ "tar",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
  "vibe-embed",
  "walkdir",
+ "zip",
+ "zstd",
 ]
 
 [[package]]
@@ -12273,6 +12359,7 @@ dependencies = [
 name = "vibe-docfmt"
 version = "0.5.11"
 dependencies = [
+ "lopdf",
  "quick-xml",
  "serde",
  "similar",
@@ -14155,6 +14242,16 @@ dependencies = [
  "rusticata-macros",
  "thiserror 2.0.18",
  "time",
+]
+
+[[package]]
+name = "xattr"
+version = "1.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32e45ad4206f6d2479085147f02bc2ef834ac85886624a23575ae137c8aa8156"
+dependencies = [
+ "libc",
+ "rustix",
 ]
 
 [[package]]

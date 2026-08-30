@@ -1,6 +1,7 @@
 /**
  * richDocuments — the boundary between the editor and the `vibe-docfmt`
- * backend, which opens DOCX, EPUB and Apple Pages documents as editable text.
+ * backend, which opens DOCX, EPUB, PDF and Apple Pages documents as editable
+ * text.
  *
  * Every response is *parsed* here, not cast. A Tauri command returns `unknown`,
  * and an interface assertion on a payload that turned out to be shaped
@@ -10,7 +11,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
 /** Formats that open as text and save back into their original container. */
-export const RICH_DOCUMENT_EXTENSIONS = ["docx", "epub", "pages"] as const;
+export const RICH_DOCUMENT_EXTENSIONS = ["docx", "epub", "pages", "pdf"] as const;
 
 export type RichDocumentFormat = (typeof RICH_DOCUMENT_EXTENSIONS)[number];
 
@@ -31,6 +32,8 @@ export function formatLabel(format: RichDocumentFormat): string {
       return "EPUB";
     case "pages":
       return "Pages";
+    case "pdf":
+      return "PDF";
   }
 }
 
@@ -46,7 +49,7 @@ export interface DocumentTextResponse {
   /** Monaco language id: `markdown` or `plaintext`. */
   language: string;
   text: string;
-  /** Chapters (EPUB) or text storages (Pages) the buffer is divided into. */
+  /** Chapters (EPUB), text storages (Pages) or pages (PDF) in the buffer. */
   sections: number;
   warnings: DocumentWarning[];
   writable: boolean;
