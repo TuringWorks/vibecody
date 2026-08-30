@@ -1,18 +1,18 @@
 ---
 layout: page
-title: Documents (DOCX, EPUB, Pages)
+title: Documents (DOCX, EPUB, PDF, Pages)
 permalink: /documents/
 ---
 
-> Open a Word document, an e-book, or an Apple Pages file in VibeCoder, read it, edit its text in Monaco, and save it back into the original file. Nothing is written until the file has been re-read and checked.
+> Open a Word document, an e-book, a PDF, or an Apple Pages file in VibeCoder, read it, edit its text in Monaco, and save it back into the original file. Nothing is written until the file has been re-read and checked.
 
-VibeCoder opens four document formats in the editor area. Three of them are also **editable as text**:
+VibeCoder opens four document formats in the editor area, and all four are **editable as text**:
 
 | Format | View | Edit as | Save back |
 |---|---|---|---|
-| `.pdf` | Rendered page view | — | — |
-| `.epub` | Full rendering — the book's own styles, images and links | Markdown | Yes |
 | `.docx` | Rendered document | Markdown | Yes |
+| `.epub` | Full rendering — the book's own styles, images and links | Markdown | Yes |
+| `.pdf` | Rendered page view | Plain text, one line per line of the page | Yes — change or remove a line, never add one |
 | `.pages` | Embedded page preview + recovered text | Plain text | Yes, text only |
 
 Open the file from the sidebar as usual. Press **Edit text** in the viewer toolbar to switch to Monaco, and **Save** (or ⌘S) to write it back. **View** returns to the rendered document.
@@ -28,6 +28,7 @@ That is what keeps a save from quietly deleting things the text model knows noth
 - **DOCX** — images, footnotes, comments, headers and footers, page size and margins, styles, tracked-change marks.
 - **EPUB** — stylesheets, cover images, the OPF and navigation document, metadata, fonts.
 - **Pages** — everything. Only the text field inside the archives is touched.
+- **PDF** — everything. The original bytes are kept and the changed page is *appended* as an incremental update, which is what PDF was designed for; a file that came in packed comes out the same size.
 
 An element with no text — a spacer paragraph, an image-only paragraph — is deliberately **not** shown in the buffer, so an edit cannot delete it by omission.
 
@@ -48,7 +49,7 @@ The editor area renders only the active tab, so a document buffer is unmounted w
 
 ## Section markers
 
-An EPUB has one section per chapter; a Pages document has one per text storage (body, header, a text box, …). Multi-section buffers carry a marker line for each:
+An EPUB has one section per chapter; a PDF has one per page; a Pages document has one per text storage (body, header, a text box, …). Multi-section buffers carry a marker line for each:
 
 ```markdown
 <!-- vibedoc:section id="OEBPS/ch3.xhtml" title="Chapter Three" -->
@@ -58,7 +59,11 @@ An EPUB has one section per chapter; a Pages document has one per text storage (
 <<< vibedoc:storage Index/Document.iwa:1001:0 >>>
 ```
 
-**Keep them.** They are how each edited region is routed back to the right chapter or storage. Deleting one, or adding a section that was not there, is refused with an explanation rather than guessed at.
+```text
+<<< vibedoc:storage page-4 >>>
+```
+
+**Keep them.** They are how each edited region is routed back to the right chapter, page or storage. Deleting one, or adding a section that was not there, is refused with an explanation rather than guessed at.
 
 ---
 
@@ -110,6 +115,60 @@ Not supported:
 - **Chapter titles** — they come from the EPUB and are not written back from a marker.
 - **Inline images** stay in their paragraph but move to its end, because the text buffer does not record where in the sentence they sat. Reported as a warning.
 
+### PDF
+
+A PDF has no paragraphs. It has glyphs at coordinates, and the text you read on
+a page is something a reader *reconstructs* — which is why a PDF opens as plain
+text, one line per line of the page, rather than as Markdown. There is no
+emphasis to recover and no structure to trust.
+
+**What a save does.**
+
+- **Rewrites the words on a line.** The new text is encoded through the font
+  that drew the line and put back into its first run.
+- **Deletes a line** when you clear its text.
+- **Refuses to add one.** A new line has no position, no font and no place in
+  the page's content stream. This is an error naming the line, not a guess.
+- **Never re-flows.** Glyph positions are absolute, so a longer line runs past
+  where the original ended. You are told in a warning rather than finding out
+  in a reader.
+- **Refuses text the font cannot draw.** A subset font carries only the glyphs
+  the document already used, so a character outside that set would be written
+  as a code the reader renders as something else. The save stops and names the
+  character.
+
+**What it can and cannot read.** A font says what its codes mean in one of three
+ways, and each is used in turn: a `/ToUnicode` map (which maps both ways, and is
+the only one that makes a font safely writable), a named base encoding, or a
+`/Differences` array naming each glyph. Where none of them answers — a symbolic
+font with a built-in encoding, a composite font with no `/ToUnicode` — the run
+is **left out of the buffer** and a warning names the font. No character is
+guessed at, and a line drawn with such a font cannot be edited.
+
+Words set apart by moving the pen rather than by drawing a space — how TeX and
+its descendants typeset, and why their fonts often carry no space glyph — are
+read as spaces and written back as gaps.
+
+Not supported, and refused rather than approximated:
+
+- **Adding or removing a page.** Every page marker must stay exactly as it is.
+- **Adding a line**, for the reason above.
+- **Editing a page that draws an inline image** — pixels written into the
+  content stream between `BI` and `EI` do not survive it being rebuilt, so the
+  page is left alone and says so. Its text still reads.
+- **Encrypted PDFs.** Opening one asks you to save an unprotected copy first,
+  by name, rather than failing obscurely.
+
+**A backup is written.** A PDF is the second format whose save can rebuild the
+file rather than patch a container, so the original is copied to `<name>.pdf.bak`
+before it is replaced. The path is shown in the save confirmation.
+
+Two things are worth knowing about the text you see. Line breaks are the page's,
+not the paragraph's: a sentence that wraps is several lines here, and each is
+edited on its own. And the spacing between words is reconstructed from the
+positions the page draws at, so it is what a reader would show, not a field
+stored in the file.
+
 ### Pages
 
 Apple publishes no specification for the `.pages` format. Its content lives in `Index/*.iwa` archives: Snappy-compressed protobuf, in a framing that is not the Snappy stream format, with a schema that only exists as community reverse-engineering. Both the ZIP form and the "save as package" bundle directory are supported, as is the older nested `Index.zip` layout.
@@ -136,6 +195,8 @@ The verification step applies here too: the rewritten archives are re-read and t
 | Chapter sanitising, CSS scoping, link and image rewriting | `vibecoder/src/lib/epubRender.ts` |
 | Byte-preserving XML tree | `crates/vibe-docfmt/src/xmltree.rs` |
 | Edit engine shared by DOCX and EPUB | `crates/vibe-docfmt/src/surgical.rs` |
+| PDF content streams, page lines, incremental update | `crates/vibe-docfmt/src/pdf/mod.rs` |
+| PDF font encodings and ToUnicode CMaps | `crates/vibe-docfmt/src/pdf/font.rs` |
 | IWA framing, protobuf walker, text substitution | `crates/vibe-docfmt/src/pages/` |
 | Tauri commands | `vibecoder/src-tauri/src/commands.rs` |
 | Viewers and the text editor | `vibecoder/src/components/DocumentViewer.tsx`, `DocumentTextEditor.tsx` |

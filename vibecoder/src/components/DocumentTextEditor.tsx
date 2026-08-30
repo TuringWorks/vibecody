@@ -1,11 +1,11 @@
 /**
- * DocumentTextEditor — edits a DOCX, EPUB or Pages document as text in Monaco
- * and saves it back into the original file.
+ * DocumentTextEditor — edits a DOCX, EPUB, PDF or Pages document as text in
+ * Monaco and saves it back into the original file.
  *
- * The buffer is Markdown for DOCX and EPUB, plain text for Pages; the backend
- * decides which and says so, because Pages recovers paragraphs without
- * emphasis and offering Markdown there would mean typing `**bold**` into a
- * document that stores it literally.
+ * The buffer is Markdown for DOCX and EPUB, plain text for Pages and PDF; the
+ * backend decides which and says so, because those two recover the words
+ * without the emphasis, and offering Markdown there would mean typing
+ * `**bold**` into a document that stores it literally.
  *
  * Two things this panel refuses to fake:
  *   • A save is only reported when the backend re-read the file and found the
@@ -39,6 +39,13 @@ interface DocumentTextEditorProps {
   format: RichDocumentFormat;
   /** Return to the rendered view. */
   onClose: () => void;
+}
+
+/** What a format calls the parts its buffer is divided into. */
+function sectionNoun(format: RichDocumentFormat, count: number): string {
+  const noun =
+    format === "pdf" ? "page" : format === "epub" ? "chapter" : "section";
+  return count === 1 ? noun : `${noun}s`;
 }
 
 /** What the panel is doing, as one value rather than four booleans. */
@@ -167,12 +174,23 @@ export function DocumentTextEditor({ filePath, format, onClose }: DocumentTextEd
           <span className="info-badge">{fileName}</span>
           {isDirty && <span className="info-badge doc-badge-dirty">unsaved</span>}
           {sections > 1 && (
-            <span className="info-badge" title="Keep every section marker in the buffer: they route each edit back to its chapter or storage.">
-              {sections} sections
+            <span className="info-badge" title="Keep every section marker in the buffer: they route each edit back to its chapter, page or storage.">
+              {sections} {sectionNoun(format, sections)}
             </span>
           )}
         </div>
       </div>
+
+      {format === "pdf" && (
+        <div className="doc-notice">
+          <Info size={13} />
+          <span>
+            A PDF places every glyph at a fixed position and does not re-flow.
+            You can change a line's words or clear the line; adding a line has
+            nowhere to go, and a longer line runs past where the original ended.
+          </span>
+        </div>
+      )}
 
       {status.state === "failed" && (
         <div className="document-viewer-error doc-inline-error">
