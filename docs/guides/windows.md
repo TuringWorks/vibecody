@@ -21,6 +21,29 @@ Or with always-on mode:
 .\setup.ps1 -AlwaysOn -Tier pro
 ```
 
+## Do I need this if I installed VibeCoder, VibeDesk or VibeAIChat?
+
+No. The desktop installers (`.msi` / `.exe`) carry the daemon with them: each
+shell declares `vibecli` as a Tauri `externalBin` sidecar in its
+`tauri.windows.conf.json`, and the release build stages the freshly built
+`vibecli.exe` into it (`scripts/stage-daemon-sidecar.ps1`). Windows lays that
+sidecar down next to the app executable, which is one of the directories
+`daemon_bootstrap::find_binary_in` probes, so the app autostarts its own daemon
+on first launch with nothing else installed.
+
+Use the PowerShell installer below when you want the daemon or the CLI on its
+own — a headless machine, an always-on service via Scheduled Task, `vibecli`
+in a terminal, or one daemon shared by several clients. A daemon already
+listening on port 7878 is reused rather than duplicated, so the two installs
+coexist: whichever is on `PATH` wins, and the bundled sidecar is the fallback.
+
+Note that `setup.ps1` writes `PATH` to the user's registry environment. A
+program that was already running — including Explorer, and therefore anything
+launched from the Start menu since — keeps the environment block it started
+with, so a freshly installed `vibecli.exe` is not on the `PATH` those programs
+see until you sign out and back in. Autostart also probes
+`%LOCALAPPDATA%\VibeCody` directly for exactly this reason.
+
 ## Step-by-Step
 
 ### 1. Run the Installer

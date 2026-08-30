@@ -297,11 +297,10 @@ impl BinarySearchPaths {
 fn default_system_prefixes() -> Vec<PathBuf> {
     #[cfg(windows)]
     {
-        // Scoop shims live under the user profile, handled via `home` below.
-        std::env::var_os("USERPROFILE")
-            .map(PathBuf::from)
-            .map(|h| vec![h.join("scoop").join("shims")])
-            .unwrap_or_default()
+        windows_prefixes(
+            std::env::var_os("LOCALAPPDATA").map(PathBuf::from),
+            std::env::var_os("USERPROFILE").map(PathBuf::from),
+        )
     }
     #[cfg(not(windows))]
     {
@@ -310,6 +309,29 @@ fn default_system_prefixes() -> Vec<PathBuf> {
             .map(PathBuf::from)
             .collect()
     }
+}
+
+/// Windows install prefixes, as a pure function of the two environment values
+/// they are built from — so the search order is testable from any host rather
+/// than only from a Windows runner nothing in CI runs this on.
+///
+/// `%LOCALAPPDATA%\VibeCody` is where this repo's own installer puts the
+/// daemon (`deploy/windows/setup.ps1`: "Install to `%LOCALAPPDATA%\VibeCody`,
+/// add to your PATH"). It was missing here, and PATH alone does not cover it:
+/// `SetEnvironmentVariable(..., "User")` updates the registry, but an already
+/// running Explorer — and every app it launched — keeps the environment block
+/// it started with. Until the user signed out, a correctly installed daemon was
+/// invisible to autostart and the app reported `BinaryNotFound`.
+///
+/// Kept to directories something in this repo actually creates. A guessed
+/// `%ProgramFiles%\…` would be a claim about an installer that does not exist.
+pub fn windows_prefixes(local_appdata: Option<PathBuf>, user_profile: Option<PathBuf>) -> Vec<PathBuf> {
+    local_appdata
+        .map(|d| d.join("VibeCody"))
+        .into_iter()
+        // Scoop shims live under the user profile.
+        .chain(user_profile.map(|h| h.join("scoop").join("shims")))
+        .collect()
 }
 
 /// Executable name for the host platform.
@@ -398,11 +420,32 @@ pub fn detach_session(cmd: &mut std::process::Command) {
             });
         }
     }
-    #[cfg(not(unix))]
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(WINDOWS_DETACHED_FLAGS);
+    }
+    #[cfg(not(any(unix, windows)))]
     {
         let _ = cmd;
     }
 }
+
+/// `DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP` — the Windows half of what
+/// `setsid` does on Unix, and it became load-bearing the moment the installers
+/// started shipping the daemon beside the app (`tauri.windows.conf.json`'s
+/// `externalBin`): a GUI-subsystem app spawning a console-subsystem child with
+/// no flags allocates that child a **console window**, which stays on screen
+/// for as long as the daemon runs. `DETACHED_PROCESS` (0x8) gives it no console
+/// at all — stdout and stderr already go to `daemon-spawn.log`, so nothing is
+/// lost — and `CREATE_NEW_PROCESS_GROUP` (0x200) keeps a Ctrl+C or Ctrl+Break
+/// aimed at the launching console from reaching a service that outlives it.
+///
+/// Not `CREATE_NO_WINDOW`: Windows ignores it whenever `DETACHED_PROCESS` is
+/// set, so naming both would only suggest a belt-and-braces that does not
+/// exist.
+#[cfg(windows)]
+const WINDOWS_DETACHED_FLAGS: u32 = 0x0000_0008 | 0x0000_0200;
 
 /// A directory the daemon can actually run in.
 ///
@@ -879,6 +922,64 @@ mod tests {
             system_prefixes: Vec::new(),
         });
         assert_eq!(found, None);
+    }
+
+    /// The installer this repo ships writes the daemon to
+    /// `%LOCALAPPDATA%\VibeCody`. Autostart never looked there, so a machine
+    /// that ran `setup.ps1` and had not yet signed out — PATH lives in the
+    /// registry, but Explorer and its children keep the block they launched
+    /// with — reported `BinaryNotFound` with the daemon sitting on disk.
+    #[test]
+    fn windows_prefixes_cover_the_installers_own_directory() {
+        let prefixes = windows_prefixes(
+            Some(PathBuf::from("C:\\Users\\dev\\AppData\\Local")),
+            Some(PathBuf::from("C:\\Users\\dev")),
+        );
+        assert_eq!(
+            prefixes,
+            vec![
+                PathBuf::from("C:\\Users\\dev\\AppData\\Local").join("VibeCody"),
+                PathBuf::from("C:\\Users\\dev").join("scoop").join("shims"),
+            ],
+        );
+    }
+
+    /// Neither variable is guaranteed — a service account can have neither —
+    /// and a missing one must drop its entry, not produce a relative path that
+    /// resolves against the daemon's working directory.
+    #[test]
+    fn windows_prefixes_skip_the_variables_that_are_unset() {
+        assert!(windows_prefixes(None, None).is_empty());
+        assert_eq!(
+            windows_prefixes(None, Some(PathBuf::from("C:\\Users\\dev"))),
+            vec![PathBuf::from("C:\\Users\\dev").join("scoop").join("shims")],
+        );
+    }
+
+    /// The search must reach a system prefix when PATH does not carry it —
+    /// the `%LOCALAPPDATA%\VibeCody` case, exercised through the same pure
+    /// entry point on every host.
+    #[test]
+    fn a_system_prefix_is_found_when_path_is_empty() {
+        let dir = std::env::temp_dir().join(format!("vibe_bootstrap_sp_{}", std::process::id()));
+        let install_dir = dir.join("VibeCody");
+        std::fs::create_dir_all(&install_dir).unwrap();
+        let f = install_dir.join(binary_name());
+        std::fs::write(&f, b"#!/bin/sh\n").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&f, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+
+        let found = find_binary_in(&BinarySearchPaths {
+            home: None,
+            path_entries: Vec::new(),
+            system_prefixes: vec![install_dir],
+            current_exe_dir: None,
+        });
+        assert_eq!(found, Some(f));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
