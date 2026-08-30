@@ -12,7 +12,11 @@ export const TAB_GROUPS: TabGroup[] = [
   },
   {
     label: "Project",
-    tabs: ["project-hub", "planning", "observability", "design", "productivity"],
+    // "goals" sits next to "planning" on purpose: it is the execution-goal
+    // panel, and it was reachable only from Chat's "turn this into a goal"
+    // handoff until it was listed here — rendered by LazyPanels, named in
+    // tabMeta and PANEL_CATALOG, but absent from every nav group.
+    tabs: ["project-hub", "planning", "goals", "observability", "design", "productivity"],
   },
   {
     label: "Code Quality",

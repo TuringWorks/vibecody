@@ -163,6 +163,9 @@ broken differently. Do not add a fourth.
 | **Resolve the binary beyond `PATH`.** | A Finder-launched `.app` gets a minimal `PATH`, so `~/.cargo/bin` and Homebrew prefixes must be probed directly or autostart fails for every GUI launch. |
 | **Reuse, never duplicate.** | The daemon is shared infra for the mobile / watch / IDE clients. |
 | **Check "is this our child?" before "is the port taken?"** | The launch hook spawns the daemon, and the frontend's first poll lands while it is still binding. The wrong order reports our own starting daemon as a foreign process. |
+| **Detach the session, not just stdio.** `spawn_detached` calls `setsid`. | Measured: a daemon spawned by VibeCoder ran with `PGID` = the *app's* pid, in the app's session. Anything aimed at that group — teardown, `killpg`, a hangup — took the daemon down too, and it exited **cleanly**: no crash report, no panic log, no output. The user saw "daemon offline" and, 30 s later, "back online". |
+| **A restart must not erase the evidence.** `roll_spawn_log()` moves `daemon-spawn.log` to `daemon-spawn.prev.log` before the new daemon truncates it; lifecycle lines (`listening`, `exiting: SIGTERM`, `SIGHUP ignored`, contained panics) append to `~/.vibecli/daemon.log`. | Two silent disappearances were investigated with nothing to read: the auto-restart 30 s later had already truncated the only file that could have said why. |
+| **One missed `/health` probe is not an outage.** `useDaemonMonitor` needs two consecutive failures before it reports offline or calls `start_daemon`. | A daemon merely busy (a code-graph build pegging a core) misses a 4 s deadline while perfectly alive. Declaring it dead cried wolf *and* fired a redundant autostart. |
 
 | Also touch | Why |
 |------------|-----|
@@ -173,6 +176,14 @@ broken differently. Do not add a fourth.
 | `vibemobile/lib/services/api_client.dart` (`isVibeCliHealthBody`) + `handoff_service.dart` | Mobile races transports and adopts the first URL that answers — a captive portal must not win |
 | `vscode-extension/src/api-client.ts` · `packages/agent-sdk/src/index.ts` | Same identity check |
 | `docs/api-reference.md` (`GET /health`) | The documented contract |
+
+**A failure inside the daemon must not end the daemon.** The release profile
+unwinds (`panic = "unwind"` — `abort` makes recovery impossible by
+construction), `serve.rs` wraps the router in `CatchPanicLayer`, so a panicking
+route is a 500 on that request, and background loops go through
+`supervise::spawn_supervised`, which restarts them with capped backoff and logs
+the death. None of this licenses a panic: the no-`unwrap`-on-daemon-paths rule
+stands. It exists so the fourteenth client does not pay for the first one's bug.
 
 **Every** client accepts a pre-`service` daemon via its exact legacy body shape
 (`status: "ok"` **and** a `version`); a body naming a *different* service is

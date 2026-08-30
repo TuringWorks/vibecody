@@ -125,6 +125,17 @@ Every desktop client autostarts the VibeCLI daemon on launch. **All of that logi
 - **Check identity, not liveness.** `GET /health` returns `service: "vibecli"`; require it. A TCP connect (or a bare `res.ok`) treats any process on port 7878 as the daemon, and every panel then fails blaming the daemon instead of the port conflict. **Accept a pre-`service` daemon via its legacy shape** (`status: "ok"` + `version`) in *every* client, local paths included — the app reuses already-running daemons, so strictness told upgrading users their own daemon was "another program".
 - **Poll to a deadline, never sleep a guess.** A cold daemon measured **~16 s** to answer `/health`. The old autostart slept 2 s and checked once, so a healthy daemon was reported broken on every launch.
 - **Every failure is a distinct state with its own message** — `PortTakenByOther`, `BinaryNotFound`, `SpawnFailed`, `TimedOut`. "Is vibecli on your PATH?" is wrong advice for three of the four.
+- **Detach the session, not just stdio.** Spawns call `setsid`; without it the
+  daemon inherited the GUI app's process group and died with anything aimed at
+  it — cleanly, leaving no crash report, no panic log and no output, because
+  the auto-restart had already truncated `daemon-spawn.log`. That log now rolls
+  to `daemon-spawn.prev.log`, and lifecycle events append to `~/.vibecli/daemon.log`.
+- **A failure inside the daemon must not end the daemon.** Release unwinds
+  (`panic = "abort"` makes recovery impossible), the router carries
+  `CatchPanicLayer`, background loops go through `supervise::spawn_supervised`.
+  SIGHUP is handled and ignored. None of it licenses a panic on a daemon path.
+- **One missed `/health` probe is not an outage** — two consecutive failures
+  before the UI says offline or calls `start_daemon`.
 - Port: `VIBECLI_DAEMON_PORT` (legacy `VIBEDESK_DAEMON_PORT`), default 7878.
 
 Full rules + the surfaces to touch: [AGENTS.md → Touching daemon startup, health, or discovery](./AGENTS.md#touching-daemon-startup-health-or-discovery).

@@ -117,7 +117,7 @@ uuid = { version = "1", features = ["v4"] }
 # HTTP server (daemon mode)
 axum = "0.8"
 tower = { version = "0.4", features = ["util"] }
-tower-http = { version = "0.7", features = ["cors", "set-header"] }
+tower-http = { version = "0.7", features = ["cors", "set-header", "catch-panic"] }
 
 # SQLite (session store)
 rusqlite = { version = "0.40", features = ["bundled"] }
@@ -153,7 +153,14 @@ opt-level = 0
 debug = true
 
 [profile.release]
-panic = "abort"
+# Unwind, not abort. `panic = "abort"` makes every panic anywhere in the daemon
+# — one `unwrap` on one route, in one background task — kill the process that
+# fourteen clients depend on, and it makes recovery impossible by construction:
+# `catch_unwind` and `CatchPanicLayer` have nothing to catch. Unwinding lets a
+# panicking request become a 500 and a panicking task die alone. It costs a
+# little binary size and landing-pad codegen; a daemon that disappears costs the
+# user their session.
+panic = "unwind"
 codegen-units = 1
 lto = true
 opt-level = "s"

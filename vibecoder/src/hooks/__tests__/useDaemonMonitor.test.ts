@@ -62,6 +62,26 @@ function mockFetchForeignService() {
   );
 }
 
+/**
+ * Advance to the point where a *sustained* outage has been recognised.
+ *
+ * `OFFLINE_AFTER_FAILURES` is 2. One missed probe is indistinguishable from a
+ * daemon that is merely busy — a code-graph build pegging a core, a cold model
+ * load — so the hook holds the first failure back and only reports offline when
+ * the next probe fails too. That removed a class of false "offline"/"back
+ * online" toast pairs, and a redundant `start_daemon` fired at a daemon that
+ * was already running.
+ *
+ * Tests of the offline path therefore need two ticks: the initial delay, then
+ * one poll interval. Tests of the *online* path still need only one.
+ */
+async function tickUntilOffline() {
+  await act(async () => { vi.advanceTimersByTime(3100); });
+  await act(async () => {});
+  await act(async () => { vi.advanceTimersByTime(30_100); });
+  await act(async () => {});
+}
+
 // ── Setup / teardown ──────────────────────────────────────────────────────────
 
 beforeEach(() => {
@@ -134,8 +154,7 @@ describe('Given the daemon is NOT running when VibeCoder starts', () => {
     const toast = makeToast();
     renderHook(() => useDaemonMonitor({ toast, addNotification: makeNotify() }));
 
-    await act(async () => { vi.advanceTimersByTime(3100); });
-    await act(async () => {});
+    await tickUntilOffline();
 
     expect(mockInvoke).toHaveBeenCalledWith('start_daemon');
   });
@@ -158,13 +177,12 @@ describe('Given the daemon is NOT running when VibeCoder starts', () => {
     const toast = makeToast();
     renderHook(() => useDaemonMonitor({ toast, addNotification: makeNotify() }));
 
-    // First tick — triggers start, returns "starting" → startingRef remains true
-    await act(async () => { vi.advanceTimersByTime(3100); });
-    await act(async () => {});
+    // Two ticks to be *believed* offline; the start fires on the second.
+    await tickUntilOffline();
     const callsAfterFirst = mockInvoke.mock.calls.length;
     expect(callsAfterFirst).toBe(1);
 
-    // Second tick — startingRef is still true, must NOT call start_daemon again
+    // Third tick — startingRef is still true, must NOT call start_daemon again
     await act(async () => { vi.advanceTimersByTime(30_100); });
     await act(async () => {});
 
@@ -187,8 +205,7 @@ describe('Given vibecli is not installed (start_daemon throws)', () => {
     const notify = makeNotify();
     renderHook(() => useDaemonMonitor({ toast, addNotification: notify }));
 
-    await act(async () => { vi.advanceTimersByTime(3100); });
-    await act(async () => {});
+    await tickUntilOffline();
 
     expect(notify).toHaveBeenCalledOnce();
     const call = notify.mock.calls[0][0];
@@ -200,8 +217,7 @@ describe('Given vibecli is not installed (start_daemon throws)', () => {
     const toast = makeToast();
     renderHook(() => useDaemonMonitor({ toast, addNotification: makeNotify() }));
 
-    await act(async () => { vi.advanceTimersByTime(3100); });
-    await act(async () => {});
+    await tickUntilOffline();
 
     expect(toast.warn).toHaveBeenCalledOnce();
     expect(toast.warn.mock.calls[0][0]).toMatch(/vibecli|install/i);
@@ -230,6 +246,35 @@ describe('Given vibecli is not installed (start_daemon throws)', () => {
 // BDD Scenario 4: Daemon was online, then goes offline
 // ─────────────────────────────────────────────────────────────────────────────
 
+describe('Given a single probe fails while the daemon is merely busy', () => {
+  it('When only one probe misses, Then nothing is reported and no restart is attempted', async () => {
+    mockFetchOnline();
+    const toast = makeToast();
+    renderHook(() => useDaemonMonitor({ toast, addNotification: makeNotify() }));
+
+    await act(async () => { vi.advanceTimersByTime(3100); });
+    await act(async () => {});
+
+    // One miss — a code-graph build pegging a core, not a dead daemon.
+    mockFetchOffline();
+    await act(async () => { vi.advanceTimersByTime(30_100); });
+    await act(async () => {});
+
+    expect(mockInvoke).not.toHaveBeenCalled();
+    expect(toast.warn).not.toHaveBeenCalled();
+
+    // It answers again on the next tick, and the user was never told anything.
+    mockFetchOnline();
+    await act(async () => { vi.advanceTimersByTime(30_100); });
+    await act(async () => {});
+
+    const backOnline = toast.success.mock.calls
+      .map(c => c[0] as string)
+      .filter(m => m.toLowerCase().includes('back'));
+    expect(backOnline).toHaveLength(0);
+  });
+});
+
 describe('Given daemon was running but went offline during a session', () => {
   it('When daemon goes offline after being online, Then start_daemon is invoked', async () => {
     mockFetchOnline();
@@ -245,7 +290,9 @@ describe('Given daemon was running but went offline during a session', () => {
     mockFetchOffline();
     mockInvoke.mockResolvedValue('started');
 
-    // Next poll
+    // Two failing polls: the first is held back as possible busyness.
+    await act(async () => { vi.advanceTimersByTime(30_100); });
+    await act(async () => {});
     await act(async () => { vi.advanceTimersByTime(30_100); });
     await act(async () => {});
 
@@ -261,9 +308,11 @@ describe('Given daemon was running but went offline during a session', () => {
     await act(async () => { vi.advanceTimersByTime(3100); });
     await act(async () => {});
 
-    // Goes offline
+    // Goes offline — two failing polls before it is believed.
     mockFetchOffline();
     mockInvoke.mockResolvedValue('started');
+    await act(async () => { vi.advanceTimersByTime(30_100); });
+    await act(async () => {});
     await act(async () => { vi.advanceTimersByTime(30_100); });
     await act(async () => {});
 
@@ -359,11 +408,12 @@ describe('vibecoder:daemon-status custom event', () => {
     renderHook(() =>
       useDaemonMonitor({ toast: makeToast(), addNotification: makeNotify() }));
 
-    await act(async () => { vi.advanceTimersByTime(3100); });
-    await act(async () => {});
+    await tickUntilOffline();
 
+    // The held-back first failure emits no status at all — reporting "offline"
+    // on one missed probe is exactly what the two-strike rule removed.
     expect(events.length).toBeGreaterThanOrEqual(1);
-    expect(events[0].detail.online).toBe(false);
+    expect(events[events.length - 1].detail.online).toBe(false);
   });
 });
 
@@ -409,11 +459,10 @@ describe('Given a different service is listening on the daemon port', () => {
     renderHook(() =>
       useDaemonMonitor({ toast: makeToast(), addNotification: makeNotify() }));
 
-    await act(async () => { vi.advanceTimersByTime(3100); });
-    await act(async () => {});
+    await tickUntilOffline();
 
     expect(events.length).toBeGreaterThanOrEqual(1);
-    expect(events[0].detail.online).toBe(false);
+    expect(events[events.length - 1].detail.online).toBe(false);
   });
 
   it('When the health check fires, Then no "daemon is running" success toast is shown', async () => {
@@ -453,10 +502,9 @@ describe('Given the port answers 200 with a non-JSON body', () => {
     renderHook(() =>
       useDaemonMonitor({ toast: makeToast(), addNotification: makeNotify() }));
 
-    await act(async () => { vi.advanceTimersByTime(3100); });
-    await act(async () => {});
+    await tickUntilOffline();
 
     expect(events.length).toBeGreaterThanOrEqual(1);
-    expect(events[0].detail.online).toBe(false);
+    expect(events[events.length - 1].detail.online).toBe(false);
   });
 });

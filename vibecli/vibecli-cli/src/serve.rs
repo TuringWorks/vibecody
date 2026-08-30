@@ -68,6 +68,7 @@ use std::{
     },
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
+use tower_http::catch_panic::CatchPanicLayer;
 use tower_http::cors::CorsLayer;
 use tower_http::set_header::SetResponseHeaderLayer;
 
@@ -9197,12 +9198,18 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         Ok(store) => {
             let engine = Arc::new(fluxo_engine::Engine::new(store));
             // Background reaper enforces per-task timeouts on otherwise-idle workflows.
-            if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            // Supervised: an unsupervised reaper that panics once stops
+            // enforcing every workflow timeout for the life of the daemon, and
+            // says nothing while it does.
+            if tokio::runtime::Handle::try_current().is_ok() {
                 let reaper = engine.clone();
-                handle.spawn(async move {
-                    loop {
-                        tokio::time::sleep(Duration::from_secs(15)).await;
-                        let _ = reaper.reap().await;
+                crate::supervise::spawn_supervised("fluxo-reaper", move || {
+                    let reaper = reaper.clone();
+                    async move {
+                        loop {
+                            tokio::time::sleep(Duration::from_secs(15)).await;
+                            let _ = reaper.reap().await;
+                        }
                     }
                 });
             }
@@ -9266,7 +9273,37 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         HeaderValue::from_static("max-age=31536000; includeSubDomains"),
     ))
     .layer(cors)
+    // Outermost, so it also covers the layers below it: one panicking handler
+    // is a 500 on that request, not the end of the daemon. A panic here used
+    // to take the whole process down (the release profile aborts), and every
+    // other client lost its connection because one route hit an `unwrap`.
+    //
+    // This is containment, not absolution: the panic is still logged, and the
+    // rule in AGENTS.md — no `unwrap`/`expect`/`panic!` on daemon paths —
+    // stands. It exists so the fourteenth client does not pay for the first
+    // one's bug.
+    .layer(CatchPanicLayer::custom(panic_to_500))
     .with_state(state)
+}
+
+/// Turn a caught handler panic into a 500 and a log line.
+///
+/// The payload is the only evidence left once the stack is gone, so it is
+/// recorded — to the daemon log and to `~/.vibecli/daemon.log`, which survives
+/// the restart — while the response says nothing about internals.
+fn panic_to_500(err: Box<dyn std::any::Any + Send + 'static>) -> axum::response::Response {
+    let msg = err
+        .downcast_ref::<String>()
+        .map(String::as_str)
+        .or_else(|| err.downcast_ref::<&'static str>().copied())
+        .unwrap_or("non-string panic payload");
+    tracing::error!("panic in request handler, contained: {msg}");
+    note_lifecycle(&format!("handler panic contained: {msg}"));
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        Json(serde_json::json!({"error": "Internal server error"})),
+    )
+        .into_response()
 }
 
 /// Start the VibeCLI HTTP daemon. Blocks until shutdown.
@@ -9966,6 +10003,7 @@ pub async fn serve(
     // can still abort startup has succeeded, so the log never claims to be
     // listening when it is about to exit.
     eprintln!("[vibecli serve] Listening on http://{addr}");
+    note_lifecycle(&format!("listening on http://{addr}"));
     eprintln!("[vibecli serve] API token: {masked} (full token in ~/.vibecli/daemon.token)");
     eprintln!("[vibecli serve] Jobs persisted at ~/.vibecli/jobs/");
     eprintln!("[vibecli serve] Session viewer at http://{addr}/sessions");
@@ -11396,21 +11434,80 @@ async fn handle_collab_ws(
 }
 
 /// Wait for SIGINT (Ctrl+C) or SIGTERM for graceful shutdown.
+/// Record one daemon lifecycle event where it survives the next restart.
+///
+/// The daemon's stdout goes to `~/.vibecli/daemon-spawn.log`, which the *next*
+/// spawn truncates — so when a daemon disappeared and the app restarted it 30 s
+/// later, nothing anywhere said why. Two disappearances were investigated here
+/// with no crash report, no panic log and no output: the exit was clean, and
+/// clean exits left no trace at all. This file is that trace.
+///
+/// Append-only, bounded, and never fatal: a daemon must not fail to run because
+/// it could not write a log line.
+pub(crate) fn note_lifecycle(event: &str) {
+    use std::io::Write;
+    let Some(path) = dirs::home_dir().map(|h| h.join(".vibecli").join("daemon.log")) else {
+        return;
+    };
+    if let Some(dir) = path.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    // Bounded, because an append-forever log in `~` is its own bug.
+    if std::fs::metadata(&path).is_ok_and(|m| m.len() > 256 * 1024) {
+        let _ = std::fs::remove_file(&path);
+    }
+    if let Ok(mut f) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+    {
+        let _ = writeln!(
+            f,
+            "{} pid={} {event}",
+            chrono::Utc::now().to_rfc3339(),
+            std::process::id()
+        );
+    }
+}
+
 async fn shutdown_signal() {
     let ctrl_c = tokio::signal::ctrl_c();
 
     #[cfg(unix)]
     {
-        if let Ok(mut sigterm) =
-            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-        {
+        use tokio::signal::unix::{signal, SignalKind};
+
+        // SIGHUP must not be a death sentence. The daemon is spawned by a GUI
+        // app and, before `spawn_detached` called `setsid`, shared that app's
+        // session and process group — where the default SIGHUP disposition
+        // kills the process silently. Take it over and treat it as "reopen the
+        // log", which is what a hangup means to a service: the daemon says so
+        // and keeps serving. Detaching makes this rare; handling it makes it
+        // survivable when it is not.
+        if let Ok(mut hup) = signal(SignalKind::hangup()) {
+            tokio::spawn(async move {
+                while hup.recv().await.is_some() {
+                    note_lifecycle("SIGHUP ignored — still serving");
+                    eprintln!("[vibecli serve] Received SIGHUP; ignoring it and continuing.");
+                }
+            });
+        }
+
+        if let Ok(mut sigterm) = signal(SignalKind::terminate()) {
             tokio::select! {
-                _ = ctrl_c => { eprintln!("\n[vibecli serve] Received SIGINT, shutting down..."); }
-                _ = sigterm.recv() => { eprintln!("[vibecli serve] Received SIGTERM, shutting down..."); }
+                _ = ctrl_c => {
+                    note_lifecycle("exiting: SIGINT");
+                    eprintln!("\n[vibecli serve] Received SIGINT, shutting down...");
+                }
+                _ = sigterm.recv() => {
+                    note_lifecycle("exiting: SIGTERM");
+                    eprintln!("[vibecli serve] Received SIGTERM, shutting down...");
+                }
             }
         } else {
             // Fallback to Ctrl+C only if SIGTERM handler fails
             let _ = ctrl_c.await;
+            note_lifecycle("exiting: SIGINT");
             eprintln!("\n[vibecli serve] Received SIGINT, shutting down...");
         }
     }
@@ -11418,6 +11515,7 @@ async fn shutdown_signal() {
     #[cfg(not(unix))]
     {
         let _ = ctrl_c.await;
+        note_lifecycle("exiting: Ctrl+C");
         eprintln!("\n[vibecli serve] Received Ctrl+C, shutting down...");
     }
 }
@@ -13427,6 +13525,83 @@ fn build_mobile_context_response(
 
 #[cfg(test)]
 mod tests {
+    /// A panicking route must cost that request, not the daemon.
+    ///
+    /// Containment is only half of it: it also must not answer with the panic
+    /// message, which is an internal string that has no business on the wire.
+    #[tokio::test]
+    async fn a_panicking_handler_is_a_500_and_the_server_lives() {
+        use axum::body::Body;
+        use axum::http::Request;
+        use tower::ServiceExt;
+        use tower_http::catch_panic::CatchPanicLayer;
+
+        let app = axum::Router::new()
+            .route(
+                "/boom",
+                axum::routing::get(|| async {
+                    panic!("secret internal detail");
+                    #[allow(unreachable_code)]
+                    ""
+                }),
+            )
+            .route("/fine", axum::routing::get(|| async { "ok" }))
+            .layer(CatchPanicLayer::custom(super::panic_to_500));
+
+        let res = app
+            .clone()
+            .oneshot(Request::builder().uri("/boom").body(Body::empty()).unwrap())
+            .await
+            .expect("the panic must not propagate out of the service");
+        assert_eq!(res.status(), 500);
+        let body = axum::body::to_bytes(res.into_body(), 64 * 1024).await.unwrap();
+        let body = String::from_utf8_lossy(&body);
+        assert!(
+            !body.contains("secret internal detail"),
+            "the panic payload is for the log, not the response: {body}"
+        );
+
+        // The service is still usable afterwards — that is the whole point.
+        let res = app
+            .oneshot(Request::builder().uri("/fine").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(res.status(), 200);
+    }
+
+    /// The release profile must unwind.
+    ///
+    /// With `panic = "abort"` the test above proves nothing about a shipped
+    /// binary: there is no unwinding to catch, so one `unwrap` on one route
+    /// still kills the daemon for all fourteen clients. This guards the
+    /// well-meaning revert.
+    #[test]
+    fn the_release_profile_can_still_catch_a_panic() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .join("Cargo.toml");
+        let manifest = std::fs::read_to_string(&root)
+            .unwrap_or_else(|e| panic!("workspace manifest at {}: {e}", root.display()));
+        let release = manifest
+            .split("[profile.release]")
+            .nth(1)
+            .expect("the workspace manifest must define [profile.release]");
+        let release = release.split("\n[").next().unwrap_or(release);
+        // Comments in that section discuss `panic = "abort"` by name; only the
+        // settings themselves are the subject here.
+        let settings: String = release
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.starts_with('#'))
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(
+            !settings.contains("panic = \"abort\""),
+            "`panic = \"abort\"` makes every panic fatal to the daemon and makes \
+             CatchPanicLayer inert; the release profile must unwind"
+        );
+    }
+
     /// An older client sends no `mode` at all, and a typo must not silently
     /// turn a coding task into a chat that cannot touch files.
     /// Grants must never apply outside sandbox mode. A stale `sandbox` field

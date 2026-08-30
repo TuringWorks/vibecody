@@ -381,6 +381,29 @@ fn spawn_arg_forms(port: u16) -> [Vec<String>; 2] {
     ]
 }
 
+/// Put the child in its own session, so nothing aimed at the caller's process
+/// group can reach it. Separated out so the behaviour can be tested against a
+/// command that reports its own session, rather than against a real daemon.
+pub fn detach_session(cmd: &mut std::process::Command) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        // SAFETY: `setsid` is async-signal-safe and is the only call made
+        // between fork and exec. Its failure (the child is already a group
+        // leader — after fork it is not) must not fail the spawn.
+        unsafe {
+            cmd.pre_exec(|| {
+                libc::setsid();
+                Ok(())
+            });
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = cmd;
+    }
+}
+
 /// A directory the daemon can actually run in.
 ///
 /// The daemon derives its workspace root — and therefore `<workspace>/.vibecli/`
@@ -421,12 +444,40 @@ pub fn spawn_working_dir_in(candidates: &[PathBuf]) -> Option<PathBuf> {
 /// Where a spawned daemon's stdout/stderr go, so a startup failure is
 /// diagnosable without asking the user to re-run it in a terminal.
 ///
-/// Truncated per spawn: the interesting content is always the most recent
-/// attempt, and an append-forever log in `~` is its own bug.
+/// Truncated per spawn, so it never becomes an append-forever log in `~` —
+/// but see [`roll_spawn_log`]: the *previous* daemon's last words are the
+/// evidence for why it died, and a restart must not be what destroys them.
 pub fn spawn_log_path() -> Option<PathBuf> {
     let dir = home_dir()?.join(".vibecli");
     std::fs::create_dir_all(&dir).ok()?;
     Some(dir.join("daemon-spawn.log"))
+}
+
+/// The previous daemon's captured output, kept across one restart.
+pub fn prev_spawn_log_path() -> Option<PathBuf> {
+    Some(spawn_log_path()?.with_file_name("daemon-spawn.prev.log"))
+}
+
+/// Move the last daemon's log aside before the new one truncates it.
+///
+/// A daemon that dies and is auto-restarted 30 s later used to erase its own
+/// post-mortem: the client re-spawns, `File::create` truncates, and the only
+/// record of the exit is gone. Rolling costs one rename and answers "why did
+/// it go down" the next morning instead of never.
+pub fn roll_spawn_log() {
+    if let (Some(cur), Some(prev)) = (spawn_log_path(), prev_spawn_log_path()) {
+        roll_log_file(&cur, &prev);
+    }
+}
+
+/// The rename itself, taking its paths, so it is testable without touching the
+/// developer's real `~/.vibecli`.
+pub fn roll_log_file(cur: &std::path::Path, prev: &std::path::Path) {
+    // Only when there is something to keep — an empty file is not evidence, and
+    // rolling it would discard the one that is.
+    if std::fs::metadata(cur).is_ok_and(|m| m.len() > 0) {
+        let _ = std::fs::rename(cur, prev);
+    }
 }
 
 fn home_dir() -> Option<PathBuf> {
@@ -439,6 +490,7 @@ fn home_dir() -> Option<PathBuf> {
 /// log file cannot be opened. Never fail a spawn over logging.
 pub fn spawn_output() -> (std::process::Stdio, std::process::Stdio) {
     use std::process::Stdio;
+    roll_spawn_log();
     match spawn_log_path().and_then(|p| std::fs::File::create(p).ok()) {
         Some(f) => match f.try_clone() {
             Ok(dup) => (Stdio::from(f), Stdio::from(dup)),
@@ -448,8 +500,22 @@ pub fn spawn_output() -> (std::process::Stdio, std::process::Stdio) {
     }
 }
 
-/// Spawn the daemon detached from the caller's stdio so it outlives the window
-/// that started it — it is a persistent local service, not a child of the UI.
+/// Spawn the daemon detached from the caller's stdio **and from its session**,
+/// so it outlives the window that started it — it is a persistent local
+/// service, not a child of the UI.
+///
+/// Redirecting stdio is only half of detaching, and the missing half was
+/// measured here: a daemon started by VibeCoder ran with `PGID` equal to the
+/// *app's* pid, in the app's session. Every signal aimed at that group — the
+/// app tearing down, a `killpg`, a SIGHUP when the session goes — reached the
+/// daemon too, which then exited **cleanly**: no crash report, no panic log,
+/// nothing in `daemon-spawn.log` (the next spawn truncated it). The user saw
+/// only "daemon offline" and, 30 s later, "back online".
+///
+/// `setsid` in the child puts it in its own session and process group, where
+/// nothing aimed at the UI can reach it. It fails only if the child is already
+/// a group leader, which after `fork` it is not — and a failure there must not
+/// fail the spawn, so it is deliberately ignored.
 fn spawn_detached(binary: &std::path::Path, port: u16) -> Result<u32, String> {
     use std::process::{Command, Stdio};
     let mut last_error = String::from("no spawn attempted");
@@ -460,6 +526,7 @@ fn spawn_detached(binary: &std::path::Path, port: u16) -> Result<u32, String> {
         if let Some(dir) = spawn_working_dir() {
             cmd.current_dir(dir);
         }
+        detach_session(&mut cmd);
         match cmd.spawn() {
             Ok(child) => return Ok(child.id()),
             Err(e) => last_error = e.to_string(),
@@ -563,6 +630,52 @@ mod tests {
         );
         assert_eq!(id.unwrap().version, "9.9.9");
         assert_eq!(hits.load(Ordering::SeqCst), 2, "expected exactly one retry");
+    }
+
+    #[test]
+    fn a_detached_child_leaves_our_process_group() {
+        // The bug: the daemon ran with the GUI app's PGID, in the app's
+        // session, so anything aimed at the app — teardown, killpg, a hangup —
+        // took the daemon with it and it exited cleanly, leaving no crash
+        // report and no log. `setsid` is what makes it a service.
+        let mut cmd = std::process::Command::new("/bin/sh");
+        cmd.args(["-c", "ps -o pgid= -p $$"]);
+        detach_session(&mut cmd);
+        let out = cmd.output().expect("sh must run");
+        let child_pgid: i32 = String::from_utf8_lossy(&out.stdout)
+            .trim()
+            .parse()
+            .expect("ps must report a numeric pgid");
+        // SAFETY: `getpgrp` reads this process's own group; it cannot fail.
+        let ours = unsafe { libc::getpgrp() };
+        assert_ne!(
+            child_pgid, ours,
+            "a detached child must not share the spawner's process group"
+        );
+    }
+
+    #[test]
+    fn a_restart_keeps_the_dead_daemons_log() {
+        // A daemon that died and was auto-restarted 30 s later used to erase
+        // its own post-mortem: the next spawn truncated the only file that
+        // said anything about the exit.
+        let tmp = std::env::temp_dir().join(format!("vibecli-rolllog-{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let cur = tmp.join("daemon-spawn.log");
+        let prev = tmp.join("daemon-spawn.prev.log");
+
+        std::fs::write(&cur, b"last words\n").unwrap();
+        roll_log_file(&cur, &prev);
+        assert_eq!(std::fs::read_to_string(&prev).unwrap(), "last words\n");
+        assert!(!cur.exists(), "the current log is moved aside, not copied");
+
+        // An empty current log must not overwrite the kept one: the evidence is
+        // in `prev`, and a daemon that died before printing anything has none.
+        std::fs::write(&cur, b"").unwrap();
+        roll_log_file(&cur, &prev);
+        assert_eq!(std::fs::read_to_string(&prev).unwrap(), "last words\n");
+
+        std::fs::remove_dir_all(&tmp).ok();
     }
 
     #[test]

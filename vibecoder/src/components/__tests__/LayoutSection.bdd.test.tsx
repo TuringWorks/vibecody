@@ -50,10 +50,12 @@ describe("Given the shipped layout", () => {
       expect(screen.getByLabelText(`Show the ${group.label} group`)).toBeTruthy();
     }
     // The summary counts what is on, so "all of them" is visible at a glance.
-    // 41 panels are reachable from the nav; four more render without a nav
-    // entry and are not listed here — including "github", whose tabs moved
-    // into the Source Control sidebar.
-    const summary = screen.getByText((_c, el) => /41 of 41 panels/.test(el?.textContent ?? ""), {
+    // 42 panels are reachable from the nav; three more render without a nav
+    // entry and are not listed here — "sandbox-chat", "watch", and "github",
+    // whose tabs moved into the Source Control sidebar. ("goals" was a fourth
+    // until it was added to the Project group; it had no way in but Chat's
+    // hand-off.)
+    const summary = screen.getByText((_c, el) => /42 of 42 panels/.test(el?.textContent ?? ""), {
       selector: "p",
     });
     expect(summary).toBeTruthy();

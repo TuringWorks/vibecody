@@ -167,6 +167,7 @@ pub mod config;
 pub mod config_layers;
 pub mod container_runtime;
 pub mod daemon_bootstrap;
+pub mod supervise;
 pub mod hook_abort;
 pub mod trust_resolution;
 // FIT-GAP v10 — Phase 40: Execution Engine (P0)

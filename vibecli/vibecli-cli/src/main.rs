@@ -196,6 +196,7 @@ mod config;
 // here rather than dead.
 #[allow(dead_code)]
 mod daemon_bootstrap;
+mod supervise;
 mod diff_viewer;
 mod mcp_taint;
 mod mcpb_bundle;

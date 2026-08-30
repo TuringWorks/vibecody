@@ -23,6 +23,23 @@ export interface DaemonStatus {
 /** How often to poll the daemon (30 seconds). */
 const POLL_INTERVAL = 30_000;
 
+/**
+ * How long one `/health` probe may take before it counts as a failure.
+ *
+ * The daemon answers in ~5 ms when idle; the timeout exists for the case where
+ * it is busy, not slow, so it is generous rather than tight.
+ */
+const PROBE_TIMEOUT_MS = 6000;
+
+/**
+ * Consecutive failed probes before the daemon is called offline.
+ *
+ * Two, not one: a single missed probe is indistinguishable from a busy daemon,
+ * and treating it as an outage produced "daemon offline"/"back online" toast
+ * pairs — plus a redundant `start_daemon` — for a process that never died.
+ */
+const OFFLINE_AFTER_FAILURES = 2;
+
 /** Initial delay after mount to let the app settle. */
 const INITIAL_DELAY = 3000;
 
@@ -80,21 +97,37 @@ export function useDaemonMonitor({
   const prevOnlineRef = useRef<boolean | null>(null);
   // Prevent hammering start_daemon on every poll tick while it boots.
   const startingRef = useRef(false);
+  // Consecutive failed probes. Reset by any success — see `check`.
+  const failuresRef = useRef(0);
 
   const check = useCallback(async () => {
-    let isOnline: boolean;
+    let probeOk: boolean;
     try {
       const res = await fetch(`${daemonUrlRef.current}${HEALTH_PATH}`, {
-        signal: AbortSignal.timeout(4000),
+        signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
       });
       // `res.ok` alone is liveness, not identity: any local service that
       // answers 200 on this port would read as a healthy daemon and every
       // panel would then fail with a confusing error. `/health` reports
       // `service: "vibecli"` precisely so clients can tell the difference.
       const body: unknown = res.ok ? await res.json().catch(() => null) : null;
-      isOnline = isVibeCliHealth(body);
+      probeOk = isVibeCliHealth(body);
     } catch {
-      isOnline = false;
+      probeOk = false;
+    }
+
+    // One missed probe is not an outage. A daemon that is merely busy — a code
+    // graph build pegging a core, a cold model load — can miss a 4 s deadline
+    // while it is perfectly alive, and declaring it offline on that one sample
+    // both cried wolf to the user and fired `start_daemon` at a daemon that was
+    // already running. Require the failure to repeat before believing it.
+    failuresRef.current = probeOk ? 0 : failuresRef.current + 1;
+    const isOnline = probeOk || failuresRef.current < OFFLINE_AFTER_FAILURES;
+    if (!probeOk && isOnline) {
+      // Held back, deliberately: report nothing this tick and re-probe sooner
+      // than the normal cadence, so a real outage is still caught quickly.
+      setLastChecked(Date.now());
+      return;
     }
 
     const now = Date.now();
@@ -180,6 +213,8 @@ export function useDaemonMonitor({
   useEffect(() => {
     const initial = setTimeout(check, INITIAL_DELAY);
     const interval = setInterval(check, POLL_INTERVAL);
+    // A held-back failure re-probes on the next tick; the cadence stays 30 s so
+    // a busy daemon is not hammered while it is under the load that slowed it.
     return () => {
       clearTimeout(initial);
       clearInterval(interval);

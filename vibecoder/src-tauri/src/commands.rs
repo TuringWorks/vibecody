@@ -65330,6 +65330,35 @@ pub async fn vibememory_delete(
 
 const EXEC_GOAL_BASE: &str = "http://localhost:7878";
 
+/// Read-only goal routes answer from SQLite; the shared 5-second recap
+/// client is right for them.
+const EXEC_GOAL_STORE_TIMEOUT_SECS: u64 = 5;
+
+/// `/plan` and `/recap` run an LLM call *inside* the daemon handler
+/// (`PlannerAgent::plan`), so they answer on model latency, not store
+/// latency. At 5 seconds every cloud model lost the race and the panel
+/// reported "plan generation failed" for a request the daemon was still
+/// serving. Bounded, so a wedged daemon still surfaces as an error.
+const EXEC_GOAL_LLM_TIMEOUT_SECS: u64 = 300;
+
+/// `reqwest::Error`'s `Display` stops at "error sending request for url
+/// (…)" and leaves the reason — "operation timed out", "connection
+/// refused" — in `source()`. That is the whole diagnosis, so walk the
+/// chain rather than showing the headline alone.
+fn exec_goal_http_error(e: &reqwest::Error) -> String {
+    let mut msg = e.to_string();
+    let mut src = std::error::Error::source(e);
+    while let Some(cause) = src {
+        let text = cause.to_string();
+        if !msg.contains(&text) {
+            msg.push_str(": ");
+            msg.push_str(&text);
+        }
+        src = cause.source();
+    }
+    msg
+}
+
 async fn exec_goal_authed_get(
     path: &str,
     query: Option<&[(&str, String)]>,
@@ -65345,9 +65374,9 @@ async fn exec_goal_authed_get(
     if let Some(q) = query {
         req = req.query(q);
     }
-    let resp = req.send().await.map_err(|e| e.to_string())?;
+    let resp = req.send().await.map_err(|e| exec_goal_http_error(&e))?;
     let status = resp.status();
-    let json: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    let json: serde_json::Value = resp.json().await.map_err(|e| exec_goal_http_error(&e))?;
     if !status.is_success() {
         return Err(format!("daemon returned {}: {}", status, json));
     }
@@ -65359,23 +65388,32 @@ async fn exec_goal_authed_json(
     path: &str,
     body: serde_json::Value,
 ) -> Result<serde_json::Value, String> {
+    exec_goal_authed_json_within(method, path, body, EXEC_GOAL_STORE_TIMEOUT_SECS).await
+}
+
+async fn exec_goal_authed_json_within(
+    method: reqwest::Method,
+    path: &str,
+    body: serde_json::Value,
+    timeout_secs: u64,
+) -> Result<serde_json::Value, String> {
     let token = recap_daemon_token().await?;
     if token.is_empty() {
         return Err("daemon not running".into());
     }
-    let client = recap_http_client();
+    let client = vibe_http_pool::client(timeout_secs);
     let resp = client
         .request(method, format!("{}{}", EXEC_GOAL_BASE, path))
         .header("Authorization", format!("Bearer {}", token))
         .json(&body)
         .send()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| exec_goal_http_error(&e))?;
     let status = resp.status();
     if status == reqwest::StatusCode::NO_CONTENT {
         return Ok(serde_json::json!({ "deleted": true }));
     }
-    let json: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    let json: serde_json::Value = resp.json().await.map_err(|e| exec_goal_http_error(&e))?;
     if !status.is_success() {
         return Err(format!("daemon returned {}: {}", status, json));
     }
@@ -65489,10 +65527,11 @@ pub async fn exec_goal_plan(
         "provider": provider,
         "model": model,
     });
-    exec_goal_authed_json(
+    exec_goal_authed_json_within(
         reqwest::Method::POST,
         &format!("/v1/goals/{}/plan", id),
         body,
+        EXEC_GOAL_LLM_TIMEOUT_SECS,
     )
     .await
 }
@@ -65550,10 +65589,11 @@ pub async fn exec_goal_recap(
         "provider": provider,
         "model": model,
     });
-    exec_goal_authed_json(
+    exec_goal_authed_json_within(
         reqwest::Method::POST,
         &format!("/v1/goals/{}/recap", id),
         body,
+        EXEC_GOAL_LLM_TIMEOUT_SECS,
     )
     .await
 }
