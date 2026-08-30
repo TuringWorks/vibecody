@@ -88,6 +88,8 @@ downloading for it.
 | `vibecli/vibecli-cli/src/serve.rs` | `POST /voice/transcribe`, `GET /voice/status`, `GET`/`PUT /voice/settings`, `GET /ws/voice/duplex` |
 | `packages/vibe-ui-shared/src/settings/VoiceSection.tsx` + `voice/useVoiceSettings.ts` | The Settings → Voice pane, shared by all three shells |
 | `Makefile` → `voice-sidecar` / `voice-kokoro` / `voice-status` | What installs an engine. A feature nothing installs is a feature nobody has |
+| `scripts/fetch-voice-assets.ps1` · `scripts/stage-daemon-sidecar.ps1` | What the **Windows** installers carry: whisper.cpp, its model, and the daemon itself. Windows has no `brew install whisper-cpp` step, so a build that skips staging ships an app that cannot speak and cannot say why |
+| `vibecoder` · `vibedesk` · `vibeaichat` `/src-tauri/tauri.windows.conf.json` | `bundle.resources` + `externalBin` that place that payload beside the installed daemon. A new shell without one silently ships with no speech engine |
 | `packages/vibe-ui-shared/src/voice/` | `useVoiceInput` + `VoiceButton` (push-to-talk), `useVoiceDuplex` + `DuplexVoiceButton` (duplex) — every webview shell |
 | `crates/vibe-desktop-voice/` | `transcribe_audio` / `voice_status` / `daemon_token_effective` Tauri commands, registered by all three shells |
 | `tools/webview-probe/` | Measures AEC, capture and transport on the engine each platform ships. Run it before claiming a surface works |

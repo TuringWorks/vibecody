@@ -482,6 +482,42 @@ Keyboard → Dictation) moves those languages onto the fast path.
 in Arabic script; `ggml-small` and `ggml-medium` produce identical correct text
 and `small` is 3× faster, so `small` is the default and the floor.
 
+## What Windows ships in the box
+
+On macOS and Linux the engine comes from a package manager — `brew install
+whisper-cpp`, or the distro. Windows has no such step, and asking for one is
+asking most users to give up: the failure they would hit is a *route* error at
+the moment they first click the microphone, long after install.
+
+So the Windows installers carry the whole stack:
+
+| Shipped | Size | Lands in |
+|---|---:|---|
+| `vibecli.exe` (the daemon) | 33 MB | beside the app executable |
+| `whisper-server.exe` + 12 DLLs | 9.8 MB | `whisper/` |
+| `ggml-small.bin` | 465 MB | `models/` |
+
+The daemon is on that list because until it was, an installer-only machine had
+**no daemon at all** — `daemon_bootstrap::find_binary_in` has always probed for
+a sibling `vibecli.exe` beside the app, and nothing ever put one there, so
+autostart could not work and every HTTP-backed panel was dead until the user
+found the separate CLI zip. Voice was the first symptom, not the disease.
+
+The `ggml-cpu-*.dll` set is not padding: ggml selects one at runtime by CPU
+feature, so dropping any of them breaks the engine on exactly the machines that
+variant exists for.
+
+This is ~475 MB per installer, and there are three shells. The trade is
+deliberate — voice is off by default, so most of that is carried by users who
+never enable it. The alternative, fetching the model on first use, keeps
+installers small and moves a 465 MB download into the first spoken turn.
+
+Staged by [`scripts/fetch-voice-assets.ps1`](https://github.com/vibecody/vibecody/blob/main/scripts/fetch-voice-assets.ps1)
+and `scripts/stage-daemon-sidecar.ps1`, both of which `scripts\dev.ps1 build`
+runs for you. whisper.cpp is pinned to a tag rather than tracking `latest`: a
+third-party release that changes under CI turns a reproducible build into a
+lottery. It is MIT, and its licence ships in `whisper/`.
+
 ## Configuration
 
 Engine, language and voice are set in **Settings → Voice** (or over
@@ -512,9 +548,36 @@ encode, because every turn was paying model load *and* backend init.
    resolve.
 2. Otherwise `whisper_server_bin` is resolved: a **bare name** is looked up on
    `PATH`; anything containing a separator is taken as a literal path and used
-   only if it exists.
-3. If neither yields a server, duplex voice reports what it looked for and the
-   route stays unavailable. Push-to-talk (`POST /voice/transcribe`) is
+   only if it exists. On Windows every `PATHEXT` suffix is tried as well as the
+   bare stem, because the binary there is `whisper-server.exe` and the default
+   names it without one — joining the stem onto each `PATH` entry found nothing
+   on a machine with whisper.cpp correctly installed.
+3. Failing that, a **packaged engine**, in this order: `whisper/` inside the
+   bundle of the app that *spawned* this daemon, then beside the daemon itself,
+   then `~/.vibecli/bin`. This is what the Windows installers lay down, and it
+   is deliberately after `PATH` — someone who installed their own whisper.cpp
+   keeps the build they chose.
+
+   The app's bundle comes first because it is often the only one that is right.
+   `find_binary` prefers a `PATH` or `~/.cargo/bin` daemon over the sibling one
+   the installer shipped, so on a machine with an installed app **and** a
+   `cargo install`ed CLI, the daemon that starts lives somewhere unrelated to
+   the app that started it. Looking only beside itself, it would find nothing
+   and report "no speech engine" on a machine that shipped with one. The
+   spawning process passes its own directory in `VIBECLI_VOICE_ASSETS`, and
+   passes it only when that directory really holds a `whisper/` or `models/` —
+   a development build points the daemon at nothing rather than at
+   `target/debug`. A daemon that was *already* running is never told: it is
+   someone else's process, and claiming an engine it never loaded would be a
+   lie.
+4. The model is resolved the same way: the configured path when it is there,
+   else the same **file name** under `models/` beside the daemon or in
+   `~/.vibecli/models`, which is where `vibecli /voice download` writes. Matched
+   on file name, so a config asking for `ggml-medium.bin` is answered with a
+   medium model or with nothing — never silently with whichever model the
+   installer happened to carry.
+5. If none of that yields a server, duplex voice reports what it looked for and
+   the route stays unavailable. Push-to-talk (`POST /voice/transcribe`) is
    unaffected — it has its own engine resolution.
 
 **TTS defaults to batch.** Without `tts_sidecar` the whole utterance is
@@ -528,7 +591,10 @@ path is in use (`"tts":"streaming"` or `"tts":"batch"`).
 path, and the port nothing was listening on. Usually one of: whisper.cpp is not
 installed, the model has not been downloaded to
 `~/.vibecli/models/ggml-small.bin`, or `whisper_server_bin` points somewhere
-that does not exist. A bare name on `PATH` is fine — that is resolved.
+that does not exist. A bare name on `PATH` is fine — that is resolved, `.exe`
+included. On Windows this should not be reachable from an installed app: the
+installer ships the engine and the model. It is reachable from a `cargo
+install`ed daemon, which has neither.
 
 **"Audio capture was blocked by this app's content security policy."** The host
 ships `script-src` without `blob:`, so the AudioWorklet module cannot be

@@ -448,6 +448,34 @@ pub fn spawn_output() -> (std::process::Stdio, std::process::Stdio) {
     }
 }
 
+/// Names the directory holding a speech engine an installer shipped.
+///
+/// Set by the process that *spawns* the daemon, because it is the only one that
+/// knows: [`find_binary_in`] deliberately prefers a `PATH` or `~/.cargo/bin`
+/// daemon over the sibling one, so on a machine with an installed app **and** a
+/// `cargo install`ed CLI, the daemon that starts is not the one sitting beside
+/// the installer's `whisper/`. Looking beside itself, it would find nothing and
+/// report "no speech engine" on a machine that shipped with one.
+///
+/// Never set on a daemon that was already running. That one is somebody else's
+/// process, and telling it where *this* app's bundle is would be a claim about
+/// an engine it never loaded.
+pub const VOICE_ASSETS_ENV: &str = "VIBECLI_VOICE_ASSETS";
+
+/// The directory this process keeps packaged resources in, when it looks like an
+/// installed app rather than a `cargo run` target.
+///
+/// Read from the *caller's* executable, not the daemon's — the caller is the
+/// shell, and on Windows its directory is exactly where Tauri lays `whisper/`
+/// and `models/` down. Returns `None` unless one of them is actually there, so
+/// a development build does not point the daemon at `target/debug` and make the
+/// resulting "not found" harder to read than plain silence.
+pub fn packaged_assets_dir() -> Option<PathBuf> {
+    let dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
+    let carries_payload = dir.join("whisper").is_dir() || dir.join("models").is_dir();
+    carries_payload.then_some(dir)
+}
+
 /// Spawn the daemon detached from the caller's stdio so it outlives the window
 /// that started it — it is a persistent local service, not a child of the UI.
 fn spawn_detached(binary: &std::path::Path, port: u16) -> Result<u32, String> {
@@ -459,6 +487,9 @@ fn spawn_detached(binary: &std::path::Path, port: u16) -> Result<u32, String> {
         cmd.args(&args).stdin(Stdio::null()).stdout(out).stderr(err);
         if let Some(dir) = spawn_working_dir() {
             cmd.current_dir(dir);
+        }
+        if let Some(dir) = packaged_assets_dir() {
+            cmd.env(VOICE_ASSETS_ENV, dir);
         }
         match cmd.spawn() {
             Ok(child) => return Ok(child.id()),

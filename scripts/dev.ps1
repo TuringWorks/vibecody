@@ -17,7 +17,7 @@ param(
         'cli', 'cli-run', 'ui', 'app',
         'check', 'lint', 'fmt', 'fmt-check',
         'test', 'test-fast', 'test-cli', 'test-ai', 'test-core',
-        'build', 'build-ui', 'build-aichat',
+        'build', 'build-ui', 'build-aichat', 'voice-assets',
         'clean', 'help'
     )]
     [string]$Target = 'help'
@@ -68,6 +68,8 @@ Building:
   build         CLI + VibeCoder + VibeCLI App (release)
   build-ui      VibeCoder production bundle
   build-aichat     VibeCLI App production bundle
+  voice-assets  Stage the daemon + whisper.cpp + model the installers ship
+                (~475 MB per shell; `build` runs this for you)
 
 Cleanup:
   clean         cargo clean + remove dist + .vite caches
@@ -119,8 +121,18 @@ switch ($Target) {
 
     'build' {
         Invoke-Step 'cargo build vibecli' { cargo build --release -p vibecli }
+        # Before the shells, not after: Tauri reads the staged payload while it
+        # bundles, so an installer built ahead of this one silently ships
+        # without a daemon or a speech engine and looks fine.
+        Invoke-Step 'stage installer payload' { & (Join-Path $PSScriptRoot 'stage-daemon-sidecar.ps1') }
+        Invoke-Step 'fetch voice assets'      { & (Join-Path $PSScriptRoot 'fetch-voice-assets.ps1') }
         In-Subdir 'vibecoder'  { Invoke-Step 'vibecoder tauri:build'  { npm run tauri:build } }
         In-Subdir 'vibeaichat' { Invoke-Step 'vibeaichat tauri:build' { npm run tauri:build } }
+    }
+
+    'voice-assets' {
+        Invoke-Step 'stage daemon sidecar' { & (Join-Path $PSScriptRoot 'stage-daemon-sidecar.ps1') }
+        Invoke-Step 'fetch voice assets'   { & (Join-Path $PSScriptRoot 'fetch-voice-assets.ps1') }
     }
     'build-ui'   { In-Subdir 'vibecoder'  { Invoke-Step 'vibecoder tauri:build'  { npm run tauri:build } } }
     'build-aichat'  { In-Subdir 'vibeaichat' { Invoke-Step 'vibeaichat tauri:build' { npm run tauri:build } } }

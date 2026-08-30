@@ -711,16 +711,19 @@ pub async fn ensure_whisper_server(bin: &str, model: &str, port: u16) -> Option<
         return Some(url);
     }
 
-    let bin = resolve_bin(bin)?;
-    if !std::path::Path::new(model).exists() {
-        tracing::warn!(
-            model,
-            "voice: speech model not found; duplex voice unavailable"
-        );
-        return None;
-    }
+    let bin = resolve_bin(bin).or_else(discover_whisper_bin)?;
+    let model = match resolve_model(model) {
+        Some(m) => m,
+        None => {
+            tracing::warn!(
+                model,
+                "voice: speech model not found; duplex voice unavailable"
+            );
+            return None;
+        }
+    };
     Command::new(&bin)
-        .args(["-m", model, "--port", &port.to_string(), "-t", "4"])
+        .args(["-m", &model, "--port", &port.to_string(), "-t", "4"])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
@@ -738,13 +741,6 @@ pub async fn ensure_whisper_server(bin: &str, model: &str, port: u16) -> Option<
     None
 }
 
-/// Resolve a configured binary to something runnable.
-///
-/// A bare command name is the natural thing to write in a config file and the
-/// natural thing to get wrong: `Path::new("whisper-server").exists()` asks
-/// whether it sits in the daemon's working directory, which it never does, so
-/// the engine was reported missing on a machine that had it installed. Walk
-/// `PATH` when the name contains no separator.
 /// Find the streaming speech sidecar without being told where it is.
 ///
 /// Zero-config is the contract: a feature that only works once someone writes
@@ -771,7 +767,15 @@ fn discover_sidecar() -> Option<String> {
     }
     roots
         .iter()
-        .flat_map(|d| names.iter().map(move |n| d.join(n)))
+        // `.exe` here too: a sidecar installed beside the daemon on Windows is
+        // `vibecli-tts.exe`, and the bare stem matches nothing.
+        .flat_map(|d| {
+            names
+                .iter()
+                .flat_map(|n| candidate_names(n))
+                .map(|n| d.join(n))
+                .collect::<Vec<_>>()
+        })
         .find(|p| p.is_file())
         .map(|p| p.to_string_lossy().to_string())
         // A sidecar on PATH is the developer's case: `cargo run` puts the
@@ -779,18 +783,170 @@ fn discover_sidecar() -> Option<String> {
         .or_else(|| names.iter().find_map(|n| resolve_bin(n)))
 }
 
+/// The directory the running daemon sits in — where an installer puts the
+/// engine it shipped.
+fn exe_dir() -> Option<std::path::PathBuf> {
+    std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(std::path::Path::to_path_buf))
+}
+
+/// Directories that can hold a packaged `whisper-server`, nearest first.
+///
+/// **Beside the running binary is what an installer lays down.** The Windows
+/// packages put the app, the daemon and `whisper/` into one install directory,
+/// so a machine that has never seen a terminal still has a speech engine —
+/// that is the whole point of shipping one. `~/.vibecli/bin` follows because it
+/// is where a hand-install goes.
+///
+/// Ordered after `PATH`, not before it: [`ensure_whisper_server`] only asks
+/// these once the configured name has resolved to nothing, so a user who
+/// installed whisper.cpp themselves keeps the build they chose.
+fn whisper_bin_roots() -> Vec<std::path::PathBuf> {
+    bin_roots_from(packaged_assets_dir(), exe_dir(), dirs::home_dir())
+}
+
+/// The ordering, over explicit inputs so it can be tested without mutating the
+/// process environment — the same split, for the same reason, as
+/// [`crate::daemon_bootstrap::find_binary_in`].
+fn bin_roots_from(
+    host: Option<std::path::PathBuf>,
+    exe: Option<std::path::PathBuf>,
+    home: Option<std::path::PathBuf>,
+) -> Vec<std::path::PathBuf> {
+    let from_host = host.into_iter().flat_map(|d| [d.join("whisper"), d]);
+    let beside_exe = exe.into_iter().flat_map(|d| [d.join("whisper"), d]);
+    let hand_installed = home
+        .map(|h| h.join(".vibecli"))
+        .into_iter()
+        .flat_map(|d| [d.join("bin"), d.join("whisper")]);
+    from_host
+        .chain(beside_exe)
+        .chain(hand_installed)
+        .collect()
+}
+
+/// The bundle of whichever app spawned this daemon, when it said so.
+///
+/// First, because it is the only root that came from a process that *knows*
+/// where its engine is. `find_binary` prefers a `PATH` daemon to a bundled one,
+/// so on a machine with both, the daemon that runs lives somewhere unrelated to
+/// the app that started it; without this it would search beside itself and find
+/// nothing on a machine that shipped with an engine. See
+/// [`crate::daemon_bootstrap::VOICE_ASSETS_ENV`].
+fn packaged_assets_dir() -> Option<std::path::PathBuf> {
+    let raw = std::env::var_os(crate::daemon_bootstrap::VOICE_ASSETS_ENV)?;
+    // An empty value is how a shell unsets it; treating that as the filesystem
+    // root would search `/whisper` on every turn.
+    (!raw.is_empty()).then(|| std::path::PathBuf::from(raw))
+}
+
+/// Directories that can hold GGML model files, nearest first.
+///
+/// `~/.vibecli/models` is where [`crate::voice::download_model`] writes, so a
+/// model fetched by the CLI and a model laid down by an installer are both
+/// found without either knowing about the other.
+fn whisper_model_roots() -> Vec<std::path::PathBuf> {
+    model_roots_from(packaged_assets_dir(), exe_dir(), dirs::home_dir())
+}
+
+/// As [`bin_roots_from`], for models.
+fn model_roots_from(
+    host: Option<std::path::PathBuf>,
+    exe: Option<std::path::PathBuf>,
+    home: Option<std::path::PathBuf>,
+) -> Vec<std::path::PathBuf> {
+    host.into_iter()
+        .chain(exe)
+        .map(|d| d.join("models"))
+        .chain(home.map(|h| h.join(".vibecli").join("models")))
+        .collect()
+}
+
+/// The first file formed by joining any root with any name, roots outermost so
+/// a nearer directory wins over an earlier name.
+///
+/// Split out from the environment reads above for the same reason
+/// [`crate::daemon_bootstrap::find_binary_in`] is: search order is the part
+/// that goes silently wrong, and it cannot be tested while it reads process
+/// globals.
+fn first_existing(roots: &[std::path::PathBuf], names: &[String]) -> Option<String> {
+    roots
+        .iter()
+        .flat_map(|d| names.iter().map(|n| d.join(n)).collect::<Vec<_>>())
+        .find(|p| p.is_file())
+        .map(|p| p.to_string_lossy().to_string())
+}
+
+/// Find a packaged `whisper-server` when the configured name resolved to
+/// nothing — an installed app, as opposed to a `brew install whisper-cpp`.
+fn discover_whisper_bin() -> Option<String> {
+    first_existing(&whisper_bin_roots(), &candidate_names("whisper-server"))
+}
+
+/// The model to load: the configured path when it is there, else the same file
+/// name in a directory that ships or receives models.
+///
+/// Matched on file name rather than on the default string, so a config asking
+/// for `ggml-medium.bin` is answered with a *medium* model or with nothing —
+/// never silently with whichever model the installer happened to carry, which
+/// would be a different transcription quality than the one that was asked for.
+fn resolve_model(model: &str) -> Option<String> {
+    let configured = std::path::Path::new(model);
+    if configured.is_file() {
+        return Some(model.to_string());
+    }
+    let name = configured.file_name()?.to_string_lossy().to_string();
+    first_existing(&whisper_model_roots(), &[name])
+}
+
+/// The filenames a bare command can have on this platform, in the order to try.
+///
+/// Unix has one answer. Windows has as many as `PATHEXT` lists, and the bare
+/// name goes first so a config that already spells out `.exe` still resolves,
+/// and so a stem that genuinely has no suffix is not shadowed by a `.bat` of
+/// the same name earlier in `PATHEXT`.
+#[cfg(target_os = "windows")]
+fn candidate_names(bin: &str) -> Vec<String> {
+    let exts = std::env::var("PATHEXT").unwrap_or_else(|_| ".COM;.EXE;.BAT;.CMD".to_string());
+    std::iter::once(bin.to_string())
+        .chain(
+            exts.split(';')
+                .map(str::trim)
+                .filter(|e| !e.is_empty())
+                .map(|e| format!("{bin}{e}")),
+        )
+        .collect()
+}
+
+#[cfg(not(target_os = "windows"))]
+fn candidate_names(bin: &str) -> Vec<String> {
+    vec![bin.to_string()]
+}
+
+/// Resolve a configured binary to something runnable.
+///
+/// A bare command name is the natural thing to write in a config file and the
+/// natural thing to get wrong: `Path::new("whisper-server").exists()` asks
+/// whether it sits in the daemon's working directory, which it never does, so
+/// the engine was reported missing on a machine that had it installed. Walk
+/// `PATH` when the name contains no separator.
+///
+/// **Windows needs the extension tried, not just the stem.** The binary there
+/// is `whisper-server.exe`, so joining the configured default onto each `PATH`
+/// entry found nothing on a machine with whisper.cpp correctly installed — and
+/// the failure surfaced as "no speech engine", which reads as *not installed*
+/// rather than *found under another name*. Every `PATH` entry is tried against
+/// every `PATHEXT` suffix as well as bare.
 pub fn resolve_bin(bin: &str) -> Option<String> {
     let p = std::path::Path::new(bin);
     if p.components().count() > 1 || bin.starts_with('/') {
         return p.exists().then(|| bin.to_string());
     }
-    std::env::var_os("PATH")
-        .into_iter()
-        .flat_map(|paths| {
-            std::env::split_paths(&paths)
-                .map(|d| d.join(bin))
-                .collect::<Vec<_>>()
-        })
+    let path = std::env::var_os("PATH").unwrap_or_default();
+    let names = candidate_names(bin);
+    std::env::split_paths(&path)
+        .flat_map(|d| names.iter().map(|n| d.join(n)).collect::<Vec<_>>())
         .find(|c| c.is_file())
         .map(|c| c.to_string_lossy().to_string())
 }
@@ -1077,25 +1233,134 @@ mod tests {
         assert_eq!(audio.pcm.len(), pcm.len());
     }
 
+    /// Roots are searched outermost, so a nearer directory beats an earlier
+    /// name. The packaged engine sits beside the daemon and a hand-installed
+    /// one under `~/.vibecli`; getting this backwards would make the copy an
+    /// installer happened to ship silently override the one a user chose.
+    #[test]
+    fn a_nearer_root_wins_over_an_earlier_name() {
+        let tmp = tempfile::tempdir().unwrap();
+        let near = tmp.path().join("near");
+        let far = tmp.path().join("far");
+        std::fs::create_dir_all(&near).unwrap();
+        std::fs::create_dir_all(&far).unwrap();
+        std::fs::write(near.join("second"), b"x").unwrap();
+        std::fs::write(far.join("first"), b"x").unwrap();
+
+        let roots = [near.clone(), far];
+        let names = ["first".to_string(), "second".to_string()];
+        let found = first_existing(&roots, &names).unwrap();
+        assert_eq!(
+            found,
+            near.join("second").to_string_lossy(),
+            "the nearer root must win even though `first` is the earlier name"
+        );
+
+        assert_eq!(first_existing(&roots, &["absent".to_string()]), None);
+        assert_eq!(first_existing(&[], &names), None, "no roots, no answer");
+    }
+
+    /// A configured model that is present is used as given; one that is absent
+    /// falls back **by file name**, so asking for `medium` can never be
+    /// answered with whatever model the installer happened to carry.
+    #[test]
+    fn a_model_falls_back_by_name_and_never_to_a_different_model() {
+        let tmp = tempfile::tempdir().unwrap();
+        let present = tmp.path().join("ggml-small.bin");
+        std::fs::write(&present, b"x").unwrap();
+
+        assert_eq!(
+            resolve_model(&present.to_string_lossy()).as_deref(),
+            Some(present.to_string_lossy().as_ref()),
+            "a configured model that exists is taken as given"
+        );
+
+        // Nothing on this machine answers to a model nobody ships, and the
+        // fallback must not substitute one that is merely nearby.
+        let missing = tmp.path().join("ggml-nonexistent-xyz.bin");
+        assert_eq!(resolve_model(&missing.to_string_lossy()), None);
+    }
+
+    /// The gap this ordering exists to close: `find_binary` prefers a `PATH`
+    /// daemon to a bundled one, so on a machine with an installed app *and* a
+    /// `cargo install`ed CLI the running daemon lives somewhere unrelated to
+    /// the app that spawned it. The host's own directory must therefore be
+    /// searched before the daemon's, or a machine that shipped with an engine
+    /// reports having none.
+    #[test]
+    fn the_spawning_app_is_searched_before_the_daemon_it_spawned() {
+        let host = std::path::PathBuf::from("/app");
+        let exe = std::path::PathBuf::from("/cargo/bin");
+        let home = std::path::PathBuf::from("/home/u");
+
+        let bins = bin_roots_from(Some(host.clone()), Some(exe.clone()), Some(home.clone()));
+        assert_eq!(bins[0], host.join("whisper"));
+        assert!(
+            bins.iter().position(|p| p.starts_with(&host))
+                < bins.iter().position(|p| p.starts_with(&exe)),
+            "the app's bundle must outrank the daemon's own directory"
+        );
+        assert!(
+            bins.iter().position(|p| p.starts_with(&exe))
+                < bins.iter().position(|p| p.starts_with(&home)),
+            "a hand install under ~/.vibecli is the last resort, not the first"
+        );
+
+        let models = model_roots_from(Some(host.clone()), Some(exe), Some(home));
+        assert_eq!(models[0], host.join("models"));
+
+        // Nothing said, nothing searched: a daemon nobody told must not invent
+        // a root, and `None` inputs must not collapse into a relative path.
+        assert!(bin_roots_from(None, None, None).is_empty());
+        assert!(model_roots_from(None, None, None).is_empty());
+    }
+
     #[test]
     fn non_speech_markers_are_not_words() {
         assert_eq!(clean_transcript("[BLANK_AUDIO]"), "");
         assert_eq!(clean_transcript("(music)\nhello"), "hello");
     }
 
+    /// The binary every platform is guaranteed to have on `PATH`, as a bare
+    /// name, plus an absolute path to the same thing. Naming a Unix shell for
+    /// both was why this test could not run on Windows at all.
+    #[cfg(target_os = "windows")]
+    const PATH_PROBE: (&str, &str) = ("cmd", r"C:\Windows\System32\cmd.exe");
+    #[cfg(not(target_os = "windows"))]
+    const PATH_PROBE: (&str, &str) = ("sh", "/bin/sh");
+
     #[test]
     fn a_bare_command_name_is_resolved_through_path() {
         // The failure this exists to prevent: a bare name checked as a relative
         // path is never found, and a machine with the tool installed is told it
         // has no speech engine.
+        let (bare, absolute) = PATH_PROBE;
         assert!(
-            resolve_bin("sh").is_some_and(|p| p.contains('/')),
+            resolve_bin(bare).is_some_and(|p| std::path::Path::new(&p).is_absolute()),
             "a bare name on PATH must resolve to an absolute path"
         );
         assert_eq!(resolve_bin("definitely-not-a-real-binary-xyz"), None);
         // An explicit path is taken at face value, present or not.
         assert_eq!(resolve_bin("/nonexistent/whisper-server"), None);
-        assert!(resolve_bin("/bin/sh").is_some());
+        assert!(resolve_bin(absolute).is_some());
+    }
+
+    /// `whisper-server` is installed as `whisper-server.exe`, and the default
+    /// config names it without the suffix — so the suffix is what has to be
+    /// tried, not an optimisation.
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn a_windows_command_resolves_through_its_extension() {
+        assert!(
+            resolve_bin("cmd").is_some_and(|p| p.to_ascii_lowercase().ends_with(".exe")),
+            "a bare name must resolve through PATHEXT to the .exe on disk"
+        );
+        // The bare stem stays first, so a name that already carries its
+        // extension is not re-suffixed into `whisper-server.exe.exe`.
+        assert!(candidate_names("whisper-server")[0] == "whisper-server");
+        assert!(candidate_names("whisper-server")
+            .iter()
+            .any(|n| n.eq_ignore_ascii_case("whisper-server.exe")));
     }
 
     #[test]

@@ -82,3 +82,11 @@ packages/vibe-ui-shared/src/**/*.js.map
 # runnable Python project, so any suite that imports it leaves these behind.
 __pycache__/
 *.pyc
+
+# Windows installer payload — fetched by scripts/fetch-voice-assets.ps1 and
+# staged from a build, never committed: the speech engine is a third-party
+# release, the model is 465 MB, and the daemon is a build artifact.
+*/src-tauri/resources/whisper/
+*/src-tauri/resources/models/
+*/src-tauri/binaries/
+scripts/.voice-cache/
