@@ -314,12 +314,23 @@ pub fn run() {
                         );
                         return;
                     };
-                    let spawn_result = tokio::process::Command::new(&binary)
+                    let mut command = tokio::process::Command::new(&binary);
+                    command
                         .args(["--serve", "--port", &port.to_string()])
                         .stdout(std::process::Stdio::null())
                         .stderr(std::process::Stdio::piped())
-                        .kill_on_drop(true)
-                        .spawn();
+                        .kill_on_drop(true);
+                    // Tell it where our bundle is. `find_binary` prefers a
+                    // PATH or ~/.cargo/bin daemon over the one beside us, so
+                    // the process we just resolved may live nowhere near the
+                    // engine this installer shipped — and looking beside
+                    // itself it would find none. This shell spawns inline
+                    // rather than through `ensure_running`, so it has to say
+                    // so itself; the two must not drift.
+                    if let Some(assets) = boot::packaged_assets_dir() {
+                        command.env(boot::VOICE_ASSETS_ENV, assets);
+                    }
+                    let spawn_result = command.spawn();
                     let mut child = match spawn_result {
                         Ok(c) => c,
                         Err(e) => {

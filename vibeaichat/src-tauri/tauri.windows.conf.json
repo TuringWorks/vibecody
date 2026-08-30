@@ -1,0 +1,10 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "resources": {
+      "resources/whisper/*": "whisper/",
+      "resources/models/*": "models/"
+    },
+    "externalBin": ["binaries/vibecli"]
+  }
+}

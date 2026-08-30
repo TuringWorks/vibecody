@@ -447,6 +447,25 @@ jobs:
           security list-keychain -d user -s "$KEYCHAIN_PATH" $(security list-keychain -d user | tr -d '"')
           echo "signed=true" >> "$GITHUB_OUTPUT"
 
+      # ── Windows installer payload ──────────────────────────────────────────
+      # Windows ships the whole voice stack inside the installer, because
+      # nothing else on the platform provides it: there is no `brew install
+      # whisper-cpp`, and until now not even a daemon — `find_binary_in` probes
+      # for a sibling `vibecli.exe` beside the app, and nothing had ever put one
+      # there, so a machine that installed only this app could not autostart at
+      # all. macOS and Linux resolve both from a package manager and are left
+      # alone.
+      #
+      # `--locked` for the reason build-cli uses it: the daemon shipped inside
+      # an installer must match the dependency set that was audited.
+      - name: Stage Windows installer payload
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cargo build --release --locked --package vibecli
+          ./scripts/stage-daemon-sidecar.ps1 -Shell vibecoder
+          ./scripts/fetch-voice-assets.ps1 -Shell vibecoder
+
       - name: Build Tauri app
         working-directory: vibecoder
         env:
@@ -631,6 +650,25 @@ jobs:
           security list-keychain -d user -s "$KEYCHAIN_PATH" $(security list-keychain -d user | tr -d '"')
           echo "signed=true" >> "$GITHUB_OUTPUT"
 
+      # ── Windows installer payload ──────────────────────────────────────────
+      # Windows ships the whole voice stack inside the installer, because
+      # nothing else on the platform provides it: there is no `brew install
+      # whisper-cpp`, and until now not even a daemon — `find_binary_in` probes
+      # for a sibling `vibecli.exe` beside the app, and nothing had ever put one
+      # there, so a machine that installed only this app could not autostart at
+      # all. macOS and Linux resolve both from a package manager and are left
+      # alone.
+      #
+      # `--locked` for the reason build-cli uses it: the daemon shipped inside
+      # an installer must match the dependency set that was audited.
+      - name: Stage Windows installer payload
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cargo build --release --locked --package vibecli
+          ./scripts/stage-daemon-sidecar.ps1 -Shell vibeaichat
+          ./scripts/fetch-voice-assets.ps1 -Shell vibeaichat
+
       - name: Build Tauri app
         working-directory: vibeaichat
         env:
@@ -810,6 +848,25 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" >/dev/null
           security list-keychain -d user -s "$KEYCHAIN_PATH" $(security list-keychain -d user | tr -d '"')
           echo "signed=true" >> "$GITHUB_OUTPUT"
+
+      # ── Windows installer payload ──────────────────────────────────────────
+      # Windows ships the whole voice stack inside the installer, because
+      # nothing else on the platform provides it: there is no `brew install
+      # whisper-cpp`, and until now not even a daemon — `find_binary_in` probes
+      # for a sibling `vibecli.exe` beside the app, and nothing had ever put one
+      # there, so a machine that installed only this app could not autostart at
+      # all. macOS and Linux resolve both from a package manager and are left
+      # alone.
+      #
+      # `--locked` for the reason build-cli uses it: the daemon shipped inside
+      # an installer must match the dependency set that was audited.
+      - name: Stage Windows installer payload
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cargo build --release --locked --package vibecli
+          ./scripts/stage-daemon-sidecar.ps1 -Shell vibedesk
+          ./scripts/fetch-voice-assets.ps1 -Shell vibedesk
 
       - name: Build Tauri app
         working-directory: vibedesk
