@@ -10,6 +10,10 @@ All notable changes to VibeCody are documented here. This project follows [Seman
 
 ## [Unreleased]
 
+### Added
+
+- **Archives open in the file explorer.** A `.zip`, `.jar`, `.vsix`, `.apk`, `.tar.gz`, `.tar.zst` — fifteen ZIP-container extensions, tar, and four compressors (gzip, bzip2, zstd, xz) — expands in VibeCoder's tree the way a folder does, and anything inside opens read-only in Monaco with highlighting, search, and image/PDF rendering. **Trying to edit is the interesting part**: rather than the silent no-op Monaco gives a read-only model, the keystroke (or ⌘S, or the context menu) offers to extract the whole archive into a sibling folder named after it — `dist.tar.gz` → `dist/` — and reopens your file from there, writable, with its neighbours intact so relative imports still resolve. The prompt names the exact folder *before* anything is written, including the `-1` suffix when a previous extraction is still sitting there, because silently merging into it is how someone loses the edits they made last time. The archive itself is never rewritten: VibeCody does edit DOCX and EPUB containers in place, and does it by copying every untouched entry back byte for byte in its original order with its original compression method — generalising that to a signed `.apk` is not a promise worth making. DOCX, XLSX, EPUB and friends are deliberately *not* treated as archives; they already have a viewer. **Nothing allocates from a declared size** — a member can claim 8 GiB it does not have, and 40 KiB of zip can expand to a terabyte, so every bound (64 MiB per member, 2 GiB per extraction, 200 000 entries) is enforced by reading, zip-slip paths are skipped rather than written, and a failed extraction deletes its half-built folder instead of leaving it. A tarball has no central directory, so its listing is cached per (path, mtime, size) — without that, expanding five folders in a `.tar.gz` decompressed it five times. See [archives.md](/vibecody/archives/).
+
 ## [0.5.11] - 2026-08-28
 
 ### Added
