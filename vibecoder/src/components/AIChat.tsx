@@ -1478,25 +1478,39 @@ export function AIChat({
   // that ref is only updated on render. Without tracking, the second
   // caller sees stale data and silently drops the first caller's update.
   //
-  // pendingMessagesRef tracks the latest value we've sent to the parent,
-  // so rapid-fire updaters always chain off the most recent state.
+  // pendingMessagesRef tracks the latest value we've committed — to the parent
+  // when controlled, to local state when not — so rapid-fire updaters always
+  // chain off the most recent state in either mode.
   const pendingMessagesRef = useRef<Message[] | null>(null);
 
-  // Sync: once React renders with the new prop, clear the pending value.
+  // Sync: once React renders with that value, clear the pending one.
   useEffect(() => {
     pendingMessagesRef.current = null;
   }, [messages]);
 
   const setMessages = useCallback((update: Message[] | ((prev: Message[]) => Message[])) => {
+    // The updater is resolved here, before the branch, so that callers can read
+    // the resulting list synchronously — `messagesRef.current` is the resolved
+    // list in both modes, so there is no reason for them to differ.
+    //
+    // The local branch used to hand the updater straight to `setLocalMessages`,
+    // where React runs it during the next render instead. Anything reading the
+    // post-update list right after the call therefore saw nothing, and the
+    // `chat:complete` auto-continue is exactly that: its `captured.value` stayed
+    // null, `shouldAutoContinue` was never true, and the turn ended silently.
+    // The Sandbox tab renders this component uncontrolled, so it never resumed
+    // after a tool call or after a reply cut off at the model's output cap —
+    // while the Chat tab, which is controlled, did.
+    //
+    // Use pending (most recent uncommitted) value if available, otherwise fall
+    // back to the last rendered list.
+    const current = pendingMessagesRef.current ?? messagesRef.current;
+    const next = typeof update === "function" ? update(current) : update;
+    pendingMessagesRef.current = next;
     if (onMessagesChangeRef.current) {
-      // Use pending (most recent uncommitted) value if available,
-      // otherwise fall back to the last rendered prop.
-      const current = pendingMessagesRef.current ?? messagesRef.current;
-      const next = typeof update === "function" ? update(current) : update;
-      pendingMessagesRef.current = next;
       onMessagesChangeRef.current(next);
     } else {
-      setLocalMessages(update as Parameters<typeof setLocalMessages>[0]);
+      setLocalMessages(next);
     }
   }, []);
 
@@ -2151,8 +2165,12 @@ export function AIChat({
         const hasToolOutput = !!(response.tool_output && response.tool_output.trim());
 
         // Capture the post-update message list for potential auto-continue.
-        // setMessages's update fn runs synchronously in both controlled and
-        // local modes, so this ref is populated before the next line executes.
+        // `setMessages` resolves its updater before it commits, in both
+        // controlled and local modes, so this ref is populated before the next
+        // line executes. That was only true of the controlled path until
+        // recently, and the local path's silence was invisible: no error, just
+        // a Sandbox tab that never continued. Pinned by
+        // `resumes ... in local (uncontrolled) mode too` in AIChat.test.tsx.
         const captured: { value: Message[] | null } = { value: null };
         // A completion with no content, no reasoning and no tools is a dead
         // turn (providers return one when the request ends on an assistant

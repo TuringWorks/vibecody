@@ -1446,3 +1446,124 @@ describe('AIChat — canonical tool_call blocks render as cards', () => {
     expect(screen.getByText('a.txt')).toBeInTheDocument();
   });
 });
+
+
+// ── Auto-continue on a truncated reply ───────────────────────────────────────
+//
+// The bug: a reply cut at the model's output cap arrived as an ordinary
+// completion, so the panel rendered it as finished and the user had to type
+// "continue". `ollama_stop_reason_live` proves a real server reports `length`;
+// these prove the panel acts on it.
+//
+// Controlled mode on purpose: `setMessages` only runs its updater synchronously
+// when a parent owns the messages, and the auto-continue reads the post-update
+// list. That is the mode ChatTabManager uses, and the only one in which the
+// continue loop works at all — see `auto-continue is inert in local mode`.
+
+describe('AIChat truncation auto-continue', () => {
+  const streamCalls = () =>
+    mockInvoke.mock.calls.filter((c) => c[0] === 'stream_chat_message').length;
+
+  async function startTurn() {
+    const textarea = screen.getByPlaceholderText(/Ask anything/) as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: 'Write a long essay', selectionStart: 17 } });
+    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith('stream_chat_message', expect.anything());
+    });
+  }
+
+  async function complete(payload: Record<string, unknown>) {
+    await act(async () => {
+      emitTauriEvent('chat:complete', { tool_output: '', session_msg_id: null, ...payload });
+    });
+    await flushAll();
+  }
+
+  it('resumes the turn when the provider reports it was cut at the output cap', async () => {
+    render(<ControlledAIChat />);
+    await startTurn();
+    const before = streamCalls();
+
+    await complete({
+      message: 'The history of computing is a rich and complex narrative that',
+      stop_reason: 'length',
+    });
+
+    expect(streamCalls()).toBe(before + 1);
+  });
+
+  it('does not resume a reply that finished on its own', async () => {
+    render(<ControlledAIChat />);
+    await startTurn();
+    const before = streamCalls();
+
+    await complete({ message: 'ok', stop_reason: 'natural' });
+
+    expect(streamCalls()).toBe(before);
+  });
+
+  it('does not resume when the provider reports no reason at all', async () => {
+    // Absent must stay absent: a provider that says nothing (Bedrock,
+    // local_edit) must not have its silence read as truncation.
+    render(<ControlledAIChat />);
+    await startTurn();
+    const before = streamCalls();
+
+    await complete({ message: 'some answer' });
+
+    expect(streamCalls()).toBe(before);
+  });
+
+  it('does not resume on a reason it does not model', async () => {
+    render(<ControlledAIChat />);
+    await startTurn();
+    const before = streamCalls();
+
+    await complete({ message: 'blocked', stop_reason: { other: 'load' } });
+
+    expect(streamCalls()).toBe(before);
+  });
+
+  // The Sandbox tab renders AIChat with no `messages`/`onMessagesChange`, so it
+  // runs on local state. The continue loop reads the post-update message list,
+  // which `setMessages` only produced in controlled mode — so auto-continue was
+  // inert there for tool results as well as for a truncated reply.
+  it('resumes a truncated turn in local (uncontrolled) mode too', async () => {
+    render(<AIChat provider="ollama" />);
+    await startTurn();
+    const before = streamCalls();
+
+    await complete({ message: 'cut off mid sen', stop_reason: 'length' });
+
+    expect(streamCalls()).toBe(before + 1);
+  });
+
+  it('resumes after tool output in local (uncontrolled) mode too', async () => {
+    // The pre-existing half of the same bug: the Sandbox tab never continued
+    // after running a tool either.
+    render(<AIChat provider="ollama" />);
+    await startTurn();
+    const before = streamCalls();
+
+    await complete({ message: 'let me look', tool_output: 'file contents' });
+
+    expect(streamCalls()).toBe(before + 1);
+  });
+
+  it('stops after the continue budget and says why instead of going quiet', async () => {
+    render(<ControlledAIChat />);
+    await startTurn();
+
+    // Four truncated completions: three are resumed, the fourth exhausts the
+    // budget and must report rather than silently stop.
+    for (let i = 0; i < 4; i += 1) {
+      await complete({ message: `chunk ${i}`, stop_reason: 'length' });
+    }
+
+    expect(streamCalls()).toBe(1 + 3);
+    await waitFor(() => {
+      expect(screen.getByText(/still incomplete/i)).toBeInTheDocument();
+    });
+  });
+});
