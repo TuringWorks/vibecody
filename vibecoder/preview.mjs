@@ -8,12 +8,13 @@ page.on('console', m => { if (m.type() === 'error') errors.push(m.text().slice(0
 const [doc, out1, out2] = process.argv.slice(2);
 await page.goto(`http://localhost:1420/document-preview.html?doc=${doc}`, { waitUntil: 'networkidle' });
 await page.waitForTimeout(2500);
-await page.screenshot({ path: out1 });
+console.log('text:', (await page.locator('body').innerText()).slice(0, 200).replace(/\n/g, ' | '));
+await page.screenshot({ path: out1, animations: 'disabled', timeout: 15000 });
 const toggle = page.getByRole('button', { name: /two up/i });
 if (await toggle.count()) {
   await toggle.click();
   await page.waitForTimeout(1500);
-  await page.screenshot({ path: out2 });
+  await page.screenshot({ path: out2, animations: 'disabled', timeout: 15000 });
 }
 console.log('errors:', errors.slice(0, 6));
 await browser.close();
