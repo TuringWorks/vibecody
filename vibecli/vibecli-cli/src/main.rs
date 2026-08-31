@@ -289,6 +289,9 @@ mod acp;
 mod acp_stdio;
 mod cloud_agent;
 mod compliance;
+// Signal helpers are exercised by the library target's tests; the binary uses
+// only part of the surface.
+#[allow(dead_code)]
 mod compliance_scan;
 mod github_app;
 mod marketplace;

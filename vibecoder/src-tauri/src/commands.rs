@@ -32166,6 +32166,9 @@ pub async fn generate_compliance_report(
             "truncated": report.scope.truncated,
             "files_too_large": report.scope.files_too_large,
             "git_tracked_files": report.scope.git_tracked_files,
+            "git_commit": report.scope.git_commit,
+            "git_dirty": report.scope.git_dirty,
+            "tool_version": report.scope.tool_version,
         },
         "controls": controls,
         "summary": {

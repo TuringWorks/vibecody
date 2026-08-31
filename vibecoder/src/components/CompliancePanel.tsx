@@ -20,6 +20,11 @@ interface ScanScope {
  files_too_large: number;
  /** null when the workspace is not a git checkout. */
  git_tracked_files: number | null;
+ /** The commit scanned, or null off a checkout. Never invented. */
+ git_commit: string | null;
+ /** Whether that tree had uncommitted changes. */
+ git_dirty: boolean | null;
+ tool_version: string;
 }
 
 interface ComplianceReport {

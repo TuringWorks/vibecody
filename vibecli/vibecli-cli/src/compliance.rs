@@ -1,5 +1,14 @@
 #![allow(dead_code, clippy::upper_case_acronyms)]
-//! Compliance reports generated from a scan of the user's project.
+//! Readiness reports generated from a scan of the user's project.
+//!
+//! What this produces is a **gap / readiness assessment**, not an audit report.
+//! The distinction is the whole point of the artefact: an attestation comes
+//! from an independent licensed CPA, and a SOC 2 Type II in particular is
+//! evidence that controls were *consistently operating* across a three-to-
+//! twelve-month observation window. A scan of a source tree is a point-in-time
+//! look at control **design** — closer to a Type I question, and even then only
+//! at the part of the design that is visible in code. Nothing here shortens an
+//! observation window or substitutes for one.
 //!
 //! The report model lives here; the evidence gathering and the per-framework
 //! control catalogues live in [`crate::compliance_scan`]. A report is only ever
@@ -104,6 +113,13 @@ pub struct ScanScope {
     /// Files tracked by git, or `None` when the root is not a git checkout
     /// (in which case the committed-credential checks did not run).
     pub git_tracked_files: Option<usize>,
+    /// The commit scanned, when there was one.
+    pub git_commit: Option<String>,
+    /// Whether that tree had uncommitted changes. A report over a dirty tree is
+    /// not reproducible from its commit, and must say so to be filed.
+    pub git_dirty: Option<bool>,
+    /// The tool that produced the report, so a filed copy can be re-run.
+    pub tool_version: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -151,6 +167,9 @@ pub fn generate_report_for_path(framework: &str, root: &Path) -> Result<Complian
         truncated: facts.scan_truncated,
         files_too_large: facts.files_too_large,
         git_tracked_files: facts.git_tracked,
+        git_commit: facts.git_commit.clone(),
+        git_dirty: facts.git_dirty,
+        tool_version: env!("CARGO_PKG_VERSION").to_string(),
     };
     Ok(build_report(framework, scope, controls))
 }
@@ -201,6 +220,53 @@ fn build_report(
     }
 }
 
+/// RFC 3339 rendering of a Unix timestamp, in UTC.
+///
+/// Hand-rolled rather than pulling `chrono` in for one line: the report needs a
+/// timestamp a human filing it can read, not date arithmetic.
+fn format_timestamp(secs: u64) -> String {
+    let days_total = secs / 86_400;
+    let time = secs % 86_400;
+    let (mut year, mut day) = (1970_u64, days_total);
+    loop {
+        let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+        let len = if leap { 366 } else { 365 };
+        if day < len {
+            break;
+        }
+        day -= len;
+        year += 1;
+    }
+    let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+    let months = [
+        31,
+        if leap { 29 } else { 28 },
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
+    ];
+    let mut month = 0;
+    while month < 12 && day >= months[month] {
+        day -= months[month];
+        month += 1;
+    }
+    format!(
+        "{year:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
+        month + 1,
+        day + 1,
+        time / 3600,
+        (time % 3600) / 60,
+        time % 60,
+    )
+}
+
 /// Export a report as markdown.
 pub fn report_to_markdown(report: &ComplianceReport) -> String {
     let s = &report.summary;
@@ -208,8 +274,26 @@ pub fn report_to_markdown(report: &ComplianceReport) -> String {
         Some(p) => format!("{p:.1}%"),
         None => "n/a (no control could be scored)".to_string(),
     };
-    let mut md = format!("# {} Compliance Report\n\n", report.framework.label());
+    let mut md = format!("# {} Readiness Assessment\n\n", report.framework.label());
+    md.push_str(
+        "> **Gap assessment, not an audit report.** This is a point-in-time scan of \
+control design as it appears in source. An attestation comes from an independent \
+licensed CPA, and a Type II report additionally requires evidence that controls \
+operated consistently across a three-to-twelve-month observation window — which no \
+source scan can demonstrate.\n\n",
+    );
     md.push_str(&format!("**Project:** `{}`\n\n", report.scope.root));
+    md.push_str(&format!(
+        "**Scanned:** {} · vibecli {} · commit {}{}\n\n",
+        format_timestamp(report.generated_at),
+        report.scope.tool_version,
+        report.scope.git_commit.as_deref().unwrap_or("unknown (not a git checkout)"),
+        match report.scope.git_dirty {
+            Some(true) => " — **uncommitted changes present**, this report is not reproducible from the commit alone",
+            Some(false) => " (clean tree)",
+            None => "",
+        },
+    ));
     md.push_str(&format!(
         "**Compliance: {score}** over {} scored controls ({} implemented, {} partial, {} gaps). \
 {} control(s) could not be assessed from source.\n\n",
@@ -394,7 +478,11 @@ mod tests {
         write(&root, "README.md", "hello");
         let report = generate_report_for_path("gdpr", &root).expect("report");
         let md = report_to_markdown(&report);
-        assert!(md.contains("# GDPR Compliance Report"));
+        assert!(md.contains("# GDPR Readiness Assessment"));
+        assert!(
+            md.contains("not an audit report"),
+            "the artefact must not be mistakable for an attestation"
+        );
         assert!(md.contains(&root.display().to_string()));
         assert!(md.contains("could not be assessed from source"));
         assert!(md.contains("| ID | Control | Status | Evidence | Notes |"));
@@ -419,6 +507,28 @@ mod tests {
                 "{fw} scored nothing at all — the percentage would be meaningless"
             );
         }
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn format_timestamp_renders_utc() {
+        assert_eq!(format_timestamp(0), "1970-01-01T00:00:00Z");
+        assert_eq!(format_timestamp(1_000_000_000), "2001-09-09T01:46:40Z");
+        // A leap day, to catch the february branch.
+        assert_eq!(format_timestamp(1_709_164_800), "2024-02-29T00:00:00Z");
+    }
+
+    #[test]
+    fn markdown_states_provenance_or_says_it_is_unknown() {
+        let root = fixture("provenance-md");
+        write(&root, "README.md", "hi");
+        let report = generate_report_for_path("soc2", &root).expect("report");
+        let md = report_to_markdown(&report);
+        assert!(md.contains("vibecli "));
+        assert!(
+            md.contains("unknown (not a git checkout)"),
+            "a fixture directory has no commit, and the report must say so"
+        );
         let _ = fs::remove_dir_all(&root);
     }
 

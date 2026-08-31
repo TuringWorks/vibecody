@@ -185,6 +185,12 @@ pub struct ProjectFacts {
     /// Files tracked by git, or `None` when the root is not a git checkout.
     /// The committed-credential checks only run when this is `Some`.
     pub git_tracked: Option<usize>,
+    /// The commit the scan saw, when the root is a git checkout.
+    pub git_commit: Option<String>,
+    /// Whether that commit had uncommitted changes. A report taken against a
+    /// dirty tree cannot be reproduced from the commit alone, and an audit file
+    /// that does not say so invites exactly that assumption.
+    pub git_dirty: Option<bool>,
     signals: BTreeMap<Signal, Vec<Evidence>>,
     counts: BTreeMap<Signal, usize>,
 }
@@ -195,7 +201,7 @@ impl ProjectFacts {
     }
 
     pub fn evidence(&self, signal: Signal) -> &[Evidence] {
-        self.signals.get(&signal).map(|v| v.as_slice()).unwrap_or(&[])
+        self.signals.get(&signal).map_or(&[][..], |v| v.as_slice())
     }
 
     /// Total hits for a signal, including those past the evidence cap.
@@ -355,8 +361,9 @@ const CONTENT_RULES: &[ContentRule] = &[
     },
     ContentRule {
         signal: Signal::HardcodedCredential,
+        // `=`, `:` and Go's `:=` all assign.
         detail: "credential literal in source",
-        pattern: r#"(?:api[_-]?key|secret[_-]?key|client[_-]?secret|access[_-]?token|auth[_-]?token|password)\s*[:=]\s*["']([a-z0-9_\-+/=\.]{16,})["']"#,
+        pattern: r#"(?:api[_-]?key|secret[_-]?key|client[_-]?secret|access[_-]?token|auth[_-]?token|password)\s*(?::=|[:=])\s*["']([a-z0-9_\-+/=\.]{16,})["']"#,
     },
 ];
 
@@ -487,10 +494,14 @@ fn is_readable_text(base_lower: &str) -> bool {
     {
         return false;
     }
-    if TEXT_BASENAMES
-        .iter()
-        .any(|b| base_lower == *b || base_lower.starts_with(&format!("{b}.")))
-    {
+    // `dockerfile.dev`, `readme.md`, `license.txt`: the stem names the kind of
+    // file, whatever follows the dot. Matched without allocating per candidate.
+    if TEXT_BASENAMES.iter().any(|b| {
+        base_lower == *b
+            || base_lower
+                .strip_prefix(*b)
+                .is_some_and(|rest| rest.starts_with('.'))
+    }) {
         return true;
     }
     // `.env.example`, `.gitignore`, `.gitleaks.toml` and friends: a leading dot
@@ -648,21 +659,27 @@ fn path_signals(rel_lower: &str) -> Vec<(Signal, &'static str)> {
 
 // ── Scanning ────────────────────────────────────────────────────────────────
 
+/// Output of a `git` subcommand run in `root`, or `None` when git is
+/// unavailable or the directory is not a checkout.
+fn git_output(root: &Path, args: &[&str]) -> Option<String> {
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(args)
+        .output()
+        .ok()?;
+    output
+        .status
+        .success()
+        .then(|| String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
 /// Files git reports as tracked, relative to `root` and lowercased.
 /// `None` when `root` is not a git checkout, or git is unavailable — in which
 /// case the committed-credential checks are skipped rather than guessed at.
 fn tracked_files(root: &Path) -> Option<HashSet<String>> {
-    let output = std::process::Command::new("git")
-        .arg("-C")
-        .arg(root)
-        .args(["ls-files", "-z"])
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
     Some(
-        String::from_utf8_lossy(&output.stdout)
+        git_output(root, &["ls-files", "-z"])?
             .split('\0')
             .filter(|s| !s.is_empty())
             .map(|s| s.to_lowercase())
@@ -682,9 +699,16 @@ fn line_of_offset(text: &str, offset: usize) -> Option<u32> {
 /// Walk `root` and collect every signal the tree supports.
 pub fn scan(root: &Path) -> ProjectFacts {
     let tracked = tracked_files(root);
+    // Both are `None` off a checkout: an audit file says "unknown", never a
+    // plausible-looking commit nobody read.
+    let git_commit = git_output(root, &["rev-parse", "HEAD"]).map(|s| s.trim().to_string());
+    let git_dirty =
+        git_output(root, &["status", "--porcelain"]).map(|s| !s.trim().is_empty());
     let mut facts = ProjectFacts {
         root: root.display().to_string(),
         git_tracked: tracked.as_ref().map(|t| t.len()),
+        git_commit,
+        git_dirty,
         ..ProjectFacts::default()
     };
 
@@ -774,7 +798,7 @@ pub fn scan(root: &Path) -> ProjectFacts {
             // A credential-shaped literal in a fixture or a doc is neither a
             // finding nor evidence; a placeholder value is not a secret.
             if rule.signal == Signal::HardcodedCredential
-                && (fixture || !is_plausible_credential(&haystack, re))
+                && (fixture || !is_plausible_credential(&text, &haystack, re))
             {
                 continue;
             }
@@ -809,26 +833,63 @@ pub fn scan(root: &Path) -> ProjectFacts {
     facts
 }
 
-/// True when at least one credential-shaped literal has a value that is not a
-/// documented placeholder.
-fn is_plausible_credential(text: &str, re: &Regex) -> bool {
+/// True when at least one credential-shaped literal holds a value that could
+/// actually be a secret.
+///
+/// The key half of the pattern is matched against `haystack` (lowercased, for
+/// speed), but the *value* is read back out of `original` at the same byte
+/// offsets — `to_ascii_lowercase` preserves length, so the spans line up. Case
+/// is the whole signal here: `ghp_16Cabcdefghijklmnop` is a token,
+/// `vibecody.watch.access_token` is a keychain key, and once both are
+/// lowercased they are indistinguishable.
+fn is_plausible_credential(original: &str, haystack: &str, re: &Regex) -> bool {
     let Some(placeholder) = PLACEHOLDER.as_ref() else {
         return false;
     };
-    re.captures_iter(text)
+    re.captures_iter(haystack)
         .filter_map(|c| c.get(1))
-        .any(|m| !placeholder.is_match(m.as_str()))
+        .filter(|m| !placeholder.is_match(m.as_str()))
+        .filter_map(|m| original.get(m.start()..m.end()))
+        .any(looks_like_a_secret)
+}
+
+/// Whether a string has the shape of a generated secret rather than a name.
+///
+/// Two things disqualify a value, and both need the original casing:
+///
+/// - It reads as an identifier — dot- or underscore-separated lowercase words,
+///   like `vibecody.watch.access_token`. That is what a keychain key, a config
+///   key or a settings constant looks like, and the codebase is full of them
+///   assigned to variables called `accessToken`.
+/// - It draws on fewer than two of {lowercase, uppercase, digit}. Generated
+///   credentials mix character classes; english-ish names do not.
+fn looks_like_a_secret(value: &str) -> bool {
+    let identifier = value
+        .split(['.', '_', '-'])
+        .all(|part| !part.is_empty() && part.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit()))
+        && value.contains(['.', '_', '-']);
+    if identifier {
+        return false;
+    }
+    let classes = [
+        value.chars().any(|c| c.is_ascii_lowercase()),
+        value.chars().any(|c| c.is_ascii_uppercase()),
+        value.chars().any(|c| c.is_ascii_digit()),
+    ]
+    .iter()
+    .filter(|present| **present)
+    .count();
+    classes >= 2
 }
 
 /// The line of the last `USER` instruction, when it switches away from root.
 fn docker_non_root_user(text: &str) -> Option<(u32, &'static str)> {
     let re = DOCKER_USER.as_ref()?;
-    let last = text
+    let (idx, caps) = text
         .lines()
         .enumerate()
         .filter_map(|(idx, line)| re.captures(line).map(|c| (idx, c)))
         .last()?;
-    let (idx, caps) = last;
     let user = caps.get(1)?.as_str();
     if user.eq_ignore_ascii_case("root") || user == "0" {
         return None;
@@ -1779,6 +1840,59 @@ mod tests {
     }
 
     #[test]
+    fn a_key_name_assigned_to_a_token_variable_is_not_a_credential() {
+        // Reduced from vibewatch: keychain key names, not secrets. Lowercasing
+        // the file for speed erases the only thing that separates the two, so
+        // the value is re-read from the original text.
+        let root = tmp("keyname");
+        write(
+            &root,
+            "src/WatchAuthManager.swift",
+            "enum KeychainKey {\n    static let accessToken = \"vibecody.watch.access_token\"\n}\n",
+        );
+        let facts = scan(&root);
+        assert!(
+            !facts.has(Signal::HardcodedCredential),
+            "a dotted identifier is a key name, not a credential"
+        );
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn looks_like_a_secret_separates_names_from_tokens() {
+        for name in [
+            "vibecody.watch.access_token",
+            "app_settings_api_key",
+            "some-service-token",
+        ] {
+            assert!(!looks_like_a_secret(name), "{name} is a name");
+        }
+        for secret in [
+            "a83Kd92LmQ0zXvB4tR7yUw11",
+            "ghp_16Cabcdefghijklmnop",
+            "AKIAIOSFODNN7EXAMPLE",
+        ] {
+            assert!(looks_like_a_secret(secret), "{secret} is secret-shaped");
+        }
+    }
+
+    #[test]
+    fn mixed_case_token_survives_the_lowercased_scan() {
+        let root = tmp("mixedcase");
+        write(
+            &root,
+            "src/config.go",
+            "authToken := \"ghp_16CabcdefghijklmnopQRS\"\n",
+        );
+        let facts = scan(&root);
+        assert!(
+            facts.has(Signal::HardcodedCredential),
+            "a real token must still be found after the haystack is lowercased"
+        );
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
     fn real_looking_credential_literal_is_a_finding() {
         let root = tmp("credential");
         write(
@@ -1848,6 +1962,17 @@ mod tests {
         // Not a git checkout → the tracked-file check cannot run, so it does
         // not fire either way.
         assert!(facts.git_tracked.is_none() || !facts.has(Signal::CommittedSecretFile));
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn provenance_is_absent_rather_than_invented_off_a_checkout() {
+        let root = tmp("provenance");
+        write(&root, "README.md", "hi");
+        let facts = scan(&root);
+        assert!(facts.git_commit.is_none());
+        assert!(facts.git_dirty.is_none());
+        assert!(facts.git_tracked.is_none());
         let _ = fs::remove_dir_all(&root);
     }
 
