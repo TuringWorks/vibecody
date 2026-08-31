@@ -2,27 +2,52 @@
  * DocumentViewer — renders PDF, EPUB, DOCX and Apple Pages files in the editor
  * area, and hands any of them to the text editor on request.
  *
- * PDF:  Renders pages to <canvas> elements using a built-in PDF.js-style
- *       decoder via the browser's native PDF rendering, falling back to
- *       an <iframe> / <object> embed with a blob URL from base64 data.
+ * PDF:  Pages are drawn to <canvas> with PDF.js, one at a time or two side by
+ *       side. They used to go to an <iframe> and be the platform's business,
+ *       which is why this panel had no page navigation and no spread.
  *
  * EPUB: Parses the EPUB (ZIP containing XHTML/CSS/images) via the Tauri
- *       backend and renders extracted HTML chapters in a scrollable view.
+ *       backend and renders extracted HTML chapters, with the book's own
+ *       stylesheets, in a scrolling pane or as two columns of a screen.
  *
  * Features:
- *   • Page navigation (PDF) / Chapter navigation (EPUB)
- *   • Zoom in/out, fit-to-width
- *   • Page count display, chapter list sidebar
+ *   • Page navigation and a two-page spread (PDF); chapter navigation (EPUB)
+ *   • A two-column reading spread for the formats that are text, not sheets
+ *   • Zoom, font size, page and chapter counts, contents sidebar
  *   • Dark/light theme integration
  */
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import DOMPurify from "dompurify";
-import { FileText, ChevronRight, ChevronLeft, AlertTriangle, Info, Pencil } from "lucide-react";
+import {
+  AlertTriangle,
+  BookOpen,
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  Info,
+  Pencil,
+  Square,
+} from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { DocumentTextEditor } from "./DocumentTextEditor";
 import { MarkdownPreview } from "./MarkdownPreview";
-import { getMode, hasDraft, setMode as rememberMode } from "../lib/documentDrafts";
+import {
+  getLayout,
+  getMode,
+  hasDraft,
+  setLayout as rememberLayout,
+  setMode as rememberMode,
+} from "../lib/documentDrafts";
+import {
+  canTurn,
+  pagesInView,
+  turn,
+  viewLabel,
+  viewStart,
+  type Layout,
+} from "../lib/pageSpread";
+import type { PdfHandle } from "../lib/pdfDocument";
 import {
   dataUrl,
   readEpubBook,
@@ -61,9 +86,9 @@ export function isDocumentFile(filename: string): boolean {
 /**
  * Whether this document's viewer renders from the file's bytes.
  *
- * Only PDF does — it hands them to the browser's own renderer. EPUB, DOCX and
- * Pages are parsed by the backend, so reading them into a base64 string on open
- * would move the whole file through a JS string for nothing.
+ * Only PDF does — its pages are drawn here, from the file itself. EPUB, DOCX
+ * and Pages are parsed by the backend, so reading them into a base64 string on
+ * open would move the whole file through a JS string for nothing.
  */
 export function needsRawBytes(filename: string): boolean {
   const ext = filename.split(".").pop()?.toLowerCase() || "";
@@ -81,78 +106,181 @@ interface DocumentViewerProps {
 
 // ── PDF Viewer Sub-component ─────────────────────────────────────────
 
+/** What the PDF viewer is doing. */
+type PdfState =
+  | { status: "loading" }
+  | { status: "ready"; handle: PdfHandle }
+  | { status: "failed"; message: string };
+
+/**
+ * PdfViewer — renders the pages itself, one at a time or two side by side.
+ *
+ * The pages are drawn to canvases through PDF.js rather than handed to the
+ * platform's own viewer in an `<iframe>`. That embed was simpler and it is why
+ * this panel had no page navigation and no spread: everything inside the frame
+ * belonged to the browser, including which page you were looking at.
+ */
 function PdfViewer({ filePath, base64Data, onEditText }: DocumentViewerProps & EditableProps) {
+  const [state, setState] = useState<PdfState>({ status: "loading" });
+  const [page, setPage] = useState(1);
+  const [layout, setLayoutPreference] = useLayout(filePath);
   const [scale, setScale] = useState(1.0);
-  const [error, setError] = useState<string | null>(null);
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [renderError, setRenderError] = useState<string | null>(null);
+  const canvases = useRef<Array<HTMLCanvasElement | null>>([]);
 
-  const fileName = filePath.split("/").pop() || filePath.split("\\").pop() || filePath;
+  const fileName = filePath.split(/[/\\]/).pop() || filePath;
+  const pageCount = state.status === "ready" ? state.handle.pageCount : 0;
+  const visible = useMemo(
+    () => pagesInView(page, pageCount, layout),
+    [page, pageCount, layout],
+  );
 
-  // Convert base64 to blob URL for the embed
+  // ── The document ──────────────────────────────────────────────────
   useEffect(() => {
+    let cancelled = false;
+    let opened: PdfHandle | null = null;
+    setState({ status: "loading" });
+    setPage(1);
     if (!base64Data) return;
-    try {
-      const binary = atob(base64Data);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
-      }
-      const blob = new Blob([bytes], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
-      setBlobUrl(url);
-      return () => URL.revokeObjectURL(url);
-    } catch (e) {
-      setError(`Failed to decode PDF: ${e}`);
-    }
+
+    // Loaded on demand: PDF.js is a megabyte of parser, and most sessions never
+    // open a PDF. Importing it with the viewer would put it in the bundle every
+    // window pays for at startup.
+    import("../lib/pdfDocument")
+      .then(({ openPdf }) => openPdf(base64Data))
+      .then((handle) => {
+        opened = handle;
+        if (cancelled) {
+          handle.close();
+          return;
+        }
+        setState({ status: "ready", handle });
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setState({ status: "failed", message: documentErrorMessage(error) });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+      opened?.close();
+    };
   }, [base64Data]);
 
-  const zoomIn = useCallback(() => setScale(s => Math.min(s * 1.25, 5)), []);
-  const zoomOut = useCallback(() => setScale(s => Math.max(s / 1.25, 0.25)), []);
-  const resetZoom = useCallback(() => setScale(1.0), []);
+  // ── The pages on screen ───────────────────────────────────────────
+  useEffect(() => {
+    if (state.status !== "ready") return;
+    let cancelled = false;
+    setRenderError(null);
+    const { handle } = state;
 
-  const zoomPercent = `${Math.round(scale * 100)}%`;
+    // Rendered in order rather than in parallel: PDF.js serialises work on one
+    // document anyway, and a spread whose right page appears first reads as a
+    // flicker.
+    void (async () => {
+      for (const [slot, number] of visible.entries()) {
+        const canvas = canvases.current[slot];
+        if (!canvas || cancelled) return;
+        try {
+          await handle.renderPage(number, canvas, scale);
+        } catch (error) {
+          if (!cancelled) setRenderError(documentErrorMessage(error));
+          return;
+        }
+      }
+    })();
 
-  if (error) {
+    return () => {
+      cancelled = true;
+    };
+  }, [state, visible, scale]);
+
+  const setLayout = useCallback(
+    (next: Layout) => {
+      setLayoutPreference(next);
+      // Stay on the page you were reading rather than on the spread's index.
+      setPage((current) => viewStart(current, next));
+    },
+    [setLayoutPreference],
+  );
+
+  const goto = useCallback(
+    (direction: 1 | -1) => setPage((current) => turn(current, pageCount, layout, direction)),
+    [pageCount, layout],
+  );
+
+  // Arrow keys page the document, the way every reader does.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+      if (event.key === "ArrowRight" || event.key === "PageDown") {
+        event.preventDefault();
+        goto(1);
+      } else if (event.key === "ArrowLeft" || event.key === "PageUp") {
+        event.preventDefault();
+        goto(-1);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [goto]);
+
+  if (state.status === "failed") {
     return (
       <div className="document-viewer">
         <div className="document-viewer-error">
           <AlertTriangle size={16} className="error-icon" />
-          <span className="error-message">{error}</span>
+          <span className="error-message">{state.message}</span>
         </div>
       </div>
     );
   }
 
-  if (!blobUrl) {
-    return (
-      <div className="document-viewer">
-        <div className="document-viewer-loading">
-          <div className="doc-spinner" />
-          <span>Loading PDF…</span>
-        </div>
-      </div>
-    );
+  if (state.status === "loading") {
+    return <LoadingPane format="pdf" />;
   }
 
   return (
-    <div className="document-viewer">
-      {/* ── Toolbar ──────────────────────────────────────────────── */}
+    <div className="document-viewer pdf-viewer">
       <div className="document-viewer-toolbar">
         <div className="toolbar-group">
-          <button onClick={zoomOut} title="Zoom Out (−)">−</button>
-          <span className="zoom-label">{zoomPercent}</span>
-          <button onClick={zoomIn} title="Zoom In (+)">+</button>
+          <button onClick={() => setScale((s) => Math.max(s / 1.25, 0.25))} title="Zoom out">
+            −
+          </button>
+          <span className="zoom-label">{Math.round(scale * 100)}%</span>
+          <button onClick={() => setScale((s) => Math.min(s * 1.25, 5))} title="Zoom in">
+            +
+          </button>
+          <button onClick={() => setScale(1)} title="Reset zoom" className="toolbar-btn-wide">
+            Reset
+          </button>
         </div>
         <div className="toolbar-separator" />
         <div className="toolbar-group">
           <button
-            onClick={resetZoom}
-            title="Reset Zoom"
-            className="toolbar-btn-wide"
+            onClick={() => goto(-1)}
+            disabled={!canTurn(page, pageCount, layout, -1)}
+            title="Previous page (←)"
+            aria-label="Previous page"
           >
-            Reset
+            <ChevronLeft size={14} />
           </button>
+          <span className="zoom-label page-label">{viewLabel(page, pageCount, layout)}</span>
+          <button
+            onClick={() => goto(1)}
+            disabled={!canTurn(page, pageCount, layout, 1)}
+            title="Next page (→)"
+            aria-label="Next page"
+          >
+            <ChevronRight size={14} />
+          </button>
+        </div>
+        <div className="toolbar-separator" />
+        <div className="toolbar-group">
+          <LayoutToggle layout={layout} onChange={setLayout} unit="page" />
         </div>
         {onEditText && (
           <>
@@ -168,17 +296,26 @@ function PdfViewer({ filePath, base64Data, onEditText }: DocumentViewerProps & E
         </div>
       </div>
 
-      {/* ── PDF Content ───────────────────────────────────────────── */}
-      <div ref={containerRef} className="document-viewer-canvas">
-        <div
-          className="pdf-embed-wrapper"
-          style={{ transform: `scale(${scale})`, transformOrigin: "top center" }}
-        >
-          <iframe
-            src={`${blobUrl}#toolbar=1&navpanes=1&scrollbar=1`}
-            title={`PDF: ${fileName}`}
-            className="pdf-iframe"
-          />
+      {renderError && (
+        <div className="document-viewer-error doc-inline-error">
+          <AlertTriangle size={14} className="error-icon" />
+          <span className="error-message">{renderError}</span>
+        </div>
+      )}
+
+      <div className="document-viewer-canvas">
+        <div className={`pdf-spread${layout === "spread" ? " pdf-spread-two" : ""}`}>
+          {visible.map((number, slot) => (
+            <div className="pdf-page" key={number}>
+              <canvas
+                ref={(element) => {
+                  canvases.current[slot] = element;
+                }}
+                aria-label={`Page ${number}`}
+              />
+              <div className="pdf-page-number">{number}</div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -218,6 +355,7 @@ function EpubViewer({ filePath, onEditText }: { filePath: string } & EditablePro
   const [fragment, setFragment] = useState<string | null>(null);
   const [fontSize, setFontSize] = useState(17);
   const [showToc, setShowToc] = useState(true);
+  const [layout, setLayout] = useLayout(filePath);
   const contentRef = useRef<HTMLDivElement>(null);
 
   const fileName = filePath.split(/[/\\]/).pop() || filePath;
@@ -391,6 +529,10 @@ function EpubViewer({ filePath, onEditText }: { filePath: string } & EditablePro
             Contents
           </button>
         </div>
+        <div className="toolbar-separator" />
+        <div className="toolbar-group">
+          <LayoutToggle layout={layout} onChange={setLayout} unit="screen" />
+        </div>
         {onEditText && (
           <>
             <div className="toolbar-separator" />
@@ -444,13 +586,19 @@ function EpubViewer({ filePath, onEditText }: { filePath: string } & EditablePro
           </div>
         )}
 
-        <div ref={contentRef} className="epub-chapter-scroll" onClick={handleClick}>
+        <div
+          ref={contentRef}
+          className={`epub-chapter-scroll${layout === "spread" ? " reading-paged" : ""}`}
+          onClick={handleClick}
+        >
           {chapter ? (
             <>
               {/* The book's own stylesheet, scoped to the chapter container. */}
               <style>{chapter.css}</style>
               <div
-                className="epub-chapter-body"
+                className={`epub-chapter-body${
+                  layout === "spread" ? " reading-columns" : ""
+                }`}
                 style={{ fontSize }}
                 /* Sanitised by sanitizeEpubHtml() above; rewriteChapterHtml()
                    only edits attributes on what survived. */
@@ -465,6 +613,7 @@ function EpubViewer({ filePath, onEditText }: { filePath: string } & EditablePro
           )}
         </div>
       </div>
+      {layout === "spread" && <PageStrip pane={contentRef} />}
     </div>
   );
 }
@@ -588,6 +737,121 @@ interface EditableProps {
   onEditText?: () => void;
 }
 
+/**
+ * One page, or two side by side.
+ *
+ * `unit` is what this format calls the thing being paired — a PDF has pages,
+ * a chapter or a document laid out in columns has screens of text — so the
+ * control says what it will actually do rather than borrowing a word from a
+ * format that works differently.
+ */
+function LayoutToggle({
+  layout,
+  onChange,
+  unit,
+}: {
+  layout: Layout;
+  onChange: (next: Layout) => void;
+  unit: "page" | "screen";
+}) {
+  const spread = layout === "spread";
+  return (
+    <button
+      onClick={() => onChange(spread ? "single" : "spread")}
+      className={`toolbar-btn-wide${spread ? " active" : ""}`}
+      aria-pressed={spread}
+      title={
+        spread
+          ? `Show one ${unit} at a time`
+          : `Show two ${unit}s side by side`
+      }
+    >
+      {spread ? <Square size={13} /> : <BookOpen size={13} />} {spread ? "One up" : "Two up"}
+    </button>
+  );
+}
+
+/**
+ * The pager under a reflowable document laid out as two pages side by side.
+ *
+ * A DOCX or a chapter of an EPUB has no pages of its own — it is text, and how
+ * much of it fits beside how much depends on the window and the font size. So
+ * "two pages" here means two columns of one screen, and moving on means
+ * scrolling the pane by exactly its own width. The pane keeps `overflow:
+ * hidden` rather than a transform so that everything else still works on it:
+ * `scrollIntoView` on a footnote anchor lands on the right column by itself.
+ */
+function PageStrip({ pane }: { pane: React.RefObject<HTMLDivElement | null> }) {
+  const [{ screen, screens }, setPosition] = useState({ screen: 0, screens: 1 });
+
+  useEffect(() => {
+    const element = pane.current;
+    if (!element) return;
+
+    const measure = () => {
+      const width = element.clientWidth || 1;
+      setPosition({
+        screen: Math.round(element.scrollLeft / width),
+        screens: Math.max(1, Math.round(element.scrollWidth / width)),
+      });
+    };
+    measure();
+
+    element.addEventListener("scroll", measure, { passive: true });
+    // The column count, and so the screen count, changes with the pane's size
+    // and with the font size — neither of which fires a scroll event.
+    const observer =
+      typeof ResizeObserver === "function" ? new ResizeObserver(measure) : null;
+    observer?.observe(element);
+    return () => {
+      element.removeEventListener("scroll", measure);
+      observer?.disconnect();
+    };
+  }, [pane]);
+
+  const go = useCallback(
+    (direction: 1 | -1) => {
+      const element = pane.current;
+      if (!element) return;
+      const width = element.clientWidth || 1;
+      element.scrollTo?.({ left: (screen + direction) * width, behavior: "smooth" });
+    },
+    [pane, screen],
+  );
+
+  return (
+    <div className="reading-pager">
+      <button onClick={() => go(-1)} disabled={screen <= 0} aria-label="Previous screen">
+        <ChevronLeft size={14} />
+      </button>
+      <span className="zoom-label page-label">
+        Screen {Math.min(screen + 1, screens)} of {screens}
+      </span>
+      <button
+        onClick={() => go(1)}
+        disabled={screen + 1 >= screens}
+        aria-label="Next screen"
+      >
+        <ChevronRight size={14} />
+      </button>
+    </div>
+  );
+}
+
+/** Remembered per file, so a tab switch does not undo how you chose to read. */
+function useLayout(filePath: string): [Layout, (next: Layout) => void] {
+  const [layout, setLayoutState] = useState<Layout>(() => getLayout(filePath) ?? "single");
+  useEffect(() => setLayoutState(getLayout(filePath) ?? "single"), [filePath]);
+  const set = useCallback(
+    (next: Layout) => {
+      setLayoutState(next);
+      rememberLayout(filePath, next);
+    },
+    [filePath],
+  );
+  return [layout, set];
+}
+
 function EditTextButton({ onEditText }: { onEditText: () => void }) {
   return (
     <button onClick={onEditText} title="Edit this document as text" className="toolbar-btn-wide">
@@ -669,6 +933,8 @@ function ErrorPane({ message }: { message: string }) {
 function DocxViewer({ filePath, onEditText }: { filePath: string } & EditableProps) {
   const state = useDocumentText(filePath);
   const [fontSize, setFontSize] = useState(15);
+  const [layout, setLayout] = useLayout(filePath);
+  const pane = useRef<HTMLDivElement>(null);
   const fileName = filePath.split(/[/\\]/).pop() || filePath;
 
   if (state.status === "loading") return <LoadingPane format="docx" />;
@@ -686,6 +952,10 @@ function DocxViewer({ filePath, onEditText }: { filePath: string } & EditablePro
             A+
           </button>
         </div>
+        <div className="toolbar-separator" />
+        <div className="toolbar-group">
+          <LayoutToggle layout={layout} onChange={setLayout} unit="screen" />
+        </div>
         {onEditText && (
           <>
             <div className="toolbar-separator" />
@@ -702,9 +972,16 @@ function DocxViewer({ filePath, onEditText }: { filePath: string } & EditablePro
 
       <WarningNotice warnings={state.warnings} />
 
-      <div className="docx-page" style={{ fontSize }}>
-        <MarkdownPreview content={state.text} />
+      <div
+        ref={pane}
+        className={`docx-page${layout === "spread" ? " reading-paged" : ""}`}
+        style={{ fontSize }}
+      >
+        <div className={layout === "spread" ? "reading-columns" : undefined}>
+          <MarkdownPreview content={state.text} />
+        </div>
       </div>
+      {layout === "spread" && <PageStrip pane={pane} />}
     </div>
   );
 }

@@ -19,6 +19,40 @@ Open the file from the sidebar as usual. Press **Edit text** in the viewer toolb
 
 ---
 
+## Two pages side by side
+
+**Two up** in the viewer toolbar puts a document into a spread. What that means
+depends on whether the format has pages of its own:
+
+| Format | One up | Two up |
+|---|---|---|
+| `.pdf` | One page, drawn at the zoom you set | The pages either side of a spread — 1–2, 3–4, … — with ← and → turning a whole spread at a time |
+| `.docx` | The document, scrolling | Two columns of one screen, paged sideways |
+| `.epub` | The chapter, scrolling | Two columns of one screen, paged sideways |
+
+A PDF has real pages, so a spread is two of them and the toolbar names them:
+*Pages 7–8 of 120*. Switching between one up and two up keeps you on the page
+you were reading — page 8 one-up becomes the spread 7–8, not 8–9, which is a
+pair no printed book has. An odd-length document ends on a single page rather
+than a blank one.
+
+A DOCX or an EPUB chapter is text, not sheets: how much fits beside how much
+depends on the window and the font size, so a spread is **two columns of one
+screenful** and the pager counts screens rather than pages. Turning a page
+scrolls the pane by exactly its own width, which is also why links still work —
+clicking a footnote reference lands on the right column by itself.
+
+The choice is remembered per document for the session, so switching tabs and
+coming back does not undo it. Apple Pages files are not offered a spread: that
+viewer already shows two things side by side, the page preview and the text.
+
+`.pdf` pages are drawn here rather than handed to the platform's own PDF
+viewer in a frame — which is what the editor used to do, and the reason it had
+no page navigation and no spread. The renderer is loaded the first time a PDF is
+opened, so a session that never opens one does not pay for it.
+
+---
+
 ## What editing a document actually changes
 
 The editor does not rebuild your document from the text buffer. It **edits the container in place**: the paragraph you changed is rewritten and every other part of the file is copied across byte-for-byte.

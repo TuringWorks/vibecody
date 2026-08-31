@@ -124,22 +124,52 @@
   background: var(--bg-primary);
 }
 
-/* ── PDF embed ───────────────────────────────────────────────────── */
+/* ── PDF pages ───────────────────────────────────────────────────── */
 
-.pdf-embed-wrapper {
-  width: 100%;
-  height: 100%;
+.pdf-viewer {
+  display: flex;
+  flex-direction: column;
+}
+
+/* One page, or two side by side. The gap is the gutter of the spread. */
+.pdf-spread {
   display: flex;
   justify-content: center;
-  transition: transform 0.15s ease;
+  align-items: flex-start;
+  gap: 24px;
+  padding: 24px;
+  min-height: 100%;
+  box-sizing: border-box;
 }
 
-.pdf-iframe {
-  width: 100%;
-  height: 100%;
-  border: none;
-  background: white;
+.pdf-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
 }
+
+/* The sheet: white regardless of theme, because that is what the page is. */
+.pdf-page canvas {
+  display: block;
+  background: #fff;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 12px rgb(0 0 0 / 22%);
+  max-width: 100%;
+  height: auto;
+}
+
+.pdf-page-number {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-muted, var(--text-secondary));
+}
+
+.page-label {
+  min-width: 11ch;
+  text-align: center;
+}
+
 
 /* ── EPUB layout ─────────────────────────────────────────────────── */
 
@@ -604,4 +634,82 @@
    has to stop the label from wrapping under its own indent. */
 .epub-toc-item .toc-title {
   text-align: left;
+}
+
+
+/* ── Two pages side by side, for text that has no pages of its own ──
+ *
+ * A DOCX or an EPUB chapter is a flow, not a set of sheets, so a spread is two
+ * columns of one screenful. The pane keeps `overflow: hidden` and is scrolled
+ * programmatically rather than transformed: an anchor inside it can then still
+ * be reached with `scrollIntoView`, which lands on the right column by itself.
+ *
+ * Last in the file on purpose — these rules override the padding the per-format
+ * panes set, and they are what decides where a column is allowed to appear.
+ */
+
+.reading-paged {
+  overflow: hidden;
+  scroll-behavior: smooth;
+  /* The margin belongs to the columns, not to the pane. Padding here widens the
+     scrollport past the column box, and the next screen's first column shows
+     through it — a sliver of the following page, permanently in the margin. */
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* The gap is twice the margin, and that is not a taste decision: with two
+   columns it puts the start of the third column exactly one margin past the
+   right edge of the screen, whatever the pane's width. Any narrower and it
+   peeks; any wider and the screens no longer line up with the scroll step. */
+.reading-paged .reading-columns {
+  --reading-margin: clamp(20px, 4vw, 56px);
+  height: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 28px var(--reading-margin);
+  box-sizing: border-box;
+  column-count: 2;
+  column-gap: calc(var(--reading-margin) * 2);
+  /* `auto` fills each column to the full height and spills into the next, which
+     is what makes the overflow horizontal — and pageable. `balance` would fit
+     everything onto one screen and leave the rest of the document unreachable. */
+  column-fill: auto;
+  column-rule: 1px solid var(--border-color);
+}
+
+/* A heading must not be left alone at the foot of a column. */
+.reading-paged .reading-columns :is(h1, h2, h3, h4) {
+  break-after: avoid;
+}
+
+.reading-paged .reading-columns :is(p, li, blockquote, pre, table, figure) {
+  break-inside: avoid-column;
+}
+
+.reading-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+.reading-pager button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.reading-pager button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }

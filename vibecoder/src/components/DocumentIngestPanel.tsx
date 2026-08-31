@@ -4,16 +4,35 @@
  * Tabs: Ingest (file path + format + actions), Config (chunking parameters)
  */
 import { useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 type Tab = "ingest" | "config";
-type Format = "auto" | "plain" | "markdown" | "html" | "pdf" | "docx" | "csv" | "json" | "code";
+type Format = "auto" | "txt" | "md" | "html" | "pdf" | "docx" | "csv" | "json" | "rs";
 
+/** One document the backend actually read and chunked. */
 interface IngestResult {
   id: string;
   title: string;
-  chunks: number;
-  tokens: number;
+  path: string;
   format: string;
+  chunks: number;
+  word_count: number;
+  char_count: number;
+  /** Words × 1.3 — the chunker's own approximation, not a tokenizer count. */
+  estimated_tokens: number;
+  warnings: string[];
+}
+
+/** A file the walk found but could not read. Shown, never silently dropped. */
+interface SkippedDoc {
+  path: string;
+  reason: string;
+}
+
+interface DirectoryIngestResult {
+  documents: IngestResult[];
+  skipped: SkippedDoc[];
+  files_seen: number;
 }
 
 interface ChunkingConfig {
@@ -29,7 +48,9 @@ export function DocumentIngestPanel() {
   const [filePath, setFilePath] = useState("");
   const [format, setFormat] = useState<Format>("auto");
   const [results, setResults] = useState<IngestResult[]>([]);
+  const [skipped, setSkipped] = useState<SkippedDoc[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [config, setConfig] = useState<ChunkingConfig>({
     maxTokens: 512,
     overlap: 50,
@@ -38,38 +59,54 @@ export function DocumentIngestPanel() {
     sectionTitle: true,
   });
 
-  const handleIngestFile = () => {
+  /** The backend's field names, so the chunker gets what the sliders say. */
+  const chunkingArgs = () => ({
+    max_tokens: config.maxTokens,
+    overlap_tokens: config.overlap,
+    min_chunk_size: config.minChunkSize,
+    respect_boundaries: config.sentenceBoundary,
+    include_metadata: config.sectionTitle,
+  });
+
+  const handleIngestFile = async () => {
     if (!filePath.trim()) return;
     setIsLoading(true);
-    // Simulate ingestion
-    setTimeout(() => {
-      const result: IngestResult = {
-        id: crypto.randomUUID().slice(0, 8),
-        title: filePath.split("/").pop() || filePath,
-        chunks: Math.floor(Math.random() * 40) + 5,
-        tokens: Math.floor(Math.random() * 8000) + 500,
-        format: format === "auto" ? (filePath.split(".").pop() || "plain") : format,
-      };
+    setError(null);
+    try {
+      const result = await invoke<IngestResult>("ingest_document", {
+        path: filePath.trim(),
+        format: format === "auto" ? null : format,
+        config: chunkingArgs(),
+      });
       setResults((prev) => [result, ...prev]);
+      setSkipped([]);
+    } catch (e) {
+      setError(String(e));
+    } finally {
       setIsLoading(false);
-    }, 600);
+    }
   };
 
-  const handleIngestDirectory = () => {
+  const handleIngestDirectory = async () => {
     if (!filePath.trim()) return;
     setIsLoading(true);
-    setTimeout(() => {
-      const count = Math.floor(Math.random() * 8) + 2;
-      const newResults: IngestResult[] = Array.from({ length: count }, (_, i) => ({
-        id: crypto.randomUUID().slice(0, 8),
-        title: `${filePath.split("/").pop()}/file_${i + 1}`,
-        chunks: Math.floor(Math.random() * 30) + 3,
-        tokens: Math.floor(Math.random() * 5000) + 300,
-        format: format === "auto" ? "mixed" : format,
-      }));
-      setResults((prev) => [...newResults, ...prev]);
+    setError(null);
+    try {
+      const res = await invoke<DirectoryIngestResult>("ingest_document_directory", {
+        path: filePath.trim(),
+        // "auto" walks every file the ignore list allows; a chosen format also
+        // filters the walk to that extension, which is what picking one means.
+        extensions: format === "auto" ? [] : [format],
+        format: format === "auto" ? null : format,
+        config: chunkingArgs(),
+      });
+      setResults((prev) => [...res.documents, ...prev]);
+      setSkipped(res.skipped);
+    } catch (e) {
+      setError(String(e));
+    } finally {
       setIsLoading(false);
-    }, 900);
+    }
   };
 
   const tabs: { key: Tab; label: string }[] = [
@@ -117,14 +154,14 @@ export function DocumentIngestPanel() {
                 style={{ width: "100%", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", padding: "8px 8px", fontSize: "var(--font-size-base)", boxSizing: "border-box" }}
               >
                 <option value="auto">Auto-detect</option>
-                <option value="plain">Plain Text</option>
-                <option value="markdown">Markdown</option>
+                <option value="txt">Plain Text</option>
+                <option value="md">Markdown</option>
                 <option value="html">HTML</option>
                 <option value="pdf">PDF</option>
                 <option value="docx">DOCX</option>
                 <option value="csv">CSV</option>
                 <option value="json">JSON</option>
-                <option value="code">Source Code</option>
+                <option value="rs">Source Code</option>
               </select>
             </div>
 
@@ -148,28 +185,58 @@ export function DocumentIngestPanel() {
               </button>
             </div>
 
+            {error && (
+              <div style={{ color: "var(--error-color)", fontSize: "var(--font-size-sm)" }}>{error}</div>
+            )}
+
             {/* Results */}
             {results.length > 0 && (
               <div style={{ marginTop: 8 }}>
-                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 8 }}>{results.length} document(s) ingested</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 8 }}>
+                  {results.length} document(s) ingested · token counts are estimates (words × 1.3), not tokenizer output
+                </div>
                 {results.map((r) => (
                   <div
                     key={r.id}
                     className="panel-card"
                     style={{ marginBottom: 6 }}
                   >
-                    <div style={{ fontWeight: 600, fontSize: "var(--font-size-base)", marginBottom: 4 }}>{r.title}</div>
-                    <div style={{ display: "flex", gap: 16, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
+                    <div style={{ fontWeight: 600, fontSize: "var(--font-size-base)", marginBottom: 2 }}>{r.title}</div>
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", fontFamily: "var(--font-mono)", marginBottom: 4, wordBreak: "break-all" }}>{r.path}</div>
+                    <div style={{ display: "flex", gap: 16, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", flexWrap: "wrap" }}>
                       <span>{r.chunks} chunks</span>
-                      <span>{r.tokens.toLocaleString()} tokens</span>
+                      <span>~{r.estimated_tokens.toLocaleString()} tokens (est.)</span>
+                      <span>{r.word_count.toLocaleString()} words</span>
                       <span>{r.format}</span>
-                      <span style={{ opacity: 0.5 }}>id: {r.id}</span>
                     </div>
+                    {r.warnings.length > 0 && (
+                      <ul style={{ margin: "6px 0 0 0", paddingLeft: 18, fontSize: "var(--font-size-xs)", color: "var(--warning-color)" }}>
+                        {r.warnings.map((w) => <li key={w}>{w}</li>)}
+                      </ul>
+                    )}
                   </div>
                 ))}
               </div>
             )}
-            {results.length === 0 && !isLoading && (
+
+            {/* Files the walk could not read. "8 ingested" reads very
+                differently next to "and 40 could not be read". */}
+            {skipped.length > 0 && (
+              <details style={{ marginTop: 4 }}>
+                <summary style={{ fontSize: "var(--font-size-sm)", color: "var(--warning-color)", cursor: "pointer" }}>
+                  {skipped.length} file(s) could not be ingested
+                </summary>
+                <ul style={{ margin: "6px 0 0 0", paddingLeft: 18, fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
+                  {skipped.map((sk) => (
+                    <li key={sk.path} style={{ marginBottom: 2 }}>
+                      <span style={{ fontFamily: "var(--font-mono)" }}>{sk.path}</span> — {sk.reason}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+
+            {results.length === 0 && !isLoading && !error && (
               <div className="panel-empty-state">No documents ingested yet. Enter a path and click Ingest.</div>
             )}
           </div>

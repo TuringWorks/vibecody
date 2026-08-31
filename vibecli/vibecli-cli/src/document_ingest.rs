@@ -416,9 +416,22 @@ impl DocumentIngestor {
             return vec![];
         }
 
-        // Approximate tokens as words * 1.3
-        let max_words = (config.max_tokens as f64 / 1.3) as usize;
-        let overlap_words = (config.overlap_tokens as f64 / 1.3) as usize;
+        // Approximate tokens as words * 1.3.
+        //
+        // Both bounds are clamped so the walk below always advances. Without
+        // it, two ordinary configurations hang the caller forever:
+        //
+        // - `max_tokens` under 2 truncates `max_words` to 0, so `end == start`
+        //   and the cursor never moves.
+        // - `overlap_tokens >= max_tokens` makes the overlap eat the whole
+        //   step, so `actual_end - overlap_words` lands back on `start`.
+        //
+        // Neither needs a hostile input — `max_tokens: 100, overlap_tokens:
+        // 100` is enough — so the guarantee belongs here rather than in each
+        // caller's validation.
+        let max_words = ((config.max_tokens as f64 / 1.3) as usize).max(1);
+        let overlap_words =
+            ((config.overlap_tokens as f64 / 1.3) as usize).min(max_words - 1);
         let min_words = (config.min_chunk_size as f64 / 1.3) as usize;
 
         if words.len() <= max_words {
@@ -456,13 +469,16 @@ impl DocumentIngestor {
                 chunks.push(chunk);
             }
 
-            // Advance with overlap
+            // Advance with overlap, never backwards and never in place: the
+            // clamps above make `max_words - overlap_words >= 1`, and this
+            // floor holds even if a boundary search pulled `actual_end` back
+            // to `start`.
             start = if actual_end >= words.len() {
                 words.len()
             } else if overlap_words > 0 && actual_end > overlap_words {
-                actual_end - overlap_words
+                (actual_end - overlap_words).max(start + 1)
             } else {
-                actual_end
+                actual_end.max(start + 1)
             };
         }
 
@@ -654,6 +670,72 @@ fn now_iso() -> String {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    /// Configurations that used to hang `chunk_text` forever. Each asserts
+    /// termination *and* that the output still covers the input, so a "fix"
+    /// that returns early would fail too.
+    #[test]
+    fn chunking_terminates_for_degenerate_configs() {
+        let text = (0..200)
+            .map(|i| format!("word{i}"))
+            .collect::<Vec<_>>()
+            .join(" ");
+
+        for (max_tokens, overlap_tokens) in [
+            (0, 0),     // max_words truncates to 0
+            (1, 0),     // ditto
+            (1, 50),    // overlap larger than the whole chunk
+            (100, 100), // overlap exactly eats the step
+            (100, 500), // overlap far larger than the step
+            (2, 1),     // the smallest chunk that can still advance
+        ] {
+            let config = ChunkingConfig {
+                max_tokens,
+                overlap_tokens,
+                min_chunk_size: 0,
+                respect_boundaries: true,
+                include_metadata: false,
+            };
+            let ingestor = DocumentIngestor::with_config(config.clone());
+            let chunks = ingestor.chunk_text(&text, &config);
+            assert!(
+                !chunks.is_empty(),
+                "max_tokens={max_tokens} overlap={overlap_tokens} produced nothing"
+            );
+            // Every word must appear somewhere; a terminating-but-lossy
+            // chunker is not a fix.
+            assert!(
+                chunks.iter().any(|c| c.contains("word0")),
+                "max_tokens={max_tokens} overlap={overlap_tokens} dropped the start"
+            );
+            assert!(
+                chunks.iter().any(|c| c.contains("word199")),
+                "max_tokens={max_tokens} overlap={overlap_tokens} dropped the end"
+            );
+        }
+    }
+
+    #[test]
+    fn overlap_is_clamped_below_the_chunk_size() {
+        let text = (0..100)
+            .map(|i| format!("w{i}"))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let config = ChunkingConfig {
+            max_tokens: 13,
+            overlap_tokens: 13,
+            min_chunk_size: 0,
+            respect_boundaries: false,
+            include_metadata: false,
+        };
+        let ingestor = DocumentIngestor::with_config(config.clone());
+        let chunks = ingestor.chunk_text(&text, &config);
+        // 100 words in steps of at least one, bounded well under one-per-word.
+        assert!(chunks.len() <= 100, "got {} chunks", chunks.len());
+        assert!(chunks.len() > 1);
+    }
+
     use super::*;
 
     #[test]

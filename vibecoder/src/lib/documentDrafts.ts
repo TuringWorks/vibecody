@@ -8,10 +8,16 @@
  *
  * Session-scoped and in memory on purpose: a draft that outlived the process
  * would be a second, invisible copy of a document people believe they saved.
+ *
+ * The reading layout rides along for the same reason the pane does: switching
+ * tabs and coming back should not undo a choice you made about how to read.
  */
+import type { Layout } from "./pageSpread";
+
 
 const drafts = new Map<string, string>();
 const modes = new Map<string, "view" | "text">();
+const layouts = new Map<string, Layout>();
 
 /** The unsaved buffer for a path, if there is one. */
 export function getDraft(path: string): string | undefined {
@@ -37,6 +43,15 @@ export function hasDraft(path: string): boolean {
   return drafts.has(path);
 }
 
+/** How a document was last laid out — one page, or two side by side. */
+export function getLayout(path: string): Layout | undefined {
+  return layouts.get(path);
+}
+
+export function setLayout(path: string, layout: Layout): void {
+  layouts.set(path, layout);
+}
+
 /** Which pane a document was left in, so returning to the tab lands back there. */
 export function getMode(path: string): "view" | "text" | undefined {
   return modes.get(path);
@@ -50,4 +65,5 @@ export function setMode(path: string, mode: "view" | "text"): void {
 export function forgetDocument(path: string): void {
   drafts.delete(path);
   modes.delete(path);
+  layouts.delete(path);
 }

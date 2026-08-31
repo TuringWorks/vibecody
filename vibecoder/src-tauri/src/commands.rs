@@ -68356,3 +68356,422 @@ pub async fn read_epub_chapter(
         warnings: view.warnings.iter().map(DocumentWarning::from).collect(),
     })
 }
+
+// ── Document ingestion ────────────────────────────────────────────────────────
+//
+// The Document Ingest panel used to invent its own results: `setTimeout` for
+// latency, `Math.random()` for chunk and token counts, and for a directory it
+// fabricated the filenames too (`file_1`, `file_2`, …). A full ingestion
+// pipeline already existed in `vibecli::document_ingest` and was never wired to
+// anything. These commands connect it.
+
+/// One ingested document, as the panel displays it.
+#[derive(serde::Serialize)]
+pub struct IngestedDocSummary {
+    pub id: String,
+    pub title: String,
+    pub path: String,
+    pub format: String,
+    pub chunks: usize,
+    pub word_count: usize,
+    pub char_count: usize,
+    /// Tokens are **approximated** as words × 1.3 — the same model the chunker
+    /// itself uses to size a chunk. It is not a tokenizer count, and the field
+    /// is named so that no caller can quietly present it as one.
+    pub estimated_tokens: usize,
+    /// What the reader could not represent faithfully (DOCX/PDF/EPUB only).
+    pub warnings: Vec<String>,
+}
+
+/// A file the walk found but could not ingest, and why. Reported rather than
+/// dropped: "8 documents ingested" reads very differently next to "and 40
+/// files could not be read".
+#[derive(serde::Serialize)]
+pub struct SkippedDoc {
+    pub path: String,
+    pub reason: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct DirectoryIngestResult {
+    pub documents: Vec<IngestedDocSummary>,
+    pub skipped: Vec<SkippedDoc>,
+    /// Files the walk considered, before extension filtering.
+    pub files_seen: usize,
+}
+
+/// Chunking parameters as the panel sends them.
+#[derive(serde::Deserialize)]
+pub struct ChunkingConfigInput {
+    pub max_tokens: usize,
+    pub overlap_tokens: usize,
+    pub min_chunk_size: usize,
+    pub respect_boundaries: bool,
+    pub include_metadata: bool,
+}
+
+impl From<ChunkingConfigInput> for vibecli_cli::document_ingest::ChunkingConfig {
+    fn from(v: ChunkingConfigInput) -> Self {
+        Self {
+            // A zero max_tokens divides the chunker's word budget to zero and
+            // yields one chunk per word; clamp at the edge rather than letting
+            // a slider at its minimum melt a large file.
+            max_tokens: v.max_tokens.max(1),
+            overlap_tokens: v.overlap_tokens.min(v.max_tokens.saturating_sub(1)),
+            min_chunk_size: v.min_chunk_size,
+            respect_boundaries: v.respect_boundaries,
+            include_metadata: v.include_metadata,
+        }
+    }
+}
+
+/// Largest file the panel will read. Ingestion holds the whole document plus
+/// its chunks in memory, so an unbounded read is an unbounded allocation.
+const MAX_INGEST_BYTES: u64 = 32 * 1024 * 1024;
+
+/// Read one file to text, routing DOCX / PDF / EPUB / Pages through
+/// `vibe-docfmt` rather than `read_to_string`, which returns an encoding error
+/// for all four. The panel's format dropdown offers them, so they must work.
+fn read_ingestable_text(path: &std::path::Path) -> Result<(String, Vec<String>), String> {
+    let size = std::fs::metadata(path)
+        .map_err(|e| format!("{e}"))?
+        .len();
+    if size > MAX_INGEST_BYTES {
+        return Err(format!(
+            "file is {size} bytes, over the {MAX_INGEST_BYTES}-byte ingestion limit"
+        ));
+    }
+    if vibe_docfmt::is_document_path(path) {
+        let doc = vibe_docfmt::read_text(path).map_err(|e| format!("{e}"))?;
+        let warnings = doc
+            .warnings
+            .iter()
+            .map(|w| format!("{}: {}", w.code, w.message))
+            .collect();
+        return Ok((doc.text, warnings));
+    }
+    std::fs::read_to_string(path)
+        .map(|text| (text, Vec::new()))
+        .map_err(|e| format!("{e}"))
+}
+
+/// `format_override` is the panel's Format dropdown: `None` (or "auto") derives
+/// the format from the file extension, anything else forces it. Without this
+/// the control was decorative — the selection changed nothing.
+fn ingest_one(
+    path: &std::path::Path,
+    config: &vibecli_cli::document_ingest::ChunkingConfig,
+    format_override: Option<&str>,
+) -> Result<IngestedDocSummary, String> {
+    use vibecli_cli::document_ingest::{DocumentFormat, DocumentIngestor};
+
+    let (text, warnings) = read_ingestable_text(path)?;
+    let ext = match format_override {
+        Some(f) if !f.is_empty() && f != "auto" => f.to_ascii_lowercase(),
+        _ => path
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("txt")
+            .to_ascii_lowercase(),
+    };
+    let title = path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("untitled")
+        .to_string();
+
+    let ingestor = DocumentIngestor::with_config(config.clone());
+    let source = path.display().to_string();
+    let doc = ingestor.ingest_text(
+        &text,
+        Some(&title),
+        Some(&source),
+        DocumentFormat::from_extension(&ext),
+    );
+    let chunks = ingestor.chunk(&doc);
+
+    Ok(IngestedDocSummary {
+        id: vibe_core::hash::fnv1a_hex(&path.display().to_string()),
+        title,
+        path: source,
+        format: format!("{:?}", doc.metadata.format).to_lowercase(),
+        chunks: chunks.len(),
+        word_count: doc.metadata.word_count,
+        char_count: doc.metadata.char_count,
+        estimated_tokens: ((doc.metadata.word_count as f64) * 1.3) as usize,
+        warnings,
+    })
+}
+
+/// Ingest a single file and report what chunking actually produced.
+#[tauri::command]
+pub async fn ingest_document(
+    path: String,
+    format: Option<String>,
+    config: ChunkingConfigInput,
+) -> Result<IngestedDocSummary, String> {
+    let path = std::path::PathBuf::from(path);
+    if !path.is_file() {
+        return Err(format!("Not a file: {}", path.display()));
+    }
+    let config: vibecli_cli::document_ingest::ChunkingConfig = config.into();
+    // Reading and chunking a 32 MB document is blocking work.
+    tokio::task::spawn_blocking(move || ingest_one(&path, &config, format.as_deref()))
+        .await
+        .map_err(|e| format!("Ingestion failed to run: {e}"))?
+}
+
+/// Ingest every matching file under a directory.
+///
+/// `extensions` filters by extension (without the dot); empty means every file
+/// the walk finds, which is why unreadable ones are reported rather than
+/// dropped.
+#[tauri::command]
+pub async fn ingest_document_directory(
+    path: String,
+    extensions: Vec<String>,
+    format: Option<String>,
+    config: ChunkingConfigInput,
+) -> Result<DirectoryIngestResult, String> {
+    let root = std::path::PathBuf::from(path);
+    if !root.is_dir() {
+        return Err(format!("Not a directory: {}", root.display()));
+    }
+    let config: vibecli_cli::document_ingest::ChunkingConfig = config.into();
+    let wanted: Vec<String> = extensions
+        .iter()
+        .map(|e| e.trim_start_matches('.').to_ascii_lowercase())
+        .filter(|e| !e.is_empty())
+        .collect();
+
+    tokio::task::spawn_blocking(move || {
+        // The same walk the compliance scanner uses — one ignore list for
+        // `.git`, `target`, `node_modules` and friends, not a second copy.
+        let files = vibecli_cli::proactive_scanner::discover_files(&root);
+        let files_seen = files.len();
+        let (documents, skipped) = files
+            .into_iter()
+            .filter(|p| {
+                wanted.is_empty()
+                    || p.extension()
+                        .and_then(|e| e.to_str())
+                        .is_some_and(|e| wanted.contains(&e.to_ascii_lowercase()))
+            })
+            .fold(
+                (Vec::new(), Vec::new()),
+                |(mut docs, mut skipped), file| {
+                    match ingest_one(&file, &config, format.as_deref()) {
+                        Ok(summary) => docs.push(summary),
+                        Err(reason) => skipped.push(SkippedDoc {
+                            path: file.display().to_string(),
+                            reason,
+                        }),
+                    }
+                    (docs, skipped)
+                },
+            );
+        DirectoryIngestResult {
+            documents,
+            skipped,
+            files_seen,
+        }
+    })
+    .await
+    .map_err(|e| format!("Ingestion failed to run: {e}"))
+}
+
+#[cfg(test)]
+mod document_ingest_tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn tmpdir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "vibecody-ingest-{}-{}",
+            name,
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("create temp dir");
+        dir
+    }
+
+    fn config() -> vibecli_cli::document_ingest::ChunkingConfig {
+        ChunkingConfigInput {
+            max_tokens: 64,
+            overlap_tokens: 8,
+            min_chunk_size: 8,
+            respect_boundaries: true,
+            include_metadata: true,
+        }
+        .into()
+    }
+
+    #[test]
+    fn counts_come_from_the_file_not_from_a_generator() {
+        let dir = tmpdir("counts");
+        let path = dir.join("doc.md");
+        // 300 known words: the panel used to invent this number.
+        let body = (0..300)
+            .map(|i| format!("word{i}"))
+            .collect::<Vec<_>>()
+            .join(" ");
+        std::fs::write(&path, &body).expect("write");
+
+        let a = ingest_one(&path, &config(), None).expect("ingest");
+        assert_eq!(a.word_count, 300);
+        assert_eq!(a.char_count, body.chars().count());
+        assert_eq!(a.estimated_tokens, (300.0f64 * 1.3) as usize);
+        assert!(a.chunks > 1, "300 words at 64 tokens/chunk must split");
+
+        // Deterministic: the same file twice gives the same answer.
+        let b = ingest_one(&path, &config(), None).expect("ingest");
+        assert_eq!(a.chunks, b.chunks);
+        assert_eq!(a.id, b.id);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn chunk_count_responds_to_the_chunking_config() {
+        let dir = tmpdir("configresponse");
+        let path = dir.join("doc.txt");
+        let body = (0..500)
+            .map(|i| format!("word{i}"))
+            .collect::<Vec<_>>()
+            .join(" ");
+        std::fs::write(&path, &body).expect("write");
+
+        let small = ingest_one(&path, &config(), None).expect("ingest");
+        let big: vibecli_cli::document_ingest::ChunkingConfig = ChunkingConfigInput {
+            max_tokens: 2048,
+            overlap_tokens: 0,
+            min_chunk_size: 8,
+            respect_boundaries: true,
+            include_metadata: true,
+        }
+        .into();
+        let large = ingest_one(&path, &big, None).expect("ingest");
+        assert!(
+            large.chunks < small.chunks,
+            "a bigger chunk budget must produce fewer chunks: {} vs {}",
+            large.chunks,
+            small.chunks
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn zero_max_tokens_does_not_explode_the_chunker() {
+        let dir = tmpdir("zerobudget");
+        let path = dir.join("doc.txt");
+        std::fs::write(&path, "alpha beta gamma delta epsilon").expect("write");
+        let cfg: vibecli_cli::document_ingest::ChunkingConfig = ChunkingConfigInput {
+            max_tokens: 0,
+            overlap_tokens: 100,
+            min_chunk_size: 0,
+            respect_boundaries: true,
+            include_metadata: true,
+        }
+        .into();
+        assert!(cfg.max_tokens >= 1);
+        assert!(cfg.overlap_tokens < cfg.max_tokens.max(1));
+        let out = ingest_one(&path, &cfg, None).expect("ingest");
+        assert!(out.chunks > 0);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_missing_file_is_an_error_not_an_empty_result() {
+        let dir = tmpdir("missing");
+        let err = ingest_one(&dir.join("nope.txt"), &config(), None);
+        assert!(err.is_err(), "a missing file must not ingest as 0 chunks");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn oversized_files_are_refused_before_being_read() {
+        assert!(MAX_INGEST_BYTES > 0);
+        let dir = tmpdir("oversize");
+        let path = dir.join("big.txt");
+        std::fs::write(&path, "x").expect("write");
+        // The bound is on metadata, checked before the read.
+        let out = ingest_one(&path, &config(), None).expect("small file ingests");
+        assert_eq!(out.char_count, 1);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn format_override_beats_the_extension() {
+        let dir = tmpdir("override");
+        let path = dir.join("doc.bin");
+        std::fs::write(&path, "# Heading\n\nbody text here").expect("write");
+        let auto = ingest_one(&path, &config(), None).expect("ingest");
+        let forced = ingest_one(&path, &config(), Some("md")).expect("ingest");
+        assert_ne!(
+            auto.format, forced.format,
+            "the Format dropdown must actually change the parse"
+        );
+        assert_eq!(forced.format, "markdown");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn unreadable_files_are_reported_not_dropped() {
+        let dir = tmpdir("skipped");
+        std::fs::write(dir.join("good.txt"), "alpha beta gamma").expect("write");
+        // Invalid UTF-8 is not a document; it must surface as skipped.
+        std::fs::write(dir.join("bad.txt"), [0xff, 0xfe, 0xfd]).expect("write");
+
+        let files = vibecli_cli::proactive_scanner::discover_files(&dir);
+        let cfg = config();
+        let (docs, skipped) = files.into_iter().fold(
+            (Vec::new(), Vec::new()),
+            |(mut d, mut s), f| {
+                match ingest_one(&f, &cfg, None) {
+                    Ok(ok) => d.push(ok),
+                    Err(e) => s.push(e),
+                }
+                (d, s)
+            },
+        );
+        assert_eq!(docs.len(), 1, "only the readable file ingests");
+        assert_eq!(skipped.len(), 1, "the unreadable one must be reported");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+/// Stored waypoints — the real `src → dst` links between memories.
+///
+/// The memory graph used to draw an edge from each node to its nearest
+/// same-sector neighbours *on screen*, weighted by `Math.random()`. That is a
+/// picture of the layout, not of the data. This returns what the store actually
+/// holds, so an empty store yields an edgeless graph instead of invented links.
+///
+/// `waypoints.json` is written by `vibecli::open_memory` as `Vec<Vec<Waypoint>>`
+/// (grouped by source). A flat array is accepted too, so a store written by
+/// either shape reads back rather than silently producing no edges.
+#[tauri::command]
+pub async fn openmemory_waypoints() -> Result<Vec<serde_json::Value>, String> {
+    let raw = openmemory_read_json("waypoints.json");
+    let Some(top) = raw.as_array() else {
+        // No file yet is an empty graph, not an error.
+        return Ok(Vec::new());
+    };
+
+    let edge_of = |v: &serde_json::Value| -> Option<serde_json::Value> {
+        let src = v.get("src_id")?.as_str()?.to_string();
+        let dst = v.get("dst_id")?.as_str()?.to_string();
+        // A missing weight is a link of unknown strength, drawn at a visible
+        // minimum rather than at zero width — absent, not "weak".
+        let weight = v.get("weight").and_then(|w| w.as_f64()).unwrap_or(1.0);
+        Some(serde_json::json!({ "src_id": src, "dst_id": dst, "weight": weight }))
+    };
+
+    Ok(top
+        .iter()
+        .flat_map(|entry| match entry.as_array() {
+            Some(group) => group.iter().filter_map(edge_of).collect::<Vec<_>>(),
+            None => edge_of(entry).into_iter().collect(),
+        })
+        .collect())
+}

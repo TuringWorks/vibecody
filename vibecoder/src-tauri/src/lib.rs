@@ -979,6 +979,9 @@ pub fn run() {
             commands::get_sandbox_metrics,
             // Phase 8.18: Compliance Reporting
             commands::generate_compliance_report,
+            commands::ingest_document,
+            commands::ingest_document_directory,
+            commands::openmemory_waypoints,
             // Phase 7.34: Project Scaffolding
             commands::list_scaffold_templates,
             commands::generate_scaffold,
