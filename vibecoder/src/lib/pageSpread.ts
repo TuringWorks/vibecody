@@ -89,6 +89,15 @@ export function clampPage(page: number, count: number): number {
 export const GUTTER = 24;
 
 /**
+ * The strip under a page that carries its number, in CSS pixels.
+ *
+ * Part of the fit: a page fitted to the whole pane leaves its own number below
+ * the fold, which is the one piece of a spread that tells you where you are.
+ * The stylesheet gives `.pdf-page-number` this height.
+ */
+export const CAPTION = 22;
+
+/**
  * The scale at which the pages on screen fit the pane they are drawn in.
  *
  * A spread at 100% is two half-pages: a page is taller than any window at its
@@ -105,7 +114,7 @@ export function fitScale(
   if (page.width <= 0 || page.height <= 0) return 1;
   const available = pane.width - GUTTER * (columns + 1);
   const width = available / columns / page.width;
-  const height = (pane.height - GUTTER * 2) / page.height;
+  const height = (pane.height - GUTTER * 2 - CAPTION) / page.height;
   const fit = Math.min(width, height);
   return Number.isFinite(fit) ? Math.min(Math.max(fit, 0.1), 5) : 1;
 }

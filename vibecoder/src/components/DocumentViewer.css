@@ -159,7 +159,11 @@
   height: auto;
 }
 
+/* `CAPTION` in pageSpread.ts is this height: the fit reserves it so a page's
+   number is not the one thing left below the fold. */
 .pdf-page-number {
+  height: 22px;
+  line-height: 22px;
   font-size: 11px;
   font-family: var(--font-mono);
   color: var(--text-muted, var(--text-secondary));
@@ -686,6 +690,11 @@
 .reading-paged .reading-columns :is(p, li, blockquote, pre, table, figure) {
   break-inside: avoid-column;
 }
+
+/* The last screen of a chapter is usually only part full, so scrolling to it
+   stops short of a whole step and it overlaps the screen before — the way the
+   end of any scrolling pane does. Nothing is hidden by it; it is what a pager
+   built on a scroll position, rather than on real pages, costs. */
 
 .reading-pager {
   display: flex;

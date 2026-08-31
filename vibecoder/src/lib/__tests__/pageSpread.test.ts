@@ -99,7 +99,8 @@ describe('fitScale', () => {
   it('fits one page to the shorter of the two dimensions', () => {
     // 900 tall pane, 792pt page: height decides, not width.
     const scale = fitScale({ width: 1400, height: 900 }, page, 1);
-    expect(scale).toBeCloseTo((900 - 48) / 792, 5);
+    // Two gutters and the strip that carries the page number.
+    expect(scale).toBeCloseTo((900 - 48 - 22) / 792, 5);
   });
 
   it('fits a spread to two pages and the gutters between them', () => {

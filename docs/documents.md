@@ -26,12 +26,17 @@ depends on whether the format has pages of its own:
 
 | Format | One up | Two up |
 |---|---|---|
-| `.pdf` | One page, drawn at the zoom you set | The pages either side of a spread — 1–2, 3–4, … — with ← and → turning a whole spread at a time |
+| `.pdf` | One page, fitted to the window | The pages either side of a spread — 1–2, 3–4, … — with ← and → turning a whole spread at a time |
 | `.docx` | The document, scrolling | Two columns of one screen, paged sideways |
 | `.epub` | The chapter, scrolling | Two columns of one screen, paged sideways |
 
 A PDF has real pages, so a spread is two of them and the toolbar names them:
-*Pages 7–8 of 120*. Switching between one up and two up keeps you on the page
+*Pages 7–8 of 120*. **Fit** is where the view starts and what it goes back to —
+a spread at 100% is two half-pages, since a page is taller than most windows at
+its own size and two of them are wider. The zoom controls are for looking
+closer, not for making the document usable in the first place; the fit follows
+the window, and it reserves the strip that carries each page's number rather
+than leaving that below the fold. Switching between one up and two up keeps you on the page
 you were reading — page 8 one-up becomes the spread 7–8, not 8–9, which is a
 pair no printed book has. An odd-length document ends on a single page rather
 than a blank one.

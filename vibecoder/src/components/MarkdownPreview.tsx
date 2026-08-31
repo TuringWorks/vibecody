@@ -10,6 +10,16 @@ import './MarkdownPreview.css';
 interface MarkdownPreviewProps {
     content: string;
     /**
+     * Whether the preview owns its own scrolling.
+     *
+     * It does by default, which is right when it fills a pane on its own. A
+     * caller that lays the text out itself — the document viewer's two-column
+     * spread — needs the opposite: a box with `overflow` set is a single
+     * unbreakable fragment, so the columns cannot split it and the whole
+     * document ends up in the first one.
+     */
+    scrolls?: boolean;
+    /**
      * Absolute path of the file this markdown came from. Relative links resolve
      * against its directory, so `docs/README.md` means the same thing here as it
      * does on GitHub. Without it, a relative link has no destination to compute.
@@ -259,7 +269,13 @@ const renderSummary = (markdown: string) => (
     <ReactMarkdown components={sharedComponents}>{htmlToMarkdown(markdown)}</ReactMarkdown>
 );
 
-export function MarkdownPreview({ content, basePath, onOpenFile, focusFragment }: MarkdownPreviewProps) {
+export function MarkdownPreview({
+    content,
+    basePath,
+    onOpenFile,
+    focusFragment,
+    scrolls = true,
+}: MarkdownPreviewProps) {
     const containerRef = React.useRef<HTMLDivElement>(null);
     const handling = React.useMemo(() => ({ basePath, onOpenFile }), [basePath, onOpenFile]);
 
@@ -277,8 +293,8 @@ export function MarkdownPreview({ content, basePath, onOpenFile, focusFragment }
                 ref={containerRef}
                 style={{
                     padding: '20px',
-                    height: '100%',
-                    overflowY: 'auto',
+                    height: scrolls ? '100%' : 'auto',
+                    overflowY: scrolls ? 'auto' : 'visible',
                     background: 'var(--bg-primary)',
                     color: 'var(--text-primary)',
                 }}

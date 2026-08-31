@@ -853,10 +853,20 @@ function PageStrip({ pane }: { pane: React.RefObject<HTMLDivElement | null> }) {
 
     const measure = () => {
       const width = element.clientWidth || 1;
-      setPosition({
-        screen: Math.round(element.scrollLeft / width),
-        screens: Math.max(1, Math.round(element.scrollWidth / width)),
-      });
+      // Rounded up, not to nearest: a last screen that is only part full is
+      // still a screen, and rounding it away left the end of every chapter
+      // unreachable. The few pixels of tolerance are for sub-pixel layout,
+      // which otherwise reports a second screen for a document that fits.
+      const screens = Math.max(1, Math.ceil((element.scrollWidth - 4) / width));
+      const furthest = element.scrollWidth - width;
+      // The last screen is usually only part full, so scrolling to it stops
+      // short of a whole multiple of the width. Position alone would call that
+      // the screen before, and the pager would sit on "1 of 2" forever.
+      const screen =
+        element.scrollLeft >= furthest - 2
+          ? screens - 1
+          : Math.round(element.scrollLeft / width);
+      setPosition({ screen, screens });
     };
     measure();
 
@@ -1041,7 +1051,10 @@ function DocxViewer({ filePath, onEditText }: { filePath: string } & EditablePro
         style={{ fontSize }}
       >
         <div className={layout === "spread" ? "reading-columns" : undefined}>
-          <MarkdownPreview content={state.text} />
+          {/* In a spread the pane does the scrolling, sideways. A preview that
+              scrolled itself would be one unbreakable box, and every column
+              after the first would be empty. */}
+          <MarkdownPreview content={state.text} scrolls={layout === "single"} />
         </div>
       </div>
       {layout === "spread" && <PageStrip pane={pane} />}
