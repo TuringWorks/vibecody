@@ -7,8 +7,9 @@
  * - Results: Aggregated results from completed agents
  * - History: Past agents with outcomes and metrics
  */
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useVisibleInterval } from "../hooks/usePanelVisibility";
 
 /* ── Types ─────────────────────────────────── */
 type SubTab = "active" | "spawn" | "results" | "history";
@@ -187,11 +188,7 @@ export default function SpawnAgentPanel() {
     }
   }, []);
 
-  useEffect(() => {
-    refreshData();
-    const interval = setInterval(refreshData, 2000);
-    return () => clearInterval(interval);
-  }, [refreshData]);
+  useVisibleInterval(refreshData, 2000);
 
   /* ── Actions ──────────────────────────────── */
   const handleSpawn = async () => {

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useVisibleInterval } from "../hooks/usePanelVisibility";
 
 interface ThoughtEntry {
   id: string;
@@ -54,14 +55,15 @@ export function ThoughtStreamPanel() {
       }
     }
     load();
-    const interval = setInterval(async () => {
-      try {
-        const res = await invoke<ThoughtEntry[]>("thought_stream_live");
-        setLiveThoughts(Array.isArray(res) ? res : []);
-      } catch { /* silent */ }
-    }, 3000);
-    return () => clearInterval(interval);
   }, []);
+
+  // The live tail only needs to run while someone is watching it.
+  useVisibleInterval(async () => {
+    try {
+      const res = await invoke<ThoughtEntry[]>("thought_stream_live");
+      setLiveThoughts(Array.isArray(res) ? res : []);
+    } catch { /* silent */ }
+  }, 3000, { runOnShow: false });
 
   useEffect(() => {
     if (tab === "live" && liveRef.current) {

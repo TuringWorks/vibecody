@@ -5,8 +5,9 @@
  * memory alerts with severity tracking.
  * Wired to Tauri backend commands for live data.
  */
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useVisibleInterval } from "../hooks/usePanelVisibility";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -122,11 +123,7 @@ export function SessionMemoryPanel() {
     setLoading(false);
   }, [fetchHealth, fetchSamples, fetchAlerts]);
 
-  useEffect(() => {
-    loadAll();
-    const interval = setInterval(loadAll, 15000);
-    return () => clearInterval(interval);
-  }, [loadAll]);
+  useVisibleInterval(loadAll, 15000);
 
   const activeAlerts = useMemo(() => alerts.filter((a) => !a.resolved), [alerts]);
   const memPct = health.memoryLimitMb > 0 ? (health.memoryUsedMb / health.memoryLimitMb) * 100 : 0;

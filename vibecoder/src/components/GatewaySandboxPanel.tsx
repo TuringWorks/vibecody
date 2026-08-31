@@ -6,6 +6,7 @@ import {
   MessageSquare, AlertCircle, CheckCircle, ChevronDown, Play,
 } from "lucide-react";
 import { getDefaultProvider } from "../hooks/useModelRegistry";
+import { useVisibleInterval } from "../hooks/usePanelVisibility";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -306,7 +307,6 @@ export function GatewaySandboxPanel({ provider: defaultProvider = getDefaultProv
   }, []);
 
   const logEndRef = useRef<HTMLDivElement>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refreshLog = useCallback(async () => {
     try {
@@ -321,11 +321,7 @@ export function GatewaySandboxPanel({ provider: defaultProvider = getDefaultProv
     }
   }, []);
 
-  useEffect(() => {
-    refreshLog();
-    pollRef.current = setInterval(refreshLog, 2000);
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [refreshLog]);
+  useVisibleInterval(refreshLog, 2000);
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });

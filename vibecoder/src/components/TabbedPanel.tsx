@@ -2,6 +2,7 @@ import { useState, useRef, useMemo, useEffect, lazy, Suspense, type ComponentTyp
 import { applyLayout, tabHost, tabKey, tabsMovedInto } from "../lib/layoutPrefs";
 import { useLayoutPrefs } from "../hooks/useLayoutPrefs";
 import type { RegisteredTab } from "../constants/tabRegistry";
+import { PanelVisibilityContext } from "../hooks/usePanelVisibility";
 
 export interface SubTab {
   id: string;
@@ -231,7 +232,12 @@ export function TabbedPanel({ tabs, defaultTab, activeTab, onTabChange, panelId,
                 minHeight: 0,
               }}
             >
-              {e.content}
+              {/* An inactive tab stays mounted (its state must survive the
+                  switch), so panels that poll need to know they are hidden.
+                  See useVisibleInterval. */}
+              <PanelVisibilityContext.Provider value={activeEntry?.key === e.key}>
+                {e.content}
+              </PanelVisibilityContext.Provider>
             </div>
           ) : null,
         )}

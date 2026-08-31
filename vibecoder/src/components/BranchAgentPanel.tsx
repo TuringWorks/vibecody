@@ -3,8 +3,9 @@
  *
  * Tabs: Active Agents, Pull Requests, Conflicts
  */
-import React, { useState, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useVisibleInterval } from "../hooks/usePanelVisibility";
 
 type Tab = "Active Agents" | "Pull Requests" | "Conflicts";
 const TABS: Tab[] = ["Active Agents", "Pull Requests", "Conflicts"];
@@ -37,16 +38,12 @@ const VmOrchestratorPanel: React.FC = () => {
   const [prs, setPrs] = useState<PR[]>([]);
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
 
-  useEffect(() => {
-    const fetchData = () => {
-      invoke<Agent[]>("list_branch_agents").then(setAgents).catch(() => {});
-      invoke<PR[]>("get_branch_prs").then(setPrs).catch(() => {});
-      invoke<Conflict[]>("get_branch_conflicts").then(setConflicts).catch(() => {});
-    };
-    fetchData();
-    const id = setInterval(fetchData, 10_000);
-    return () => clearInterval(id);
+  const fetchBranchData = useCallback(() => {
+    invoke<Agent[]>("list_branch_agents").then(setAgents).catch(() => {});
+    invoke<PR[]>("get_branch_prs").then(setPrs).catch(() => {});
+    invoke<Conflict[]>("get_branch_conflicts").then(setConflicts).catch(() => {});
   }, []);
+  useVisibleInterval(fetchBranchData, 10_000);
 
   const running = agents.filter(a => a.status === "Running").length;
   return (

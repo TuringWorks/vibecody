@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   Bot, Cpu, GitBranch,
   RefreshCw, Zap, BarChart3,
   Loader2,
 } from "lucide-react";
+import { useVisibleInterval } from "../hooks/usePanelVisibility";
 
 /* ── Types ────────────────────────────────────────────────────────────────── */
 
@@ -257,13 +258,9 @@ export function AgentOSDashboard() {
     }
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
-
-  // Auto-refresh every 10s
-  useEffect(() => {
-    const id = setInterval(refresh, 10_000);
-    return () => clearInterval(id);
-  }, [refresh]);
+  // Refreshes on show and every 10s while visible. It used to poll for the
+  // lifetime of the window, whether or not this tab was the one on screen.
+  useVisibleInterval(refresh, 10_000);
 
   // Aggregate metrics across every agent source (pool + sub + hosted + branch).
   // Status strings vary by source, so match each one's vocabulary.

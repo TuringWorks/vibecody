@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useVisibleInterval } from "../hooks/usePanelVisibility";
 
 type SubTab = "browse" | "sessions" | "config";
 
@@ -49,9 +50,9 @@ export function BrowserAgentPanel() {
     setLoading(true);
     setError(null);
     fetchSessions().finally(() => setLoading(false));
-    const id = setInterval(fetchSessions, 5_000);
-    return () => clearInterval(id);
   }, [fetchSessions]);
+
+  useVisibleInterval(fetchSessions, 5_000, { runOnShow: false });
 
   const handleLaunch = useCallback(async () => {
     if (!url || !task) return;

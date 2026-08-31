@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Star, X } from 'lucide-react';
+import { useVisibleInterval } from "../hooks/usePanelVisibility";
 
 /**
  * G9.1 — `Working toward: {goal title}` banner that sits above the
@@ -45,14 +46,14 @@ export function PinnedGoalBanner({ workspacePath }: PinnedGoalBannerProps) {
 
   useEffect(() => {
     refresh();
-    const interval = setInterval(refresh, 15_000);
     const handler = () => refresh();
     window.addEventListener('vibecoder:pin-changed', handler);
     return () => {
-      clearInterval(interval);
       window.removeEventListener('vibecoder:pin-changed', handler);
     };
   }, [refresh]);
+
+  useVisibleInterval(refresh, 15_000, { runOnShow: false });
 
   if (!goalId) return null;
 

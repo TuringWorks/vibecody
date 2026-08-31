@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { useVisibleInterval } from "../hooks/usePanelVisibility";
 
 interface HostedAgent {
   id: string;
@@ -77,19 +78,22 @@ export function AgentHostPanel() {
       setLoading(false);
     })();
 
-    const poll = setInterval(() => { loadAgents(); loadOutput(); loadClipboard(); }, 5_000);
-
     const unlisten = listen("host:output", () => loadOutput());
     const unlistenStatus = listen("host:status_changed", () => loadAgents());
     const unlistenClip = listen("host:clipboard_changed", () => loadClipboard());
 
     return () => {
-      clearInterval(poll);
       unlisten.then(fn => fn());
       unlistenStatus.then(fn => fn());
       unlistenClip.then(fn => fn());
     };
   }, [loadAgents, loadOutput, loadClipboard]);
+
+  // The poll was unconditional; the events above already cover the live case,
+  // so this only has to catch up a tab that was hidden.
+  useVisibleInterval(() => { loadAgents(); loadOutput(); loadClipboard(); }, 5_000, {
+    runOnShow: false,
+  });
 
   const toggleAgent = useCallback(async (id: string) => {
     const agent = agents.find((a) => a.id === id);

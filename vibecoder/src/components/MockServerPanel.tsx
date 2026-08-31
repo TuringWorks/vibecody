@@ -4,8 +4,9 @@
  * Start/stop a local mock HTTP server, define routes, view request log,
  * and import mock routes from OpenAPI specs via AI.
  */
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useVisibleInterval } from "../hooks/usePanelVisibility";
 
 interface MockRoute {
   id: string;
@@ -66,7 +67,6 @@ export function MockServerPanel() {
   const [requestLog, setRequestLog] = useState<MockRequest[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Add route form
   const [addMethod, setAddMethod] = useState("GET");
@@ -96,13 +96,7 @@ export function MockServerPanel() {
   useEffect(() => { loadRoutes(); }, []);
 
   // Poll request log when running
-  useEffect(() => {
-    if (running && tab === "log") {
-      pollRef.current = setInterval(loadLog, 2000);
-      loadLog();
-    }
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [running, tab]);
+  useVisibleInterval(loadLog, running && tab === "log" ? 2000 : null);
 
   const handleStart = async () => {
     setLoading(true);

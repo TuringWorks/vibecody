@@ -9,8 +9,9 @@
  *
  * Pure TypeScript + Intl / Date — no Tauri commands required.
  */
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { CopyButton as CopyBtn } from "./shared/CopyButton";
+import { useVisibleInterval } from "../hooks/usePanelVisibility";
 
 // ── Timezone list ──────────────────────────────────────────────────────────────
 
@@ -146,10 +147,8 @@ export function TimestampPanel() {
  const [tick, setTick] = useState(0);
 
  // Live clock update
- useEffect(() => {
- const id = setInterval(() => setTick(t => t + 1), 1000);
- return () => clearInterval(id);
- }, []);
+ // A once-per-second re-render of a panel nobody is looking at.
+ useVisibleInterval(() => setTick(t => t + 1), 1000, { runOnShow: false });
 
  const parsedDate = useMemo(() => parseTimestampInput(tsInput), [tsInput]);
 

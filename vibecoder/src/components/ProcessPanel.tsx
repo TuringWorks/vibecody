@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Play, Moon, AlertOctagon, Square, MinusCircle, X } from "lucide-react";
+import { useVisibleInterval } from "../hooks/usePanelVisibility";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -38,7 +39,6 @@ const ProcessPanel: React.FC = () => {
  const [filter, setFilter] = useState("");
  const [killing, setKilling] = useState<number | null>(null);
  const [killFeedback, setKillFeedback] = useState<{ pid: number; ok: boolean; msg: string } | null>(null);
- const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
  const loadProcesses = useCallback(async () => {
  setLoading(true);
@@ -54,13 +54,7 @@ const ProcessPanel: React.FC = () => {
  }, []);
 
  // Auto-refresh every 5 s
- useEffect(() => {
- void loadProcesses();
- intervalRef.current = setInterval(() => void loadProcesses(), 5_000);
- return () => {
- if (intervalRef.current !== null) clearInterval(intervalRef.current);
- };
- }, [loadProcesses]);
+ useVisibleInterval(() => void loadProcesses(), 5_000);
 
  const handleKill = async (pid: number, name: string) => {
  if (!window.confirm(`Send SIGTERM to "${name}" (PID ${pid})?`)) return;

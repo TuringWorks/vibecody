@@ -7,6 +7,7 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useVisibleInterval } from "../hooks/usePanelVisibility";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -212,11 +213,8 @@ export function A2aPanel() {
 
   // ── Metrics auto-refresh (5s) ───────────────────────────────────────────
 
-  useEffect(() => {
-    if (tab !== "metrics") return;
-    const interval = setInterval(fetchMetrics, 5000);
-    return () => clearInterval(interval);
-  }, [tab, fetchMetrics]);
+  // Only while the metrics tab is showing, and only while the window is.
+  useVisibleInterval(fetchMetrics, tab === "metrics" ? 5000 : null);
 
   // ── Handlers ────────────────────────────────────────────────────────────
 

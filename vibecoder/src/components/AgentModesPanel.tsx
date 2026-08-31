@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { PanelError } from "./shared/PanelError";
+import { useVisibleInterval } from "../hooks/usePanelVisibility";
 
 interface ModeInfo {
   id: string;
@@ -79,9 +80,9 @@ const AgentModesPanel: React.FC = () => {
       setLoading(false);
     };
     init();
-    const id = setInterval(() => { loadStats(); }, 10_000);
-    return () => clearInterval(id);
   }, [loadModes, loadStats, loadProfiles]);
+
+  useVisibleInterval(() => { loadStats(); }, 10_000, { runOnShow: false });
 
   const handleSetMode = async (modeId: string) => {
     try {

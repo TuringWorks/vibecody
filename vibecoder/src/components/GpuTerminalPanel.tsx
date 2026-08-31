@@ -6,6 +6,7 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useVisibleInterval } from "../hooks/usePanelVisibility";
 
 interface RenderStats {
  frame_time_us: number;
@@ -110,11 +111,7 @@ export default function GpuTerminalPanel() {
  }, [tab, loadStats, loadFpsHistory, loadGlyphAtlas]);
 
  // Auto-refresh stats every 2 seconds on monitor tab
- useEffect(() => {
-   if (tab !== "monitor") return;
-   const interval = setInterval(() => { loadStats(); }, 2000);
-   return () => clearInterval(interval);
- }, [tab, loadStats]);
+ useVisibleInterval(() => { loadStats(); }, tab === "monitor" ? 2000 : null);
 
  const runBenchmark = async () => {
    setBenchmarkRunning(true);

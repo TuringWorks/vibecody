@@ -6,6 +6,7 @@
  */
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useVisibleInterval } from "../hooks/usePanelVisibility";
 
 interface LogEntry {
   line_number: number;
@@ -74,7 +75,6 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<string | null>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Discover log sources on mount
   useEffect(() => {
@@ -89,16 +89,11 @@ export function LogPanel({ workspacePath }: LogPanelProps) {
   }, [workspacePath]);
 
   // Auto-refresh
-  useEffect(() => {
-    if (autoRefresh && selectedSource) {
-      intervalRef.current = setInterval(() => handleTail(), 5_000);
-    }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoRefresh, selectedSource, lineCount, levelFilter]);
+  useVisibleInterval(
+    () => handleTail(),
+    autoRefresh && selectedSource ? 5_000 : null,
+    { runOnShow: false },
+  );
 
   if (!workspacePath) {
     return (

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { MemoryErrorCard } from './MemoryErrorCard';
+import { useVisibleInterval } from "../hooks/usePanelVisibility";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -205,21 +206,17 @@ const OpenMemoryPanel: React.FC = () => {
   }, [tab, loadMemories, loadFacts, loadWaypoints]);
 
   // Auto-refresh: poll stats every 10s, active tab data every 15s
-  useEffect(() => {
-    const statsInterval = setInterval(loadStats, 10000);
-    return () => clearInterval(statsInterval);
-  }, [loadStats]);
+  useVisibleInterval(loadStats, 10000, { runOnShow: false });
 
-  useEffect(() => {
-    if (tab === 'memories' || tab === 'facts' || tab === 'graph') {
-      const dataInterval = setInterval(() => {
-        if (tab === 'memories' || tab === 'graph') loadMemories();
-        if (tab === 'graph') loadWaypoints();
-        if (tab === 'facts') loadFacts();
-      }, 15000);
-      return () => clearInterval(dataInterval);
-    }
-  }, [tab, loadMemories, loadFacts, loadWaypoints]);
+  useVisibleInterval(
+    () => {
+      if (tab === 'memories' || tab === 'graph') loadMemories();
+      if (tab === 'graph') loadWaypoints();
+      if (tab === 'facts') loadFacts();
+    },
+    tab === 'memories' || tab === 'facts' || tab === 'graph' ? 15000 : null,
+    { runOnShow: false },
+  );
 
   const loadDrawerStats = useCallback(async () => {
     try {

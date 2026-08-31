@@ -4,9 +4,10 @@
  * Configure a list of HTTP endpoints, run one-shot or auto-refresh checks,
  * see latency, status codes, and per-service history sparklines.
  */
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { X } from "lucide-react";
+import { useVisibleInterval } from "../hooks/usePanelVisibility";
 
 interface HealthMonitor {
  id: string;
@@ -85,7 +86,6 @@ export function HealthMonitorPanel() {
  const [newUrl, setNewUrl] = useState("https://");
  const [newTimeout, setNewTimeout] = useState(5000);
  const [error, setError] = useState<string | null>(null);
- const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
  // Load saved monitors (or fall back to defaults)
  useEffect(() => {
@@ -123,13 +123,9 @@ export function HealthMonitorPanel() {
  }, [checking, monitors, applyResults]);
 
  // Auto-refresh
- useEffect(() => {
- if (timerRef.current) clearInterval(timerRef.current);
- if (autoRefresh) {
- timerRef.current = setInterval(checkAll, intervalSec * 1000);
- }
- return () => { if (timerRef.current) clearInterval(timerRef.current); };
- }, [autoRefresh, intervalSec, checkAll]);
+ // Auto-refresh runs only while the panel is on screen: a hidden tab was
+ // still probing every monitor on its interval, forever.
+ useVisibleInterval(checkAll, autoRefresh ? intervalSec * 1000 : null, { runOnShow: false });
 
  // Apply after the write, not before it: `.catch(() => {})` previously threw
  // the failure away and left the new monitor list on screen unsaved.
