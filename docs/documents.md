@@ -57,9 +57,6 @@ An EPUB has one section per chapter; a PDF has one per page; a Pages document ha
 
 ```text
 <<< vibedoc:storage Index/Document.iwa:1001:0 >>>
-```
-
-```text
 <<< vibedoc:storage page-4 >>>
 ```
 
@@ -124,8 +121,11 @@ emphasis to recover and no structure to trust.
 
 **What a save does.**
 
-- **Rewrites the words on a line.** The new text is encoded through the font
-  that drew the line and put back into its first run.
+- **Rewrites the words on a line.** Each character goes back to the run that
+  drew the one it replaced, encoded through *that* run's font. This is what
+  makes a line set in more than one font editable at all: every font in a
+  modern PDF is subset to the glyphs its own words used, so a sentence with one
+  bold word has no single font that can draw the whole of it.
 - **Deletes a line** when you clear its text.
 - **Refuses to add one.** A new line has no position, no font and no place in
   the page's content stream. This is an error naming the line, not a guess.
@@ -162,6 +162,15 @@ Not supported, and refused rather than approximated:
 **A backup is written.** A PDF is the second format whose save can rebuild the
 file rather than patch a container, so the original is copied to `<name>.pdf.bak`
 before it is replaced. The path is shown in the save confirmation.
+
+**A very large PDF is slow to open, and the cost is in the parser.** Measured on
+a 48 MB, 1 373-page document: 174 s to parse the file and 6 s for everything
+this crate then does with it — reading every page's content stream, decoding
+77 839 lines of text, and writing them back. A save pays it twice, once to read
+the file and once to read the result back and check it. Most documents are not
+like that (a 107 MB, 523-page PDF parses in 2.2 s), and nothing blocks the
+window while it happens, but a book-sized PDF is a wait rather than an
+instant.
 
 Two things are worth knowing about the text you see. Line breaks are the page's,
 not the paragraph's: a sentence that wraps is several lines here, and each is
@@ -214,6 +223,14 @@ The verification step applies here too: the rewritten archives are re-read and t
 | `read_epub_chapter(path, chapter)` | One chapter's markup, stylesheets and referenced media |
 
 ### Tests
+
+Two examples measure the crate against documents on your own disk rather than
+against fixtures, which is where every bug listed above was found:
+
+```bash
+cargo run -p vibe-docfmt --release --example roundtrip -- <file>   # read → save the same text → verify
+cargo run -p vibe-docfmt --release --example editcheck -- <file>   # change one line → save → read it back
+```
 
 ```bash
 cargo test -p vibe-docfmt --no-fail-fast          # readers, writers, framing, remapping

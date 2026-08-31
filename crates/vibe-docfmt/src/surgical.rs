@@ -230,6 +230,11 @@ fn remove_at(container: &mut Element, path: &[usize]) -> Result<(), DocError> {
 
 /// The comparison key for alignment: a block's full Markdown, so a change of
 /// emphasis counts as a change even when the plain text is identical.
+///
+/// Only the separator newlines are trimmed. Trimming whitespace as well made a
+/// paragraph that had lost a trailing space — Word ends them with a non-breaking
+/// one constantly — compare equal to the one on disk, so the element was left
+/// alone and the save then failed to verify against text the file did not carry.
 pub fn block_key(block: &Block) -> String {
     let doc = crate::model::Document {
         format: crate::model::DocFormat::Docx,
@@ -240,5 +245,7 @@ pub fn block_key(block: &Block) -> String {
         }],
         warnings: Vec::new(),
     };
-    markdown::to_markdown(&doc).trim().to_string()
+    markdown::to_markdown(&doc)
+        .trim_end_matches('\n')
+        .to_string()
 }

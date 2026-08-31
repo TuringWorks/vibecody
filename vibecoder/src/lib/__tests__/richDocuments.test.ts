@@ -50,15 +50,16 @@ beforeEach(() => {
 });
 
 describe('richDocumentFormat', () => {
-  it('recognises the three editable formats, case-insensitively', () => {
+  it('recognises the four editable formats, case-insensitively', () => {
     expect(richDocumentFormat('report.docx')).toBe('docx');
     expect(richDocumentFormat('Book.EPUB')).toBe('epub');
     expect(richDocumentFormat('/a/b/memo.pages')).toBe('pages');
+    expect(richDocumentFormat('paper.PDF')).toBe('pdf');
   });
 
   it('does not claim formats it cannot edit', () => {
-    expect(richDocumentFormat('paper.pdf')).toBeNull();
     expect(richDocumentFormat('notes.md')).toBeNull();
+    expect(richDocumentFormat('archive.zip')).toBeNull();
     expect(richDocumentFormat('no-extension')).toBeNull();
   });
 

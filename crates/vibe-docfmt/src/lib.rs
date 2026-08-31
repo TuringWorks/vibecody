@@ -187,7 +187,13 @@ pub fn write_text(path: &Path, text: &str) -> Result<WriteReport, DocError> {
         DocFormat::Pdf => {
             let original = read_bytes(path)?;
             let rewrite = pdf::write(&original, &target)?;
-            verify(&rewrite.bytes, format, &rewrite.effective)?;
+            // The PDF writer reads its own output back to choose between an
+            // incremental update and a rebuild, so when it says the bytes are
+            // verified the comparison below has already been made — and parsing
+            // a large PDF again costs minutes, not milliseconds.
+            if !rewrite.verified {
+                verify(&rewrite.bytes, format, &rewrite.effective)?;
+            }
             let bytes_written = rewrite.bytes.len() as u64;
             // A PDF writer rebuilds the file rather than patching a container,
             // so the original is kept beside it — the same rule Pages follows,

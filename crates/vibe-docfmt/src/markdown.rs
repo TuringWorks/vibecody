@@ -81,7 +81,10 @@ fn blocks_to_markdown(blocks: &[Block]) -> String {
                 out.push_str(&format!("{hashes} {}\n\n", spans_to_markdown(spans)));
             }
             Block::Paragraph { spans } => {
-                out.push_str(&format!("{}\n\n", escape_block_start(&spans_to_markdown(spans))));
+                out.push_str(&format!(
+                    "{}\n\n",
+                    escape_block_start(&spans_to_markdown(spans))
+                ));
             }
             Block::ListItem {
                 level,
@@ -254,12 +257,24 @@ fn emit_spans(spans: &[&Span], applied: Applied) -> String {
 
     if !applied.link {
         if let Some(href) = shared_link(spans) {
-            let inner = emit_spans(spans, Applied { link: true, ..applied });
+            let inner = emit_spans(
+                spans,
+                Applied {
+                    link: true,
+                    ..applied
+                },
+            );
             return format!("[{inner}]({})", emit_href(href));
         }
     }
     if !applied.bold && spans.iter().all(|s| s.style.bold) {
-        let inner = emit_spans(spans, Applied { bold: true, ..applied });
+        let inner = emit_spans(
+            spans,
+            Applied {
+                bold: true,
+                ..applied
+            },
+        );
         return format!("**{inner}**");
     }
     if !applied.italic && spans.iter().all(|s| s.style.italic) {
@@ -267,7 +282,13 @@ fn emit_spans(spans: &[&Span], applied: Applied) -> String {
             true => "_",
             false => "*",
         };
-        let inner = emit_spans(spans, Applied { italic: true, ..applied });
+        let inner = emit_spans(
+            spans,
+            Applied {
+                italic: true,
+                ..applied
+            },
+        );
         return format!("{marker}{inner}{marker}");
     }
 
@@ -303,11 +324,7 @@ fn leaf(span: &Span) -> String {
 /// space of padding when the run starts or ends with one, is what CommonMark
 /// specifies and what `parse_spans` undoes.
 fn code_span(text: &str) -> String {
-    let longest = text
-        .split(|c| c != '`')
-        .map(str::len)
-        .max()
-        .unwrap_or(0);
+    let longest = text.split(|c| c != '`').map(str::len).max().unwrap_or(0);
     let fence = "`".repeat(longest + 1);
     // Padding also protects a leading or trailing space, which `unpad_code`
     // would otherwise strip as if this writer had put it there. Content that is
@@ -1090,7 +1107,10 @@ mod tests {
         // ASCII diagrams pasted into Word are one indented paragraph each.
         let source = "        │  Commit early    │\n";
         let parsed = from_markdown(DocFormat::Docx, source);
-        assert_eq!(spans_text(block_spans(&parsed)), "        │  Commit early    │");
+        assert_eq!(
+            spans_text(block_spans(&parsed)),
+            "        │  Commit early    │"
+        );
         is_a_fixed_point(source);
     }
 
@@ -1120,7 +1140,12 @@ mod tests {
 
     #[test]
     fn a_paragraph_that_opens_like_a_block_is_escaped() {
-        for text in ["# not a heading", "- not a bullet", "| not a table", "3. not a list"] {
+        for text in [
+            "# not a heading",
+            "- not a bullet",
+            "| not a table",
+            "3. not a list",
+        ] {
             let doc = doc(vec![Section {
                 id: String::new(),
                 title: None,
@@ -1144,15 +1169,25 @@ mod tests {
         let spans = vec![
             Span {
                 text: "States when ".into(),
-                style: SpanStyle { bold: true, ..SpanStyle::plain() },
+                style: SpanStyle {
+                    bold: true,
+                    ..SpanStyle::plain()
+                },
             },
             Span {
                 text: "not".into(),
-                style: SpanStyle { bold: true, italic: true, ..SpanStyle::plain() },
+                style: SpanStyle {
+                    bold: true,
+                    italic: true,
+                    ..SpanStyle::plain()
+                },
             },
             Span {
                 text: " to use it".into(),
-                style: SpanStyle { bold: true, ..SpanStyle::plain() },
+                style: SpanStyle {
+                    bold: true,
+                    ..SpanStyle::plain()
+                },
             },
         ];
         let rendered = spans_to_markdown(&spans);
@@ -1165,11 +1200,17 @@ mod tests {
         let spans = vec![
             Span {
                 text: "problem".into(),
-                style: SpanStyle { italic: true, ..SpanStyle::plain() },
+                style: SpanStyle {
+                    italic: true,
+                    ..SpanStyle::plain()
+                },
             },
             Span {
                 text: " ".into(),
-                style: SpanStyle { bold: true, ..SpanStyle::plain() },
+                style: SpanStyle {
+                    bold: true,
+                    ..SpanStyle::plain()
+                },
             },
         ];
         let rendered = spans_to_markdown(&spans);
@@ -1181,7 +1222,10 @@ mod tests {
         for text in ["`", "echo `date`", " D(y, x1) ", "a``b", "  ", "x"] {
             let spans = vec![Span {
                 text: text.to_string(),
-                style: SpanStyle { code: true, ..SpanStyle::plain() },
+                style: SpanStyle {
+                    code: true,
+                    ..SpanStyle::plain()
+                },
             }];
             let rendered = spans_to_markdown(&spans);
             let reparsed = parse_spans(&rendered);
@@ -1207,7 +1251,10 @@ mod tests {
     fn a_paragraph_opening_with_a_long_code_fence_is_not_a_code_block() {
         let spans = vec![Span {
             text: "a``b".into(),
-            style: SpanStyle { code: true, ..SpanStyle::plain() },
+            style: SpanStyle {
+                code: true,
+                ..SpanStyle::plain()
+            },
         }];
         let rendered = format!("{}\n", spans_to_markdown(&spans));
         assert!(rendered.starts_with("```"), "{rendered:?}");

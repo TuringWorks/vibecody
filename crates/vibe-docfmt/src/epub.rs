@@ -379,7 +379,7 @@ fn inline_spans(el: &Element, warnings: &mut Vec<Warning>) -> Vec<Span> {
     let mut spans = Vec::new();
     collect_inline(el, &SpanStyle::plain(), warnings, &mut spans);
     let merged = merge_spans(spans);
-    trim_edges(merged)
+    trim_edges(collapse_across(merged))
 }
 
 fn collect_inline(
@@ -453,13 +453,54 @@ fn merge_spans(spans: Vec<Span>) -> Vec<Span> {
     })
 }
 
+/// Collapse a whitespace run that straddles two runs of markup.
+///
+/// Each text node is collapsed on its own, so `<b>MEAP </b> Manning` gives two
+/// spans that concatenate to two spaces. XHTML has no way to store that — put
+/// back, it collapses to one — so a paragraph read with a double space could be
+/// displayed but never saved. Collapsing here means what the buffer shows is
+/// what the format can hold.
+fn collapse_across(mut spans: Vec<Span>) -> Vec<Span> {
+    let mut previous_space = false;
+    for span in spans.iter_mut() {
+        let mut collapsed = String::with_capacity(span.text.len());
+        for c in span.text.chars() {
+            match c {
+                ' ' if previous_space => {}
+                ' ' => {
+                    collapsed.push(' ');
+                    previous_space = true;
+                }
+                c => {
+                    collapsed.push(c);
+                    previous_space = false;
+                }
+            }
+        }
+        span.text = collapsed;
+    }
+    spans.retain(|s| !s.text.is_empty());
+    spans
+}
+
 /// Trim the whitespace XHTML indentation adds at the edges of a block.
 fn trim_edges(mut spans: Vec<Span>) -> Vec<Span> {
-    if let Some(first) = spans.first_mut() {
+    // Trimming once is not enough: a block ending in `<i> </i>` leaves an empty
+    // span behind, and the span before it — now the last — keeps the trailing
+    // space that XHTML would collapse away on the trip back.
+    while let Some(first) = spans.first_mut() {
         first.text = first.text.trim_start().to_string();
+        if !first.text.is_empty() {
+            break;
+        }
+        spans.remove(0);
     }
-    if let Some(last) = spans.last_mut() {
+    while let Some(last) = spans.last_mut() {
         last.text = last.text.trim_end().to_string();
+        if !last.text.is_empty() {
+            break;
+        }
+        spans.pop();
     }
     spans.retain(|s| !s.text.is_empty());
     spans
@@ -532,17 +573,13 @@ pub fn write(original: &[u8], target: &Document) -> Result<Rewrite, DocError> {
             );
         }
 
+        let blocks = degrade(&section.blocks, &mut warnings);
         let mut adapter = XhtmlAdapter {
             warnings: Vec::new(),
         };
         let body_mut = body_of_mut(&mut xml.root)
             .ok_or_else(|| DocError::Parse(format!("{} has no <body>", chapter.path)))?;
-        warnings.extend(surgical::apply(
-            body_mut,
-            &slots,
-            &section.blocks,
-            &mut adapter,
-        )?);
+        warnings.extend(surgical::apply(body_mut, &slots, &blocks, &mut adapter)?);
         warnings.extend(adapter.warnings);
 
         let data = xmltree::serialize(&xml).into_bytes();
@@ -556,7 +593,7 @@ pub fn write(original: &[u8], target: &Document) -> Result<Rewrite, DocError> {
         effective_sections.push(Section {
             id: chapter.path.clone(),
             title: original_title,
-            blocks: section.blocks.clone(),
+            blocks,
         });
     }
 
@@ -570,6 +607,68 @@ pub fn write(original: &[u8], target: &Document) -> Result<Rewrite, DocError> {
         },
         warnings,
     })
+}
+
+/// Reduce blocks to what XHTML can actually store.
+///
+/// A run of spaces collapses to one when the browser reads it back, and a block
+/// cannot begin or end with whitespace at all — so text that does is not written
+/// and then reported as written. The reader applies exactly the same rules, so
+/// this only ever changes text a person typed.
+fn degrade(blocks: &[Block], warnings: &mut Vec<Warning>) -> Vec<Block> {
+    let degraded: Vec<Block> = blocks
+        .iter()
+        .map(degrade_block)
+        .filter(|block| !is_empty_text_block(block))
+        .collect();
+    if degraded != blocks {
+        push_once(
+            warnings,
+            Warning::new(
+                "epub.whitespace_collapsed",
+                "XHTML collapses a run of spaces to one and drops it at the edges of a \
+                 block, so leading, trailing and repeated spaces were not stored",
+            ),
+        );
+    }
+    degraded
+}
+
+fn degrade_block(block: &Block) -> Block {
+    let fix = |spans: &[Span]| trim_edges(collapse_across(spans.to_vec()));
+    match block {
+        Block::Heading { level, spans } => Block::Heading {
+            level: *level,
+            spans: fix(spans),
+        },
+        Block::Paragraph { spans } => Block::Paragraph { spans: fix(spans) },
+        Block::ListItem {
+            level,
+            ordered,
+            spans,
+        } => Block::ListItem {
+            level: *level,
+            ordered: *ordered,
+            spans: fix(spans),
+        },
+        Block::Table { rows } => Block::Table {
+            rows: rows
+                .iter()
+                .map(|row| row.iter().map(|cell| fix(cell)).collect())
+                .collect(),
+        },
+        // A `<pre>` block keeps its whitespace, and a rule has no text.
+        other => other.clone(),
+    }
+}
+
+fn is_empty_text_block(block: &Block) -> bool {
+    match block {
+        Block::Heading { spans, .. }
+        | Block::Paragraph { spans }
+        | Block::ListItem { spans, .. } => spans.is_empty(),
+        _ => false,
+    }
 }
 
 struct XhtmlAdapter {

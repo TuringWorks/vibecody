@@ -1,53 +1,84 @@
-//! Round-trip a real document and show exactly where the text diverges.
+//! Read a real document, save the same text back, and report what moved.
+//!
+//! Fixtures prove a reader handles the shapes someone thought of. This proves
+//! it against a file that already exists — which is where every round-trip bug
+//! in this crate was actually found.
+//!
+//! ```bash
+//! cargo run -p vibe-docfmt --release --example roundtrip -- report.docx
+//! ```
+//!
+//! Two checks run. The first is the invariant the whole crate rests on: the
+//! buffer and its own parse must agree, because a save is verified by comparing
+//! them. The second is the save itself, against a copy — the original file is
+//! never touched.
+
 use std::path::PathBuf;
 
-fn diff(label: &str, want: &str, got: &str) {
-    let w: Vec<&str> = want.lines().collect();
-    let g: Vec<&str> = got.lines().collect();
+fn main() {
+    let Some(source) = std::env::args().nth(1).map(PathBuf::from) else {
+        eprintln!("usage: roundtrip <file>");
+        std::process::exit(2);
+    };
+    let work = std::env::temp_dir().join(source.file_name().unwrap_or_default());
+    if let Err(e) = std::fs::copy(&source, &work) {
+        println!("COPY FAILED: {e}");
+        return;
+    }
+
+    let buffer = match vibe_docfmt::read_text(&work) {
+        Ok(buffer) => buffer,
+        Err(e) => {
+            println!("READ FAILED: {e}");
+            return;
+        }
+    };
+    println!(
+        "format={:?} sections={} chars={} warnings={}",
+        buffer.format,
+        buffer.sections,
+        buffer.text.len(),
+        buffer.warnings.len()
+    );
+    for warning in &buffer.warnings {
+        println!("  warn {}: {}", warning.code, warning.message);
+    }
+
+    let reparsed = vibe_docfmt::render(&vibe_docfmt::parse_text(buffer.format, &buffer.text));
+    report("[buffer]", &buffer.text, &reparsed);
+
+    match vibe_docfmt::write_text(&work, &buffer.text) {
+        Ok(report) => println!(
+            "WRITE OK bytes={} verified={}",
+            report.bytes_written, report.verified
+        ),
+        Err(e) => println!("WRITE FAILED: {e}"),
+    }
+
+    let _ = std::fs::remove_file(&work);
+}
+
+/// Print the first few lines on which two renderings disagree.
+fn report(label: &str, want: &str, got: &str) {
+    let want: Vec<&str> = want.lines().collect();
+    let got: Vec<&str> = got.lines().collect();
     let mut shown = 0;
-    for i in 0..w.len().max(g.len()) {
-        let a = w.get(i).copied().unwrap_or("<EOF>");
-        let b = g.get(i).copied().unwrap_or("<EOF>");
-        if a != b {
-            println!("{label} line {}:\n  want {:?}\n  got  {:?}", i + 1, a, b);
-            shown += 1;
-            if shown >= 6 {
-                println!("{label} … more");
-                return;
-            }
+    for line in 0..want.len().max(got.len()) {
+        let (a, b) = (
+            want.get(line).copied().unwrap_or("<end of buffer>"),
+            got.get(line).copied().unwrap_or("<end of buffer>"),
+        );
+        if a == b {
+            continue;
+        }
+        println!("{label} line {}:\n  want {a:?}\n  got  {b:?}", line + 1);
+        shown += 1;
+        if shown == 6 {
+            println!("{label} … and more");
+            return;
         }
     }
     if shown == 0 {
-        println!("{label} identical ({} lines)", w.len());
+        println!("{label} identical ({} lines)", want.len());
     }
-}
-
-fn main() {
-    let src = PathBuf::from(std::env::args().nth(1).expect("usage: roundtrip <file>"));
-    let work = std::env::temp_dir().join(src.file_name().unwrap());
-    std::fs::copy(&src, &work).unwrap();
-    let buf = match vibe_docfmt::read_text(&work) {
-        Ok(b) => b,
-        Err(e) => { println!("READ FAILED: {e}"); return; }
-    };
-    println!("format={:?} sections={} chars={}", buf.format, buf.sections, buf.text.len());
-
-    // Stage 1: text -> model -> text (pure markdown round trip)
-    let parsed = vibe_docfmt::parse_text(buf.format, &buf.text);
-    diff("[md]", &buf.text, &vibe_docfmt::render(&parsed));
-
-    // Stage 2: full write path
-    match vibe_docfmt::write_text(&work, &buf.text) {
-        Ok(r) => println!("WRITE OK bytes={} verified={}", r.bytes_written, r.verified),
-        Err(e) => println!("WRITE FAILED: {e}"),
-    }
-    // Stage 3: what the container actually produced, vs what was asked
-    if let Ok(orig) = std::fs::read(&src) {
-        if let Ok(rw) = vibe_docfmt::docx::write(&orig, &parsed) {
-            if let Ok(re) = vibe_docfmt::docx::read(&rw.bytes) {
-                diff("[docx]", &vibe_docfmt::render(&rw.effective), &vibe_docfmt::render(&re));
-            }
-        }
-    }
-    let _ = std::fs::remove_file(&work);
 }

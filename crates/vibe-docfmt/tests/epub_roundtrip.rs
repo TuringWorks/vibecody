@@ -177,3 +177,65 @@ fn dropping_a_chapter_marker_is_refused() {
     assert_eq!(err.kind(), "structure");
     assert!(err.to_string().contains("2 chapters"), "{err}");
 }
+
+/// Every case below came from a real book that opened in the editor and then
+/// refused to save, because the text the reader produced was text XHTML cannot
+/// store.
+mod whitespace {
+    use super::*;
+
+    #[test]
+    fn a_space_run_that_straddles_two_elements_is_collapsed_once() {
+        // `<b>MEAP Edition </b> <i> Manning</i>` collapses each text node on its
+        // own, so the buffer showed three spaces — text that, written back,
+        // comes out as one.
+        let book = book(&[(
+            "One",
+            "<p><b>MEAP Edition </b> <i> Manning Early Access</i></p>",
+        )]);
+        let document = epub::read(&book).expect("read");
+        // One space, kept where it was drawn — at the end of the bold run.
+        assert_eq!(
+            markdown::to_markdown(&document).trim(),
+            "**MEAP Edition **_Manning Early Access_"
+        );
+
+        // And it survives a save, which three spaces could not.
+        let rewrite = epub::write(&book, &document).expect("write");
+        let reread = epub::read(&rewrite.bytes).expect("re-read");
+        assert_eq!(
+            markdown::to_markdown(&reread),
+            markdown::to_markdown(&document)
+        );
+    }
+
+    #[test]
+    fn an_empty_trailing_element_does_not_leave_a_space_behind() {
+        let book = book(&[("One", "<h1>21st Century C <i> </i></h1>")]);
+        let document = epub::read(&book).expect("read");
+        assert_eq!(markdown::to_markdown(&document).trim(), "# 21st Century C");
+    }
+
+    #[test]
+    fn typed_whitespace_is_dropped_and_reported_rather_than_claimed() {
+        let book = book(&[("One", "<p>a line</p>")]);
+        let edited = markdown::from_markdown(DocFormat::Epub, "a  longer   line \n");
+        let rewrite = epub::write(&book, &edited).expect("write");
+
+        assert!(
+            rewrite
+                .warnings
+                .iter()
+                .any(|w| w.code == "epub.whitespace_collapsed"),
+            "{:?}",
+            rewrite.warnings
+        );
+        let reread = epub::read(&rewrite.bytes).expect("re-read");
+        assert_eq!(markdown::to_markdown(&reread).trim(), "a longer line");
+        assert_eq!(
+            markdown::to_markdown(&reread).trim(),
+            markdown::to_markdown(&rewrite.effective).trim(),
+            "what came back is what the writer said it stored"
+        );
+    }
+}

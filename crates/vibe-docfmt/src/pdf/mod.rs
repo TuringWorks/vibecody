@@ -8,9 +8,12 @@
 //!
 //! What a save does, and does not do:
 //!
-//! * **Rewrites the words on a line.** The new text is encoded through the
-//!   font that drew the line and put back into its first run; the rest of the
-//!   line's runs are emptied.
+//! * **Rewrites the words on a line.** Each character goes back to the run
+//!   that drew the one it replaced, and is encoded through *that* run's font —
+//!   which is what lets a line set in more than one font be edited at all,
+//!   since each font in a modern PDF carries only the glyphs its own words
+//!   used. Where the change cannot be dealt back that way, the line goes into
+//!   its first run and the rest are emptied.
 //! * **Deletes a line** when its text is cleared.
 //! * **Refuses to add one.** A PDF does not reflow: a new line has no position,
 //!   no font and no place in the page's content stream, so asking for one is an
@@ -25,10 +28,11 @@
 
 mod font;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
+use std::rc::Rc;
 
 use lopdf::content::{Content, Operation};
-use lopdf::{Dictionary, Document as PdfFile, IncrementalDocument, Object, Stream};
+use lopdf::{Dictionary, Document as PdfFile, IncrementalDocument, Object, ObjectId, Stream};
 
 use crate::error::DocError;
 use crate::markdown;
@@ -44,10 +48,29 @@ pub struct Rewrite {
     /// What the writer actually stored, for verification to compare against.
     pub effective: Document,
     pub warnings: Vec<Warning>,
+    /// Whether `bytes` have already been read back and found to carry
+    /// `effective`.
+    ///
+    /// Parsing a PDF is by far the most expensive thing here — a 1 373-page
+    /// document measured 174 s in the parser and 6 s in everything this module
+    /// does — so the caller is told when the check has already happened rather
+    /// than paying for it twice.
+    pub verified: bool,
 }
 
 /// A page's object id, as `lopdf` addresses it.
 type PageId = (u32, u16);
+
+/// The fonts of a page, by the resource name the content stream calls them.
+type PageEncoders = BTreeMap<Vec<u8>, Rc<Encoder>>;
+
+/// Encoders already built, by the object each font lives in.
+///
+/// A book's body font is on every one of its pages, and building an encoder
+/// means parsing a `/ToUnicode` CMap and expanding its ranges. Doing that once
+/// per page cost a 48 MB document twelve minutes and 900 MB before this
+/// existed; done once per font it is not measurable.
+type FontCache = HashMap<ObjectId, Rc<Encoder>>;
 
 /// A `page-N` section id. Pages are numbered as the PDF numbers them.
 fn page_section_id(page: u32) -> String {
@@ -61,11 +84,12 @@ fn page_section_id(page: u32) -> String {
 pub fn read(bytes: &[u8]) -> Result<Document, DocError> {
     let file = load(bytes)?;
     let mut warnings = Vec::new();
+    let mut cache = FontCache::new();
     let sections = file
         .get_pages()
         .into_iter()
         .map(|(number, id)| {
-            let lines = read_page(&file, id, &mut warnings)?;
+            let lines = read_page(&file, id, &mut cache, &mut warnings)?;
             Ok(Section {
                 id: page_section_id(number),
                 title: None,
@@ -102,6 +126,23 @@ fn load(bytes: &[u8]) -> Result<PdfFile, DocError> {
 struct Line {
     text: String,
     runs: Vec<RunRef>,
+    /// Which run drew each character of `text`. `None` marks a space the reader
+    /// put there because the page moved the pen — it belongs to no run, and
+    /// putting it back means leaving the movement alone.
+    owners: Vec<Option<usize>>,
+    /// Per run: whether reading the line back inserts a space before it.
+    gap_before: Vec<bool>,
+}
+
+impl Line {
+    fn open() -> Line {
+        Line {
+            text: String::new(),
+            runs: Vec::new(),
+            owners: Vec::new(),
+            gap_before: Vec::new(),
+        }
+    }
 }
 
 /// Where a run of text lives in a page's content stream.
@@ -118,6 +159,7 @@ struct RunRef {
 fn read_page(
     file: &PdfFile,
     page: PageId,
+    cache: &mut FontCache,
     warnings: &mut Vec<Warning>,
 ) -> Result<Vec<Line>, DocError> {
     let Ok(content) = file.get_page_content(page) else {
@@ -127,7 +169,7 @@ fn read_page(
     let operations = Content::decode(&content)
         .map_err(|e| DocError::Parse(format!("page content stream: {e}")))?
         .operations;
-    let encoders = page_encoders(file, page, warnings);
+    let encoders = page_encoders(file, page, cache, warnings);
     Ok(scan(&operations, &encoders))
 }
 
@@ -136,12 +178,15 @@ fn read_page(
 fn page_encoders(
     file: &PdfFile,
     page: PageId,
+    cache: &mut FontCache,
     warnings: &mut Vec<Warning>,
-) -> BTreeMap<Vec<u8>, Encoder> {
-    let fonts = file.get_page_fonts(page).unwrap_or_default();
-    fonts
+) -> PageEncoders {
+    page_fonts(file, page)
         .into_iter()
-        .map(|(name, dict)| {
+        .map(|(name, id, dict)| {
+            if let Some(cached) = id.and_then(|id| cache.get(&id)) {
+                return (name, Rc::clone(cached));
+            }
             let report = Encoder::for_font(dict, file);
             let label = font_label(dict, &name);
             if report.assumed_base_encoding {
@@ -183,9 +228,55 @@ fn page_encoders(
                     ),
                 );
             }
-            (name, report.encoder)
+            let encoder = Rc::new(report.encoder);
+            if let Some(id) = id {
+                cache.insert(id, Rc::clone(&encoder));
+            }
+            (name, encoder)
         })
         .collect()
+}
+
+/// A page's font resources: the name the content stream uses, the object the
+/// font lives in when it has one, and the font dictionary itself.
+///
+/// `lopdf` has `get_page_fonts`, but it hands back only the dictionaries — and
+/// without the object id there is nothing to cache an encoder against.
+fn page_fonts(file: &PdfFile, page: PageId) -> Vec<(Vec<u8>, Option<ObjectId>, &Dictionary)> {
+    let Ok((own, inherited)) = file.get_page_resources(page) else {
+        return Vec::new();
+    };
+    let resources = own.into_iter().chain(
+        inherited
+            .into_iter()
+            .filter_map(|id| file.get_dictionary(id).ok()),
+    );
+
+    let mut fonts: Vec<(Vec<u8>, Option<ObjectId>, &Dictionary)> = Vec::new();
+    for resource in resources {
+        let table = match resource.get(b"Font") {
+            Ok(Object::Reference(id)) => file.get_dictionary(*id).ok(),
+            Ok(Object::Dictionary(dict)) => Some(dict),
+            _ => None,
+        };
+        let Some(table) = table else { continue };
+        for (name, value) in table.iter() {
+            // Resources closer to the page win over inherited ones.
+            if fonts.iter().any(|(seen, _, _)| seen == name) {
+                continue;
+            }
+            match value {
+                Object::Reference(id) => {
+                    if let Ok(dict) = file.get_dictionary(*id) {
+                        fonts.push((name.clone(), Some(*id), dict));
+                    }
+                }
+                Object::Dictionary(dict) => fonts.push((name.clone(), None, dict)),
+                _ => {}
+            }
+        }
+    }
+    fonts
 }
 
 fn font_label(dict: &Dictionary, resource: &[u8]) -> String {
@@ -246,7 +337,7 @@ const WORD_GAP: f64 = 180.0;
 const SAME_LINE: f64 = 0.5;
 
 /// Reconstruct the page's lines from its operations.
-fn scan(operations: &[Operation], encoders: &BTreeMap<Vec<u8>, Encoder>) -> Vec<Line> {
+fn scan(operations: &[Operation], encoders: &PageEncoders) -> Vec<Line> {
     let mut lines: Vec<Line> = Vec::new();
     let mut open: Option<(Line, f64)> = None;
     let mut ctm = IDENTITY;
@@ -258,12 +349,12 @@ fn scan(operations: &[Operation], encoders: &BTreeMap<Vec<u8>, Encoder>) -> Vec<
     let mut gap = false;
 
     let show = |bytes: &[u8],
-                    reference: RunRef,
-                    open: &mut Option<(Line, f64)>,
-                    lines: &mut Vec<Line>,
-                    text: Matrix,
-                    ctm: Matrix,
-                    gap: &mut bool| {
+                reference: RunRef,
+                open: &mut Option<(Line, f64)>,
+                lines: &mut Vec<Line>,
+                text: Matrix,
+                ctm: Matrix,
+                gap: &mut bool| {
         let decoded = encoders
             .get(&reference.font)
             .and_then(|encoder| encoder.decode(bytes));
@@ -279,19 +370,14 @@ fn scan(operations: &[Operation], encoders: &BTreeMap<Vec<u8>, Encoder>) -> Vec<
                     lines.push(finished);
                 }
             }
-            *open = Some((
-                Line {
-                    text: String::new(),
-                    runs: Vec::new(),
-                },
-                y,
-            ));
+            *open = Some((Line::open(), y));
             *gap = false;
         }
         let Some((line, _)) = open.as_mut() else {
             return;
         };
         line.runs.push(reference);
+        line.gap_before.push(false);
 
         // A run whose codes have no characters contributes nothing: the reader
         // saw glyphs this build cannot name, and inventing them is worse than
@@ -299,14 +385,16 @@ fn scan(operations: &[Operation], encoders: &BTreeMap<Vec<u8>, Encoder>) -> Vec<
         let Some(decoded) = decoded.filter(|d| !d.is_empty()) else {
             return;
         };
-        if *gap
-            && !line.text.is_empty()
-            && !line.text.ends_with(' ')
-            && !decoded.starts_with(' ')
-        {
+        if *gap && !line.text.is_empty() && !line.text.ends_with(' ') && !decoded.starts_with(' ') {
             line.text.push(' ');
+            line.owners.push(None);
+            if let Some(slot) = line.gap_before.last_mut() {
+                *slot = true;
+            }
         }
+        let run = line.runs.len() - 1;
         line.text.push_str(&decoded);
+        line.owners.extend(decoded.chars().map(|_| Some(run)));
         *gap = false;
     };
 
@@ -439,10 +527,12 @@ pub fn write(original: &[u8], target: &Document) -> Result<Rewrite, DocError> {
     let mut warnings = Vec::new();
     let mut sections = Vec::new();
     let mut changes: Vec<(PageId, Vec<u8>)> = Vec::new();
+    let mut cache = FontCache::new();
 
     for (number, id) in &pages {
         let blocks = wanted.get(number).cloned().unwrap_or_default();
-        let (stored, content) = rewrite_page(&file, *id, *number, &blocks, &mut warnings)?;
+        let (stored, content) =
+            rewrite_page(&file, *id, *number, &blocks, &mut cache, &mut warnings)?;
         if let Some(content) = content {
             changes.push((*id, content));
         }
@@ -466,6 +556,8 @@ pub fn write(original: &[u8], target: &Document) -> Result<Rewrite, DocError> {
             bytes: original.to_vec(),
             effective,
             warnings,
+            // The bytes are the ones that were read to build `effective`.
+            verified: true,
         });
     }
 
@@ -474,15 +566,16 @@ pub fn write(original: &[u8], target: &Document) -> Result<Rewrite, DocError> {
     // rebuilding one costs up to 70% more bytes. It is only used when the
     // result reads back as what was asked for; otherwise the file is rebuilt,
     // which always does.
-    let bytes = match append_update(original, file, &changes) {
-        Ok(appended) if reads_back(&appended, &effective) => appended,
-        _ => rebuild(original, &changes)?,
+    let (bytes, verified) = match append_update(original, file, &changes) {
+        Ok(appended) if reads_back(&appended, &effective) => (appended, true),
+        _ => (rebuild(original, &changes)?, false),
     };
 
     Ok(Rewrite {
         bytes,
         effective,
         warnings,
+        verified,
     })
 }
 
@@ -575,9 +668,9 @@ fn expected_sections(
                 ))
             })?;
         if wanted.insert(*number, section.blocks.clone()).is_some() {
-            return Ok(Err(DocError::Structure(format!(
+            return Err(DocError::Structure(format!(
                 "page {number} appears twice in the buffer"
-            )))?);
+            )));
         }
     }
     for page in pages.keys() {
@@ -599,6 +692,7 @@ fn rewrite_page(
     page: PageId,
     number: u32,
     blocks: &[Block],
+    cache: &mut FontCache,
     warnings: &mut Vec<Warning>,
 ) -> Result<(Vec<Block>, Option<Vec<u8>>), DocError> {
     let Ok(content) = file.get_page_content(page) else {
@@ -607,7 +701,8 @@ fn rewrite_page(
     let mut operations = Content::decode(&content)
         .map_err(|e| DocError::Parse(format!("page content stream: {e}")))?
         .operations;
-    let encoders = page_encoders(file, page, &mut Vec::new());
+    // Font warnings were already reported by the read that filled the buffer.
+    let encoders = page_encoders(file, page, cache, &mut Vec::new());
     let lines = scan(&operations, &encoders);
 
     // A blank line in the buffer is not a line of the page: the reader never
@@ -669,7 +764,7 @@ fn inline_image(number: u32) -> DocError {
 /// here that it cannot be rewritten, and the file is never touched.
 fn confirm_page(
     encoded: &[u8],
-    encoders: &BTreeMap<Vec<u8>, Encoder>,
+    encoders: &PageEncoders,
     target: &[String],
     number: u32,
 ) -> Result<(), DocError> {
@@ -749,44 +844,46 @@ fn truncate(line: &str) -> String {
     }
 }
 
-/// Put `text` on a line: encoded into its first run, and every other run of the
-/// line emptied.
+/// Put `text` on the line.
+///
+/// Two ways, in order. **Keep every character in the run that drew it**, which
+/// is what lets a line set in more than one font be edited at all: a subset
+/// font carries only the glyphs its own words used, so a heading whose one bold
+/// word came from a second font has no single font that can draw the whole line.
+/// Where that does not work out, the line goes into its first run and the rest
+/// are emptied.
 fn set_line_text(
     operations: &mut [Operation],
     line: &Line,
     text: &str,
-    encoders: &BTreeMap<Vec<u8>, Encoder>,
+    encoders: &PageEncoders,
     warnings: &mut Vec<Warning>,
 ) -> Result<(), DocError> {
-    let Some(first) = line.runs.first() else {
+    if line.runs.is_empty() {
         return Ok(());
-    };
-    let encoder = encoders.get(&first.font).ok_or_else(|| {
-        DocError::Structure(format!(
-            "the font that drew {:?} is not among the page's resources, so the line \
-             cannot be rewritten",
-            truncate(&line.text)
-        ))
-    })?;
-    if !encoder.is_writable() {
-        return Err(DocError::Structure(format!(
-            "{:?} is drawn with a font this build cannot map back to character codes, \
-             so it cannot be edited",
-            truncate(&line.text)
-        )));
     }
-    let show = encode_show(encoder, text)?;
+    // Emptying a run whose glyphs could not be read would delete text nobody
+    // can see in the buffer to put it back.
+    for run in &line.runs {
+        match encoders.get(&run.font) {
+            Some(encoder) if encoder.is_writable() => {}
+            Some(_) => {
+                return Err(DocError::Structure(format!(
+                    "{:?} is drawn with a font this build cannot map back to character \
+                     codes, so it cannot be edited",
+                    truncate(&line.text)
+                )))
+            }
+            None => {
+                return Err(DocError::Structure(format!(
+                    "the font that drew {:?} is not among the page's resources, so the \
+                     line cannot be rewritten",
+                    truncate(&line.text)
+                )))
+            }
+        }
+    }
 
-    if line.runs.len() > 1 && !text.is_empty() {
-        push_once(
-            warnings,
-            Warning::new(
-                "pdf.line_joined",
-                "a rewritten line was drawn as several separately positioned runs; \
-                 it is stored as one run, so its letter spacing may differ from the original",
-            ),
-        );
-    }
     if !text.is_empty() && text.chars().count() > line.text.chars().count() {
         push_once(
             warnings,
@@ -794,6 +891,53 @@ fn set_line_text(
                 "pdf.no_reflow",
                 "a line got longer. A PDF places glyphs at fixed positions and does not \
                  re-wrap, so longer text runs past where the original ended",
+            ),
+        );
+    }
+
+    // Dealing the characters back to their own runs is the better answer when it
+    // works. When it does not, its failure names the character that actually has
+    // no home, so it is kept and preferred over whatever the fallback says.
+    let mut dealt = None;
+    if let Some(segments) = split_across_runs(line, text) {
+        match encode_segments(line, &segments, encoders) {
+            Ok(encoded) => {
+                for (run, bytes) in line.runs.iter().zip(encoded) {
+                    set_run(operations, run, bytes)?;
+                }
+                return Ok(());
+            }
+            Err(e) => dealt = Some(e),
+        }
+    }
+
+    let first = &line.runs[0];
+    let encoder = &encoders[&first.font];
+    let show = encode_show(encoder, text).map_err(|e| match line.runs.len() > 1 {
+        // Saying only "the font has no glyph for it" would send the reader
+        // looking at the wrong thing: the line is set in more than one font, and
+        // the reason it went through this one is that the change could not be
+        // dealt back across them.
+        true => DocError::Structure(format!(
+            "{e} The line is drawn as {} separately positioned runs and the change \
+             could not be split back across them, so it had to go through the font of \
+             the first alone.",
+            line.runs.len()
+        )),
+        false => e,
+    });
+    let show = match (show, dealt) {
+        (Err(_), Some(dealt)) => return Err(dealt),
+        (result, _) => result?,
+    };
+    if line.runs.len() > 1 && !text.is_empty() {
+        push_once(
+            warnings,
+            Warning::new(
+                "pdf.line_joined",
+                "a rewritten line was drawn as several separately positioned runs and \
+                 could not be split back across them; it is stored as one run, so its \
+                 spacing may differ from the original",
             ),
         );
     }
@@ -807,6 +951,105 @@ fn set_line_text(
         Show::Codes(bytes) => set_run(operations, first, bytes),
         Show::Gapped(items) => set_gapped(operations, first, items),
     }
+}
+
+/// Deal each character of `text` back to the run that drew the character it
+/// replaced — one string per run, or `None` when the result would not read back
+/// as `text`.
+fn split_across_runs(line: &Line, text: &str) -> Option<Vec<String>> {
+    if line.runs.len() < 2 {
+        return None;
+    }
+    let new: Vec<char> = text.chars().collect();
+    let diff = TextDiff::configure()
+        .algorithm(Algorithm::Myers)
+        .diff_chars(&line.text, text);
+
+    // `None` is undecided; `Some(None)` is a character that belongs to no run.
+    let mut owner: Vec<Option<Option<usize>>> = vec![None; new.len()];
+    for op in diff.ops() {
+        if let DiffOp::Equal {
+            old_index,
+            new_index,
+            len,
+        } = *op
+        {
+            for k in 0..len {
+                owner[new_index + k] = Some(*line.owners.get(old_index + k)?);
+            }
+        }
+    }
+    // Typed characters join the run before them, or the first one that follows.
+    let mut last: Option<usize> = None;
+    for slot in owner.iter_mut() {
+        match slot {
+            Some(Some(run)) => last = Some(*run),
+            Some(None) => {}
+            undecided => *undecided = Some(last),
+        }
+    }
+    let mut next: Option<usize> = None;
+    for slot in owner.iter_mut().rev() {
+        match slot {
+            Some(Some(run)) => next = Some(*run),
+            Some(None) => {}
+            slot => *slot = Some(next),
+        }
+    }
+
+    let mut segments = vec![String::new(); line.runs.len()];
+    let mut reached = 0usize;
+    for (c, slot) in new.iter().zip(&owner) {
+        // A space the page draws by moving the pen stays a movement.
+        let Some(Some(run)) = slot else { continue };
+        if *run < reached {
+            return None;
+        }
+        reached = *run;
+        segments[*run].push(*c);
+    }
+    (predict(line, &segments) == text).then_some(segments)
+}
+
+/// What [`scan`] would read back from a line drawn as these segments.
+fn predict(line: &Line, segments: &[String]) -> String {
+    let mut out = String::new();
+    let mut gap = false;
+    for (run, segment) in segments.iter().enumerate() {
+        gap |= line.gap_before.get(run).copied().unwrap_or(false);
+        if segment.is_empty() {
+            continue;
+        }
+        if gap && !out.is_empty() && !out.ends_with(' ') && !segment.starts_with(' ') {
+            out.push(' ');
+        }
+        out.push_str(segment);
+        gap = false;
+    }
+    out
+}
+
+/// Encode each segment through the font of its own run.
+fn encode_segments(
+    line: &Line,
+    segments: &[String],
+    encoders: &PageEncoders,
+) -> Result<Vec<Vec<u8>>, DocError> {
+    line.runs
+        .iter()
+        .zip(segments)
+        .map(|(run, segment)| {
+            let encoder = encoders
+                .get(&run.font)
+                .ok_or_else(|| DocError::Structure("a run's font left the page".into()))?;
+            encoder.encode(segment).map_err(|c| {
+                DocError::Structure(format!(
+                    "the change lands in a run drawn with a font that has no glyph for \
+                     {c:?}; a PDF can only be given characters its own fonts carry"
+                ))
+            })
+        })
+        .collect()
 }
 
 /// How a line's new text is drawn.
@@ -901,6 +1144,10 @@ fn set_run(operations: &mut [Operation], run: &RunRef, bytes: Vec<u8>) -> Result
 }
 
 /// Render a PDF document as the plain-text buffer the editor shows.
-pub fn render(document: &Document) -> String {
+///
+/// The same call [`crate::render`] makes, kept here so the write path can
+/// compare a rewritten file against what it meant to store without depending on
+/// the caller having picked the right syntax for the format.
+fn render(document: &Document) -> String {
     markdown::to_plain_text(document)
 }

@@ -374,7 +374,9 @@ impl CMap {
             let (Some(unit), Some(base)) = (units.last(), range.base.last()) else {
                 return None;
             };
-            if units.len() != range.base.len() || units[..units.len() - 1] != range.base[..range.base.len() - 1] {
+            if units.len() != range.base.len()
+                || units[..units.len() - 1] != range.base[..range.base.len() - 1]
+            {
                 return None;
             }
             let offset = u32::from(unit.wrapping_sub(*base));
@@ -410,9 +412,11 @@ fn lex(bytes: &[u8]) -> Vec<Token> {
     let mut i = 0;
     while i < bytes.len() {
         match bytes[i] {
-            b'%' => while i < bytes.len() && bytes[i] != b'\n' {
-                i += 1;
-            },
+            b'%' => {
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
+            }
             b'<' if bytes.get(i + 1) == Some(&b'<') => i += 2,
             b'>' if bytes.get(i + 1) == Some(&b'>') => i += 2,
             b'<' => {
@@ -431,9 +435,7 @@ fn lex(bytes: &[u8]) -> Vec<Token> {
                 }
                 let value = digits
                     .chunks_exact(2)
-                    .filter_map(|pair| {
-                        u8::from_str_radix(std::str::from_utf8(pair).ok()?, 16).ok()
-                    })
+                    .filter_map(|pair| u8::from_str_radix(std::str::from_utf8(pair).ok()?, 16).ok())
                     .collect();
                 tokens.push(Token::Hex(value));
             }
@@ -487,20 +489,62 @@ const MAC_ROMAN_HIGH: &str = "ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóò
 /// StandardEncoding, which is ASCII with two different quotes and a sparse
 /// upper half.
 const STANDARD_DIFFERENCES: &[(u8, char)] = &[
-    (0x27, '\u{2019}'), (0x60, '\u{2018}'),
-    (0xa1, '¡'), (0xa2, '¢'), (0xa3, '£'), (0xa4, '\u{2044}'), (0xa5, '¥'),
-    (0xa6, '\u{192}'), (0xa7, '§'), (0xa8, '¤'), (0xa9, '\''), (0xaa, '\u{201c}'),
-    (0xab, '«'), (0xac, '\u{2039}'), (0xad, '\u{203a}'), (0xae, '\u{fb01}'),
-    (0xaf, '\u{fb02}'), (0xb1, '\u{2013}'), (0xb2, '\u{2020}'), (0xb3, '\u{2021}'),
-    (0xb4, '·'), (0xb6, '¶'), (0xb7, '\u{2022}'), (0xb8, '\u{201a}'),
-    (0xb9, '\u{201e}'), (0xba, '\u{201d}'), (0xbb, '»'), (0xbc, '\u{2026}'),
-    (0xbd, '\u{2030}'), (0xbf, '¿'), (0xc1, '`'), (0xc2, '´'), (0xc3, '\u{2c6}'),
-    (0xc4, '\u{2dc}'), (0xc5, '¯'), (0xc6, '\u{2d8}'), (0xc7, '\u{2d9}'),
-    (0xc8, '¨'), (0xca, '\u{2da}'), (0xcb, '¸'), (0xcd, '\u{2dd}'),
-    (0xce, '\u{2db}'), (0xcf, '\u{2c7}'), (0xd0, '\u{2014}'), (0xe1, 'Æ'),
-    (0xe3, 'ª'), (0xe8, '\u{141}'), (0xe9, 'Ø'), (0xea, '\u{152}'), (0xeb, 'º'),
-    (0xf1, 'æ'), (0xf5, '\u{131}'), (0xf8, '\u{142}'), (0xf9, 'ø'),
-    (0xfa, '\u{153}'), (0xfb, 'ß'),
+    (0x27, '\u{2019}'),
+    (0x60, '\u{2018}'),
+    (0xa1, '¡'),
+    (0xa2, '¢'),
+    (0xa3, '£'),
+    (0xa4, '\u{2044}'),
+    (0xa5, '¥'),
+    (0xa6, '\u{192}'),
+    (0xa7, '§'),
+    (0xa8, '¤'),
+    (0xa9, '\''),
+    (0xaa, '\u{201c}'),
+    (0xab, '«'),
+    (0xac, '\u{2039}'),
+    (0xad, '\u{203a}'),
+    (0xae, '\u{fb01}'),
+    (0xaf, '\u{fb02}'),
+    (0xb1, '\u{2013}'),
+    (0xb2, '\u{2020}'),
+    (0xb3, '\u{2021}'),
+    (0xb4, '·'),
+    (0xb6, '¶'),
+    (0xb7, '\u{2022}'),
+    (0xb8, '\u{201a}'),
+    (0xb9, '\u{201e}'),
+    (0xba, '\u{201d}'),
+    (0xbb, '»'),
+    (0xbc, '\u{2026}'),
+    (0xbd, '\u{2030}'),
+    (0xbf, '¿'),
+    (0xc1, '`'),
+    (0xc2, '´'),
+    (0xc3, '\u{2c6}'),
+    (0xc4, '\u{2dc}'),
+    (0xc5, '¯'),
+    (0xc6, '\u{2d8}'),
+    (0xc7, '\u{2d9}'),
+    (0xc8, '¨'),
+    (0xca, '\u{2da}'),
+    (0xcb, '¸'),
+    (0xcd, '\u{2dd}'),
+    (0xce, '\u{2db}'),
+    (0xcf, '\u{2c7}'),
+    (0xd0, '\u{2014}'),
+    (0xe1, 'Æ'),
+    (0xe3, 'ª'),
+    (0xe8, '\u{141}'),
+    (0xe9, 'Ø'),
+    (0xea, '\u{152}'),
+    (0xeb, 'º'),
+    (0xf1, 'æ'),
+    (0xf5, '\u{131}'),
+    (0xf8, '\u{142}'),
+    (0xf9, 'ø'),
+    (0xfa, '\u{153}'),
+    (0xfb, 'ß'),
 ];
 
 /// The 256-entry table a named base encoding stands for.
@@ -601,54 +645,177 @@ fn glyph_char(name: &str) -> Option<char> {
 /// The Adobe standard Latin glyph names, minus the single-letter and digit ones
 /// [`glyph_char`] answers directly.
 const GLYPHS: &[(&str, char)] = &[
-    ("space", ' '), ("exclam", '!'), ("quotedbl", '"'), ("numbersign", '#'),
-    ("dollar", '$'), ("percent", '%'), ("ampersand", '&'), ("quotesingle", '\''),
-    ("quoteright", '\u{2019}'), ("quoteleft", '\u{2018}'), ("parenleft", '('),
-    ("parenright", ')'), ("asterisk", '*'), ("plus", '+'), ("comma", ','),
-    ("hyphen", '-'), ("period", '.'), ("slash", '/'), ("colon", ':'),
-    ("semicolon", ';'), ("less", '<'), ("equal", '='), ("greater", '>'),
-    ("question", '?'), ("at", '@'), ("bracketleft", '['), ("backslash", '\\'),
-    ("bracketright", ']'), ("asciicircum", '^'), ("underscore", '_'),
-    ("grave", '`'), ("braceleft", '{'), ("bar", '|'), ("braceright", '}'),
-    ("asciitilde", '~'), ("nbspace", '\u{a0}'), ("exclamdown", '¡'),
-    ("cent", '¢'), ("sterling", '£'), ("fraction", '\u{2044}'), ("yen", '¥'),
-    ("florin", '\u{192}'), ("section", '§'), ("currency", '¤'),
-    ("quotedblleft", '\u{201c}'), ("quotedblright", '\u{201d}'),
-    ("guillemotleft", '«'), ("guillemotright", '»'), ("guilsinglleft", '\u{2039}'),
-    ("guilsinglright", '\u{203a}'), ("fi", '\u{fb01}'), ("fl", '\u{fb02}'),
-    ("endash", '\u{2013}'), ("emdash", '\u{2014}'), ("dagger", '\u{2020}'),
-    ("daggerdbl", '\u{2021}'), ("periodcentered", '·'), ("paragraph", '¶'),
-    ("bullet", '\u{2022}'), ("quotesinglbase", '\u{201a}'),
-    ("quotedblbase", '\u{201e}'), ("ellipsis", '\u{2026}'), ("perthousand", '\u{2030}'),
-    ("questiondown", '¿'), ("acute", '´'), ("circumflex", '\u{2c6}'),
-    ("tilde", '\u{2dc}'), ("macron", '¯'), ("breve", '\u{2d8}'),
-    ("dotaccent", '\u{2d9}'), ("dieresis", '¨'), ("ring", '\u{2da}'),
-    ("cedilla", '¸'), ("hungarumlaut", '\u{2dd}'), ("ogonek", '\u{2db}'),
-    ("caron", '\u{2c7}'), ("AE", 'Æ'), ("ordfeminine", 'ª'), ("Lslash", '\u{141}'),
-    ("Oslash", 'Ø'), ("OE", '\u{152}'), ("ordmasculine", 'º'), ("ae", 'æ'),
-    ("dotlessi", '\u{131}'), ("lslash", '\u{142}'), ("oslash", 'ø'), ("oe", '\u{153}'),
-    ("germandbls", 'ß'), ("Aacute", 'Á'), ("Acircumflex", 'Â'), ("Adieresis", 'Ä'),
-    ("Agrave", 'À'), ("Aring", 'Å'), ("Atilde", 'Ã'), ("Ccedilla", 'Ç'),
-    ("Eacute", 'É'), ("Ecircumflex", 'Ê'), ("Edieresis", 'Ë'), ("Egrave", 'È'),
-    ("Eth", 'Ð'), ("Iacute", 'Í'), ("Icircumflex", 'Î'), ("Idieresis", 'Ï'),
-    ("Igrave", 'Ì'), ("Ntilde", 'Ñ'), ("Oacute", 'Ó'), ("Ocircumflex", 'Ô'),
-    ("Odieresis", 'Ö'), ("Ograve", 'Ò'), ("Otilde", 'Õ'), ("Scaron", '\u{160}'),
-    ("Thorn", 'Þ'), ("Uacute", 'Ú'), ("Ucircumflex", 'Û'), ("Udieresis", 'Ü'),
-    ("Ugrave", 'Ù'), ("Yacute", 'Ý'), ("Ydieresis", '\u{178}'), ("Zcaron", '\u{17d}'),
-    ("aacute", 'á'), ("acircumflex", 'â'), ("adieresis", 'ä'), ("agrave", 'à'),
-    ("aring", 'å'), ("atilde", 'ã'), ("brokenbar", '¦'), ("ccedilla", 'ç'),
-    ("copyright", '©'), ("degree", '°'), ("divide", '÷'), ("eacute", 'é'),
-    ("ecircumflex", 'ê'), ("edieresis", 'ë'), ("egrave", 'è'), ("eth", 'ð'),
-    ("iacute", 'í'), ("icircumflex", 'î'), ("idieresis", 'ï'), ("igrave", 'ì'),
-    ("logicalnot", '¬'), ("minus", '\u{2212}'), ("mu", 'µ'), ("multiply", '×'),
-    ("ntilde", 'ñ'), ("oacute", 'ó'), ("ocircumflex", 'ô'), ("odieresis", 'ö'),
-    ("ograve", 'ò'), ("onehalf", '½'), ("onequarter", '¼'), ("onesuperior", '¹'),
-    ("otilde", 'õ'), ("plusminus", '±'), ("registered", '®'), ("scaron", '\u{161}'),
-    ("thorn", 'þ'), ("threequarters", '¾'), ("threesuperior", '³'),
-    ("trademark", '\u{2122}'), ("twosuperior", '²'), ("uacute", 'ú'),
-    ("ucircumflex", 'û'), ("udieresis", 'ü'), ("ugrave", 'ù'), ("yacute", 'ý'),
-    ("ydieresis", 'ÿ'), ("zcaron", '\u{17e}'), ("Euro", '\u{20ac}'),
-    ("hyphenminus", '-'), ("nonbreakingspace", '\u{a0}'), ("softhyphen", '\u{ad}'),
+    ("space", ' '),
+    ("exclam", '!'),
+    ("quotedbl", '"'),
+    ("numbersign", '#'),
+    ("dollar", '$'),
+    ("percent", '%'),
+    ("ampersand", '&'),
+    ("quotesingle", '\''),
+    ("quoteright", '\u{2019}'),
+    ("quoteleft", '\u{2018}'),
+    ("parenleft", '('),
+    ("parenright", ')'),
+    ("asterisk", '*'),
+    ("plus", '+'),
+    ("comma", ','),
+    ("hyphen", '-'),
+    ("period", '.'),
+    ("slash", '/'),
+    ("colon", ':'),
+    ("semicolon", ';'),
+    ("less", '<'),
+    ("equal", '='),
+    ("greater", '>'),
+    ("question", '?'),
+    ("at", '@'),
+    ("bracketleft", '['),
+    ("backslash", '\\'),
+    ("bracketright", ']'),
+    ("asciicircum", '^'),
+    ("underscore", '_'),
+    ("grave", '`'),
+    ("braceleft", '{'),
+    ("bar", '|'),
+    ("braceright", '}'),
+    ("asciitilde", '~'),
+    ("nbspace", '\u{a0}'),
+    ("exclamdown", '¡'),
+    ("cent", '¢'),
+    ("sterling", '£'),
+    ("fraction", '\u{2044}'),
+    ("yen", '¥'),
+    ("florin", '\u{192}'),
+    ("section", '§'),
+    ("currency", '¤'),
+    ("quotedblleft", '\u{201c}'),
+    ("quotedblright", '\u{201d}'),
+    ("guillemotleft", '«'),
+    ("guillemotright", '»'),
+    ("guilsinglleft", '\u{2039}'),
+    ("guilsinglright", '\u{203a}'),
+    ("fi", '\u{fb01}'),
+    ("fl", '\u{fb02}'),
+    ("endash", '\u{2013}'),
+    ("emdash", '\u{2014}'),
+    ("dagger", '\u{2020}'),
+    ("daggerdbl", '\u{2021}'),
+    ("periodcentered", '·'),
+    ("paragraph", '¶'),
+    ("bullet", '\u{2022}'),
+    ("quotesinglbase", '\u{201a}'),
+    ("quotedblbase", '\u{201e}'),
+    ("ellipsis", '\u{2026}'),
+    ("perthousand", '\u{2030}'),
+    ("questiondown", '¿'),
+    ("acute", '´'),
+    ("circumflex", '\u{2c6}'),
+    ("tilde", '\u{2dc}'),
+    ("macron", '¯'),
+    ("breve", '\u{2d8}'),
+    ("dotaccent", '\u{2d9}'),
+    ("dieresis", '¨'),
+    ("ring", '\u{2da}'),
+    ("cedilla", '¸'),
+    ("hungarumlaut", '\u{2dd}'),
+    ("ogonek", '\u{2db}'),
+    ("caron", '\u{2c7}'),
+    ("AE", 'Æ'),
+    ("ordfeminine", 'ª'),
+    ("Lslash", '\u{141}'),
+    ("Oslash", 'Ø'),
+    ("OE", '\u{152}'),
+    ("ordmasculine", 'º'),
+    ("ae", 'æ'),
+    ("dotlessi", '\u{131}'),
+    ("lslash", '\u{142}'),
+    ("oslash", 'ø'),
+    ("oe", '\u{153}'),
+    ("germandbls", 'ß'),
+    ("Aacute", 'Á'),
+    ("Acircumflex", 'Â'),
+    ("Adieresis", 'Ä'),
+    ("Agrave", 'À'),
+    ("Aring", 'Å'),
+    ("Atilde", 'Ã'),
+    ("Ccedilla", 'Ç'),
+    ("Eacute", 'É'),
+    ("Ecircumflex", 'Ê'),
+    ("Edieresis", 'Ë'),
+    ("Egrave", 'È'),
+    ("Eth", 'Ð'),
+    ("Iacute", 'Í'),
+    ("Icircumflex", 'Î'),
+    ("Idieresis", 'Ï'),
+    ("Igrave", 'Ì'),
+    ("Ntilde", 'Ñ'),
+    ("Oacute", 'Ó'),
+    ("Ocircumflex", 'Ô'),
+    ("Odieresis", 'Ö'),
+    ("Ograve", 'Ò'),
+    ("Otilde", 'Õ'),
+    ("Scaron", '\u{160}'),
+    ("Thorn", 'Þ'),
+    ("Uacute", 'Ú'),
+    ("Ucircumflex", 'Û'),
+    ("Udieresis", 'Ü'),
+    ("Ugrave", 'Ù'),
+    ("Yacute", 'Ý'),
+    ("Ydieresis", '\u{178}'),
+    ("Zcaron", '\u{17d}'),
+    ("aacute", 'á'),
+    ("acircumflex", 'â'),
+    ("adieresis", 'ä'),
+    ("agrave", 'à'),
+    ("aring", 'å'),
+    ("atilde", 'ã'),
+    ("brokenbar", '¦'),
+    ("ccedilla", 'ç'),
+    ("copyright", '©'),
+    ("degree", '°'),
+    ("divide", '÷'),
+    ("eacute", 'é'),
+    ("ecircumflex", 'ê'),
+    ("edieresis", 'ë'),
+    ("egrave", 'è'),
+    ("eth", 'ð'),
+    ("iacute", 'í'),
+    ("icircumflex", 'î'),
+    ("idieresis", 'ï'),
+    ("igrave", 'ì'),
+    ("logicalnot", '¬'),
+    ("minus", '\u{2212}'),
+    ("mu", 'µ'),
+    ("multiply", '×'),
+    ("ntilde", 'ñ'),
+    ("oacute", 'ó'),
+    ("ocircumflex", 'ô'),
+    ("odieresis", 'ö'),
+    ("ograve", 'ò'),
+    ("onehalf", '½'),
+    ("onequarter", '¼'),
+    ("onesuperior", '¹'),
+    ("otilde", 'õ'),
+    ("plusminus", '±'),
+    ("registered", '®'),
+    ("scaron", '\u{161}'),
+    ("thorn", 'þ'),
+    ("threequarters", '¾'),
+    ("threesuperior", '³'),
+    ("trademark", '\u{2122}'),
+    ("twosuperior", '²'),
+    ("uacute", 'ú'),
+    ("ucircumflex", 'û'),
+    ("udieresis", 'ü'),
+    ("ugrave", 'ù'),
+    ("yacute", 'ý'),
+    ("ydieresis", 'ÿ'),
+    ("zcaron", '\u{17e}'),
+    ("Euro", '\u{20ac}'),
+    ("hyphenminus", '-'),
+    ("nonbreakingspace", '\u{a0}'),
+    ("softhyphen", '\u{ad}'),
 ];
 
 #[cfg(test)]
@@ -669,7 +836,11 @@ mod tests {
     #[test]
     fn the_base_encodings_line_up() {
         let win = base_table(Some(b"WinAnsiEncoding"));
-        assert_eq!(win[0xa0], Some('\u{a0}'), "the whole upper half is 128 wide");
+        assert_eq!(
+            win[0xa0],
+            Some('\u{a0}'),
+            "the whole upper half is 128 wide"
+        );
         assert_eq!(win[0x41], Some('A'));
         assert_eq!(win[0x92], Some('\u{2019}'), "curly apostrophe");
         assert_eq!(win[0xe9], Some('é'));
@@ -680,7 +851,11 @@ mod tests {
         assert_eq!(mac[0xd5], Some('\u{2019}'));
 
         let standard = base_table(None);
-        assert_eq!(standard[0x27], Some('\u{2019}'), "quoteright, not apostrophe");
+        assert_eq!(
+            standard[0x27],
+            Some('\u{2019}'),
+            "quoteright, not apostrophe"
+        );
         assert_eq!(standard[0xe9], Some('Ø'));
         assert_eq!(standard[0xff], None);
     }
@@ -717,20 +892,29 @@ endcmap end end";
         assert_eq!(cmap.decode(&[0x00, 0x03]).as_deref(), Some(" "));
         assert_eq!(cmap.decode(&[0x00, 0x24]).as_deref(), Some("A"));
         assert_eq!(cmap.decode(&[0x00, 0x45]).as_deref(), Some("b"), "range");
-        assert_eq!(cmap.decode(&[0x00, 0x51]).as_deref(), Some("Y"), "array range");
+        assert_eq!(
+            cmap.decode(&[0x00, 0x51]).as_deref(),
+            Some("Y"),
+            "array range"
+        );
         assert_eq!(cmap.decode(&[0x00, 0x99]), None, "no such code");
 
         assert_eq!(cmap.encode("Ab"), Ok(vec![0x00, 0x24, 0x00, 0x45]));
-        assert_eq!(cmap.encode("Y"), Ok(vec![0x00, 0x51]), "array range, reversed");
-        assert_eq!(cmap.encode("ß"), Err('ß'), "a character this font cannot draw");
+        assert_eq!(
+            cmap.encode("Y"),
+            Ok(vec![0x00, 0x51]),
+            "array range, reversed"
+        );
+        assert_eq!(
+            cmap.encode("ß"),
+            Err('ß'),
+            "a character this font cannot draw"
+        );
     }
 
     #[test]
     fn a_wide_range_is_not_expanded_but_still_maps_both_ways() {
-        let cmap = CMap::parse(
-            b"1 beginbfrange <0000> <ffff> <0000> endbfrange",
-        )
-        .expect("parsed");
+        let cmap = CMap::parse(b"1 beginbfrange <0000> <ffff> <0000> endbfrange").expect("parsed");
         assert!(cmap.single.is_empty(), "65k entries are not materialised");
         assert_eq!(cmap.decode(&[0x00, 0x41]).as_deref(), Some("A"));
         assert_eq!(cmap.encode("A"), Ok(vec![0x00, 0x41]));

@@ -1196,6 +1196,8 @@ Rich document formats read and written as text — see [documents.md](/vibecody/
 | `docx` | `read`, `write` | OOXML; images, footnotes and page setup survive a save |
 | `epub` | `read`, `write` | Spine chapters; stylesheets, OPF and metadata preserved |
 | `epub_view` | `read_book`, `read_chapter` | Reading for display: metadata, cover, TOC (nav doc or NCX), and each chapter with its stylesheets and media resolved |
+| `pdf` | `read`, `write` | Content streams walked into lines per page; a changed page is appended as an incremental update, so the original bytes stay put |
+| `pdf/font` | `Encoder` | What a font's codes mean, in both directions — ToUnicode CMap, base encoding, `/Differences`; a code with no character makes its run opaque rather than guessed |
 | `pages/snappy` | `decompress`, `compress` | Apple's IWA block framing around raw Snappy |
 | `pages/protobuf` | `Message` | Wire-format walker that keeps unknown fields byte-identical |
 | `pages/iwa` | `parse_stream`, `serialize_stream` | Archive streams inside an iWork document |

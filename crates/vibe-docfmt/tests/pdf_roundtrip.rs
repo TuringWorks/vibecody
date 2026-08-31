@@ -23,7 +23,14 @@ fn page_with(lines: &[(&str, i64)], encoding: &str) -> Vec<u8> {
     for (text, y) in lines {
         operations.push(Operation::new(
             "Tm",
-            vec![1.into(), 0.into(), 0.into(), 1.into(), 72.into(), (*y).into()],
+            vec![
+                1.into(),
+                0.into(),
+                0.into(),
+                1.into(),
+                72.into(),
+                (*y).into(),
+            ],
         ));
         operations.push(Operation::new(
             "Tj",
@@ -167,7 +174,10 @@ fn a_page_marker_that_went_missing_is_an_error_not_a_guess() {
     let document = pdf::read(&bytes).expect("read");
     assert_eq!(document.sections.len(), 2);
     let rendered = buffer(&document);
-    assert!(rendered.contains("page-1") && rendered.contains("page-2"), "{rendered}");
+    assert!(
+        rendered.contains("page-1") && rendered.contains("page-2"),
+        "{rendered}"
+    );
 
     let without = rendered
         .lines()
@@ -200,7 +210,14 @@ fn two_pages() -> Vec<u8> {
                 Operation::new("Tf", vec!["F1".into(), 12.into()]),
                 Operation::new(
                     "Tm",
-                    vec![1.into(), 0.into(), 0.into(), 1.into(), 72.into(), 700.into()],
+                    vec![
+                        1.into(),
+                        0.into(),
+                        0.into(),
+                        1.into(),
+                        72.into(),
+                        700.into(),
+                    ],
                 ),
                 Operation::new(
                     "Tj",
@@ -255,11 +272,21 @@ fn a_run_the_font_cannot_be_read_through_is_left_out_and_reported() {
         Operation::new("Tf", vec!["F1".into(), 12.into()]),
         Operation::new(
             "Tm",
-            vec![1.into(), 0.into(), 0.into(), 1.into(), 72.into(), 700.into()],
+            vec![
+                1.into(),
+                0.into(),
+                0.into(),
+                1.into(),
+                72.into(),
+                700.into(),
+            ],
         ),
         Operation::new(
             "Tj",
-            vec![Object::String(b"abc".to_vec(), lopdf::StringFormat::Literal)],
+            vec![Object::String(
+                b"abc".to_vec(),
+                lopdf::StringFormat::Literal,
+            )],
         ),
         Operation::new("ET", vec![]),
     ];
@@ -285,7 +312,10 @@ fn a_run_the_font_cannot_be_read_through_is_left_out_and_reported() {
     let document = pdf::read(&bytes).expect("read");
     assert!(text_of(&document).is_empty(), "no text is invented");
     assert!(
-        document.warnings.iter().any(|w| w.code == "pdf.unreadable_font"),
+        document
+            .warnings
+            .iter()
+            .any(|w| w.code == "pdf.unreadable_font"),
         "{:?}",
         document.warnings
     );
@@ -296,7 +326,10 @@ fn a_standard_encoding_font_is_read_with_the_assumption_reported() {
     let bytes = page_with(&[("Plain text.", 700)], "StandardEncoding");
     let document = pdf::read(&bytes).expect("read");
     assert_eq!(text_of(&document), ["Plain text."]);
-    assert!(document.warnings.is_empty(), "a named encoding is not an assumption");
+    assert!(
+        document.warnings.is_empty(),
+        "a named encoding is not an assumption"
+    );
 }
 
 #[test]
@@ -336,7 +369,14 @@ fn a_font_with_no_space_glyph_keeps_its_words_apart() {
         Operation::new("Tf", vec!["F1".into(), 12.into()]),
         Operation::new(
             "Tm",
-            vec![1.into(), 0.into(), 0.into(), 1.into(), 72.into(), 700.into()],
+            vec![
+                1.into(),
+                0.into(),
+                0.into(),
+                1.into(),
+                72.into(),
+                700.into(),
+            ],
         ),
         Operation::new(
             "TJ",
@@ -397,7 +437,14 @@ fn a_page_with_an_inline_image_says_it_cannot_be_rewritten() {
             Operation::new("Tf", vec!["F1".into(), 12.into()]),
             Operation::new(
                 "Tm",
-                vec![1.into(), 0.into(), 0.into(), 1.into(), 72.into(), 700.into()],
+                vec![
+                    1.into(),
+                    0.into(),
+                    0.into(),
+                    1.into(),
+                    72.into(),
+                    700.into(),
+                ],
             ),
             Operation::new(
                 "Tj",
@@ -438,5 +485,8 @@ fn a_page_with_an_inline_image_says_it_cannot_be_rewritten() {
     // Changing it is refused, by name, with the file untouched.
     let edited = markdown::from_plain_text(DocFormat::Pdf, "A different line.\n");
     let error = pdf::write(&bytes, &edited).expect_err("an inline image blocks the rewrite");
-    assert!(error.to_string().contains("page 1 cannot be rewritten"), "{error}");
+    assert!(
+        error.to_string().contains("page 1 cannot be rewritten"),
+        "{error}"
+    );
 }

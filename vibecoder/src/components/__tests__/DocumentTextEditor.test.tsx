@@ -229,6 +229,25 @@ describe('DocumentViewer', () => {
     expect(await screen.findByTestId('monaco-mock')).toBeInTheDocument();
   });
 
+  it('tells a PDF reader what a PDF cannot do, before they try it', async () => {
+    // A PDF does not re-flow. Finding that out from an error after typing a
+    // paragraph is worse than being told while there is still time to choose.
+    respondWith({
+      read_document_text: {
+        ...docxText,
+        format: 'pdf',
+        language: 'plaintext',
+        text: 'A line of the page.\n',
+        sections: 3,
+      },
+    });
+    render(<DocumentTextEditor filePath="/d/paper.pdf" format="pdf" onClose={vi.fn()} />);
+
+    await screen.findByTestId('monaco-mock');
+    expect(screen.getByText(/does not re-flow/i)).toBeInTheDocument();
+    expect(screen.getByText('3 pages')).toBeInTheDocument();
+  });
+
   it('falls back to the recovered text when a Pages file embeds no preview', async () => {
     respondWith({
       read_document_text: {
