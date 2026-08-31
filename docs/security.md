@@ -292,12 +292,19 @@ Each trace entry includes:
 
 Traces can be reviewed in the VibeCoder Traces panel or exported for external analysis. The compliance controls module supports configurable retention policies and automatic PII redaction.
 
-## Compliance Reports
+## Compliance Readiness Reports
 
 The Compliance panel in VibeCoder and `vibecli --compliance report` score **the
 project you have open** against a control framework by scanning it. The scan is
 evidence-based: it walks the workspace, records the file and line that
 demonstrates each control, and reports everything else as a gap.
+
+> **This is a gap assessment, not an audit report.** An attestation comes from
+> an independent licensed CPA. A SOC 2 Type II in particular is evidence that
+> controls *operated consistently* over a three-to-twelve-month observation
+> window; a scan of a source tree is a point-in-time look at control design, and
+> only at the part of that design which is visible in code. Use these reports to
+> find gaps before a readiness assessment, not to satisfy one.
 
 ```bash
 vibecli --compliance report --framework soc2                 # scan the working directory
@@ -340,6 +347,56 @@ evidence, so the report always says which one it was.
 A passing report is a starting point for an audit, not an audit result: the
 scanner sees that TLS is configured somewhere in the tree, not that every
 endpoint uses it.
+
+### Filing a report
+
+Every report records its own provenance — the tool version, the commit scanned,
+and whether that tree was dirty. A report taken over uncommitted changes cannot
+be reproduced from its commit, so it says so rather than letting a filed copy
+imply otherwise; off a git checkout the commit is reported as unknown rather
+than invented.
+
+```bash
+# One framework, filed with its provenance inside it.
+vibecli --compliance report --framework soc2 --output soc2.md
+vibecli --compliance report --framework soc2 --format json --output soc2.json
+```
+
+### Filing every framework at once
+
+`--all` scores the project against every supported framework and writes the set
+to a directory. It is **one scan**: the walk is the expensive half of a report
+and each framework asks the same questions of it, so all five reports describe
+the same tree at the same instant and carry the same scope and timestamp. Five
+separate invocations would not — a tree that changes between them produces five
+reports that cannot be compared.
+
+```bash
+vibecli --compliance report --all --output-dir ./compliance-2026-08
+vibecli --compliance report --all --format both --output-dir ./compliance-2026-08
+vibecli --compliance report --all --path ~/code/app --output-dir ./out
+```
+
+`--format` takes `markdown` (default), `json`, or `both`. `--output-dir` also
+works with a single `--framework`; `--all` requires it, since there is no single
+file to write and nothing to checksum on stdout.
+
+The directory holds one report per framework per format, plus two index files:
+
+| File | Contents |
+|---|---|
+| `<framework>.md` / `<framework>.json` | The report, e.g. `soc2.md`, `iso27001.json` |
+| `manifest.json` | Tool version, scan timestamp, the shared scan scope, and one entry per report: file name, byte length, SHA-256, controls scored, and the score (`null`, never `0`, when nothing could be scored) |
+| `SHA256SUMS` | The same digests in the format `shasum -a 256 -c` reads |
+
+```bash
+cd compliance-2026-08 && shasum -a 256 -c SHA256SUMS
+```
+
+The checksums establish that a filed copy is byte-identical to what the scan
+produced. They are not signatures: anyone who can edit a report can recompute
+its digest and rewrite the manifest. To bind a bundle to an identity, sign the
+directory with your own tooling — the checksums make that a single-file job.
 
 ## Air-Gapped Mode
 

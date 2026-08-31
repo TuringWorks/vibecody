@@ -20,6 +20,7 @@ use std::path::Path;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 use crate::compliance_scan;
 
@@ -40,6 +41,25 @@ impl ComplianceFramework {
             ComplianceFramework::HIPAA => "HIPAA",
             ComplianceFramework::GDPR => "GDPR",
             ComplianceFramework::ISO27001 => "ISO 27001",
+        }
+    }
+
+    /// Every framework the scanner can score, in the order a bundle files them.
+    pub fn all() -> &'static [ComplianceFramework] {
+        use ComplianceFramework::*;
+        &[SOC2, FedRAMP, HIPAA, GDPR, ISO27001]
+    }
+
+    /// The name the CLI accepts and the stem a bundled report is filed under.
+    /// Round-trips through [`ComplianceFramework::parse`] — a test pins that,
+    /// because a slug that does not parse produces a bundle no one can re-run.
+    pub fn slug(&self) -> &'static str {
+        match self {
+            ComplianceFramework::SOC2 => "soc2",
+            ComplianceFramework::FedRAMP => "fedramp",
+            ComplianceFramework::HIPAA => "hipaa",
+            ComplianceFramework::GDPR => "gdpr",
+            ComplianceFramework::ISO27001 => "iso27001",
         }
     }
 
@@ -145,21 +165,56 @@ pub struct ComplianceSummary {
     pub compliance_percentage: Option<f64>,
 }
 
-/// Scan `root` and score it against `framework`.
-pub fn generate_report_for_path(framework: &str, root: &Path) -> Result<ComplianceReport> {
-    let framework = ComplianceFramework::parse(framework).ok_or_else(|| {
-        anyhow::anyhow!(
-            "Unsupported framework: {}. Supported: soc2, fedramp, hipaa, gdpr, iso27001",
-            framework
+/// One walk of a project, reusable across frameworks.
+///
+/// The walk is the expensive half of a report and every framework asks the same
+/// questions of it, so scoring a project against all five costs one scan rather
+/// than five. Reports built from the same `ProjectScan` therefore share a scope
+/// and a timestamp, which is also what makes them comparable: five reports taken
+/// seconds apart over a tree that changed in between are five different facts.
+pub struct ProjectScan {
+    pub facts: compliance_scan::ProjectFacts,
+    pub scope: ScanScope,
+    /// Unix seconds at which the scan ran, stamped on every report built from it.
+    pub scanned_at: u64,
+}
+
+impl ProjectScan {
+    /// Score this one scan against `framework`.
+    pub fn report(&self, framework: &ComplianceFramework) -> ComplianceReport {
+        let controls = compliance_scan::assess(framework, &self.facts);
+        build_report(
+            framework.clone(),
+            self.scope.clone(),
+            controls,
+            self.scanned_at,
         )
-    })?;
+    }
+}
+
+/// Resolve a framework name, naming the accepted values on failure.
+pub fn parse_framework(name: &str) -> Result<ComplianceFramework> {
+    ComplianceFramework::parse(name).ok_or_else(|| {
+        anyhow::anyhow!(
+            "Unsupported framework: {}. Supported: {}",
+            name,
+            ComplianceFramework::all()
+                .iter()
+                .map(|f| f.slug())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    })
+}
+
+/// Walk `root` once and record what the scan covered.
+pub fn scan_project(root: &Path) -> Result<ProjectScan> {
     if !root.is_dir() {
         anyhow::bail!("Not a directory: {}", root.display());
     }
     // Report the path the user can act on, not the `.` they typed.
     let root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
     let facts = compliance_scan::scan(&root);
-    let controls = compliance_scan::assess(&framework, &facts);
     let scope = ScanScope {
         root: facts.root.clone(),
         files_seen: facts.files_seen,
@@ -171,7 +226,17 @@ pub fn generate_report_for_path(framework: &str, root: &Path) -> Result<Complian
         git_dirty: facts.git_dirty,
         tool_version: env!("CARGO_PKG_VERSION").to_string(),
     };
-    Ok(build_report(framework, scope, controls))
+    Ok(ProjectScan {
+        facts,
+        scope,
+        scanned_at: now_unix(),
+    })
+}
+
+/// Scan `root` and score it against `framework`.
+pub fn generate_report_for_path(framework: &str, root: &Path) -> Result<ComplianceReport> {
+    let framework = parse_framework(framework)?;
+    Ok(scan_project(root)?.report(&framework))
 }
 
 /// Scan the current working directory.
@@ -184,6 +249,7 @@ fn build_report(
     framework: ComplianceFramework,
     scope: ScanScope,
     controls: Vec<ComplianceControl>,
+    generated_at: u64,
 ) -> ComplianceReport {
     let count = |want: ControlStatus| controls.iter().filter(|c| c.status == want).count();
     let implemented = count(ControlStatus::Implemented);
@@ -197,14 +263,9 @@ fn build_report(
     let pct = (scored > 0)
         .then(|| ((implemented as f64) + (partial as f64) * 0.5) / (scored as f64) * 100.0);
 
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-
     ComplianceReport {
         framework,
-        generated_at: now,
+        generated_at,
         scope,
         summary: ComplianceSummary {
             total_controls: controls.len(),
@@ -218,6 +279,15 @@ fn build_report(
         },
         controls,
     }
+}
+
+/// Unix seconds now. A clock before the epoch is not a reason to fail a scan,
+/// but it is also not a timestamp — the report says 0 rather than inventing one.
+fn now_unix() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
 }
 
 /// RFC 3339 rendering of a Unix timestamp, in UTC.
@@ -342,6 +412,194 @@ source scan can demonstrate.\n\n",
     md
 }
 
+
+// ── Bundles: one scan, every framework, filed with checksums ──────────────────
+
+/// How a single report is rendered. `both` expands to every variant, so no
+/// caller has to keep its own list of the formats that exist.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReportFormat {
+    Markdown,
+    Json,
+}
+
+impl ReportFormat {
+    pub fn all() -> &'static [ReportFormat] {
+        &[ReportFormat::Markdown, ReportFormat::Json]
+    }
+
+    pub fn id(&self) -> &'static str {
+        match self {
+            ReportFormat::Markdown => "markdown",
+            ReportFormat::Json => "json",
+        }
+    }
+
+    pub fn extension(&self) -> &'static str {
+        match self {
+            ReportFormat::Markdown => "md",
+            ReportFormat::Json => "json",
+        }
+    }
+
+    /// Parse a `--format` value into the formats to emit.
+    pub fn parse_list(input: &str) -> Result<Vec<ReportFormat>> {
+        match input.trim().to_lowercase().as_str() {
+            "markdown" | "md" => Ok(vec![ReportFormat::Markdown]),
+            "json" => Ok(vec![ReportFormat::Json]),
+            "both" | "all" => Ok(ReportFormat::all().to_vec()),
+            other => anyhow::bail!(
+                "Unsupported format: {other}. Supported: markdown, json, both"
+            ),
+        }
+    }
+
+    fn render(&self, report: &ComplianceReport) -> Result<String> {
+        match self {
+            ReportFormat::Markdown => Ok(report_to_markdown(report)),
+            ReportFormat::Json => Ok(serde_json::to_string_pretty(report)?),
+        }
+    }
+}
+
+/// A rendered report, with the digest that will be filed next to it.
+#[derive(Debug, Clone)]
+pub struct BundledReport {
+    pub framework: ComplianceFramework,
+    pub format: ReportFormat,
+    /// File name relative to the output directory.
+    pub file: String,
+    pub contents: String,
+    pub sha256: String,
+    pub summary: ComplianceSummary,
+}
+
+/// The index filed with a bundle: provenance, the scope of the one scan that
+/// produced every report, and a digest per file.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Manifest {
+    pub tool: String,
+    pub tool_version: String,
+    pub generated_at: u64,
+    pub generated_at_utc: String,
+    /// Named rather than assumed, so a verifier does not have to guess.
+    pub checksum_algorithm: String,
+    /// The single scan behind every report listed below.
+    pub scope: ScanScope,
+    pub reports: Vec<ManifestEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ManifestEntry {
+    pub framework: String,
+    pub framework_id: String,
+    pub format: String,
+    pub file: String,
+    pub bytes: usize,
+    pub sha256: String,
+    pub total_controls: usize,
+    pub scored: usize,
+    /// `None` when nothing could be scored. A rate over zero controls is not 0%.
+    pub compliance_percentage: Option<f64>,
+}
+
+/// Everything a bundle writes to disk. Rendering and hashing happen here;
+/// the caller does the IO, which is what makes this testable without one.
+#[derive(Debug, Clone)]
+pub struct ReportBundle {
+    pub scope: ScanScope,
+    pub generated_at: u64,
+    pub reports: Vec<BundledReport>,
+    /// `manifest.json`.
+    pub manifest_file: String,
+    pub manifest_contents: String,
+    /// `SHA256SUMS`, in the format `shasum -a 256 -c` reads.
+    pub checksums_file: String,
+    pub checksums_contents: String,
+}
+
+pub const MANIFEST_FILE: &str = "manifest.json";
+pub const CHECKSUMS_FILE: &str = "SHA256SUMS";
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    hex::encode(Sha256::digest(bytes))
+}
+
+/// Scan `root` once and render every (framework, format) pair from that one scan.
+pub fn build_bundle(
+    root: &Path,
+    frameworks: &[ComplianceFramework],
+    formats: &[ReportFormat],
+) -> Result<ReportBundle> {
+    if frameworks.is_empty() {
+        anyhow::bail!("No framework selected");
+    }
+    if formats.is_empty() {
+        anyhow::bail!("No output format selected");
+    }
+    let scan = scan_project(root)?;
+    let reports = frameworks
+        .iter()
+        .map(|framework| {
+            let report = scan.report(framework);
+            formats
+                .iter()
+                .map(|format| {
+                    let contents = format.render(&report)?;
+                    Ok(BundledReport {
+                        framework: framework.clone(),
+                        format: *format,
+                        file: format!("{}.{}", framework.slug(), format.extension()),
+                        sha256: sha256_hex(contents.as_bytes()),
+                        contents,
+                        summary: report.summary.clone(),
+                    })
+                })
+                .collect::<Result<Vec<_>>>()
+        })
+        .collect::<Result<Vec<_>>>()?
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+
+    let manifest = Manifest {
+        tool: "vibecli".to_string(),
+        tool_version: scan.scope.tool_version.clone(),
+        generated_at: scan.scanned_at,
+        generated_at_utc: format_timestamp(scan.scanned_at),
+        checksum_algorithm: "sha256".to_string(),
+        scope: scan.scope.clone(),
+        reports: reports
+            .iter()
+            .map(|r| ManifestEntry {
+                framework: r.framework.label().to_string(),
+                framework_id: r.framework.slug().to_string(),
+                format: r.format.id().to_string(),
+                file: r.file.clone(),
+                bytes: r.contents.len(),
+                sha256: r.sha256.clone(),
+                total_controls: r.summary.total_controls,
+                scored: r.summary.scored,
+                compliance_percentage: r.summary.compliance_percentage,
+            })
+            .collect(),
+    };
+    let checksums = reports
+        .iter()
+        .map(|r| format!("{}  {}\n", r.sha256, r.file))
+        .collect::<String>();
+
+    Ok(ReportBundle {
+        scope: scan.scope,
+        generated_at: scan.scanned_at,
+        reports,
+        manifest_file: MANIFEST_FILE.to_string(),
+        manifest_contents: serde_json::to_string_pretty(&manifest)? + "\n",
+        checksums_file: CHECKSUMS_FILE.to_string(),
+        checksums_contents: checksums,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -365,6 +623,125 @@ mod tests {
             fs::create_dir_all(parent).expect("create parent");
         }
         fs::write(path, body).expect("write fixture");
+    }
+
+    #[test]
+    fn every_framework_slug_parses_back() {
+        for framework in ComplianceFramework::all() {
+            assert_eq!(
+                ComplianceFramework::parse(framework.slug()).as_ref(),
+                Some(framework),
+                "slug {} must round-trip, or a bundled report cannot be re-run",
+                framework.slug()
+            );
+        }
+    }
+
+    #[test]
+    fn format_parse_list_rejects_what_it_cannot_render() {
+        assert_eq!(
+            ReportFormat::parse_list("both").expect("both"),
+            ReportFormat::all().to_vec()
+        );
+        assert_eq!(
+            ReportFormat::parse_list("md").expect("md"),
+            vec![ReportFormat::Markdown]
+        );
+        assert!(ReportFormat::parse_list("pdf").is_err());
+    }
+
+    #[test]
+    fn a_bundle_files_every_framework_in_every_format() {
+        let root = fixture("bundle-coverage");
+        write(&root, "LICENSE", "MIT");
+        let bundle = build_bundle(
+            &root,
+            ComplianceFramework::all(),
+            ReportFormat::all(),
+        )
+        .expect("bundle");
+        assert_eq!(
+            bundle.reports.len(),
+            ComplianceFramework::all().len() * ReportFormat::all().len()
+        );
+        for framework in ComplianceFramework::all() {
+            for format in ReportFormat::all() {
+                let want = format!("{}.{}", framework.slug(), format.extension());
+                assert!(
+                    bundle.reports.iter().any(|r| r.file == want),
+                    "{want} missing from the bundle"
+                );
+            }
+        }
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn manifest_and_checksums_match_the_rendered_bytes() {
+        let root = fixture("bundle-checksums");
+        write(&root, "LICENSE", "MIT");
+        let bundle =
+            build_bundle(&root, ComplianceFramework::all(), &[ReportFormat::Markdown])
+                .expect("bundle");
+        let manifest: Manifest =
+            serde_json::from_str(&bundle.manifest_contents).expect("manifest is json");
+        assert_eq!(manifest.checksum_algorithm, "sha256");
+        assert_eq!(manifest.reports.len(), bundle.reports.len());
+
+        for report in &bundle.reports {
+            let digest = sha256_hex(report.contents.as_bytes());
+            assert_eq!(digest, report.sha256, "digest of {}", report.file);
+            let entry = manifest
+                .reports
+                .iter()
+                .find(|e| e.file == report.file)
+                .unwrap_or_else(|| panic!("{} missing from manifest", report.file));
+            assert_eq!(entry.sha256, digest);
+            assert_eq!(entry.bytes, report.contents.len());
+            assert_eq!(entry.compliance_percentage, report.summary.compliance_percentage);
+            // `shasum -a 256 -c` reads exactly this shape.
+            assert!(
+                bundle
+                    .checksums_contents
+                    .contains(&format!("{digest}  {}\n", report.file)),
+                "{} missing from SHA256SUMS",
+                report.file
+            );
+        }
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn every_report_in_a_bundle_comes_from_the_same_scan() {
+        let root = fixture("bundle-one-scan");
+        write(&root, "LICENSE", "MIT");
+        let bundle = build_bundle(&root, ComplianceFramework::all(), &[ReportFormat::Json])
+            .expect("bundle");
+        let reports: Vec<ComplianceReport> = bundle
+            .reports
+            .iter()
+            .map(|r| serde_json::from_str(&r.contents).expect("report is json"))
+            .collect();
+        let first = reports.first().expect("at least one report");
+        for report in &reports {
+            assert_eq!(
+                report.generated_at, first.generated_at,
+                "reports from one scan must share its timestamp"
+            );
+            assert_eq!(report.scope.root, first.scope.root);
+            assert_eq!(report.scope.files_seen, first.scope.files_seen);
+            assert_eq!(report.scope.files_read, first.scope.files_read);
+        }
+        assert_eq!(bundle.generated_at, first.generated_at);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_bundle_with_no_framework_is_an_error_not_an_empty_manifest() {
+        let root = fixture("bundle-empty");
+        assert!(build_bundle(&root, &[], ReportFormat::all()).is_err());
+        assert!(build_bundle(&root, ComplianceFramework::all(), &[]).is_err());
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]

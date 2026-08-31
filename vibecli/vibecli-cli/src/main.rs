@@ -873,34 +873,128 @@ fn run_compliance_command(args: &[String]) {
             println!("  Masked : {}", masked);
         }
         "report" => {
+            let fail = |e: String| -> ! {
+                eprintln!("Error: {e}");
+                std::process::exit(1);
+            };
             let format = get_flag("--format").unwrap_or_else(|| "markdown".to_string());
+            let formats = match compliance::ReportFormat::parse_list(&format) {
+                Ok(f) => f,
+                Err(e) => fail(e.to_string()),
+            };
             let output = get_flag("--output");
-            let framework = get_flag("--framework").unwrap_or_else(|| "soc2".to_string());
+            let output_dir = get_flag("--output-dir");
+            let all = has_flag("--all");
             // The report is a scan of a project, so it needs one. Default to
             // the working directory rather than reporting on nothing.
             let root = get_flag("--path")
                 .map(std::path::PathBuf::from)
                 .or_else(|| std::env::current_dir().ok())
                 .unwrap_or_else(|| std::path::PathBuf::from("."));
-            let report = match compliance::generate_report_for_path(&framework, &root) {
-                Ok(r) => r,
-                Err(e) => {
-                    eprintln!("Error: {e}");
-                    std::process::exit(1);
+
+            // A bundle is many files; there is nowhere to put them without a
+            // directory, and nothing to checksum if they go to stdout.
+            let frameworks = if all {
+                if output.is_some() {
+                    fail("--all writes one file per framework — use --output-dir, not --output".into());
                 }
-            };
-            let rendered = match format.as_str() {
-                "json" => serde_json::to_string_pretty(&report)
-                    .unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}")),
-                _ => compliance::report_to_markdown(&report),
-            };
-            if let Some(path) = output {
-                match std::fs::write(&path, &rendered) {
-                    Ok(_) => println!("Compliance report written to: {}", path),
-                    Err(e) => eprintln!("Error writing report: {}", e),
-                }
+                compliance::ComplianceFramework::all().to_vec()
             } else {
-                println!("{}", rendered);
+                let name = get_flag("--framework").unwrap_or_else(|| "soc2".to_string());
+                match compliance::parse_framework(&name) {
+                    Ok(f) => vec![f],
+                    Err(e) => fail(e.to_string()),
+                }
+            };
+
+            match output_dir {
+                Some(dir) => {
+                    let dir = std::path::PathBuf::from(dir);
+                    let bundle = match compliance::build_bundle(&root, &frameworks, &formats) {
+                        Ok(b) => b,
+                        Err(e) => fail(e.to_string()),
+                    };
+                    if let Err(e) = std::fs::create_dir_all(&dir) {
+                        fail(format!("creating {}: {e}", dir.display()));
+                    }
+                    let write = |name: &str, body: &str| {
+                        if let Err(e) = std::fs::write(dir.join(name), body) {
+                            fail(format!("writing {}: {e}", dir.join(name).display()));
+                        }
+                    };
+                    for r in &bundle.reports {
+                        write(&r.file, &r.contents);
+                    }
+                    write(&bundle.manifest_file, &bundle.manifest_contents);
+                    write(&bundle.checksums_file, &bundle.checksums_contents);
+
+                    let scope = &bundle.scope;
+                    println!(
+                        "Scanned {} — {} files seen, {} read, commit {}{}",
+                        scope.root,
+                        scope.files_seen,
+                        scope.files_read,
+                        scope.git_commit.as_deref().unwrap_or("unknown (not a git checkout)"),
+                        match scope.git_dirty {
+                            Some(true) => " — uncommitted changes present",
+                            Some(false) => " (clean tree)",
+                            None => "",
+                        },
+                    );
+                    if scope.truncated {
+                        println!("  Scan budget reached — findings are a lower bound.");
+                    }
+                    println!(
+                        "One scan scored against {} framework(s) → {}",
+                        frameworks.len(),
+                        dir.display()
+                    );
+                    println!();
+                    println!("  {:<12} {:>8}  {:>6}  {}", "Framework", "Score", "Scored", "File");
+                    for r in &bundle.reports {
+                        println!(
+                            "  {:<12} {:>8}  {:>6}  {}",
+                            r.framework.label(),
+                            match r.summary.compliance_percentage {
+                                Some(p) => format!("{p:.1}%"),
+                                None => "n/a".to_string(),
+                            },
+                            r.summary.scored,
+                            r.file,
+                        );
+                    }
+                    println!();
+                    println!("  {} — index, scan scope, sha256 per report", bundle.manifest_file);
+                    println!(
+                        "  {} — verify with: shasum -a 256 -c {}",
+                        bundle.checksums_file, bundle.checksums_file
+                    );
+                }
+                None => {
+                    if formats.len() > 1 {
+                        fail(format!(
+                            "--format {format} writes several files — use --output-dir"
+                        ));
+                    }
+                    let report = match compliance::scan_project(&root) {
+                        Ok(scan) => scan.report(&frameworks[0]),
+                        Err(e) => fail(e.to_string()),
+                    };
+                    let rendered = match formats[0] {
+                        compliance::ReportFormat::Json => serde_json::to_string_pretty(&report)
+                            .unwrap_or_else(|e| format!("{{\"error\":\"{e}\"}}")),
+                        compliance::ReportFormat::Markdown => {
+                            compliance::report_to_markdown(&report)
+                        }
+                    };
+                    match output {
+                        Some(path) => match std::fs::write(&path, &rendered) {
+                            Ok(_) => println!("Compliance report written to: {}", path),
+                            Err(e) => fail(format!("writing {path}: {e}")),
+                        },
+                        None => println!("{}", rendered),
+                    }
+                }
             }
         }
         "retention" => {

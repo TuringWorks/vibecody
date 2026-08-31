@@ -467,6 +467,20 @@ const SECRET_FILE_BASENAMES: &[&str] = &[
 const KEYSTORE_EXTENSIONS: &[&str] = &["p12", "pfx", "jks", "keystore"];
 const PEM_EXTENSIONS: &[&str] = &["pem", "key"];
 
+/// Byte offset of the first `#[cfg(test)]` / `mod tests` in a file, past which
+/// everything is test code.
+///
+/// A secret scanner's own test vectors are the classic false positive here:
+/// `bugbot.rs` and `ci_gates.rs` both carry `let api_key = "sk-..."` as input to
+/// the tests that prove their detectors work. The path says `src/`, so
+/// [`is_fixture_path`] cannot help; the file's own test marker can.
+fn test_region_start(haystack: &str) -> Option<usize> {
+    ["#[cfg(test)]", "mod tests {", "mod test {"]
+        .iter()
+        .filter_map(|marker| haystack.find(marker))
+        .min()
+}
+
 /// Paths whose credential-shaped literals are fixtures or documentation.
 fn is_fixture_path(rel_lower: &str) -> bool {
     const MARKERS: &[&str] = &[
@@ -846,8 +860,10 @@ fn is_plausible_credential(original: &str, haystack: &str, re: &Regex) -> bool {
     let Some(placeholder) = PLACEHOLDER.as_ref() else {
         return false;
     };
+    let tests_begin = test_region_start(haystack).unwrap_or(usize::MAX);
     re.captures_iter(haystack)
         .filter_map(|c| c.get(1))
+        .filter(|m| m.start() < tests_begin)
         .filter(|m| !placeholder.is_match(m.as_str()))
         .filter_map(|m| original.get(m.start()..m.end()))
         .any(looks_like_a_secret)
@@ -1923,6 +1939,37 @@ mod tests {
             "encryption at rest must not pass while a credential sits in the source"
         );
         assert!(cc67.notes.contains("finding"));
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn test_vectors_inside_a_source_file_are_not_findings() {
+        // Reduced from bugbot.rs: a secret scanner's own detector test. The
+        // path is `src/`, so only the file's test marker distinguishes it.
+        let root = tmp("testregion");
+        write(
+            &root,
+            "src/bugbot.rs",
+            "pub fn scan() {}\n\n#[cfg(test)]\nmod tests {\n    let api_key = \"a83Kd92LmQ0zXvB4tR7yUw11\";\n}\n",
+        );
+        let facts = scan(&root);
+        assert!(!facts.has(Signal::HardcodedCredential));
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_credential_above_the_test_module_is_still_a_finding() {
+        let root = tmp("aboveregion");
+        write(
+            &root,
+            "src/config.rs",
+            "let api_key = \"a83Kd92LmQ0zXvB4tR7yUw11\";\n\n#[cfg(test)]\nmod tests {}\n",
+        );
+        let facts = scan(&root);
+        assert!(
+            facts.has(Signal::HardcodedCredential),
+            "only the test region is exempt, not the whole file"
+        );
         let _ = fs::remove_dir_all(&root);
     }
 

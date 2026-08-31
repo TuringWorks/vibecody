@@ -107,9 +107,21 @@ export function CompliancePanel({ workspacePath }: CompliancePanelProps) {
   if (!report) return;
   const s = report.summary;
   const lines = [
-   `# ${report.framework} Compliance Report`,
+   `# ${report.framework} Readiness Assessment`,
+   "",
+   "> **Gap assessment, not an audit report.** This is a point-in-time scan of control " +
+    "design as it appears in source. An attestation comes from an independent licensed CPA, " +
+    "and a Type II report additionally requires evidence that controls operated consistently " +
+    "across a three-to-twelve-month observation window — which no source scan can demonstrate.",
    "",
    `**Project:** \`${report.scope.root}\``,
+   "",
+   `**Scanned:** vibecli ${report.scope.tool_version} · commit ${report.scope.git_commit ?? "unknown (not a git checkout)"}` +
+    (report.scope.git_dirty === true
+     ? " — **uncommitted changes present**, this report is not reproducible from the commit alone"
+     : report.scope.git_dirty === false
+      ? " (clean tree)"
+      : ""),
    "",
    `**Compliance: ${formatScore(s.percentage)}** over ${s.scored} scored controls ` +
     `(${s.implemented} implemented, ${s.partial} partial, ${s.gaps} gaps). ` +
@@ -138,7 +150,7 @@ export function CompliancePanel({ workspacePath }: CompliancePanelProps) {
 
  return (
   <div className="panel-container">
-   <div className="panel-header"><h3>Compliance Report</h3></div>
+   <div className="panel-header"><h3>Compliance Readiness</h3></div>
    <div className="panel-body">
 
     <div style={{ display: "flex", gap: 8, marginBottom: 16, alignItems: "center" }}>
@@ -201,6 +213,22 @@ export function CompliancePanel({ workspacePath }: CompliancePanelProps) {
 
     {report && summary && (
      <>
+      {/* What this artefact is. An auditor attests; this scan does not. */}
+      <div style={{
+       marginBottom: 12,
+       padding: "8px 10px",
+       borderLeft: "3px solid var(--warning-color)",
+       background: "var(--bg-secondary)",
+       fontSize: "var(--font-size-sm)",
+       color: "var(--text-secondary)",
+       lineHeight: 1.6,
+      }}>
+       <strong>Gap assessment, not an audit report.</strong> A point-in-time scan of control
+       design as it appears in source. An attestation comes from an independent licensed CPA,
+       and a Type II report additionally needs evidence that controls operated consistently
+       across a three-to-twelve-month observation window — which no source scan can show.
+      </div>
+
       {/* Summary bar */}
       <div style={{ marginBottom: 16 }}>
        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, fontSize: "var(--font-size-base)" }}>
@@ -229,6 +257,17 @@ export function CompliancePanel({ workspacePath }: CompliancePanelProps) {
            clean project look identical. */}
        <div style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", lineHeight: 1.6 }}>
         <div style={{ fontFamily: "var(--font-mono)" }}>{report.scope.root}</div>
+        <div>
+         vibecli {report.scope.tool_version} · commit{" "}
+         <span style={{ fontFamily: "var(--font-mono)" }}>
+          {report.scope.git_commit?.slice(0, 12) ?? "unknown (not a git checkout)"}
+         </span>
+         {report.scope.git_dirty === true && (
+          <span style={{ color: "var(--warning-color)" }}>
+           {" "}— uncommitted changes present, so this report is not reproducible from the commit alone
+          </span>
+         )}
+        </div>
         <div>
          {report.scope.files_seen} files scanned, {report.scope.files_read} read.
          {report.scope.truncated && " Scan budget reached — evidence below is a lower bound."}
