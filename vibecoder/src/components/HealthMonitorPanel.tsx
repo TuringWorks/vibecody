@@ -74,6 +74,7 @@ function StatusBadge({ result }: { result: HealthCheckResult | undefined }) {
 
 export function HealthMonitorPanel() {
  const [monitors, setMonitors] = useState<HealthMonitor[]>([]);
+ const [saveError, setSaveError] = useState<string | null>(null);
  const [results, setResults] = useState<Record<string, HealthCheckResult>>({});
  const [history, setHistory] = useState<History>({});
  const [checking, setChecking] = useState(false);
@@ -130,9 +131,16 @@ export function HealthMonitorPanel() {
  return () => { if (timerRef.current) clearInterval(timerRef.current); };
  }, [autoRefresh, intervalSec, checkAll]);
 
+ // Apply after the write, not before it: `.catch(() => {})` previously threw
+ // the failure away and left the new monitor list on screen unsaved.
  const saveMonitors = async (list: HealthMonitor[]) => {
+ try {
+ await invoke("save_health_monitors", { monitors: list });
  setMonitors(list);
- await invoke("save_health_monitors", { monitors: list }).catch(() => {});
+ setSaveError(null);
+ } catch (err) {
+ setSaveError(`Could not save monitors: ${String(err)}`);
+ }
  };
 
  const addMonitor = async () => {
@@ -238,6 +246,12 @@ export function HealthMonitorPanel() {
 
  {/* Monitor list */}
  <div className="panel-body">
+   {saveError && (
+     <div role="alert" style={{ margin: "8px 12px", padding: "8px 10px", borderLeft: "3px solid var(--error-color)", background: "var(--bg-secondary)", color: "var(--error-color)", fontSize: "var(--font-size-sm)" }}>
+       {saveError}
+     </div>
+   )}
+
  {monitors.length === 0 ? (
  <div style={{ padding: 32, textAlign: "center", color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>
  No monitors configured.<br />Click <b>+ Add</b> to add a service.

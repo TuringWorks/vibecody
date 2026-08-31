@@ -49,6 +49,7 @@ export function VisualVerifyPanel() {
   const [url, setUrl] = useState("");
   const [viewport, setViewport] = useState("1920x1080");
   const [baselines, setBaselines] = useState<Baseline[]>([]);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [diffs, setDiffs] = useState<DiffResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [reportFormat, setReportFormat] = useState("json");
@@ -81,20 +82,27 @@ export function VisualVerifyPanel() {
       viewport,
       capturedAt: new Date().toISOString().slice(0, 16).replace("T", " "),
     };
-    setBaselines((prev) => [...prev, newBaseline]);
+    // Add only once it is stored. Adding first and logging the failure left a
+    // baseline listed that nothing would compare against on the next run.
     try {
       await invoke("save_visual_baseline", { baseline: newBaseline });
+      setBaselines((prev) => [...prev, newBaseline]);
+      setSaveError(null);
     } catch (err) {
       console.error("Failed to save baseline:", err);
+      setSaveError(`Could not save baseline: ${String(err)}`);
     }
   }, [url, viewport]);
 
   const handleDeleteBaseline = useCallback(async (id: string) => {
-    setBaselines((prev) => prev.filter((b) => b.id !== id));
     try {
       await invoke("delete_visual_baseline", { id });
+      setBaselines((prev) => prev.filter((b) => b.id !== id));
+      setSaveError(null);
     } catch (err) {
       console.error("Failed to delete baseline:", err);
+      // The row stays, because the baseline stays.
+      setSaveError(`Could not delete baseline: ${String(err)}`);
     }
   }, []);
 
@@ -108,6 +116,12 @@ export function VisualVerifyPanel() {
       </div>
 
       <div className="panel-body">
+        {saveError && (
+          <div role="alert" style={{ margin: "8px 0", padding: "8px 10px", borderLeft: "3px solid var(--error-color)", background: "var(--bg-secondary)", color: "var(--error-color)", fontSize: "var(--font-size-sm)" }}>
+            {saveError}
+          </div>
+        )}
+
         {tab === "verify" && (
           <div>
             <div className="panel-card">

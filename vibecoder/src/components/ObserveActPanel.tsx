@@ -34,6 +34,7 @@ export function ObserveActPanel() {
   const [status, setStatus] = useState<"idle" | "running" | "completed" | "failed">("idle");
   const [steps, setSteps] = useState<Step[]>([]);
   const [config, setConfig] = useState<ObserveActConfig | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -61,11 +62,16 @@ export function ObserveActPanel() {
   }, []);
 
   const handleSaveConfig = async (newConfig: ObserveActConfig) => {
-    setConfig(newConfig);
+    // Apply only once the write succeeded. Setting it first and never rolling
+    // back showed the user settings that were never persisted — they would
+    // come back on the next load, with no indication anything had failed.
     try {
       await invoke("save_observeact_config", { config: newConfig });
+      setConfig(newConfig);
+      setSaveError(null);
     } catch (err) {
       console.error("Failed to save observe-act config:", err);
+      setSaveError(`Could not save configuration: ${String(err)}`);
     }
   };
 
@@ -76,6 +82,21 @@ export function ObserveActPanel() {
         feature="Observe & Act"
         tooltip="Autonomous observe-then-act agent loop. Safety guardrails are still being tightened — review every action before approving."
       />
+      {saveError && (
+        <div
+          role="alert"
+          style={{
+            margin: "0 12px 8px",
+            padding: "8px 10px",
+            borderLeft: "3px solid var(--error-color)",
+            background: "var(--bg-secondary)",
+            color: "var(--error-color)",
+            fontSize: "var(--font-size-sm)",
+          }}
+        >
+          {saveError}
+        </div>
+      )}
       <div className="panel-tab-bar">
         {(["setup", "monitor", "history", "safety"] as const).map(t => (
           <button key={t} className={`panel-tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)} style={{ textTransform: "capitalize" }}>{t}</button>

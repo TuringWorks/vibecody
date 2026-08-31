@@ -119,6 +119,7 @@ const OpenMemoryPanel: React.FC = () => {
   const [queryText, setQueryText] = useState('');
   const [queryResults, setQueryResults] = useState<QueryResult[]>([]);
   const [facts, setFacts] = useState<TemporalFact[]>([]);
+  const [waypoints, setWaypoints] = useState<WaypointEdge[]>([]);
   const [newContent, setNewContent] = useState('');
   const [newTags, setNewTags] = useState('');
   const [sectorFilter, setSectorFilter] = useState<string>('all');
@@ -169,6 +170,17 @@ const OpenMemoryPanel: React.FC = () => {
     }
   }, [sectorFilter]);
 
+  // Stored waypoints. An empty store means an edgeless graph — the panel says
+  // so rather than drawing links that were never recorded.
+  const loadWaypoints = useCallback(async () => {
+    try {
+      const w = await invoke<WaypointEdge[]>('openmemory_waypoints');
+      if (w) setWaypoints(w);
+    } catch (err) {
+      console.error('Failed to load waypoints:', err);
+    }
+  }, []);
+
   const loadFacts = useCallback(async () => {
     try {
       const f = await invoke<TemporalFact[]>('openmemory_facts');
@@ -184,9 +196,13 @@ const OpenMemoryPanel: React.FC = () => {
   }, [loadStats, loadIndexStats]);
 
   useEffect(() => {
-    if (tab === 'memories') loadMemories();
+    // The graph draws `memories`, so it has to load them too. It did not, so
+    // opening Graph without visiting Memories first rendered "0 nodes" over a
+    // store that stats reported as non-empty.
+    if (tab === 'memories' || tab === 'graph') loadMemories();
+    if (tab === 'graph') loadWaypoints();
     if (tab === 'facts') loadFacts();
-  }, [tab, loadMemories, loadFacts]);
+  }, [tab, loadMemories, loadFacts, loadWaypoints]);
 
   // Auto-refresh: poll stats every 10s, active tab data every 15s
   useEffect(() => {
@@ -195,14 +211,15 @@ const OpenMemoryPanel: React.FC = () => {
   }, [loadStats]);
 
   useEffect(() => {
-    if (tab === 'memories' || tab === 'facts') {
+    if (tab === 'memories' || tab === 'facts' || tab === 'graph') {
       const dataInterval = setInterval(() => {
-        if (tab === 'memories') loadMemories();
+        if (tab === 'memories' || tab === 'graph') loadMemories();
+        if (tab === 'graph') loadWaypoints();
         if (tab === 'facts') loadFacts();
       }, 15000);
       return () => clearInterval(dataInterval);
     }
-  }, [tab, loadMemories, loadFacts]);
+  }, [tab, loadMemories, loadFacts, loadWaypoints]);
 
   const loadDrawerStats = useCallback(async () => {
     try {
@@ -898,7 +915,14 @@ const OpenMemoryPanel: React.FC = () => {
               </div>
             ) : (
               <div style={{ background: 'var(--bg-tertiary)', borderRadius: "var(--radius-sm-alt)", overflow: 'hidden' }}>
-                <ForceGraph memories={memories} />
+                <ForceGraph memories={memories} waypoints={waypoints} />
+              </div>
+            )}
+
+            {stats.total_memories > 0 && waypoints.length === 0 && (
+              <div style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: 'var(--text-secondary)' }}>
+                No waypoints are stored, so the graph shows nodes without links. Waypoints are
+                recorded when memories are associated; none have been in this store.
               </div>
             )}
 
@@ -1001,7 +1025,17 @@ interface GraphNode {
   vy: number;
 }
 
-const ForceGraph: React.FC<{ memories: MemoryNode[] }> = ({ memories }) => {
+/** A stored link between two memories, as the backend holds it. */
+interface WaypointEdge {
+  src_id: string;
+  dst_id: string;
+  weight: number;
+}
+
+const ForceGraph: React.FC<{ memories: MemoryNode[]; waypoints: WaypointEdge[] }> = ({
+  memories,
+  waypoints,
+}) => {
   const width = 700;
   const height = 400;
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
@@ -1024,46 +1058,48 @@ const ForceGraph: React.FC<{ memories: MemoryNode[] }> = ({ memories }) => {
 
     return memories.slice(0, 50).map((m, i) => {
       const sc = sectorCenters[m.sector] || { x: centerX, y: centerY };
-      // Spread nodes around sector center with some randomness based on index
+      // Golden-angle spiral out from the sector centre. The radius steps with
+      // the index instead of Math.random() so a re-render lands every node
+      // where it was: a layout that reshuffles on every state change reads as
+      // the data having changed.
       const spread = 60;
-      const angle = (i * 2.399) % (Math.PI * 2); // Golden angle
+      const angle = (i * 2.399) % (Math.PI * 2);
+      const radius = spread * (0.3 + 0.7 * (((i * 7) % 11) / 11));
       return {
         id: m.id,
         sector: m.sector as SectorName,
         label: m.content.slice(0, 30).replace(/\n/g, ' '),
         salience: m.effective_salience,
-        x: sc.x + Math.cos(angle) * spread * (0.3 + Math.random() * 0.7),
-        y: sc.y + Math.sin(angle) * spread * (0.3 + Math.random() * 0.7),
+        x: sc.x + Math.cos(angle) * radius,
+        y: sc.y + Math.sin(angle) * radius,
         vx: 0,
         vy: 0,
       };
     });
   }, [memories]);
 
-  // Build edges from waypoint_count (simulated — connect to nearest same-sector nodes)
-  const edges = React.useMemo(() => {
-    const result: { from: string; to: string; weight: number }[] = [];
-    for (let i = 0; i < nodes.length; i++) {
-      const n = nodes[i];
-      if (memories[i]?.waypoint_count > 0) {
-        // Connect to closest nodes of same sector
-        const sameType = nodes
-          .filter((o, j) => j !== i && o.sector === n.sector)
-          .sort((a, b) => {
-            const da = Math.hypot(a.x - n.x, a.y - n.y);
-            const db = Math.hypot(b.x - n.x, b.y - n.y);
-            return da - db;
-          });
-        for (const target of sameType.slice(0, Math.min(memories[i].waypoint_count, 3))) {
-          // Avoid duplicates
-          if (!result.some(e => (e.from === n.id && e.to === target.id) || (e.from === target.id && e.to === n.id))) {
-            result.push({ from: n.id, to: target.id, weight: 0.5 + Math.random() * 0.5 });
-          }
-        }
-      }
-    }
-    return result;
-  }, [nodes, memories]);
+  // Only the first 50 memories are drawn, so an edge to one of the rest has no
+  // endpoint to attach to and is dropped rather than drawn to the origin.
+  const nodeIds = React.useMemo(() => new Set(nodes.map((n) => n.id)), [nodes]);
+
+  // Waypoint edges.
+  //
+  // This used to draw an edge from each memory to its nearest same-sector
+  // neighbours *on screen* and give it a `Math.random()` weight — a picture of
+  // the layout, not of the data, asserting relationships that were never
+  // stored. It never actually fired, because `waypoint_count` is written as 0
+  // and nothing in this store updates it, so the only thing the code could do
+  // was start inventing links the moment a count became non-zero.
+  //
+  // Edges are drawn from stored waypoints or not at all. `openmemory_waypoints`
+  // returns the real `src_id → dst_id` pairs when the store holds any.
+  const edges = React.useMemo(
+    () =>
+      waypoints.filter(
+        (w) => nodeIds.has(w.src_id) && nodeIds.has(w.dst_id),
+      ),
+    [waypoints, nodeIds],
+  );
 
   const nodeMap = React.useMemo(() => {
     const m: Record<string, GraphNode> = {};
@@ -1075,13 +1111,13 @@ const ForceGraph: React.FC<{ memories: MemoryNode[] }> = ({ memories }) => {
     <svg width={width} height={height} style={{ display: 'block' }}>
       {/* Edges */}
       {edges.map((e, i) => {
-        const from = nodeMap[e.from];
-        const to = nodeMap[e.to];
+        const from = nodeMap[e.src_id];
+        const to = nodeMap[e.dst_id];
         if (!from || !to) return null;
         return (
           <line key={`e-${i}`}
             x1={from.x} y1={from.y} x2={to.x} y2={to.y}
-            stroke="var(--border-color)" strokeWidth={e.weight * 2} strokeOpacity={0.4}
+            stroke="var(--border-color)" strokeWidth={Math.max(0.5, e.weight * 2)} strokeOpacity={0.4}
           />
         );
       })}

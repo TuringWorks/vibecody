@@ -77,6 +77,7 @@ const DEFAULT_CONFIG: ReviewConfig = {
 
 const SelfReviewPanel: React.FC = () => {
   const [config, setConfig] = useState<ReviewConfig>(DEFAULT_CONFIG);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [iterations, setIterations] = useState<ReviewIteration[]>([]);
   const [tab, setTab] = useState<'results' | 'config' | 'report'>('results');
   const [loading, setLoading] = useState(true);
@@ -101,11 +102,15 @@ const SelfReviewPanel: React.FC = () => {
   }, []);
 
   const handleSaveConfig = async (newConfig: ReviewConfig) => {
-    setConfig(newConfig);
     try {
       await invoke("save_selfreview_config", { config: newConfig });
+      setConfig(newConfig);
+      setSaveError(null);
     } catch (err) {
       console.error("Failed to save self-review config:", err);
+      // The panel kept showing the new config after a failed write, so the
+      // settings silently reverted on the next load.
+      setSaveError(`Could not save configuration: ${String(err)}`);
     }
   };
 
@@ -125,6 +130,11 @@ const SelfReviewPanel: React.FC = () => {
     <div className="panel-container">
       <div className="panel-header"><h3>Agent Self-Review Gate</h3></div>
       <div className="panel-body">
+        {saveError && (
+          <div role="alert" style={{ margin: "0 0 12px", padding: "8px 10px", borderLeft: "3px solid var(--error-color)", background: "var(--bg-secondary)", color: "var(--error-color)", fontSize: "var(--font-size-sm)" }}>
+            {saveError}
+          </div>
+        )}
 
       {/* Status banner */}
       {iterations.length === 0 ? (

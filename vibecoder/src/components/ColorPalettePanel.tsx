@@ -113,6 +113,7 @@ function Swatch({ token, onEdit, onRemove }: {
 
 export function ColorPalettePanel({ workspacePath }: { workspacePath: string | null }) {
  const [palettes, setPalettes] = useState<ColorPalette[]>([]);
+ const [saveError, setSaveError] = useState<string | null>(null);
  const [activeId, setActiveId] = useState<string | null>(null);
  const [exported, setExported] = useState("");
  const [exportFmt, setExportFmt] = useState<ExportFormat>("css");
@@ -135,9 +136,17 @@ export function ColorPalettePanel({ workspacePath }: { workspacePath: string | n
 
  const active = palettes.find(p => p.id === activeId) ?? null;
 
+ // Commit to state only once the write lands. The previous form set the
+ // palettes and then swallowed the failure with `.catch(() => {})`, so an
+ // unwritable store looked exactly like a successful save until reload.
  const save = useCallback(async (list: ColorPalette[]) => {
+ try {
+ await invoke("save_color_palettes", { palettes: list });
  setPalettes(list);
- await invoke("save_color_palettes", { palettes: list }).catch(() => {});
+ setSaveError(null);
+ } catch (err) {
+ setSaveError(`Could not save palettes: ${String(err)}`);
+ }
  }, []);
 
  const updateActive = useCallback((tokens: ColorToken[]) => {
@@ -212,6 +221,12 @@ export function ColorPalettePanel({ workspacePath }: { workspacePath: string | n
 
  return (
  <div className="panel-container" style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
+   {saveError && (
+     <div role="alert" style={{ margin: "8px 12px", padding: "8px 10px", borderLeft: "3px solid var(--error-color)", background: "var(--bg-secondary)", color: "var(--error-color)", fontSize: "var(--font-size-sm)" }}>
+       {saveError}
+     </div>
+   )}
+
  {/* Palette sidebar */}
  <div style={{ width: 180, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", flexShrink: 0 }}>
  <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>

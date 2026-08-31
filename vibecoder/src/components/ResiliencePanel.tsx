@@ -125,6 +125,7 @@ export function ResiliencePanel() {
   const [config, setConfig] = useState<ResilienceConfig>(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadAll(); }, []);
@@ -182,6 +183,11 @@ export function ResiliencePanel() {
     setSaving(true);
     try {
       await invoke("save_resilience_config", { config });
+      setSaveError(null);
+    } catch (err) {
+      // There was no catch at all, so a failed save left the rejection
+      // unhandled and the panel silent — indistinguishable from success.
+      setSaveError(`Could not save configuration: ${String(err)}`);
     } finally {
       setSaving(false);
     }
@@ -189,6 +195,12 @@ export function ResiliencePanel() {
 
   return (
     <div className="panel-container">
+      {saveError && (
+        <div role="alert" style={{ margin: "8px 12px", padding: "8px 10px", borderLeft: "3px solid var(--error-color)", background: "var(--bg-secondary)", color: "var(--error-color)", fontSize: "var(--font-size-sm)" }}>
+          {saveError}
+        </div>
+      )}
+
       {/* Tab bar */}
       <div className="panel-tab-bar">
         {(["health", "circuit", "journal", "config"] as const).map((t) => (

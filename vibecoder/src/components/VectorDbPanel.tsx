@@ -33,6 +33,10 @@ interface SearchResult {
 export function VectorDbPanel() {
   const [tab, setTab] = useState<Tab>("collections");
   const [loading, setLoading] = useState(true);
+  // Every failure here used to go to console.error alone, so a broken backend
+  // looked exactly like an empty database and a failed click looked like no
+  // click at all.
+  const [error, setError] = useState<string | null>(null);
 
   // Collections state
   const [collName, setCollName] = useState("");
@@ -59,9 +63,18 @@ export function VectorDbPanel() {
       setLoading(true);
       try {
         const colls = await invoke<Collection[]>("list_vector_collections");
-        if (!cancelled) setCollections(colls);
+        if (!cancelled) {
+          setCollections(colls);
+          setError(null);
+        }
       } catch (err) {
         console.error("Failed to load vector collections:", err);
+        // Absent, not empty: say the list could not be loaded rather than
+        // rendering "no collections" over a backend that never answered.
+        if (!cancelled) {
+          setCollections([]);
+          setError(`Could not load collections: ${String(err)}`);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -84,8 +97,10 @@ export function VectorDbPanel() {
       await invoke("create_vector_collection", { collection });
       setCollections((prev) => [...prev, collection]);
       setCollName("");
+      setError(null);
     } catch (err) {
       console.error("Failed to create collection:", err);
+      setError(`Could not create "${collName}": ${String(err)}`);
     }
   };
 
@@ -93,8 +108,12 @@ export function VectorDbPanel() {
     try {
       await invoke("delete_vector_collection", { name });
       setCollections((prev) => prev.filter((c) => c.name !== name));
+      setError(null);
     } catch (err) {
       console.error("Failed to delete collection:", err);
+      // The row stays, because the collection stays. Saying so beats a click
+      // that appears to do nothing.
+      setError(`Could not delete "${name}": ${String(err)}`);
     }
   };
 
@@ -110,8 +129,13 @@ export function VectorDbPanel() {
         minScore,
       });
       setSearchResults(results);
+      setError(null);
     } catch (err) {
       console.error("Failed to search vectors:", err);
+      // Drop the previous query's hits. Leaving them on screen presents one
+      // query's results as another's, which is worse than showing nothing.
+      setSearchResults([]);
+      setError(`Search failed: ${String(err)}`);
     } finally {
       setIsSearching(false);
     }
@@ -240,6 +264,22 @@ collection = client.create_collection(
       <div className="panel-body">
         {loading && (
           <div className="panel-loading">Loading...</div>
+        )}
+
+        {error && (
+          <div
+            role="alert"
+            style={{
+              marginBottom: 12,
+              padding: "8px 10px",
+              borderLeft: "3px solid var(--error-color)",
+              background: "var(--bg-secondary)",
+              color: "var(--error-color)",
+              fontSize: "var(--font-size-sm)",
+            }}
+          >
+            {error}
+          </div>
         )}
 
         {!loading && tab === "collections" && (

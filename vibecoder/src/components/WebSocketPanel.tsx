@@ -60,6 +60,7 @@ const PRESETS: WsConfig[] = [
 
 export function WebSocketPanel() {
  const [saved, setSaved] = useState<WsConfig[]>([]);
+ const [saveError, setSaveError] = useState<string | null>(null);
  const [url, setUrl] = useState("wss://echo.websocket.org");
  const [protocols, setProtocols] = useState("");
  const [label, setLabel] = useState("");
@@ -142,15 +143,27 @@ export function WebSocketPanel() {
  if (!url || !label) return;
  const cfg: WsConfig = { id: `ws-${Date.now()}`, label, url, protocols: protocols.split(",").map(s => s.trim()).filter(Boolean) };
  const next = [...saved.filter(s => s.url !== url), cfg];
+ // `.catch(() => {})` discarded the failure and kept the new config on
+ // screen; it vanished on the next load with nothing having said why.
+ try {
+ await invoke("save_ws_configs", { configs: next });
  setSaved(next);
- await invoke("save_ws_configs", { configs: next }).catch(() => {});
  setLabel("");
+ setSaveError(null);
+ } catch (err) {
+ setSaveError(`Could not save connection "${label}": ${String(err)}`);
+ }
  };
 
  const removeConfig = async (id: string) => {
  const next = saved.filter(s => s.id !== id);
+ try {
+ await invoke("save_ws_configs", { configs: next });
  setSaved(next);
- await invoke("save_ws_configs", { configs: next }).catch(() => {});
+ setSaveError(null);
+ } catch (err) {
+ setSaveError(`Could not remove connection: ${String(err)}`);
+ }
  };
 
  const loadConfig = (c: WsConfig) => {
@@ -174,6 +187,11 @@ export function WebSocketPanel() {
  <div style={{ padding: "12px 12px 8px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", fontSize: "var(--font-size-sm)", fontWeight: 600 }}>
  Saved
  </div>
+ {saveError && (
+ <div role="alert" style={{ padding: "8px 10px", borderBottom: "1px solid var(--border-color)", color: "var(--error-color)", fontSize: "var(--font-size-xs)" }}>
+ {saveError}
+ </div>
+ )}
  <div style={{ flex: 1, overflowY: "auto" }}>
  {saved.map(c => (
  <div role="button" tabIndex={0}

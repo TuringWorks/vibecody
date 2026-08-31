@@ -57,6 +57,10 @@ export function StreamingPanel() {
     connectionUrl: "jdbc:postgresql://localhost:5432/mydb",
   });
   const [connectorJson, setConnectorJson] = useState("");
+  // The list used to be updated before the save was known to have worked, and
+  // never rolled back, so a failed write left a topic on screen that no
+  // backend had. The UI must not assert a persisted state that isn't.
+  const [error, setError] = useState<string | null>(null);
 
   // Load topics from backend on mount
   useEffect(() => {
@@ -65,8 +69,11 @@ export function StreamingPanel() {
       try {
         const data = await invoke<TopicEntry[]>("get_streaming_topics");
         setTopics(data);
+        setError(null);
       } catch (err) {
         console.error("Failed to load streaming topics:", err);
+        setTopics([]);
+        setError(`Could not load topics: ${String(err)}`);
       } finally {
         setLoading(false);
       }
@@ -94,21 +101,28 @@ export function StreamingPanel() {
     if (!name) return;
     if (topics.some((t) => t.name === name)) return;
     const newTopic: TopicEntry = { name, partitions, replicationFactor, cleanupPolicy };
-    setTopics([...topics, newTopic]);
-    setTopicName("");
     try {
       await invoke("save_streaming_topic", { topic: newTopic });
+      setTopics((prev) => [...prev, newTopic]);
+      setTopicName("");
+      setError(null);
     } catch (err) {
       console.error("Failed to save topic:", err);
+      // The topic is not added, and the name stays in the box so the input is
+      // not lost along with the write.
+      setError(`Could not create topic "${name}": ${String(err)}`);
     }
   };
 
   const handleDeleteTopic = async (name: string) => {
-    setTopics(topics.filter((t) => t.name !== name));
     try {
       await invoke("delete_streaming_topic", { name });
+      setTopics((prev) => prev.filter((t) => t.name !== name));
+      setError(null);
     } catch (err) {
       console.error("Failed to delete topic:", err);
+      // The row stays, because the topic stays.
+      setError(`Could not delete topic "${name}": ${String(err)}`);
     }
   };
 
@@ -237,6 +251,21 @@ export function StreamingPanel() {
 
       {/* Tab content */}
       <div className="panel-body">
+        {error && (
+          <div
+            role="alert"
+            style={{
+              marginBottom: 12,
+              padding: "8px 10px",
+              borderLeft: "3px solid var(--error-color)",
+              background: "var(--bg-secondary)",
+              color: "var(--error-color)",
+              fontSize: "var(--font-size-sm)",
+            }}
+          >
+            {error}
+          </div>
+        )}
         {/* ===== Topics ===== */}
         {tab === "topics" && (
           <div>
