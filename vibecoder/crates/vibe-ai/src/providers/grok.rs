@@ -1,8 +1,7 @@
 //! xAI Grok provider implementation
 
 use crate::provider::{
-    AIProvider, CodeContext, CompletionResponse, CompletionStream, Message, ProviderConfig,
-};
+    AIProvider, CodeContext, CompletionResponse, CompletionStream, Message, ProviderConfig, StopReasonSink};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -168,6 +167,33 @@ impl GrokProvider {
     }
 }
 
+impl GrokProvider {
+    /// The streaming body shared by [`AIProvider::stream_chat`] and
+    /// [`AIProvider::stream_chat_reporting`].
+    ///
+    /// `stop` is `None` on the plain path, leaving that caller exactly as
+    /// it was; the reporting path passes a sink and gets the endpoint's
+    /// finish reason back out of the final SSE chunk.
+    async fn stream_chat_inner(
+        &self,
+        messages: &[Message],
+        stop: Option<StopReasonSink>,
+    ) -> Result<CompletionStream> {
+        let api_key = self
+            .config
+            .api_key
+            .as_ref()
+            .context("Grok API key not found")?;
+        let request = self.build_request(messages, None, true);
+        let response = self.send(api_key, &request).await?;
+
+        // The shared SSE parser, not a fourth hand-rolled copy: this one read
+        // `delta.content` alone, so a reasoning turn arrived empty and a native
+        // tool call was dropped.
+        Ok(super::openai_compat::parse_sse_stream_reporting(response, stop))
+    }
+}
+
 #[async_trait]
 impl AIProvider for GrokProvider {
     fn name(&self) -> &str {
@@ -250,18 +276,15 @@ impl AIProvider for GrokProvider {
     }
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
-        let api_key = self
-            .config
-            .api_key
-            .as_ref()
-            .context("Grok API key not found")?;
-        let request = self.build_request(messages, None, true);
-        let response = self.send(api_key, &request).await?;
+        self.stream_chat_inner(messages, None).await
+    }
 
-        // The shared SSE parser, not a fourth hand-rolled copy: this one read
-        // `delta.content` alone, so a reasoning turn arrived empty and a native
-        // tool call was dropped.
-        Ok(super::openai_compat::parse_sse_stream(response))
+    async fn stream_chat_reporting(
+        &self,
+        messages: &[Message],
+        stop: StopReasonSink,
+    ) -> Result<CompletionStream> {
+        self.stream_chat_inner(messages, Some(stop)).await
     }
 
     fn harness_profile(&self) -> crate::harness::ModelProfile {

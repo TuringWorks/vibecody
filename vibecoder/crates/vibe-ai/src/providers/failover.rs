@@ -8,8 +8,7 @@
 //! reliable and prefers them).
 
 use crate::provider::{
-    AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message,
-};
+    AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message, StopReasonSink};
 use crate::resilience::{classify_error, ProviderCallOutcome, ProviderHealthTracker};
 use anyhow::Result;
 use async_trait::async_trait;
@@ -119,6 +118,39 @@ impl FailoverProvider {
                 error_category: error.map(classify_error),
             });
         }
+    }
+}
+
+impl FailoverProvider {
+    async fn stream_chat_any(
+        &self,
+        messages: &[Message],
+        stop: Option<StopReasonSink>,
+    ) -> Result<CompletionStream> {
+        let mut last_err = anyhow::anyhow!("No providers in failover chain");
+        for p in self.ordered_chain() {
+            let start = Instant::now();
+            let attempt = match stop.clone() {
+                Some(sink) => p.stream_chat_reporting(messages, sink).await,
+                None => p.stream_chat(messages).await,
+            };
+            match attempt {
+                Ok(v) => {
+                    self.record_outcome(p.name(), true, start.elapsed(), None);
+                    return Ok(v);
+                }
+                Err(e) => {
+                    let s = e.to_string();
+                    self.record_outcome(p.name(), false, start.elapsed(), Some(&s));
+                    tracing::warn!(
+                        "[failover] {} stream_chat failed: {s}, trying next",
+                        p.name()
+                    );
+                    last_err = e;
+                }
+            }
+        }
+        Err(last_err)
     }
 }
 
@@ -244,26 +276,21 @@ impl AIProvider for FailoverProvider {
     }
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
-        let mut last_err = anyhow::anyhow!("No providers in failover chain");
-        for p in self.ordered_chain() {
-            let start = Instant::now();
-            match p.stream_chat(messages).await {
-                Ok(v) => {
-                    self.record_outcome(p.name(), true, start.elapsed(), None);
-                    return Ok(v);
-                }
-                Err(e) => {
-                    let s = e.to_string();
-                    self.record_outcome(p.name(), false, start.elapsed(), Some(&s));
-                    tracing::warn!(
-                        "[failover] {} stream_chat failed: {s}, trying next",
-                        p.name()
-                    );
-                    last_err = e;
-                }
-            }
-        }
-        Err(last_err)
+        self.stream_chat_any(messages, None).await
+    }
+
+    /// Forwards the sink to whichever provider in the chain actually answers.
+    ///
+    /// Without this the wrapper would inherit the trait default, which delegates
+    /// to `stream_chat` and drops the sink — so every provider behind a failover
+    /// chain would silently lose its stop reason no matter how well it reports
+    /// one.
+    async fn stream_chat_reporting(
+        &self,
+        messages: &[Message],
+        stop: StopReasonSink,
+    ) -> Result<CompletionStream> {
+        self.stream_chat_any(messages, Some(stop)).await
     }
 
     async fn chat_with_images(

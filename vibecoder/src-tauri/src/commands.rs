@@ -3341,6 +3341,14 @@ pub struct ChatResponse {
     /// messages; it advances its cursor past this id so the reply it already
     /// rendered doesn't come back as a second bubble.
     pub session_msg_id: Option<i64>,
+    /// Why the provider stopped generating, when it says.
+    ///
+    /// `None` means the provider does not report one — never "it finished".
+    /// The panel auto-continues only on `length`, which is the provider stating
+    /// the reply is cut short; anything else it leaves alone rather than
+    /// spending the user's tokens on a guess.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stop_reason: Option<vibe_ai::StopReason>,
 }
 
 /// The chat panel's system prompt: identity, the tool contract, and the
@@ -3509,6 +3517,8 @@ pub async fn send_chat_message(
         tool_output,
         pending_write,
         session_msg_id: None,
+            // Non-streaming path: no finish reason is reported.
+        stop_reason: None,
     })
 }
 
@@ -3999,6 +4009,10 @@ pub async fn stream_chat_message(
                 tool_output,
                 pending_write,
                 session_msg_id,
+                // The attachment path goes through the non-streaming
+                // `chat_with_images`, which reports no finish reason. `None`
+                // says exactly that rather than implying a clean finish.
+                stop_reason: None,
             };
             let _ = app_handle.emit("chat:complete", response);
             let estimated_tokens = accumulated.len() / 4;
@@ -4036,6 +4050,7 @@ pub async fn stream_chat_message(
             }),
         );
 
+        let stop_sink = vibe_ai::stop_reason_sink();
         for attempt in 0..retry_config.max_attempts {
             if attempt > 0 {
                 let backoff = retry_config.initial_backoff_ms * 2u64.pow(attempt - 1);
@@ -4072,7 +4087,14 @@ pub async fn stream_chat_message(
                 attempt + 1,
                 provider_name
             );
-            let mut stream = match provider.stream_chat(&messages).await {
+            // Cleared per attempt: a retry must not inherit the reason the
+            // attempt before it recorded, or a failed stream's `length` would
+            // be reported against the reply that actually succeeded.
+            vibe_ai::clear_stop_reason(&stop_sink);
+            let mut stream = match provider
+                .stream_chat_reporting(&messages, stop_sink.clone())
+                .await
+            {
                 Ok(s) => {
                     eprintln!("[stream_chat] Stream opened successfully");
                     s
@@ -4340,6 +4362,7 @@ pub async fn stream_chat_message(
             tool_output,
             pending_write,
             session_msg_id,
+            stop_reason: vibe_ai::taken_stop_reason(&stop_sink),
         };
         let _ = app_handle.emit("chat:complete", response);
 

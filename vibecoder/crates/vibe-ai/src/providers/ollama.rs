@@ -1,7 +1,7 @@
 //! Ollama AI provider implementation
 
 use crate::provider::{
-    AIProvider, CodeContext, CompletionResponse, CompletionStream, Message, ProviderConfig,
+    record_stop_reason, AIProvider, CodeContext, CompletionResponse, CompletionStream, Message, StopReason, StopReasonSink, ProviderConfig,
 };
 use anyhow::{Context, Result};
 use async_trait::async_trait;
@@ -290,6 +290,27 @@ struct OllamaChatResponse {
     /// [`warn_if_prompt_truncated`].
     #[serde(default)]
     prompt_eval_count: Option<usize>,
+    /// Why generation stopped, on the final line only: `"stop"` for a natural
+    /// end, `"length"` when the reply was cut at `num_predict`.
+    ///
+    /// This field was missing, so serde dropped it and a reply truncated at the
+    /// 16K default cap was indistinguishable from a finished one — the chat
+    /// rendered it as complete and the user typed "continue" to get the rest.
+    #[serde(default)]
+    done_reason: Option<String>,
+}
+
+/// Map Ollama's `done_reason` onto [`StopReason`].
+///
+/// An absent reason yields `None`, not `Natural`: older servers omit the field
+/// entirely, and reading that silence as "finished cleanly" is the assumption
+/// this whole change exists to remove.
+fn ollama_stop_reason(done_reason: Option<&str>) -> Option<StopReason> {
+    match done_reason? {
+        "stop" => Some(StopReason::Natural),
+        "length" => Some(StopReason::Length),
+        other => Some(StopReason::Other(other.to_string())),
+    }
 }
 
 /// Ollama AI provider
@@ -621,6 +642,186 @@ impl OllamaProvider {
     }
 }
 
+
+impl OllamaProvider {
+    /// The streaming body shared by [`AIProvider::stream_chat`] and
+    /// [`AIProvider::stream_chat_reporting`].
+    ///
+    /// `stop` is `None` for the plain path, which keeps that caller's
+    /// behaviour exactly as it was; the reporting path passes a sink and gets
+    /// `done_reason` back out of the final line.
+    async fn stream_chat_inner(
+        &self,
+        messages: &[Message],
+        stop: Option<StopReasonSink>,
+    ) -> Result<CompletionStream> {
+        let ollama_messages: Vec<OllamaChatMessage> = messages
+            .iter()
+            .map(|m| OllamaChatMessage::outgoing(m.role.as_str().to_string(), m.content.clone()))
+            .collect();
+
+        let request = OllamaChatRequest {
+            model: self.config.model.clone(),
+            messages: ollama_messages,
+            stream: true,
+            options: self.build_options(),
+            tools: self.tools_for_request(messages),
+        };
+
+        let response = self
+            .auth_post(format!("{}/api/chat", self.base_url))
+            .json(&request)
+            .send()
+            .await
+            .context("Failed to send streaming chat request to Ollama")?;
+
+        let response = if !response.status().is_success() && request.tools.is_some() {
+            let status = response.status();
+            let error_text = response.text().await.unwrap_or_default();
+            if !is_tools_unsupported(&error_text) {
+                return Err(self.api_error(status, &error_text, "streaming chat"));
+            }
+            // Same 400-means-no-tools fallback as the non-streaming path.
+            self.remember_tools_unsupported();
+            let retry = OllamaChatRequest {
+                tools: None,
+                ..request
+            };
+            let response = self
+                .auth_post(format!("{}/api/chat", self.base_url))
+                .json(&retry)
+                .send()
+                .await
+                .context("Failed to send streaming chat request to Ollama")?;
+            if !response.status().is_success() {
+                let status = response.status();
+                let error_text = response.text().await.unwrap_or_default();
+                return Err(self.api_error(status, &error_text, "streaming chat"));
+            }
+            response
+        } else if !response.status().is_success() {
+            let status = response.status();
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(self.api_error(status, &error_text, "streaming chat"));
+        } else {
+            response
+        };
+
+        let stream = response.bytes_stream();
+
+        // Buffer for bytes that don't yet form complete UTF-8 or complete
+        // JSON lines.  Cloud/remote Ollama models can split chunks at
+        // arbitrary byte boundaries (mid-character or mid-JSON-object).
+        let buf = std::sync::Arc::new(std::sync::Mutex::new(Vec::<u8>::new()));
+        // Reasoning streams token-by-token, so the `<thinking>` wrapper spans
+        // many chunks: opened on the first reasoning token, closed when prose,
+        // a tool call, or the end of the stream arrives.
+        let thinking_open = std::sync::Arc::new(std::sync::Mutex::new(false));
+
+        // Captured before the closure: the closure is `move` and outlives the
+        // borrow of `messages`.
+        let sent_chars: usize = messages.iter().map(|m| m.content.len()).sum();
+        let stop = stop.clone();
+        let completion_stream = stream
+            .map(move |chunk| -> Result<String, anyhow::Error> {
+                let chunk = chunk?;
+                let mut guard = buf.lock().unwrap_or_else(|e| e.into_inner());
+                guard.extend_from_slice(&chunk);
+
+                // Try to decode as much valid UTF-8 as possible from the
+                // front of the buffer.  If the buffer ends with a partial
+                // multi-byte sequence, leave those bytes for the next chunk.
+                let valid_up_to = match std::str::from_utf8(&guard) {
+                    Ok(_) => guard.len(),
+                    Err(e) => e.valid_up_to(),
+                };
+                if valid_up_to == 0 {
+                    return Ok(String::new());
+                }
+
+                let text = String::from_utf8_lossy(&guard[..valid_up_to]).into_owned();
+                let remainder = guard[valid_up_to..].to_vec();
+                *guard = remainder;
+
+                let mut result = String::new();
+                for line in text.lines() {
+                    let line = line.trim();
+                    if line.is_empty() {
+                        continue;
+                    }
+                    match serde_json::from_str::<OllamaChatResponse>(line) {
+                        Ok(response) => {
+                            let done = response.done;
+                            // The final line carries `prompt_eval_count`, and
+                            // it is the only evidence that the server dropped
+                            // the front of the prompt. This check existed for
+                            // the non-streaming `chat()` only — which nothing
+                            // in the product calls: the chat panel and the
+                            // agent both stream. So the one diagnostic for
+                            // "your context window is smaller than your
+                            // prompt" never fired where it was needed.
+                            if done {
+                                warn_if_prompt_truncated(sent_chars, response.prompt_eval_count);
+                                // The final line is the only one carrying
+                                // `done_reason`, and it is the only evidence
+                                // that the reply was cut at `num_predict`
+                                // rather than finished.
+                                if let (Some(sink), Some(reason)) = (
+                                    stop.as_ref(),
+                                    ollama_stop_reason(response.done_reason.as_deref()),
+                                ) {
+                                    record_stop_reason(sink, reason);
+                                }
+                            }
+                            if let Some(msg) = response.message {
+                                let mut open =
+                                    thinking_open.lock().unwrap_or_else(|e| e.into_inner());
+                                if let Some(t) = msg.thinking.as_deref().filter(|t| !t.is_empty()) {
+                                    if !*open {
+                                        result.push_str("<thinking>");
+                                        *open = true;
+                                    }
+                                    result.push_str(t);
+                                }
+                                // Anything that isn't reasoning ends the block.
+                                let ends_thinking =
+                                    !msg.content.is_empty() || msg.tool_calls.is_some() || done;
+                                if *open && ends_thinking {
+                                    result.push_str("</thinking>\n");
+                                    *open = false;
+                                }
+                                drop(open);
+
+                                result.push_str(&msg.content);
+                                for call in msg.tool_calls.iter().flatten() {
+                                    if let Some(xml) = tool_call_to_xml(call) {
+                                        if !result.is_empty() && !result.ends_with('\n') {
+                                            result.push('\n');
+                                        }
+                                        result.push_str(&xml);
+                                    }
+                                }
+                            }
+                        }
+                        Err(_) => {
+                            // Partial JSON line — push it back into the buffer
+                            // so the next chunk can complete it.
+                            let mut guard2 = buf.lock().unwrap_or_else(|e| e.into_inner());
+                            let mut leftover = line.as_bytes().to_vec();
+                            leftover.push(b'\n');
+                            leftover.extend_from_slice(&guard2);
+                            *guard2 = leftover;
+                        }
+                    }
+                }
+                Ok(result)
+            })
+            .boxed();
+
+        Ok(completion_stream)
+    }
+}
+
 #[async_trait]
 impl AIProvider for OllamaProvider {
     fn name(&self) -> &str {
@@ -780,159 +981,15 @@ impl AIProvider for OllamaProvider {
     }
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
-        let ollama_messages: Vec<OllamaChatMessage> = messages
-            .iter()
-            .map(|m| OllamaChatMessage::outgoing(m.role.as_str().to_string(), m.content.clone()))
-            .collect();
+        self.stream_chat_inner(messages, None).await
+    }
 
-        let request = OllamaChatRequest {
-            model: self.config.model.clone(),
-            messages: ollama_messages,
-            stream: true,
-            options: self.build_options(),
-            tools: self.tools_for_request(messages),
-        };
-
-        let response = self
-            .auth_post(format!("{}/api/chat", self.base_url))
-            .json(&request)
-            .send()
-            .await
-            .context("Failed to send streaming chat request to Ollama")?;
-
-        let response = if !response.status().is_success() && request.tools.is_some() {
-            let status = response.status();
-            let error_text = response.text().await.unwrap_or_default();
-            if !is_tools_unsupported(&error_text) {
-                return Err(self.api_error(status, &error_text, "streaming chat"));
-            }
-            // Same 400-means-no-tools fallback as the non-streaming path.
-            self.remember_tools_unsupported();
-            let retry = OllamaChatRequest {
-                tools: None,
-                ..request
-            };
-            let response = self
-                .auth_post(format!("{}/api/chat", self.base_url))
-                .json(&retry)
-                .send()
-                .await
-                .context("Failed to send streaming chat request to Ollama")?;
-            if !response.status().is_success() {
-                let status = response.status();
-                let error_text = response.text().await.unwrap_or_default();
-                return Err(self.api_error(status, &error_text, "streaming chat"));
-            }
-            response
-        } else if !response.status().is_success() {
-            let status = response.status();
-            let error_text = response.text().await.unwrap_or_default();
-            return Err(self.api_error(status, &error_text, "streaming chat"));
-        } else {
-            response
-        };
-
-        let stream = response.bytes_stream();
-
-        // Buffer for bytes that don't yet form complete UTF-8 or complete
-        // JSON lines.  Cloud/remote Ollama models can split chunks at
-        // arbitrary byte boundaries (mid-character or mid-JSON-object).
-        let buf = std::sync::Arc::new(std::sync::Mutex::new(Vec::<u8>::new()));
-        // Reasoning streams token-by-token, so the `<thinking>` wrapper spans
-        // many chunks: opened on the first reasoning token, closed when prose,
-        // a tool call, or the end of the stream arrives.
-        let thinking_open = std::sync::Arc::new(std::sync::Mutex::new(false));
-
-        // Captured before the closure: the closure is `move` and outlives the
-        // borrow of `messages`.
-        let sent_chars: usize = messages.iter().map(|m| m.content.len()).sum();
-        let completion_stream = stream
-            .map(move |chunk| -> Result<String, anyhow::Error> {
-                let chunk = chunk?;
-                let mut guard = buf.lock().unwrap_or_else(|e| e.into_inner());
-                guard.extend_from_slice(&chunk);
-
-                // Try to decode as much valid UTF-8 as possible from the
-                // front of the buffer.  If the buffer ends with a partial
-                // multi-byte sequence, leave those bytes for the next chunk.
-                let valid_up_to = match std::str::from_utf8(&guard) {
-                    Ok(_) => guard.len(),
-                    Err(e) => e.valid_up_to(),
-                };
-                if valid_up_to == 0 {
-                    return Ok(String::new());
-                }
-
-                let text = String::from_utf8_lossy(&guard[..valid_up_to]).into_owned();
-                let remainder = guard[valid_up_to..].to_vec();
-                *guard = remainder;
-
-                let mut result = String::new();
-                for line in text.lines() {
-                    let line = line.trim();
-                    if line.is_empty() {
-                        continue;
-                    }
-                    match serde_json::from_str::<OllamaChatResponse>(line) {
-                        Ok(response) => {
-                            let done = response.done;
-                            // The final line carries `prompt_eval_count`, and
-                            // it is the only evidence that the server dropped
-                            // the front of the prompt. This check existed for
-                            // the non-streaming `chat()` only — which nothing
-                            // in the product calls: the chat panel and the
-                            // agent both stream. So the one diagnostic for
-                            // "your context window is smaller than your
-                            // prompt" never fired where it was needed.
-                            if done {
-                                warn_if_prompt_truncated(sent_chars, response.prompt_eval_count);
-                            }
-                            if let Some(msg) = response.message {
-                                let mut open =
-                                    thinking_open.lock().unwrap_or_else(|e| e.into_inner());
-                                if let Some(t) = msg.thinking.as_deref().filter(|t| !t.is_empty()) {
-                                    if !*open {
-                                        result.push_str("<thinking>");
-                                        *open = true;
-                                    }
-                                    result.push_str(t);
-                                }
-                                // Anything that isn't reasoning ends the block.
-                                let ends_thinking =
-                                    !msg.content.is_empty() || msg.tool_calls.is_some() || done;
-                                if *open && ends_thinking {
-                                    result.push_str("</thinking>\n");
-                                    *open = false;
-                                }
-                                drop(open);
-
-                                result.push_str(&msg.content);
-                                for call in msg.tool_calls.iter().flatten() {
-                                    if let Some(xml) = tool_call_to_xml(call) {
-                                        if !result.is_empty() && !result.ends_with('\n') {
-                                            result.push('\n');
-                                        }
-                                        result.push_str(&xml);
-                                    }
-                                }
-                            }
-                        }
-                        Err(_) => {
-                            // Partial JSON line — push it back into the buffer
-                            // so the next chunk can complete it.
-                            let mut guard2 = buf.lock().unwrap_or_else(|e| e.into_inner());
-                            let mut leftover = line.as_bytes().to_vec();
-                            leftover.push(b'\n');
-                            leftover.extend_from_slice(&guard2);
-                            *guard2 = leftover;
-                        }
-                    }
-                }
-                Ok(result)
-            })
-            .boxed();
-
-        Ok(completion_stream)
+    async fn stream_chat_reporting(
+        &self,
+        messages: &[Message],
+        stop: StopReasonSink,
+    ) -> Result<CompletionStream> {
+        self.stream_chat_inner(messages, Some(stop)).await
     }
 
     /// Ask the server what this model's window actually is.
@@ -1598,6 +1655,50 @@ mod tests {
     /// The response carries the only evidence that a prompt was truncated —
     /// there is no flag for it — so the field must survive deserialization.
     #[test]
+    #[test]
+    fn a_reply_cut_at_the_cap_is_distinguishable_from_a_finished_one() {
+        // The bug: `done_reason` was not a field, so serde dropped it and both
+        // of these parsed identically. The chat rendered the truncated one as
+        // complete and the user had to type "continue" to get the rest.
+        let finished = r#"{"message":{"role":"assistant","content":"hi"},"done":true,"done_reason":"stop"}"#;
+        let truncated = r#"{"message":{"role":"assistant","content":"hi"},"done":true,"done_reason":"length"}"#;
+
+        let finished: OllamaChatResponse = serde_json::from_str(finished).unwrap();
+        let truncated: OllamaChatResponse = serde_json::from_str(truncated).unwrap();
+
+        assert_eq!(
+            ollama_stop_reason(finished.done_reason.as_deref()),
+            Some(StopReason::Natural)
+        );
+        assert_eq!(
+            ollama_stop_reason(truncated.done_reason.as_deref()),
+            Some(StopReason::Length)
+        );
+        assert!(ollama_stop_reason(truncated.done_reason.as_deref())
+            .expect("a reason")
+            .is_truncated());
+    }
+
+    #[test]
+    fn a_server_that_reports_no_reason_stays_unknown() {
+        // Older servers omit `done_reason`. Absent must stay absent: reading
+        // the silence as `Natural` would assert the reply is complete on no
+        // evidence, which is the assumption this whole field exists to remove.
+        let json = r#"{"message":{"role":"assistant","content":"hi"},"done":true}"#;
+        let parsed: OllamaChatResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(parsed.done_reason, None);
+        assert_eq!(ollama_stop_reason(parsed.done_reason.as_deref()), None);
+    }
+
+    #[test]
+    fn an_unmodelled_reason_is_kept_verbatim_not_called_natural() {
+        // `Other` must not be treated as a clean finish, and must not trigger
+        // an auto-continue either -- it is not evidence of truncation.
+        let r = ollama_stop_reason(Some("load")).expect("a reason");
+        assert_eq!(r, StopReason::Other("load".to_string()));
+        assert!(!r.is_truncated());
+    }
+
     fn prompt_eval_count_is_captured() {
         let json = r#"{"message":{"role":"assistant","content":"hi"},"done":true,"prompt_eval_count":4517}"#;
         let parsed: OllamaChatResponse = serde_json::from_str(json).expect("parse");

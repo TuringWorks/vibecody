@@ -9,8 +9,7 @@
 
 use crate::provider::{
     AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message,
-    MessageRole, ProviderConfig, TokenUsage,
-};
+    MessageRole, ProviderConfig, TokenUsage, StopReasonSink};
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -292,6 +291,30 @@ impl CopilotProvider {
     }
 }
 
+impl CopilotProvider {
+    /// The streaming body shared by [`AIProvider::stream_chat`] and
+    /// [`AIProvider::stream_chat_reporting`].
+    ///
+    /// `stop` is `None` on the plain path, leaving that caller exactly as
+    /// it was; the reporting path passes a sink and gets the endpoint's
+    /// finish reason back out of the final SSE chunk.
+    async fn stream_chat_inner(
+        &self,
+        messages: &[Message],
+        stop: Option<StopReasonSink>,
+    ) -> Result<CompletionStream> {
+        let copilot_token = self.get_copilot_token().await?;
+        let request = self.build_request(messages, None, true);
+        let resp = self.send(&copilot_token, &request).await?;
+
+        // The shared parser. Its line buffering came from this very loop —
+        // Copilot was the only provider that had noticed chunk boundaries split
+        // SSE lines — so nothing is lost by delegating, and tool calls and
+        // reasoning are gained.
+        Ok(super::openai_compat::parse_sse_stream_reporting(resp, stop))
+    }
+}
+
 #[async_trait]
 impl AIProvider for CopilotProvider {
     fn name(&self) -> &str {
@@ -375,15 +398,15 @@ impl AIProvider for CopilotProvider {
     }
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
-        let copilot_token = self.get_copilot_token().await?;
-        let request = self.build_request(messages, None, true);
-        let resp = self.send(&copilot_token, &request).await?;
+        self.stream_chat_inner(messages, None).await
+    }
 
-        // The shared parser. Its line buffering came from this very loop —
-        // Copilot was the only provider that had noticed chunk boundaries split
-        // SSE lines — so nothing is lost by delegating, and tool calls and
-        // reasoning are gained.
-        Ok(super::openai_compat::parse_sse_stream(resp))
+    async fn stream_chat_reporting(
+        &self,
+        messages: &[Message],
+        stop: StopReasonSink,
+    ) -> Result<CompletionStream> {
+        self.stream_chat_inner(messages, Some(stop)).await
     }
 
     fn harness_profile(&self) -> crate::harness::ModelProfile {

@@ -303,6 +303,44 @@ that followed prose; Bedrock filtered reply blocks on `text`, which a `toolUse`
 block does not have. When adding a provider, exercise both halves of the round
 trip before believing either.
 
+### Report why the model stopped — a truncated reply is not a finished one
+
+`vibe_ai::StopReason` is how a provider says *why* it stopped, and
+`stream_chat_reporting` is how that reaches the caller: the chat command hands
+the provider a `StopReasonSink`, reads it once the stream is drained, and puts
+the answer on `ChatResponse.stop_reason`.
+
+The bug it exists to close: a reply cut off at the output cap and a reply that
+finished its thought arrive as the same bytes. Nothing read the vendor's reason
+— Ollama's `done_reason` and OpenAI's `finish_reason` were not even struct
+fields, so serde dropped them, and Gemini parsed `finishReason` into a field
+nothing ever read. The chat panel rendered a truncated answer as a complete one,
+the user typed "continue", and the work stalled on every long answer.
+
+- **`None` means the provider did not say — never "it finished cleanly."** The
+  trait default leaves the sink empty, so a provider that does not override
+  degrades to the old behaviour rather than silently claiming its replies are
+  complete. Bedrock (single-shot wrapped as a stream), `vibecli-mistralrs` and
+  `local_edit` genuinely report nothing, and say so by staying `None`.
+- **Only `Length` triggers an auto-continue.** `Other` is kept verbatim rather
+  than folded into `Natural` precisely so an unrecognised reason cannot
+  masquerade as a clean finish — but it is not evidence of truncation either,
+  and continuing on it would spend the user's tokens on a guess.
+- **A wrapper must forward the sink.** `FailoverProvider` overrides
+  `stream_chat_reporting` for this reason; inheriting the default would have
+  dropped the reason for every provider behind a chain.
+- **Clear the sink between retry attempts,** or a failed stream's `length` is
+  reported against the reply that actually succeeded.
+- **The wire format is load-bearing.** `AIChat.tsx` compares
+  `stop_reason === "length"`; a serialisation change silently disables the
+  auto-continue with nothing failing to say so, which is why
+  `the_wire_format_matches_what_the_panel_checks` pins it.
+
+The panel resumes a truncated turn up to `MAX_TRUNCATION_CONTINUES` (3), labels
+each one, and when the budget runs out stops and says why rather than going
+quiet — the same instinct as the empty-turn and tool-rejection branches beside
+it.
+
 ### Tuning the harness per (provider, model)
 
 `vibe_ai::harness` is the one place that answers "what should this pair be

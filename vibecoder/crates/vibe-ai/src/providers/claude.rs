@@ -2,8 +2,7 @@
 
 use crate::provider::{
     AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message,
-    ProviderConfig, TokenUsage,
-};
+    ProviderConfig, TokenUsage, record_stop_reason, StopReason, StopReasonSink};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use futures::stream::StreamExt;
@@ -165,6 +164,25 @@ struct ClaudeDelta {
     /// a JSON string that are only parseable once the block closes.
     #[serde(default)]
     partial_json: Option<String>,
+    /// Why the message ended, carried by the `message_delta` event:
+    /// `"end_turn"`, `"max_tokens"`, `"tool_use"`, `"stop_sequence"`.
+    ///
+    /// `max_tokens` is the one that mattered and was being dropped — it is
+    /// Anthropic saying the reply is cut short, and without it the chat
+    /// rendered a truncated answer as a finished one.
+    #[serde(default)]
+    stop_reason: Option<String>,
+}
+
+/// Map Anthropic's `stop_reason` onto [`StopReason`].
+fn claude_stop_reason(stop_reason: Option<&str>) -> Option<StopReason> {
+    match stop_reason? {
+        "end_turn" | "stop_sequence" => Some(StopReason::Natural),
+        "max_tokens" => Some(StopReason::Length),
+        "tool_use" => Some(StopReason::ToolUse),
+        "refusal" => Some(StopReason::Filtered),
+        other => Some(StopReason::Other(other.to_string())),
+    }
 }
 
 /// Assembles Claude's SSE event stream into the one text format the agent
@@ -177,6 +195,8 @@ struct ClaudeDelta {
 /// on later `content_block_delta` events, so the name has to be held.
 #[derive(Debug, Default)]
 struct ClaudeSseAccumulator {
+    /// Why the message ended, from the `message_delta` event.
+    stop_reason: Option<StopReason>,
     thinking_open: bool,
     tool_name: Option<String>,
     tool_args: String,
@@ -211,6 +231,17 @@ impl ClaudeSseAccumulator {
                             out.push_str(&self.close_thinking());
                             self.tool_name = block.name;
                         }
+                    }
+                }
+                // Anthropic reports the reason here, once, near the end of
+                // the stream — not on `message_stop`, which carries nothing.
+                "message_delta" => {
+                    if let Some(reason) = event
+                        .delta
+                        .as_ref()
+                        .and_then(|d| claude_stop_reason(d.stop_reason.as_deref()))
+                    {
+                        self.stop_reason = Some(reason);
                     }
                 }
                 "content_block_delta" => {
@@ -534,6 +565,56 @@ impl ClaudeProvider {
     }
 }
 
+impl ClaudeProvider {
+    /// The streaming body shared by [`AIProvider::stream_chat`] and
+    /// [`AIProvider::stream_chat_reporting`].
+    ///
+    /// `stop` is `None` on the plain path; the reporting path passes a sink
+    /// and gets Anthropic's `stop_reason` back out of the `message_delta`
+    /// event once the stream is drained.
+    async fn stream_chat_inner(
+        &self,
+        messages: &[Message],
+        stop: Option<StopReasonSink>,
+    ) -> Result<CompletionStream> {
+        let api_key = self
+            .config
+            .resolve_api_key()
+            .await
+            .context("Claude API key not found")?;
+        let (claude_messages, system) = self.build_messages(messages, None);
+
+        let request = self.assemble(claude_messages, system, self.tools_for(messages), true);
+        let response = self.send(&api_key, &request).await?;
+
+        let acc = std::sync::Arc::new(std::sync::Mutex::new(ClaudeSseAccumulator::default()));
+        let tail = acc.clone();
+        Ok(response
+            .bytes_stream()
+            .map(move |chunk| {
+                let chunk = chunk?;
+                let text = String::from_utf8_lossy(&chunk);
+                Ok(acc
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .push(text.as_ref()))
+            })
+            // A stream that ends without closing its last block still has to
+            // release whatever the accumulator is holding.
+            .chain(futures::stream::once(async move {
+                let mut guard = tail.lock().unwrap_or_else(|e| e.into_inner());
+                let out = guard.finish();
+                // Reported once the stream is drained, so a caller reading the
+                // sink after the last chunk sees the reason rather than a race.
+                if let (Some(sink), Some(reason)) = (stop.as_ref(), guard.stop_reason.clone()) {
+                    record_stop_reason(sink, reason);
+                }
+                Ok(out)
+            }))
+            .boxed())
+    }
+}
+
 #[async_trait]
 impl AIProvider for ClaudeProvider {
     fn name(&self) -> &str {
@@ -626,34 +707,15 @@ impl AIProvider for ClaudeProvider {
     }
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
-        let api_key = self
-            .config
-            .resolve_api_key()
-            .await
-            .context("Claude API key not found")?;
-        let (claude_messages, system) = self.build_messages(messages, None);
+        self.stream_chat_inner(messages, None).await
+    }
 
-        let request = self.assemble(claude_messages, system, self.tools_for(messages), true);
-        let response = self.send(&api_key, &request).await?;
-
-        let acc = std::sync::Arc::new(std::sync::Mutex::new(ClaudeSseAccumulator::default()));
-        let tail = acc.clone();
-        Ok(response
-            .bytes_stream()
-            .map(move |chunk| {
-                let chunk = chunk?;
-                let text = String::from_utf8_lossy(&chunk);
-                Ok(acc
-                    .lock()
-                    .unwrap_or_else(|e| e.into_inner())
-                    .push(text.as_ref()))
-            })
-            // A stream that ends without closing its last block still has to
-            // release whatever the accumulator is holding.
-            .chain(futures::stream::once(async move {
-                Ok(tail.lock().unwrap_or_else(|e| e.into_inner()).finish())
-            }))
-            .boxed())
+    async fn stream_chat_reporting(
+        &self,
+        messages: &[Message],
+        stop: StopReasonSink,
+    ) -> Result<CompletionStream> {
+        self.stream_chat_inner(messages, Some(stop)).await
     }
 
     fn harness_profile(&self) -> crate::harness::ModelProfile {

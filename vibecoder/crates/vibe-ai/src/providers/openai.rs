@@ -2,8 +2,7 @@
 
 use crate::provider::{
     AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message,
-    ProviderConfig, TokenUsage,
-};
+    ProviderConfig, TokenUsage, StopReasonSink};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -283,6 +282,34 @@ impl OpenAIProvider {
     }
 }
 
+impl OpenAIProvider {
+    /// The streaming body shared by [`AIProvider::stream_chat`] and
+    /// [`AIProvider::stream_chat_reporting`].
+    ///
+    /// `stop` is `None` on the plain path, leaving that caller exactly as
+    /// it was; the reporting path passes a sink and gets the endpoint's
+    /// finish reason back out of the final SSE chunk.
+    async fn stream_chat_inner(
+        &self,
+        messages: &[Message],
+        stop: Option<StopReasonSink>,
+    ) -> Result<CompletionStream> {
+        let api_key = self
+            .config
+            .api_key
+            .as_ref()
+            .context("OpenAI API key not found")?;
+        let request = self.build_request(messages, None, true); // context handled in build_messages
+        let response = self.send(api_key, &request).await?;
+
+        // The shared SSE parser rather than a second hand-rolled one. This
+        // provider's own parser read `delta.content` and nothing else, so a
+        // reasoning model's turn arrived empty and a native tool call was
+        // dropped outright — both already solved once in `openai_compat`.
+        Ok(super::openai_compat::parse_sse_stream_reporting(response, stop))
+    }
+}
+
 #[async_trait]
 impl AIProvider for OpenAIProvider {
     fn name(&self) -> &str {
@@ -377,19 +404,15 @@ impl AIProvider for OpenAIProvider {
     }
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
-        let api_key = self
-            .config
-            .api_key
-            .as_ref()
-            .context("OpenAI API key not found")?;
-        let request = self.build_request(messages, None, true); // context handled in build_messages
-        let response = self.send(api_key, &request).await?;
+        self.stream_chat_inner(messages, None).await
+    }
 
-        // The shared SSE parser rather than a second hand-rolled one. This
-        // provider's own parser read `delta.content` and nothing else, so a
-        // reasoning model's turn arrived empty and a native tool call was
-        // dropped outright — both already solved once in `openai_compat`.
-        Ok(super::openai_compat::parse_sse_stream(response))
+    async fn stream_chat_reporting(
+        &self,
+        messages: &[Message],
+        stop: StopReasonSink,
+    ) -> Result<CompletionStream> {
+        self.stream_chat_inner(messages, Some(stop)).await
     }
 
     fn supports_vision(&self) -> bool {

@@ -101,6 +101,91 @@ impl MessageRole {
     }
 }
 
+/// Why a provider stopped generating.
+///
+/// The distinction this type exists for is [`Length`](Self::Length) versus
+/// [`Natural`](Self::Natural): a reply cut off at the output cap and a reply
+/// that finished its thought arrive as the same bytes, and until something
+/// reads the vendor's reason they are indistinguishable. The chat panel then
+/// renders a truncated answer as a finished one and the user types "continue"
+/// to get the rest — which is the bug this enum was added to close.
+///
+/// There is deliberately no `Unknown` variant. A provider that does not report
+/// a reason yields `None`, and `None` means *nobody said*, never "it finished
+/// cleanly" — the same rule [`crate::context_window`] documents for windows the
+/// vendor does not publish.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StopReason {
+    /// The model reached a natural end (an end-of-turn or stop sequence).
+    Natural,
+    /// The output hit a token cap — the reply is *incomplete*. Whether the cap
+    /// was the caller's (`max_tokens` / `num_predict`) or the vendor's own, the
+    /// consequence is the same: there is more to say and the caller must ask
+    /// for it.
+    Length,
+    /// The model stopped to call a tool, and expects the result back.
+    ToolUse,
+    /// The vendor stopped generation on a safety or policy filter.
+    Filtered,
+    /// A reason the vendor reports that this enum does not model. Kept verbatim
+    /// rather than folded into `Natural`, so an unrecognised reason cannot
+    /// masquerade as a clean finish.
+    Other(String),
+}
+
+impl StopReason {
+    /// True when the reply is known to be cut short and asking again would
+    /// produce more of it.
+    ///
+    /// Only [`Length`](Self::Length) qualifies. `Other` does not: an unmodelled
+    /// reason is not evidence of truncation, and auto-continuing on it would
+    /// spend the user's tokens on a guess.
+    pub fn is_truncated(&self) -> bool {
+        matches!(self, Self::Length)
+    }
+}
+
+/// Where a streaming provider records why its stream ended.
+///
+/// [`CompletionStream`] yields bare `Result<String>`, so a stream has no way to
+/// carry anything but text. Rather than change that item type — which would
+/// touch `stream_complete` and every test mock for a reason neither has — the
+/// caller hands the provider a sink and reads it once the stream is drained.
+///
+/// It starts empty and stays empty unless a provider fills it, so "the provider
+/// never said" survives all the way to the UI instead of being rounded to
+/// "finished".
+pub type StopReasonSink = std::sync::Arc<std::sync::Mutex<Option<StopReason>>>;
+
+/// A fresh, empty sink.
+pub fn stop_reason_sink() -> StopReasonSink {
+    std::sync::Arc::new(std::sync::Mutex::new(None))
+}
+
+/// Record a stop reason, ignoring a poisoned lock.
+///
+/// A panic in another holder must not cost us the diagnosis: the sink holds one
+/// `Option` with no invariant to corrupt, so recovering the guard is safe.
+pub fn record_stop_reason(sink: &StopReasonSink, reason: StopReason) {
+    let mut slot = sink.lock().unwrap_or_else(|e| e.into_inner());
+    *slot = Some(reason);
+}
+
+/// Forget any reason recorded so far.
+///
+/// Used between retry attempts: the sink outlives one attempt, and a reason
+/// left by a stream that then failed must not be reported against the reply
+/// that eventually succeeded.
+pub fn clear_stop_reason(sink: &StopReasonSink) {
+    *sink.lock().unwrap_or_else(|e| e.into_inner()) = None;
+}
+
+/// Read a sink back, ignoring a poisoned lock.
+pub fn taken_stop_reason(sink: &StopReasonSink) -> Option<StopReason> {
+    sink.lock().unwrap_or_else(|e| e.into_inner()).clone()
+}
+
 /// Token usage statistics returned by a provider response.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TokenUsage {
@@ -274,6 +359,23 @@ pub trait AIProvider: Send + Sync {
 
     /// Stream chat response
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream>;
+
+    /// Stream a chat turn, recording into `stop` why generation ended.
+    ///
+    /// Override this in any provider whose API reports a finish reason, and
+    /// call [`record_stop_reason`] as the stream ends. The default delegates to
+    /// [`stream_chat`](Self::stream_chat) and leaves the sink empty, which
+    /// reads as *this provider does not say* — never as a clean finish. A
+    /// provider that forgets to override therefore degrades to today's
+    /// behaviour instead of silently claiming its replies are complete.
+    async fn stream_chat_reporting(
+        &self,
+        messages: &[Message],
+        stop: StopReasonSink,
+    ) -> Result<CompletionStream> {
+        let _ = stop;
+        self.stream_chat(messages).await
+    }
 
     /// Chat, returning a full `CompletionResponse` with token usage.
     /// Default implementation wraps `chat()` with no usage info.
@@ -845,5 +947,62 @@ mod tests {
         let encoded = base64_encode(&data);
         // Just verify it doesn't panic and has expected length
         assert_eq!(encoded.len(), (256_usize).div_ceil(3) * 4);
+    }
+}
+
+#[cfg(test)]
+mod stop_reason_tests {
+    use super::*;
+
+    #[test]
+    fn the_wire_format_matches_what_the_panel_checks() {
+        // AIChat.tsx compares `response.stop_reason === "length"`. If this
+        // serialisation ever drifts, the auto-continue silently stops firing
+        // and the chat goes back to stalling — with nothing failing to say so.
+        assert_eq!(
+            serde_json::to_string(&StopReason::Length).unwrap(),
+            r#""length""#
+        );
+        assert_eq!(
+            serde_json::to_string(&StopReason::Natural).unwrap(),
+            r#""natural""#
+        );
+        assert_eq!(
+            serde_json::to_string(&StopReason::ToolUse).unwrap(),
+            r#""tool_use""#
+        );
+        assert_eq!(
+            serde_json::to_string(&StopReason::Other("weird".into())).unwrap(),
+            r#"{"other":"weird"}"#
+        );
+    }
+
+    #[test]
+    fn only_length_counts_as_truncated() {
+        // Auto-continue keys off this. `Other` must not qualify: an unmodelled
+        // reason is not evidence the reply is short, and continuing on it would
+        // spend the user's tokens on a guess.
+        assert!(StopReason::Length.is_truncated());
+        for r in [
+            StopReason::Natural,
+            StopReason::ToolUse,
+            StopReason::Filtered,
+            StopReason::Other("x".into()),
+        ] {
+            assert!(!r.is_truncated(), "{r:?} must not read as truncated");
+        }
+    }
+
+    #[test]
+    fn a_sink_starts_empty_and_clears_back_to_empty() {
+        // Empty means "the provider did not say", which is what a retry must be
+        // reset to so a failed attempt's reason is not reported against the
+        // reply that succeeded.
+        let sink = stop_reason_sink();
+        assert_eq!(taken_stop_reason(&sink), None);
+        record_stop_reason(&sink, StopReason::Length);
+        assert_eq!(taken_stop_reason(&sink), Some(StopReason::Length));
+        clear_stop_reason(&sink);
+        assert_eq!(taken_stop_reason(&sink), None);
     }
 }

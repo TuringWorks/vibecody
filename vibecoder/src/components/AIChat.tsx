@@ -125,7 +125,26 @@ interface ChatResponse {
  pending_write?: PendingWrite;
  /** Highest sessions.db row this turn wrote; the watch-sync cursor skips past it. */
  session_msg_id?: number | null;
+ /**
+  * Why the provider stopped, when it says so. Absent means the provider does
+  * not report one -- never "it finished cleanly".
+  */
+ stop_reason?: StopReason | null;
 }
+
+/**
+ * Why a provider stopped generating. Mirrors `vibe_ai::StopReason`.
+ *
+ * `length` is the one that changes behaviour: it is the provider stating the
+ * reply is cut short, which is what lets the panel continue the work by itself
+ * instead of leaving the user to type "continue".
+ */
+type StopReason =
+  | "natural"
+  | "length"
+  | "tool_use"
+  | "filtered"
+  | { other: string };
 
 interface AIChatProps {
  provider: string;
@@ -322,6 +341,19 @@ const STREAM_FLUSH_MS = 16;
 const MAX_REPORTED_TOOL_REJECTIONS = 5;
 
 const MAX_AGENT_TURNS = 10;
+
+/**
+ * How many times a turn may be resumed because the provider cut it at the
+ * output cap.
+ *
+ * Separate from `MAX_AGENT_TURNS` because it bounds a different thing: that cap
+ * limits tool round-trips, this one limits how much of the user's budget a
+ * single long answer may spend continuing itself. Bounded rather than unlimited
+ * so a model that always stops at the cap cannot loop forever -- when it is
+ * reached the panel stops and says so, which is the point at which a human
+ * should decide whether more is wanted.
+ */
+const MAX_TRUNCATION_CONTINUES = 3;
 
 /**
  * Appended to the last tool-result turn so the model knows the loop is still
@@ -1421,6 +1453,10 @@ export function AIChat({
   // sendMessage; bumped for each automatic re-invocation triggered by
   // tool_output coming back from the backend. See MAX_AGENT_TURNS.
   const agentTurnCountRef = useRef(0);
+  // Counted separately from agent turns: this bounds how far one answer may
+  // continue itself after being cut at the output cap. See
+  // MAX_TRUNCATION_CONTINUES.
+  const truncationContinueRef = useRef(0);
 
   // Live ref to useAgentLoop so the listener closures (registered once) can
   // read the current value when deciding whether they're handling agent or
@@ -2178,8 +2214,19 @@ export function AIChat({
         // never sees that output. Re-invoke stream_chat_message with the full
         // updated history so the model can react. Skipped when the user
         // cancelled, when the turn cap is reached, or when no tools ran.
+        // The provider said this reply is cut short at the output cap, so the
+        // work it was asked to do is not finished. Before this, that arrived as
+        // a normal completion: the panel rendered a truncated answer as a
+        // finished one and the user had to type "continue" to get the rest.
+        const wasTruncated = response.stop_reason === "length";
+        const canContinueTruncation =
+          wasTruncated &&
+          !cancelledRef.current &&
+          truncationContinueRef.current < MAX_TRUNCATION_CONTINUES &&
+          nextMessages !== null;
+
         const shouldAutoContinue =
-          hasToolOutput &&
+          (hasToolOutput || canContinueTruncation) &&
           !cancelledRef.current &&
           agentTurnCountRef.current < MAX_AGENT_TURNS - 1 &&
           nextMessages !== null;
@@ -2195,7 +2242,15 @@ export function AIChat({
           setRetryInfo(null);
           streamStartMsRef.current = null;
           streamCharsRef.current = 0;
-          setStreamStatus(`Continuing (${turn}/${MAX_AGENT_TURNS - 1})`);
+          if (canContinueTruncation) {
+            truncationContinueRef.current += 1;
+            setStreamStatus(
+              `Continuing — the reply hit the model's output cap `
+                + `(${truncationContinueRef.current}/${MAX_TRUNCATION_CONTINUES})`,
+            );
+          } else {
+            setStreamStatus(`Continuing (${turn}/${MAX_AGENT_TURNS - 1})`);
+          }
 
           const backendMessages = toBackendMessages(nextMessages);
           const effectiveContext =
@@ -2215,6 +2270,7 @@ export function AIChat({
           invoke("stream_chat_message", { request: chatRequest }).catch((err) => {
             console.error("[AIChat] auto-continue invoke failed:", err);
             agentTurnCountRef.current = 0;
+    truncationContinueRef.current = 0;
             setStreamStatus(null);
             setIsLoading(false);
           });
@@ -2235,7 +2291,29 @@ export function AIChat({
             isError: true,
           }]);
         }
+        // Still truncated at the terminal completion means the continue budget
+        // ran out. Say so, with the reason and the way forward -- the failure
+        // this whole change exists to stop is the chat going quiet mid-answer
+        // and leaving the user to guess why.
+        if (wasTruncated && !shouldAutoContinue && !cancelledRef.current) {
+          const spent = truncationContinueRef.current;
+          setMessages((prev) => [...prev, {
+            role: "assistant",
+            content: spent >= MAX_TRUNCATION_CONTINUES
+              ? `This reply is still incomplete: the model stopped at its output cap `
+                + `${spent} more time${spent === 1 ? "" : "s"} after `
+                + `${MAX_TRUNCATION_CONTINUES} automatic continuations, so the panel `
+                + `stopped rather than keep spending tokens. Send "continue" to go further, `
+                + `or raise the model's output cap in Settings → Harness.`
+              : `This reply was cut off at the model's output cap and could not be `
+                + `continued automatically. Send "continue" to resume.`,
+            timestamp: Date.now(),
+            isError: true,
+          }]);
+        }
         agentTurnCountRef.current = 0;
+    truncationContinueRef.current = 0;
+        truncationContinueRef.current = 0;
         if (onMessagesChangeRef.current) {
           // Controlled mode: defer clearing streaming UI until the new
           // `messages` prop propagates back, otherwise the response visually
@@ -2271,6 +2349,7 @@ export function AIChat({
           isError: true,
         }]);
         agentTurnCountRef.current = 0;
+    truncationContinueRef.current = 0;
         if (onMessagesChangeRef.current) {
           pendingClearRef.current += 1;
         } else {
@@ -2669,6 +2748,7 @@ export function AIChat({
     setIsNearBottom(true);
     cancelledRef.current = false;
     agentTurnCountRef.current = 0;
+    truncationContinueRef.current = 0;
     setIsLoading(true);
     setStreamingText("");
     setTokensPerSec(null);
@@ -2782,6 +2862,7 @@ export function AIChat({
   const stopMessage = useCallback(async () => {
     cancelledRef.current = true;
     agentTurnCountRef.current = 0;
+    truncationContinueRef.current = 0;
     // If this tab owns an agent run, abort it via stop_agent_task; otherwise
     // (or in addition) stop the chat stream. Both are best-effort.
     if (agentRunOwnerRef.current) {

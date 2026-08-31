@@ -6,7 +6,7 @@
 //! duplicated types, HTTP client construction, SSE stream parsing, and
 //! message building into shared utilities.
 
-use crate::provider::{CompletionResponse, CompletionStream, Message, TokenUsage};
+use crate::provider::{CompletionResponse, CompletionStream, Message, TokenUsage, record_stop_reason, StopReason, StopReasonSink};
 use anyhow::{Context, Result};
 use futures::stream::StreamExt;
 use serde::{Deserialize, Serialize};
@@ -178,6 +178,28 @@ pub struct StreamResponse {
 #[derive(Debug, Deserialize)]
 pub struct StreamChoice {
     pub delta: StreamDelta,
+    /// Why generation ended, present only on the final choice of the stream.
+    ///
+    /// OpenAI's vocabulary: `"stop"`, `"length"`, `"tool_calls"`,
+    /// `"content_filter"`. The field was absent here, so serde dropped it and a
+    /// reply cut off at `max_tokens` was indistinguishable from a finished one
+    /// across every OpenAI-compatible provider at once.
+    #[serde(default)]
+    pub finish_reason: Option<String>,
+}
+
+/// Map an OpenAI-shaped `finish_reason` onto [`StopReason`].
+///
+/// `None` in, `None` out: a chunk without the field is simply not the final
+/// one, and must not be read as a clean finish.
+pub fn openai_stop_reason(finish_reason: Option<&str>) -> Option<StopReason> {
+    match finish_reason? {
+        "stop" => Some(StopReason::Natural),
+        "length" | "max_tokens" => Some(StopReason::Length),
+        "tool_calls" | "function_call" => Some(StopReason::ToolUse),
+        "content_filter" => Some(StopReason::Filtered),
+        other => Some(StopReason::Other(other.to_string())),
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -276,6 +298,11 @@ struct SseAccumulator {
     thinking_open: bool,
     tool_name: Option<String>,
     tool_args: String,
+    /// The stop reason from the final chunk, when the endpoint sent one.
+    ///
+    /// Held on the accumulator rather than returned, because `push` returns the
+    /// text to emit downstream and the reason is not text.
+    stop_reason: Option<StopReason>,
     /// Bytes received that do not yet end a line.
     ///
     /// An HTTP chunk boundary falls wherever the network puts it, not on a
@@ -314,6 +341,15 @@ impl SseAccumulator {
             let Ok(response) = serde_json::from_str::<StreamResponse>(data) else {
                 continue;
             };
+            // The final chunk carries `finish_reason`; capture it before the
+            // `delta` guard below, which skips chunks with no choices.
+            if let Some(reason) = response
+                .choices
+                .first()
+                .and_then(|c| openai_stop_reason(c.finish_reason.as_deref()))
+            {
+                self.stop_reason = Some(reason);
+            }
             let Some(delta) = response.choices.first().map(|c| &c.delta) else {
                 continue;
             };
@@ -384,6 +420,18 @@ impl SseAccumulator {
 /// Handles `data: [DONE]` and malformed JSON (silently skipped), and extracts
 /// content, reasoning, and native tool calls from `choices[0].delta`.
 pub fn parse_sse_stream(response: reqwest::Response) -> CompletionStream {
+    parse_sse_stream_reporting(response, None)
+}
+
+/// [`parse_sse_stream`], additionally recording why the stream ended.
+///
+/// One parser serves every OpenAI-compatible provider, so capturing the reason
+/// here is what makes `finish_reason` reach the UI for all of them at once
+/// rather than provider by provider.
+pub fn parse_sse_stream_reporting(
+    response: reqwest::Response,
+    stop: Option<StopReasonSink>,
+) -> CompletionStream {
     let acc = std::sync::Arc::new(std::sync::Mutex::new(SseAccumulator::default()));
     let tail_acc = acc.clone();
     response
@@ -399,7 +447,14 @@ pub fn parse_sse_stream(response: reqwest::Response) -> CompletionStream {
         // A stream that ends without `[DONE]` still has to release whatever
         // the accumulator is holding.
         .chain(futures::stream::once(async move {
-            Ok(tail_acc.lock().unwrap_or_else(|e| e.into_inner()).finish())
+            let mut guard = tail_acc.lock().unwrap_or_else(|e| e.into_inner());
+            let tail = guard.finish();
+            // Reported once the stream is drained, so a caller reading the sink
+            // after the last chunk sees the reason rather than a race.
+            if let (Some(sink), Some(reason)) = (stop.as_ref(), guard.stop_reason.clone()) {
+                record_stop_reason(sink, reason);
+            }
+            Ok(tail)
         }))
         .boxed()
 }
@@ -516,6 +571,18 @@ pub async fn send_stream_request(
     request: &ChatRequest,
     provider_label: &str,
 ) -> Result<CompletionStream> {
+    send_stream_request_reporting(client, url, api_key, request, provider_label, None).await
+}
+
+/// [`send_stream_request`], additionally recording why the stream ended.
+pub async fn send_stream_request_reporting(
+    client: &reqwest::Client,
+    url: &str,
+    api_key: &str,
+    request: &ChatRequest,
+    provider_label: &str,
+    stop: Option<StopReasonSink>,
+) -> Result<CompletionStream> {
     let post = |body: &ChatRequest| {
         client
             .post(url)
@@ -528,7 +595,7 @@ pub async fn send_stream_request(
         .with_context(|| format!("{} stream request failed", provider_label))?;
 
     if resp.status().is_success() {
-        return Ok(parse_sse_stream(resp));
+        return Ok(parse_sse_stream_reporting(resp, stop));
     }
 
     // Same fallback as the non-streaming path.
@@ -547,7 +614,7 @@ pub async fn send_stream_request(
         let err = retry.text().await?;
         anyhow::bail!("{} API error: {}", provider_label, err);
     }
-    Ok(parse_sse_stream(retry))
+    Ok(parse_sse_stream_reporting(retry, stop))
 }
 
 // ── Tests ───────────────────────────────────────────────────────────────────
@@ -555,6 +622,34 @@ pub async fn send_stream_request(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_shared_parser_tells_a_capped_reply_from_a_finished_one() {
+        // One parser serves every OpenAI-compatible provider, so this is the
+        // single place that decides whether all of them can distinguish a reply
+        // cut at `max_tokens` from one that finished. `finish_reason` was not a
+        // field here, so none of them could.
+        let mut acc = SseAccumulator::default();
+        acc.push("data: {\"choices\":[{\"delta\":{\"content\":\"hi\"}}]}\n");
+        assert_eq!(acc.stop_reason, None, "no reason until the final chunk");
+
+        acc.push("data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"length\"}]}\n");
+        assert_eq!(acc.stop_reason, Some(StopReason::Length));
+
+        let mut done = SseAccumulator::default();
+        done.push("data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n");
+        assert_eq!(done.stop_reason, Some(StopReason::Natural));
+    }
+
+    #[test]
+    fn an_endpoint_that_sends_no_finish_reason_stays_unknown() {
+        // Plenty of proxies omit it. Absent must stay absent rather than being
+        // read as a clean finish.
+        let mut acc = SseAccumulator::default();
+        acc.push("data: {\"choices\":[{\"delta\":{\"content\":\"hi\"}}]}\n");
+        acc.push("data: [DONE]\n");
+        assert_eq!(acc.stop_reason, None);
+    }
     use crate::provider::MessageRole;
 
     #[test]

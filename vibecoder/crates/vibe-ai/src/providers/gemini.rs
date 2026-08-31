@@ -4,8 +4,7 @@
 //! Generative Language API (`generativelanguage.googleapis.com`).
 
 use crate::provider::{
-    AIProvider, CodeContext, CompletionResponse, CompletionStream, Message, ProviderConfig,
-};
+    AIProvider, CodeContext, CompletionResponse, CompletionStream, Message, ProviderConfig, record_stop_reason, StopReason, StopReasonSink};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use futures::stream::StreamExt;
@@ -238,6 +237,19 @@ pub struct FunctionDeclaration {
 pub struct GeminiResponse {
     pub candidates: Option<Vec<Candidate>>,
     pub usage_metadata: Option<UsageMetadata>,
+}
+
+/// Map Gemini's `finishReason` onto [`StopReason`].
+///
+/// `MAX_TOKENS` is the one that matters: the reply is cut short and the caller
+/// must ask for the rest.
+fn gemini_stop_reason(finish_reason: Option<&str>) -> Option<StopReason> {
+    match finish_reason? {
+        "STOP" => Some(StopReason::Natural),
+        "MAX_TOKENS" => Some(StopReason::Length),
+        "SAFETY" | "RECITATION" | "BLOCKLIST" | "PROHIBITED_CONTENT" => Some(StopReason::Filtered),
+        other => Some(StopReason::Other(other.to_string())),
+    }
 }
 
 /// A single candidate in the response.
@@ -718,6 +730,121 @@ impl GeminiProvider {
 
 // ─── AIProvider impl ────────────────────────────────────────────────────────
 
+impl GeminiProvider {
+    /// The streaming body shared by [`AIProvider::stream_chat`] and
+    /// [`AIProvider::stream_chat_reporting`].
+    async fn stream_chat_inner(
+        &self,
+        messages: &[Message],
+        stop: Option<StopReasonSink>,
+    ) -> Result<CompletionStream> {
+        let api_key = self
+            .config
+            .api_key
+            .as_ref()
+            .context("Gemini API key not found")?;
+        let contents = self.build_contents(messages, None);
+        let request = self.build_request(&contents, None);
+        let url = self.build_url(&self.config.model, true);
+
+        let response = self
+            .client
+            .post(&url)
+            .header("x-goog-api-key", api_key)
+            .json(&request)
+            .send()
+            .await
+            .context("Failed to send streaming request to Gemini")?;
+
+        if !response.status().is_success() {
+            let error_text = response.text().await?;
+            anyhow::bail!("Gemini API error: {}", error_text);
+        }
+
+        // Gemini streamGenerateContent returns a JSON array: [{...},{...},...]
+        // Raw bytes_stream() chunks can split mid-JSON object, causing parse
+        // failures ("error decoding response body").  We buffer the incoming
+        // bytes and extract complete JSON objects delimited by balanced braces
+        // at the top-level array depth.
+        let byte_stream = response.bytes_stream();
+
+        let stop_outer = stop.clone();
+        let completion_stream = futures::stream::unfold(
+            (byte_stream.boxed(), String::new()),
+            move |(mut stream, mut buf)| {
+              let stop = stop_outer.clone();
+              async move {
+                loop {
+                    // Try to extract a complete JSON object from the buffer.
+                    if let Some((json_str, rest)) = extract_json_object(&buf) {
+                        buf = rest;
+                        if let Ok(resp) = serde_json::from_str::<GeminiResponse>(&json_str) {
+                            if let Some(candidates) = resp.candidates {
+                                if let Some(candidate) = candidates.first() {
+                                    // `finishReason` was already parsed onto
+                                    // `Candidate` but never read — a truncated
+                                    // reply looked exactly like a finished one.
+                                    if let (Some(sink), Some(reason)) = (
+                                        stop.as_ref(),
+                                        gemini_stop_reason(candidate.finish_reason.as_deref()),
+                                    ) {
+                                        record_stop_reason(sink, reason);
+                                    }
+                                    let rendered =
+                                        render_candidate_parts(&candidate.content.parts);
+                                    if !rendered.is_empty() {
+                                        return Some((Ok(rendered), (stream, buf)));
+                                    }
+                                }
+                            }
+                        }
+                        // Parsed but no text (e.g. safety-only block) — continue
+                        continue;
+                    }
+
+                    // Need more data from the network.
+                    match stream.next().await {
+                        Some(Ok(bytes)) => {
+                            buf.push_str(&String::from_utf8_lossy(&bytes));
+                        }
+                        Some(Err(e)) => {
+                            return Some((Err(anyhow::anyhow!("{}", e)), (stream, buf)));
+                        }
+                        None => {
+                            // Stream ended — try to parse any remaining buffer.
+                            let trimmed = buf
+                                .trim()
+                                .trim_start_matches('[')
+                                .trim_end_matches(']')
+                                .trim_start_matches(',')
+                                .trim();
+                            if !trimmed.is_empty() {
+                                if let Ok(resp) = serde_json::from_str::<GeminiResponse>(trimmed) {
+                                    buf.clear();
+                                    if let Some(candidates) = resp.candidates {
+                                        if let Some(candidate) = candidates.first() {
+                                            let rendered =
+                                                render_candidate_parts(&candidate.content.parts);
+                                            if !rendered.is_empty() {
+                                                return Some((Ok(rendered), (stream, buf)));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            return None; // truly done
+                        }
+                    }
+                }
+              }
+            },
+        )
+        .boxed();
+
+        Ok(completion_stream)
+    }
+}
+
 #[async_trait]
 impl AIProvider for GeminiProvider {
     fn harness_profile(&self) -> crate::harness::ModelProfile {
@@ -832,97 +959,15 @@ impl AIProvider for GeminiProvider {
     }
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
-        let api_key = self
-            .config
-            .api_key
-            .as_ref()
-            .context("Gemini API key not found")?;
-        let contents = self.build_contents(messages, None);
-        let request = self.build_request(&contents, None);
-        let url = self.build_url(&self.config.model, true);
+        self.stream_chat_inner(messages, None).await
+    }
 
-        let response = self
-            .client
-            .post(&url)
-            .header("x-goog-api-key", api_key)
-            .json(&request)
-            .send()
-            .await
-            .context("Failed to send streaming request to Gemini")?;
-
-        if !response.status().is_success() {
-            let error_text = response.text().await?;
-            anyhow::bail!("Gemini API error: {}", error_text);
-        }
-
-        // Gemini streamGenerateContent returns a JSON array: [{...},{...},...]
-        // Raw bytes_stream() chunks can split mid-JSON object, causing parse
-        // failures ("error decoding response body").  We buffer the incoming
-        // bytes and extract complete JSON objects delimited by balanced braces
-        // at the top-level array depth.
-        let byte_stream = response.bytes_stream();
-
-        let completion_stream = futures::stream::unfold(
-            (byte_stream.boxed(), String::new()),
-            |(mut stream, mut buf)| async move {
-                loop {
-                    // Try to extract a complete JSON object from the buffer.
-                    if let Some((json_str, rest)) = extract_json_object(&buf) {
-                        buf = rest;
-                        if let Ok(resp) = serde_json::from_str::<GeminiResponse>(&json_str) {
-                            if let Some(candidates) = resp.candidates {
-                                if let Some(candidate) = candidates.first() {
-                                    let rendered =
-                                        render_candidate_parts(&candidate.content.parts);
-                                    if !rendered.is_empty() {
-                                        return Some((Ok(rendered), (stream, buf)));
-                                    }
-                                }
-                            }
-                        }
-                        // Parsed but no text (e.g. safety-only block) — continue
-                        continue;
-                    }
-
-                    // Need more data from the network.
-                    match stream.next().await {
-                        Some(Ok(bytes)) => {
-                            buf.push_str(&String::from_utf8_lossy(&bytes));
-                        }
-                        Some(Err(e)) => {
-                            return Some((Err(anyhow::anyhow!("{}", e)), (stream, buf)));
-                        }
-                        None => {
-                            // Stream ended — try to parse any remaining buffer.
-                            let trimmed = buf
-                                .trim()
-                                .trim_start_matches('[')
-                                .trim_end_matches(']')
-                                .trim_start_matches(',')
-                                .trim();
-                            if !trimmed.is_empty() {
-                                if let Ok(resp) = serde_json::from_str::<GeminiResponse>(trimmed) {
-                                    buf.clear();
-                                    if let Some(candidates) = resp.candidates {
-                                        if let Some(candidate) = candidates.first() {
-                                            let rendered =
-                                                render_candidate_parts(&candidate.content.parts);
-                                            if !rendered.is_empty() {
-                                                return Some((Ok(rendered), (stream, buf)));
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            return None; // truly done
-                        }
-                    }
-                }
-            },
-        )
-        .boxed();
-
-        Ok(completion_stream)
+    async fn stream_chat_reporting(
+        &self,
+        messages: &[Message],
+        stop: StopReasonSink,
+    ) -> Result<CompletionStream> {
+        self.stream_chat_inner(messages, Some(stop)).await
     }
 
     fn supports_vision(&self) -> bool {

@@ -5,8 +5,7 @@
 use super::openai_compat::{self, ChatRequest};
 use crate::provider::{
     AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message,
-    ProviderConfig,
-};
+    ProviderConfig, StopReasonSink};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 
@@ -69,6 +68,32 @@ impl MiniMaxProvider {
             parallel_tool_calls: ChatRequest::parallel_for(tools.as_ref(), &profile),
             tools,
         }
+    }
+}
+
+impl MiniMaxProvider {
+    /// The streaming body shared by [`AIProvider::stream_chat`] and
+    /// [`AIProvider::stream_chat_reporting`].
+    ///
+    /// `stop` is `None` on the plain path, leaving that caller exactly as
+    /// it was; the reporting path passes a sink and gets the endpoint's
+    /// finish reason back out of the final SSE chunk.
+    async fn stream_chat_inner(
+        &self,
+        messages: &[Message],
+        stop: Option<StopReasonSink>,
+    ) -> Result<CompletionStream> {
+        let api_key = self.api_key()?;
+        let request = self.make_request(messages, None, true);
+        openai_compat::send_stream_request_reporting(
+            &self.client,
+            &self.chat_url(),
+            api_key,
+            &request,
+            "MiniMax",
+            stop,
+        )
+        .await
     }
 }
 
@@ -150,16 +175,15 @@ impl AIProvider for MiniMaxProvider {
     }
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
-        let api_key = self.api_key()?;
-        let request = self.make_request(messages, None, true);
-        openai_compat::send_stream_request(
-            &self.client,
-            &self.chat_url(),
-            api_key,
-            &request,
-            "MiniMax",
-        )
-        .await
+        self.stream_chat_inner(messages, None).await
+    }
+
+    async fn stream_chat_reporting(
+        &self,
+        messages: &[Message],
+        stop: StopReasonSink,
+    ) -> Result<CompletionStream> {
+        self.stream_chat_inner(messages, Some(stop)).await
     }
 
     async fn chat_with_images(

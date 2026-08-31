@@ -5,8 +5,7 @@
 
 use crate::provider::{
     AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message,
-    ProviderConfig, TokenUsage,
-};
+    ProviderConfig, TokenUsage, StopReasonSink};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -196,6 +195,33 @@ impl OpenRouterProvider {
     }
 }
 
+impl OpenRouterProvider {
+    /// The streaming body shared by [`AIProvider::stream_chat`] and
+    /// [`AIProvider::stream_chat_reporting`].
+    ///
+    /// `stop` is `None` on the plain path, leaving that caller exactly as
+    /// it was; the reporting path passes a sink and gets the endpoint's
+    /// finish reason back out of the final SSE chunk.
+    async fn stream_chat_inner(
+        &self,
+        messages: &[Message],
+        stop: Option<StopReasonSink>,
+    ) -> Result<CompletionStream> {
+        let api_key = self
+            .config
+            .api_key
+            .as_ref()
+            .context("OpenRouter API key not set")?;
+        let request = self.build_request(messages, None, true);
+        let resp = self.send(api_key, &request).await?;
+        // The shared SSE parser. OpenRouter is where reasoning models are most
+        // often reached, and this loop read `delta.content` alone — the reason
+        // `openai_compat` learned to read OpenRouter's `reasoning` field in the
+        // first place, a fix this provider was not benefiting from.
+        Ok(super::openai_compat::parse_sse_stream_reporting(resp, stop))
+    }
+}
+
 #[async_trait]
 impl AIProvider for OpenRouterProvider {
     fn name(&self) -> &str {
@@ -303,18 +329,15 @@ impl AIProvider for OpenRouterProvider {
     }
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
-        let api_key = self
-            .config
-            .api_key
-            .as_ref()
-            .context("OpenRouter API key not set")?;
-        let request = self.build_request(messages, None, true);
-        let resp = self.send(api_key, &request).await?;
-        // The shared SSE parser. OpenRouter is where reasoning models are most
-        // often reached, and this loop read `delta.content` alone — the reason
-        // `openai_compat` learned to read OpenRouter's `reasoning` field in the
-        // first place, a fix this provider was not benefiting from.
-        Ok(super::openai_compat::parse_sse_stream(resp))
+        self.stream_chat_inner(messages, None).await
+    }
+
+    async fn stream_chat_reporting(
+        &self,
+        messages: &[Message],
+        stop: StopReasonSink,
+    ) -> Result<CompletionStream> {
+        self.stream_chat_inner(messages, Some(stop)).await
     }
 
     fn harness_profile(&self) -> crate::harness::ModelProfile {
