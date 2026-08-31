@@ -23,13 +23,20 @@ pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 /** An open document. Call `close` when the viewer goes away. */
 export interface PdfHandle {
   pageCount: number;
+  /** A page's size at 100%, which is what "fit to the pane" is measured from. */
+  naturalSize(page: number): Promise<PageSize>;
   /**
    * Draw a page into a canvas at `scale`, sized for the display's pixel ratio.
    *
-   * Returns the CSS size the canvas was given, so the caller can lay the page
-   * out without measuring it back out of the DOM.
+   * Returns the CSS size the canvas was given, or `null` when a later call for
+   * the same canvas superseded this one — a resize or a page turn arriving
+   * mid-draw is ordinary, and it is not a failure.
    */
-  renderPage(page: number, canvas: HTMLCanvasElement, scale: number): Promise<PageSize>;
+  renderPage(
+    page: number,
+    canvas: HTMLCanvasElement,
+    scale: number,
+  ): Promise<PageSize | null>;
   close(): void;
 }
 
@@ -48,6 +55,16 @@ export function decodeBase64(base64: string): Uint8Array {
   return bytes;
 }
 
+/**
+ * The draw currently running on each canvas.
+ *
+ * PDF.js refuses two renders into one canvas — "Cannot use the same canvas
+ * during multiple render() operations" — and a resize or a page turn arriving
+ * while a page is still drawing is the normal case, not an edge one. The old
+ * draw is cancelled rather than raced.
+ */
+const inFlight = new WeakMap<HTMLCanvasElement, pdfjs.RenderTask>();
+
 /** Open a PDF from the bytes the backend read. */
 export async function openPdf(base64: string): Promise<PdfHandle> {
   const task = pdfjs.getDocument({ data: decodeBase64(base64) });
@@ -55,6 +72,12 @@ export async function openPdf(base64: string): Promise<PdfHandle> {
 
   return {
     pageCount: document.numPages,
+
+    async naturalSize(pageNumber) {
+      const page = await document.getPage(pageNumber);
+      const { width, height } = page.getViewport({ scale: 1 });
+      return { width, height };
+    },
 
     async renderPage(pageNumber, canvas, scale) {
       const page = await document.getPage(pageNumber);
@@ -70,8 +93,19 @@ export async function openPdf(base64: string): Promise<PdfHandle> {
       const context = canvas.getContext("2d");
       if (!context) throw new Error("this browser gave no 2D canvas context");
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
-      await page.render({ canvas, canvasContext: context, viewport }).promise;
-      page.cleanup();
+
+      inFlight.get(canvas)?.cancel();
+      const draw = page.render({ canvas, canvasContext: context, viewport });
+      inFlight.set(canvas, draw);
+      try {
+        await draw.promise;
+      } catch (error) {
+        if (isCancelled(error)) return null;
+        throw error;
+      } finally {
+        if (inFlight.get(canvas) === draw) inFlight.delete(canvas);
+        page.cleanup();
+      }
       return { width: viewport.width, height: viewport.height };
     },
 
@@ -81,4 +115,13 @@ export async function openPdf(base64: string): Promise<PdfHandle> {
       void task.destroy();
     },
   };
+}
+
+/** Whether a rejected render was simply superseded. */
+function isCancelled(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { name?: string }).name === "RenderingCancelledException"
+  );
 }

@@ -41,13 +41,15 @@ import {
 } from "../lib/documentDrafts";
 import {
   canTurn,
+  fitScale,
+  GUTTER,
   pagesInView,
   turn,
   viewLabel,
   viewStart,
   type Layout,
 } from "../lib/pageSpread";
-import type { PdfHandle } from "../lib/pdfDocument";
+import type { PageSize, PdfHandle } from "../lib/pdfDocument";
 import {
   dataUrl,
   readEpubBook,
@@ -124,9 +126,16 @@ function PdfViewer({ filePath, base64Data, onEditText }: DocumentViewerProps & E
   const [state, setState] = useState<PdfState>({ status: "loading" });
   const [page, setPage] = useState(1);
   const [layout, setLayoutPreference] = useLayout(filePath);
-  const [scale, setScale] = useState(1.0);
+  // Zoom is either "whatever fits" or a number someone chose. Keeping the two
+  // apart is what lets a resized window re-fit without undoing a chosen zoom.
+  const [zoom, setZoom] = useState<{ fit: true } | { fit: false; scale: number }>({
+    fit: true,
+  });
+  const [pageSize, setPageSize] = useState<PageSize | null>(null);
+  const [paneSize, setPaneSize] = useState<PageSize | null>(null);
   const [renderError, setRenderError] = useState<string | null>(null);
   const canvases = useRef<Array<HTMLCanvasElement | null>>([]);
+  const paneRef = useRef<HTMLDivElement>(null);
 
   const fileName = filePath.split(/[/\\]/).pop() || filePath;
   const pageCount = state.status === "ready" ? state.handle.pageCount : 0;
@@ -168,6 +177,42 @@ function PdfViewer({ filePath, base64Data, onEditText }: DocumentViewerProps & E
     };
   }, [base64Data]);
 
+  // ── How big a page is, and how much room there is for it ─────────
+  useEffect(() => {
+    if (state.status !== "ready") return;
+    let cancelled = false;
+    state.handle
+      .naturalSize(visible[0] ?? 1)
+      .then((size) => {
+        if (!cancelled) setPageSize(size);
+      })
+      .catch(() => {
+        // Not being able to measure a page only costs the fit; the page still
+        // draws, at whatever scale is in force.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [state, visible]);
+
+  useEffect(() => {
+    const pane = paneRef.current;
+    if (!pane) return;
+    const measure = () =>
+      setPaneSize({ width: pane.clientWidth, height: pane.clientHeight });
+    measure();
+    if (typeof ResizeObserver !== "function") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(pane);
+    return () => observer.disconnect();
+  }, [state.status]);
+
+  const scale = useMemo(() => {
+    if (!zoom.fit) return zoom.scale;
+    if (!pageSize || !paneSize || paneSize.width === 0) return 1;
+    return fitScale(paneSize, pageSize, visible.length);
+  }, [zoom, pageSize, paneSize, visible.length]);
+
   // ── The pages on screen ───────────────────────────────────────────
   useEffect(() => {
     if (state.status !== "ready") return;
@@ -183,7 +228,9 @@ function PdfViewer({ filePath, base64Data, onEditText }: DocumentViewerProps & E
         const canvas = canvases.current[slot];
         if (!canvas || cancelled) return;
         try {
-          await handle.renderPage(number, canvas, scale);
+          // `null` means a later draw took this canvas over; stop rather than
+          // carry on painting pages at a scale nobody is looking at any more.
+          if ((await handle.renderPage(number, canvas, scale)) === null) return;
         } catch (error) {
           if (!cancelled) setRenderError(documentErrorMessage(error));
           return;
@@ -247,15 +294,26 @@ function PdfViewer({ filePath, base64Data, onEditText }: DocumentViewerProps & E
     <div className="document-viewer pdf-viewer">
       <div className="document-viewer-toolbar">
         <div className="toolbar-group">
-          <button onClick={() => setScale((s) => Math.max(s / 1.25, 0.25))} title="Zoom out">
+          <button
+            onClick={() => setZoom({ fit: false, scale: Math.max(scale / 1.25, 0.25) })}
+            title="Zoom out"
+          >
             −
           </button>
           <span className="zoom-label">{Math.round(scale * 100)}%</span>
-          <button onClick={() => setScale((s) => Math.min(s * 1.25, 5))} title="Zoom in">
+          <button
+            onClick={() => setZoom({ fit: false, scale: Math.min(scale * 1.25, 5) })}
+            title="Zoom in"
+          >
             +
           </button>
-          <button onClick={() => setScale(1)} title="Reset zoom" className="toolbar-btn-wide">
-            Reset
+          <button
+            onClick={() => setZoom({ fit: true })}
+            title="Fit the page (or the spread) to the window"
+            className={`toolbar-btn-wide${zoom.fit ? " active" : ""}`}
+            aria-pressed={zoom.fit}
+          >
+            Fit
           </button>
         </div>
         <div className="toolbar-separator" />
@@ -303,8 +361,13 @@ function PdfViewer({ filePath, base64Data, onEditText }: DocumentViewerProps & E
         </div>
       )}
 
-      <div className="document-viewer-canvas">
-        <div className={`pdf-spread${layout === "spread" ? " pdf-spread-two" : ""}`}>
+      <div className="document-viewer-canvas" ref={paneRef}>
+        <div
+          className="pdf-spread"
+          /* The same number the fit is computed from — one place, so the pages
+             cannot be measured against a gap the stylesheet does not use. */
+          style={{ gap: GUTTER, padding: GUTTER }}
+        >
           {visible.map((number, slot) => (
             <div className="pdf-page" key={number}>
               <canvas

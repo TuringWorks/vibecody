@@ -84,3 +84,28 @@ export function clampPage(page: number, count: number): number {
   if (!Number.isFinite(page)) return 1;
   return Math.min(Math.max(Math.trunc(page), 1), Math.max(count, 1));
 }
+
+/** The gap around and between pages of a spread, in CSS pixels. */
+export const GUTTER = 24;
+
+/**
+ * The scale at which the pages on screen fit the pane they are drawn in.
+ *
+ * A spread at 100% is two half-pages: a page is taller than any window at its
+ * own size, and two of them are wider than most. Fitting is what the view opens
+ * at, and what "Fit" goes back to — the zoom controls are for looking closer,
+ * not for making the document usable in the first place.
+ */
+export function fitScale(
+  pane: { width: number; height: number },
+  page: { width: number; height: number },
+  pagesOnScreen: number,
+): number {
+  const columns = Math.max(pagesOnScreen, 1);
+  if (page.width <= 0 || page.height <= 0) return 1;
+  const available = pane.width - GUTTER * (columns + 1);
+  const width = available / columns / page.width;
+  const height = (pane.height - GUTTER * 2) / page.height;
+  const fit = Math.min(width, height);
+  return Number.isFinite(fit) ? Math.min(Math.max(fit, 0.1), 5) : 1;
+}

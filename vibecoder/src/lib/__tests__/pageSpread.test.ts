@@ -8,6 +8,7 @@ import { describe, it, expect } from 'vitest';
 import {
   canTurn,
   clampPage,
+  fitScale,
   pagesInView,
   turn,
   viewLabel,
@@ -89,5 +90,35 @@ describe('switching layout', () => {
     expect(viewStart(8, 'spread')).toBe(7);
     expect(pagesInView(viewStart(8, 'spread'), 120, 'spread')).toEqual([7, 8]);
     expect(viewStart(8, 'single')).toBe(8);
+  });
+});
+
+describe('fitScale', () => {
+  const page = { width: 612, height: 792 };
+
+  it('fits one page to the shorter of the two dimensions', () => {
+    // 900 tall pane, 792pt page: height decides, not width.
+    const scale = fitScale({ width: 1400, height: 900 }, page, 1);
+    expect(scale).toBeCloseTo((900 - 48) / 792, 5);
+  });
+
+  it('fits a spread to two pages and the gutters between them', () => {
+    const scale = fitScale({ width: 1400, height: 2000 }, page, 2);
+    // Three gutters: outside, middle, outside.
+    expect(scale).toBeCloseTo((1400 - 24 * 3) / 2 / 612, 5);
+  });
+
+  it('is smaller for two pages than for one when width is what binds', () => {
+    const wide = { width: 1400, height: 2000 };
+    expect(fitScale(wide, page, 2)).toBeLessThan(fitScale(wide, page, 1));
+    // In a short window the height decides for both, and a spread costs
+    // nothing — which is exactly when a spread is worth having.
+    const short = { width: 1400, height: 900 };
+    expect(fitScale(short, page, 2)).toBe(fitScale(short, page, 1));
+  });
+
+  it('does not divide by a page that has no size', () => {
+    expect(fitScale({ width: 1400, height: 900 }, { width: 0, height: 0 }, 1)).toBe(1);
+    expect(fitScale({ width: 0, height: 0 }, page, 1)).toBe(0.1);
   });
 });

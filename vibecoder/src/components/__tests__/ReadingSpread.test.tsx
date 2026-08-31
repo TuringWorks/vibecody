@@ -20,6 +20,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 vi.mock('../../lib/pdfDocument', () => ({
   openPdf: vi.fn(async () => ({
     pageCount: 1,
+    naturalSize: vi.fn(async () => ({ width: 612, height: 792 })),
     renderPage: vi.fn(async () => ({ width: 1, height: 1 })),
     close: vi.fn(),
   })),

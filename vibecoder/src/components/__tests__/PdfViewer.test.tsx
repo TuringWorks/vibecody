@@ -11,8 +11,9 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const renderPage = vi.fn(async () => ({ width: 400, height: 560 }));
+const naturalSize = vi.fn(async () => ({ width: 612, height: 792 }));
 const close = vi.fn();
-const openPdf = vi.fn(async () => ({ pageCount: 5, renderPage, close }));
+const openPdf = vi.fn(async () => ({ pageCount: 5, naturalSize, renderPage, close }));
 
 vi.mock('../../lib/pdfDocument', () => ({
   openPdf: (...args: unknown[]) => openPdf(...(args as [string])),
@@ -38,6 +39,7 @@ beforeEach(() => {
   forgetDocument(PATH);
   openPdf.mockClear();
   renderPage.mockClear();
+  naturalSize.mockClear();
   close.mockClear();
 });
 
