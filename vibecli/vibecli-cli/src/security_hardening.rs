@@ -3,6 +3,7 @@
 //! Implements defenses against OWASP Top 10, OWASP LLM Top 10,
 //! and OWASP Agentic AI Top 10 attack vectors.
 
+use std::sync::LazyLock;
 use std::time::{Duration, SystemTime};
 
 // ── Input Validation ─────────────────────────────────────────────────────────
@@ -112,30 +113,40 @@ const SECRET_PATTERNS: &[(&str, &str)] = &[
     (r"Bearer\s+[a-zA-Z0-9\-_.~+/]{20,}", "Bearer Token"),
 ];
 
+/// [`SECRET_PATTERNS`] compiled once.
+///
+/// Both functions below recompiled all eight patterns on every call. Redaction
+/// is per-output-chunk work by nature, and a `Regex::new` on that path is this
+/// codebase's most expensive recorded mistake — `strip_thinking` cost 27 MB per
+/// streamed chunk until its patterns were hoisted. Nothing calls these on a hot
+/// path today; hoisting means nothing has to notice before wiring them into one.
+///
+/// A pattern that fails to compile is dropped rather than panicking a daemon
+/// path; `secret_patterns_all_compile` fails the build if that ever happens.
+static COMPILED_SECRET_PATTERNS: LazyLock<Vec<(regex::Regex, &'static str)>> =
+    LazyLock::new(|| {
+        SECRET_PATTERNS
+            .iter()
+            .filter_map(|(pattern, name)| regex::Regex::new(pattern).ok().map(|re| (re, *name)))
+            .collect()
+    });
+
 /// Check if text contains potential secrets. Returns list of (pattern_name, match_position).
 pub fn detect_secrets(text: &str) -> Vec<(&'static str, usize)> {
-    let mut findings = Vec::new();
-    for (pattern, name) in SECRET_PATTERNS {
-        if let Ok(re) = regex::Regex::new(pattern) {
-            for m in re.find_iter(text) {
-                findings.push((*name, m.start()));
-            }
-        }
-    }
-    findings
+    COMPILED_SECRET_PATTERNS
+        .iter()
+        .flat_map(|(re, name)| re.find_iter(text).map(move |m| (*name, m.start())))
+        .collect()
 }
 
 /// Redact detected secrets in output text.
 pub fn redact_secrets(text: &str) -> String {
-    let mut result = text.to_string();
-    for (pattern, name) in SECRET_PATTERNS {
-        if let Ok(re) = regex::Regex::new(pattern) {
-            result = re
-                .replace_all(&result, &format!("[REDACTED:{}]", name))
-                .to_string();
-        }
-    }
-    result
+    COMPILED_SECRET_PATTERNS
+        .iter()
+        .fold(text.to_string(), |acc, (re, name)| {
+            re.replace_all(&acc, format!("[REDACTED:{name}]").as_str())
+                .into_owned()
+        })
 }
 
 // ── Prompt Injection Detection (LLM01, ASI01) ───────────────────────────────
@@ -613,6 +624,15 @@ mod tests {
     fn validate_url_rejects_too_long() {
         let long_url = format!("https://example.com/{}", "a".repeat(3000));
         assert!(validate_url(&long_url).is_err());
+    }
+
+    #[test]
+    fn secret_patterns_all_compile() {
+        assert_eq!(
+            COMPILED_SECRET_PATTERNS.len(),
+            SECRET_PATTERNS.len(),
+            "a secret pattern failed to compile and was silently dropped"
+        );
     }
 
     #[test]
