@@ -21,6 +21,16 @@ tauri-build = { version = "2", features = [] }
 [features]
 default = ["devtools"]
 devtools = ["tauri/devtools"]
+# Embeds the built frontend in the binary. Without it `generate_context!` stores
+# no assets and the window is pointed at `devUrl` instead, so the app opens on a
+# blank white page with nothing on stdout, in the log, or on screen to say why.
+#
+# `tauri build` turns this on for you — it passes `--features
+# tauri/custom-protocol` — which is why every shipped build is fine and only a
+# bare `cargo build --release` is not. Deliberately **not** in `default`:
+# embedding brotli-compresses the whole bundle during macro expansion, and with
+# it on by default every `cargo check` of this crate would pay for that.
+custom-protocol = ["tauri/custom-protocol"]
 
 [dependencies]
 # One shared reqwest::Client per timeout. The session pollers ran on a 2s

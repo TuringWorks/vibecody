@@ -4,6 +4,19 @@ mod commands;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // ── A binary with no frontend in it ──────────────────────────────────
+    // `cfg(dev)` means `generate_context!` embedded nothing and the window will
+    // load `http://localhost:1421` instead. In a debug build that is the dev
+    // server and correct; in a release build nothing is listening there and the
+    // app opens on a blank white page. Nothing else — not a panic, not a log
+    // line, not the window itself — says so, which is how a whole afternoon
+    // goes into diagnosing an empty rectangle.
+    #[cfg(all(dev, not(debug_assertions)))]
+    eprintln!(
+        "warning: this build has no frontend embedded and will load http://localhost:1421. \
+         Build it with `npm run tauri:build` (or `make build-vibeaichat`), or add `--features custom-protocol`."
+    );
+
     // ── Fix PATH for macOS .app bundles ──────────────────────────────────
     // Finder/Launchpad gives apps a minimal PATH; source user's shell for the real one.
     #[cfg(target_os = "macos")]

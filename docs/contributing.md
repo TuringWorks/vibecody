@@ -72,7 +72,9 @@ cargo build --workspace
 # VibeCLI binary
 cargo build -p vibecli
 
-# VibeCoder (Tauri + React)
+# VibeCoder (Tauri + React) — `tauri build`, not `cargo build --release`:
+# only `tauri build` turns on the feature that embeds the frontend in the
+# binary. See docs/vibecoder.md → Production Build.
 cd vibecoder && npm run tauri build
 ```
 

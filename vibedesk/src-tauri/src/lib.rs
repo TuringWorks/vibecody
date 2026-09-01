@@ -12,6 +12,19 @@ use vibe_desktop_settings::settings;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // ── A binary with no frontend in it ──────────────────────────────────
+    // `cfg(dev)` means `generate_context!` embedded nothing and the window will
+    // load `http://localhost:1422` instead. In a debug build that is the dev
+    // server and correct; in a release build nothing is listening there and the
+    // app opens on a blank white page. Nothing else — not a panic, not a log
+    // line, not the window itself — says so, which is how a whole afternoon
+    // goes into diagnosing an empty rectangle.
+    #[cfg(all(dev, not(debug_assertions)))]
+    eprintln!(
+        "warning: this build has no frontend embedded and will load http://localhost:1422. \
+         Build it with `npm run tauri:build` (or `make build-vibedesk`), or add `--features custom-protocol`."
+    );
+
     // ── Fix PATH for macOS .app bundles ──────────────────────────────────
     // Finder/Launchpad gives apps a minimal PATH; source the user's shell for
     // the real one so a bundled VibeDesk can find `vibecli` on PATH.
