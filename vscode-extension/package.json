@@ -178,11 +178,11 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.4.0",
     "@types/vscode": "^1.134.0",
-    "eslint": "^10.8.1",
+    "eslint": "^10.9.1",
     "typescript": "^5.3.0",
-    "typescript-eslint": "^8.67.0"
+    "typescript-eslint": "^8.68.0"
   },
   "overrides": {
     "minimatch": "^9.0.7"
