@@ -556,7 +556,11 @@ impl ProviderConfig {
             } else {
                 (parts[0], vec![])
             };
-            match tokio::process::Command::new(prog)
+            // Same bare-name problem as everywhere else on Windows; a helper
+            // shipped as a `.cmd` shim would otherwise never be found.
+            let helper =
+                vibe_core::which::on_path(prog).unwrap_or_else(|| std::path::PathBuf::from(prog));
+            match vibe_no_window::tokio_command(&helper)
                 .args(&args)
                 .output()
                 .await

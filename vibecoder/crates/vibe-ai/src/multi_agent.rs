@@ -432,7 +432,7 @@ impl MultiAgentOrchestrator {
 /// Staging only; nothing is committed. The worktree is about to be destroyed,
 /// so the diff is the artefact that outlives it.
 pub fn capture_worktree_patch(worktree: &Path) -> Result<(String, Vec<String>)> {
-    let add = std::process::Command::new("git")
+    let add = vibe_no_window::std_command("git")
         .args(["add", "-A"])
         .current_dir(worktree)
         .output()?;
@@ -444,7 +444,7 @@ pub fn capture_worktree_patch(worktree: &Path) -> Result<(String, Vec<String>)> 
         );
     }
 
-    let diff = std::process::Command::new("git")
+    let diff = vibe_no_window::std_command("git")
         .args(["diff", "--cached", "--binary"])
         .current_dir(worktree)
         .output()?;
@@ -456,7 +456,7 @@ pub fn capture_worktree_patch(worktree: &Path) -> Result<(String, Vec<String>)> 
         );
     }
 
-    let names = std::process::Command::new("git")
+    let names = vibe_no_window::std_command("git")
         .args(["diff", "--cached", "--name-only"])
         .current_dir(worktree)
         .output()?;
@@ -541,9 +541,9 @@ pub fn reconcile(repo_path: &Path, results: &[AgentResult]) -> Vec<MergeReport> 
 /// `(success, stderr)`.
 fn run_git_apply(repo_path: &Path, patch: &str, args: &[&str]) -> Result<(bool, String)> {
     use std::io::Write;
-    use std::process::{Command, Stdio};
+    use std::process::Stdio;
 
-    let mut child = Command::new("git")
+    let mut child = vibe_no_window::std_command("git")
         .arg("apply")
         .args(args)
         .arg("-")

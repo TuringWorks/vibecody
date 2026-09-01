@@ -23,6 +23,7 @@ members = [
     "crates/vibe-desktop-voice",
     "crates/vibe-profile-store",
     "crates/vibe-sync-ext",
+    "crates/vibe-no-window",
     "crates/vibe-alloc-count",
     "crates/vibe-http-pool",
     "crates/vibe-embed",

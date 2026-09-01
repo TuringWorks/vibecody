@@ -10,6 +10,13 @@ license.workspace = true
 # Shared embedding-model catalog — keeps the chat-model filter and the
 # embedding-model picker reading one classifier.
 vibe-embed = { path = "../../../crates/vibe-embed" }
+# Child processes that do not pop a console window on Windows.
+vibe-no-window = { path = "../../../crates/vibe-no-window", features = ["tokio"] }
+# PATH resolution and the POSIX shell. `npm`/`npx` are `.cmd` shims on
+# Windows and a bare name resolves to nothing there; `vibe_core::which`
+# finds the real file, and `vibe_core::shell` is the one place that knows
+# where `sh` lives.
+vibe-core = { path = "../vibe-core" }
 serde.workspace = true
 serde_json.workspace = true
 anyhow.workspace = true

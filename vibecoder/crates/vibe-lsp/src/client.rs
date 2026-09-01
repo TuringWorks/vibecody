@@ -38,7 +38,7 @@ use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
-use tokio::process::{Child, Command};
+use tokio::process::Child;
 use tokio::sync::{mpsc, oneshot, Mutex};
 
 /// Budget for a feature request (completion / hover / definition). A wedged
@@ -158,7 +158,7 @@ impl LspClient {
             )
         })?;
 
-        let mut child = Command::new(&program)
+        let mut child = vibe_no_window::tokio_command(&program)
             .args(&self.server_args)
             // Servers shell out (rust-analyzer → cargo, tsserver → node), so
             // give them the same augmented PATH we used to find them.

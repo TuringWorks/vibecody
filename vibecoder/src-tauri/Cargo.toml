@@ -38,6 +38,9 @@ custom-protocol = ["tauri/custom-protocol"]
 # handshake to a daemon on localhost.
 vibe-http-pool = { path = "../../crates/vibe-http-pool" }
 vibe-embed = { path = "../../crates/vibe-embed" }
+# Console-window-free child processes on Windows. Shared with vibe-core /
+# vibe-ai / vibe-lsp so there is one implementation and one policy.
+vibe-no-window = { path = "../../crates/vibe-no-window", features = ["tokio"] }
 # DOCX / EPUB / Pages: read them as text and write the edits back in place.
 vibe-docfmt = { path = "../../crates/vibe-docfmt" }
 tauri = { version = "2", features = [] }

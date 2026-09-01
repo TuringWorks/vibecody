@@ -3023,13 +3023,13 @@ impl AgentLoop {
                     let p = path.clone();
                     let tool_label = call.name();
                     let short_name = p.rsplit('/').next().unwrap_or(&p);
-                    let _ = tokio::process::Command::new("git")
+                    let _ = vibe_no_window::tokio_command("git")
                         .args(["add", &p])
                         .current_dir(&ws)
                         .output()
                         .await;
                     let commit_msg = format!("Agent: {} — {}", tool_label, short_name);
-                    let _ = tokio::process::Command::new("git")
+                    let _ = vibe_no_window::tokio_command("git")
                         .args(["commit", "-m", &commit_msg, "--no-verify"])
                         .current_dir(&ws)
                         .output()
@@ -6466,7 +6466,15 @@ pub async fn verify_workspace_builds(ws: &std::path::Path) -> BuildVerdict {
         return BuildVerdict::Unverifiable("no recognised build or test command".to_string());
     };
 
-    match tokio::process::Command::new(cmd)
+    // `npm` on Windows is `npm.cmd`, and `CreateProcess` only ever appends
+    // `.exe` -- so the bare name that works everywhere else resolves to
+    // nothing there, and this check reported "could not run `npm`" for a
+    // toolchain that was installed and on PATH.
+    let Some(program) = vibe_core::which::on_path(cmd) else {
+        return BuildVerdict::Unverifiable(format!("`{cmd}` is not installed"));
+    };
+
+    match vibe_no_window::tokio_command(&program)
         .args(&args)
         .current_dir(ws)
         .output()
