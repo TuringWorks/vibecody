@@ -181,7 +181,7 @@ pub fn parse(xml: &str) -> Result<XmlDoc, DocError> {
                 }
             }
             Event::Text(e) => {
-                let raw = String::from_utf8_lossy(e.as_ref()).into_owned();
+                let raw = e.as_ref().to_owned();
                 push_node(
                     &mut stack,
                     &mut prologue,
@@ -191,7 +191,7 @@ pub fn parse(xml: &str) -> Result<XmlDoc, DocError> {
                 );
             }
             Event::CData(e) => {
-                let raw = String::from_utf8_lossy(e.as_ref()).into_owned();
+                let raw = e.as_ref().to_owned();
                 push_node(
                     &mut stack,
                     &mut prologue,
@@ -201,7 +201,7 @@ pub fn parse(xml: &str) -> Result<XmlDoc, DocError> {
                 );
             }
             Event::Comment(e) => {
-                let raw = String::from_utf8_lossy(e.as_ref()).into_owned();
+                let raw = e.as_ref().to_owned();
                 push_node(
                     &mut stack,
                     &mut prologue,
@@ -211,7 +211,7 @@ pub fn parse(xml: &str) -> Result<XmlDoc, DocError> {
                 );
             }
             Event::Decl(e) => {
-                let raw = String::from_utf8_lossy(e.as_ref()).into_owned();
+                let raw = e.as_ref().to_owned();
                 push_node(
                     &mut stack,
                     &mut prologue,
@@ -221,7 +221,7 @@ pub fn parse(xml: &str) -> Result<XmlDoc, DocError> {
                 );
             }
             Event::PI(e) => {
-                let raw = String::from_utf8_lossy(e.as_ref()).into_owned();
+                let raw = e.as_ref().to_owned();
                 push_node(
                     &mut stack,
                     &mut prologue,
@@ -231,7 +231,7 @@ pub fn parse(xml: &str) -> Result<XmlDoc, DocError> {
                 );
             }
             Event::DocType(e) => {
-                let raw = String::from_utf8_lossy(e.as_ref()).into_owned();
+                let raw = e.as_ref().to_owned();
                 push_node(
                     &mut stack,
                     &mut prologue,
@@ -241,7 +241,7 @@ pub fn parse(xml: &str) -> Result<XmlDoc, DocError> {
                 );
             }
             Event::GeneralRef(e) => {
-                let raw = String::from_utf8_lossy(e.as_ref()).into_owned();
+                let raw = e.as_ref().to_owned();
                 push_node(
                     &mut stack,
                     &mut prologue,
@@ -276,15 +276,15 @@ fn push_node(
 }
 
 fn element_from(e: &BytesStart<'_>, self_closing: bool) -> Result<Element, DocError> {
-    let raw = String::from_utf8_lossy(e.as_ref()).into_owned();
-    let name = String::from_utf8_lossy(e.name().as_ref()).into_owned();
+    let raw = e.as_ref().to_owned();
+    let name = e.name().as_ref().to_owned();
     let attrs = e
         .attributes()
         .with_checks(false)
         .map(|attr| {
             let attr = attr.map_err(|err| DocError::Parse(err.to_string()))?;
-            let key = String::from_utf8_lossy(attr.key.as_ref()).into_owned();
-            let value = String::from_utf8_lossy(attr.value.as_ref()).into_owned();
+            let key = attr.key.as_ref().to_owned();
+            let value = attr.value.into_owned();
             Ok((key, value))
         })
         .collect::<Result<Vec<_>, DocError>>()?;
@@ -406,6 +406,24 @@ mod tests {
             "\n  <nested><deep>x</deep></nested>\n</root>\n",
         );
         let doc = parse(source).expect("parse");
+        assert_eq!(serialize(&doc), source);
+    }
+
+    #[test]
+    fn multibyte_text_and_attributes_survive_the_round_trip() {
+        // quick-xml hands out `str` slices rather than bytes, so a mis-sliced
+        // name or value would split a multi-byte character rather than merely
+        // look wrong. Pin the whole path: attribute, text, re-serialization.
+        let source = "<p t=\"h\u{e9}llo \u{2014} \u{4e16}\u{754c}\">emoji \u{1f389} and \u{fc}n\u{ef}code</p>";
+        let doc = parse(source).expect("parse");
+        assert_eq!(
+            doc.root.attr("t"),
+            Some("h\u{e9}llo \u{2014} \u{4e16}\u{754c}")
+        );
+        assert_eq!(
+            doc.root.text_content(),
+            "emoji \u{1f389} and \u{fc}n\u{ef}code"
+        );
         assert_eq!(serialize(&doc), source);
     }
 
