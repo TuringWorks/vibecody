@@ -122,6 +122,17 @@ impl HyperlightSandbox {
         self
     }
 
+    /// Allow nested kernel virtualization for the guest partition.
+    ///
+    /// Off by default: nesting is a CI-host accommodation (KVM-on-KVM
+    /// for a test runner that is itself a VM), not something a normal
+    /// host should opt into.
+    #[cfg(any(target_os = "linux", target_os = "windows"))]
+    pub fn allow_nested(mut self, allow: bool) -> Self {
+        self.runtime.allow_nested = allow;
+        self
+    }
+
     /// Read-only view of the accumulated bind list.
     pub fn binds(&self) -> &[(PathBuf, PathBuf, BindMode)] {
         &self.binds
@@ -277,13 +288,22 @@ mod tests {
 
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     #[test]
+    fn nested_virtualization_is_off_by_default() {
+        let sb = fresh();
+        assert!(!sb.runtime.allow_nested);
+    }
+
+    #[cfg(any(target_os = "linux", target_os = "windows"))]
+    #[test]
     fn builder_methods_override_defaults() {
         let sb = HyperlightSandbox::new()
             .unwrap()
             .guest_memory_bytes(128 * 1024)
-            .call_timeout_ms(500);
+            .call_timeout_ms(500)
+            .allow_nested(true);
         assert_eq!(sb.runtime.guest_memory_bytes, 128 * 1024);
         assert_eq!(sb.runtime.call_timeout_ms, 500);
+        assert!(sb.runtime.allow_nested);
     }
 
     #[cfg(any(target_os = "linux", target_os = "windows"))]
