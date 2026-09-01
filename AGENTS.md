@@ -621,6 +621,9 @@ policy live in one place; check these before adding your own.
 | SHA-256 | `sha2::Sha256` + `hex::encode` | hand-rolling it (this repo had 87 lines of it) |
 | Show a secret in a log or on screen | `serve::mask_secret` | `&s[..4]` — byte-slicing panics on non-ASCII |
 | Path safety / sensitive-path deny | `vibe_core::path_guard` | a local deny-list (five have already drifted apart) |
+| Spawn a child process | `vibe_no_window::{std_command, tokio_command}` (shared crates) / `crate::no_window::*` (VibeCoder) | `Command::new` — on Windows it flashes a console window at the user |
+| Run a shell command | `vibe_core::shell::{sh, sh_async}` | `Command::new("sh")` — Git for Windows ships `sh.exe`, but its installer keeps it off `PATH` |
+| "is this tool installed?" | `vibe_core::which::{on_path, is_on_path}` | `which` / `command -v` — neither exists on Windows, where `npm` is also `npm.cmd` |
 
 **`is_git_repo` is not "is this in a repo".** It calls `Repository::open`, which
 only succeeds when the path is *itself* a repo root, so it answers "no" for

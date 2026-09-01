@@ -39,6 +39,11 @@ reqwest.workspace = true
 
 # Provider-agnostic embedding layer (Ollama / OpenAI / Voyage / Cohere / Gemini / local)
 vibe-embed = { path = "../../../crates/vibe-embed" }
+
+# Child processes that do not pop a console window on Windows. vibe-core is
+# linked into the VibeCoder GUI as well as vibecli, so the flag is applied
+# conditionally — see the crate docs.
+vibe-no-window = { path = "../../../crates/vibe-no-window", features = ["tokio"] }
 async-trait.workspace = true
 
 # SQLite — for sonar_rules local rule store. Same workspace dep used

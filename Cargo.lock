@@ -12119,7 +12119,9 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
  "vibe-alloc-count",
+ "vibe-core",
  "vibe-embed",
+ "vibe-no-window",
  "walkdir",
 ]
 
@@ -12198,6 +12200,7 @@ dependencies = [
  "vibe-http-pool",
  "vibe-lsp",
  "vibe-memory",
+ "vibe-no-window",
  "vibecli",
  "walkdir",
 ]
@@ -12242,6 +12245,7 @@ dependencies = [
  "tokio",
  "tracing",
  "vibe-embed",
+ "vibe-no-window",
  "walkdir",
 ]
 
@@ -12388,6 +12392,7 @@ dependencies = [
  "tokio-util",
  "tracing",
  "url",
+ "vibe-no-window",
 ]
 
 [[package]]
@@ -12416,6 +12421,13 @@ dependencies = [
  "tracing-subscriber",
  "uuid 1.24.1",
  "vibe-embed",
+]
+
+[[package]]
+name = "vibe-no-window"
+version = "0.5.11"
+dependencies = [
+ "tokio",
 ]
 
 [[package]]

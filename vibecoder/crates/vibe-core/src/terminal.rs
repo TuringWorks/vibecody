@@ -208,6 +208,17 @@ impl Default for TerminalManager {
 mod tests {
     use super::*;
 
+    /// The shell the PTY tests drive.
+    ///
+    /// `/bin/sh` was hardcoded here, which is not a path that can exist on
+    /// Windows -- so every spawning test in this module failed there the
+    /// moment the crate's test suite started compiling on Windows at all.
+    fn test_shell() -> String {
+        crate::shell::posix_shell()
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "/bin/sh".to_string())
+    }
+
     /// Regression: a Finder-launched .app inherits no TERM, which left zsh's line
     /// editor without terminfo — Delete stopped erasing the last character and a
     /// pasted command echoed twice. env_clear() reproduces that bare environment,
@@ -287,7 +298,7 @@ mod tests {
     fn close_kills_the_shell_and_is_idempotent() {
         let tm = TerminalManager::new();
         let (tx, _rx) = tokio::sync::mpsc::channel(16);
-        let id = tm.spawn("sh", tx).expect("spawn sh");
+        let id = tm.spawn(&test_shell(), tx).expect("spawn sh");
 
         let pid = {
             let ptys = tm.ptys.lock().unwrap();
@@ -312,11 +323,28 @@ mod tests {
         assert!(tm.close(4242).is_ok());
     }
 
+    /// Whether `pid` names a live process.
+    #[cfg(unix)]
     fn process_is_alive(pid: u32) -> bool {
         std::process::Command::new("ps")
             .args(["-p", &pid.to_string()])
             .output()
             .map(|o| o.status.success())
+            .unwrap_or(false)
+    }
+
+    /// Whether `pid` names a live process.
+    ///
+    /// `ps` is not a Windows program, so the Unix probe answered "dead" for
+    /// every pid and the precondition failed before the assertion under test
+    /// was ever reached. `tasklist` filtered on the pid prints a row when the
+    /// process is running and a "no tasks" notice when it is not.
+    #[cfg(windows)]
+    fn process_is_alive(pid: u32) -> bool {
+        vibe_no_window::std_command("tasklist")
+            .args(["/FI", &format!("PID eq {pid}"), "/NH"])
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).contains(&pid.to_string()))
             .unwrap_or(false)
     }
 
@@ -407,7 +435,7 @@ mod tests {
         let tm = TerminalManager::new();
         let (tx, _rx) = tokio::sync::mpsc::channel(100);
         // Use /bin/sh which should exist on all Unix systems
-        let result = tm.spawn("/bin/sh", tx);
+        let result = tm.spawn(&test_shell(), tx);
         assert!(result.is_ok());
         let id = result.unwrap();
         assert_eq!(id, 0); // First spawn should get ID 0
@@ -418,8 +446,8 @@ mod tests {
         let tm = TerminalManager::new();
         let (tx1, _rx1) = tokio::sync::mpsc::channel(100);
         let (tx2, _rx2) = tokio::sync::mpsc::channel(100);
-        let id1 = tm.spawn("/bin/sh", tx1).unwrap();
-        let id2 = tm.spawn("/bin/sh", tx2).unwrap();
+        let id1 = tm.spawn(&test_shell(), tx1).unwrap();
+        let id2 = tm.spawn(&test_shell(), tx2).unwrap();
         assert_eq!(id1, 0);
         assert_eq!(id2, 1);
     }
@@ -428,7 +456,7 @@ mod tests {
     async fn spawn_adds_to_ptys_map() {
         let tm = TerminalManager::new();
         let (tx, _rx) = tokio::sync::mpsc::channel(100);
-        let id = tm.spawn("/bin/sh", tx).unwrap();
+        let id = tm.spawn(&test_shell(), tx).unwrap();
         let ptys = tm.ptys.lock().unwrap();
         assert!(ptys.contains_key(&id));
     }
@@ -437,7 +465,7 @@ mod tests {
     async fn write_to_spawned_pty() {
         let tm = TerminalManager::new();
         let (tx, _rx) = tokio::sync::mpsc::channel(100);
-        let id = tm.spawn("/bin/sh", tx).unwrap();
+        let id = tm.spawn(&test_shell(), tx).unwrap();
         // Writing to a valid PTY should succeed
         let result = tm.write(id, "echo hello\n");
         assert!(result.is_ok());
@@ -447,7 +475,7 @@ mod tests {
     async fn resize_spawned_pty() {
         let tm = TerminalManager::new();
         let (tx, _rx) = tokio::sync::mpsc::channel(100);
-        let id = tm.spawn("/bin/sh", tx).unwrap();
+        let id = tm.spawn(&test_shell(), tx).unwrap();
         let result = tm.resize(id, 50, 120);
         assert!(result.is_ok());
     }

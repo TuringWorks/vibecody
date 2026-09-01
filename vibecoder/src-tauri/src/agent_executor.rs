@@ -249,10 +249,7 @@ impl TauriToolExecutor {
         }
 
         // Run with timeout to prevent DoS
-        use tokio::process::Command;
-        let child = Command::new("sh")
-            .arg("-c")
-            .arg(command)
+        let child = crate::shell::sh_async(command)
             .current_dir(&self.workspace_root)
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
@@ -393,7 +390,7 @@ impl TauriToolExecutor {
                 return ToolResult::err("apply_patch", format!("Failed to open patch file: {}", e));
             }
         };
-        let result = std::process::Command::new("patch")
+        let result = crate::no_window::std_command("patch")
             .args(["-p1", resolved.to_str().unwrap_or(path)])
             .stdin(patch_file)
             .current_dir(&self.workspace_root)
@@ -425,7 +422,7 @@ impl TauriToolExecutor {
             Ok(p) => p,
             Err(e) => return ToolResult::err("diffstat", e),
         };
-        let output = std::process::Command::new("git")
+        let output = crate::no_window::std_command("git")
             .args([
                 "diff",
                 "--stat",

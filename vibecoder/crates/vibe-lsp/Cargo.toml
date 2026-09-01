@@ -17,6 +17,10 @@ async-trait.workspace = true
 tracing.workspace = true
 url.workspace = true
 
+# Language servers are spawned as child processes; on Windows that must not
+# pop a console window when the host has no console of its own.
+vibe-no-window = { path = "../../../crates/vibe-no-window", features = ["tokio"] }
+
 # JSON-RPC
 jsonrpc-core = "18.0"
 

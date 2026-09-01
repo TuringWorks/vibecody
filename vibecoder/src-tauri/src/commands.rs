@@ -2834,14 +2834,14 @@ pub async fn get_git_config(
     let repo_path = safe_resolve_path(&workspace, &path)?;
 
     // Read user.name and user.email
-    let user_name = std::process::Command::new("git")
+    let user_name = crate::no_window::std_command("git")
         .args(["config", "user.name"])
         .current_dir(&repo_path)
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .unwrap_or_default();
 
-    let user_email = std::process::Command::new("git")
+    let user_email = crate::no_window::std_command("git")
         .args(["config", "user.email"])
         .current_dir(&repo_path)
         .output()
@@ -2849,7 +2849,7 @@ pub async fn get_git_config(
         .unwrap_or_default();
 
     // Read remote origin URL
-    let remote_url = std::process::Command::new("git")
+    let remote_url = crate::no_window::std_command("git")
         .args(["remote", "get-url", "origin"])
         .current_dir(&repo_path)
         .output()
@@ -2882,14 +2882,14 @@ pub async fn set_git_config(
     let repo_path = safe_resolve_path(&workspace, &path)?;
 
     if !user_name.is_empty() {
-        std::process::Command::new("git")
+        crate::no_window::std_command("git")
             .args(["config", "user.name", &user_name])
             .current_dir(&repo_path)
             .output()
             .map_err(|e| e.to_string())?;
     }
     if !user_email.is_empty() {
-        std::process::Command::new("git")
+        crate::no_window::std_command("git")
             .args(["config", "user.email", &user_email])
             .current_dir(&repo_path)
             .output()
@@ -2916,7 +2916,7 @@ pub async fn store_git_credentials(
     };
 
     // Enable credential-store helper
-    std::process::Command::new("git")
+    crate::no_window::std_command("git")
         .args(["config", "--global", "credential.helper", "store"])
         .output()
         .map_err(|e| e.to_string())?;
@@ -5528,12 +5528,7 @@ async fn process_tool_calls(
             if is_ai_cmd_blocked(cmd) {
                 output.push_str(&format!("Build blocked: dangerous command '{}'\n", cmd));
             } else {
-                match std::process::Command::new("sh")
-                    .arg("-c")
-                    .arg(cmd)
-                    .current_dir(&ws_root_str)
-                    .output()
-                {
+                match crate::shell::sh(cmd).current_dir(&ws_root_str).output() {
                     Ok(o) => {
                         let text = String::from_utf8_lossy(&o.stdout).to_string()
                             + &String::from_utf8_lossy(&o.stderr);
@@ -5562,9 +5557,7 @@ async fn process_tool_calls(
             .await
             .unwrap_or_default();
         if let Some(sys) = systems.first() {
-            match std::process::Command::new("sh")
-                .arg("-c")
-                .arg(&sys.build_command)
+            match crate::shell::sh(&sys.build_command)
                 .current_dir(&ws_root_str)
                 .output()
             {
@@ -5605,12 +5598,7 @@ async fn process_tool_calls(
                 if is_ai_cmd_blocked(&cmd) {
                     output.push_str(&format!("$ {} — blocked: dangerous command\n", cmd));
                 } else {
-                    match std::process::Command::new("sh")
-                        .arg("-c")
-                        .arg(&cmd)
-                        .current_dir(&ws_root_str)
-                        .output()
-                    {
+                    match crate::shell::sh(&cmd).current_dir(&ws_root_str).output() {
                         Ok(o) => {
                             let text = String::from_utf8_lossy(&o.stdout).to_string()
                                 + &String::from_utf8_lossy(&o.stderr);
@@ -5645,9 +5633,7 @@ async fn process_tool_calls(
                 .await
                 .unwrap_or_default();
             if let Some(sys) = systems.first() {
-                match std::process::Command::new("sh")
-                    .arg("-c")
-                    .arg(&sys.run_command)
+                match crate::shell::sh(&sys.run_command)
                     .current_dir(&ws_root_str)
                     .output()
                 {
@@ -6966,7 +6952,7 @@ pub async fn start_parallel_agent_task(
                 // Clean up worktree
                 let _ = vibe_core::git::remove_worktree(&workspace_root, wt_path);
                 // Delete leftover branch
-                let _ = std::process::Command::new("git")
+                let _ = crate::no_window::std_command("git")
                     .args(["branch", "-D", branch])
                     .current_dir(&workspace_root)
                     .output();
@@ -8813,7 +8799,7 @@ async fn kill_test_group(child: &mut tokio::process::Child) {
     if let Some(pid) = child.id() {
         // The child is its own group leader (`process_group(0)` below), so the
         // negative pid addresses every descendant.
-        let _ = tokio::process::Command::new("/bin/kill")
+        let _ = crate::no_window::tokio_command("/bin/kill")
             .arg("-TERM")
             .arg(format!("-{pid}"))
             .status()
@@ -8859,10 +8845,8 @@ pub async fn run_tests(
     let started = std::time::Instant::now();
     let _ = app.emit("test:log", format!("$ {}", cmd_str));
 
-    let mut cmd = tokio::process::Command::new("sh");
-    cmd.arg("-c")
-        .arg(&cmd_str)
-        .current_dir(&workspace)
+    let mut cmd = crate::shell::sh_async(&cmd_str);
+    cmd.current_dir(&workspace)
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped());
     // Its own process group, so Suspend can take the whole tree down.
@@ -8871,7 +8855,7 @@ pub async fn run_tests(
 
     let mut child = cmd
         .spawn()
-        .map_err(|e| format!("Failed to run `{}`: {}", cmd_str, e))?;
+        .map_err(|e| format!("Failed to run `{}`: {}", cmd_str, crate::shell::explain(&e)))?;
 
     let stdout = child.stdout.take().ok_or("stdout not piped")?;
     let stderr = child.stderr.take().ok_or("stderr not piped")?;
@@ -9263,14 +9247,14 @@ pub async fn generate_commit_message(
     drop(ws);
 
     // Try staged diff first
-    let diff_output = std::process::Command::new("git")
+    let diff_output = crate::no_window::std_command("git")
         .args(["diff", "--staged", "--stat", "--diff-algorithm=histogram"])
         .current_dir(&ws_path)
         .output()
         .map_err(|e| format!("git diff failed: {}", e))?;
     let mut stat = String::from_utf8_lossy(&diff_output.stdout).to_string();
 
-    let diff_output2 = std::process::Command::new("git")
+    let diff_output2 = crate::no_window::std_command("git")
         .args(["diff", "--staged", "--unified=3"])
         .current_dir(&ws_path)
         .output()
@@ -9282,7 +9266,7 @@ pub async fn generate_commit_message(
         let file_args: Vec<String> = files.unwrap_or_default();
 
         // Get stat for unstaged changes
-        let mut stat_cmd = std::process::Command::new("git");
+        let mut stat_cmd = crate::no_window::std_command("git");
         stat_cmd.args(["diff", "--stat", "--diff-algorithm=histogram"]);
         if !file_args.is_empty() {
             stat_cmd.arg("--");
@@ -9297,7 +9281,7 @@ pub async fn generate_commit_message(
         stat = String::from_utf8_lossy(&stat_out.stdout).to_string();
 
         // Get diff body for unstaged changes
-        let mut diff_cmd = std::process::Command::new("git");
+        let mut diff_cmd = crate::no_window::std_command("git");
         diff_cmd.args(["diff", "--unified=3"]);
         if !file_args.is_empty() {
             diff_cmd.arg("--");
@@ -9314,7 +9298,7 @@ pub async fn generate_commit_message(
         // Also check for untracked files in the selection
         if stat.trim().is_empty() && diff_body.trim().is_empty() {
             // Check if any of the files are new/untracked
-            let ls_out = std::process::Command::new("git")
+            let ls_out = crate::no_window::std_command("git")
                 .args(["status", "--porcelain"])
                 .current_dir(&ws_path)
                 .output()
@@ -9631,11 +9615,9 @@ pub struct BuildSystem {
 
 /// Check if a command-line tool is available on PATH.
 fn tool_exists(name: &str) -> bool {
-    std::process::Command::new("which")
-        .arg(name)
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
+    // Was `which <name>`, which does not exist on Windows (it is `where`),
+    // so every "is this installed?" check answered false there.
+    vibe_core::which::is_on_path(name)
 }
 
 /// Build a BuildSystem with availability check and install hint.
@@ -10586,16 +10568,13 @@ pub async fn run_build(
     let started = std::time::Instant::now();
 
     use tokio::io::{AsyncBufReadExt, BufReader};
-    use tokio::process::Command as TokioCommand;
 
-    let mut child = TokioCommand::new("sh")
-        .arg("-c")
-        .arg(&cmd_str)
+    let mut child = crate::shell::sh_async(&cmd_str)
         .current_dir(&workspace)
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()
-        .map_err(|e| format!("Failed to spawn build: {}", e))?;
+        .map_err(|e| format!("Failed to spawn build: {}", crate::shell::explain(&e)))?;
 
     let stdout = child.stdout.take().expect("stdout piped");
     let stderr = child.stderr.take().expect("stderr piped");
@@ -10675,16 +10654,13 @@ pub async fn run_app(
     let started = std::time::Instant::now();
 
     use tokio::io::{AsyncBufReadExt, BufReader};
-    use tokio::process::Command as TokioCommand;
 
-    let mut child = TokioCommand::new("sh")
-        .arg("-c")
-        .arg(&cmd_str)
+    let mut child = crate::shell::sh_async(&cmd_str)
         .current_dir(&workspace)
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()
-        .map_err(|e| format!("Failed to spawn app: {}", e))?;
+        .map_err(|e| format!("Failed to spawn app: {}", crate::shell::explain(&e)))?;
 
     let stdout = child.stdout.take().expect("stdout piped");
     let stderr = child.stderr.take().expect("stderr piped");
@@ -11737,7 +11713,7 @@ pub async fn merge_agent_branch(
         _ => vec!["merge", "--no-ff", &branch],
     };
 
-    let output = std::process::Command::new("git")
+    let output = crate::no_window::std_command("git")
         .args(&merge_args)
         .current_dir(&workspace_root)
         .output()
@@ -11781,7 +11757,7 @@ pub async fn run_code_review(
         vec!["diff", base, target_ref.as_deref().unwrap_or("HEAD")]
     };
 
-    let diff_output = std::process::Command::new("git")
+    let diff_output = crate::no_window::std_command("git")
         .args(&diff_args)
         .current_dir(&workspace)
         .output()
@@ -12051,8 +12027,6 @@ pub struct LintResultOut {
 /// - `go-vet` — Go
 #[tauri::command]
 pub async fn run_linter(file_path: String, linter: String) -> Result<LintResultOut, String> {
-    use std::process::Command;
-
     // Linters spawn an external program with `current_dir(dir)` where `dir` is
     // the parent of `file_path`. A path like `~/.vibecli/profile_settings.db`
     // would have `cargo check` running inside `~/.vibecli/`, which is a
@@ -12093,7 +12067,11 @@ pub async fn run_linter(file_path: String, linter: String) -> Result<LintResultO
         }
     };
 
-    let output = match Command::new(prog).args(&args).current_dir(dir).output() {
+    let output = match crate::no_window::std_command(prog)
+        .args(&args)
+        .current_dir(dir)
+        .output()
+    {
         Ok(o) => o,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
             return Ok(LintResultOut {
@@ -14541,11 +14519,10 @@ pub async fn import_figma(
 
 /// Check if a CLI tool is installed and available on PATH.
 fn check_cli_available(tool: &str) -> bool {
-    std::process::Command::new("sh")
-        .args(["-c", &format!("command -v {} >/dev/null 2>&1", tool)])
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
+    // Was `sh -c "command -v {tool}"`, which needs a POSIX shell — so the
+    // probe for "is this tool installed?" was itself unavailable on the
+    // platform most likely to be missing the tool.
+    vibe_core::which::is_on_path(tool)
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
@@ -14781,12 +14758,10 @@ pub async fn run_deploy(
     // running them inside `~/.aws` would pick up unintended secrets.
     let _ = reject_sensitive_path(&workspace)?;
 
-    let output = std::process::Command::new("sh")
-        .arg("-c")
-        .arg(deploy_cmd)
+    let output = crate::shell::sh(deploy_cmd)
         .current_dir(&workspace)
         .output()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| crate::shell::explain(&e))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
@@ -15140,7 +15115,7 @@ pub async fn list_db_tables(
 fn list_sqlite_tables(path: &str) -> Result<Vec<TableInfo>, String> {
     // Read SQLite master table directly via raw file parsing using rusqlite-compatible approach
     // We use a simple shell command to avoid adding rusqlite dependency
-    let output = std::process::Command::new("sqlite3")
+    let output = crate::no_window::std_command("sqlite3")
         .arg(path)
         .arg(".tables")
         .output()
@@ -15158,7 +15133,7 @@ fn list_sqlite_tables(path: &str) -> Result<Vec<TableInfo>, String> {
     let mut tables = Vec::new();
     for name in &table_names {
         // Get row count
-        let row_count: i64 = std::process::Command::new("sqlite3")
+        let row_count: i64 = crate::no_window::std_command("sqlite3")
             .arg(path)
             .arg(format!("SELECT COUNT(*) FROM \"{}\";", name))
             .output()
@@ -15171,7 +15146,7 @@ fn list_sqlite_tables(path: &str) -> Result<Vec<TableInfo>, String> {
             .unwrap_or(0);
 
         // Get columns
-        let pragma_str = std::process::Command::new("sqlite3")
+        let pragma_str = crate::no_window::std_command("sqlite3")
             .arg(path)
             .arg(format!("PRAGMA table_info(\"{}\");", name))
             .output()
@@ -15241,7 +15216,7 @@ fn query_sqlite(path: &str, sql: &str) -> Result<QueryResult, String> {
         return Err("Blocked: ATTACH DATABASE not allowed for security".to_string());
     }
 
-    let output = std::process::Command::new("sqlite3")
+    let output = crate::no_window::std_command("sqlite3")
         .arg("-json")
         .arg(path)
         .arg(sql)
@@ -15425,7 +15400,7 @@ impl DbConnectionParams {
 
 /// Helper: check whether a CLI tool is available on PATH.
 fn cli_available(cmd: &str) -> bool {
-    std::process::Command::new(cmd)
+    crate::no_window::std_command(cmd)
         .arg("--version")
         .output()
         .map(|o| o.status.success())
@@ -15457,7 +15432,7 @@ pub async fn db_test_connection(params: DbConnectionParams) -> Result<String, St
                 );
             }
             let dsn = params.to_postgres_dsn();
-            let out = std::process::Command::new("psql")
+            let out = crate::no_window::std_command("psql")
                 .arg(&dsn)
                 .arg("-c")
                 .arg("SELECT 1")
@@ -15483,7 +15458,7 @@ pub async fn db_test_connection(params: DbConnectionParams) -> Result<String, St
                 );
             }
             let args = build_mysql_args(&params);
-            let out = std::process::Command::new("mysql")
+            let out = crate::no_window::std_command("mysql")
                 .args(&args)
                 .arg("-e")
                 .arg("SELECT 1")
@@ -15511,7 +15486,7 @@ pub async fn db_test_connection(params: DbConnectionParams) -> Result<String, St
             let user = params.username.as_deref().unwrap_or("sa");
             let pass = params.password.as_deref().unwrap_or("");
             let db = params.database.as_deref().unwrap_or("master");
-            let out = std::process::Command::new(tool)
+            let out = crate::no_window::std_command(tool)
                 .arg("-S")
                 .arg(format!("{},{}", server, port))
                 .arg("-U")
@@ -15538,7 +15513,7 @@ pub async fn db_test_connection(params: DbConnectionParams) -> Result<String, St
                 .connection_string
                 .as_deref()
                 .unwrap_or("mongodb://localhost:27017");
-            let out = std::process::Command::new("mongosh")
+            let out = crate::no_window::std_command("mongosh")
                 .arg(dsn)
                 .arg("--eval")
                 .arg("db.runCommand({ping:1})")
@@ -15556,7 +15531,7 @@ pub async fn db_test_connection(params: DbConnectionParams) -> Result<String, St
                 return Err("redis-cli not found. Install Redis client tools.".to_string());
             }
             let args = build_redis_args(&params);
-            let out = std::process::Command::new("redis-cli")
+            let out = crate::no_window::std_command("redis-cli")
                 .args(&args)
                 .arg("PING")
                 .output()
@@ -15573,7 +15548,7 @@ pub async fn db_test_connection(params: DbConnectionParams) -> Result<String, St
                 return Err("clickhouse-client not found. Install ClickHouse client.".to_string());
             }
             let args = build_clickhouse_args(&params);
-            let out = std::process::Command::new("clickhouse-client")
+            let out = crate::no_window::std_command("clickhouse-client")
                 .args(&args)
                 .arg("--query")
                 .arg("SELECT 1")
@@ -15599,7 +15574,7 @@ pub async fn db_test_connection(params: DbConnectionParams) -> Result<String, St
                 .as_deref()
                 .or(params.connection_string.as_deref())
                 .unwrap_or("http://localhost:9200");
-            let out = std::process::Command::new("curl")
+            let out = crate::no_window::std_command("curl")
                 .arg("-s")
                 .arg("-f")
                 .arg(format!("{}/", url))
@@ -15838,7 +15813,7 @@ fn list_postgres_tables(dsn: &str) -> Result<Vec<TableInfo>, String> {
         return Err("psql not found. Install PostgreSQL client tools.".to_string());
     }
     let sql = "SELECT table_name, (SELECT reltuples::bigint FROM pg_class WHERE relname = t.table_name) as row_count FROM information_schema.tables t WHERE table_schema = 'public' ORDER BY table_name;";
-    let out = std::process::Command::new("psql")
+    let out = crate::no_window::std_command("psql")
         .arg(dsn)
         .arg("--no-psqlrc")
         .arg("-A")
@@ -15881,7 +15856,7 @@ fn fetch_postgres_columns(dsn: &str, table: &str) -> Vec<ColumnInfo> {
           WHERE tc.constraint_type = 'PRIMARY KEY' AND k.table_name = '{table}' AND k.column_name = c.column_name LIMIT 1) as is_pk \
          FROM information_schema.columns c WHERE table_name = '{table}' AND table_schema = 'public' ORDER BY ordinal_position;"
     );
-    let out = match std::process::Command::new("psql")
+    let out = match crate::no_window::std_command("psql")
         .arg(dsn)
         .arg("--no-psqlrc")
         .arg("-A")
@@ -15923,7 +15898,7 @@ fn query_postgres(dsn: &str, sql: &str) -> Result<QueryResult, String> {
         "COPY ({}) TO STDOUT WITH (FORMAT CSV, HEADER TRUE)",
         sql.trim().trim_end_matches(';')
     );
-    let out = std::process::Command::new("psql")
+    let out = crate::no_window::std_command("psql")
         .arg(dsn)
         .arg("--no-psqlrc")
         .arg("-c")
@@ -15932,7 +15907,7 @@ fn query_postgres(dsn: &str, sql: &str) -> Result<QueryResult, String> {
         .map_err(|e| e.to_string())?;
     if !out.status.success() {
         // Fall back to plain output for non-SELECT statements
-        let plain_out = std::process::Command::new("psql")
+        let plain_out = crate::no_window::std_command("psql")
             .arg(dsn)
             .arg("--no-psqlrc")
             .arg("-c")
@@ -15967,7 +15942,7 @@ fn list_mysql_tables(p: &DbConnectionParams) -> Result<Vec<TableInfo>, String> {
     args.push(
         "SELECT table_name, table_rows FROM information_schema.tables WHERE table_schema = DATABASE() ORDER BY table_name;".to_string()
     );
-    let out = std::process::Command::new("mysql")
+    let out = crate::no_window::std_command("mysql")
         .args(&args)
         .output()
         .map_err(|e| e.to_string())?;
@@ -16003,7 +15978,7 @@ fn fetch_mysql_columns(p: &DbConnectionParams, table: &str) -> Vec<ColumnInfo> {
         "SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_KEY FROM information_schema.columns WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '{}' ORDER BY ORDINAL_POSITION;",
         table
     ));
-    let out = match std::process::Command::new("mysql").args(&args).output() {
+    let out = match crate::no_window::std_command("mysql").args(&args).output() {
         Ok(o) => o,
         Err(_) => return vec![],
     };
@@ -16033,7 +16008,7 @@ fn query_mysql(p: &DbConnectionParams, sql: &str) -> Result<QueryResult, String>
     let mut args = build_mysql_args(p);
     args.push("-e".to_string());
     args.push(sql.to_string());
-    let out = std::process::Command::new("mysql")
+    let out = crate::no_window::std_command("mysql")
         .args(&args)
         .output()
         .map_err(|e| e.to_string())?;
@@ -16057,7 +16032,7 @@ fn list_mssql_tables(p: &DbConnectionParams) -> Result<Vec<TableInfo>, String> {
     let pass = p.password.as_deref().unwrap_or("");
     let db = p.database.as_deref().unwrap_or("master");
     let sql = "SELECT TABLE_NAME, (SELECT SUM(row_count) FROM sys.dm_db_partition_stats s WHERE s.object_id = OBJECT_ID(t.TABLE_SCHEMA+'.'+t.TABLE_NAME) AND s.index_id < 2) FROM INFORMATION_SCHEMA.TABLES t WHERE TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME;";
-    let out = std::process::Command::new(tool)
+    let out = crate::no_window::std_command(tool)
         .arg("-S")
         .arg(format!("{},{}", server, port))
         .arg("-U")
@@ -16112,7 +16087,7 @@ fn query_mssql(p: &DbConnectionParams, sql: &str) -> Result<QueryResult, String>
     let user = p.username.as_deref().unwrap_or("sa");
     let pass = p.password.as_deref().unwrap_or("");
     let db = p.database.as_deref().unwrap_or("master");
-    let out = std::process::Command::new(tool)
+    let out = crate::no_window::std_command(tool)
         .arg("-S")
         .arg(format!("{},{}", server, port))
         .arg("-U")
@@ -16143,7 +16118,7 @@ fn list_mongo_collections(p: &DbConnectionParams) -> Result<Vec<TableInfo>, Stri
         .connection_string
         .as_deref()
         .unwrap_or("mongodb://localhost:27017");
-    let out = std::process::Command::new("mongosh")
+    let out = crate::no_window::std_command("mongosh")
         .arg(dsn).arg("--eval")
         .arg("db.getCollectionNames().forEach(n => { print(n + '|' + db.getCollection(n).estimatedDocumentCount()); })")
         .arg("--quiet").arg("--norc")
@@ -16187,7 +16162,7 @@ fn query_mongodb(p: &DbConnectionParams, query: &str) -> Result<QueryResult, Str
         .unwrap_or("mongodb://localhost:27017");
     // query is a JS expression like: db.users.find({}).limit(50)
     let eval = format!("JSON.stringify({})", query);
-    let out = std::process::Command::new("mongosh")
+    let out = crate::no_window::std_command("mongosh")
         .arg(dsn)
         .arg("--eval")
         .arg(&eval)
@@ -16219,7 +16194,7 @@ fn list_redis_keyspaces(p: &DbConnectionParams) -> Result<Vec<TableInfo>, String
         return Err("redis-cli not found.".to_string());
     }
     let args = build_redis_args(p);
-    let out = std::process::Command::new("redis-cli")
+    let out = crate::no_window::std_command("redis-cli")
         .args(&args)
         .arg("INFO")
         .arg("keyspace")
@@ -16273,7 +16248,7 @@ fn query_redis(p: &DbConnectionParams, command: &str) -> Result<QueryResult, Str
     for part in command.split_whitespace() {
         args.push(part.to_string());
     }
-    let out = std::process::Command::new("redis-cli")
+    let out = crate::no_window::std_command("redis-cli")
         .args(&args)
         .output()
         .map_err(|e| e.to_string())?;
@@ -16294,7 +16269,7 @@ fn list_duckdb_tables(path: &str) -> Result<Vec<TableInfo>, String> {
     if !cli_available("duckdb") {
         return Err("duckdb CLI not found. Install DuckDB.".to_string());
     }
-    let out = std::process::Command::new("duckdb")
+    let out = crate::no_window::std_command("duckdb")
         .arg(path)
         .arg("-c")
         .arg("SELECT table_name, estimated_size FROM duckdb_tables() ORDER BY table_name;")
@@ -16333,7 +16308,7 @@ fn query_duckdb(path: &str, sql: &str) -> Result<QueryResult, String> {
     if !cli_available("duckdb") {
         return Err("duckdb CLI not found.".to_string());
     }
-    let out = std::process::Command::new("duckdb")
+    let out = crate::no_window::std_command("duckdb")
         .arg(path)
         .arg("-json")
         .arg("-c")
@@ -16376,7 +16351,7 @@ fn list_clickhouse_tables(p: &DbConnectionParams) -> Result<Vec<TableInfo>, Stri
     args.push("--format=TabSeparated".to_string());
     args.push("--query".to_string());
     args.push(sql.to_string());
-    let out = std::process::Command::new("clickhouse-client")
+    let out = crate::no_window::std_command("clickhouse-client")
         .args(&args)
         .output()
         .map_err(|e| e.to_string())?;
@@ -16412,7 +16387,7 @@ fn query_clickhouse(p: &DbConnectionParams, sql: &str) -> Result<QueryResult, St
     args.push("--format=JSONEachRow".to_string());
     args.push("--query".to_string());
     args.push(sql.to_string());
-    let out = std::process::Command::new("clickhouse-client")
+    let out = crate::no_window::std_command("clickhouse-client")
         .args(&args)
         .output()
         .map_err(|e| e.to_string())?;
@@ -16450,7 +16425,7 @@ fn list_cassandra_tables(p: &DbConnectionParams) -> Result<Vec<TableInfo>, Strin
     } else {
         format!("USE {}; DESCRIBE TABLES;", keyspace)
     };
-    let out = std::process::Command::new("cqlsh")
+    let out = crate::no_window::std_command("cqlsh")
         .arg(host)
         .arg(&port)
         .arg("-e")
@@ -16479,7 +16454,7 @@ fn query_cassandra(p: &DbConnectionParams, cql: &str) -> Result<QueryResult, Str
     }
     let host = p.host.as_deref().unwrap_or("localhost");
     let port = p.port.unwrap_or(9042).to_string();
-    let out = std::process::Command::new("cqlsh")
+    let out = crate::no_window::std_command("cqlsh")
         .arg(host)
         .arg(&port)
         .arg("-e")
@@ -16504,7 +16479,7 @@ fn list_es_indices(p: &DbConnectionParams) -> Result<Vec<TableInfo>, String> {
         .as_deref()
         .or(p.connection_string.as_deref())
         .unwrap_or("http://localhost:9200");
-    let out = std::process::Command::new("curl")
+    let out = crate::no_window::std_command("curl")
         .arg("-s")
         .arg(format!("{}/_cat/indices?format=json", base))
         .output()
@@ -16538,7 +16513,7 @@ fn query_elasticsearch(p: &DbConnectionParams, query: &str) -> Result<QueryResul
         .or(p.connection_string.as_deref())
         .unwrap_or("http://localhost:9200");
     let index = p.index.as_deref().unwrap_or("_all");
-    let out = std::process::Command::new("curl")
+    let out = crate::no_window::std_command("curl")
         .arg("-s")
         .arg("-X")
         .arg("GET")
@@ -17266,7 +17241,7 @@ pub async fn get_github_sync_status(workspace_path: String) -> Result<GitHubSync
     let branch = git::get_current_branch(&root).ok();
 
     let git_out = |args: &[&str]| -> Option<String> {
-        std::process::Command::new("git")
+        crate::no_window::std_command("git")
             .arg("-C")
             .arg(&root)
             .args(args)
@@ -17390,7 +17365,7 @@ pub async fn github_create_repo(
     // pushed" while the local repo had no origin and had pushed nothing, and
     // the only trace was on a stderr nobody reads. Report what actually
     // happened, naming the repo that does exist so the user can recover.
-    let remote = std::process::Command::new("git")
+    let remote = crate::no_window::std_command("git")
         .args(["-C", &workspace_path, "remote", "add", "origin", &clone_url])
         .output()
         .map_err(|e| e.to_string())?;
@@ -17404,7 +17379,7 @@ pub async fn github_create_repo(
     // A repository with no commits has nothing to push, and `git push` fails on
     // it. That is an expected state right after `git init`, not an error worth
     // reporting — but it does mean we must not claim anything was pushed.
-    let has_commits = std::process::Command::new("git")
+    let has_commits = crate::no_window::std_command("git")
         .args(["-C", &workspace_path, "rev-parse", "--verify", "HEAD"])
         .output()
         .is_ok_and(|o| o.status.success());
@@ -17412,7 +17387,7 @@ pub async fn github_create_repo(
         return Ok(html_url);
     }
 
-    let out = std::process::Command::new("git")
+    let out = crate::no_window::std_command("git")
         .args(["-C", &workspace_path, "push", "-u", "origin", "HEAD"])
         .output()
         .map_err(|e| e.to_string())?;
@@ -18080,7 +18055,7 @@ pub async fn agent_browser_action(action: BrowserAction) -> Result<BrowserAction
             // Build screencapture command (macOS) or scrot (Linux)
             #[cfg(target_os = "macos")]
             let result = {
-                let mut cmd = std::process::Command::new("screencapture");
+                let mut cmd = crate::no_window::std_command("screencapture");
                 cmd.arg("-x"); // no sound
                 if let (Some(rx), Some(ry), Some(rw), Some(rh)) = (x, y, width, height) {
                     cmd.arg("-R").arg(format!("{},{},{},{}", rx, ry, rw, rh));
@@ -18090,7 +18065,7 @@ pub async fn agent_browser_action(action: BrowserAction) -> Result<BrowserAction
 
             #[cfg(not(target_os = "macos"))]
             let result = {
-                let mut cmd = std::process::Command::new("scrot");
+                let mut cmd = crate::no_window::std_command("scrot");
                 if let (Some(rx), Some(ry), Some(rw), Some(rh)) = (x, y, width, height) {
                     cmd.arg("-a").arg(format!("{},{},{},{}", rx, ry, rw, rh));
                 }
@@ -19077,7 +19052,7 @@ pub async fn run_coverage(
 
     // For cargo-llvm-cov, first check if the tool is installed
     if tool == "cargo-llvm-cov" {
-        let check = tokio::process::Command::new("cargo")
+        let check = crate::no_window::tokio_command("cargo")
             .args(["llvm-cov", "--version"])
             .output()
             .await;
@@ -19098,7 +19073,7 @@ pub async fn run_coverage(
     use std::sync::{Arc, Mutex};
     use tokio::io::{AsyncBufReadExt, BufReader as TokioBufReader};
 
-    let mut child = tokio::process::Command::new(prog)
+    let mut child = crate::no_window::tokio_command(prog)
         .args(args)
         .current_dir(&ws)
         .stdout(Stdio::piped())
@@ -20454,7 +20429,7 @@ pub async fn generate_changelog(
     use vibe_ai::provider::{Message, MessageRole};
     // Get git log
     let since = since_ref.as_deref().unwrap_or("HEAD~20");
-    let log_output = tokio::process::Command::new("git")
+    let log_output = crate::no_window::tokio_command("git")
         .args([
             "log",
             &format!("{}..HEAD", since),
@@ -20543,7 +20518,7 @@ pub async fn run_autofix(
         _ => return Err(format!("Unknown autofix framework: {fw}")),
     };
 
-    let output = tokio::process::Command::new(prog)
+    let output = crate::no_window::tokio_command(prog)
         .args(args)
         .current_dir(&ws)
         .output()
@@ -20554,7 +20529,7 @@ pub async fn run_autofix(
         + &String::from_utf8_lossy(&output.stderr);
 
     // Get the diff of changes
-    let diff_stat = tokio::process::Command::new("git")
+    let diff_stat = crate::no_window::tokio_command("git")
         .args(["diff", "--stat"])
         .current_dir(&ws)
         .output()
@@ -20562,7 +20537,7 @@ pub async fn run_autofix(
         .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
         .unwrap_or_default();
 
-    let diff = tokio::process::Command::new("git")
+    let diff = crate::no_window::tokio_command("git")
         .args(["diff", "--unified=3"])
         .current_dir(&ws)
         .output()
@@ -20590,7 +20565,7 @@ pub async fn apply_autofix(workspace: String, apply: bool) -> Result<(), String>
     } else {
         &["restore", "--staged", "."]
     };
-    tokio::process::Command::new("git")
+    crate::no_window::tokio_command("git")
         .args(args)
         .current_dir(&ws)
         .output()
@@ -20598,7 +20573,7 @@ pub async fn apply_autofix(workspace: String, apply: bool) -> Result<(), String>
         .map_err(|e| e.to_string())?;
     if !apply {
         // Also restore working tree
-        tokio::process::Command::new("git")
+        crate::no_window::tokio_command("git")
             .args(["restore", "."])
             .current_dir(&ws)
             .output()
@@ -23649,7 +23624,7 @@ pub struct ProcessInfo {
 pub async fn list_processes() -> Result<Vec<ProcessInfo>, String> {
     #[cfg(target_os = "windows")]
     {
-        let out = tokio::process::Command::new("tasklist")
+        let out = crate::no_window::tokio_command("tasklist")
             .args(["/FO", "CSV", "/NH"])
             .output()
             .await
@@ -23679,14 +23654,14 @@ pub async fn list_processes() -> Result<Vec<ProcessInfo>, String> {
     #[cfg(not(target_os = "windows"))]
     {
         // `ps aux` columns: USER PID %CPU %MEM VSZ RSS TTY STAT START TIME COMMAND
-        let out = tokio::process::Command::new("ps")
+        let out = crate::no_window::tokio_command("ps")
             .args(["aux", "--sort=-%mem"])
             .output()
             .await;
         // macOS `ps` doesn't support --sort; fall back without it
         let out = match out {
             Ok(o) if o.status.success() => o,
-            _ => tokio::process::Command::new("ps")
+            _ => crate::no_window::tokio_command("ps")
                 .args(["aux"])
                 .output()
                 .await
@@ -23735,7 +23710,7 @@ pub async fn kill_process(pid: u32) -> Result<(), String> {
     }
     #[cfg(target_os = "windows")]
     {
-        tokio::process::Command::new("taskkill")
+        crate::no_window::tokio_command("taskkill")
             .args(["/PID", &pid.to_string(), "/F"])
             .output()
             .await
@@ -23746,7 +23721,7 @@ pub async fn kill_process(pid: u32) -> Result<(), String> {
     {
         // Safety: SIGTERM is non-destructive; only lets process clean up.
         // Using `kill` shell command avoids unsafe libc calls.
-        let out = tokio::process::Command::new("kill")
+        let out = crate::no_window::tokio_command("kill")
             .args(["-TERM", &pid.to_string()])
             .output()
             .await
@@ -24241,7 +24216,7 @@ pub async fn generate_release_workflow(
 /// List available kubectl contexts from the local kubeconfig.
 #[tauri::command]
 pub async fn list_k8s_contexts() -> Result<Vec<String>, String> {
-    let out = tokio::process::Command::new("kubectl")
+    let out = crate::no_window::tokio_command("kubectl")
         .args(["config", "get-contexts", "-o", "name"])
         .output()
         .await;
@@ -24340,7 +24315,9 @@ pub async fn run_kubectl_command(
 
     let out = tokio::time::timeout(
         std::time::Duration::from_secs(30),
-        tokio::process::Command::new("kubectl").args(&args).output(),
+        crate::no_window::tokio_command("kubectl")
+            .args(&args)
+            .output(),
     )
     .await
     .map_err(|_| "kubectl command timed out after 30 seconds".to_string())?
@@ -24397,7 +24374,9 @@ pub async fn list_k8s_namespaces(context: Option<String>) -> Result<Vec<String>,
 
     let out = tokio::time::timeout(
         std::time::Duration::from_secs(15),
-        tokio::process::Command::new("kubectl").args(&args).output(),
+        crate::no_window::tokio_command("kubectl")
+            .args(&args)
+            .output(),
     )
     .await
     .map_err(|_| "kubectl command timed out after 15 seconds".to_string())?
@@ -24429,7 +24408,7 @@ pub async fn get_cluster_info(context: Option<String>) -> Result<String, String>
 
     let cluster_info = tokio::time::timeout(
         std::time::Duration::from_secs(30),
-        tokio::process::Command::new("kubectl")
+        crate::no_window::tokio_command("kubectl")
             .args(&ctx_args)
             .arg("cluster-info")
             .output(),
@@ -24440,7 +24419,7 @@ pub async fn get_cluster_info(context: Option<String>) -> Result<String, String>
 
     let nodes = tokio::time::timeout(
         std::time::Duration::from_secs(15),
-        tokio::process::Command::new("kubectl")
+        crate::no_window::tokio_command("kubectl")
             .args(&ctx_args)
             .args(["get", "nodes", "-o", "wide"])
             .output(),
@@ -24451,7 +24430,7 @@ pub async fn get_cluster_info(context: Option<String>) -> Result<String, String>
 
     let cs = tokio::time::timeout(
         std::time::Duration::from_secs(15),
-        tokio::process::Command::new("kubectl")
+        crate::no_window::tokio_command("kubectl")
             .args(&ctx_args)
             .args(["get", "componentstatuses"])
             .output(),
@@ -24524,7 +24503,7 @@ pub async fn run_helm_command(
 
     let out = tokio::time::timeout(
         std::time::Duration::from_secs(60),
-        tokio::process::Command::new("helm").args(&args).output(),
+        crate::no_window::tokio_command("helm").args(&args).output(),
     )
     .await
     .map_err(|_| "helm command timed out after 60 seconds".to_string())?
@@ -24576,7 +24555,7 @@ pub async fn run_argocd_command(command: String) -> Result<String, String> {
 
     let out = tokio::time::timeout(
         std::time::Duration::from_secs(30),
-        tokio::process::Command::new("argocd")
+        crate::no_window::tokio_command("argocd")
             .args(cmd_parts)
             .output(),
     )
@@ -25028,7 +25007,9 @@ pub async fn scale_k8s_deployment(
 
     let out = tokio::time::timeout(
         std::time::Duration::from_secs(30),
-        tokio::process::Command::new("kubectl").args(&args).output(),
+        crate::no_window::tokio_command("kubectl")
+            .args(&args)
+            .output(),
     )
     .await
     .map_err(|_| "kubectl scale timed out after 30 seconds".to_string())?
@@ -25059,7 +25040,9 @@ pub async fn get_k8s_events(namespace: String, context: Option<String>) -> Resul
 
     let out = tokio::time::timeout(
         std::time::Duration::from_secs(15),
-        tokio::process::Command::new("kubectl").args(&args).output(),
+        crate::no_window::tokio_command("kubectl")
+            .args(&args)
+            .output(),
     )
     .await
     .map_err(|_| "kubectl get events timed out after 15 seconds".to_string())?
@@ -25100,7 +25083,9 @@ pub async fn get_k8s_resource_yaml(
 
     let out = tokio::time::timeout(
         std::time::Duration::from_secs(15),
-        tokio::process::Command::new("kubectl").args(&args).output(),
+        crate::no_window::tokio_command("kubectl")
+            .args(&args)
+            .output(),
     )
     .await
     .map_err(|_| "kubectl get resource YAML timed out after 15 seconds".to_string())?
@@ -25138,7 +25123,9 @@ pub async fn restart_k8s_deployment(
 
     let out = tokio::time::timeout(
         std::time::Duration::from_secs(30),
-        tokio::process::Command::new("kubectl").args(&args).output(),
+        crate::no_window::tokio_command("kubectl")
+            .args(&args)
+            .output(),
     )
     .await
     .map_err(|_| "kubectl rollout restart timed out after 30 seconds".to_string())?
@@ -25183,7 +25170,9 @@ pub async fn get_k8s_pod_logs(
 
     let out = tokio::time::timeout(
         std::time::Duration::from_secs(30),
-        tokio::process::Command::new("kubectl").args(&args).output(),
+        crate::no_window::tokio_command("kubectl")
+            .args(&args)
+            .output(),
     )
     .await
     .map_err(|_| "kubectl logs timed out after 30 seconds".to_string())?
@@ -25218,7 +25207,9 @@ pub async fn get_k8s_services(
 
     let out = tokio::time::timeout(
         std::time::Duration::from_secs(15),
-        tokio::process::Command::new("kubectl").args(&args).output(),
+        crate::no_window::tokio_command("kubectl")
+            .args(&args)
+            .output(),
     )
     .await
     .map_err(|_| "kubectl get services timed out after 15 seconds".to_string())?
@@ -25253,7 +25244,9 @@ pub async fn get_k8s_ingresses(
 
     let out = tokio::time::timeout(
         std::time::Duration::from_secs(15),
-        tokio::process::Command::new("kubectl").args(&args).output(),
+        crate::no_window::tokio_command("kubectl")
+            .args(&args)
+            .output(),
     )
     .await
     .map_err(|_| "kubectl get ingresses timed out after 15 seconds".to_string())?
@@ -25292,7 +25285,9 @@ pub async fn describe_k8s_resource(
 
     let out = tokio::time::timeout(
         std::time::Duration::from_secs(30),
-        tokio::process::Command::new("kubectl").args(&args).output(),
+        crate::no_window::tokio_command("kubectl")
+            .args(&args)
+            .output(),
     )
     .await
     .map_err(|_| "kubectl describe timed out after 30 seconds".to_string())?
@@ -25325,7 +25320,9 @@ pub async fn get_k8s_configmaps(
 
     let out = tokio::time::timeout(
         std::time::Duration::from_secs(15),
-        tokio::process::Command::new("kubectl").args(&args).output(),
+        crate::no_window::tokio_command("kubectl")
+            .args(&args)
+            .output(),
     )
     .await
     .map_err(|_| "kubectl get configmaps timed out after 15 seconds".to_string())?
@@ -25358,7 +25355,9 @@ pub async fn get_k8s_secrets(namespace: String, context: Option<String>) -> Resu
 
     let out = tokio::time::timeout(
         std::time::Duration::from_secs(15),
-        tokio::process::Command::new("kubectl").args(&args).output(),
+        crate::no_window::tokio_command("kubectl")
+            .args(&args)
+            .output(),
     )
     .await
     .map_err(|_| "kubectl get secrets timed out after 15 seconds".to_string())?
@@ -25807,7 +25806,7 @@ pub async fn run_profiler(
         "cargo-flamegraph" => {
             // Check if cargo-flamegraph is installed
             if !tool_exists("cargo-flamegraph") {
-                let check = std::process::Command::new("cargo")
+                let check = crate::no_window::std_command("cargo")
                     .args(["flamegraph", "--version"])
                     .output();
                 let installed = check.map(|o| o.status.success()).unwrap_or(false);
@@ -25827,7 +25826,7 @@ pub async fn run_profiler(
             }
             let output = tokio::time::timeout(
                 std::time::Duration::from_secs(120),
-                tokio::process::Command::new("cargo")
+                crate::no_window::tokio_command("cargo")
                     .args(&args)
                     .current_dir(&ws)
                     .output(),
@@ -25885,7 +25884,7 @@ pub async fn run_profiler(
             }
             let test_output = tokio::time::timeout(
                 std::time::Duration::from_secs(120),
-                tokio::process::Command::new("go")
+                crate::no_window::tokio_command("go")
                     .args([
                         "test",
                         "-bench=.",
@@ -25906,7 +25905,7 @@ pub async fn run_profiler(
             let prof_path = ws.join("cpu.prof");
             let mut hotspots = Vec::new();
             if prof_path.exists() {
-                let pprof_output = tokio::process::Command::new("go")
+                let pprof_output = crate::no_window::tokio_command("go")
                     .args(["tool", "pprof", "-top", "cpu.prof"])
                     .current_dir(&ws)
                     .output()
@@ -25940,19 +25939,15 @@ pub async fn run_profiler(
             };
             let output = tokio::time::timeout(
                 std::time::Duration::from_secs(120),
-                tokio::process::Command::new("sh")
-                    .args([
-                        "-c",
-                        &format!(
-                            "py-spy record --format speedscope -o profile.json -- {target_cmd}"
-                        ),
-                    ])
-                    .current_dir(&ws)
-                    .output(),
+                crate::shell::sh_async(&format!(
+                    "py-spy record --format speedscope -o profile.json -- {target_cmd}"
+                ))
+                .current_dir(&ws)
+                .output(),
             )
             .await
             .map_err(|_| "py-spy timed out after 120 seconds".to_string())?
-            .map_err(|e| format!("Failed to run py-spy: {e}"))?;
+            .map_err(|e| format!("Failed to run py-spy: {}", crate::shell::explain(&e)))?;
 
             let raw = String::from_utf8_lossy(&output.stdout).to_string()
                 + &String::from_utf8_lossy(&output.stderr);
@@ -25987,17 +25982,13 @@ pub async fn run_profiler(
             };
             let output = tokio::time::timeout(
                 std::time::Duration::from_secs(120),
-                tokio::process::Command::new("sh")
-                    .args([
-                        "-c",
-                        &format!("npx clinic doctor --autocannon -- {target_cmd}"),
-                    ])
+                crate::shell::sh_async(&format!("npx clinic doctor --autocannon -- {target_cmd}"))
                     .current_dir(&ws)
                     .output(),
             )
             .await
             .map_err(|_| "clinic timed out after 120 seconds".to_string())?
-            .map_err(|e| format!("Failed to run clinic: {e}"))?;
+            .map_err(|e| format!("Failed to run clinic: {}", crate::shell::explain(&e)))?;
 
             let raw = String::from_utf8_lossy(&output.stdout).to_string()
                 + &String::from_utf8_lossy(&output.stderr);
@@ -26041,7 +26032,7 @@ pub struct DockerImage {
 /// List all Docker containers (running + stopped).
 #[tauri::command]
 pub async fn list_docker_containers() -> Result<Vec<DockerContainer>, String> {
-    let out = tokio::process::Command::new("docker")
+    let out = crate::no_window::tokio_command("docker")
         .args([
             "ps",
             "-a",
@@ -26110,7 +26101,7 @@ pub async fn docker_container_action(
 
     let out = tokio::time::timeout(
         std::time::Duration::from_secs(timeout_secs),
-        tokio::process::Command::new("docker")
+        crate::no_window::tokio_command("docker")
             .args(&cmd_args)
             .output(),
     )
@@ -26133,7 +26124,7 @@ pub async fn docker_container_action(
 /// List Docker images.
 #[tauri::command]
 pub async fn list_docker_images() -> Result<Vec<DockerImage>, String> {
-    let out = tokio::process::Command::new("docker")
+    let out = crate::no_window::tokio_command("docker")
         .args([
             "images",
             "--format",
@@ -26230,7 +26221,7 @@ pub async fn docker_compose_action(
 
     let out = tokio::time::timeout(
         std::time::Duration::from_secs(timeout_secs),
-        tokio::process::Command::new("docker")
+        crate::no_window::tokio_command("docker")
             .args(&args)
             .current_dir(&ws)
             .output(),
@@ -26267,7 +26258,7 @@ pub async fn docker_pull_image(image: String) -> Result<String, String> {
 
     let out = tokio::time::timeout(
         std::time::Duration::from_secs(300),
-        tokio::process::Command::new("docker")
+        crate::no_window::tokio_command("docker")
             .args(["pull", &image])
             .output(),
     )
@@ -26546,7 +26537,7 @@ pub async fn scan_dependencies(workspace: String, manager: String) -> Result<Dep
             let prog = &manager;
             let outdated_out = tokio::time::timeout(
                 timeout_dur,
-                tokio::process::Command::new(prog)
+                crate::no_window::tokio_command(prog)
                     .args(["outdated", "--json"])
                     .current_dir(&ws)
                     .output(),
@@ -26562,7 +26553,7 @@ pub async fn scan_dependencies(workspace: String, manager: String) -> Result<Dep
             let mut raw = outdated_text;
             if let Ok(Ok(audit)) = tokio::time::timeout(
                 timeout_dur,
-                tokio::process::Command::new(prog)
+                crate::no_window::tokio_command(prog)
                     .args(["audit", "--json"])
                     .current_dir(&ws)
                     .output(),
@@ -26596,7 +26587,7 @@ pub async fn scan_dependencies(workspace: String, manager: String) -> Result<Dep
         "cargo" => {
             let dry_out = tokio::time::timeout(
                 timeout_dur,
-                tokio::process::Command::new("cargo")
+                crate::no_window::tokio_command("cargo")
                     .args(["update", "--dry-run"])
                     .current_dir(&ws)
                     .output(),
@@ -26612,7 +26603,7 @@ pub async fn scan_dependencies(workspace: String, manager: String) -> Result<Dep
             // cargo audit (optional)
             if let Ok(Ok(audit)) = tokio::time::timeout(
                 timeout_dur,
-                tokio::process::Command::new("cargo")
+                crate::no_window::tokio_command("cargo")
                     .args(["audit", "--json"])
                     .current_dir(&ws)
                     .output(),
@@ -26669,7 +26660,7 @@ pub async fn scan_dependencies(workspace: String, manager: String) -> Result<Dep
         "pip" => {
             let out = tokio::time::timeout(
                 timeout_dur,
-                tokio::process::Command::new("pip")
+                crate::no_window::tokio_command("pip")
                     .args(["list", "--outdated", "--format", "json"])
                     .current_dir(&ws)
                     .output(),
@@ -26695,7 +26686,7 @@ pub async fn scan_dependencies(workspace: String, manager: String) -> Result<Dep
         "go" => {
             let out = tokio::time::timeout(
                 timeout_dur,
-                tokio::process::Command::new("go")
+                crate::no_window::tokio_command("go")
                     .args(["list", "-m", "-u", "-json", "all"])
                     .current_dir(&ws)
                     .output(),
@@ -26784,7 +26775,7 @@ pub async fn upgrade_dependency(
     let args_ref: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
     let out = tokio::time::timeout(
         std::time::Duration::from_secs(30),
-        tokio::process::Command::new(prog)
+        crate::no_window::tokio_command(prog)
             .args(&args_ref)
             .current_dir(&ws)
             .output(),
@@ -26994,7 +26985,7 @@ pub async fn get_migration_status(workspace: String) -> Result<MigrationStatus, 
 
     let out = tokio::time::timeout(
         std::time::Duration::from_secs(30),
-        tokio::process::Command::new(cmd)
+        crate::no_window::tokio_command(cmd)
             .args(&args)
             .current_dir(&ws)
             .output(),
@@ -27173,7 +27164,7 @@ pub async fn run_migration_action(
 
     let out = tokio::time::timeout(
         std::time::Duration::from_secs(timeout_secs),
-        tokio::process::Command::new(cmd)
+        crate::no_window::tokio_command(cmd)
             .args(&args)
             .current_dir(&ws)
             .output(),
@@ -27322,13 +27313,11 @@ pub async fn tail_log_file(
     let raw_lines: Vec<String> = if let Some(cmd_str) = source.strip_prefix("cmd:") {
         let out = tokio::time::timeout(
             std::time::Duration::from_secs(30),
-            tokio::process::Command::new("sh")
-                .args(["-c", cmd_str])
-                .output(),
+            crate::shell::sh_async(cmd_str).output(),
         )
         .await
         .map_err(|_| "Command timed out".to_string())?
-        .map_err(|e| format!("Failed to run command: {e}"))?;
+        .map_err(|e| format!("Failed to run command: {}", crate::shell::explain(&e)))?;
 
         let text = String::from_utf8_lossy(&out.stdout).to_string()
             + &String::from_utf8_lossy(&out.stderr);
@@ -27779,13 +27768,12 @@ pub async fn run_project_script(
     let _ = app.emit("script:log", format!("$ {command}"));
     let started = std::time::Instant::now();
 
-    let child = tokio::process::Command::new("sh")
-        .args(["-c", &command])
+    let child = crate::shell::sh_async(&command)
         .current_dir(&ws)
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()
-        .map_err(|e| format!("Failed to spawn: {e}"))?;
+        .map_err(|e| format!("Failed to spawn: {}", crate::shell::explain(&e)))?;
 
     // Collect output with timeout (5 minutes)
     let output = tokio::time::timeout(
@@ -27915,7 +27903,7 @@ pub async fn execute_notebook_cell(
 
     let result = tokio::time::timeout(
         std::time::Duration::from_secs(30),
-        tokio::process::Command::new(&prog)
+        crate::no_window::tokio_command(&prog)
             .args(&args)
             .current_dir(ws)
             .output(),
@@ -28135,7 +28123,7 @@ pub async fn run_ssh_command(
 
     let output = tokio::time::timeout(
         std::time::Duration::from_secs(30),
-        tokio::process::Command::new("ssh").args(&args).output(),
+        crate::no_window::tokio_command("ssh").args(&args).output(),
     )
     .await
     .map_err(|_| "SSH command timed out after 30s".to_string())?
@@ -28360,7 +28348,7 @@ fn validate_git_ref(s: &str) -> Result<(), String> {
 async fn run_git_cmd(workspace: &str, args: &[&str]) -> Result<String, String> {
     let output = tokio::time::timeout(
         std::time::Duration::from_secs(30),
-        tokio::process::Command::new("git")
+        crate::no_window::tokio_command("git")
             .args(args)
             .current_dir(workspace)
             .output(),
@@ -29584,7 +29572,7 @@ pub async fn scan_open_ports(host: Option<String>) -> Result<Vec<OpenPort>, Stri
     let out = if cfg!(target_os = "windows") {
         tokio::time::timeout(
             std::time::Duration::from_secs(15),
-            tokio::process::Command::new("netstat")
+            crate::no_window::tokio_command("netstat")
                 .args(["-ano"])
                 .output(),
         )
@@ -29594,7 +29582,7 @@ pub async fn scan_open_ports(host: Option<String>) -> Result<Vec<OpenPort>, Stri
     } else if target == "localhost" || target == "127.0.0.1" || target == "0.0.0.0" {
         tokio::time::timeout(
             std::time::Duration::from_secs(10),
-            tokio::process::Command::new("lsof")
+            crate::no_window::tokio_command("lsof")
                 .args(["-i", "-n", "-P"])
                 .output(),
         )
@@ -29715,7 +29703,7 @@ pub async fn dns_lookup(
     }
 
     // Try dig first, fall back to host
-    let (prog, args): (&str, Vec<String>) = if std::process::Command::new("dig")
+    let (prog, args): (&str, Vec<String>) = if crate::no_window::std_command("dig")
         .arg("--version")
         .output()
         .is_ok()
@@ -29733,7 +29721,7 @@ pub async fn dns_lookup(
 
     let out = tokio::time::timeout(
         std::time::Duration::from_secs(10),
-        tokio::process::Command::new(prog).args(&args).output(),
+        crate::no_window::tokio_command(prog).args(&args).output(),
     )
     .await
     .map_err(|_| "DNS lookup timed out".to_string())?
@@ -29787,7 +29775,7 @@ pub async fn check_tls_cert(host: String, port: Option<u16>) -> Result<TlsCertIn
     // Use openssl s_client to retrieve cert
     let out = tokio::time::timeout(
         std::time::Duration::from_secs(15),
-        tokio::process::Command::new("openssl")
+        crate::no_window::tokio_command("openssl")
             .args([
                 "s_client",
                 "-connect",
@@ -31078,7 +31066,7 @@ pub async fn install_marketplace_plugin(name: String, repo_url: String) -> Resul
     }
 
     // Try git clone first
-    let output = std::process::Command::new("git")
+    let output = crate::no_window::std_command("git")
         .args([
             "clone",
             "--depth",
@@ -31806,18 +31794,18 @@ pub async fn take_screenshot(output_dir: String) -> Result<serde_json::Value, St
     // `output_dir` contained shell metacharacters; switching to direct
     // argv invocation eliminates that.
     let output = if cfg!(target_os = "macos") {
-        std::process::Command::new("screencapture")
+        crate::no_window::std_command("screencapture")
             .args(["-x", path_str])
             .output()
     } else if cfg!(target_os = "linux") {
-        std::process::Command::new("scrot")
+        crate::no_window::std_command("scrot")
             .arg(path_str)
             .output()
     } else {
         // Windows is not yet wired with a real screenshot path; preserve
         // the prior placeholder behavior but without any `output_dir`
         // interpolation.
-        std::process::Command::new("powershell")
+        crate::no_window::std_command("powershell")
             .args(["-NoProfile", "-Command", "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Screen]::PrimaryScreen"])
             .output()
     }
@@ -31863,7 +31851,7 @@ pub async fn start_cloud_agent(
     workspace: Option<String>,
 ) -> Result<serde_json::Value, String> {
     // Check Docker availability
-    let output = std::process::Command::new("docker")
+    let output = crate::no_window::std_command("docker")
         .args(["version", "--format", "{{.Server.Version}}"])
         .output()
         .map_err(|e| format!("Docker check failed: {e}"))?;
@@ -31886,7 +31874,7 @@ pub async fn start_cloud_agent(
 /// Check the status of a running cloud agent Docker container.
 #[tauri::command]
 pub async fn get_cloud_agent_status(container_id: String) -> Result<serde_json::Value, String> {
-    let output = std::process::Command::new("docker")
+    let output = crate::no_window::std_command("docker")
         .args(["inspect", "--format", "{{.State.Status}}", &container_id])
         .output()
         .map_err(|e| format!("Docker inspect failed: {e}"))?;
@@ -32910,7 +32898,7 @@ pub async fn text_to_speech(text: String) -> Result<Vec<u8>, String> {
 /// Detect available container runtimes and their versions.
 #[tauri::command]
 pub async fn detect_sandbox_runtime() -> Result<serde_json::Value, String> {
-    let docker_ver = tokio::process::Command::new("docker")
+    let docker_ver = crate::no_window::tokio_command("docker")
         .args(["version", "--format", "{{.Server.Version}}"])
         .output()
         .await
@@ -32918,7 +32906,7 @@ pub async fn detect_sandbox_runtime() -> Result<serde_json::Value, String> {
         .filter(|o| o.status.success())
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string());
 
-    let podman_ver = tokio::process::Command::new("podman")
+    let podman_ver = crate::no_window::tokio_command("podman")
         .args(["version", "--format", "{{.Version}}"])
         .output()
         .await
@@ -32988,7 +32976,7 @@ pub async fn create_sandbox(
     args.push("/dev/null".to_string());
 
     // Try Docker first, then Podman
-    let binary = if tokio::process::Command::new("docker")
+    let binary = if crate::no_window::tokio_command("docker")
         .args(["version"])
         .output()
         .await
@@ -33000,7 +32988,7 @@ pub async fn create_sandbox(
         "podman"
     };
 
-    let output = tokio::process::Command::new(binary)
+    let output = crate::no_window::tokio_command(binary)
         .args(&args)
         .output()
         .await
@@ -33026,11 +33014,11 @@ pub async fn create_sandbox(
 #[tauri::command]
 pub async fn stop_sandbox(container_id: String) -> Result<(), String> {
     let binary = detect_container_binary().await;
-    let _ = tokio::process::Command::new(&binary)
+    let _ = crate::no_window::tokio_command(&binary)
         .args(["stop", &container_id])
         .output()
         .await;
-    let _ = tokio::process::Command::new(&binary)
+    let _ = crate::no_window::tokio_command(&binary)
         .args(["rm", "-f", &container_id])
         .output()
         .await;
@@ -33041,7 +33029,7 @@ pub async fn stop_sandbox(container_id: String) -> Result<(), String> {
 #[tauri::command]
 pub async fn list_sandboxes() -> Result<Vec<serde_json::Value>, String> {
     let binary = detect_container_binary().await;
-    let output = tokio::process::Command::new(&binary)
+    let output = crate::no_window::tokio_command(&binary)
         .args([
             "ps",
             "-a",
@@ -33081,7 +33069,7 @@ pub async fn sandbox_exec(
     command: String,
 ) -> Result<serde_json::Value, String> {
     let binary = detect_container_binary().await;
-    let output = tokio::process::Command::new(&binary)
+    let output = crate::no_window::tokio_command(&binary)
         .args(["exec", &container_id, "sh", "-c", &command])
         .output()
         .await
@@ -33099,7 +33087,7 @@ pub async fn sandbox_exec(
 pub async fn get_sandbox_logs(container_id: String, tail: Option<u32>) -> Result<String, String> {
     let binary = detect_container_binary().await;
     let tail_str = tail.unwrap_or(100).to_string();
-    let output = tokio::process::Command::new(&binary)
+    let output = crate::no_window::tokio_command(&binary)
         .args(["logs", "--tail", &tail_str, &container_id])
         .output()
         .await
@@ -33114,7 +33102,7 @@ pub async fn get_sandbox_logs(container_id: String, tail: Option<u32>) -> Result
 #[tauri::command]
 pub async fn pause_sandbox(container_id: String) -> Result<(), String> {
     let binary = detect_container_binary().await;
-    let output = tokio::process::Command::new(&binary)
+    let output = crate::no_window::tokio_command(&binary)
         .args(["pause", &container_id])
         .output()
         .await
@@ -33130,7 +33118,7 @@ pub async fn pause_sandbox(container_id: String) -> Result<(), String> {
 #[tauri::command]
 pub async fn resume_sandbox(container_id: String) -> Result<(), String> {
     let binary = detect_container_binary().await;
-    let output = tokio::process::Command::new(&binary)
+    let output = crate::no_window::tokio_command(&binary)
         .args(["unpause", &container_id])
         .output()
         .await
@@ -33146,7 +33134,7 @@ pub async fn resume_sandbox(container_id: String) -> Result<(), String> {
 #[tauri::command]
 pub async fn get_sandbox_metrics(container_id: String) -> Result<serde_json::Value, String> {
     let binary = detect_container_binary().await;
-    let output = tokio::process::Command::new(&binary)
+    let output = crate::no_window::tokio_command(&binary)
         .args([
             "stats",
             "--no-stream",
@@ -33264,21 +33252,21 @@ pub async fn get_project_dashboard() -> Result<DashboardData, String> {
     }
 
     // Git info
-    let git_branch = std::process::Command::new("git")
+    let git_branch = crate::no_window::std_command("git")
         .args(["rev-parse", "--abbrev-ref", "HEAD"])
         .current_dir(&workspace)
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .unwrap_or_default();
 
-    let git_uncommitted = std::process::Command::new("git")
+    let git_uncommitted = crate::no_window::std_command("git")
         .args(["status", "--porcelain"])
         .current_dir(&workspace)
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).lines().count())
         .unwrap_or(0);
 
-    let recent_commits = std::process::Command::new("git")
+    let recent_commits = crate::no_window::std_command("git")
         .args(["rev-list", "--count", "--since=7.days", "HEAD"])
         .current_dir(&workspace)
         .output()
@@ -33318,7 +33306,7 @@ pub async fn get_project_dashboard() -> Result<DashboardData, String> {
         || workspace.join("Jenkinsfile").exists();
 
     // TODO count (quick grep)
-    let open_todos = std::process::Command::new("grep")
+    let open_todos = crate::no_window::std_command("grep")
         .args([
             "-r",
             "--include=*.rs",
@@ -33366,7 +33354,7 @@ pub async fn get_project_dashboard() -> Result<DashboardData, String> {
 
 /// Detect which container binary is available (docker or podman).
 async fn detect_container_binary() -> String {
-    if tokio::process::Command::new("docker")
+    if crate::no_window::tokio_command("docker")
         .args(["version"])
         .output()
         .await
@@ -33962,7 +33950,7 @@ pub async fn cdp_open_tab(url: String) -> Result<serde_json::Value, String> {
 pub async fn cdp_screenshot() -> Result<String, String> {
     // Use the macOS screencapture fallback for now
     let tmp = format!("/tmp/vibecody-cdp-{:016x}.png", rand::random::<u64>());
-    let output = tokio::process::Command::new("screencapture")
+    let output = crate::no_window::tokio_command("screencapture")
         .args(["-x", &tmp])
         .output()
         .await
@@ -34085,10 +34073,7 @@ pub async fn demo_run(
                 String::new()
             };
             if !cmd.is_empty() {
-                let _ = tokio::process::Command::new("sh")
-                    .args(["-c", &cmd])
-                    .output()
-                    .await;
+                let _ = crate::shell::sh_async(&cmd).output().await;
             }
             if frame_path.exists() {
                 Some(frame_path.to_string_lossy().to_string())
@@ -37236,7 +37221,7 @@ fn session_memory_write_json(filename: &str, value: &serde_json::Value) -> Resul
 pub async fn get_session_memory_health() -> Result<serde_json::Value, String> {
     // Collect real process memory info via ps
     let pid = std::process::id();
-    let output = std::process::Command::new("ps")
+    let output = crate::no_window::std_command("ps")
         .args(["-o", "rss=,etime=", "-p", &pid.to_string()])
         .output()
         .map_err(|e| e.to_string())?;
@@ -37313,7 +37298,7 @@ pub async fn get_session_memory_samples() -> Result<serde_json::Value, String> {
     if samples.as_array().map(|a| a.is_empty()).unwrap_or(true) {
         // Seed with a live sample from current process
         let pid = std::process::id();
-        let output = std::process::Command::new("ps")
+        let output = crate::no_window::std_command("ps")
             .args(["-o", "rss=", "-p", &pid.to_string()])
             .output()
             .map_err(|e| e.to_string())?;
@@ -45567,7 +45552,7 @@ pub async fn get_ci_status(workspace: String) -> Result<Vec<CiCheckSuite>, Strin
     let mut suites = Vec::new();
 
     // Get current branch and commit from git
-    let branch = tokio::process::Command::new("git")
+    let branch = crate::no_window::tokio_command("git")
         .args(["rev-parse", "--abbrev-ref", "HEAD"])
         .current_dir(&workspace)
         .output()
@@ -45582,7 +45567,7 @@ pub async fn get_ci_status(workspace: String) -> Result<Vec<CiCheckSuite>, Strin
         })
         .unwrap_or_else(|| "unknown".to_string());
 
-    let commit = tokio::process::Command::new("git")
+    let commit = crate::no_window::tokio_command("git")
         .args(["rev-parse", "--short", "HEAD"])
         .current_dir(&workspace)
         .output()
@@ -45898,7 +45883,7 @@ pub async fn trigger_ci_check(
         _ => ("echo", vec!["Unknown check"]),
     };
 
-    let output = tokio::process::Command::new(program)
+    let output = crate::no_window::tokio_command(program)
         .args(&args)
         .current_dir(&workspace)
         .output()
@@ -49701,7 +49686,7 @@ pub async fn get_gpu_terminal_stats() -> Result<GpuRenderStats, String> {
     let memory_bytes: u64 = {
         #[cfg(target_os = "macos")]
         {
-            let output = tokio::process::Command::new("ps")
+            let output = crate::no_window::tokio_command("ps")
                 .args(["-o", "rss=", "-p", &std::process::id().to_string()])
                 .output()
                 .await
@@ -54104,14 +54089,13 @@ pub async fn host_start(
 
     let join = tokio::spawn(async move {
         use tokio::io::{AsyncBufReadExt, BufReader};
-        use tokio::process::Command;
 
         let parts: Vec<&str> = command.split_whitespace().collect();
         if parts.is_empty() {
             return;
         }
 
-        let mut child = match Command::new(parts[0])
+        let mut child = match crate::no_window::tokio_command(parts[0])
             .args(&parts[1..])
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
@@ -56310,7 +56294,7 @@ pub async fn desktop_run_action(
         windows.clear();
         #[cfg(target_os = "macos")]
         {
-            if let Ok(output) = tokio::process::Command::new("osascript")
+            if let Ok(output) = crate::no_window::tokio_command("osascript")
                 .args(["-e", r#"tell application "System Events" to get name of every process whose background only is false"#])
                 .output().await
             {
@@ -58253,7 +58237,7 @@ pub async fn rl_get_alignment_metrics(
 // the Tauri sidecar mechanism; for dev builds it is expected on PATH.
 
 fn vibecli_output(full_cmd: &str) -> Result<std::process::Output, String> {
-    std::process::Command::new("vibecli")
+    crate::no_window::std_command("vibecli")
         .args(["--cmd", full_cmd])
         .output()
         .map_err(|e| format!("vibecli not found on PATH: {}. Install vibecli to enable productivity integrations.", e))
@@ -58263,10 +58247,13 @@ fn vibecli_output(full_cmd: &str) -> Result<std::process::Output, String> {
 fn try_resign_vibecli() {
     // On macOS, cargo's linker-signed binaries can be SIGKILL'd when copied to a new
     // path without an explicit codesign. Re-sign ad-hoc so the OS accepts the binary.
-    if let Ok(path) = std::process::Command::new("which").arg("vibecli").output() {
+    if let Ok(path) = crate::no_window::std_command("which")
+        .arg("vibecli")
+        .output()
+    {
         let path_str = String::from_utf8_lossy(&path.stdout).trim().to_string();
         if !path_str.is_empty() {
-            let _ = std::process::Command::new("codesign")
+            let _ = crate::no_window::std_command("codesign")
                 .args(["--force", "--sign", "-", &path_str])
                 .output();
         }
@@ -59523,7 +59510,7 @@ pub async fn archspec_generate(workspace_path: String) -> Result<serde_json::Val
         let mut spec = ArchitectureSpec::new(&project_name);
 
         // ── git log ───────────────────────────────────────────────────────
-        let git_log = std::process::Command::new("git")
+        let git_log = crate::no_window::std_command("git")
             .args(["-C", &workspace_path, "log", "--oneline", "-20"])
             .output()
             .ok()
@@ -60583,7 +60570,7 @@ pub async fn handle_creview_command(args: String) -> Result<String, String> {
 #[tauri::command]
 pub async fn handle_gateway_cli(platform: String) -> Result<String, String> {
     tokio::task::spawn_blocking(move || {
-        let output = std::process::Command::new("vibecli")
+        let output = crate::no_window::std_command("vibecli")
             .args(["--gateway", &platform])
             .output()
             .map_err(|e| format!("vibecli not found on PATH: {}", e))?;
@@ -61285,7 +61272,7 @@ pub async fn start_daemon(
     // exits 1 trying to create `.vibecli/` on the read-only system volume —
     // and nulling stderr is what left that failure undiagnosable.
     let (daemon_out, daemon_err) = boot::spawn_output();
-    let mut cmd = tokio::process::Command::new(&binary);
+    let mut cmd = crate::no_window::tokio_command(&binary);
     cmd.args(["--serve", "--port", &port.to_string()])
         .stdout(daemon_out)
         .stderr(daemon_err)
@@ -61538,7 +61525,7 @@ fn detect_envs() -> Vec<EnvCard> {
         mem_pct: mem_pct.round(),
     }];
 
-    if let Ok(output) = std::process::Command::new("git")
+    if let Ok(output) = crate::no_window::std_command("git")
         .args(["worktree", "list", "--porcelain"])
         .output()
     {
@@ -64588,7 +64575,7 @@ pub async fn team_onboarding_members(
     let ws = team_workspace_root(&state).await;
     let repo = ws.display().to_string();
     let contributors = tokio::task::spawn_blocking(move || -> Vec<TeamContributorView> {
-        let out = std::process::Command::new("git")
+        let out = crate::no_window::std_command("git")
             .args([
                 "log",
                 "--no-merges",
@@ -64679,7 +64666,7 @@ pub async fn team_onboarding_hotspots(
     let ws = team_workspace_root(&state).await;
     let repo = ws.display().to_string();
     let files = tokio::task::spawn_blocking(move || -> Vec<TeamHotspotView> {
-        let out = std::process::Command::new("git")
+        let out = crate::no_window::std_command("git")
             .args([
                 "log",
                 "--no-merges",
@@ -64786,7 +64773,7 @@ pub async fn team_onboarding_guide(
         // commits whenever one address contains the other. Read every author
         // and compare exactly here instead — the same shape
         // `team_onboarding_hotspots` already uses.
-        let out = std::process::Command::new("git")
+        let out = crate::no_window::std_command("git")
             .args([
                 "log",
                 "--no-merges",
@@ -66512,14 +66499,12 @@ pub async fn run_project_command(
     }
 
     let root = PathBuf::from(&workspace_path);
-    let output = tokio::process::Command::new("sh")
-        .arg("-c")
-        .arg(&command)
+    let output = crate::shell::sh_async(&command)
         .current_dir(&root)
         .kill_on_drop(true)
         .output()
         .await
-        .map_err(|e| format!("could not run `{command}`: {e}"))?;
+        .map_err(|e| format!("could not run `{command}`: {}", crate::shell::explain(&e)))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -66648,7 +66633,7 @@ pub async fn on_device_hardware() -> Result<HardwareInfo, String> {
 
 #[cfg(target_os = "macos")]
 fn detect_host_hardware() -> (u64, Option<String>, String) {
-    let ram_mb = std::process::Command::new("sysctl")
+    let ram_mb = crate::no_window::std_command("sysctl")
         .args(["-n", "hw.memsize"])
         .output()
         .ok()
@@ -66656,7 +66641,7 @@ fn detect_host_hardware() -> (u64, Option<String>, String) {
         .and_then(|s| s.trim().parse::<u64>().ok())
         .map(|bytes| bytes / (1024 * 1024))
         .unwrap_or(0);
-    let gpu_name = std::process::Command::new("sysctl")
+    let gpu_name = crate::no_window::std_command("sysctl")
         .args(["-n", "machdep.cpu.brand_string"])
         .output()
         .ok()

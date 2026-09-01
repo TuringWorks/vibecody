@@ -5,8 +5,10 @@ mod agent_executor;
 mod commands;
 mod flow;
 mod memory;
+mod no_window;
 mod panel_store;
 pub mod shadow_workspace;
+mod shell;
 // `sonar_rules` moved to `vibe-core` 2026-05-19 — re-export the
 // public path so any in-tree consumer that hasn't updated yet
 // keeps compiling. New code should use `vibe_core::sonar_rules`
@@ -86,7 +88,7 @@ pub fn run() {
         if let Ok(shell) = std::env::var("SHELL")
             .or_else(|_| Ok::<String, std::env::VarError>("/bin/zsh".to_string()))
         {
-            if let Ok(output) = std::process::Command::new(&shell)
+            if let Ok(output) = crate::no_window::std_command(&shell)
                 .args(["-l", "-c", "echo __PATH_START__${PATH}__PATH_END__"])
                 .output()
             {
@@ -314,7 +316,7 @@ pub fn run() {
                         );
                         return;
                     };
-                    let mut command = tokio::process::Command::new(&binary);
+                    let mut command = crate::no_window::tokio_command(&binary);
                     command
                         .args(["--serve", "--port", &port.to_string()])
                         .stdout(std::process::Stdio::null())

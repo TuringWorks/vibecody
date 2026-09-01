@@ -127,8 +127,7 @@ impl Skill {
                 "go" => format!("go install {}", installer.package),
                 _ => continue,
             };
-            if let Ok(status) = std::process::Command::new("sh")
-                .args(["-c", &cmd])
+            if let Ok(status) = vibe_core::shell::sh(&cmd)
                 .stdout(std::process::Stdio::null())
                 .stderr(std::process::Stdio::null())
                 .status()
