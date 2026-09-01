@@ -28,7 +28,7 @@ jobs:
           - os: ubuntu-latest
             engine: WebKitGTK
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Linux deps
         if: runner.os == 'Linux'
