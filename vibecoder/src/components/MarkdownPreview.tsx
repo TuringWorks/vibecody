@@ -6,6 +6,8 @@ import { htmlToMarkdown } from '../lib/markdownHtml';
 import { classifyMarkdownLink, slugifyHeading } from '../lib/markdownLinks';
 import { MarkdownWithDetails } from './MarkdownDetails';
 import './MarkdownPreview.css';
+import { DiagramView } from './DiagramView';
+import { diagramKindForFence, type DiagramKind } from '../lib/diagrams';
 
 interface MarkdownPreviewProps {
     content: string;
@@ -246,10 +248,41 @@ function renderTable(tableText: string) {
     );
 }
 
+/**
+ * The diagram inside a fenced block, if the fence opened one.
+ *
+ * ```` ```mermaid ```` and ```` ```plantuml ```` are diagrams people write in
+ * documents, and a document that shows them as source is showing the thing
+ * rather than the picture of it. Read off the `<pre>` rather than the `<code>`
+ * so the diagram replaces the whole block: a `<div>` inside a `<pre>` is not
+ * markup any browser should be asked to make sense of.
+ */
+function diagramInPre(children: any): { kind: DiagramKind; source: string } | null {
+    const only = React.Children.toArray(children)[0] as any;
+    const className: string = only?.props?.className ?? '';
+    const language = /language-([\w-]+)/.exec(className)?.[1];
+    const kind = diagramKindForFence(language);
+    if (!kind) return null;
+    return { kind, source: nodeText(only?.props?.children).replace(/\n$/, '') };
+}
+
+/** The text of a code block, whatever depth react-markdown nested it at. */
+function nodeText(node: any): string {
+    if (node == null || node === false) return '';
+    if (typeof node === 'string' || typeof node === 'number') return String(node);
+    if (Array.isArray(node)) return node.map(nodeText).join('');
+    return nodeText(node?.props?.children);
+}
+
 const bodyComponents: any = {
     ...sharedComponents,
     ...headingComponents,
     p: 'p', // Restore standard paragraph wrapping for the main document body!
+    pre({ children, ...props }: any) {
+        const diagram = diagramInPre(children);
+        if (!diagram) return <pre {...props}>{children}</pre>;
+        return <DiagramView kind={diagram.kind} source={diagram.source} />;
+    },
     code({ node: _node, inline, className, children, ...props }: any) {
         const match = /language-(\w+)/.exec(className || '');
         if (!inline && match && match[1] === '__markdown_table__') {

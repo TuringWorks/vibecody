@@ -68102,6 +68102,32 @@ mod redteam_workspace_tests {
     }
 }
 
+// ── Diagrams: PlantUML ───────────────────────────────────────────────────────
+//
+// Mermaid is drawn in the webview; PlantUML cannot be, so it is drawn here by
+// the PlantUML the machine already has. See `crate::plantuml` for why nothing
+// is sent to a remote renderer.
+
+/// Draw a PlantUML diagram, returning SVG.
+///
+/// The error is the message to show: "not installed" carries how to install it,
+/// a syntax error carries PlantUML's own complaint about which line.
+#[tauri::command]
+pub async fn render_plantuml(source: String) -> Result<String, String> {
+    crate::plantuml::render_svg(&source)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// What will draw PlantUML on this machine, or `None` when nothing will.
+///
+/// Lets a panel say "PlantUML is not installed" before someone writes a diagram
+/// and waits for it, rather than after.
+#[tauri::command]
+pub async fn plantuml_renderer() -> Result<Option<String>, String> {
+    Ok(crate::plantuml::discover().map(|r| r.describe()))
+}
+
 // ── Rich documents: DOCX, EPUB, PDF, Apple Pages ─────────────────────────────
 //
 // These four formats open in the editor as text — Markdown for DOCX and EPUB,

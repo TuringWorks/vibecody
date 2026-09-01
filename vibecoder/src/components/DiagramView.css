@@ -1,0 +1,127 @@
+/* ── Diagrams: Mermaid and PlantUML ─────────────────────────────────── */
+
+.diagram-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  margin: 12px 0;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  overflow-x: auto;
+}
+
+.diagram-view svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* A redraw keeps the last picture up rather than blinking to empty; dimming it
+   is what says "this is the previous one" without moving anything. */
+.diagram-stale {
+  opacity: 0.55;
+  transition: opacity 0.15s ease;
+}
+
+.diagram-drawing {
+  flex-direction: row;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.diagram-failed {
+  align-items: stretch;
+  border-color: var(--error, #f04747);
+  background: color-mix(in srgb, var(--error, #f04747) 8%, var(--bg-secondary));
+}
+
+.diagram-error {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  color: var(--text-primary);
+  font-size: 12.5px;
+}
+
+.diagram-error .error-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--error, #f04747);
+}
+
+.diagram-error-message {
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.diagram-error-kind {
+  margin-top: 2px;
+  color: var(--text-muted, var(--text-secondary));
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+
+/* The source that failed. It is what has to change, so it is readable and
+   selectable rather than hidden behind a "show details". */
+.diagram-source {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-x: auto;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* ── The whole-file preview ─────────────────────────────────────────── */
+
+.diagram-preview {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-primary);
+}
+
+.diagram-preview-canvas {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 24px;
+}
+
+/* Inside the file preview the frame is the page, not a block in a document. */
+.diagram-preview-canvas .diagram-view {
+  margin: 0;
+  border: none;
+  background: transparent;
+  transform-origin: top center;
+  transition: transform 0.15s ease;
+}
+
+.diagram-preview-canvas .diagram-failed {
+  border: 1px solid var(--error, #f04747);
+  background: color-mix(in srgb, var(--error, #f04747) 8%, var(--bg-secondary));
+  max-width: 900px;
+}
+
+.diagram-renderer-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-muted, var(--text-secondary));
+  font-size: 11px;
+  font-family: var(--font-mono);
+}

@@ -6,6 +6,7 @@ mod commands;
 mod flow;
 mod memory;
 mod panel_store;
+mod plantuml;
 pub mod shadow_workspace;
 // `sonar_rules` moved to `vibe-core` 2026-05-19 — re-export the
 // public path so any in-tree consumer that hasn't updated yet
@@ -77,6 +78,19 @@ fn path_is_interesting(path: &std::path::Path) -> bool {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // ── A binary with no frontend in it ──────────────────────────────────
+    // `cfg(dev)` means `generate_context!` embedded nothing and the window will
+    // load `http://localhost:1420` instead. In a debug build that is the dev
+    // server and correct; in a release build nothing is listening there and the
+    // app opens on a blank white page. Nothing else — not a panic, not a log
+    // line, not the window itself — says so, which is how a whole afternoon
+    // goes into diagnosing an empty rectangle.
+    #[cfg(all(dev, not(debug_assertions)))]
+    eprintln!(
+        "warning: this build has no frontend embedded and will load http://localhost:1420. \
+         Build it with `npm run tauri:build` (or `make build-vibecoder`), or add `--features custom-protocol`."
+    );
+
     // ── Fix PATH for macOS .app bundles ──────────────────────────────────
     // When launched from Finder/Launchpad, macOS gives apps a minimal PATH
     // (/usr/bin:/bin:/usr/sbin:/sbin) that excludes Homebrew, ~/.cargo/bin,
@@ -555,6 +569,8 @@ pub fn run() {
             commands::scan_project_profile,
             commands::run_project_command,
             commands::read_file_base64,
+            commands::render_plantuml,
+            commands::plantuml_renderer,
             commands::is_rich_document,
             commands::read_document_text,
             commands::write_document_text,

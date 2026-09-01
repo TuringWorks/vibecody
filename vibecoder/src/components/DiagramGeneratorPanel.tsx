@@ -8,8 +8,10 @@
  * - Export to PNG/SVG/XML
  * - Diagram history with quick replay
  */
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { DiagramView } from "./DiagramView";
+import { type DiagramKind } from "../lib/diagrams";
 
 interface DiagramGeneratorPanelProps {
   workspacePath: string | null;
@@ -65,43 +67,21 @@ export function DiagramGeneratorPanel({ workspacePath, provider }: DiagramGenera
   const [output, setOutput] = useState("");
   const [error, setError] = useState("");
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [previewHtml, setPreviewHtml] = useState("");
   const [showHistory, setShowHistory] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
-  const previewRef = useRef<HTMLIFrameElement>(null);
 
   const showStatus = (msg: string) => {
     setStatusMsg(msg);
     setTimeout(() => setStatusMsg(""), 3000);
   };
 
-  // Build Mermaid preview HTML using CDN
-  useEffect(() => {
-    if (format === "mermaid" && output) {
-      setPreviewHtml(buildMermaidHtml(output));
-    } else {
-      setPreviewHtml("");
-    }
-  }, [output, format]);
+  // The preview is drawn by the bundled renderer (see lib/diagrams). It used
+  // to be an iframe importing mermaid from jsdelivr, which the app's CSP
+  // (`script-src 'self' blob:`) blocks outright — the panel had a preview pane
+  // that could never draw anything, on any machine, online or off.
+  const preview: DiagramKind | null =
+    output && (format === "mermaid" || format === "plantuml") ? format : null;
 
-  const buildMermaidHtml = (code: string) => `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<style>
-  body { margin: 0; padding: 20px; background: #1e1e1e; display: flex; justify-content: center; }
-  .mermaid { max-width: 100%; }
-  svg { background: #1e1e1e; }
-</style>
-<script type="module">
-import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-mermaid.initialize({ startOnLoad: true, theme: 'dark' });
-</script>
-</head>
-<body>
-<pre class="mermaid">${code.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre>
-</body>
-</html>`;
 
   const handleGenerate = async () => {
     if (!description.trim()) return;
@@ -271,21 +251,15 @@ mermaid.initialize({ startOnLoad: true, theme: 'dark' });
               </div>
               <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
                 {/* Code pane */}
-                <div style={{ flex: 1, overflow: "auto", padding: 12, borderRight: previewHtml ? "1px solid var(--border-color)" : "none" }}>
+                <div style={{ flex: 1, overflow: "auto", padding: 12, borderRight: preview ? "1px solid var(--border-color)" : "none" }}>
                   <pre style={{ fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", whiteSpace: "pre", color: "var(--text-primary)", margin: 0 }}>
                     {output}
                   </pre>
                 </div>
-                {/* Mermaid live preview */}
-                {previewHtml && (
-                  <div style={{ flex: 1, overflow: "hidden" }}>
-                    <iframe
-                      ref={previewRef}
-                      srcDoc={previewHtml}
-                      title="Mermaid Preview"
-                      sandbox="allow-scripts"
-                      style={{ width: "100%", height: "100%", border: "none" }}
-                    />
+                {/* Live preview of what was generated */}
+                {preview && (
+                  <div style={{ flex: 1, overflow: "auto" }}>
+                    <DiagramView kind={preview} source={output} />
                   </div>
                 )}
               </div>

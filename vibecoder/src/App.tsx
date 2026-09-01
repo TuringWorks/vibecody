@@ -43,6 +43,8 @@ import { CommandPalette, Command } from "./components/CommandPalette";
 import Modal from "./components/Modal";
 import { GitPanel, type GitPanelView } from "./components/GitPanel";
 import { MarkdownPreview } from "./components/MarkdownPreview";
+import { DiagramPreview } from "./components/DiagramPreview";
+import { isDiagramFile } from "./lib/diagrams";
 import { HtmlPreview } from "./components/HtmlPreview";
 import { DrawioPreview } from "./components/DrawioPreview";
 import { Icon } from "./components/Icon";
@@ -209,6 +211,11 @@ function App() {
   const [showHtmlPreview, setShowHtmlPreview] = useState(false);
   const [showSvgPreview, setShowSvgPreview] = useState(false);
   const [showDrawioPreview, setShowDrawioPreview] = useState(false);
+  // A `.mmd` or `.puml` file *is* a diagram, so it opens as one — unlike the
+  // other previews, where the file is something you edit and the render is a
+  // second opinion. Toggling back to the source is one click, and opening
+  // another diagram starts from the picture again.
+  const [showDiagramPreview, setShowDiagramPreview] = useState(true);
 
   // Git Diff View State
   const [gitDiffView, setGitDiffView] = useState<{ file: string; original: string; modified: string } | null>(null);
@@ -1933,6 +1940,14 @@ function App() {
               {showMarkdownPreview ? <><Icon name="file-text" size={14} /> Edit</> : <><Icon name="eye" size={14} /> Preview</>}
             </button>
           )}
+          {currentFile && isDiagramFile(currentFile) && (
+            <button
+              className="btn-secondary"
+              onClick={() => setShowDiagramPreview(!showDiagramPreview)}
+            >
+              {showDiagramPreview ? <><Icon name="file-code" size={14} /> Source</> : <><Icon name="git-graph" size={14} /> Diagram</>}
+            </button>
+          )}
           {currentFile && (currentFile.endsWith('.html') || currentFile.endsWith('.htm')) && (
             <button
               className="btn-secondary"
@@ -2513,6 +2528,8 @@ function App() {
                       onOpenFile={followMarkdownLink}
                       focusFragment={markdownAnchor?.path === currentFile ? markdownAnchor.fragment : null}
                     />
+                  ) : showDiagramPreview && currentFile && isDiagramFile(currentFile) ? (
+                    <DiagramPreview content={editorContent} filePath={currentFile} />
                   ) : showHtmlPreview && (currentFile?.endsWith('.html') || currentFile?.endsWith('.htm')) ? (
                     <HtmlPreview content={editorContent} filePath={currentFile} />
                   ) : showSvgPreview && currentFile?.endsWith('.svg') ? (

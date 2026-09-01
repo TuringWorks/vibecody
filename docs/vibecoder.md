@@ -86,6 +86,29 @@ npm run tauri build
 
 The installer is placed in `src-tauri/target/release/bundle/`.
 
+**Build it this way, not with `cargo build --release`.** The frontend is
+compiled *into* the binary, and that only happens when the
+`tauri/custom-protocol` feature is on. `tauri build` passes it; a bare
+`cargo build --release` does not, and the app it produces points its window at
+the dev server instead. With nothing listening on `localhost:1420` that is a
+blank white window — no panic, no log line, nothing on screen to say why.
+
+Both halves of the build now say so rather than leaving you to find out:
+
+```
+warning: vibe-coder@0.5.11: this release build will not embed the frontend — it
+will load http://localhost:1420 and open on a blank window. Build it with
+`npm run tauri:build` (or `make build-vibecoder`), or add
+`--features custom-protocol`.
+```
+
+and the binary repeats it on stderr at startup. If you do want a release build
+from cargo directly, `cargo build --release -p vibe-coder --features
+custom-protocol` embeds the frontend properly — build `dist/` first, since that
+is what gets embedded. The feature is deliberately **not** a default: embedding
+brotli-compresses the whole bundle during macro expansion, and every
+`cargo check` of the crate would otherwise pay for it.
+
 ## Features
 
 ### Editor
@@ -95,6 +118,7 @@ The installer is placed in `src-tauri/target/release/bundle/`.
 - **Batch edits** — `apply_batch_edits` for bulk insert/delete operations
 - **Multi-cursor** — `update_cursors` for synchronised cursor state
 - **DiffComplete (⌘.)** — explicit-chord AI editing surface; `DiffCompleteModal` collects an instruction (with optional user-picked extra files for context), `vibe_ai::diffcomplete::generate` returns a unified diff, `DiffReviewPanel` shows per-hunk accept/reject with optional Monaco edit-before-apply and a regenerate-with-refinement loop. A deliberate alternative to keystroke-driven ghost text. Keystroke-driven inline completion was removed on 2026-04-26; inline completion returned later as an **explicit-trigger-only** surface bound to ⌥\ (`vibe_ai::ghost`, 12-line cap) — it never fires on a keystroke. See [ghost-text.md](/vibecody/ghost-text/).
+- **Diagrams (Mermaid, PlantUML)** — a ```` ```mermaid ```` or ```` ```plantuml ```` block in a markdown preview is drawn rather than printed, and a `.mmd` / `.puml` file opens as the picture with **Source** to go back to the text. The preview follows the buffer, so the diagram changes as you type. Mermaid is drawn in the app; **PlantUML is a Java program with no browser port**, so it is drawn by the PlantUML on your machine and *nothing is sent to a remote renderer* — if none is installed the diagram says so and how to install it, instead of quietly posting your architecture to plantuml.com. A diagram that will not parse shows the renderer's own message and the source that produced it, never an empty box.
 - **Documents (DOCX, EPUB, PDF, Pages)** — Word documents, e-books, PDFs and Apple Pages files open in the editor area. **Two up** puts any of them into a two-page spread: real facing pages for a PDF (drawn here with PDF.js, with page navigation and arrow keys), two columns of a screen for the formats that are text rather than sheets. EPUBs render as books: the publisher's own stylesheets (scoped and sanitised), images, cover, nested table of contents and working cross-chapter links. All four are rendered for reading, and editable as text (Markdown for DOCX/EPUB, plain text for PDF and Pages) with **Edit text** in the viewer toolbar. A PDF's text is edited line by line — a line's words can change or the line can go, but a PDF does not re-flow, so a line cannot be added. Saving edits the original container in place — images, styles, page setup and metadata are preserved — and only replaces the file after re-reading it and confirming the text matches. See [documents.md](/vibecody/documents/)
 - **Archives (ZIP, TAR, and friends)** — a `.zip`, `.jar`, `.vsix`, `.tar.gz` or `.tar.zst` in the explorer expands like a folder, and anything inside it opens read-only in the editor with highlighting, search, and image/PDF rendering. Trying to edit one offers the way out: extract the whole archive into a sibling folder named after it (`dist.tar.gz` → `dist/`, never merging into an existing one) and reopen the file from there, writable. The archive itself is never rewritten — re-encoding a signed `.apk` or a `.vsix` is not a promise worth making. See [archives.md](/vibecody/archives/)
 - **File watching** — auto-detects external changes using `notify`
@@ -634,6 +658,8 @@ The React frontend communicates with the Rust backend using Tauri's `invoke()` I
 | `read_document_text(path)` | Open a document as an editable text buffer (see [documents.md](/vibecody/documents/)) |
 | `write_document_text(path, text)` | Save the buffer back into the document; errors — with the file untouched — if the result does not read back as the text saved |
 | `read_document_preview(path)` | Base64 preview image embedded in the document (Pages only) |
+| `render_plantuml(source)` | Draw a PlantUML diagram locally, returning SVG; the error says how to install it when nothing can |
+| `plantuml_renderer()` | Which PlantUML will draw, or `null` when none will |
 | `read_epub_book(path)` | EPUB metadata, cover, spine and table of contents |
 | `read_epub_chapter(path, chapter)` | One EPUB chapter's markup, stylesheets and referenced media |
 | `list_archive(path)` | One level inside an archive — the archive itself, or a virtual `archive!/folder` path (see [archives.md](/vibecody/archives/)) |

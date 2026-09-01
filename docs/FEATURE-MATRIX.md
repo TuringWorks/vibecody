@@ -137,6 +137,8 @@ Coverage, so the ✅ is not read as more than it is: only **macOS arm64** runs t
 | File type detection | ✅ | |
 | Image preview | ✅ | |
 | PDF / EPUB viewer | ✅ | Page and chapter navigation; **Two up** shows two pages side by side |
+| Mermaid diagrams | ✅ | In markdown fences and as `.mmd` / `.mermaid` files; drawn in the app, no network |
+| PlantUML diagrams | ✅ | In markdown fences and as `.puml` / `.plantuml` / `.wsd` / `.iuml` files; drawn by a local PlantUML — nothing is sent to a remote renderer, and its absence is reported with how to install it |
 | DOCX / EPUB editing | ✅ | Edit as Markdown, saved back into the original file |
 | Apple Pages editing | ✅ | Text only — see [documents.md](/vibecody/documents/) for what is and is not preserved |
 | PDF text editing | ✅ | One line per line of the page: a line's words can change or the line can go, but a PDF does not re-flow, so a line cannot be added — see [documents.md](/vibecody/documents/) |
