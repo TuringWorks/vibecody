@@ -1,0 +1,59 @@
+# Line endings — one answer for every OS.
+#
+# The repository always stores LF. Attributes beat each developer's
+# core.autocrlf, so a Windows clone and a Linux clone produce byte-identical
+# working trees and a diff never turns into "whole file changed".
+* text=auto eol=lf
+
+# --- Windows-only scripts: CRLF in the working tree -------------------------
+# Windows PowerShell 5.1 and cmd.exe are the reason; the blob is still LF.
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+*.psm1 text eol=crlf
+*.sln  text eol=crlf
+
+# --- Must stay LF even on Windows ------------------------------------------
+# These run under sh/bash (Git Bash, CI, Docker, Gradle); a CR breaks the
+# shebang line and the error names the wrong file.
+*.sh        text eol=lf
+gradlew     text eol=lf
+Makefile    text eol=lf
+Dockerfile  text eol=lf
+*.podspec   text eol=lf
+Podfile     text eol=lf
+Gemfile     text eol=lf
+
+# --- Binary: never normalize, never diff as text ----------------------------
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.icns binary
+*.pdf  binary
+*.zip  binary
+*.gz   binary
+*.tar  binary
+*.7z   binary
+*.mp3  binary
+*.mp4  binary
+*.wav  binary
+*.woff binary
+*.woff2 binary
+*.ttf  binary
+*.otf  binary
+*.onnx binary
+*.bin  binary
+*.dll  binary
+*.dylib binary
+*.so   binary
+*.exe  binary
+*.jar  binary
+*.keystore binary
+*.p12  binary
+
+# --- Generated / lock files: LF, and out of the way in diffs ----------------
+Cargo.lock        text eol=lf linguist-generated=true
+package-lock.json text eol=lf linguist-generated=true
+*.lock            text eol=lf
