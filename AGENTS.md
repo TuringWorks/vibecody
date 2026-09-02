@@ -942,6 +942,42 @@ A guard rail that silently substitutes its own bound converts "this is broken" i
 
 **If a parameter can be removed without changing any output, it is not modelling anything.** A scoring function whose weights never move the ranking, a config knob every code path ignores, a `temperature` forwarded into a provider that drops it — ship the simple form and name it accurately. When a constant was tuned on a handful of examples, record that it is provisional rather than derived.
 
+### An engineering metric with no signal is absent, not zero
+
+The strongest example of this rule in the tree, because it is the one that used
+to be broken: `evaluate_idp_scorecard` awarded every service 8/10 for deploy
+frequency and 7/10 for lead time from constants, under a comment saying the
+numbers were simulated. Nothing failed, nothing looked odd, and the grade read
+as a measurement.
+
+`vibecli::devex_metrics` is built to make that class of mistake hard:
+
+- **A metric with no signal is returned as `Unmeasured { metric, reason,
+  to_measure_this }`** and omitted from the payload. `0.0 deploys/week` is a
+  claim about a team's delivery; absence is a claim about your instrumentation.
+  Only one of them is true, and the true one is also the actionable one.
+- **A measured zero is a value.** Zero remediations over 32 deployments is a
+  real 0% change failure rate and renders as a tile. "Measured zero" and "not
+  measured" must not look the same on screen, in JSON, or in a test.
+- **Every value carries the proxy it came from and its sample size.** Nothing in
+  a repository knows what "production" means, so a DORA number without its proxy
+  cannot be argued with.
+- **A scan-detected maturity level is capped below the top.** A file proves a
+  practice is present, not that it is followed — so `MAX_DETECTABLE_LEVEL = 3`
+  and level 4 is attested by people. A score a `touch` could earn is decorative.
+- **A known blind spot in detection is rendered beside the miss**, not in a
+  footnote: `detection_caveat` exists because "missing: test directory" on a
+  repository with thousands of inline Rust tests reads as a finding.
+- **A gate distinguishes "below the band" (exit 1) from "could not be measured"
+  (exit 3).** A pipeline that conflates them either blocks releases for a tooling
+  gap or ships on an absence. And a gate with no criterion is refused, so the
+  cheapest route to green is never to delete the criteria.
+- **A grade over zero measured metrics is `None`, not "F".** Same rule as
+  `vibe-eval`: a rate over zero scored items is `n/a`.
+
+A client that drops the `unmeasured` block from its render has undone all of it.
+`DeveloperExcellencePanel.bdd.test.tsx` exists to catch exactly that.
+
 ### Units and bases don't survive multiplication
 
 Wherever two numbers from different sources meet in one expression, check they share a basis — tokens vs. characters, ms vs. s, per-request vs. per-session, one provider's token accounting vs. another's. Prefer deriving through a **unit-free ratio** the source also supplies, which fixes every affected case rather than the one that was noticed. Two of three sources agreeing is not validation; it's how the bug hid.

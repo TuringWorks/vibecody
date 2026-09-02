@@ -51,6 +51,10 @@ path = "src/main.rs"
 
 [dependencies]
 vibe-core = { path = "../../vibecoder/crates/vibe-core" }
+# Child processes without a flashing console window on Windows. The devex
+# metrics module forks `git` on a user-visible path; every other spawn helper
+# in the tree goes through this crate and this one must not be the exception.
+vibe-no-window = { path = "../../crates/vibe-no-window" }
 vibe-embed = { path = "../../crates/vibe-embed" }
 vibe-eval = { path = "../../crates/vibe-eval" }
 vibe-ai = { path = "../../vibecoder/crates/vibe-ai" }
@@ -140,6 +144,11 @@ base64 = "0.23"
 # even built — so the resize is the difference between the loop working and
 # every step erroring. Already in the lock via `tauri`; PNG + JPEG only.
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+# Where the daemon's bearer token lives, and the fingerprint `/health`
+# publishes so a client can tell a stale token from a stopped daemon. Its own
+# crate because `vibe-eval` (which this crate depends on) and
+# `vibe-desktop-voice` need the same answer and cannot depend on this one.
+vibe-daemon-token = { path = "../../crates/vibe-daemon-token" }
 keyring = "4"
 chacha20poly1305 = "0.11"
 chrono = { version = "0.4", features = ["serde"] }

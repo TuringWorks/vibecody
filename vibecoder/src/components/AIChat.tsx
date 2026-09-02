@@ -273,6 +273,24 @@ const SLASH_COMMANDS: SlashCommand[] = [
   { command: "/review",   label: "Review",     description: "Code review",                       prefix: "Perform a thorough code review of:\n" },
   { command: "/compact",  label: "Compact",    description: "Summarize conversation",            prefix: "Summarize our conversation so far into key points and action items:\n" },
   { command: "/goal",     label: "Goal",       description: "Open the Goals panel (durable execution intent)", action: "switch-to-goals" },
+
+  // ── Developer Excellence ──────────────────────────────────────────────────
+  // Each of these names its skill file *with the extension*. That is not
+  // decoration: `get_skill` takes the catalogue name, and spelling the file out
+  // is what lets a user (or a model reading the transcript) go straight to the
+  // source of the guidance rather than guessing which of 1,153 skills the
+  // command meant. The prefixes also name the exact `vibecli --devex` command,
+  // so the answer is measured rather than recalled.
+  { command: "/devex",      label: "Devex",       description: "Developer Excellence scorecard for this workspace",
+    prefix: "Load the skill `devex-director-operating-system.md`, then measure this workspace: run `vibecli --devex scorecard --path <workspace>` and `vibecli --devex report --path <workspace>`. Report the measured metrics, and report the `unmeasured` block in full — an absent metric is a gap in instrumentation, not a zero. Finish with the three highest-leverage next actions.\n" },
+  { command: "/dora",       label: "DORA",        description: "The four keys, with the proxy each was derived from",
+    prefix: "Load the skill `dora-metrics-program.md`, then run `vibecli --devex dora --path <workspace> --json`. For each of the four keys report the value, its band, its sample size and the proxy it came from. List every unmeasured key with its reason and its remedy. Do not substitute a plausible default for a missing metric.\n" },
+  { command: "/practices",  label: "Practices",   description: "Engineering-practice maturity, with the missing signals named",
+    prefix: "Load the skill `engineering-practices-program.md`, then run `vibecli --devex practices --path <workspace> --json`. Report each practice's detected level, the signals that are missing by name, and any detection caveat. Remember the scan caps at level 3 — level 4 is attested by people, so do not infer it.\n" },
+  { command: "/onboarding", label: "Onboarding",  description: "Bootstrap readiness and first-time contributors",
+    prefix: "Load the skill `developer-onboarding-day-one.md`, then run `vibecli --devex onboarding --path <workspace> --json`. Report bootstrap readiness signal by signal, and state plainly that time-to-first-commit is not derivable from git alone and why.\n" },
+  { command: "/devex-plan", label: "Devex plan",  description: "Turn a scorecard into a sequenced improvement plan",
+    prefix: "Load the skills `devex-director-operating-system.md` and `engineering-productivity-dashboards.md`. Run `vibecli --devex scorecard --path <workspace> --json`, then produce a sequenced improvement plan: each item with the measured finding it addresses, an owner role, the metric that will confirm it, and the date it will be checked. Order instrumentation gaps before performance work — a team cannot improve a number they cannot see.\n" },
 ];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

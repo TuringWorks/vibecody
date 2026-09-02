@@ -52,7 +52,7 @@ export const TAB_META: Record<string, TabMeta> = {
   "build-deploy":    { icon: Hammer,       label: "Build & Deploy",    aliases: ["build", "deploy", "scaffold", "appbuilder", "fullstack", "app builder", "full stack"] },
   containers:        { icon: Container,    label: "Containers",        aliases: ["docker", "k8s", "sandbox", "cloudsandbox", "kubernetes"] },
   "ci-cd":           { icon: RefreshCw,    label: "CI/CD",             aliases: ["cicd", "cistatus", "pipeline", "cigates", "ci gates", "quality gates"] },
-  "cloud-platform":  { icon: CloudCog,     label: "Cloud & Platform",  aliases: ["cloudproviders", "env", "health", "idp", "environment"] },
+  "cloud-platform":  { icon: CloudCog,     label: "Cloud & Platform",  aliases: ["cloudproviders", "env", "health", "idp", "environment", "devex", "developer excellence", "dora", "space", "four keys", "deployment frequency", "lead time", "change failure rate", "mttr", "engineering metrics", "practice maturity", "onboarding", "developer productivity", "delivery performance"] },
   "ai-ml":           { icon: Workflow,     label: "AI/ML",             aliases: ["aiml", "modelwizard", "inference", "quantum"] },
   "rl-os":           { icon: Brain,        label: "RL-OS",             aliases: ["reinforcement learning", "rl", "rlos", "training", "ppo", "sac", "dqn", "rlhf", "dpo", "distillation", "quantization", "environment", "evaluation", "deployment", "multi-agent", "marl", "reward", "policy", "gymnasium"] },
 

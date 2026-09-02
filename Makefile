@@ -222,6 +222,26 @@ test-cli: ## Test VibeCLI crate
 check-cli: ## Fast type-check VibeCLI crate
 	$(CARGO) check -p vibecli
 
+# ── Developer Excellence ──────────────────────────────────────────────────────
+# Measurement over this repository itself. `devex` reports; `devex-gate` is the
+# CI shape. The gate is deliberately NOT wired into `ci` — this repository tags
+# releases irregularly, so the honest result today is exit 3 ("a required metric
+# could not be measured here"), and a gate that starts life red teaches everyone
+# to ignore it. Turn it on once releases are tagged from the pipeline.
+
+.PHONY: devex devex-report devex-gate
+
+devex: ## Developer Excellence scorecard for this repository
+	$(CARGO) run --release -p vibecli -- --devex scorecard --path .
+
+devex-report: ## The scorecard as a markdown briefing on stdout
+	$(CARGO) run --release -p vibecli -- --devex report --path .
+
+devex-gate: ## CI check: fail when lead time or change failure rate falls below "high"
+	$(CARGO) run --release -p vibecli -- --devex gate --path . \
+		--require-lead-time high \
+		--require-change-failure-rate high
+
 # ══════════════════════════════════════════════════════════════════════════════
 # SURFACE: VibeCoder — desktop editor (Tauri 2 + React)
 # ══════════════════════════════════════════════════════════════════════════════

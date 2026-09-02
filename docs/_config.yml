@@ -54,6 +54,9 @@ sidebar:
   - title: VibeCoder
     icon: layout
     url: /vibecoder/
+  - title: Developer Excellence
+    icon: activity
+    url: /developer-excellence/
   - title: Documents
     icon: book
     url: /documents/

@@ -38,13 +38,29 @@ interface ScorecardMetric {
   category: string;
 }
 
+/** A metric the scorecard does not assess, and what would assess it. */
+interface ScorecardUnmeasured {
+  metric: string;
+  reason: string;
+  to_measure_this: string;
+}
+
 interface Scorecard {
   service_id: string;
   service_name: string;
   overall_grade: string;
   overall_score: number;
+  /** What the grade covers. Rendered, so the grade is never read as broader. */
+  scope?: string;
   metrics: ScorecardMetric[];
   recommendations: string[];
+  /**
+   * Present since the four fabricated DORA metrics were removed from this
+   * scorecard. Rendering it is not optional: a client that drops it puts the
+   * grade back on screen looking like a whole-service score, which is the
+   * exact impression the constants used to create.
+   */
+  unmeasured?: ScorecardUnmeasured[];
 }
 
 interface InfraRequest {
@@ -602,7 +618,10 @@ spec:
       <div>
         <h3 style={{ margin: "0 0 8px", fontSize: "var(--font-size-xl)" }}>Service Scorecards</h3>
         <p style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", margin: "0 0 16px" }}>
-          Evaluate services against quality, governance, standards, and DORA metrics. Scores are computed from service metadata and can be improved by completing recommendations.
+          Evaluate services against quality, governance, and standards. Scores are computed from the
+          service's <strong>catalog metadata</strong> and can be improved by completing recommendations.
+          Delivery performance (DORA) is measured from repository history in the Developer Excellence
+          tab, not here.
         </p>
 
         <div className="panel-card" style={{ marginBottom: 16 }}>
@@ -657,6 +676,24 @@ spec:
                 ))}
               </div>
             </div>
+
+            {scorecard.unmeasured && scorecard.unmeasured.length > 0 && (
+              <div className="panel-card" style={{ marginBottom: 12 }}>
+                <h4 style={{ margin: "0 0 8px", fontSize: "var(--font-size-lg)" }}>Not assessed here</h4>
+                {scorecard.scope && (
+                  <p style={{ margin: "0 0 8px", fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
+                    {scorecard.scope}
+                  </p>
+                )}
+                {scorecard.unmeasured.map((u) => (
+                  <div key={u.metric} style={{ marginBottom: 8, fontSize: "var(--font-size-base)" }}>
+                    <div style={{ fontWeight: 600 }}>{u.metric}</div>
+                    <div style={{ color: "var(--text-secondary)" }}>{u.reason}</div>
+                    <div style={{ color: "var(--accent-primary)" }}>To measure it: {u.to_measure_this}</div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {scorecard.recommendations.length > 0 && (
               <div className="panel-card">

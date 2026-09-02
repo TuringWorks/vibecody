@@ -927,6 +927,50 @@ curl -X POST http://localhost:7878/webhook/skill/deploy-prod \
 **Errors:** `404` if no skill has a matching `webhook_trigger`.
 
 
+### Developer Excellence Endpoints
+
+DORA four keys, engineering-practice maturity, and onboarding readiness,
+computed from the repository rather than asserted. Full guide:
+[Developer Excellence](/vibecody/developer-excellence/).
+
+All Developer Excellence endpoints require authentication
+(`Authorization: Bearer $VIBECLI_TOKEN`) and are read-only.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/devex/dora` | The four keys, each with its band, sample size and proxy, plus `unmeasured` for those that could not be computed |
+| `GET` | `/devex/practices` | Practice maturity per signal, capped at level 3 ("defined"), with detection caveats |
+| `GET` | `/devex/onboarding` | Bootstrap readiness signals and first-time contributors |
+| `GET` | `/devex/scorecard` | Delivery and practices in one payload, with `dora_coverage` and a delivery grade over the metrics that exist |
+| `GET` | `/devex/scorecard.md` | The same, rendered as a markdown briefing (`text/markdown`) |
+
+**Query parameters** (all endpoints):
+
+| Parameter | Required | Description |
+|---|---|---|
+| `path` | **yes** | Repository or workspace to measure. Never inferred — a daemon that fell back to its own cwd would measure an unrelated tree and label the answer with the caller's repository |
+| `window` | no | Measurement window in days, `1`–`1825`. Default `90` |
+| `marker` | no | How deployments are identified: `tags` (default) or `merges` |
+| `branch` | no | Branch consulted when `marker=merges`. Default `HEAD` |
+
+**Errors:** `400` for a missing `path`, an unknown `marker` (the expected
+values are named), a `window` outside the range (the bound is named), or a path
+that is not inside a git repository. Out-of-range values are **rejected, not
+clamped** — a clamped value rendered back as the requested one is a number the
+caller never asked for.
+
+**Absence is not zero.** A metric with no signal in the window is omitted from
+the payload and listed in `unmeasured` with a `reason` and a
+`to_measure_this`. A client that drops the `unmeasured` block has reintroduced
+the problem this API exists to prevent.
+
+```bash
+curl -s -H "Authorization: Bearer $VIBECLI_TOKEN" \
+  "http://localhost:7878/devex/scorecard?path=/src/myrepo&window=90" | jq \
+  '{grade: .scorecard.delivery_grade, coverage: .scorecard.dora_coverage, missing: [.scorecard.dora.unmeasured[].metric]}'
+```
+
+
 ### Engagement Endpoints
 
 The four-phase delivery spine — Discover & Assess, Prove, Build & Harden,

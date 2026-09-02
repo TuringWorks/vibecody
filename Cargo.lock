@@ -12358,6 +12358,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "vibe-daemon-token"
+version = "0.5.11"
+dependencies = [
+ "dirs",
+ "hex",
+ "sha2 0.11.0",
+ "tempfile",
+]
+
+[[package]]
 name = "vibe-desktop-settings"
 version = "0.5.11"
 dependencies = [
@@ -12375,6 +12385,7 @@ dependencies = [
  "serde_json",
  "tauri",
  "tokio",
+ "vibe-daemon-token",
 ]
 
 [[package]]
@@ -12693,10 +12704,12 @@ dependencies = [
  "vibe-broker",
  "vibe-collab",
  "vibe-core",
+ "vibe-daemon-token",
  "vibe-embed",
  "vibe-eval",
  "vibe-infer",
  "vibe-memory",
+ "vibe-no-window",
  "vibe-profile-store",
  "vibe-sandbox",
  "vibe-sandbox-firecracker",

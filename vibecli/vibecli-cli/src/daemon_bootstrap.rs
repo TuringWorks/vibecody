@@ -50,7 +50,12 @@ use std::time::{Duration, Instant};
 pub const SERVICE_NAME: &str = "vibecli";
 
 /// Default daemon port. Kept here so every client agrees on it.
-pub const DEFAULT_PORT: u16 = 7878;
+///
+/// Re-exported from `vibe-daemon-token` rather than restated: the daemon
+/// decides which token file it owns by comparing its port against this value,
+/// and a second definition that drifted would hand the shared file to the wrong
+/// daemon.
+pub const DEFAULT_PORT: u16 = vibe_daemon_token::DEFAULT_PORT;
 
 /// How long to wait for a freshly-spawned daemon to answer `/health`.
 ///
@@ -72,6 +77,13 @@ pub struct DaemonIdentity {
     /// When the current bearer token was minted. Changes across a restart, so
     /// clients can detect that their cached token is stale.
     pub api_token_minted_at_unix: Option<u64>,
+    /// Fingerprint of the token this daemon is accepting, from `/health`.
+    ///
+    /// `None` for a daemon predating the field — which is a reason to proceed
+    /// unchecked, not to fail. `minted_at_unix` alone cannot answer "is my token
+    /// the right one": a token file written *after* the daemon started is newer
+    /// and still wrong, which is exactly the case that broke.
+    pub api_token_fingerprint: Option<String>,
 }
 
 /// Outcome of [`ensure_running`]. Every variant is actionable: the caller can
@@ -163,11 +175,7 @@ impl Default for BootstrapConfig {
 /// `VIBECLI_DAEMON_PORT` is the canonical name; `VIBEDESK_DAEMON_PORT` is
 /// honoured for compatibility with VibeDesk's original variable.
 pub fn default_port() -> u16 {
-    std::env::var("VIBECLI_DAEMON_PORT")
-        .or_else(|_| std::env::var("VIBEDESK_DAEMON_PORT"))
-        .ok()
-        .and_then(|s| s.trim().parse().ok())
-        .unwrap_or(DEFAULT_PORT)
+    vibe_daemon_token::default_port()
 }
 
 /// Ask `127.0.0.1:port` who it is.
@@ -233,6 +241,11 @@ pub async fn probe(port: u16) -> Option<DaemonIdentity> {
             .get("api_token")
             .and_then(|t| t.get("minted_at_unix"))
             .and_then(|v| v.as_u64()),
+        api_token_fingerprint: body
+            .get("api_token")
+            .and_then(|t| t.get("fingerprint"))
+            .and_then(|v| v.as_str())
+            .map(str::to_string),
     })
 }
 
@@ -657,6 +670,157 @@ pub async fn ensure_running(config: &BootstrapConfig) -> DaemonState {
     }
 }
 
+// ── Readiness: the process, the credential, and the services ───────────────
+
+/// Everything a surface needs to know before it draws a panel.
+///
+/// `ensure_running` proved the process on the port is VibeCLI. That is half the
+/// question, and the half that was never wrong. The other half — *can this
+/// client authenticate against it* — had no answer anywhere, so a stale token
+/// file surfaced as "Is it running?" about a daemon that had been running for
+/// two and a half days.
+#[derive(Debug, Clone)]
+pub struct Readiness {
+    pub port: u16,
+    /// Is the daemon process there, and did we have to start it?
+    pub daemon: DaemonState,
+    /// Is the token we hold the one it is accepting?
+    pub token: vibe_daemon_token::TokenState,
+    /// Per-feature availability, straight from `/health.features`.
+    ///
+    /// `None` when the daemon never answered. Note what this does and does not
+    /// claim: the daemon reports a feature `available` when *it* has the code,
+    /// which says nothing about whether the client's build knows the route. See
+    /// [`Readiness::version_matches_client`].
+    pub features: Option<serde_json::Value>,
+    /// The daemon's version, when it answered.
+    pub daemon_version: Option<String>,
+}
+
+impl Readiness {
+    /// True only when a request is actually worth making: the daemon answered
+    /// *and* we hold a credential it will accept.
+    pub fn is_ready(&self) -> bool {
+        self.daemon.is_ready() && self.token.is_usable()
+    }
+
+    /// The bearer to send, if there is one worth sending.
+    pub fn bearer(&self) -> Option<&str> {
+        self.token.bearer()
+    }
+
+    /// Whether the daemon on the port is the same build as the client asking.
+    ///
+    /// A mismatch is not an error — a daemon may legitimately be older or newer
+    /// — but it is the explanation for the one failure that otherwise looks like
+    /// a bug in a panel: a route the client calls returning **404** because the
+    /// installed `vibecli` binary predates it. Observed with `/harness/profiles`
+    /// and `/observe/config` against a daemon two releases behind, where every
+    /// panel simply appeared broken.
+    pub fn version_matches_client(&self) -> Option<bool> {
+        self.daemon_version
+            .as_deref()
+            .map(|v| v == env!("CARGO_PKG_VERSION"))
+    }
+
+    /// A message fit to show a user. Never a bare failure, and never blames the
+    /// wrong thing: a running daemon with a stale token says so.
+    pub fn user_message(&self) -> String {
+        if !self.daemon.is_ready() {
+            return self.daemon.user_message();
+        }
+        if !self.token.is_usable() {
+            return self.token.user_message(self.port);
+        }
+        match self.version_matches_client() {
+            Some(false) => format!(
+                "{} — but it is version {} and this client is {}. Routes added since then \
+                 answer 404; run `cargo install --path vibecli/vibecli-cli` and restart it.",
+                self.daemon.user_message(),
+                self.daemon_version.as_deref().unwrap_or("unknown"),
+                env!("CARGO_PKG_VERSION"),
+            ),
+            _ => self.daemon.user_message(),
+        }
+    }
+
+    /// The shape the desktop shells hand to their frontends.
+    pub fn to_json(&self) -> serde_json::Value {
+        serde_json::json!({
+            "port": self.port,
+            "ready": self.is_ready(),
+            "daemonRunning": self.daemon.is_ready(),
+            "daemonVersion": self.daemon_version,
+            "clientVersion": env!("CARGO_PKG_VERSION"),
+            "versionMatches": self.version_matches_client(),
+            "tokenState": match &self.token {
+                vibe_daemon_token::TokenState::Valid { .. } => "valid",
+                vibe_daemon_token::TokenState::Stale { .. } => "stale",
+                vibe_daemon_token::TokenState::Missing => "missing",
+                vibe_daemon_token::TokenState::Unverifiable { .. } => "unverifiable",
+            },
+            "features": self.features,
+            "message": self.user_message(),
+        })
+    }
+}
+
+/// Bring the daemon up if needed, then establish whether this client can
+/// actually talk to it.
+///
+/// This is the call a surface makes on open. `ensure_running` remains public for
+/// callers that only want the process; everything that goes on to issue an
+/// authenticated request should use this one, because a `true` from
+/// `is_ready()` here is the only one that means "your next request will not
+/// 401".
+pub async fn ensure_ready(config: &BootstrapConfig) -> Readiness {
+    let port = config.port;
+    let daemon = ensure_running(config).await;
+
+    // No daemon: there is no fingerprint to check a token against, and saying
+    // anything about the token here would be guessing. The daemon state carries
+    // the actionable message.
+    let Some(identity) = daemon.identity().cloned() else {
+        return Readiness {
+            port,
+            daemon,
+            token: vibe_daemon_token::TokenState::Unverifiable { token: None },
+            features: None,
+            daemon_version: None,
+        };
+    };
+
+    let held = vibe_daemon_token::resolve_token(None, port);
+    let token = vibe_daemon_token::classify(held, identity.api_token_fingerprint.as_deref());
+    let features = fetch_features(port).await;
+
+    Readiness {
+        port,
+        daemon,
+        token,
+        features,
+        daemon_version: Some(identity.version),
+    }
+}
+
+/// Read `/health.features`, the daemon's own account of what it can do.
+///
+/// Best-effort: a daemon that answered identity but not this is still usable,
+/// and reporting no features is honest where inventing them would not be.
+async fn fetch_features(port: u16) -> Option<serde_json::Value> {
+    reqwest::Client::new()
+        .get(format!("http://127.0.0.1:{port}/health"))
+        .timeout(PROBE_TIMEOUT)
+        .send()
+        .await
+        .ok()?
+        .json::<serde_json::Value>()
+        .await
+        .ok()?
+        .get("features")
+        .cloned()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -816,6 +980,7 @@ mod tests {
         let id = DaemonIdentity {
             version: "0.5.7".into(),
             api_token_minted_at_unix: Some(42),
+            api_token_fingerprint: None,
         };
         assert!(DaemonState::AlreadyRunning(id.clone()).is_ready());
         assert!(DaemonState::Started(id.clone()).is_ready());

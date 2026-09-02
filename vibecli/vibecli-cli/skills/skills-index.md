@@ -1,6 +1,6 @@
 ---
 name: "Skills Index"
-description: "Routing table for the 1143-skill catalog: how to pick a skill, the full category map with counts, and task-to-category shortcuts. Load this FIRST before calling list_skills, so the catalog is never listed unfiltered."
+description: "Routing table for the 1154-skill catalog: how to pick a skill, the full category map with counts, and task-to-category shortcuts. Load this FIRST before calling list_skills, so the catalog is never listed unfiltered."
 category: shared
 triggers: ["skills index", "which skill", "what skills are available", "find a skill", "list skills", "skill catalog", "choose a skill", "skill routing"]
 tools_allowed: ["read_file"]
@@ -8,7 +8,7 @@ tools_allowed: ["read_file"]
 
 # Skills Index — start here
 
-**1143 skills** are available. Never list them all: an unfiltered listing is >150k tokens and will not fit in any model's context.
+**1154 skills** are available. Never list them all: an unfiltered listing is >150k tokens and will not fit in any model's context.
 
 ## How to select a skill (any model, any provider)
 
@@ -60,11 +60,11 @@ Categories: `agriculture` (24), `construction` (15), `defense` (12), `education`
 ### Robotics & embodied — 55 skills
 Categories: `robotics` (55)
 
-### Shared / cross-cutting — 19 skills
-Categories: `archetypes` (15), `shared` (4)
+### Shared / cross-cutting — 20 skills
+Categories: `archetypes` (15), `shared` (5)
 
-### Other — 86 skills
-Categories: `accessibility` (1), `aerospace` (2), `android` (1), `ballerina` (1), `biotech` (1), `blockchain` (12), `carbon` (1), `creative` (5), `d` (1), `devex` (1), `educational` (2), `embedded` (2), `engineering` (6), `enterprise` (5), `erp` (2), `fintech` (2), `hospitality` (1), `industrial` (1), `infrastructure` (3), `insurance` (2), `iot` (1), `lisp` (1), `matlab` (1), `odoo` (1), `powershell` (1), `prolog` (1), `quantum` (3), `real-estate` (1), `salesforce` (2), `sas` (1), `scientific` (5), `smart-home` (1), `sql` (3), `terminal` (5), `tizen` (1), `v` (1), `web3` (1), `writing` (3), `xr` (1)
+### Other — 96 skills
+Categories: `accessibility` (1), `aerospace` (2), `android` (1), `ballerina` (1), `biotech` (1), `blockchain` (12), `carbon` (1), `creative` (5), `d` (1), `devex` (11), `educational` (2), `embedded` (2), `engineering` (6), `enterprise` (5), `erp` (2), `fintech` (2), `hospitality` (1), `industrial` (1), `infrastructure` (3), `insurance` (2), `iot` (1), `lisp` (1), `matlab` (1), `odoo` (1), `powershell` (1), `prolog` (1), `quantum` (3), `real-estate` (1), `salesforce` (2), `sas` (1), `scientific` (5), `smart-home` (1), `sql` (3), `terminal` (5), `tizen` (1), `v` (1), `web3` (1), `writing` (3), `xr` (1)
 
 ## Common task → category shortcuts
 
@@ -81,3 +81,4 @@ Categories: `accessibility` (1), `aerospace` (2), `android` (1), `ballerina` (1)
 | building an agent, tool-calling, MCP | `agent`, `ai`, `protocols` |
 | a multi-step process (TDD, incident, release) | `workflow` |
 | a specific industry's domain rules | the sector category, then `<sector>-sector-operations` |
+| engineering metrics, DORA/SPACE, practices programs, developer platforms | `devex`, starting with `devex-director-operating-system` |

@@ -85,6 +85,7 @@ vibecli --provider gemini
 | `--port <n>` | `7878` | Port for `--serve` |
 | `--bind <addr>` | `127.0.0.1` | Bind address for `--serve`; use `0.0.0.0` to expose to LAN |
 | `--registry <kind>` | `all` | Print the ACP agent-card / MCP Registry server entry for a registry-submission PR: `acp`, `mcp`, or `all` |
+| `--devex <command>` | — | Developer Excellence measurement: `dora`, `practices`, `onboarding`, `scorecard`, `report`, `gate`. See [Developer Excellence](/vibecody/developer-excellence/) |
 
 ### Reasoning effort
 
@@ -400,6 +401,23 @@ one.
 | `/logs tail\|sources\|errors\|analyze` | Log viewer and analyzer |
 | `/migration status\|migrate\|rollback\|generate` | Database migration management |
 | `/mock start\|stop\|add\|remove\|list\|log\|import` | API mock server management |
+
+### Developer Excellence
+
+Run outside the REPL as `vibecli --devex <command>`. Full guide:
+[Developer Excellence](/vibecody/developer-excellence/).
+
+| Command | Description |
+|---------|-------------|
+| `--devex dora [--path P] [--window D] [--marker tags\|merges] [--branch B]` | DORA four keys from git history; each value carries its proxy and sample size |
+| `--devex practices [--path P]` | Engineering-practice maturity, detected from files, capped at level 3 |
+| `--devex onboarding [--path P] [--window D]` | Bootstrap readiness and first-time contributors |
+| `--devex scorecard [--path P]` | Delivery and practices in one view |
+| `--devex report [--path P]` | The scorecard as a markdown briefing on stdout |
+| `--devex gate [--path P] --require-<key> <band>` | CI check; exits 1 when a required band is missed, 3 when a required metric is unmeasurable |
+
+Add `--json` to any of them for the full payload. A metric with no signal is
+reported as `unmeasured` with a reason and a remedy — never as zero.
 
 ### Security & Compliance
 

@@ -354,6 +354,12 @@ mod engagement;
 mod engagement_cmd;
 mod engagement_routes;
 mod engagement_scan;
+// Developer Excellence metrics: `serve.rs` mounts `devex_routes::build_routes()`,
+// and both it and `devex_cmd` name `devex_metrics` — so the binary crate needs
+// all three, not just the library.
+mod devex_metrics;
+mod devex_routes;
+mod devex_cmd;
 
 /// Resolve the model `/index` should use.
 ///
@@ -3947,6 +3953,12 @@ async fn main() -> Result<()> {
                 // zero-config path); `--eval run --provider X` overrides it.
                 let code = eval_cmd::run_eval_command(&argv[1..], "ollama", None).await;
                 safe_exit(code);
+            }
+            Some("--devex") => {
+                // Exits with the command's own code: 0 met, 1 missed, 2 usage,
+                // 3 a required metric was unmeasurable. A pipeline reads all
+                // four, so they must not be flattened into `return Ok(())`.
+                safe_exit(devex_cmd::run_devex_command(&argv[1..]));
             }
             Some("--engagement") => {
                 // Exits with the command's own code: 0 clean, 1 blocked, 2

@@ -38917,10 +38917,28 @@ pub async fn evaluate_idp_scorecard(service_id: String) -> Result<serde_json::Va
         .unwrap_or(false);
     let tier = svc["tier"].as_str().unwrap_or("Tier3");
 
-    // Compute metrics based on service metadata completeness
+    // Compute metrics based on service metadata completeness.
+    //
+    // **Metadata only.** This scorecard grades what the catalog entry says
+    // about a service. It used to also award every service 8/10 for deploy
+    // frequency, 7/10 for lead time, 6/10 for MTTR and 5/5 for change failure
+    // rate from constants, under a comment reading "simulated DORA-style
+    // metrics (would connect to real CI/CD in production)". Those four numbers
+    // were never measured, and a director reading the grade was being told
+    // their delivery performance by a value nobody computed.
+    //
+    // They are gone rather than replaced, because they cannot be computed from
+    // what this function has: a registered service carries a `repo_url`, not a
+    // local checkout, and DORA needs history. The delivery half is measured by
+    // `vibecli::devex_metrics` against a workspace on disk — `/devex/dora`, or
+    // the Developer Excellence tab beside this panel — and the response says so
+    // rather than leaving a reader to assume the grade covers delivery.
     let mut metrics = vec![];
     let mut total = 0;
-    let max_total = 100;
+    // 15 + 15 + 15 + 10 + 10. Was 100 while the four fabricated DORA metrics
+    // contributed 35 of it; the denominator shrinks with them so the percentage
+    // still means "of what was actually assessed".
+    let max_total = 65;
 
     let doc_score = if has_desc { 15 } else { 0 };
     metrics.push(serde_json::json!({"name": "Documentation", "score": doc_score, "max_score": 15, "category": "Quality"}));
@@ -38946,23 +38964,6 @@ pub async fn evaluate_idp_scorecard(service_id: String) -> Result<serde_json::Va
     let framework_score = if has_framework { 10 } else { 0 };
     metrics.push(serde_json::json!({"name": "Tech Stack Defined", "score": framework_score, "max_score": 10, "category": "Standards"}));
     total += framework_score;
-
-    // Simulated DORA-style metrics (would connect to real CI/CD in production)
-    let deploy_freq_score = 8;
-    metrics.push(serde_json::json!({"name": "Deploy Frequency", "score": deploy_freq_score, "max_score": 10, "category": "DORA"}));
-    total += deploy_freq_score;
-
-    let lead_time_score = 7;
-    metrics.push(serde_json::json!({"name": "Lead Time for Changes", "score": lead_time_score, "max_score": 10, "category": "DORA"}));
-    total += lead_time_score;
-
-    let mttr_score = 6;
-    metrics.push(serde_json::json!({"name": "Mean Time to Recovery", "score": mttr_score, "max_score": 10, "category": "DORA"}));
-    total += mttr_score;
-
-    let cfr_score = 5;
-    metrics.push(serde_json::json!({"name": "Change Failure Rate", "score": cfr_score, "max_score": 5, "category": "DORA"}));
-    total += cfr_score;
 
     let pct = (total as f64 / max_total as f64 * 100.0) as i64;
     let grade = if pct >= 90 {
@@ -38992,19 +38993,28 @@ pub async fn evaluate_idp_scorecard(service_id: String) -> Result<serde_json::Va
             "Consider elevating tier classification if this is a critical service.".to_string(),
         );
     }
-    if pct < 80 {
-        recommendations.push(
-            "Improve DORA metrics by automating deployments and reducing batch sizes.".to_string(),
-        );
-    }
+    // No DORA-derived recommendation here: this function measures none of the
+    // four keys, so it is in no position to tell anyone their batch sizes are
+    // too large. The pointer below says where that measurement lives instead.
 
     Ok(serde_json::json!({
         "service_id": service_id,
         "service_name": name,
         "overall_grade": grade,
         "overall_score": pct,
+        "scope": "catalog metadata only — this grade says nothing about delivery performance",
         "metrics": metrics,
         "recommendations": recommendations,
+        // Named so a client cannot render this grade as a whole-service score by
+        // omission. Same contract as `devex_metrics::Unmeasured`: the metric,
+        // why it is absent, and the concrete thing that would supply it.
+        "unmeasured": [{
+            "metric": "dora_four_keys",
+            "reason": "A catalog entry holds a repository URL, not a checkout, and DORA needs \
+                       history. Delivery performance is not assessed by this scorecard.",
+            "to_measure_this": "Open the workspace and use the Developer Excellence tab, or call \
+                                GET /devex/dora?path=<repo>, or run `vibecli --devex dora`."
+        }],
     }))
 }
 

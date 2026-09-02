@@ -21,6 +21,7 @@ members = [
     "vibedesk/src-tauri",
     "crates/vibe-desktop-settings",
     "crates/vibe-desktop-voice",
+    "crates/vibe-daemon-token",
     "crates/vibe-profile-store",
     "crates/vibe-sync-ext",
     "crates/vibe-no-window",

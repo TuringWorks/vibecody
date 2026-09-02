@@ -11,6 +11,11 @@ tauri = { version = "2" }
 serde_json = { workspace = true }
 reqwest = { workspace = true }
 base64 = "0.23"
+# One answer to "where is the daemon's token, and is mine the live one". This
+# crate is linked into all three shells, so a private copy of that path join
+# breaks voice in every one of them at once — which is how a stale token file
+# from an exited daemon on another port took out speech settings everywhere.
+vibe-daemon-token = { path = "../vibe-daemon-token" }
 
 [dev-dependencies]
 tokio = { workspace = true }

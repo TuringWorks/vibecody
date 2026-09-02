@@ -898,6 +898,18 @@ async fn health(State(state): State<ServeState>) -> impl IntoResponse {
         "api_token": {
             "minted_at_unix": state.api_token_minted_at_unix,
             "age_seconds": token_age_seconds,
+            // Which token this daemon is accepting, as a SHA-256 prefix. Never
+            // the token: 64 bits of digest over a 128-bit CSPRNG secret is not
+            // a preimage anyone can search, and there is no dictionary.
+            //
+            // Without it a client can read a token file and learn only that a
+            // token exists — not whether it is *this* daemon's. That gap is how
+            // a stale file from an exited daemon on another port produced two
+            // days of 401s reported to the user as "is the daemon running?"
+            // about a daemon that was. A client compares this against
+            // `vibe_daemon_token::fingerprint` of what it holds and names the
+            // real fix. See `vibe_daemon_token::classify`.
+            "fingerprint": vibe_daemon_token::fingerprint(&state.api_token),
             "rotation_doc": "docs/security/key-rotation.md",
         },
         // mistralrs picker default depends on whether the daemon can pull
@@ -9518,6 +9530,11 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         // other API route — an engagement record names clients, gaps, and
         // unmeasured gates, and is not public.
         .merge(crate::engagement_routes::build_routes())
+        // Developer Excellence metrics (`/devex/*`). Read-only, but merged
+        // inside the authenticated block: the report names contributors and
+        // dates a team's delivery performance, and a repository path is a
+        // filesystem probe. Neither is public.
+        .merge(crate::devex_routes::build_routes())
         .route_layer(middleware::from_fn_with_state(limiter, rate_limit))
         .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
 
@@ -10380,41 +10397,37 @@ pub async fn serve(
         }
     }
 
-    // Write the full token to a file (mode 0600) instead of logging it.
+    // Write the full token to disk (mode 0600) instead of logging it.
     //
-    // This is a hard failure, not a warning. The token is freshly random for
-    // this process and is never printed in full, so this file is the *only*
-    // way any client can learn it — a daemon that starts without writing it is
-    // one that every client 401s against, with nothing on screen explaining
-    // why. Previously the result was discarded with `.ok()`.
-    let token_path = dirs::home_dir()
+    // **Named after the port.** A single `daemon.token` is shared by every
+    // daemon on the machine regardless of which port it holds, so a second
+    // daemon on a *different* port overwrote the live one's credential and then
+    // exited — leaving a healthy daemon that 401'd every client for two days
+    // with nothing anywhere saying why. `vibe_daemon_token::files_owned_by`
+    // gives this daemon its own file and hands it the shared one only when it
+    // is the daemon clients resolve to by default.
+    //
+    // A hard failure, not a warning. The token is freshly random for this
+    // process and is never printed in full, so these files are the *only* way
+    // any client can learn it.
+    let vibecli_dir = dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join(".vibecli")
-        .join("daemon.token");
-    if let Err(e) = std::fs::write(&token_path, &api_token) {
-        anyhow::bail!(
-            "could not write the daemon bearer token to {}: {e}\n\
-             Every client authenticates with this file, so the daemon would start \
+        .join(".vibecli");
+    let token_paths = vibe_daemon_token::write_for_daemon(
+        &vibecli_dir,
+        port,
+        vibe_daemon_token::default_port(),
+        &api_token,
+    )
+    .map_err(|e| {
+        anyhow::anyhow!(
+            "could not write the daemon bearer token under {}: {e}\n\
+             Every client authenticates with these files, so the daemon would start \
              but reject every request. Fix the permissions on ~/.vibecli (or set \
              HOME to a writable directory) and start again.",
-            token_path.display()
-        );
-    }
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        // A world-readable token is a local-privilege-escalation gift; if the
-        // mode can't be tightened, say so rather than silently widening it.
-        if let Err(e) =
-            std::fs::set_permissions(&token_path, std::fs::Permissions::from_mode(0o600))
-        {
-            eprintln!(
-                "[vibecli serve] WARNING: could not restrict {} to mode 0600 ({e}). \
-                 Any local user may be able to read the daemon token.",
-                token_path.display()
-            );
-        }
-    }
+            vibecli_dir.display()
+        )
+    })?;
     // Character-safe masking: slicing raw byte ranges panics on a token
     // shorter than 8 bytes or on a non-ASCII boundary. Today's token is always
     // 32 hex chars, but a startup panic is a poor way to discover that changed.
@@ -10425,7 +10438,15 @@ pub async fn serve(
     // listening when it is about to exit.
     eprintln!("[vibecli serve] Listening on http://{addr}");
     note_lifecycle(&format!("listening on http://{addr}"));
-    eprintln!("[vibecli serve] API token: {masked} (full token in ~/.vibecli/daemon.token)");
+    // Name the files this daemon actually wrote. The old banner hard-coded
+    // `~/.vibecli/daemon.token`, which a non-default-port daemon no longer
+    // touches — pointing a user at a file holding somebody else's token.
+    let token_files = token_paths
+        .iter()
+        .map(|p| p.display().to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
+    eprintln!("[vibecli serve] API token: {masked} (full token in {token_files})");
     eprintln!("[vibecli serve] Jobs persisted at ~/.vibecli/jobs/");
     eprintln!("[vibecli serve] Session viewer at http://{addr}/sessions");
 
@@ -16500,6 +16521,37 @@ mod tests {
                 api_token.get("rotation_doc").is_some(),
                 "missing rotation_doc in api_token block: {api_token}"
             );
+        }
+
+        /// The fingerprint is what lets a client tell "my token is stale" from
+        /// "the daemon is down" — the two were indistinguishable, and the wrong
+        /// one was reported for two days against a healthy daemon.
+        #[tokio::test]
+        async fn health_publishes_a_token_fingerprint_that_is_not_the_token() {
+            let secret_token = "this-secret-must-never-appear-in-health-body";
+            let (app, _tmp) = test_app(secret_token);
+            let req = Request::builder()
+                .uri("/health")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            let body = body_string(resp.into_body()).await;
+            let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+            let fp = json["api_token"]["fingerprint"]
+                .as_str()
+                .unwrap_or_else(|| panic!("missing api_token.fingerprint; body: {body}"));
+
+            // It must actually identify *this* token, or a client comparing
+            // against it would call every valid token stale.
+            assert_eq!(
+                fp,
+                vibe_daemon_token::fingerprint(secret_token),
+                "the published fingerprint must be of the token the daemon accepts"
+            );
+            // And it must not be a way to read the token back out. `/health` is
+            // unauthenticated.
+            assert!(!body.contains(secret_token));
+            assert!(!secret_token.contains(fp));
         }
 
         // ── 404 fallback returns JSON ────────────────────────────────

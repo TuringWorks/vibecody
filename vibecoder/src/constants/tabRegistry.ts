@@ -140,6 +140,7 @@ export const TAB_REGISTRY: Record<string, RegisteredTab> = {
   "cloud-platform/env": { panelId: "cloud-platform", tabId: "env", label: "Environment", load: () => import("../components/EnvPanel"), exportName: "EnvPanel" },
   "cloud-platform/health": { panelId: "cloud-platform", tabId: "health", label: "Health", load: () => import("../components/HealthMonitorPanel"), exportName: "HealthMonitorPanel" },
   "cloud-platform/idp": { panelId: "cloud-platform", tabId: "idp", label: "IDP", load: () => import("../components/IdpPanel"), exportName: "IdpPanel" },
+  "cloud-platform/devex": { panelId: "cloud-platform", tabId: "devex", label: "Developer Excellence", load: () => import("../components/DeveloperExcellencePanel"), exportName: "DeveloperExcellencePanel" },
   "ai-ml/workflow": { panelId: "ai-ml", tabId: "workflow", label: "Workflow", load: () => import("../components/AiMlWorkflowPanel"), exportName: "AiMlWorkflowPanel" },
   "ai-ml/wizard": { panelId: "ai-ml", tabId: "wizard", label: "Wizard", load: () => import("../components/ModelWizardPanel"), exportName: "ModelWizardPanel" },
   "ai-ml/training": { panelId: "ai-ml", tabId: "training", label: "Training", load: () => import("../components/TrainingPanel"), exportName: "TrainingPanel" },

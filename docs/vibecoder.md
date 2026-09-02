@@ -469,6 +469,7 @@ The AI panel (toggle with **AI Chat** in the header) has **246 panel components 
 | **Health** | `HealthMonitorPanel` | Service health monitor with uptime tracking |
 | **Resilience** | `ResiliencePanel` | Resilience testing and chaos engineering |
 | **IDP** | `IdpPanel` | Internal Developer Platform: Backstage, Cycloid, Humanitec, Port, scorecards |
+| **Developer Excellence** | `DeveloperExcellencePanel` | DORA four keys, engineering-practice maturity and onboarding readiness, computed from the repository. Every value carries its proxy and sample size; a metric with no signal is shown as unmeasured with the change that would make it measurable, never as zero. See [Developer Excellence](/vibecody/developer-excellence/) |
 
 ### Data, AI & ML
 

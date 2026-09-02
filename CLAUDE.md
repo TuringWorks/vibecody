@@ -173,6 +173,33 @@ When touching it:
 
 Full guide: [evals/README.md](./evals/README.md).
 
+### Developer Excellence metrics — absence is a first-class result
+
+`vibecli::devex_metrics` computes DORA four keys, engineering-practice maturity
+and onboarding readiness **from the repository**, and is built so a number
+nobody measured cannot reach a screen.
+
+- **No signal → `unmeasured`, never zero.** A repo whose deploys are not tagged
+  gets `deployment_frequency: unmeasured` with a reason and a remedy. `0.0/week`
+  would be a claim about their delivery; absence is a claim about instrumentation.
+- **A measured zero is a value.** 0 remediations over 32 deployments is a real
+  0% change failure rate. The two must never render the same.
+- **Every value carries its proxy and sample size.** Git records commits, not
+  deployments — a DORA number without its proxy cannot be argued with.
+- **Detected maturity caps at 3 (`MAX_DETECTABLE_LEVEL`).** A file proves a
+  practice exists, not that it is followed. Level 4 is attested by people.
+  Known blind spots ship as `detection_caveat`, rendered beside the miss.
+- **`--devex gate` exits 1 for a missed band and 3 for an unmeasurable metric**,
+  and refuses a gate with no `--require-*` criterion.
+- Surfaces: `devex_metrics.rs` / `devex_routes.rs` (`/devex/*`, authenticated) /
+  `devex_cmd.rs` (`vibecli --devex`), panel Cloud & Platform → Developer
+  Excellence, slash commands `/devex` `/dora` `/practices` `/onboarding`
+  `/devex-plan`, skills in the `devex` category.
+
+Full rules: [AGENTS.md → An engineering metric with no signal is absent, not zero](./AGENTS.md#an-engineering-metric-with-no-signal-is-absent-not-zero) · [docs/developer-excellence.md](./docs/developer-excellence.md).
+
+---
+
 ### Test isolation — and `--no-fail-fast`
 
 Every "flaky" test found here was shared-state, not timing. Don't mutate process-global state in tests.

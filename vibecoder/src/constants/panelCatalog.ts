@@ -185,6 +185,7 @@ export const PANEL_CATALOG: Record<string, SubfeatureMeta[]> = {
     { id: "env", label: "Environment" },
     { id: "health", label: "Health" },
     { id: "idp", label: "IDP" },
+    { id: "devex", label: "Developer Excellence" },
   ],
   "ai-ml": [
     { id: "workflow", label: "Workflow" },
@@ -479,6 +480,7 @@ export const MOVABLE_TABS: readonly string[] = [
   "cloud-platform/env",
   "cloud-platform/health",
   "cloud-platform/idp",
+  "cloud-platform/devex",
   "ai-ml/workflow",
   "ai-ml/wizard",
   "ai-ml/training",

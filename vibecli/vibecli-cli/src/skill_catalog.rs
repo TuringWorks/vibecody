@@ -218,9 +218,19 @@ impl SkillCatalog {
             .collect()
     }
 
-    /// Lookup by skill name (file stem). Case-sensitive.
+    /// Lookup by skill name (file stem), case-sensitive.
+    ///
+    /// A `.md` / `.markdown` suffix is accepted and stripped. Skills are
+    /// *files*, and every place they are cited — a slash command's prompt, a
+    /// docs table, one skill's cross-reference to another — writes the
+    /// filename, extension and all. Requiring the stem meant a caller who
+    /// copied the name from the page in front of them got `not found`, and the
+    /// obvious next move (guess the stem) is exactly the guessing the
+    /// catalogue's routing exists to remove. Stripping the suffix costs
+    /// nothing and cannot collide: `foo` and `foo.md` are the same file.
     pub fn get(&self, name: &str) -> Option<&Skill> {
-        self.skills.iter().find(|s| s.name == name)
+        let stem = strip_skill_extension(name);
+        self.skills.iter().find(|s| s.name == stem)
     }
 
     /// Distinct categories present in the catalog, sorted.
@@ -377,6 +387,16 @@ fn skill_matches_query(s: &Skill, q_lower: &str) -> bool {
 /// Parse a single `*.md` skill file. Frontmatter is optional — a file with
 /// no `---` fence is treated as having empty frontmatter and the whole
 /// file as the body.
+/// Drop a markdown extension from a skill reference, leaving the file stem.
+///
+/// Only the two suffixes skill files actually use. A skill legitimately named
+/// `something.txt` keeps its name.
+pub fn strip_skill_extension(name: &str) -> &str {
+    name.strip_suffix(".markdown")
+        .or_else(|| name.strip_suffix(".md"))
+        .unwrap_or(name)
+}
+
 pub fn parse_skill_file(path: &Path) -> Result<Skill> {
     let raw = std::fs::read_to_string(path)
         .with_context(|| format!("read_to_string {}", path.display()))?;
@@ -433,6 +453,30 @@ mod tests {
         let p = dir.join(format!("{name}.md"));
         fs::write(&p, contents).unwrap();
         p
+    }
+
+    #[test]
+    fn get_accepts_a_skill_cited_with_its_extension() {
+        let dir = tempdir().unwrap();
+        write_skill(dir.path(), "dora-metrics-program", SAMPLE_DESIGN);
+        let cat = SkillCatalog::load_from(dir.path()).unwrap();
+
+        // Every citation of a skill in a prompt, a doc or another skill writes
+        // the filename. All three spellings must reach the same file.
+        assert!(cat.get("dora-metrics-program").is_some());
+        assert!(cat.get("dora-metrics-program.md").is_some());
+        assert!(cat.get("dora-metrics-program.markdown").is_some());
+        assert!(cat.get("dora-metrics-progam.md").is_none(), "a typo is still not found");
+    }
+
+    #[test]
+    fn strip_skill_extension_leaves_other_suffixes_alone() {
+        assert_eq!(strip_skill_extension("a.md"), "a");
+        assert_eq!(strip_skill_extension("a.markdown"), "a");
+        assert_eq!(strip_skill_extension("a"), "a");
+        assert_eq!(strip_skill_extension("a.txt"), "a.txt");
+        // A dotted stem keeps everything but the markdown suffix.
+        assert_eq!(strip_skill_extension("v1.2-notes.md"), "v1.2-notes");
     }
 
     const SAMPLE_DESIGN: &str = "---

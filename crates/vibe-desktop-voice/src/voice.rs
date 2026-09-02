@@ -14,31 +14,17 @@ const TRANSCRIBE_TIMEOUT_SECS: u64 = 180;
 
 /// Resolve the daemon bearer token.
 ///
-/// Same order as the shells' own `resolve_token`: an explicit token, then
-/// `VIBECLI_TOKEN`, then `~/.vibecli/daemon.token` where `vibecli --serve`
-/// writes it. `None` is a legitimate answer — a daemon may run without auth —
-/// so this is not an error path.
+/// Delegates to `vibe_daemon_token`, which owns the precedence (explicit, then
+/// `VIBECLI_TOKEN`, then the files) *and* the file layout. This function used to
+/// join `~/.vibecli/daemon.token` itself — one of ten such copies across the
+/// repo, every one of them blind to the fact that the path names no port and is
+/// therefore shared by every daemon on the machine. `None` is a legitimate
+/// answer — a daemon may run without auth — so this is not an error path.
 fn resolve_token(explicit: Option<String>) -> Option<String> {
-    explicit
-        .filter(|t| !t.is_empty())
-        .or_else(|| {
-            std::env::var("VIBECLI_TOKEN")
-                .ok()
-                .filter(|t| !t.is_empty())
-        })
-        .or_else(|| {
-            let path = std::env::var_os("HOME")
-                .map(std::path::PathBuf::from)?
-                .join(".vibecli")
-                .join("daemon.token");
-            std::fs::read_to_string(path)
-                .ok()
-                .map(|s| s.trim().to_string())
-                .filter(|s| !s.is_empty())
-        })
+    vibe_daemon_token::resolve_token(explicit.as_deref(), vibe_daemon_token::default_port())
 }
 
-/// The daemon's *current* token, read straight from `~/.vibecli/daemon.token`.
+/// The daemon's *current* token, read straight from its token files.
 ///
 /// Deliberately bypasses `resolve_token`'s precedence. That order is right for
 /// a first attempt, but wrong for a retry: an explicit token or a stale
@@ -46,14 +32,7 @@ fn resolve_token(explicit: Option<String>) -> Option<String> {
 /// usually *why* the request came back 401. Retrying with it would just earn a
 /// second 401.
 fn file_token() -> Option<String> {
-    let path = std::env::var_os("HOME")
-        .map(std::path::PathBuf::from)?
-        .join(".vibecli")
-        .join("daemon.token");
-    std::fs::read_to_string(path)
-        .ok()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
+    vibe_daemon_token::read_token(vibe_daemon_token::default_port())
 }
 
 /// The token worth retrying with: `fresh`, unless it is what we already sent.
