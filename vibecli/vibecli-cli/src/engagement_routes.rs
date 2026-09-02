@@ -22,7 +22,6 @@ use crate::engagement::{
     render_handover_markdown, render_report_markdown, DeliverableStatus, EngagementStatus,
     EngagementStore, EvidenceKind, GateVerdict, Phase, GATE_TEMPLATE, TEMPLATE,
 };
-use crate::serve::ServeState;
 
 type HttpError = (StatusCode, Json<serde_json::Value>);
 
@@ -154,6 +153,18 @@ pub struct JudgeGateReq {
     pub rationale: String,
     #[serde(default)]
     pub decided_by: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ScanReq {
+    /// Directory to scan. Falls back to the engagement's bound workspace; if
+    /// there is neither, the route is a 400 rather than a guess.
+    #[serde(default)]
+    pub path: Option<String>,
+    /// Record the candidates as evidence. Deliverable statuses are untouched
+    /// either way.
+    #[serde(default)]
+    pub attach: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -494,6 +505,60 @@ async fn delete_gate(
     Ok(Json(json!({ "deleted": removed })))
 }
 
+/// `POST /engagements/{id}/scan` — propose workspace files as evidence.
+///
+/// `attach: false` (the default) writes nothing. `attach: true` records the
+/// candidates as evidence and still leaves every deliverable's status alone:
+/// finding `docs/threat-model.md` is not the same as having done a threat
+/// model, and only a person can close that gap.
+async fn scan_workspace(
+    Path(id): Path<String>,
+    Json(req): Json<ScanReq>,
+) -> Result<Json<serde_json::Value>, HttpError> {
+    let id2 = id.clone();
+    let explicit = req.path.clone();
+    let root = with_store(move |s| {
+        Ok(match explicit {
+            Some(p) => Some(p),
+            None => s.get(&id2)?.and_then(|e| e.workspace_path),
+        })
+    })
+    .await?;
+    let Some(root) = root else {
+        // No path, and the engagement is not bound to a workspace. Guessing the
+        // daemon's cwd here would scan an unrelated directory and present the
+        // result as this engagement's evidence.
+        return Err(err(
+            StatusCode::BAD_REQUEST,
+            "no workspace to scan: pass `path`, or bind the engagement to a workspace",
+        ));
+    };
+
+    let attach_requested = req.attach;
+    let id3 = id.clone();
+    let root2 = root.clone();
+    let (report, attached) = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
+        let report = crate::engagement_scan::scan(&root2)?;
+        let attached = if attach_requested {
+            let store = EngagementStore::open_default()?;
+            Some(crate::engagement_scan::attach(&store, &id3, &report)?)
+        } else {
+            None
+        };
+        Ok((report, attached))
+    })
+    .await
+    .map_err(|e| {
+        err(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("scan task panicked or was cancelled: {e}"),
+        )
+    })?
+    .map_err(|e| err(StatusCode::BAD_REQUEST, format!("{e:#}")))?;
+
+    Ok(Json(json!({ "scan": report, "attached": attached })))
+}
+
 async fn advance_phase(
     Path(id): Path<String>,
     Json(req): Json<AdvanceReq>,
@@ -532,7 +597,16 @@ fn sanitize(s: &str) -> String {
 
 // ── Router ────────────────────────────────────────────────────────────────────
 
-pub fn build_routes() -> axum::Router<ServeState> {
+/// The `/engagements/*` router.
+///
+/// Generic over the state type because no handler here reads any: the store is
+/// the only dependency, and it is opened per call. `serve.rs` infers
+/// `S = ServeState` when it merges; the tests instantiate `S = ()` so they can
+/// drive the real handlers over real HTTP without constructing a whole daemon.
+pub fn build_routes<S>() -> axum::Router<S>
+where
+    S: Clone + Send + Sync + 'static,
+{
     use axum::routing::{delete, get, patch, post};
     axum::Router::new()
         .route("/engagements/template", get(get_template))
@@ -563,6 +637,7 @@ pub fn build_routes() -> axum::Router<ServeState> {
         .route("/engagements/{id}/gates", get(list_gates).post(add_gate))
         .route("/engagements/{id}/gates/{gid}", delete(delete_gate))
         .route("/engagements/{id}/gates/{gid}/judge", post(judge_gate))
+        .route("/engagements/{id}/scan", post(scan_workspace))
         .route("/engagements/{id}/advance", post(advance_phase))
         .route("/engagements/{id}/report.md", get(report_markdown))
         .route("/engagements/{id}/handover.md", get(handover_markdown))
@@ -571,11 +646,18 @@ pub fn build_routes() -> axum::Router<ServeState> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::engagement::test_support::TestDb;
+    use axum::body::Body;
+    use axum::http::Request;
+    use tower::ServiceExt; // for `oneshot`
 
     #[test]
     fn unknown_phase_filter_is_rejected_not_widened() {
         assert!(parse_phase(Some("discovery")).is_err());
-        assert_eq!(parse_phase(Some("discover")).ok().flatten(), Some(Phase::Discover));
+        assert_eq!(
+            parse_phase(Some("discover")).ok().flatten(),
+            Some(Phase::Discover)
+        );
         assert_eq!(parse_phase(None).ok().flatten(), None);
         assert_eq!(parse_phase(Some("all")).ok().flatten(), None);
     }
@@ -602,5 +684,369 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn router_builds_without_a_path_conflict() {
+        // matchit panics on a conflicting insert, so constructing the router is
+        // itself the assertion — `/engagements/template` sits next to
+        // `/engagements/{id}` and only builds because static wins over param.
+        let _ = build_routes::<()>();
+    }
+
+    // ── HTTP round-trip ───────────────────────────────────────────────────
+    //
+    // `TestDb` comes from `engagement::test_support` so this module and
+    // `engagement_cmd` share one lock over `VIBECLI_ENGAGEMENT_DB`. Two
+    // per-module locks let each module wipe the other's store mid-test.
+
+    async fn call(
+        method: &str,
+        uri: &str,
+        body: Option<serde_json::Value>,
+    ) -> (StatusCode, serde_json::Value) {
+        let app = build_routes::<()>().with_state(());
+        let req = Request::builder().method(method).uri(uri);
+        let req = match body {
+            Some(v) => req
+                .header("content-type", "application/json")
+                .body(Body::from(v.to_string())),
+            None => req.body(Body::empty()),
+        }
+        .expect("build request");
+        let res = app.oneshot(req).await.expect("router responds");
+        let status = res.status();
+        let bytes = axum::body::to_bytes(res.into_body(), 1 << 20)
+            .await
+            .expect("read body");
+        let json = serde_json::from_slice(&bytes).unwrap_or(serde_json::Value::Null);
+        (status, json)
+    }
+
+    /// Text bodies (the markdown exports) rather than JSON.
+    async fn call_text(uri: &str) -> (StatusCode, String) {
+        let app = build_routes::<()>().with_state(());
+        let req = Request::builder()
+            .method("GET")
+            .uri(uri)
+            .body(Body::empty())
+            .expect("build request");
+        let res = app.oneshot(req).await.expect("router responds");
+        let status = res.status();
+        let bytes = axum::body::to_bytes(res.into_body(), 1 << 20)
+            .await
+            .expect("read body");
+        (status, String::from_utf8_lossy(&bytes).into_owned())
+    }
+
+    async fn create_engagement_for_test() -> String {
+        let (status, body) = call(
+            "POST",
+            "/engagements",
+            Some(json!({ "name": "Acme platform", "client": "Acme Corp" })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "create failed: {body}");
+        body["engagement"]["id"]
+            .as_str()
+            .expect("engagement id")
+            .to_string()
+    }
+
+    #[tokio::test]
+    async fn template_route_answers_before_any_engagement_exists() {
+        let _db = TestDb::new();
+        let (status, body) = call("GET", "/engagements/template", None).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(
+            body["deliverables"].as_array().map(|a| a.len()),
+            Some(TEMPLATE.len())
+        );
+        assert_eq!(
+            body["gates"].as_array().map(|a| a.len()),
+            Some(GATE_TEMPLATE.len())
+        );
+        // Discover publishes no cadence. It must arrive as JSON null, not as
+        // an empty string or an invented range.
+        let discover = body["phases"]
+            .as_array()
+            .and_then(|a| a.iter().find(|p| p["phase"] == "discover"))
+            .expect("discover phase");
+        assert!(discover["cadence"].is_null());
+        let prove = body["phases"]
+            .as_array()
+            .and_then(|a| a.iter().find(|p| p["phase"] == "prove"))
+            .expect("prove phase");
+        assert_eq!(prove["cadence"], "4–8 weeks");
+    }
+
+    #[tokio::test]
+    async fn create_then_read_back_reports_every_phase() {
+        let _db = TestDb::new();
+        let id = create_engagement_for_test().await;
+
+        let (status, body) = call("GET", &format!("/engagements/{id}"), None).await;
+        assert_eq!(status, StatusCode::OK);
+        let phases = body["report"]["phases"].as_array().expect("phases");
+        assert_eq!(phases.len(), 4);
+        // A brand-new engagement has measured nothing, so no phase may exit.
+        assert!(phases.iter().all(|p| p["can_exit"] == false));
+    }
+
+    #[tokio::test]
+    async fn a_passing_gate_must_record_an_observation() {
+        let _db = TestDb::new();
+        let id = create_engagement_for_test().await;
+        let (_, body) = call("GET", &format!("/engagements/{id}/gates"), None).await;
+        let gid = body["gates"][0]["id"].as_str().expect("gate id").to_string();
+
+        let (status, body) = call(
+            "POST",
+            &format!("/engagements/{id}/gates/{gid}/judge"),
+            Some(json!({ "verdict": "pass" })),
+        )
+        .await;
+        assert_eq!(
+            status,
+            StatusCode::BAD_REQUEST,
+            "a pass with nothing observed is an assertion, not a measurement"
+        );
+        assert!(body["error"].as_str().unwrap_or_default().contains("observed"));
+
+        let (status, body) = call(
+            "POST",
+            &format!("/engagements/{id}/gates/{gid}/judge"),
+            Some(json!({ "verdict": "pass", "observed": "reconciled against 14 services" })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["gate"]["verdict"], "pass");
+    }
+
+    #[tokio::test]
+    async fn a_misspelt_verdict_is_rejected_not_silently_reset() {
+        let _db = TestDb::new();
+        let id = create_engagement_for_test().await;
+        let (_, body) = call("GET", &format!("/engagements/{id}/gates"), None).await;
+        let gid = body["gates"][0]["id"].as_str().expect("gate id").to_string();
+
+        let (status, _) = call(
+            "POST",
+            &format!("/engagements/{id}/gates/{gid}/judge"),
+            Some(json!({ "verdict": "passed" })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+
+        // And the gate is untouched — not quietly reset to not_measured.
+        let (_, body) = call("GET", &format!("/engagements/{id}/gates"), None).await;
+        assert_eq!(body["gates"][0]["verdict"], "not_measured");
+    }
+
+    #[tokio::test]
+    async fn a_gate_without_a_measurement_procedure_is_refused() {
+        let _db = TestDb::new();
+        let id = create_engagement_for_test().await;
+        let (status, body) = call(
+            "POST",
+            &format!("/engagements/{id}/gates"),
+            Some(json!({
+                "phase": "prove",
+                "title": "It feels fast enough",
+                "criterion": "The pilot is fast enough"
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert!(body["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("measurement"));
+    }
+
+    #[tokio::test]
+    async fn an_unknown_phase_filter_is_a_400() {
+        let _db = TestDb::new();
+        let id = create_engagement_for_test().await;
+        let (status, _) = call(
+            "GET",
+            &format!("/engagements/{id}/deliverables?phase=discovery"),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+
+        let (status, body) = call(
+            "GET",
+            &format!("/engagements/{id}/deliverables?phase=discover"),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(!body["deliverables"].as_array().expect("array").is_empty());
+    }
+
+    #[tokio::test]
+    async fn advance_refuses_then_records_an_override() {
+        let _db = TestDb::new();
+        let id = create_engagement_for_test().await;
+
+        let (status, body) = call(
+            "POST",
+            &format!("/engagements/{id}/advance"),
+            Some(json!({ "force": false })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["outcome"]["advanced"], false);
+        assert!(!body["outcome"]["blockers"]
+            .as_array()
+            .expect("blockers")
+            .is_empty());
+
+        let (_, body) = call(
+            "POST",
+            &format!("/engagements/{id}/advance"),
+            Some(json!({ "force": true })),
+        )
+        .await;
+        assert_eq!(body["outcome"]["advanced"], true);
+        assert_eq!(
+            body["outcome"]["forced"], true,
+            "an override must be visible as an override"
+        );
+    }
+
+    #[tokio::test]
+    async fn evidence_clears_the_no_evidence_blocker() {
+        let _db = TestDb::new();
+        let id = create_engagement_for_test().await;
+        let (_, body) = call(
+            "GET",
+            &format!("/engagements/{id}/deliverables?phase=prove"),
+            None,
+        )
+        .await;
+        let did = body["deliverables"][0]["id"]
+            .as_str()
+            .expect("deliverable id")
+            .to_string();
+
+        let (status, _) = call(
+            "PATCH",
+            &format!("/engagements/{id}/deliverables/{did}"),
+            Some(json!({ "status": "accepted" })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (_, body) = call("GET", &format!("/engagements/{id}"), None).await;
+        let prove = body["report"]["phases"]
+            .as_array()
+            .and_then(|a| a.iter().find(|p| p["phase"] == "prove"))
+            .expect("prove phase");
+        assert_eq!(prove["deliverables"]["claimed_without_evidence"], 1);
+
+        let (status, _) = call(
+            "POST",
+            &format!("/engagements/{id}/deliverables/{did}/evidence"),
+            Some(json!({ "kind": "url", "label": "criteria doc", "reference": "https://example.invalid/c" })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+
+        let (_, body) = call("GET", &format!("/engagements/{id}"), None).await;
+        let prove = body["report"]["phases"]
+            .as_array()
+            .and_then(|a| a.iter().find(|p| p["phase"] == "prove"))
+            .expect("prove phase");
+        assert_eq!(prove["deliverables"]["claimed_without_evidence"], 0);
+    }
+
+    #[tokio::test]
+    async fn markdown_exports_render_and_stay_honest() {
+        let _db = TestDb::new();
+        let id = create_engagement_for_test().await;
+
+        let (status, md) = call_text(&format!("/engagements/{id}/report.md")).await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(md.contains("Acme platform"));
+        assert!(md.contains("_not recorded_"), "unobserved must say so");
+        assert!(
+            md.contains("| Discover & Assess | — |"),
+            "Discover has no published cadence"
+        );
+
+        let (status, md) = call_text(&format!("/engagements/{id}/handover.md")).await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(md.contains("## Not delivered"));
+    }
+
+    #[tokio::test]
+    async fn scanning_without_a_workspace_is_a_400_not_a_guess() {
+        let _db = TestDb::new();
+        let id = create_engagement_for_test().await;
+        // The engagement was created with no workspace_path. Falling back to
+        // the daemon's cwd would scan an unrelated directory and label the
+        // result as this client's evidence.
+        let (status, body) = call(
+            "POST",
+            &format!("/engagements/{id}/scan"),
+            Some(json!({ "attach": false })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert!(body["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("no workspace"));
+    }
+
+    #[tokio::test]
+    async fn a_scan_proposes_evidence_without_completing_anything() {
+        let _db = TestDb::new();
+        let id = create_engagement_for_test().await;
+        let ws = tempfile::TempDir::new().expect("tempdir");
+        let docs = ws.path().join("docs");
+        std::fs::create_dir_all(&docs).expect("mkdir");
+        std::fs::write(docs.join("threat-model.md"), b"x").expect("write");
+
+        let (status, body) = call(
+            "POST",
+            &format!("/engagements/{id}/scan"),
+            Some(json!({ "path": ws.path().to_string_lossy(), "attach": true })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert!(body["attached"].as_u64().unwrap_or(0) >= 1);
+        // Every scan says so, every time.
+        assert!(body["scan"]["notes"]
+            .as_array()
+            .expect("notes")
+            .iter()
+            .any(|n| n.as_str().unwrap_or_default().contains("not a deliverable")));
+
+        // Evidence attached, status untouched — and therefore still blocking.
+        let (_, body) = call(
+            "GET",
+            &format!("/engagements/{id}/deliverables?phase=build"),
+            None,
+        )
+        .await;
+        let tm = body["deliverables"]
+            .as_array()
+            .expect("array")
+            .iter()
+            .find(|d| d["key"] == "threat-model")
+            .expect("threat-model");
+        assert_eq!(tm["status"], "not_started");
+        assert_eq!(tm["evidence_count"], 1);
+    }
+
+    #[tokio::test]
+    async fn creating_without_a_name_is_a_400() {
+        let _db = TestDb::new();
+        let (status, _) = call("POST", "/engagements", Some(json!({ "name": "   " }))).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
     }
 }

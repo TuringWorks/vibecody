@@ -342,6 +342,12 @@ mod document_ingest;
 #[allow(dead_code)]
 mod email_client;
 mod embedding_index;
+// `serve.rs` mounts `engagement_routes::build_routes()`, and `engagement_routes`
+// names `engagement` — so the binary crate needs both, not just the library.
+mod engagement;
+mod engagement_cmd;
+mod engagement_routes;
+mod engagement_scan;
 
 /// Resolve the model `/index` should use.
 ///
@@ -3935,6 +3941,12 @@ async fn main() -> Result<()> {
                 // zero-config path); `--eval run --provider X` overrides it.
                 let code = eval_cmd::run_eval_command(&argv[1..], "ollama", None).await;
                 safe_exit(code);
+            }
+            Some("--engagement") => {
+                // Exits with the command's own code: 0 clean, 1 blocked, 2
+                // usage. A pipeline reads those, so they must not be flattened
+                // into `return Ok(())`.
+                safe_exit(engagement_cmd::run_engagement_command(&argv[1..]));
             }
             Some("--benchmark") => {
                 run_benchmark_command(&argv[1..]).await;

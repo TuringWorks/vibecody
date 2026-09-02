@@ -176,6 +176,7 @@ by hand. See [Calling a daemon route](../AGENTS.md#calling-a-daemon-route-from-a
 | `GET`/`POST` | `/engagements/{id}/gates?phase=` | List / add gates. |
 | `POST` | `/engagements/{id}/gates/{gid}/judge` | Record a verdict. |
 | `DELETE` | `/engagements/{id}/gates/{gid}` | Remove a gate. |
+| `POST` | `/engagements/{id}/scan` | Propose workspace files as evidence (`{"path": …, "attach": false}`). Never changes a status. |
 | `POST` | `/engagements/{id}/advance` | Close the current phase; `{"force": true}` overrides. |
 | `GET` | `/engagements/{id}/report.md` | Status report, `text/markdown`. |
 | `GET` | `/engagements/{id}/handover.md` | Handover pack, `text/markdown`. |
@@ -202,6 +203,101 @@ curl -s $API/engagements/$ID -H "Authorization: Bearer $TOKEN" \
 # The client sees this.
 curl -s $API/engagements/$ID/report.md -H "Authorization: Bearer $TOKEN"
 ```
+
+---
+
+## Workspace scan — finding evidence that already exists
+
+`POST /engagements/{id}/scan`, `vibecli --engagement scan`, or **Scan
+workspace** in the panel walks the workspace and proposes which existing files
+could back which deliverable — architecture documents, ADRs, Terraform, CI
+workflows, coverage reports, SLO rules, threat models, runbooks.
+
+**What a scan is allowed to conclude is deliberately small.** A file existing is
+not a deliverable: `docs/threat-model.md` may be a finished threat model, an
+empty heading, or a template somebody copied in three years ago. So the scan:
+
+- proposes **candidates**, never findings;
+- **never changes a deliverable's status** — with `attach: true` it records
+  evidence and nothing else;
+- labels what it attaches `detected: <rule>`, so a reviewer can tell a machine's
+  guess from a human's assertion;
+- **has no rule at all** for deliverables it cannot honestly detect. No filename
+  is evidence that a production system works, that you paired with the client's
+  engineers, or that anyone signed an SLA. Those keys are listed in the
+  response's `undetectable` array, so an empty result is never mistaken for
+  "there is nothing there".
+
+Caps are reported rather than silent — a scan that stopped at its depth, file,
+or candidate limit sets `truncated` and says so in `notes`. A truncated list
+that looked complete would read as "there is nothing else here".
+
+With no `path` and no workspace bound to the engagement, the route is a **400**.
+Falling back to the daemon's working directory would scan an unrelated tree and
+label the result as this client's evidence.
+
+```bash
+vibecli --engagement scan <id> --path /srv/acme            # propose only
+vibecli --engagement scan <id> --path /srv/acme --attach   # record as evidence
+```
+
+---
+
+## CLI — `vibecli --engagement`
+
+The panel is the comfortable way to run an engagement; the CLI is the way to
+*check* one from a pipeline.
+
+```bash
+vibecli --engagement list
+vibecli --engagement new "Acme platform" --client "Acme Corp"
+vibecli --engagement show <id>
+vibecli --engagement deliverables <id> --phase build
+vibecli --engagement set <id> threat-model accepted
+vibecli --engagement evidence <id> threat-model docs/threat-model.md --kind file
+vibecli --engagement gates <id> --phase build
+vibecli --engagement judge <id> <gate-id> pass --observed "clean provision from scratch"
+vibecli --engagement advance <id>
+vibecli --engagement report <id> > status.md
+vibecli --engagement handover <id> > handover.md
+```
+
+### The pipeline check
+
+```bash
+vibecli --engagement gate <id> --phase build
+```
+
+Exit codes are part of the contract:
+
+| Code | Meaning |
+|---|---|
+| `0` | The phase is clean: every in-scope deliverable accepted with evidence, every gate `pass` or `waived`. |
+| `1` | The phase has blockers, or the operation failed. |
+| `2` | Usage error — unknown subcommand, bad phase, bad verdict. |
+
+`1` and `2` are deliberately different. A pipeline that reads "you typed the
+phase name wrong" as "the engagement is not ready" fails for a reason nobody can
+act on.
+
+When gates are unmeasured the check says so separately, rather than reporting
+them as failures:
+
+```
+Build & Harden: 7 blocker(s)
+  - 'Infrastructure as code' is not_started, not accepted.
+  ...
+5 gate(s) are unmeasured. That is not a failure — it is an absence of
+measurement, and it blocks for that reason.
+```
+
+`--engagement judge … pass` refuses without `--observed`, the same rule the HTTP
+route enforces. `--engagement set` warns when a deliverable becomes `ready` or
+`accepted` with nothing attached.
+
+`VIBECLI_ENGAGEMENT_DB` overrides the store path — useful for pointing a team at
+one shared engagement database, and for CI runs that should not touch a
+developer's `~/.vibecli`.
 
 ---
 

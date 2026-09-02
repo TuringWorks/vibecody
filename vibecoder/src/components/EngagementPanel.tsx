@@ -29,6 +29,7 @@ import {
   Paperclip,
   Plus,
   RefreshCw,
+  Search,
 } from "lucide-react";
 // Daemon routes are behind `require_auth`; a plain fetch() 401s. See daemonFetch.ts.
 import { daemonFetch } from "../lib/daemonFetch";
@@ -282,6 +283,14 @@ export function EngagementPanel({
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [newClient, setNewClient] = useState("");
+  // The markdown exports are fetched and shown here rather than linked. A
+  // plain <a href> cannot carry the bearer token, so a link would be a
+  // guaranteed 401 — and the daemon rotates that token on every restart, so
+  // there is no stable URL to hand out either.
+  const [exportDoc, setExportDoc] = useState<{
+    title: string;
+    body: string;
+  } | null>(null);
 
   const request = useCallback(
     async (path: string, init?: RequestInit) => {
@@ -500,6 +509,68 @@ export function EngagementPanel({
     }
   };
 
+  /**
+   * Propose workspace files as evidence.
+   *
+   * The daemon never changes a deliverable's status from a scan, and neither
+   * does this: a file called `threat-model.md` is a candidate, not a finished
+   * threat model. The confirm text says so, because a one-click "attach
+   * everything" that silently read as "these are done" would be the whole
+   * subsystem's failure mode in a single button.
+   */
+  const scanWorkspace = async (attach: boolean) => {
+    if (!selectedId) return;
+    try {
+      const res = await request(`/engagements/${selectedId}/scan`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: workspacePath, attach }),
+      });
+      const body = await res.json();
+      const scan = body.scan;
+      const lines: string[] = [
+        `Scanned ${scan.root} — ${scan.files_scanned} files, ${scan.candidates.length} candidate(s).`,
+        "",
+        ...scan.candidates.map(
+          (c: { deliverable_key: string; path: string; rule: string }) =>
+            `${c.deliverable_key}  ←  ${c.path}  [${c.rule}]`
+        ),
+        "",
+        ...(scan.notes ?? []),
+      ];
+      if (scan.undetectable?.length) {
+        lines.push(`No rule exists for: ${scan.undetectable.join(", ")}`);
+      }
+      if (attach) {
+        lines.push(
+          "",
+          `Attached ${body.attached} evidence item(s). No deliverable status was changed.`
+        );
+      }
+      setExportDoc({
+        title: attach ? "Workspace scan — attached" : "Workspace scan",
+        body: lines.join("\n"),
+      });
+      if (attach) await loadSelected(selectedId);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const showExport = async (kind: "report.md" | "handover.md") => {
+    if (!selectedId) return;
+    try {
+      const res = await request(`/engagements/${selectedId}/${kind}`);
+      const body = await res.text();
+      setExportDoc({
+        title: kind === "report.md" ? "Status report" : "Handover pack",
+        body,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
   const openInTab = (toolHint: string) => {
     const tab = TOOL_TAB[toolHint];
     if (!tab) return;
@@ -581,24 +652,40 @@ export function EngagementPanel({
             </select>
             {selectedId && (
               <>
-                <a
+                <button
                   className="panel-btn panel-btn-secondary panel-btn-xs"
-                  href={`${daemonUrl}/engagements/${selectedId}/report.md`}
-                  target="_blank"
-                  rel="noreferrer"
+                  onClick={() => showExport("report.md")}
                   title="Status report (markdown)"
                 >
                   <FileText size={12} strokeWidth={1.5} /> Report
-                </a>
-                <a
+                </button>
+                <button
                   className="panel-btn panel-btn-secondary panel-btn-xs"
-                  href={`${daemonUrl}/engagements/${selectedId}/handover.md`}
-                  target="_blank"
-                  rel="noreferrer"
+                  onClick={() => showExport("handover.md")}
                   title="Handover pack (markdown)"
                 >
                   <FileText size={12} strokeWidth={1.5} /> Handover
-                </a>
+                </button>
+                <button
+                  className="panel-btn panel-btn-secondary panel-btn-xs"
+                  onClick={() => scanWorkspace(false)}
+                  disabled={!workspacePath}
+                  title={
+                    workspacePath
+                      ? "Look for files that could back a deliverable"
+                      : "Open a workspace first"
+                  }
+                >
+                  <Search size={12} strokeWidth={1.5} /> Scan workspace
+                </button>
+                <button
+                  className="panel-btn panel-btn-secondary panel-btn-xs"
+                  onClick={() => scanWorkspace(true)}
+                  disabled={!workspacePath}
+                  title="Attach every candidate as evidence — statuses are not changed"
+                >
+                  Scan &amp; attach
+                </button>
               </>
             )}
           </div>
@@ -644,6 +731,45 @@ export function EngagementPanel({
             deliverable, and its gates — unmeasured until someone measures them.
           </div>
         </div>
+
+        {exportDoc && (
+          <div className="panel-card" style={{ marginBottom: 12 }}>
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                alignItems: "center",
+                marginBottom: 6,
+              }}
+            >
+              <strong style={{ fontSize: 12 }}>{exportDoc.title}</strong>
+              <button
+                className="panel-btn panel-btn-secondary panel-btn-xs"
+                onClick={() => navigator.clipboard?.writeText(exportDoc.body)}
+              >
+                Copy markdown
+              </button>
+              <button
+                className="panel-btn panel-btn-secondary panel-btn-xs"
+                onClick={() => setExportDoc(null)}
+              >
+                Close
+              </button>
+            </div>
+            <pre
+              style={{
+                margin: 0,
+                maxHeight: 320,
+                overflow: "auto",
+                fontSize: 11,
+                whiteSpace: "pre-wrap",
+                color: "var(--text-secondary)",
+              }}
+            >
+              {exportDoc.body}
+            </pre>
+          </div>
+        )}
 
         {!selectedId && (
           <div style={{ color: "var(--text-secondary)", fontSize: 12 }}>

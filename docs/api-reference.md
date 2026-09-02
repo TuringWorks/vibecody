@@ -927,6 +927,43 @@ curl -X POST http://localhost:7878/webhook/skill/deploy-prod \
 **Errors:** `404` if no skill has a matching `webhook_trigger`.
 
 
+### Engagement Endpoints
+
+The four-phase delivery spine — Discover & Assess, Prove, Build & Harden,
+Operate & Transfer. Full guide: [Engagements](/vibecody/engagements/).
+
+All engagement endpoints require authentication (`Authorization: Bearer $VIBECLI_TOKEN`).
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/engagements/template` | The engagement model: phases, deliverable templates, gate templates. Answers before any engagement exists |
+| `GET` | `/engagements` | List engagements |
+| `POST` | `/engagements` | Create one, seeded with all four phases, every promised deliverable, and its gates |
+| `GET` | `/engagements/{id}` | The engagement plus its readiness report for all four phases |
+| `PATCH` | `/engagements/{id}` | Set `status` and/or `phase` |
+| `DELETE` | `/engagements/{id}` | Remove it (cascades to deliverables, evidence, gates) |
+| `POST` | `/engagements/{id}/seed` | Add template rows introduced since creation; never disturbs an accepted deliverable |
+| `GET` | `/engagements/{id}/deliverables` | List deliverables (`?phase=discover\|prove\|build\|operate`) |
+| `POST` | `/engagements/{id}/deliverables` | Add a deliverable outside the template |
+| `PATCH` | `/engagements/{id}/deliverables/{did}` | Patch `status`, `owner`, `notes`; omitted fields are untouched |
+| `GET` | `/engagements/{id}/deliverables/{did}/evidence` | List attached evidence |
+| `POST` | `/engagements/{id}/deliverables/{did}/evidence` | Attach evidence (`file`, `url`, `run`, `metric`, `note`) |
+| `DELETE` | `/engagements/{id}/evidence/{eid}` | Remove one evidence item |
+| `GET` | `/engagements/{id}/gates` | List gates (`?phase=`) |
+| `POST` | `/engagements/{id}/gates` | Add a gate — **400 without a measurement procedure** |
+| `POST` | `/engagements/{id}/gates/{gid}/judge` | Record a verdict — **400 for `pass` with nothing observed** |
+| `DELETE` | `/engagements/{id}/gates/{gid}` | Remove a gate |
+| `POST` | `/engagements/{id}/scan` | Walk a workspace and propose files as evidence. `{"attach": true}` records them; deliverable statuses are never changed. **400** with no `path` and no bound workspace |
+| `POST` | `/engagements/{id}/advance` | Close the current phase; `{"force": true}` overrides and records the override |
+| `GET` | `/engagements/{id}/report.md` | Status report (`text/markdown`) |
+| `GET` | `/engagements/{id}/handover.md` | Handover pack (`text/markdown`) |
+
+Gate verdicts are `not_measured`, `pending`, `pass`, `fail`, `waived` — five
+disjoint states. `not_measured` is never reported as `fail`, and a phase's
+`completion` is `null` (rendered `n/a`, never `0%`) when nothing is in scope.
+
+An unrecognised `?phase=` value returns **400**, not a silent "all phases".
+
 ### Memory Endpoints
 
 The OpenMemory cognitive memory engine provides persistent, queryable memory across two storage layers: the cognitive store (5-sector vector graph) and the verbatim drawer store (lossless 800-char chunks).
