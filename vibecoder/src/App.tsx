@@ -267,6 +267,20 @@ function App() {
     return () => window.removeEventListener("vibecoder:open-sidebar-tab", handler);
   }, []);
 
+  // The Engagement panel lists a promised deliverable next to the panel that
+  // produces it, and that name is only useful if it navigates. Validated
+  // against ALL_TABS so a stale mapping is a no-op rather than a blank screen.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const tab = (e as CustomEvent<unknown>).detail;
+      if (typeof tab !== "string" || !ALL_TABS.includes(tab)) return;
+      setShowAIChat(true);
+      setAiPanelTab(tab);
+    };
+    window.addEventListener("vibecoder:open-tab", handler);
+    return () => window.removeEventListener("vibecoder:open-tab", handler);
+  }, []);
+
   // Panels that surface a setting they no longer own (the GitHub Remote panel
   // and its token) deep-link into the Settings modal instead of duplicating it.
   useEffect(() => {
