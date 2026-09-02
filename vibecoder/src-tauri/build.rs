@@ -5,7 +5,32 @@
 
 fn main() {
     warn_when_the_frontend_will_not_be_embedded();
+    reserve_a_main_thread_stack_windows_can_actually_start_on();
     tauri_build::build()
+}
+
+/// Raise the main thread's stack reserve on MSVC targets.
+///
+/// Windows takes the main thread's stack size from the PE header, and the
+/// default reserve is 1 MB. `main` calls `vibe_coder_lib::run()` directly —
+/// it has to, because the Tauri event loop must own the main thread, so the
+/// usual escape of re-entering on a `thread::Builder::new().stack_size(..)`
+/// thread is not available here. `run()` builds a ~100-field `AppState`
+/// literal and a `generate_handler!` closure covering well over a thousand
+/// commands, all as temporaries in one frame; at `opt-level = 0` nothing is
+/// inlined away and that frame does not fit in 1 MB. The binary then dies at
+/// startup with `STATUS_STACK_OVERFLOW` (0xc00000fd) before a window appears.
+///
+/// 8 MB matches the Unix default. It is reserved address space, not committed
+/// memory, so the cost on 64-bit is nil and it applies to release too — a
+/// future command list is no likelier to shrink than grow.
+///
+/// `/STACK:` is a link.exe flag, hence the MSVC gate; the GNU toolchain wants
+/// `-Wl,--stack` and every other platform already starts with 8 MB.
+fn reserve_a_main_thread_stack_windows_can_actually_start_on() {
+    if std::env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("msvc") {
+        println!("cargo:rustc-link-arg-bins=/STACK:8388608");
+    }
 }
 
 /// Say so when a release binary is being built that will look for a dev server.

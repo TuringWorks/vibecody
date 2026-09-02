@@ -1634,7 +1634,19 @@ fn row_to_gate(r: &rusqlite::Row<'_>) -> rusqlite::Result<Gate> {
 
 // ── Default path ──────────────────────────────────────────────────────────────
 
+/// Where the engagement database lives.
+///
+/// `VIBECLI_ENGAGEMENT_DB` overrides it. That exists so a team can point every
+/// client at one shared engagement store, and so the route tests can exercise
+/// the real HTTP surface without writing into the developer's actual
+/// `~/.vibecli` data — see [Test Isolation](../../../AGENTS.md#test-isolation--shared-state-is-the-top-cause-of-flaky-here).
 pub fn default_db_path() -> PathBuf {
+    if let Some(p) = std::env::var_os("VIBECLI_ENGAGEMENT_DB") {
+        let p = PathBuf::from(p);
+        if !p.as_os_str().is_empty() {
+            return p;
+        }
+    }
     dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join(".vibecli")
@@ -1854,6 +1866,55 @@ pub fn render_handover_markdown(store: &EngagementStore, engagement_id: &str) ->
     }
 
     Ok(out)
+}
+
+// ── Test support ──────────────────────────────────────────────────────────────
+
+/// Scratch database + the lock that makes it safe.
+///
+/// `VIBECLI_ENGAGEMENT_DB` is process-global, and three test modules drive it —
+/// this one, `engagement_routes` and `engagement_cmd`. They must share **one**
+/// lock: a per-module lock lets a test in one module clear the variable while a
+/// test in another is mid-run, and the symptom is not a lock error but an
+/// engagement that has silently vanished, reported as a wrong exit code. That
+/// is the shared-state failure [AGENTS.md](../../../AGENTS.md#test-isolation--shared-state-is-the-top-cause-of-flaky-here)
+/// names as the top cause of flakes here, and it cost one debugging round on
+/// the way in.
+#[cfg(test)]
+pub(crate) mod test_support {
+    use std::sync::{Mutex, MutexGuard};
+
+    /// Poison-tolerant: a panicking test must not cascade into "every other
+    /// test that touches the store failed too".
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    pub(crate) struct TestDb {
+        _dir: tempfile::TempDir,
+        _guard: MutexGuard<'static, ()>,
+    }
+
+    impl TestDb {
+        pub(crate) fn new() -> Self {
+            let guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            let dir = tempfile::TempDir::new().expect("tempdir");
+            // Suffixed with the pid so two concurrent `cargo test` processes
+            // cannot collide on one path.
+            let path = dir
+                .path()
+                .join(format!("engagements-{}.db", std::process::id()));
+            std::env::set_var("VIBECLI_ENGAGEMENT_DB", &path);
+            Self {
+                _dir: dir,
+                _guard: guard,
+            }
+        }
+    }
+
+    impl Drop for TestDb {
+        fn drop(&mut self) {
+            std::env::remove_var("VIBECLI_ENGAGEMENT_DB");
+        }
+    }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -2122,6 +2183,54 @@ mod tests {
                 t.key
             );
         }
+    }
+
+    #[test]
+    fn tool_hints_match_the_panels_the_ui_can_navigate_to() {
+        // Cross-language tripwire. `EngagementPanel.tsx` maps each hint to the
+        // VibeCoder tab that owns it; a hint added here without a matching
+        // entry there renders as a dead button. There is no compiler between
+        // the two files, so this list is the seam.
+        //
+        // Adding a hint? Add it to `TOOL_TAB` in
+        // `vibecoder/src/components/EngagementPanel.tsx` too, then update this
+        // list.
+        let mut hints: Vec<&str> = TEMPLATE.iter().map(|t| t.tool_hint).collect();
+        hints.sort_unstable();
+        hints.dedup();
+        let expected = [
+            "ArchitectureSpecPanel",
+            "ArenaPanel",
+            "BuildPanel",
+            "CicdPanel",
+            "CodeMetricsPanel",
+            "CollabPanel",
+            "CompanyDashboardPanel",
+            "CompanyPortabilityPanel",
+            "CompliancePanel",
+            "CostPanel",
+            "CounselPanel",
+            "CoveragePanel",
+            "DeployPanel",
+            "DepsPanel",
+            "DocumentIngestPanel",
+            "EngagementPanel",
+            "HealthMonitorPanel",
+            "K8sPanel",
+            "PlanDocumentPanel",
+            "SecurityPosturePanel",
+            "SecurityReviewPanel",
+            "SmartDepsPanel",
+            "SpecPanel",
+            "TeamGovernancePanel",
+            "TeamOnboardingPanel",
+            "TraceDashboard",
+        ];
+        assert_eq!(
+            hints, expected,
+            "the set of producing panels changed — update TOOL_TAB in \
+             vibecoder/src/components/EngagementPanel.tsx to match, then this list"
+        );
     }
 
     #[test]

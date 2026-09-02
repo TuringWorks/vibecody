@@ -363,6 +363,12 @@ The AI panel (toggle with **AI Chat** in the header) has **246 panel components 
 | **Discussion** | `DiscussionModePanel` | Discussion and planning mode for exploring ideas before coding |
 | **Clarifying** | `ClarifyingQuestionsPanel` | AI-driven clarifying questions for ambiguous requests |
 
+### Delivery
+
+| Tab | Component | Description |
+|-----|-----------|-------------|
+| **Engagement** | `EngagementPanel` | The four-phase delivery spine — Discover & Assess, Prove, Build & Harden, Operate & Transfer. Every promised deliverable with the panel that produces it, gates with their measurement procedure and verdict, evidence, blockers, and markdown status/handover exports. See [Engagements](/vibecody/engagements/) |
+
 ### Development & Code
 
 | Tab | Component | Description |
