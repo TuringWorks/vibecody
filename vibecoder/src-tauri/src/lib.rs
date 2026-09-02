@@ -8,6 +8,7 @@ mod memory;
 mod no_window;
 mod panel_store;
 mod plantuml;
+mod tls_cert;
 pub mod shadow_workspace;
 mod shell;
 // `sonar_rules` moved to `vibe-core` 2026-05-19 — re-export the

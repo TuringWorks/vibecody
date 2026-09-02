@@ -33,7 +33,10 @@ interface TlsCertInfo {
  san: string[];
  serial: string;
  valid: boolean;
- days_remaining: number;
+ /** Why it is or is not usable — "Expired", "Chain not trusted — …". */
+ status: string;
+ /** null when the expiry could not be read; negative once it has passed. */
+ days_remaining: number | null;
  raw: string;
 }
 
@@ -318,21 +321,16 @@ export function NetworkPanel() {
  {/* Status banner */}
  <div style={{
  padding: "12px 16px", borderRadius: "var(--radius-sm)", display: "flex", justifyContent: "space-between", alignItems: "center",
- background: tlsCert.valid ? "color-mix(in srgb, var(--accent-green) 10%, transparent)" : "color-mix(in srgb, var(--accent-rose) 10%, transparent)",
- border: `1px solid ${tlsCert.valid ? "var(--success-color)" : "var(--error-color)"}`,
+ background: `color-mix(in srgb, ${verdictColor(tlsCert)} 10%, transparent)`,
+ border: `1px solid ${verdictColor(tlsCert)}`,
  }}>
  <div>
- <span style={{ fontSize: "var(--font-size-lg)", fontWeight: 700, color: tlsCert.valid ? "var(--success-color)" : "var(--error-color)" }}>
- {tlsCert.valid ? "Valid" : "Invalid / Expired"}
+ <span style={{ fontSize: "var(--font-size-lg)", fontWeight: 700, color: verdictColor(tlsCert) }}>
+ {tlsCert.status}
  </span>
  <span style={{ marginLeft: 10, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{tlsHost}:{tlsPort}</span>
  </div>
- <div style={{ textAlign: "right" }}>
- <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color: tlsCert.days_remaining > 30 ? "var(--success-color)" : tlsCert.days_remaining > 7 ? "var(--warning-color)" : "var(--error-color)" }}>
- {tlsCert.days_remaining}d
- </div>
- <div style={{ fontSize: 9, color: "var(--text-secondary)" }}>remaining</div>
- </div>
+ <Expiry days={tlsCert.days_remaining} />
  </div>
 
  {/* Cert details */}
@@ -379,5 +377,44 @@ export function NetworkPanel() {
  </div>
  )}
  </div>
+ );
+}
+
+/**
+ * The colour of the verdict.
+ *
+ * Three outcomes, not two: a certificate the backend could not read is not a
+ * bad certificate, and painting it red is how a parsing bug spent months
+ * looking like every site on the internet had expired.
+ */
+function verdictColor(cert: TlsCertInfo): string {
+ if (cert.valid) return "var(--success-color)";
+ if (cert.days_remaining === null) return "var(--warning-color)";
+ return "var(--error-color)";
+}
+
+/** How long is left, or how long ago it ran out. */
+function Expiry({ days }: { days: number | null }) {
+ const { text, caption, color } =
+  days === null
+   ? { text: "—", caption: "expiry unknown", color: "var(--text-secondary)" }
+   : days < 0
+    ? { text: `${-days}d`, caption: "since it expired", color: "var(--error-color)" }
+    : {
+      text: `${days}d`,
+      caption: "remaining",
+      color:
+       days > 30
+        ? "var(--success-color)"
+        : days > 7
+         ? "var(--warning-color)"
+         : "var(--error-color)",
+     };
+
+ return (
+  <div style={{ textAlign: "right" }}>
+   <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)", color }}>{text}</div>
+   <div style={{ fontSize: 9, color: "var(--text-secondary)" }}>{caption}</div>
+  </div>
  );
 }
