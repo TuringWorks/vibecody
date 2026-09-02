@@ -9100,6 +9100,11 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
             "/mobile/active-session",
             get(mobile_get_active_session).put(mobile_set_active_session),
         )
+        // Engagement lifecycle (`/engagements/*`). Merged before the layers
+        // below so it inherits the same rate limit and bearer auth as every
+        // other API route — an engagement record names clients, gaps, and
+        // unmeasured gates, and is not public.
+        .merge(crate::engagement_routes::build_routes())
         .route_layer(middleware::from_fn_with_state(limiter, rate_limit))
         .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
 

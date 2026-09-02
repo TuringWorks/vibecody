@@ -10,7 +10,7 @@ import {
   Binary, Regex, PenTool,
   Settings, Plug, UserCog, DollarSign, Package, Building2,
   Zap, ShieldCheck,
-  Target,
+  Target, Briefcase,
 } from "lucide-react";
 
 export interface TabMeta {
@@ -35,6 +35,7 @@ export const TAB_META: Record<string, TabMeta> = {
   planning:        { icon: Ruler,          label: "Planning",          aliases: ["specs", "plandoc", "workflow", "orchestration", "clarify", "codesearch"] },
   goals:           { icon: Target,         label: "Goals",             aliases: ["goal", "exec goal", "execution goals", "objective", "intent", "north star"] },
   observability:   { icon: Activity,       label: "Observability",     aliases: ["traces", "recording", "demo"] },
+  engagement:      { icon: Briefcase,      label: "Engagement",        aliases: ["engagements", "delivery", "discover", "assess", "prove", "pilot", "build", "harden", "operate", "transfer", "handover", "runbook", "exit plan", "gates", "deliverables", "go/no-go", "client", "consulting", "phases", "sow", "statement of work"] },
   design:          { icon: Palette,        label: "Design",            aliases: ["remotecontrol", "remote control", "img2app", "screenshot to app", "sketch"] },
 
   // --- Code Quality ---

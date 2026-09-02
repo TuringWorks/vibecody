@@ -410,6 +410,8 @@ pub mod document_ingest;
 pub mod edit_prediction;
 pub mod email_client;
 pub mod embedding_index;
+pub mod engagement;
+pub mod engagement_routes;
 pub mod explainable_agent;
 pub mod fast_context;
 pub mod feature_demo;

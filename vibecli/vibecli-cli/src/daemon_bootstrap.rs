@@ -706,6 +706,10 @@ mod tests {
         assert_eq!(hits.load(Ordering::SeqCst), 2, "expected exactly one retry");
     }
 
+    // `/bin/sh` and `libc::getpgrp` are POSIX-only; without this gate the whole
+    // `vibecli` lib test binary fails to compile on Windows, taking every other
+    // test in the crate with it.
+    #[cfg(unix)]
     #[test]
     fn a_detached_child_leaves_our_process_group() {
         // The bug: the daemon ran with the GUI app's PGID, in the app's

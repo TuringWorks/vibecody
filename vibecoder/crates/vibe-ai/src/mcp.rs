@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Write};
-use std::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command, Stdio};
+use std::process::{Child, ChildStderr, ChildStdin, ChildStdout, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static REQUEST_ID: AtomicU64 = AtomicU64::new(1);
@@ -118,7 +118,12 @@ impl McpClient {
         let prog = parts.next().context("MCP command is empty")?;
         let inline_args: Vec<&str> = parts.collect();
 
-        let mut cmd = Command::new(prog);
+        // Nearly every MCP server is launched as `npx -y <package>`, and on
+        // Windows `npx` is `npx.cmd`. Resolve the real file; falling back to
+        // the bare name keeps the OS's own error when there is nothing.
+        let program =
+            vibe_core::which::on_path(prog).unwrap_or_else(|| std::path::PathBuf::from(prog));
+        let mut cmd = vibe_no_window::std_command(&program);
         cmd.args(&inline_args)
             .args(&cfg.args)
             .stdin(Stdio::piped())

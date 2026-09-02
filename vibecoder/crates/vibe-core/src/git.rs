@@ -120,7 +120,7 @@ pub fn commit(
 
 pub fn push(repo_path: &Path, remote: &str, branch: &str) -> Result<()> {
     // Use git CLI to leverage the user's configured SSH keys and credential helpers
-    let output = std::process::Command::new("git")
+    let output = vibe_no_window::std_command("git")
         .args(["push", remote, branch])
         .current_dir(repo_path)
         .output()
@@ -135,7 +135,7 @@ pub fn push(repo_path: &Path, remote: &str, branch: &str) -> Result<()> {
 
 pub fn pull(repo_path: &Path, remote: &str, branch: &str) -> Result<()> {
     // Use git CLI to leverage the user's configured SSH keys and credential helpers
-    let output = std::process::Command::new("git")
+    let output = vibe_no_window::std_command("git")
         .args(["pull", remote, branch])
         .current_dir(repo_path)
         .output()
@@ -640,7 +640,7 @@ pub struct WorktreeInfo {
 ///
 /// Equivalent to: `git worktree add <worktree_path> -b <branch>`
 pub fn create_worktree(repo_path: &Path, branch: &str, worktree_path: &Path) -> Result<()> {
-    let output = std::process::Command::new("git")
+    let output = vibe_no_window::std_command("git")
         .args([
             "worktree",
             "add",
@@ -666,7 +666,7 @@ pub fn add_worktree_existing_branch(
     branch: &str,
     worktree_path: &Path,
 ) -> Result<()> {
-    let output = std::process::Command::new("git")
+    let output = vibe_no_window::std_command("git")
         .args(["worktree", "add", &worktree_path.to_string_lossy(), branch])
         .current_dir(repo_path)
         .output()?;
@@ -687,7 +687,7 @@ pub fn create_branch_from_ref(repo_path: &Path, branch: &str, source_ref: &str) 
     if branch_exists(repo_path, branch) {
         return Ok(());
     }
-    let output = std::process::Command::new("git")
+    let output = vibe_no_window::std_command("git")
         .args(["branch", branch, source_ref])
         .current_dir(repo_path)
         .output()?;
@@ -702,7 +702,7 @@ pub fn create_branch_from_ref(repo_path: &Path, branch: &str, source_ref: &str) 
 
 /// Whether a ref (any namespace, e.g. `refs/trash/<id>`) exists.
 pub fn ref_exists(repo_path: &Path, full_ref: &str) -> bool {
-    std::process::Command::new("git")
+    vibe_no_window::std_command("git")
         .args(["show-ref", "--verify", "--quiet", full_ref])
         .current_dir(repo_path)
         .status()
@@ -714,7 +714,7 @@ pub fn ref_exists(repo_path: &Path, full_ref: &str) -> bool {
 ///
 /// Equivalent to: `git worktree remove --force <worktree_path>`
 pub fn remove_worktree(repo_path: &Path, worktree_path: &Path) -> Result<()> {
-    let output = std::process::Command::new("git")
+    let output = vibe_no_window::std_command("git")
         .args([
             "worktree",
             "remove",
@@ -737,7 +737,7 @@ pub fn remove_worktree(repo_path: &Path, worktree_path: &Path) -> Result<()> {
 /// (exit 0 = merged, exit 1 = not merged). Used by the worktree reaper to decide
 /// whether a branch can be deleted or must be preserved.
 pub fn is_branch_merged(repo_path: &Path, branch: &str) -> Result<bool> {
-    let status = std::process::Command::new("git")
+    let status = vibe_no_window::std_command("git")
         .args([
             "merge-base",
             "--is-ancestor",
@@ -751,7 +751,7 @@ pub fn is_branch_merged(repo_path: &Path, branch: &str) -> Result<bool> {
 
 /// Whether a local branch ref exists.
 pub fn branch_exists(repo_path: &Path, branch: &str) -> bool {
-    std::process::Command::new("git")
+    vibe_no_window::std_command("git")
         .args([
             "show-ref",
             "--verify",
@@ -771,14 +771,14 @@ pub fn branch_exists(repo_path: &Path, branch: &str) -> bool {
 /// Runs `git -C <worktree> add -A` then `git -C <worktree> commit -m <message>`.
 pub fn commit_all_in_worktree(worktree_path: &Path, message: &str) -> Result<bool> {
     // Fast path: clean tree → nothing to do.
-    let status = std::process::Command::new("git")
+    let status = vibe_no_window::std_command("git")
         .args(["status", "--porcelain"])
         .current_dir(worktree_path)
         .output()?;
     if status.stdout.is_empty() {
         return Ok(false);
     }
-    let add = std::process::Command::new("git")
+    let add = vibe_no_window::std_command("git")
         .args(["add", "-A"])
         .current_dir(worktree_path)
         .output()?;
@@ -788,7 +788,7 @@ pub fn commit_all_in_worktree(worktree_path: &Path, message: &str) -> Result<boo
             String::from_utf8_lossy(&add.stderr)
         );
     }
-    let commit = std::process::Command::new("git")
+    let commit = vibe_no_window::std_command("git")
         .args(["commit", "--no-verify", "-m", message])
         .current_dir(worktree_path)
         .output()?;
@@ -810,7 +810,7 @@ pub fn preserve_branch_ref(repo_path: &Path, branch: &str, id: &str) -> Result<(
     if !branch_exists(repo_path, branch) {
         return Ok(());
     }
-    let output = std::process::Command::new("git")
+    let output = vibe_no_window::std_command("git")
         .args([
             "update-ref",
             &format!("refs/trash/{id}"),
@@ -834,7 +834,7 @@ pub fn delete_branch(repo_path: &Path, branch: &str, force: bool) -> Result<()> 
         return Ok(());
     }
     let flag = if force { "-D" } else { "-d" };
-    let output = std::process::Command::new("git")
+    let output = vibe_no_window::std_command("git")
         .args(["branch", flag, branch])
         .current_dir(repo_path)
         .output()?;
@@ -852,7 +852,7 @@ pub fn delete_branch(repo_path: &Path, branch: &str, force: bool) -> Result<()> 
 ///
 /// Equivalent to: `git worktree prune`
 pub fn prune_worktrees(repo_path: &Path) -> Result<()> {
-    let output = std::process::Command::new("git")
+    let output = vibe_no_window::std_command("git")
         .args(["worktree", "prune"])
         .current_dir(repo_path)
         .output()?;
@@ -867,7 +867,7 @@ pub fn prune_worktrees(repo_path: &Path) -> Result<()> {
 
 /// List all worktrees for the repository.
 pub fn list_worktrees(repo_path: &Path) -> Result<Vec<WorktreeInfo>> {
-    let output = std::process::Command::new("git")
+    let output = vibe_no_window::std_command("git")
         .args(["worktree", "list", "--porcelain"])
         .current_dir(repo_path)
         .output()?;
@@ -928,7 +928,7 @@ pub struct MergeResult {
 ///
 /// Equivalent to: `git merge <branch> --no-ff -m "Merge worktree <branch>"`
 pub fn merge_worktree_branch(repo_path: &Path, branch: &str) -> Result<MergeResult> {
-    let output = std::process::Command::new("git")
+    let output = vibe_no_window::std_command("git")
         .args([
             "merge",
             branch,

@@ -19,6 +19,14 @@ export const TAB_GROUPS: TabGroup[] = [
     tabs: ["project-hub", "planning", "goals", "observability", "design", "productivity"],
   },
   {
+    // The client-engagement spine: four phases, their promised deliverables,
+    // and the gates that decide whether a phase may close. Placed after
+    // "Project" deliberately — inserting it earlier would shift the first nine
+    // entries of ALL_TABS, which App.tsx slices for the Ctrl+1..9 shortcuts.
+    label: "Delivery",
+    tabs: ["engagement"],
+  },
+  {
     label: "Code Quality",
     tabs: ["security", "testing", "code-analysis", "architecture"],
   },

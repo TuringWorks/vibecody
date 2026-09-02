@@ -87,6 +87,8 @@ const EnterpriseGovernanceComposite = lazy(() => import("./composite/EnterpriseG
 const WatchManagementPanel = lazy(() => import("./WatchManagementPanel").then(m => ({ default: m.WatchManagementPanel })));
 // /goal — durable execution intent (G1.5).
 const GoalPanel = lazy(() => import("./GoalPanel").then(m => ({ default: m.GoalPanel })));
+// Client-engagement spine: four phases, deliverables, gates, handover.
+const EngagementPanel = lazy(() => import("./EngagementPanel").then(m => ({ default: m.EngagementPanel })));
 
 // --- Props interfaces ---
 
@@ -162,6 +164,7 @@ export function PanelHost(props: PanelHostProps) {
     "watch",
     "sandbox-chat",
     "goals",
+    "engagement",
   ];
 
   return (
@@ -180,6 +183,7 @@ export function PanelHost(props: PanelHostProps) {
       {panel("project-hub", <LazyPanel Component={ProjectHubComposite} props={{ workspacePath: wp, provider: selectedProvider, onOpenFile }} />)}
       {panel("planning", <LazyPanel Component={PlanningComposite} props={{ workspacePath: wp, provider: selectedProvider, onOpenFile }} />)}
       {panel("goals", <LazyPanel Component={GoalPanel} props={{ workspacePath: wp, selectedProvider, newGoalSeed, onSeedConsumed: onNewGoalSeedConsumed }} />)}
+      {panel("engagement", <LazyPanel Component={EngagementPanel} props={{ workspacePath: wp }} />)}
       {panel("observability", <LazyPanel Component={ObservabilityComposite} props={{ provider: selectedProvider }} />)}
       {panel("design", <LazyPanel Component={DesignComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
 

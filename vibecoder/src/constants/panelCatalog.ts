@@ -97,6 +97,11 @@ export const PANEL_CATALOG: Record<string, SubfeatureMeta[]> = {
   "goals": [
 
   ],
+  // The Engagement panel owns its own four-phase navigation; sub-tabs here
+  // would compete with it.
+  "engagement": [
+
+  ],
   "observability": [
     { id: "traces", label: "Traces" },
     { id: "recording", label: "Recording" },

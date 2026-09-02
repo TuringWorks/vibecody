@@ -1,0 +1,16 @@
+[package]
+name = "vibe-no-window"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Console-window-free child process construction on Windows, for crates that are compiled into both GUI apps and console apps. Dependency-free by default; the `tokio` feature adds a tokio::process constructor."
+
+[features]
+default = []
+# Adds `tokio_command`. Off by default so a std-only consumer (vibe-core)
+# does not pull tokio in through this crate.
+tokio = ["dep:tokio"]
+
+[dependencies]
+tokio = { workspace = true, optional = true }

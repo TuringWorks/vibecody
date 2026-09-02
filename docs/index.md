@@ -35,6 +35,7 @@ All surfaces are backed by a shared set of Rust crates for AI providers, text ed
 | [Embedding Models](./embeddings/) | Semantic search / RAG — which embedding model, per-model indexes, provider setup |
 | [Memory Guide](./memory-guide/) | All memory layers — auto-recording, cognitive store, verbatim drawers, benchmarking |
 | [Memory Architecture](./memory-architecture/) | Detailed architecture: five stores, Context Assembler, Recap/Resume, storage security |
+| [Engagements](./engagements/) | The four-phase delivery spine — Discover, Prove, Build & Harden, Operate & Transfer; deliverables, gates, evidence, handover |
 | [Architecture](./architecture/) | Crate structure, data flow, and design decisions |
 | [SkillForge](./skillforge/) | Measure and train agent-skill docs (SkillLens + SkillOpt) against any provider |
 | [Plugin Development](./plugin-development/) | Build plugins, skills, hooks, WASM extensions, and MCP integrations |

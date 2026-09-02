@@ -43,8 +43,67 @@
         codesign-macos codesign-verify stage-artifacts \
         clean docker docker-run
 
-# Ensure ~/.cargo/bin is in PATH (fixes npm rustup shadowing on Linux)
+# ── Host shell ────────────────────────────────────────────────────────────────
+# Every recipe below is POSIX sh. On macOS and Linux that is what make already
+# uses. Native Windows make (chocolatey, "Built for Windows32") instead takes
+# SHELL from the first sh.exe on PATH — and chocolatey ships one: a UnxUtils
+# port that reports itself as zsh and cannot fork, so every recipe with a pipe
+# or a conditional dies with "abnormal program termination / fork failed".
+#
+# Git for Windows ships a real bash, but its installer deliberately keeps it
+# off PATH (the same trap vibe_core::shell documents for the Rust side), so
+# find it by globbing. `$(wildcard)` is pure make — no shell — which matters
+# because the shell is the thing that is broken. Note the escaped space and
+# the absence of $(firstword): these paths contain a space, so anything that
+# splits on whitespace truncates them to "D:/Program".
+#
+# Override with `make GIT_BASH=/path/to/bash.exe` if Git lives elsewhere.
+#
+# MSYSTEM is set when make was launched from Git Bash itself; there the
+# default shell and $(HOME) are already correct and none of this applies.
+ifeq ($(OS)$(MSYSTEM),Windows_NT)
+GIT_BASH ?=
+ifeq ($(GIT_BASH),)
+GIT_BASH := $(wildcard $(subst \,/,$(LOCALAPPDATA))/Programs/Git/bin/bash.exe)
+endif
+ifeq ($(GIT_BASH),)
+GIT_BASH := $(wildcard C:/Program\ Files/Git/bin/bash.exe)
+endif
+ifeq ($(GIT_BASH),)
+GIT_BASH := $(wildcard D:/Program\ Files/Git/bin/bash.exe)
+endif
+ifeq ($(GIT_BASH),)
+GIT_BASH := $(wildcard C:/Program\ Files\ (x86)/Git/bin/bash.exe)
+endif
+ifeq ($(GIT_BASH),)
+$(warning Git for Windows bash not found — recipes will run under whatever)
+$(warning sh.exe is on PATH, which is usually chocolatey's UnxUtils port and)
+$(warning cannot fork. Install Git for Windows, or pass GIT_BASH=<path>.)
+else
+SHELL := $(GIT_BASH)
+.SHELLFLAGS := -c
+# Put Git's POSIX tools ahead of the chocolatey shims so grep/awk/sed/cut are
+# the ones these recipes were written against. `;` is the separator here —
+# using `:` is what corrupted PATH below.
+export PATH := $(patsubst %/bin/bash.exe,%/usr/bin,$(GIT_BASH));$(PATH)
+endif
+endif
+
+# Executable suffix, so `--binary target/release/vibecli$(EXE)` names a file
+# that exists on every host.
+ifeq ($(OS),Windows_NT)
+EXE := .exe
+else
+EXE :=
+endif
+
+# Ensure ~/.cargo/bin is in PATH (fixes npm rustup shadowing on Linux).
+# Not on native Windows: $(HOME) is unset there and the separator is `;`, so
+# this appended "/.cargo/bin:" to the *first* real entry and destroyed it —
+# which is why Flutter reported "Unable to find git in your PATH".
+ifneq ($(OS)$(MSYSTEM),Windows_NT)
 export PATH := $(HOME)/.cargo/bin:$(PATH)
+endif
 
 # ── Toolchain locations ───────────────────────────────────────────────────────
 CARGO            ?= cargo
@@ -73,7 +132,11 @@ help-surfaces: ## Print the per-surface build/test matrix (from the header)
 # ── Setup ──────────────────────────────────────────────────────────────────────
 
 setup: ## Install all prerequisites (Rust, Node, system libs, npm deps)
+ifeq ($(OS),Windows_NT)
+	@powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup.ps1
+else
 	@bash scripts/setup.sh
+endif
 
 doctor: ## Verify development environment is ready
 	@echo "Checking development environment..."
@@ -84,7 +147,7 @@ doctor: ## Verify development environment is ready
 	@printf "  %-20s" "npm:" && (npm --version 2>/dev/null || echo "MISSING")
 	@printf "  %-20s" "Git:" && (git --version 2>/dev/null || echo "MISSING")
 	@printf "  %-20s" "uv (vibe-rl-py):" && (uv --version 2>/dev/null || echo "not installed (needed for test-rl) — https://docs.astral.sh/uv/")
-	@printf "  %-20s" "Ollama:" && (ollama --version 2>/dev/null || echo "not installed (optional)")
+	@printf "  %-20s" "Ollama:" && (ollama --version 2>/dev/null || echo "not installed (optional)") | tail -1
 	@printf "  %-20s" "Docker:" && (docker --version 2>/dev/null || echo "not installed (optional)")
 	@printf "  %-20s" "JDK (watch-wear):" && \
 		if [ -f vibewatch/VibeCodyWear/.java-version ]; then \
@@ -146,9 +209,9 @@ cli: build-cli ## (alias) Build VibeCLI release binary
 build-cli: ## Build VibeCLI release binary → target/release/vibecli
 	$(CARGO) build --release -p vibecli
 	@echo ""
-	@ls -lh target/release/vibecli 2>/dev/null || ls -lh target/release/vibecli.exe 2>/dev/null
+	@ls -lh target/release/vibecli$(EXE)
 	@echo ""
-	@echo "Binary: target/release/vibecli"
+	@echo "Binary: target/release/vibecli$(EXE)"
 
 cli-run: ## Build and run VibeCLI with TUI
 	$(CARGO) run --release -p vibecli -- --tui
@@ -537,7 +600,7 @@ eval-list: ## Show what a full eval run would execute
 
 eval-offline: ## Run the zero-dependency capability suites (needs a provider)
 	$(CARGO) run --release -p vibecli -- --eval run --tag offline \
-		--binary target/release/vibecli
+		--binary target/release/vibecli$(EXE)
 
 eval-surfaces: ## Run surface conformance only (static checks + live daemon probes)
 	$(CARGO) run --release -p vibecli -- --eval run --suite surfaces
@@ -549,11 +612,11 @@ eval-surfaces: ## Run surface conformance only (static checks + live daemon prob
 eval-models: ## Run model conformance for one model (MODEL=… PROVIDER=…)
 	$(CARGO) run --release -p vibecli -- --eval run --suite models \
 		--provider $(or $(PROVIDER),ollama) --model $(MODEL) \
-		--binary target/release/vibecli
+		--binary target/release/vibecli$(EXE)
 
 eval-full: ## Run every suite (slow, costs tokens)
 	$(CARGO) run --release -p vibecli -- --eval run \
-		--binary target/release/vibecli
+		--binary target/release/vibecli$(EXE)
 
 eval-gate: ## Compare the latest run against BASELINE and fail on regression
 	@test -n "$(BASELINE)" || { \

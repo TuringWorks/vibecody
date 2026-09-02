@@ -165,9 +165,10 @@ impl BrokerDaemon {
                 }
                 #[cfg(not(unix))]
                 {
-                    return Err(DaemonError::Config(
-                        "UDS listener requested on non-Unix host".into(),
-                    ));
+                    return Err(DaemonError::Config(format!(
+                        "UDS listener requested on non-Unix host: {}",
+                        path.display()
+                    )));
                 }
             }
         };

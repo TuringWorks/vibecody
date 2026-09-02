@@ -13,7 +13,6 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::sync::{Arc, Mutex};
 
 // ── LintResult ────────────────────────────────────────────────────────────────
@@ -134,7 +133,7 @@ impl ShadowWorkspace {
     fn lint_rust(&self, rel_path: &str) -> (Vec<LintDiagnostic>, String, String) {
         // Use rustfmt --check for syntax errors (fast, no full compilation needed)
         let shadow_file = self.path.join(rel_path);
-        let out = Command::new("rustfmt")
+        let out = crate::no_window::std_command("rustfmt")
             .args(["--check", "--edition", "2021"])
             .arg(&shadow_file)
             .output();
@@ -163,7 +162,7 @@ impl ShadowWorkspace {
     fn lint_typescript(&self, rel_path: &str) -> (Vec<LintDiagnostic>, String, String) {
         let shadow_file = self.path.join(rel_path);
         // Try eslint --no-eslintrc with basic rules
-        let out = Command::new("npx")
+        let out = crate::no_window::std_command("npx")
             .args([
                 "--yes",
                 "eslint",
@@ -191,7 +190,7 @@ impl ShadowWorkspace {
 
     fn lint_python(&self, rel_path: &str) -> (Vec<LintDiagnostic>, String, String) {
         let shadow_file = self.path.join(rel_path);
-        let out = Command::new("python3")
+        let out = crate::no_window::std_command("python3")
             .args(["-m", "py_compile"])
             .arg(&shadow_file)
             .output();
@@ -219,7 +218,7 @@ impl ShadowWorkspace {
 
     fn lint_go(&self, rel_path: &str) -> (Vec<LintDiagnostic>, String, String) {
         let shadow_file = self.path.join(rel_path);
-        let out = Command::new("gofmt")
+        let out = crate::no_window::std_command("gofmt")
             .args(["-e", "-l"])
             .arg(&shadow_file)
             .output();

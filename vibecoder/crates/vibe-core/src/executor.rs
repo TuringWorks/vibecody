@@ -1,37 +1,39 @@
 //! Command execution with safety checks and optional OS-level sandboxing.
+//!
+//! Commands arrive as POSIX shell strings -- from the agent, from a detected
+//! build system, from a user -- so they run under [`crate::shell`] on every
+//! platform, Windows included. This used to branch to `cmd /C` on Windows,
+//! which parses those strings but does not mean the same thing by them: no
+//! `>/dev/null`, no `$(...)`, different quoting. That fails quietly, with a
+//! wrong result rather than an error.
 
 use anyhow::Result;
 use std::path::Path;
-use std::process::{Command, Output};
+use std::process::Output;
+
+/// A failure to *start* a command, reported so that "this machine has no
+/// shell" reads differently from "that program does not exist". Both arrive
+/// from the OS as the same `NotFound`, and only one of them is fixed by
+/// installing anything. The original error stays as the source.
+fn spawn_failed(error: std::io::Error) -> anyhow::Error {
+    let explanation = crate::shell::explain(&error);
+    anyhow::Error::new(error).context(explanation)
+}
 
 pub struct CommandExecutor;
 
 impl CommandExecutor {
     /// Execute a shell command, returning stdout + stderr.
     pub fn execute(command: &str) -> Result<Output> {
-        let output = if cfg!(target_os = "windows") {
-            Command::new("cmd").args(["/C", command]).output()?
-        } else {
-            Command::new("sh").arg("-c").arg(command).output()?
-        };
-        Ok(output)
+        crate::shell::sh(command).output().map_err(spawn_failed)
     }
 
     /// Execute a shell command with an optional working directory.
     pub fn execute_in(command: &str, cwd: &Path) -> Result<Output> {
-        let output = if cfg!(target_os = "windows") {
-            Command::new("cmd")
-                .args(["/C", command])
-                .current_dir(cwd)
-                .output()?
-        } else {
-            Command::new("sh")
-                .arg("-c")
-                .arg(command)
-                .current_dir(cwd)
-                .output()?
-        };
-        Ok(output)
+        crate::shell::sh(command)
+            .current_dir(cwd)
+            .output()
+            .map_err(spawn_failed)
     }
 
     /// Execute a shell command, killing it once it goes quiet or outlives the
@@ -61,22 +63,12 @@ impl CommandExecutor {
         use std::sync::atomic::{AtomicU64, Ordering};
         use std::sync::{Arc, Mutex};
 
-        let mut child = if cfg!(target_os = "windows") {
-            Command::new("cmd")
-                .args(["/C", command])
-                .current_dir(cwd)
-                .stdout(std::process::Stdio::piped())
-                .stderr(std::process::Stdio::piped())
-                .spawn()?
-        } else {
-            Command::new("sh")
-                .arg("-c")
-                .arg(command)
-                .current_dir(cwd)
-                .stdout(std::process::Stdio::piped())
-                .stderr(std::process::Stdio::piped())
-                .spawn()?
-        };
+        let mut child = crate::shell::sh(command)
+            .current_dir(cwd)
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .map_err(spawn_failed)?;
 
         let started = std::time::Instant::now();
         // Milliseconds since `started` at which output was last seen.
@@ -216,7 +208,7 @@ impl CommandExecutor {
             rand::random::<u64>()
         ));
         std::fs::write(&profile_path, &profile)?;
-        let out = Command::new("sandbox-exec")
+        let out = vibe_no_window::std_command("sandbox-exec")
             .arg("-f")
             .arg(&profile_path)
             .arg("sh")
@@ -230,11 +222,14 @@ impl CommandExecutor {
 
     #[cfg(target_os = "linux")]
     fn execute_sandboxed_impl(command: &str, cwd: &Path, workspace_root: &Path) -> Result<Output> {
-        let bwrap_ok = Command::new("bwrap").arg("--version").output().is_ok();
+        let bwrap_ok = vibe_no_window::std_command("bwrap")
+            .arg("--version")
+            .output()
+            .is_ok();
         if bwrap_ok {
             let ws = workspace_root.display().to_string();
             // Read-only bind of system dirs + read-write bind of workspace only
-            return Ok(Command::new("bwrap")
+            return Ok(vibe_no_window::std_command("bwrap")
                 .args(["--ro-bind", "/usr", "/usr"])
                 .args(["--ro-bind", "/lib", "/lib"])
                 .args(["--ro-bind", "/lib64", "/lib64"])
@@ -345,7 +340,26 @@ impl CommandExecutor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::os::unix::process::ExitStatusExt;
+
+    /// An `ExitStatus` carrying `code`, for the output-formatting tests.
+    ///
+    /// The raw value is platform-encoded -- a wait status on Unix, where the
+    /// exit code sits in the high byte, and the exit code itself on Windows.
+    /// The two constructors take different types and different numbers, so a
+    /// shared literal is not possible; this crate's tests used the Unix one
+    /// unconditionally and therefore did not compile on Windows at all.
+    fn exit_status(code: i32) -> std::process::ExitStatus {
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::ExitStatusExt;
+            std::process::ExitStatus::from_raw(code << 8)
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::ExitStatusExt;
+            std::process::ExitStatus::from_raw(code as u32)
+        }
+    }
 
     // ── is_safe_command ──────────────────────────────────────────────────
 
@@ -422,9 +436,20 @@ mod tests {
 
     #[test]
     fn execute_in_specific_dir() {
-        let output = CommandExecutor::execute_in("pwd", Path::new("/tmp")).unwrap();
+        // Not a hardcoded `/tmp`: `current_dir` is set through the OS, not the
+        // shell, so a POSIX path is not a valid argument on Windows and the
+        // spawn fails outright. Nor the temp dir itself -- MSYS reports that as
+        // `/tmp` whatever Windows calls it. A directory we create ourselves has
+        // a name that survives the translation.
+        let parent = tempfile::tempdir().expect("temp dir");
+        let dir = parent.path().join("vibecody-cwd-probe");
+        std::fs::create_dir(&dir).expect("create probe dir");
+        let output = CommandExecutor::execute_in("pwd", &dir).unwrap();
         let stdout = String::from_utf8_lossy(&output.stdout);
-        assert!(stdout.contains("tmp") || stdout.contains("private/tmp"));
+        assert!(
+            stdout.contains("vibecody-cwd-probe"),
+            "pwd printed {stdout:?}"
+        );
     }
 
     // ── execute_with_approval ────────────────────────────────────────────
@@ -450,7 +475,7 @@ mod tests {
     #[test]
     fn output_to_string_stdout_only() {
         let output = Output {
-            status: std::process::ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: b"hello\n".to_vec(),
             stderr: vec![],
         };
@@ -461,7 +486,7 @@ mod tests {
     #[test]
     fn output_to_string_stderr_only() {
         let output = Output {
-            status: std::process::ExitStatus::from_raw(256), // exit code 1
+            status: exit_status(1),
             stdout: vec![],
             stderr: b"error\n".to_vec(),
         };
@@ -472,7 +497,7 @@ mod tests {
     #[test]
     fn output_to_string_both() {
         let output = Output {
-            status: std::process::ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: b"out\n".to_vec(),
             stderr: b"err\n".to_vec(),
         };
@@ -485,7 +510,7 @@ mod tests {
     #[test]
     fn output_to_string_empty() {
         let output = Output {
-            status: std::process::ExitStatus::from_raw(0),
+            status: exit_status(0),
             stdout: vec![],
             stderr: vec![],
         };
@@ -501,13 +526,21 @@ fn failed_status() -> std::process::ExitStatus {
         use std::os::unix::process::ExitStatusExt;
         std::process::ExitStatus::from_raw(9)
     }
-    #[cfg(not(unix))]
+    #[cfg(windows)]
     {
-        // Any non-zero code; the message in stderr carries the detail.
-        std::process::Command::new("cmd")
-            .args(["/C", "exit 1"])
-            .status()
-            .unwrap_or_default()
+        use std::os::windows::process::ExitStatusExt;
+        // Any non-zero code; the message in stderr carries the detail. This
+        // used to run `cmd /C exit 1` to manufacture one, which spawned a
+        // whole process -- and, from a GUI, a console window -- for a value
+        // that can simply be constructed.
+        std::process::ExitStatus::from_raw(1)
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        // No portable constructor. Success is the wrong answer here, but it
+        // is the one the old `unwrap_or_default()` also gave, and no target
+        // we ship reaches this arm.
+        std::process::ExitStatus::default()
     }
 }
 
@@ -564,7 +597,10 @@ mod bounded_tests {
         // limit would have to choose between killing those and letting a hang
         // burn most of a run.
         let out = CommandExecutor::execute_in_bounded(
-            "for i in 1 2 3 4 5 6; do echo tick; sleep 0.4; done",
+            // Integer seconds: fractional `sleep` is a GNU extension, and the
+            // `sleep` that Windows resolves rejects it outright. Three ticks a
+            // second apart still outlive the two-second idle bound below.
+            "for i in 1 2 3; do echo tick; sleep 1; done",
             std::path::Path::new("."),
             Duration::from_secs(2),
             Duration::from_secs(60),
@@ -577,7 +613,7 @@ mod bounded_tests {
         );
         assert_eq!(
             String::from_utf8_lossy(&out.stdout).matches("tick").count(),
-            6
+            3
         );
     }
 

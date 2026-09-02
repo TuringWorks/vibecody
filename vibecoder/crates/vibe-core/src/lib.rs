@@ -11,7 +11,9 @@ pub mod hash;
 pub mod index;
 pub mod path_guard;
 pub mod search;
+pub mod shell;
 pub mod terminal;
+pub mod which;
 pub mod workspace;
 // SonarQube-compatible rule engine — promoted from vibecoder/src-tauri
 // 2026-05-19 so the Security Posture sonar adapter (in vibecli-cli)

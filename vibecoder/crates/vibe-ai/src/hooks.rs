@@ -15,7 +15,6 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::process::Command;
 
 // ── HookEvent ─────────────────────────────────────────────────────────────────
 
@@ -513,9 +512,7 @@ async fn exec_shell_hook(shell: &str, event: &HookEvent) -> Result<HookDecision>
     let payload = build_payload(event);
     let payload_json = serde_json::to_string(&payload)?;
 
-    let mut child = Command::new("sh")
-        .arg("-c")
-        .arg(shell)
+    let mut child = vibe_core::shell::sh_async(shell)
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
