@@ -57,6 +57,7 @@ use vibe_core::buffer::{Cursor, Edit, Position, Range};
 use vibe_core::file_system::FileEntry;
 
 use crate::flow::FlowTracker;
+use crate::tls_cert;
 use lsp_types::{
     CompletionParams, CompletionResponse, GotoDefinitionParams, GotoDefinitionResponse, Hover,
     HoverParams,
@@ -29808,8 +29809,13 @@ pub struct TlsCertInfo {
     pub not_after: String,
     pub san: Vec<String>,
     pub serial: String,
+    /// Chain verified, and today is inside the validity window.
     pub valid: bool,
-    pub days_remaining: i64,
+    /// Why — including "could not read it", which is not the same as invalid.
+    pub status: String,
+    /// `None` when the expiry date could not be read. Never a stand-in zero:
+    /// that is what made a working certificate read as expired.
+    pub days_remaining: Option<i64>,
     pub raw: String,
 }
 
@@ -30022,8 +30028,12 @@ pub async fn check_tls_cert(host: String, port: Option<u16>) -> Result<TlsCertIn
     let port = port.unwrap_or(443);
     let target = format!("{host}:{port}");
 
-    // Use openssl s_client to retrieve cert
-    let out = tokio::time::timeout(
+    // Two openssl runs, because they answer two different questions: `s_client`
+    // opens the connection and says whether the chain verified, `x509` reads the
+    // certificate's own fields. `s_client`'s chain listing looks like it carries
+    // those fields as well, and parsing it out of there is what made this report
+    // every site's certificate expired — see `tls_cert.rs`.
+    let session = tokio::time::timeout(
         std::time::Duration::from_secs(15),
         tokio::process::Command::new("openssl")
             .args([
@@ -30038,93 +30048,95 @@ pub async fn check_tls_cert(host: String, port: Option<u16>) -> Result<TlsCertIn
             .output(),
     )
     .await
-    .map_err(|_| "TLS check timed out".to_string())?
+    .map_err(|_| format!("TLS check timed out connecting to {target}"))?
     .map_err(|e| format!("openssl error: {e}. Is openssl installed?"))?;
 
-    let raw =
-        String::from_utf8_lossy(&out.stderr).to_string() + &String::from_utf8_lossy(&out.stdout);
+    // openssl splits the handshake across both streams and does not split it
+    // where you would expect: the `depth=… verify return:1` callback goes to
+    // stderr, while the `Verify return code: 0 (ok)` line that actually states
+    // the outcome is on stdout, along with the PEM chain. Reading only stderr
+    // finds every reassuring line and not the verdict.
+    let handshake = String::from_utf8_lossy(&session.stderr).to_string()
+        + &String::from_utf8_lossy(&session.stdout);
+    let pem = session.stdout;
 
-    // Parse cert fields from openssl output
-    fn extract(text: &str, prefix: &str) -> String {
-        text.lines()
-            .find(|l| l.trim().to_lowercase().contains(&prefix.to_lowercase()))
-            .map(|l| l.trim().to_string())
-            .unwrap_or_default()
+    let x509 = read_certificate_fields(&pem).await?;
+    let fields = tls_cert::parse_x509(&x509);
+
+    if fields.subject.is_empty() && fields.not_after.is_empty() {
+        // No certificate came back at all — a refused connection, a wrong port,
+        // a host that speaks something other than TLS. Report that, rather than
+        // an empty certificate that looks like a broken one.
+        let reason = handshake
+            .lines()
+            .find(|l| {
+                let l = l.trim();
+                !l.is_empty() && !l.starts_with("CONNECTED")
+            })
+            .unwrap_or("no certificate was offered")
+            .trim()
+            .to_string();
+        return Err(format!("No certificate from {target}: {reason}"));
     }
 
-    let subject = extract(&raw, "subject=");
-    let issuer = extract(&raw, "issuer=");
-    let not_before = extract(&raw, "not before");
-    let not_after = extract(&raw, "not after");
-    let serial = extract(&raw, "serial number");
-
-    // Parse SAN (Subject Alternative Names)
-    let san: Vec<String> = raw
-        .lines()
-        .find(|l| l.contains("DNS:"))
-        .map(|l| {
-            l.split(',')
-                .filter_map(|s| {
-                    let s = s.trim();
-                    s.strip_prefix("DNS:").map(|stripped| stripped.to_string())
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-
-    // Estimate days remaining from "Not After" date
-    // openssl outputs dates like: "Not After : Dec 31 23:59:59 2025 GMT"
-    let days_remaining = {
-        let date_str = not_after.split_once(':').map(|x| x.1).unwrap_or("").trim();
-        // Try to parse with chrono-style; use a rough calculation
-        let parts: Vec<&str> = date_str.split_whitespace().collect();
-        if parts.len() >= 4 {
-            let month = match parts[0] {
-                "Jan" => 1u32,
-                "Feb" => 2,
-                "Mar" => 3,
-                "Apr" => 4,
-                "May" => 5,
-                "Jun" => 6,
-                "Jul" => 7,
-                "Aug" => 8,
-                "Sep" => 9,
-                "Oct" => 10,
-                "Nov" => 11,
-                "Dec" => 12,
-                _ => 0,
-            };
-            let day = parts[1].parse::<u32>().unwrap_or(0);
-            let year = parts[3].parse::<i64>().unwrap_or(0);
-            // Very rough day estimate (good enough for display)
-            let now = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs() as i64;
-            // Compute target unix time approximately
-            let days_in_year: i64 = (year - 1970) * 365 + (year - 1969) / 4;
-            let month_days: [i64; 12] = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
-            let day_of_year = month_days[month.saturating_sub(1) as usize] + day as i64;
-            let target_ts = (days_in_year + day_of_year) * 86400;
-            (target_ts - now) / 86400
-        } else {
-            0
-        }
-    };
-
-    let valid = days_remaining > 0 && raw.contains("Verify return code: 0");
+    let now = chrono::Utc::now();
+    let validity = tls_cert::assess(&fields, &handshake, now);
+    let days_remaining = tls_cert::days_remaining(&fields.not_after, now);
 
     Ok(TlsCertInfo {
-        subject: subject.replace("subject=", "").trim().to_string(),
-        issuer: issuer.replace("issuer=", "").trim().to_string(),
-        not_before: not_before.replace("Not Before:", "").trim().to_string(),
-        not_after: not_after.replace("Not After :", "").trim().to_string(),
-        san,
-        serial: serial.replace("Serial Number:", "").trim().to_string(),
-        valid,
+        subject: fields.subject,
+        issuer: fields.issuer,
+        not_before: fields.not_before,
+        not_after: fields.not_after,
+        san: fields.san,
+        serial: fields.serial,
+        valid: validity.is_valid(),
+        status: validity.label(),
         days_remaining,
-        raw,
+        raw: format!("{handshake}\n── certificate ──\n{x509}"),
     })
+}
+
+/// Read a certificate's fields with `openssl x509`, which prints one documented
+/// `key=value` per line on every OpenSSL version.
+///
+/// `-ext` arrived in OpenSSL 1.1.1; where it is not understood the whole command
+/// fails, so the second run drops it and keeps everything except the SAN list.
+async fn read_certificate_fields(pem: &[u8]) -> Result<String, String> {
+    const FIELDS: [&str; 6] = ["x509", "-noout", "-subject", "-issuer", "-dates", "-serial"];
+
+    let with_san = run_openssl(&[&FIELDS[..], &["-ext", "subjectAltName"]].concat(), pem).await?;
+    if !with_san.trim().is_empty() {
+        return Ok(with_san);
+    }
+    run_openssl(&FIELDS, pem).await
+}
+
+/// Run `openssl` with `input` on its stdin, returning stdout.
+async fn run_openssl(args: &[&str], input: &[u8]) -> Result<String, String> {
+    use tokio::io::AsyncWriteExt;
+
+    let mut child = tokio::process::Command::new("openssl")
+        .args(args)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("openssl error: {e}. Is openssl installed?"))?;
+
+    if let Some(mut stdin) = child.stdin.take() {
+        // A parse failure closes stdin early; that is openssl's answer, not an
+        // error of ours, so the write result is read from its output instead.
+        let _ = stdin.write_all(input).await;
+        let _ = stdin.shutdown().await;
+    }
+
+    let out = tokio::time::timeout(std::time::Duration::from_secs(10), child.wait_with_output())
+        .await
+        .map_err(|_| "openssl x509 timed out reading the certificate".to_string())?
+        .map_err(|e| format!("openssl error: {e}"))?;
+
+    Ok(String::from_utf8_lossy(&out.stdout).to_string())
 }
 
 // ── Phase 8.1 — Agent Teams & Peer Communication ─────────────────────────────
@@ -68800,4 +68812,82 @@ pub async fn openmemory_waypoints() -> Result<Vec<serde_json::Value>, String> {
             None => edge_of(entry).into_iter().collect(),
         })
         .collect())
+}
+
+/// The TLS inspector against the live internet.
+///
+/// `#[ignore]` because it needs a network and three certificates it does not
+/// control; run it with `cargo test -p vibe-coder -- --ignored tls_inspector`.
+/// It exists because every part of this was already correct in a shell — the
+/// bug was in reading the output, which only a real certificate produces.
+#[cfg(test)]
+mod tls_inspector_live_tests {
+    use super::*;
+
+    #[tokio::test]
+    #[ignore = "needs the network"]
+    async fn a_working_site_is_valid_with_days_left() {
+        let cert = match check_tls_cert("github.com".into(), None).await {
+            Ok(cert) => cert,
+            Err(e) => {
+                println!("SKIPPED — could not reach github.com: {e}");
+                return;
+            }
+        };
+        println!("{} | {} | {:?}d", cert.status, cert.not_after, cert.days_remaining);
+        assert!(cert.valid, "github.com should be valid, got {}", cert.status);
+        assert_eq!(cert.status, "Valid");
+        assert!(
+            cert.days_remaining.is_some_and(|d| d > 0),
+            "expected days remaining, got {:?} from {:?}",
+            cert.days_remaining,
+            cert.not_after
+        );
+        assert!(cert.subject.contains("github.com"));
+        assert!(cert.san.contains(&"github.com".to_string()), "{:?}", cert.san);
+        assert!(!cert.issuer.is_empty() && !cert.serial.is_empty());
+    }
+
+    #[tokio::test]
+    #[ignore = "needs the network"]
+    async fn an_expired_certificate_says_expired_and_by_how_long() {
+        let cert = match check_tls_cert("expired.badssl.com".into(), None).await {
+            Ok(cert) => cert,
+            Err(e) => {
+                println!("SKIPPED — could not reach expired.badssl.com: {e}");
+                return;
+            }
+        };
+        println!("{} | {} | {:?}d", cert.status, cert.not_after, cert.days_remaining);
+        assert!(!cert.valid);
+        assert!(cert.days_remaining.is_some_and(|d| d < 0), "{:?}", cert.days_remaining);
+        // openssl rejects the chain for an expired leaf, so the reason is its own.
+        assert!(cert.status.contains("expired"), "{}", cert.status);
+    }
+
+    #[tokio::test]
+    #[ignore = "needs the network"]
+    async fn an_untrusted_chain_is_reported_as_untrusted_not_as_expired() {
+        let cert = match check_tls_cert("self-signed.badssl.com".into(), None).await {
+            Ok(cert) => cert,
+            Err(e) => {
+                println!("SKIPPED — could not reach self-signed.badssl.com: {e}");
+                return;
+            }
+        };
+        println!("{} | {:?}d", cert.status, cert.days_remaining);
+        assert!(!cert.valid);
+        assert!(cert.status.starts_with("Chain not trusted"), "{}", cert.status);
+        // The dates are readable even though the chain is not trusted, and the
+        // panel should show them rather than a zero.
+        assert!(cert.days_remaining.is_some(), "dates were readable");
+    }
+
+    #[tokio::test]
+    #[ignore = "needs the network"]
+    async fn nothing_listening_is_an_error_not_an_empty_certificate() {
+        let err = check_tls_cert("localhost".into(), Some(9)).await.unwrap_err();
+        println!("{err}");
+        assert!(err.contains("localhost:9"), "{err}");
+    }
 }

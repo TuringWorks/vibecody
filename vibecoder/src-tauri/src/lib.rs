@@ -7,6 +7,7 @@ mod flow;
 mod memory;
 mod panel_store;
 mod plantuml;
+mod tls_cert;
 pub mod shadow_workspace;
 // `sonar_rules` moved to `vibe-core` 2026-05-19 — re-export the
 // public path so any in-tree consumer that hasn't updated yet
