@@ -588,7 +588,7 @@ The AI panel (toggle with **AI Chat** in the header) has **246 panel components 
 | **Browser** | `BrowserPanel` | Embedded iframe browser with inspect mode, element selection |
 | **Browser Agent** | `BrowserAgentPanel` | Browser automation agent with CDP |
 | **Desktop Agent** | `DesktopAgentPanel` | Desktop automation agent |
-| **Observe-Act** | `ObserveActPanel` | Observe-act agent loop visualization |
+| **Observe-Act** | `ObserveActPanel` | Screenshot → vision model → action → verify loop that drives the real desktop. See [Observe-Act](/vibecody/observe-act/) |
 
 ### Integration & Migration
 

@@ -88,7 +88,7 @@ impl MouseButton {
 // ── Desktop Actions ─────────────────────────────────────────────────────────
 
 /// A discrete desktop automation action.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DesktopAction {
     /// Move mouse cursor to absolute coordinates.
     MoveMouse { x: u32, y: u32 },

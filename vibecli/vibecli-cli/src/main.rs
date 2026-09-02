@@ -255,6 +255,12 @@ mod review;
 // costs a second compilation of the module, so it is added only when the
 // binary actually references it, which it now does.
 mod harness_profiles;
+// Same reason as `harness_profiles` above: `serve.rs` names all three, so the
+// binary has to compile them too. `observe_act_runtime` pulls in
+// `desktop_agent`, which is why that one is here as well.
+mod desktop_agent;
+mod observe_act;
+mod observe_act_runtime;
 mod serve;
 use plugin::PluginLoader;
 mod profile;

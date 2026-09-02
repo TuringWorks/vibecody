@@ -5,7 +5,13 @@
 > **STATUS: ALL 4 GAPS CLOSED (2026-03-24)**
 >
 > - `browser_agent.rs` (2,159 lines, 73 tests) — CDP browser automation
-> - `observe_act.rs` (1,661 lines, 59 tests) — Continuous visual grounding loop
+> - `observe_act.rs` + `observe_act_runtime.rs` — Continuous visual grounding
+>   loop. **The 2026-03-24 note was premature for this one**: `observe_act.rs`
+>   shipped the vocabulary (action enum, session state machine, safety rails,
+>   prompt shapes) with nothing that captured a screen, called a model or moved
+>   a mouse, and the panel above it was a mock. The runtime, the `/observe/*`
+>   routes and the working panel landed later — see
+>   [observe-act.md](./observe-act.md).
 > - `desktop_agent.rs` (2,191 lines, 92 tests) — Cross-platform GUI automation
 > - `serve.rs` v1 API (+474 lines) — Agent-as-a-Service endpoints
 >

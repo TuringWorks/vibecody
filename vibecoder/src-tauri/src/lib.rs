@@ -1220,9 +1220,6 @@ pub fn run() {
             commands::save_streaming_topic,
             commands::delete_streaming_topic,
             // Observe-Act
-            commands::get_observeact_steps,
-            commands::get_observeact_config,
-            commands::save_observeact_config,
             // Web Crawler
             commands::run_web_crawl,
             commands::get_crawl_results,

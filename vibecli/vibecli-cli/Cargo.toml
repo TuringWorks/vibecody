@@ -134,6 +134,12 @@ dashmap = "6"
 hex.workspace = true
 uuid.workspace = true
 base64 = "0.23"
+# Observe-Act screenshot pipeline: read the platform screenshot, downscale it
+# to the vision API's size limit and re-encode as JPEG. A raw Retina PNG is
+# ~12 MB base64 — over Anthropic's 5 MB per-image cap before the request is
+# even built — so the resize is the difference between the loop working and
+# every step erroring. Already in the lock via `tauri`; PNG + JPEG only.
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
 keyring = "4"
 chacha20poly1305 = "0.11"
 chrono = { version = "0.4", features = ["serde"] }

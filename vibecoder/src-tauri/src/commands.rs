@@ -41072,46 +41072,14 @@ pub async fn delete_streaming_topic(name: String) -> Result<(), String> {
 // ══════════════════════════════════════════════════════════════════════════════
 // Observe-Act (Visual Grounding)
 // ══════════════════════════════════════════════════════════════════════════════
-
-fn observeact_data_dir() -> Result<std::path::PathBuf, String> {
-    project_data_dir("observe_act")
-}
-fn observeact_read(f: &str) -> serde_json::Value {
-    let Ok(d) = observeact_data_dir() else {
-        return serde_json::json!([]);
-    };
-    std::fs::read_to_string(d.join(f))
-        .ok()
-        .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or(serde_json::json!([]))
-}
-fn observeact_write(f: &str, v: &serde_json::Value) -> Result<(), String> {
-    let d = observeact_data_dir()?;
-    std::fs::write(
-        d.join(f),
-        serde_json::to_string_pretty(v).map_err(|e| e.to_string())?,
-    )
-    .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub async fn get_observeact_steps() -> Result<serde_json::Value, String> {
-    Ok(observeact_read("steps.json"))
-}
-#[tauri::command]
-pub async fn get_observeact_config() -> Result<serde_json::Value, String> {
-    let data = observeact_read("config.json");
-    if data.is_null() || data.as_object().map(|o| o.is_empty()).unwrap_or(true) {
-        return Ok(
-            serde_json::json!({ "safetyMode": "cautious", "maxSteps": 20, "intervalMs": 500, "maxActionsPerStep": 3, "rateLimitMs": 200, "maxConsecutiveFailures": 3 }),
-        );
-    }
-    Ok(data)
-}
-#[tauri::command]
-pub async fn save_observeact_config(config: serde_json::Value) -> Result<(), String> {
-    observeact_write("config.json", &config)
-}
+//
+// Nothing here any more. The panel talks to the daemon
+// (`GET|PUT /observe/config`, `/observe/sessions/*`), which owns the session
+// registry, the screenshot pipeline and the desktop automation tools. The
+// three commands that used to live here — `get_observeact_steps`,
+// `get_observeact_config`, `save_observeact_config` — kept a second copy of
+// the configuration under the project data directory, which the loop never
+// read: saving in the panel changed a file nothing consulted.
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Web Crawler

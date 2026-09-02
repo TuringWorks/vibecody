@@ -452,6 +452,7 @@ pub mod multimodal_agent;
 pub mod next_edit;
 pub mod notebook;
 pub mod observe_act;
+pub mod observe_act_runtime;
 pub mod opensandbox_client;
 pub mod otel_init;
 pub mod pairing;

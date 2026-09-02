@@ -109,6 +109,9 @@ sidebar:
   - title: Agent Panel
     icon: cpu
     url: /agent-panel/
+  - title: Observe-Act
+    icon: eye
+    url: /observe-act/
   - title: Diffcomplete (⌘.)
     icon: edit-3
     url: /diffcomplete/
@@ -244,6 +247,7 @@ header_pages:
   - providers/index.md
   - configuration.md
   - harness-profiles.md
+  - observe-act.md
   - embeddings.md
   - memory-guide.md
   - api-reference.md

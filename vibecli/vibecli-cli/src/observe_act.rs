@@ -217,6 +217,17 @@ pub struct ObservationStep {
     pub llm_reasoning: String,
     /// Actions executed during this step.
     pub actions_taken: Vec<ObserveActAction>,
+    /// Every action the model proposed for this step, executed or not.
+    ///
+    /// Separate from `actions_taken` because the two diverge exactly where it
+    /// matters: in `Restricted` mode nothing runs, and in `Cautious` mode a
+    /// destructive action runs only once a human says so. Folding the two
+    /// together would make a read-only session's history indistinguishable
+    /// from a session that did nothing — and would hide from the operator
+    /// what the agent *wanted* to do, which is the whole point of watching it
+    /// in read-only mode first.
+    #[serde(default)]
+    pub proposed_actions: Vec<ObserveActAction>,
     /// Optional verification of the action's effect.
     pub verification_result: Option<VerificationResult>,
     /// How long this step took in milliseconds.
@@ -276,6 +287,21 @@ pub enum ObserveActEvent {
     },
     /// Verification of an action completed.
     VerificationDone { result: VerificationResult },
+    /// A destructive action is waiting on a human (cautious mode).
+    ///
+    /// Distinct from `SafetyHalt`, which reports a stop that already happened.
+    /// This one is a question, and it carries the `approval_id` the answer has
+    /// to quote — without it a client could only answer "whatever is pending",
+    /// which resolves the wrong action when the loop has moved on.
+    ApprovalRequired {
+        approval_id: String,
+        step_num: usize,
+        action: ObserveActAction,
+        /// Rendered form of the action, so a client need not know the enum.
+        description: String,
+    },
+    /// A pending approval was answered, or expired unanswered.
+    ApprovalResolved { approval_id: String, approved: bool },
     /// The task is complete.
     TaskCompleted { summary: String },
     /// An error occurred.
@@ -688,17 +714,142 @@ pub fn validate_action_batch(actions: &[ObserveActAction], safety: &SafetyRails)
     Ok(())
 }
 
+// ── Screen geometry ────────────────────────────────────────────────────────
+
+/// The coordinate spaces an observe-act step has to reconcile.
+///
+/// Three of them, and conflating any two puts the click somewhere the model
+/// never looked:
+///
+/// - **Image space** — the pixels of the screenshot actually sent to the model.
+///   Downscaled from the capture to stay under the vision API's size limits,
+///   so it is usually smaller than either of the others. The model answers in
+///   *this* space, because it is the only one it can see.
+/// - **Capture space** — the raw screenshot file's pixels. On a Retina display
+///   `screencapture` writes the backing store, so this is 2× the logical size.
+/// - **Logical space** — the points the OS input APIs take (`cliclick`,
+///   `xdotool`). This is where an action must land.
+///
+/// The runtime measures image and logical width directly and divides; the
+/// backing scale factor never has to be guessed, which matters because the
+/// usual source for it (`system_profiler`'s "Retina" string) is absent on
+/// scaled resolutions and wrong on multi-display setups.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct ScreenGeometry {
+    /// Width of the image handed to the model, in pixels.
+    pub image_width: u32,
+    /// Height of the image handed to the model, in pixels.
+    pub image_height: u32,
+    /// Width of the logical screen, in the units the input APIs take.
+    pub logical_width: u32,
+    /// Height of the logical screen, in the units the input APIs take.
+    pub logical_height: u32,
+}
+
+impl ScreenGeometry {
+    /// Map a coordinate the model gave in image space to logical space.
+    ///
+    /// Saturates at the screen edge rather than wrapping: a model that
+    /// hallucinates a coordinate past the edge gets a click on the edge, not
+    /// one at `u32::MAX` truncated to who-knows-where by the input tool.
+    pub fn to_logical(self, x: u32, y: u32) -> (u32, u32) {
+        let map = |v: u32, from: u32, to: u32, max: u32| -> u32 {
+            if from == 0 {
+                return v.min(max.saturating_sub(1));
+            }
+            let scaled = (v as u64 * to as u64) / from as u64;
+            (scaled as u32).min(max.saturating_sub(1))
+        };
+        (
+            map(x, self.image_width, self.logical_width, self.logical_width),
+            map(
+                y,
+                self.image_height,
+                self.logical_height,
+                self.logical_height,
+            ),
+        )
+    }
+
+    /// Rewrite every coordinate in an action from image space to logical space.
+    ///
+    /// Non-coordinate actions pass through untouched.
+    pub fn map_action(&self, action: &ObserveActAction) -> ObserveActAction {
+        match action {
+            ObserveActAction::Click { x, y } => {
+                let (x, y) = self.to_logical(*x, *y);
+                ObserveActAction::Click { x, y }
+            }
+            ObserveActAction::DoubleClick { x, y } => {
+                let (x, y) = self.to_logical(*x, *y);
+                ObserveActAction::DoubleClick { x, y }
+            }
+            ObserveActAction::RightClick { x, y } => {
+                let (x, y) = self.to_logical(*x, *y);
+                ObserveActAction::RightClick { x, y }
+            }
+            ObserveActAction::MoveMouse { x, y } => {
+                let (x, y) = self.to_logical(*x, *y);
+                ObserveActAction::MoveMouse { x, y }
+            }
+            ObserveActAction::Drag {
+                from_x,
+                from_y,
+                to_x,
+                to_y,
+            } => {
+                let (from_x, from_y) = self.to_logical(*from_x, *from_y);
+                let (to_x, to_y) = self.to_logical(*to_x, *to_y);
+                ObserveActAction::Drag {
+                    from_x,
+                    from_y,
+                    to_x,
+                    to_y,
+                }
+            }
+            other => other.clone(),
+        }
+    }
+}
+
+// ── LlmDecision ────────────────────────────────────────────────────────────
+
+/// One turn of the model's half of the loop.
+///
+/// `expected_change` is what makes verification possible at all: without the
+/// model stating in advance what the screen should look like afterwards, the
+/// verification pass has nothing to check against and can only ask "does this
+/// look fine?", which a model will almost always answer yes to.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct LlmDecision {
+    /// Why the model chose these actions, in its own words.
+    pub reasoning: String,
+    /// What the screen should look like once the actions have run. Empty when
+    /// the model declined to say, which suppresses verification for the step
+    /// rather than inventing a criterion.
+    #[serde(default)]
+    pub expected_change: String,
+    /// The actions to execute, in order.
+    #[serde(default)]
+    pub actions: Vec<ObserveActAction>,
+}
+
 // ── LlmPromptBuilder ──────────────────────────────────────────────────────
 
 /// Builds prompts for LLM vision interactions.
 pub struct LlmPromptBuilder;
 
 impl LlmPromptBuilder {
-    /// Build an observation prompt that includes the task, step history, and current screenshot.
+    /// Build an observation prompt covering the task, step history, and the
+    /// coordinate space the model must answer in.
+    ///
+    /// The screenshot itself is **attached to the message**, not named in the
+    /// prompt: a vision model cannot open a file path, and telling it
+    /// `[Image: /tmp/step-3.png]` only invited it to pretend it had.
     pub fn build_observation_prompt(
         task: &str,
         step_history: &[ObservationStep],
-        current_screenshot: &str,
+        geometry: &ScreenGeometry,
     ) -> String {
         let mut prompt = String::with_capacity(2048);
 
@@ -708,11 +859,23 @@ impl LlmPromptBuilder {
         if !step_history.is_empty() {
             prompt.push_str("## Previous Steps\n");
             for step in step_history {
+                // A step whose actions did not run must say so, or the model
+                // reads the empty list as "I did nothing" and proposes the same
+                // action forever — which is precisely what a read-only session
+                // looks like from the inside.
+                let (label, shown) = if step.actions_taken.is_empty()
+                    && !step.proposed_actions.is_empty()
+                {
+                    ("Proposed (not executed)", &step.proposed_actions)
+                } else {
+                    ("Actions", &step.actions_taken)
+                };
                 prompt.push_str(&format!(
-                    "Step {}: {} — Actions: [{}]\n",
+                    "Step {}: {} — {}: [{}]\n",
                     step.step_num,
                     step.llm_reasoning,
-                    step.actions_taken
+                    label,
+                    shown
                         .iter()
                         .map(|a| a.to_string())
                         .collect::<Vec<_>>()
@@ -720,8 +883,9 @@ impl LlmPromptBuilder {
                 ));
                 if let Some(ref v) = step.verification_result {
                     prompt.push_str(&format!(
-                        "  Verification: {} (confidence: {:.0}%)\n",
+                        "  Verification: {} — {} (confidence: {:.0}%)\n",
                         if v.success { "PASS" } else { "FAIL" },
+                        v.actual_observation,
                         v.confidence * 100.0
                     ));
                 }
@@ -729,16 +893,27 @@ impl LlmPromptBuilder {
             prompt.push('\n');
         }
 
-        prompt.push_str("## Current Screenshot\n");
-        prompt.push_str(&format!("[Image: {}]\n\n", current_screenshot));
+        prompt.push_str("## Screen\n");
+        prompt.push_str(&format!(
+            "The attached screenshot is {} × {} pixels and shows the entire screen. \
+             Give every coordinate in that pixel space, measured from the top-left corner. \
+             Coordinates are rescaled to the display before the click is issued — do not \
+             adjust for the display's resolution yourself.\n\n",
+            geometry.image_width, geometry.image_height
+        ));
 
         prompt.push_str("## Instructions\n");
         prompt.push_str(
-            "Analyze the screenshot and determine the next actions to make progress on the task.\n",
+            "Analyze the screenshot and decide the next actions that make progress on the task.\n",
         );
+        prompt.push_str("Respond with a single JSON object:\n");
+        prompt.push_str("{\n");
+        prompt.push_str("  \"reasoning\": \"<what you see and why these actions>\",\n");
         prompt.push_str(
-            "Respond with a JSON array of actions. Each action has a \"type\" field.\n\n",
+            "  \"expected_change\": \"<what the screen should look like after these actions>\",\n",
         );
+        prompt.push_str("  \"actions\": [ ... ]\n");
+        prompt.push_str("}\n\n");
         prompt.push_str("Available action types:\n");
         prompt.push_str("- {\"type\": \"click\", \"x\": <num>, \"y\": <num>}\n");
         prompt.push_str("- {\"type\": \"double_click\", \"x\": <num>, \"y\": <num>}\n");
@@ -753,15 +928,47 @@ impl LlmPromptBuilder {
         prompt.push_str("- {\"type\": \"move_mouse\", \"x\": <num>, \"y\": <num>}\n");
         prompt.push_str("- {\"type\": \"drag\", \"from_x\": <num>, \"from_y\": <num>, \"to_x\": <num>, \"to_y\": <num>}\n");
         prompt.push_str("- {\"type\": \"done\", \"summary\": \"<string>\"}\n\n");
-        prompt.push_str("Respond ONLY with the JSON array, no other text.\n");
+        prompt.push_str(
+            "Emit \"done\" as soon as the task is finished, and only then. If the screen shows \
+             the task cannot proceed, emit \"done\" with a summary saying so rather than \
+             guessing at another action.\n",
+        );
+        prompt.push_str("Respond ONLY with the JSON object, no other text.\n");
 
         prompt
     }
 
+    /// Parse the model's decision object, falling back to a bare action array.
+    ///
+    /// Models drop the wrapper object often enough — especially smaller local
+    /// ones — that refusing the array shape would strand them entirely. A
+    /// fallback parse yields actions with no reasoning and no
+    /// `expected_change`, and the empty `expected_change` correctly suppresses
+    /// verification instead of verifying against a made-up criterion.
+    pub fn parse_decision(llm_response: &str) -> LlmDecision {
+        let trimmed = strip_code_fence(llm_response.trim());
+
+        if let Some(decision) = serde_json::from_str::<LlmDecision>(trimmed)
+            .ok()
+            .or_else(|| extract_between(trimmed, '{', '}').and_then(|s| serde_json::from_str(s).ok()))
+        {
+            return decision;
+        }
+
+        let actions = Self::parse_actions(trimmed);
+        if actions.is_empty() {
+            warn!("Failed to parse a decision from the LLM response");
+        }
+        LlmDecision {
+            reasoning: String::new(),
+            expected_change: String::new(),
+            actions,
+        }
+    }
+
     /// Parse a JSON array of actions from an LLM response.
     pub fn parse_actions(llm_response: &str) -> Vec<ObserveActAction> {
-        // Try to find a JSON array in the response
-        let trimmed = llm_response.trim();
+        let trimmed = strip_code_fence(llm_response.trim());
 
         // Try direct parse first
         if let Ok(actions) = serde_json::from_str::<Vec<ObserveActAction>>(trimmed) {
@@ -769,12 +976,9 @@ impl LlmPromptBuilder {
         }
 
         // Try to extract a JSON array from surrounding text
-        if let Some(start) = trimmed.find('[') {
-            if let Some(end) = trimmed.rfind(']') {
-                let json_str = &trimmed[start..=end];
-                if let Ok(actions) = serde_json::from_str::<Vec<ObserveActAction>>(json_str) {
-                    return actions;
-                }
+        if let Some(json_str) = extract_between(trimmed, '[', ']') {
+            if let Ok(actions) = serde_json::from_str::<Vec<ObserveActAction>>(json_str) {
+                return actions;
             }
         }
 
@@ -782,17 +986,19 @@ impl LlmPromptBuilder {
         Vec::new()
     }
 
-    /// Build a prompt to verify the effect of an action.
-    pub fn build_verification_prompt(expected: &str, screenshot: &str) -> String {
+    /// Build a prompt to verify the effect of an action. The screenshot is
+    /// attached to the message, not named here — see
+    /// [`Self::build_observation_prompt`].
+    pub fn build_verification_prompt(expected: &str) -> String {
         let mut prompt = String::with_capacity(512);
         prompt.push_str(
             "You are verifying whether an action had the expected effect on the screen.\n\n",
         );
         prompt.push_str(&format!("## Expected Change\n{}\n\n", expected));
-        prompt.push_str(&format!(
-            "## Current Screenshot\n[Image: {}]\n\n",
-            screenshot
-        ));
+        prompt.push_str(
+            "The attached screenshot was taken after the action ran. Compare it against the \
+             expected change.\n\n",
+        );
         prompt.push_str("Respond with a JSON object:\n");
         prompt.push_str("{\n");
         prompt.push_str("  \"actual_observation\": \"<what you see>\",\n");
@@ -801,6 +1007,61 @@ impl LlmPromptBuilder {
         prompt.push_str("}\n");
         prompt
     }
+
+    /// Parse the verification response.
+    ///
+    /// Returns `None` when the model's answer cannot be read as a verdict.
+    /// That is deliberately *not* the same as a failed verification: a
+    /// step whose verification could not be parsed is unverified, and
+    /// [`ObserveActSession::record_step`] leaves the failure streak alone for
+    /// exactly that case. Reporting it as a failure would abort sessions on a
+    /// model's formatting slip.
+    pub fn parse_verification(expected: &str, llm_response: &str) -> Option<VerificationResult> {
+        #[derive(Deserialize)]
+        struct Raw {
+            #[serde(default)]
+            actual_observation: String,
+            success: bool,
+            #[serde(default)]
+            confidence: f64,
+        }
+
+        let trimmed = strip_code_fence(llm_response.trim());
+        let raw: Raw = serde_json::from_str(trimmed)
+            .ok()
+            .or_else(|| extract_between(trimmed, '{', '}').and_then(|s| serde_json::from_str(s).ok()))?;
+
+        Some(VerificationResult::new(
+            expected.to_string(),
+            raw.actual_observation,
+            raw.success,
+            raw.confidence,
+        ))
+    }
+}
+
+/// Strip a leading ```json fence (and its closing fence) if present.
+///
+/// Vision models wrap JSON in a fence far more often than they do in a text
+/// completion, and `serde_json` will not look past the backticks.
+fn strip_code_fence(s: &str) -> &str {
+    let Some(rest) = s.strip_prefix("```") else {
+        return s;
+    };
+    // Drop the optional language tag on the opening fence line.
+    let rest = rest.split_once('\n').map(|(_, tail)| tail).unwrap_or("");
+    rest.trim_end()
+        .strip_suffix("```")
+        .unwrap_or(rest)
+        .trim()
+}
+
+/// The slice from the first `open` to the last `close`, if both are present
+/// and in order.
+fn extract_between(s: &str, open: char, close: char) -> Option<&str> {
+    let start = s.find(open)?;
+    let end = s.rfind(close)?;
+    (end > start).then(|| &s[start..=end])
 }
 
 // ── Utility ────────────────────────────────────────────────────────────────
@@ -833,6 +1094,7 @@ mod tests {
             screenshot_path: None,
             llm_reasoning: String::new(),
             actions_taken: vec![],
+            proposed_actions: vec![],
             verification_result: verified.map(|success| VerificationResult {
                 expected_change: "something".into(),
                 actual_observation: "something else".into(),
@@ -1220,6 +1482,7 @@ mod tests {
                     text: "hello".into(),
                 },
             ],
+            proposed_actions: Vec::new(),
             verification_result: None,
             duration_ms: 500,
         };
@@ -1393,6 +1656,7 @@ mod tests {
             actions_taken: vec![ObserveActAction::Done {
                 summary: "Opened browser and navigated".into(),
             }],
+            proposed_actions: Vec::new(),
             verification_result: None,
             duration_ms: 100,
         };
@@ -1436,26 +1700,31 @@ mod tests {
 
     // ── LLM Prompt Builder Tests ───────────────────────────────────────
 
+    /// A 1280×800 image of a 1280×800 screen — the identity case, so a test
+    /// about prompt text is not also a test about scaling.
+    fn geom() -> ScreenGeometry {
+        ScreenGeometry {
+            image_width: 1280,
+            image_height: 800,
+            logical_width: 1280,
+            logical_height: 800,
+        }
+    }
+
     #[test]
     fn test_observation_prompt_no_history() {
-        let prompt = LlmPromptBuilder::build_observation_prompt(
-            "Click the Save button",
-            &[],
-            "/tmp/screenshot.png",
-        );
+        let prompt =
+            LlmPromptBuilder::build_observation_prompt("Click the Save button", &[], &geom());
         assert!(prompt.contains("Click the Save button"));
-        assert!(prompt.contains("/tmp/screenshot.png"));
+        assert!(prompt.contains("1280 × 800 pixels"));
         assert!(!prompt.contains("Previous Steps"));
     }
 
     #[test]
     fn test_observation_prompt_with_history() {
         let steps = vec![make_step(1, true)];
-        let prompt = LlmPromptBuilder::build_observation_prompt(
-            "Click the Save button",
-            &steps,
-            "/tmp/screenshot.png",
-        );
+        let prompt =
+            LlmPromptBuilder::build_observation_prompt("Click the Save button", &steps, &geom());
         assert!(prompt.contains("Previous Steps"));
         assert!(prompt.contains("Step 1"));
         assert!(prompt.contains("PASS"));
@@ -1463,13 +1732,22 @@ mod tests {
 
     #[test]
     fn test_observation_prompt_contains_action_types() {
-        let prompt = LlmPromptBuilder::build_observation_prompt("task", &[], "/tmp/s.png");
+        let prompt = LlmPromptBuilder::build_observation_prompt("task", &[], &geom());
         assert!(prompt.contains("\"type\": \"click\""));
         assert!(prompt.contains("\"type\": \"type\""));
         assert!(prompt.contains("\"type\": \"key_combo\""));
         assert!(prompt.contains("\"type\": \"scroll\""));
         assert!(prompt.contains("\"type\": \"done\""));
         assert!(prompt.contains("\"type\": \"drag\""));
+    }
+
+    /// The prompt must not hand the model a file path it cannot open — the
+    /// image is attached to the message instead.
+    #[test]
+    fn test_observation_prompt_names_no_file_path() {
+        let prompt = LlmPromptBuilder::build_observation_prompt("task", &[], &geom());
+        assert!(!prompt.contains("[Image:"));
+        assert!(!prompt.contains(".png"));
     }
 
     #[test]
@@ -1515,13 +1793,156 @@ That should work."#;
     }
 
     #[test]
+    fn test_parse_actions_in_code_fence() {
+        let input = "```json\n[{\"type\": \"click\", \"x\": 7, \"y\": 8}]\n```";
+        let actions = LlmPromptBuilder::parse_actions(input);
+        assert_eq!(actions, vec![ObserveActAction::Click { x: 7, y: 8 }]);
+    }
+
+    // ── Decision parsing ───────────────────────────────────────────────
+
+    #[test]
+    fn test_parse_decision_full_object() {
+        let input = r#"{
+            "reasoning": "The Save button is at the top right.",
+            "expected_change": "A save dialog appears.",
+            "actions": [{"type": "click", "x": 900, "y": 40}]
+        }"#;
+        let d = LlmPromptBuilder::parse_decision(input);
+        assert_eq!(d.reasoning, "The Save button is at the top right.");
+        assert_eq!(d.expected_change, "A save dialog appears.");
+        assert_eq!(d.actions, vec![ObserveActAction::Click { x: 900, y: 40 }]);
+    }
+
+    #[test]
+    fn test_parse_decision_in_code_fence_with_prose() {
+        let input = "Sure — here you go:\n```json\n{\"reasoning\": \"r\", \"expected_change\": \"e\", \"actions\": []}\n```\nHope that helps.";
+        let d = LlmPromptBuilder::parse_decision(input);
+        assert_eq!(d.reasoning, "r");
+        assert_eq!(d.expected_change, "e");
+        assert!(d.actions.is_empty());
+    }
+
+    /// A model that answers with a bare array still gets its actions run —
+    /// but with no `expected_change`, which is what suppresses verification
+    /// rather than verifying against an invented criterion.
+    #[test]
+    fn test_parse_decision_falls_back_to_bare_array() {
+        let d = LlmPromptBuilder::parse_decision(r#"[{"type": "wait", "ms": 500}]"#);
+        assert_eq!(d.actions, vec![ObserveActAction::Wait { ms: 500 }]);
+        assert!(d.reasoning.is_empty());
+        assert!(d.expected_change.is_empty());
+    }
+
+    #[test]
+    fn test_parse_decision_unparseable_yields_no_actions() {
+        let d = LlmPromptBuilder::parse_decision("I'm not sure what to do here.");
+        assert!(d.actions.is_empty());
+        assert!(d.expected_change.is_empty());
+    }
+
+    #[test]
     fn test_verification_prompt() {
-        let prompt =
-            LlmPromptBuilder::build_verification_prompt("A dialog should appear", "/tmp/after.png");
+        let prompt = LlmPromptBuilder::build_verification_prompt("A dialog should appear");
         assert!(prompt.contains("A dialog should appear"));
-        assert!(prompt.contains("/tmp/after.png"));
         assert!(prompt.contains("actual_observation"));
         assert!(prompt.contains("confidence"));
+    }
+
+    #[test]
+    fn test_parse_verification_object() {
+        let v = LlmPromptBuilder::parse_verification(
+            "dialog appears",
+            r#"{"actual_observation": "a dialog is open", "success": true, "confidence": 0.9}"#,
+        )
+        .expect("parses");
+        assert!(v.success);
+        assert_eq!(v.expected_change, "dialog appears");
+        assert_eq!(v.actual_observation, "a dialog is open");
+        assert!((v.confidence - 0.9).abs() < f64::EPSILON);
+    }
+
+    /// An unreadable verdict is absent, not a failure — the distinction is
+    /// what keeps a formatting slip from aborting a session.
+    #[test]
+    fn test_parse_verification_unparseable_is_none() {
+        assert!(LlmPromptBuilder::parse_verification("x", "who knows").is_none());
+    }
+
+    // ── Screen geometry ────────────────────────────────────────────────
+
+    /// The Retina case: the model sees a 1280-wide downscale of a 2560-pixel
+    /// capture of a 1280-point screen, so its coordinates pass through
+    /// unchanged — and a naive "divide by the capture width" would halve them.
+    #[test]
+    fn test_geometry_maps_image_space_to_logical_space() {
+        let g = ScreenGeometry {
+            image_width: 1280,
+            image_height: 800,
+            logical_width: 1280,
+            logical_height: 800,
+        };
+        assert_eq!(g.to_logical(640, 400), (640, 400));
+
+        // A 1512-point screen sent to the model at 1024 wide.
+        let g = ScreenGeometry {
+            image_width: 1024,
+            image_height: 640,
+            logical_width: 1512,
+            logical_height: 945,
+        };
+        assert_eq!(g.to_logical(0, 0), (0, 0));
+        assert_eq!(g.to_logical(512, 320), (756, 472));
+    }
+
+    #[test]
+    fn test_geometry_clamps_out_of_range_coordinates() {
+        let g = ScreenGeometry {
+            image_width: 1000,
+            image_height: 1000,
+            logical_width: 1000,
+            logical_height: 1000,
+        };
+        assert_eq!(g.to_logical(99_999, 99_999), (999, 999));
+    }
+
+    #[test]
+    fn test_geometry_maps_every_coordinate_of_a_drag() {
+        let g = ScreenGeometry {
+            image_width: 500,
+            image_height: 500,
+            logical_width: 1000,
+            logical_height: 1000,
+        };
+        let mapped = g.map_action(&ObserveActAction::Drag {
+            from_x: 10,
+            from_y: 20,
+            to_x: 30,
+            to_y: 40,
+        });
+        assert_eq!(
+            mapped,
+            ObserveActAction::Drag {
+                from_x: 20,
+                from_y: 40,
+                to_x: 60,
+                to_y: 80,
+            }
+        );
+    }
+
+    #[test]
+    fn test_geometry_leaves_non_coordinate_actions_alone() {
+        let g = ScreenGeometry {
+            image_width: 500,
+            image_height: 500,
+            logical_width: 1000,
+            logical_height: 1000,
+        };
+        let typed = ObserveActAction::Type {
+            text: "hello".into(),
+        };
+        assert_eq!(g.map_action(&typed), typed);
     }
 
     // ── Verification Result Tests ──────────────────────────────────────
@@ -1832,6 +2253,7 @@ That should work."#;
             screenshot_path: Some(format!("/tmp/step_{}.png", num)),
             llm_reasoning: format!("Step {} reasoning", num),
             actions_taken: vec![ObserveActAction::Click { x: 10, y: 20 }],
+            proposed_actions: vec![ObserveActAction::Click { x: 10, y: 20 }],
             verification_result: Some(VerificationResult::new(
                 "expected".into(),
                 "actual".into(),

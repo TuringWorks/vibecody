@@ -162,6 +162,11 @@ pub struct ServeState {
     /// drained by `GET /v1/security-review/findings`. Empty unless the
     /// `[security_review]` config opts the daemon in.
     pub security_findings: crate::security_watch_daemon::SecurityFindingsQueue,
+    /// Observe-Act sessions — the visual grounding loop that drives the
+    /// desktop. Owned by the daemon rather than a shell because there is one
+    /// screen per machine: two registries would each think theirs was the only
+    /// session and drive the same mouse.
+    pub observe_act: Arc<crate::observe_act_runtime::ObserveActRegistry>,
 }
 
 /// F3.x — payload tracked on `ServeState.mobile_active_session`.
@@ -7882,8 +7887,24 @@ async fn v1_capabilities() -> impl IntoResponse {
             },
             "observe_act": {
                 "description": "Continuous visual grounding loop (screenshot → LLM → action → verify)",
-                "vision_providers": ["claude", "openai", "gemini"],
-                "max_steps": 50,
+                // Provider-agnostic: the caller names the vision provider and
+                // model on `POST /observe/sessions`. The old key here listed
+                // three vendors as if they were the supported set, which was
+                // never true and read as a constraint clients had to honour.
+                "provider_selected_per_request": true,
+                "safety_modes": ["cautious", "autonomous", "restricted"],
+                // The operator's configurable budget, not a ceiling the daemon
+                // enforces — `max_steps` is whatever the request asks for.
+                "default_max_steps": crate::observe_act::ObserveActConfig::default().max_steps,
+                "routes": [
+                    "GET /observe/preflight",
+                    "GET|PUT /observe/config",
+                    "GET|POST /observe/sessions",
+                    "GET /observe/sessions/{id}",
+                    "POST /observe/sessions/{id}/pause|resume|abort|approve",
+                    "GET /observe/sessions/{id}/events",
+                    "GET /observe/sessions/{id}/screenshot",
+                ],
             },
             "desktop": {
                 "description": "Desktop GUI automation (mouse, keyboard, windows)",
@@ -8729,6 +8750,379 @@ async fn rl_multi_agent_runs_h(
 /// Build the full axum router with all middleware, CORS, auth, and routes.
 /// Extracted so that tests can call it with `tower::ServiceExt::oneshot()`
 /// without binding to a TCP port.
+// ── Observe-Act — the visual grounding loop's HTTP surface ─────────────────
+//
+// The panel (VibeCoder → System Monitor → Observe-Act) drives all of this over
+// `daemonFetch`. Everything lives in the daemon rather than in a Tauri command
+// because the loop needs the provider keys, the screenshot pipeline and the
+// desktop automation tools, all of which the daemon already owns — and because
+// a second copy of the session registry in each shell would mean three
+// disagreeing answers to "is a session running".
+
+/// POST /observe/sessions request body.
+#[derive(Debug, Deserialize)]
+pub struct ObserveStartRequest {
+    pub task: String,
+    /// Vision provider, from the caller's model selection. Required: the
+    /// provider-agnostic rule (AGENTS.md) forbids defaulting to one vendor,
+    /// and a loop that silently ran on the daemon's boot provider could send
+    /// screenshots of the user's desktop to a service they did not pick.
+    pub provider: String,
+    /// Model within that provider. Required for the same reason.
+    pub model: String,
+    /// Loop configuration. Absent uses whatever the operator last saved.
+    #[serde(default)]
+    pub config: Option<crate::observe_act::ObserveActConfig>,
+    /// Safety rails. Absent uses whatever the operator last saved.
+    #[serde(default)]
+    pub safety: Option<crate::observe_act::SafetyRails>,
+}
+
+/// POST /observe/sessions/{id}/approve request body.
+#[derive(Debug, Deserialize)]
+pub struct ObserveApprovalRequest {
+    /// Which approval is being answered. Absent answers whichever one is
+    /// pending — the panel sends the id it was shown, so a stale click on a
+    /// superseded prompt is rejected rather than applied to a different action.
+    #[serde(default)]
+    pub approval_id: Option<String>,
+    pub approve: bool,
+}
+
+/// The shape every session-returning route answers with.
+fn observe_session_json(
+    handle: &Arc<crate::observe_act_runtime::SessionHandle>,
+) -> serde_json::Value {
+    let session = handle.snapshot();
+    let summary = handle.summary();
+    serde_json::json!({
+        "id": handle.id,
+        "model": handle.model_label,
+        "task": session.task,
+        "status": session.status,
+        "config": session.config,
+        "started_at_ms": session.started_at_ms,
+        "consecutive_failures": session.consecutive_failures,
+        "summary": summary,
+        "steps": session.steps,
+        "pending_approval": handle.pending_approval(),
+        "has_screenshot": handle.latest_screenshot().is_some(),
+    })
+}
+
+/// The listing shape — no steps, so a long history does not make the list
+/// megabytes wide.
+fn observe_session_row(
+    handle: &Arc<crate::observe_act_runtime::SessionHandle>,
+) -> serde_json::Value {
+    let summary = handle.summary();
+    serde_json::json!({
+        "id": handle.id,
+        "model": handle.model_label,
+        "task": summary.task,
+        "status": summary.final_status,
+        "total_steps": summary.total_steps,
+        "total_actions": summary.total_actions,
+        "success_rate": summary.success_rate,
+        "duration_ms": summary.duration_ms,
+        "completion_summary": summary.completion_summary,
+    })
+}
+
+fn observe_not_found(id: &str) -> axum::response::Response {
+    (
+        StatusCode::NOT_FOUND,
+        Json(serde_json::json!({ "error": format!("no observe-act session {id}") })),
+    )
+        .into_response()
+}
+
+/// GET /observe/preflight — can this machine run a session, and if not, why.
+async fn observe_preflight() -> impl IntoResponse {
+    let screen = crate::observe_act_runtime::DesktopScreenDriver::new();
+    Json(crate::observe_act_runtime::preflight(&screen).await)
+}
+
+/// GET /observe/config — the operator's saved loop + safety configuration.
+async fn observe_get_config(State(state): State<ServeState>) -> impl IntoResponse {
+    Json(crate::observe_act_runtime::load_config(
+        state.observe_act.root(),
+    ))
+}
+
+/// PUT /observe/config — persist the configuration.
+async fn observe_put_config(
+    State(state): State<ServeState>,
+    Json(config): Json<crate::observe_act_runtime::StoredConfig>,
+) -> impl IntoResponse {
+    match crate::observe_act_runtime::save_config(state.observe_act.root(), &config) {
+        Ok(()) => (StatusCode::OK, Json(config)).into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": e.to_string() })),
+        )
+            .into_response(),
+    }
+}
+
+/// GET /observe/sessions — every session this daemon knows, newest first.
+async fn observe_list_sessions(State(state): State<ServeState>) -> impl IntoResponse {
+    let rows: Vec<serde_json::Value> = state
+        .observe_act
+        .list()
+        .iter()
+        .map(observe_session_row)
+        .collect();
+    Json(serde_json::json!({ "sessions": rows }))
+}
+
+/// POST /observe/sessions — start a session.
+async fn observe_start_session(
+    State(state): State<ServeState>,
+    Json(req): Json<ObserveStartRequest>,
+) -> impl IntoResponse {
+    if req.provider.trim().is_empty() || req.model.trim().is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "error": "provider and model are required — pick a vision model before starting"
+            })),
+        )
+            .into_response();
+    }
+
+    let Some(provider) = build_provider_override(&req.provider, &req.model) else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "error": format!(
+                    "cannot use {}/{} — the provider is unknown or its API key is not configured",
+                    req.provider, req.model
+                )
+            })),
+        )
+            .into_response();
+    };
+
+    let stored = crate::observe_act_runtime::load_config(state.observe_act.root());
+    let config = req.config.unwrap_or(stored.config);
+    let safety = req.safety.unwrap_or(stored.safety);
+
+    let vision = crate::observe_act_runtime::ProviderVisionModel::new(
+        // Wrapped for retry: a session is a long series of one-shot calls with
+        // no retry loop of its own, so a single transient 503 would otherwise
+        // burn a step and count against the failure streak.
+        resilient(provider),
+        format!("{}/{}", req.provider, req.model),
+    );
+    let claims_vision = vision.claims_vision();
+
+    let spec = crate::observe_act_runtime::StartSpec {
+        task: req.task,
+        config,
+        safety,
+        screen: Arc::new(crate::observe_act_runtime::DesktopScreenDriver::new()),
+        vision: Arc::new(vision),
+    };
+
+    match state.observe_act.start(spec).await {
+        Ok(handle) => {
+            let mut body = observe_session_json(&handle);
+            if let Some(obj) = body.as_object_mut() {
+                // Reported, not enforced: `supports_vision` defaults to false
+                // on the provider trait and several providers that do accept
+                // images never override it, so refusing on it would reject
+                // working setups. The caller can warn.
+                obj.insert("provider_claims_vision".into(), claims_vision.into());
+            }
+            (StatusCode::CREATED, Json(body)).into_response()
+        }
+        Err(e) => (
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({ "error": e.to_string() })),
+        )
+            .into_response(),
+    }
+}
+
+/// GET /observe/sessions/{id} — the full record, steps included.
+async fn observe_get_session(
+    State(state): State<ServeState>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    match state.observe_act.get(&id) {
+        Some(handle) => Json(observe_session_json(&handle)).into_response(),
+        None => observe_not_found(&id),
+    }
+}
+
+/// POST /observe/sessions/{id}/pause
+async fn observe_pause_session(
+    State(state): State<ServeState>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    match state.observe_act.get(&id) {
+        Some(handle) => {
+            handle.pause();
+            Json(observe_session_json(&handle)).into_response()
+        }
+        None => observe_not_found(&id),
+    }
+}
+
+/// POST /observe/sessions/{id}/resume
+async fn observe_resume_session(
+    State(state): State<ServeState>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    match state.observe_act.get(&id) {
+        Some(handle) => {
+            handle.resume();
+            Json(observe_session_json(&handle)).into_response()
+        }
+        None => observe_not_found(&id),
+    }
+}
+
+/// POST /observe/sessions/{id}/abort
+async fn observe_abort_session(
+    State(state): State<ServeState>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    match state.observe_act.get(&id) {
+        Some(handle) => {
+            handle.abort("stopped by the operator");
+            Json(observe_session_json(&handle)).into_response()
+        }
+        None => observe_not_found(&id),
+    }
+}
+
+/// POST /observe/sessions/{id}/approve — answer a cautious-mode confirmation.
+async fn observe_approve(
+    State(state): State<ServeState>,
+    Path(id): Path<String>,
+    Json(req): Json<ObserveApprovalRequest>,
+) -> impl IntoResponse {
+    let Some(handle) = state.observe_act.get(&id) else {
+        return observe_not_found(&id);
+    };
+    let resolved = handle.resolve_approval(req.approval_id.as_deref(), req.approve);
+    if resolved {
+        Json(serde_json::json!({ "resolved": true })).into_response()
+    } else {
+        // Not an error the caller can fix by retrying: the prompt was already
+        // answered, timed out, or belongs to a step that has moved on.
+        (
+            StatusCode::CONFLICT,
+            Json(serde_json::json!({
+                "resolved": false,
+                "error": "no matching approval is pending — it was already answered or timed out",
+            })),
+        )
+            .into_response()
+    }
+}
+
+/// GET /observe/sessions/{id}/events — SSE stream of loop events.
+///
+/// Bearer-token authed via the parent router; `EventSource` cannot set a
+/// header, so the panel appends `?token=`.
+async fn observe_events(
+    State(state): State<ServeState>,
+    Path(id): Path<String>,
+) -> Sse<impl futures::Stream<Item = Result<Event, Infallible>>> {
+    use tokio_stream::wrappers::ReceiverStream;
+
+    let (tx, rx) = tokio::sync::mpsc::channel::<Result<Event, Infallible>>(64);
+
+    if let Some(handle) = state.observe_act.get(&id) {
+        let mut events = handle.subscribe();
+        // Send the current status first so a client that connects mid-session
+        // — or after it ended — renders the truth instead of an empty panel
+        // waiting for an event that will never come.
+        let _ = tx
+            .send(Ok(Event::default()
+                .event("snapshot")
+                .data(observe_session_json(&handle).to_string())))
+            .await;
+
+        tokio::spawn(async move {
+            loop {
+                match events.recv().await {
+                    Ok(event) => {
+                        let json = serde_json::to_string(&event).unwrap_or_default();
+                        if tx.send(Ok(Event::default().event("step").data(json))).await.is_err() {
+                            return;
+                        }
+                    }
+                    // Lagged: the client fell behind the buffer. Tell it to
+                    // re-read rather than pretending it saw everything.
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                        let _ = tx
+                            .send(Ok(Event::default()
+                                .event("lagged")
+                                .data(serde_json::json!({ "missed": n }).to_string())))
+                            .await;
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                        let _ = tx
+                            .send(Ok(Event::default().event("closed").data("{}")))
+                            .await;
+                        return;
+                    }
+                }
+            }
+        });
+    } else {
+        let _ = tx
+            .send(Ok(Event::default()
+                .event("error")
+                .data(serde_json::json!({ "error": "unknown session" }).to_string())))
+            .await;
+    }
+
+    Sse::new(ReceiverStream::new(rx)).keep_alive(KeepAlive::new().interval(Duration::from_secs(15)))
+}
+
+/// GET /observe/sessions/{id}/screenshot — the most recent capture, as PNG.
+///
+/// The path comes from the session's own record, never from the request, so
+/// there is no traversal surface: the caller names a session, not a file.
+async fn observe_screenshot(
+    State(state): State<ServeState>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    let Some(handle) = state.observe_act.get(&id) else {
+        return observe_not_found(&id);
+    };
+    let Some(path) = handle.latest_screenshot() else {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({ "error": "this session has captured no screenshot yet" })),
+        )
+            .into_response();
+    };
+    match tokio::fs::read(&path).await {
+        Ok(bytes) => (
+            StatusCode::OK,
+            [
+                (header::CONTENT_TYPE, "image/png"),
+                // The file is overwritten per step and the URL never changes,
+                // so any caching at all shows a stale desktop.
+                (header::CACHE_CONTROL, "no-store"),
+            ],
+            bytes,
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": format!("reading {path:?}: {e}") })),
+        )
+            .into_response(),
+    }
+}
+
 pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
     // CORS: restrict to localhost origins only
     let origins: Vec<HeaderValue> = [
@@ -8901,6 +9295,25 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/v1/browse/{id}", get(v1_get_browse))
         .route("/v1/browse/{id}/screenshots", get(v1_browse_screenshots))
         .route("/v1/browse/{id}/intervene", post(v1_browse_intervene))
+        // Observe-Act — the visual grounding loop. Authed like everything
+        // else; the SSE stream takes `?token=` because `EventSource` cannot
+        // set a header.
+        .route("/observe/preflight", get(observe_preflight))
+        .route(
+            "/observe/config",
+            get(observe_get_config).put(observe_put_config),
+        )
+        .route(
+            "/observe/sessions",
+            get(observe_list_sessions).post(observe_start_session),
+        )
+        .route("/observe/sessions/{id}", get(observe_get_session))
+        .route("/observe/sessions/{id}/pause", post(observe_pause_session))
+        .route("/observe/sessions/{id}/resume", post(observe_resume_session))
+        .route("/observe/sessions/{id}/abort", post(observe_abort_session))
+        .route("/observe/sessions/{id}/approve", post(observe_approve))
+        .route("/observe/sessions/{id}/events", get(observe_events))
+        .route("/observe/sessions/{id}/screenshot", get(observe_screenshot))
         // DREAD #1 Slice G part 2 — tainted-argument confirmation bridge.
         // SSE stream of pending prompts; POST a decision to resolve one.
         // See docs/security/tainted-data-flow.md §8.
@@ -9681,6 +10094,9 @@ pub async fn serve(
         tainted,
         tainted_http_queue,
         security_findings: crate::security_watch_daemon::SecurityFindingsQueue::new(),
+        observe_act: Arc::new(crate::observe_act_runtime::ObserveActRegistry::new(
+            crate::observe_act_runtime::ObserveActRegistry::default_root(),
+        )),
     };
 
     // Background task: detect or start an ngrok / Tailscale Funnel tunnel and
@@ -14431,6 +14847,13 @@ mod tests {
                 tainted: TaintedDaemonFlags::default(),
                 tainted_http_queue: Arc::new(crate::tainted_http_bridge::HttpPromptQueue::new()),
                 security_findings: crate::security_watch_daemon::SecurityFindingsQueue::new(),
+        // A registry rooted in a temp directory: `default_root()` opens the
+        // developer's real `~/.vibecli/observe_act`, and a test that reads
+        // their actual session history is a test that fails on their machine
+        // and nowhere else (AGENTS.md → Test Isolation).
+        observe_act: Arc::new(crate::observe_act_runtime::ObserveActRegistry::new(
+            std::env::temp_dir().join(format!("vibecli-observe-test-{}", std::process::id())),
+        )),
             };
             (build_router(state, 7878), tmp_dir)
         }
@@ -15211,6 +15634,13 @@ mod tests {
                 tainted: TaintedDaemonFlags::default(),
                 tainted_http_queue: Arc::new(crate::tainted_http_bridge::HttpPromptQueue::new()),
                 security_findings: crate::security_watch_daemon::SecurityFindingsQueue::new(),
+        // A registry rooted in a temp directory: `default_root()` opens the
+        // developer's real `~/.vibecli/observe_act`, and a test that reads
+        // their actual session history is a test that fails on their machine
+        // and nowhere else (AGENTS.md → Test Isolation).
+        observe_act: Arc::new(crate::observe_act_runtime::ObserveActRegistry::new(
+            std::env::temp_dir().join(format!("vibecli-observe-test-{}", std::process::id())),
+        )),
             };
             (build_router(state, 7878), tmp_dir)
         }
