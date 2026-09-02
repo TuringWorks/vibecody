@@ -180,6 +180,44 @@ describe("Given a shell too old to answer a readiness probe", () => {
   });
 });
 
+describe("Given a readiness reply that is not one", () => {
+  it("When the reply has no message, Then no sentence is built from it", async () => {
+    // A shell whose `daemon_readiness_probe` answers with something else — an
+    // older build, a mocked host, a partial payload. Rendering the missing
+    // field produced the literal user-facing text "Could not read speech
+    // settings. undefined": absent data promoted to a claim, which is strictly
+    // worse than the status code it was meant to improve on.
+    mockInvoke.mockImplementation(() => Promise.resolve("tok"));
+
+    const msg = await describeDaemonFailure("read speech settings", res(401));
+
+    expect(msg).not.toContain("undefined");
+    expect(msg).toContain("401");
+  });
+
+  it("When the reply does not say ready, Then it is not read as not-ready", async () => {
+    // `ready` absent is not `ready: false`. Treating the two alike is the same
+    // substitution in the other direction.
+    mockInvoke.mockImplementation((cmd: string) =>
+      cmd === "daemon_readiness_probe"
+        ? Promise.resolve({ message: "something went wrong" })
+        : Promise.resolve(null),
+    );
+
+    const msg = await describeDaemonFailure("read speech settings", res(401));
+
+    expect(msg).not.toContain("something went wrong");
+    expect(msg).toContain("401");
+  });
+
+  it("When the reply is well-formed, Then it is used", async () => {
+    withReadiness(readiness({ ready: false, tokenState: "stale", message: "Restart the daemon." }));
+    expect(await describeDaemonFailure("read speech settings", res(401))).toContain(
+      "Restart the daemon.",
+    );
+  });
+});
+
 describe("Given the daemon could not be reached at all", () => {
   it("When there is no response, Then the transport error is named with the daemon", async () => {
     withReadiness(null);

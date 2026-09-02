@@ -3,6 +3,7 @@
 
 mod agent_executor;
 mod commands;
+mod drawio_templates;
 mod flow;
 mod memory;
 mod no_window;
@@ -2070,7 +2071,11 @@ pub fn run() {
             commands::parse_drawio_xml,
             commands::generate_drawio_xml,
             commands::get_drawio_template,
+            commands::list_drawio_templates,
             commands::save_drawio_file,
+            commands::list_drawio_files,
+            commands::read_drawio_file,
+            commands::export_drawio_file,
             commands::execute_drawio_mcp,
             commands::parse_pencil_ep,
             commands::generate_pencil_wireframe,

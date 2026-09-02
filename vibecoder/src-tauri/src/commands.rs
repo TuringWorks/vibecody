@@ -12883,11 +12883,13 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
     engine.clear_cloud_providers();
 
     if !settings.anthropic_api_key.is_empty() {
-        // Keep in sync with STATIC_MODELS.claude in useModelRegistry.ts.
-        // The claude-3-* aliases were dropped 2026-08-05 — all retired
-        // (3.5 Sonnet 2025-10-28, 3 Opus 2026-01-05, 3.5 Haiku 2026-02-19).
+        // Keep in sync with STATIC_MODELS.claude in useModelRegistry.ts and
+        // CLAUDE in vibe-ai/src/catalog.rs. Only rows Anthropic's model-status
+        // table marks `Active` (read 2026-09-02).
         let claude_models = [
+            "claude-fable-5-1",
             "claude-opus-5",
+            "claude-fable-5",
             "claude-sonnet-5",
             "claude-opus-4-8",
             "claude-opus-4-7",
@@ -12911,16 +12913,21 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
     }
 
     if !settings.openai_api_key.is_empty() {
+        // Every id here was a generation or more behind the picker until
+        // 2026-09-02: gpt-4/gpt-4-turbo/gpt-3.5-turbo/o1/o1-mini/o1-preview/
+        // o3-mini are all deprecated with an API shutdown on 2026-10-23, and
+        // o1-preview was retired outright. Mirrors OPENAI in
+        // vibe-ai/src/catalog.rs.
         let openai_models = [
-            "gpt-4o",
-            "gpt-4o-mini",
-            "gpt-4-turbo",
-            "gpt-4",
-            "gpt-3.5-turbo",
-            "o1",
-            "o1-mini",
-            "o1-preview",
-            "o3-mini",
+            "gpt-5.6-sol",
+            "gpt-5.6-terra",
+            "gpt-5.6-luna",
+            "gpt-5.5-pro",
+            "gpt-5.5",
+            "gpt-5.4",
+            "gpt-5.4-mini",
+            "gpt-5.3-codex",
+            "gpt-5.3-chat",
         ];
         for model_id in &openai_models {
             let config = vibe_ai::provider::ProviderConfig {
@@ -12938,11 +12945,17 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
     }
 
     if !settings.gemini_api_key.is_empty() {
+        // gemini-2.0-flash / -lite were shut down 2026-06-01; 2.5-pro already
+        // 404s for new GCP projects and the rest of the 2.5 line goes no
+        // earlier than 2026-10-16. Mirrors GEMINI in vibe-ai/src/catalog.rs.
         let gemini_models = [
-            "gemini-2.5-pro",
-            "gemini-2.5-flash",
-            "gemini-2.0-flash",
-            "gemini-2.0-flash-lite",
+            "gemini-3.8-flash",
+            "gemini-3.7-flash",
+            "gemini-3.6-flash",
+            "gemini-3.5-flash",
+            "gemini-3.5-flash-lite",
+            "gemini-3.1-flash-lite",
+            "gemini-3.1-pro-preview",
         ];
         for model_id in &gemini_models {
             let config = vibe_ai::provider::ProviderConfig {
@@ -12960,7 +12973,7 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
     }
 
     if !settings.grok_api_key.is_empty() {
-        let grok_models = ["grok-4.5", "grok-4.3", "grok-4.20"];
+        let grok_models = ["grok-4.6", "grok-4.5", "grok-4.3"];
         for model_id in &grok_models {
             let config = vibe_ai::provider::ProviderConfig {
                 provider_type: "grok".to_string(),
@@ -13021,7 +13034,7 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
         let config = vibe_ai::provider::ProviderConfig {
             provider_type: "azure_openai".to_string(),
             api_key: Some(settings.azure_openai_api_key.clone()),
-            model: "gpt-4o".to_string(),
+            model: "gpt-5.6-sol".to_string(),
             api_url: Some(settings.azure_openai_api_url.clone()),
             max_tokens: None,
             temperature: None,
@@ -13069,7 +13082,8 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
     }
 
     if !settings.deepseek_api_key.is_empty() {
-        for model_id in &["deepseek-chat", "deepseek-coder", "deepseek-reasoner"] {
+        // deepseek-chat / -coder / -reasoner were all retired 2026-07-24.
+        for model_id in &["deepseek-v4-pro", "deepseek-v4-flash"] {
             let config = vibe_ai::provider::ProviderConfig {
                 provider_type: "deepseek".to_string(),
                 api_key: Some(settings.deepseek_api_key.clone()),
@@ -13085,7 +13099,8 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
     }
 
     if !settings.zhipu_api_key.is_empty() {
-        for model_id in &["glm-4", "glm-4v", "glm-3-turbo"] {
+        // The whole GLM-4.x line below 4.7 is retired, glm-3-turbo long before it.
+        for model_id in &["glm-5.2", "glm-5.1", "glm-5", "glm-4.7", "glm-4.7-flash"] {
             let config = vibe_ai::provider::ProviderConfig {
                 provider_type: "zhipu".to_string(),
                 api_key: Some(settings.zhipu_api_key.clone()),
@@ -13115,7 +13130,8 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
     }
 
     if !settings.minimax_api_key.is_empty() {
-        for model_id in &["abab6.5-chat", "abab6-chat", "abab5.5-chat"] {
+        // The abab* line was superseded by the M-series and dropped 2026-08-05.
+        for model_id in &["MiniMax-M3", "MiniMax-M2.7"] {
             let config = vibe_ai::provider::ProviderConfig {
                 provider_type: "minimax".to_string(),
                 api_key: Some(settings.minimax_api_key.clone()),
@@ -13131,7 +13147,7 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
     }
 
     if !settings.perplexity_api_key.is_empty() {
-        for model_id in &["sonar-pro", "sonar", "sonar-deep-research"] {
+        for model_id in &["sonar-pro", "sonar", "sonar-reasoning-pro", "sonar-deep-research"] {
             let config = vibe_ai::provider::ProviderConfig {
                 provider_type: "perplexity".to_string(),
                 api_key: Some(settings.perplexity_api_key.clone()),
@@ -13147,9 +13163,13 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
     }
 
     if !settings.together_api_key.is_empty() {
+        // Mirrors TOGETHER in vibe-ai/src/catalog.rs — the Llama 3.3 / Qwen 2.5
+        // Turbo endpoints listed here were two generations behind the picker.
         for model_id in &[
-            "meta-llama/Llama-3.3-70B-Instruct-Turbo",
-            "Qwen/Qwen2.5-72B-Instruct-Turbo",
+            "moonshotai/Kimi-K2.7-Code",
+            "Qwen/Qwen3.8-Max",
+            "Qwen/Qwen3.5-397B-A17B",
+            "deepseek-ai/DeepSeek-V4-Pro",
         ] {
             let config = vibe_ai::provider::ProviderConfig {
                 provider_type: "together".to_string(),
@@ -13166,9 +13186,12 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
     }
 
     if !settings.fireworks_api_key.is_empty() {
+        // Fireworks pulled its Llama models from serverless after 2026-05-14
+        // (llama-v3p3-70b-instruct migrated to gpt-oss-120b); the Mixtral
+        // endpoints went with them.
         for model_id in &[
-            "accounts/fireworks/models/llama-v3p3-70b-instruct",
-            "accounts/fireworks/models/mixtral-8x22b-instruct",
+            "accounts/fireworks/models/gpt-oss-120b",
+            "accounts/fireworks/models/minimax-m3",
         ] {
             let config = vibe_ai::provider::ProviderConfig {
                 provider_type: "fireworks".to_string(),
@@ -13186,8 +13209,10 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
 
     if !settings.sambanova_api_key.is_empty() {
         for model_id in &[
+            "DeepSeek-V3.2",
+            "MiniMax-M3",
+            "gpt-oss-120b",
             "Meta-Llama-3.3-70B-Instruct",
-            "Meta-Llama-3.1-405B-Instruct",
         ] {
             let config = vibe_ai::provider::ProviderConfig {
                 provider_type: "sambanova".to_string(),
@@ -37405,10 +37430,10 @@ pub async fn swe_bench_get_suites() -> Result<serde_json::Value, String> {
         serde_json::json!({ "name": "MBPP", "taskCount": 974 }),
     ];
     let providers = serde_json::json!({
-        "Anthropic": ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
-        "OpenAI": ["gpt-4o", "gpt-4o-mini", "o1-preview"],
-        "Google": ["gemini-2.0-pro", "gemini-2.0-flash"],
-        "Ollama": ["llama3:70b", "codellama:34b", "deepseek-coder:33b"]
+        "Anthropic": ["claude-opus-5", "claude-sonnet-5"],
+        "OpenAI": ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"],
+        "Google": ["gemini-3.1-pro-preview", "gemini-3.6-flash"],
+        "Ollama": ["llama3.3", "qwen3-coder", "deepseek-v4-flash"]
     });
     Ok(serde_json::json!({
         "suites": suites,
@@ -55158,11 +55183,15 @@ pub async fn route_list_models(
 ) -> Result<serde_json::Value, String> {
     let _ = state.route_decisions.lock().await;
     Ok(serde_json::json!([
-        { "id": "gpt-4o", "provider": "openai", "cost_per_1k_input": 0.005, "cost_per_1k_output": 0.015, "latency_ms": 800, "quality_score": 95 },
-        { "id": "claude-3-opus", "provider": "anthropic", "cost_per_1k_input": 0.015, "cost_per_1k_output": 0.075, "latency_ms": 1200, "quality_score": 98 },
-        { "id": "claude-3-sonnet", "provider": "anthropic", "cost_per_1k_input": 0.003, "cost_per_1k_output": 0.015, "latency_ms": 600, "quality_score": 92 },
-        { "id": "gemini-pro", "provider": "google", "cost_per_1k_input": 0.00025, "cost_per_1k_output": 0.0005, "latency_ms": 500, "quality_score": 88 },
-        { "id": "llama-3-70b", "provider": "ollama", "cost_per_1k_input": 0.0, "cost_per_1k_output": 0.0, "latency_ms": 2000, "quality_score": 82 }
+        // Prices are list per 1K tokens, read from each vendor's pricing page
+        // on 2026-09-02 (OpenAI short-context tier; Gemini <=200k tier).
+        // `latency_ms` and `quality_score` are placeholders this stub has always
+        // carried — nothing measured them.
+        { "id": "gpt-5.6-sol", "provider": "openai", "cost_per_1k_input": 0.004, "cost_per_1k_output": 0.020, "latency_ms": 800, "quality_score": 95 },
+        { "id": "claude-opus-5", "provider": "anthropic", "cost_per_1k_input": 0.005, "cost_per_1k_output": 0.025, "latency_ms": 1200, "quality_score": 98 },
+        { "id": "claude-sonnet-5", "provider": "anthropic", "cost_per_1k_input": 0.002, "cost_per_1k_output": 0.010, "latency_ms": 600, "quality_score": 92 },
+        { "id": "gemini-3.6-flash", "provider": "google", "cost_per_1k_input": 0.00075, "cost_per_1k_output": 0.00375, "latency_ms": 500, "quality_score": 88 },
+        { "id": "llama3.3", "provider": "ollama", "cost_per_1k_input": 0.0, "cost_per_1k_output": 0.0, "latency_ms": 2000, "quality_score": 82 }
     ]))
 }
 
@@ -55741,11 +55770,11 @@ pub async fn trust_get_scores(
     if scores.is_empty() {
         // Return default trust scores for known models
         return Ok(serde_json::json!([
-            { "model_id": "gpt-4o", "score": 85.0, "events": 0, "trend": "stable" },
-            { "model_id": "claude-3-opus", "score": 92.0, "events": 0, "trend": "stable" },
-            { "model_id": "claude-3-sonnet", "score": 90.0, "events": 0, "trend": "stable" },
-            { "model_id": "gemini-pro", "score": 78.0, "events": 0, "trend": "stable" },
-            { "model_id": "llama-3-70b", "score": 70.0, "events": 0, "trend": "stable" }
+            { "model_id": "gpt-5.6-sol", "score": 85.0, "events": 0, "trend": "stable" },
+            { "model_id": "claude-opus-5", "score": 92.0, "events": 0, "trend": "stable" },
+            { "model_id": "claude-sonnet-5", "score": 90.0, "events": 0, "trend": "stable" },
+            { "model_id": "gemini-3.6-flash", "score": 78.0, "events": 0, "trend": "stable" },
+            { "model_id": "llama3.3", "score": 70.0, "events": 0, "trend": "stable" }
         ]));
     }
     Ok(serde_json::json!(*scores))
@@ -62156,13 +62185,18 @@ pub async fn thought_stream_export() -> Result<String, String> {
 // ── Hard Problem (LLM-driven decomposition) ──────────────────────────────────
 
 fn hp_pick_provider() -> Option<(String, String)> {
+    // Every id in this list was retired or deprecated before the 2026-09-02
+    // sweep — gemini-2.0-flash (shut down 2026-06-01), grok-3 (redirected
+    // 2026-05-15), llama-3.3-70b-versatile (Groq, 2026-08-16) and deepseek-chat
+    // (2026-07-24) — so whichever provider happened to be keyed, the fallback
+    // picked a model the API would refuse.
     let candidates = [
-        ("anthropic", "claude-sonnet-4-5"),
-        ("openai", "gpt-4o"),
-        ("gemini", "gemini-2.0-flash"),
-        ("grok", "grok-3"),
-        ("groq", "llama-3.3-70b-versatile"),
-        ("deepseek", "deepseek-chat"),
+        ("anthropic", "claude-sonnet-5"),
+        ("openai", "gpt-5.6-terra"),
+        ("gemini", "gemini-3.6-flash"),
+        ("grok", "grok-4.6"),
+        ("groq", "openai/gpt-oss-120b"),
+        ("deepseek", "deepseek-v4-flash"),
     ];
     for (p, m) in candidates {
         if build_temp_provider(p, m).is_some() {
@@ -63787,10 +63821,9 @@ pub async fn semantic_search_v2(
 /// Parse draw.io XML and return structural info as JSON.
 #[tauri::command]
 pub async fn parse_drawio_xml(xml: String) -> Result<serde_json::Value, String> {
-    // Count pages by counting <diagram ...> tags, vertices and edges by tag names.
-    let pages = xml.matches("<diagram").count().max(1);
-    let vertices = xml.matches("vertex=\"1\"").count();
-    let edges = xml.matches("edge=\"1\"").count();
+    // `drawio_counts` is shared with the file browser so the inspector and the
+    // listing cannot report different numbers for the same file.
+    let (pages, vertices, edges) = drawio_counts(&xml);
     Ok(serde_json::json!({
         "pages": pages,
         "total_cells": vertices + edges,
@@ -63844,63 +63877,408 @@ pub async fn generate_drawio_xml(
         .map_err(|e| e.to_string())
 }
 
-/// Return a built-in draw.io template by ID.
-#[tauri::command]
-pub async fn get_drawio_template(
-    template_id: String,
-    workspace_path: String,
-) -> Result<String, String> {
-    let _ = workspace_path;
-    // Return a minimal draw.io XML placeholder for each known template.
-    let label = match template_id.as_str() {
-        "microservices" => "Microservices Architecture",
-        "ci_cd" => "CI/CD Pipeline",
-        "er_saas" => "SaaS Entity Relationship",
-        "c4_context" => "System Context",
-        "state_order" => "Order State Machine",
-        _ => "Generic Flowchart",
-    };
-    Ok(format!(
-        "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>\
-         <mxCell id=\"2\" value=\"{}\" style=\"rounded=1;\" vertex=\"1\" parent=\"1\">\
-         <mxGeometry x=\"100\" y=\"100\" width=\"200\" height=\"60\" as=\"geometry\"/></mxCell>\
-         </root></mxGraphModel>",
-        label
-    ))
+/// One template the panel can offer, as the panel needs to render its card.
+#[derive(Debug, serde::Serialize)]
+pub struct DrawioTemplate {
+    pub id: String,
+    pub label: String,
+    pub kind: String,
+    pub summary: String,
 }
 
-/// Save draw.io XML to a file in the workspace.
+/// The templates this build actually has diagrams for.
+///
+/// The panel used to hard-code its own list of eight, and the backend had none
+/// of them — every one returned a single rounded rectangle with the template's
+/// name written in it. Serving the list from the same place as the diagrams
+/// makes it impossible to advertise one that does not exist.
 #[tauri::command]
-pub async fn save_drawio_file(xml: String, workspace_path: String) -> Result<(), String> {
-    // DREAD #2 — refuse to scaffold `diagrams/diagram.drawio` into
-    // a credential dir.
-    let _ = reject_sensitive_path(&workspace_path)?;
-    let path = std::path::Path::new(&workspace_path)
-        .join("diagrams")
-        .join("diagram.drawio");
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+pub async fn list_drawio_templates() -> Result<Vec<DrawioTemplate>, String> {
+    Ok(crate::drawio_templates::TEMPLATES
+        .iter()
+        .map(|t| DrawioTemplate {
+            id: t.id.to_string(),
+            label: t.label.to_string(),
+            kind: t.kind.to_string(),
+            summary: t.summary.to_string(),
+        })
+        .collect())
+}
+
+/// Return a built-in draw.io template by ID.
+#[tauri::command]
+pub async fn get_drawio_template(template_id: String) -> Result<String, String> {
+    crate::drawio_templates::template_xml(&template_id).ok_or_else(|| {
+        format!("No template named `{template_id}`. Ask for one of: {}.",
+            crate::drawio_templates::TEMPLATES
+                .iter()
+                .map(|t| t.id)
+                .collect::<Vec<_>>()
+                .join(", "))
+    })
+}
+
+// ── Draw.io: workspace-scoped file browser and I/O ───────────────────────────
+//
+// Everything below takes a **workspace-relative** path and resolves it inside
+// the workspace, for two reasons. The panel used to save to a single hard-coded
+// `<workspace>/diagrams/diagram.drawio`, so every save silently overwrote the
+// previous diagram and the UI never said where the file went; and
+// `execute_drawio_mcp` took a free-form absolute path, making the diagram panel
+// a general-purpose read/write primitive for anywhere the deny-list happened
+// not to cover.
+
+/// Extensions the editor can open, longest first so `.drawio.svg` is matched
+/// before `.svg` would be.
+///
+/// `.drawio.svg` and `.drawio.png` are draw.io's "editable export" formats:
+/// the picture carries the source diagram inside it. We list and read the SVG
+/// form because it round-trips through text; the PNG form stores the XML in a
+/// zTXt chunk and is deliberately **not** claimed here rather than half-worked.
+const DRAWIO_EXTENSIONS: &[&str] = &[".drawio.svg", ".drawio.xml", ".drawio", ".dio"];
+
+/// Directories a diagram search never descends into.
+const DRAWIO_SKIP_DIRS: &[&str] = &[
+    "node_modules", ".git", "target", "dist", "build", ".next", "vendor",
+    "__pycache__", ".venv", "venv", ".gradle", "out", ".cache",
+];
+
+/// Largest file whose structure is counted during a listing.
+///
+/// The counts are a convenience for the browser ("3 pages · 42 shapes"), not
+/// the reason to open the file. Past this the fields stay `None` — absent, not
+/// zero, so the UI can say "not counted" instead of showing a diagram with 42
+/// shapes as empty.
+const DRAWIO_COUNT_LIMIT_BYTES: u64 = 2 * 1024 * 1024;
+
+/// Largest diagram the editor will load.
+///
+/// The XML crosses a `postMessage` boundary into the embedded editor and comes
+/// back on every autosave. Refusing early with a number beats a wedged iframe.
+const DRAWIO_MAX_BYTES: u64 = 24 * 1024 * 1024;
+
+/// One diagram found in the workspace.
+#[derive(Debug, serde::Serialize)]
+pub struct DrawioFile {
+    /// Workspace-relative, forward-slashed. Every other command in this group
+    /// takes this value straight back, so the UI never handles an absolute path.
+    pub path: String,
+    pub name: String,
+    pub size_bytes: u64,
+    /// Seconds since the epoch, or `None` where the filesystem does not say.
+    /// Never defaulted to "now" — that would assert a fact nobody checked.
+    pub modified_unix: Option<u64>,
+    /// Structure counts, absent when the file was too large to parse during
+    /// the listing. See [`DRAWIO_COUNT_LIMIT_BYTES`].
+    pub pages: Option<usize>,
+    pub vertices: Option<usize>,
+    pub edges: Option<usize>,
+    /// True for `.drawio.svg` — a picture with the diagram embedded in it.
+    pub is_embedded_export: bool,
+}
+
+/// Count pages, vertices and edges in draw.io XML.
+///
+/// Shared by the listing and by `parse_drawio_xml` so the browser and the
+/// inspector cannot disagree about the same file.
+fn drawio_counts(xml: &str) -> (usize, usize, usize) {
+    let pages = xml.matches("<diagram").count().max(1);
+    let vertices = xml.matches("vertex=\"1\"").count();
+    let edges = xml.matches("edge=\"1\"").count();
+    (pages, vertices, edges)
+}
+
+/// Does this filename look like something the draw.io editor can open?
+fn drawio_extension_of(name: &str) -> Option<&'static str> {
+    let lower = name.to_ascii_lowercase();
+    DRAWIO_EXTENSIONS.iter().copied().find(|ext| lower.ends_with(ext))
+}
+
+/// List every draw.io diagram in the workspace.
+///
+/// The panel had no way to reach a diagram that already existed: the editor
+/// opened blank every time and the only path input was a free-text box in the
+/// MCP tab. A repository's diagrams are the main thing a diagram editor should
+/// open.
+#[tauri::command]
+pub async fn list_drawio_files(workspace_path: String) -> Result<Vec<DrawioFile>, String> {
+    let root = reject_sensitive_path(&workspace_path)?;
+    let mut files = Vec::new();
+    let walker = walkdir::WalkDir::new(&root)
+        .max_depth(8)
+        .into_iter()
+        .filter_entry(|e| {
+            !e.file_type().is_dir()
+                || e.file_name()
+                    .to_str()
+                    .map(|n| !DRAWIO_SKIP_DIRS.contains(&n))
+                    .unwrap_or(true)
+        });
+    for entry in walker.filter_map(|e| e.ok()) {
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        let path = entry.path();
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        let Some(ext) = drawio_extension_of(name) else {
+            continue;
+        };
+        let meta = entry.metadata().ok();
+        let size_bytes = meta.as_ref().map(|m| m.len()).unwrap_or(0);
+        // `None` where the platform does not report a mtime, rather than a
+        // stand-in timestamp that would sort as "just now".
+        let modified_unix = meta
+            .as_ref()
+            .and_then(|m| m.modified().ok())
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs());
+
+        let counts = if size_bytes <= DRAWIO_COUNT_LIMIT_BYTES {
+            std::fs::read_to_string(path).ok().map(|xml| drawio_counts(&xml))
+        } else {
+            None
+        };
+
+        let relative = path
+            .strip_prefix(&root)
+            .unwrap_or(path)
+            .to_string_lossy()
+            .replace('\\', "/");
+
+        files.push(DrawioFile {
+            path: relative,
+            name: name.to_string(),
+            size_bytes,
+            modified_unix,
+            pages: counts.map(|c| c.0),
+            vertices: counts.map(|c| c.1),
+            edges: counts.map(|c| c.2),
+            is_embedded_export: ext == ".drawio.svg",
+        });
+        if files.len() >= 500 {
+            break;
+        }
     }
-    std::fs::write(&path, xml).map_err(|e| e.to_string())
+    // Most-recently-edited first: the diagram you were last working on is the
+    // one you almost always want. Files with no mtime sort last rather than
+    // being given a fabricated one.
+    files.sort_by(|a, b| match (b.modified_unix, a.modified_unix) {
+        (Some(x), Some(y)) => x.cmp(&y),
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => a.path.cmp(&b.path),
+    });
+    Ok(files)
+}
+
+/// Pull the diagram XML out of a draw.io-exported SVG.
+///
+/// draw.io writes the source into a `content` attribute on the root `<svg>`,
+/// HTML-escaped. An SVG exported *without* "Include a copy of my diagram" has
+/// no such attribute — that is a real answer ("this is a picture, not a
+/// diagram"), not a failure to parse, and it is named as such.
+fn drawio_xml_from_svg(svg: &str) -> Result<String, String> {
+    let Some(start) = svg.find("content=\"") else {
+        return Err(
+            "This SVG has no embedded diagram. It was exported without \
+             \"Include a copy of my diagram\", so only the picture exists — \
+             there is nothing to edit. Open the original .drawio file instead."
+                .to_string(),
+        );
+    };
+    let rest = &svg[start + "content=\"".len()..];
+    let Some(end) = rest.find('"') else {
+        return Err("This SVG's embedded diagram is truncated — its `content` attribute never closes.".to_string());
+    };
+    let escaped = &rest[..end];
+    // Ampersand last: unescaping it first would turn `&amp;lt;` into `<`.
+    let xml = escaped
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&apos;", "'")
+        .replace("&amp;", "&");
+    if xml.trim().is_empty() {
+        return Err("This SVG's embedded diagram is empty.".to_string());
+    }
+    Ok(xml)
+}
+
+/// Read one diagram from the workspace as editor-ready XML.
+#[tauri::command]
+pub async fn read_drawio_file(
+    workspace_path: String,
+    relative_path: String,
+) -> Result<String, String> {
+    let root = reject_sensitive_path(&workspace_path)?;
+    let resolved = safe_resolve_path_in(std::slice::from_ref(&root), &relative_path)?;
+    let size = std::fs::metadata(&resolved)
+        .map_err(|e| format!("Cannot open {relative_path}: {e}"))?
+        .len();
+    if size > DRAWIO_MAX_BYTES {
+        return Err(format!(
+            "{relative_path} is {:.1} MB. The editor loads diagrams up to {} MB — \
+             larger files wedge the embedded editor rather than opening slowly.",
+            size as f64 / 1_048_576.0,
+            DRAWIO_MAX_BYTES / 1_048_576,
+        ));
+    }
+    let text = std::fs::read_to_string(&resolved)
+        .map_err(|e| format!("Cannot read {relative_path}: {e}"))?;
+    if relative_path.to_ascii_lowercase().ends_with(".svg") {
+        drawio_xml_from_svg(&text)
+    } else {
+        Ok(text)
+    }
+}
+
+/// Where a save actually went — returned so the UI can name the file rather
+/// than claiming "saved to workspace" and leaving the user to search for it.
+#[derive(Debug, serde::Serialize)]
+pub struct DrawioSaved {
+    /// Workspace-relative path, forward-slashed.
+    pub path: String,
+    /// Absolute path, for the "reveal in finder" affordance and for the
+    /// message that tells the user exactly where the bytes landed.
+    pub absolute_path: String,
+    pub size_bytes: u64,
+    /// True when this write created the file rather than replacing one.
+    pub created: bool,
+}
+
+/// Save diagram XML to a named file in the workspace.
+///
+/// **Takes the path.** The previous version hard-coded
+/// `<workspace>/diagrams/diagram.drawio`, so a second diagram overwrote the
+/// first with no prompt and no way to choose — and the panel reported "Saved to
+/// workspace" without ever saying which file that was.
+#[tauri::command]
+pub async fn save_drawio_file(
+    workspace_path: String,
+    relative_path: String,
+    xml: String,
+) -> Result<DrawioSaved, String> {
+    if xml.trim().is_empty() {
+        return Err("Nothing to save — the diagram is empty.".to_string());
+    }
+    let root = reject_sensitive_path(&workspace_path)?;
+    let resolved = safe_resolve_path_in(std::slice::from_ref(&root), &relative_path)?;
+    if drawio_extension_of(&relative_path).is_none() {
+        return Err(format!(
+            "{relative_path} is not a diagram filename. Use one of: {}.",
+            DRAWIO_EXTENSIONS.join(", ")
+        ));
+    }
+    if resolved.extension().and_then(|e| e.to_str()).map(|e| e.eq_ignore_ascii_case("svg"))
+        == Some(true)
+    {
+        return Err(
+            "Saving back into a .drawio.svg is not supported — the export would have to be \
+             re-rendered, and writing only the embedded XML would leave the picture showing \
+             the previous version. Save as .drawio, then export an SVG beside it."
+                .to_string(),
+        );
+    }
+    let created = !resolved.exists();
+    if let Some(parent) = resolved.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("Cannot create {}: {e}", parent.display()))?;
+    }
+    std::fs::write(&resolved, &xml)
+        .map_err(|e| format!("Cannot write {relative_path}: {e}"))?;
+    Ok(DrawioSaved {
+        path: relative_path,
+        absolute_path: resolved.to_string_lossy().into_owned(),
+        size_bytes: xml.len() as u64,
+        created,
+    })
+}
+
+/// Decode one `data:` URL into its bytes.
+///
+/// The embedded editor answers an export request with a data URL. Bounded
+/// before decoding: `data.len()` is attacker-adjacent input from an iframe, and
+/// an allocation sized from it is the mistake `AGENTS.md` calls out by name.
+fn decode_data_url(data_url: &str, limit: usize) -> Result<Vec<u8>, String> {
+    use base64::Engine;
+    let payload = data_url
+        .find("base64,")
+        .map(|i| &data_url[i + "base64,".len()..])
+        .ok_or("The editor returned an export that is not base64-encoded.")?;
+    // 4 base64 chars → 3 bytes. Check the encoded length so nothing is
+    // allocated before the bound is known to hold.
+    if payload.len() / 4 * 3 > limit {
+        return Err(format!(
+            "That export is larger than the {} MB write limit.",
+            limit / 1_048_576
+        ));
+    }
+    base64::engine::general_purpose::STANDARD
+        .decode(payload.trim())
+        .map_err(|e| format!("The editor's export could not be decoded: {e}"))
+}
+
+/// Largest exported asset written to the workspace.
+const DRAWIO_MAX_EXPORT_BYTES: usize = 64 * 1024 * 1024;
+
+/// Write an exported diagram (PNG / SVG / PDF / XML) into the workspace.
+///
+/// Exports previously had nowhere to go: the panel could not export at all, and
+/// draw.io's own export menu inside the iframe downloads through the browser,
+/// which the Tauri webview does not surface. An export you cannot find is an
+/// export that did not happen.
+#[tauri::command]
+pub async fn export_drawio_file(
+    workspace_path: String,
+    relative_path: String,
+    data_url: String,
+) -> Result<DrawioSaved, String> {
+    let root = reject_sensitive_path(&workspace_path)?;
+    let resolved = safe_resolve_path_in(std::slice::from_ref(&root), &relative_path)?;
+    let bytes = decode_data_url(&data_url, DRAWIO_MAX_EXPORT_BYTES)?;
+    let created = !resolved.exists();
+    if let Some(parent) = resolved.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("Cannot create {}: {e}", parent.display()))?;
+    }
+    let size_bytes = bytes.len() as u64;
+    std::fs::write(&resolved, bytes)
+        .map_err(|e| format!("Cannot write {relative_path}: {e}"))?;
+    Ok(DrawioSaved {
+        path: relative_path,
+        absolute_path: resolved.to_string_lossy().into_owned(),
+        size_bytes,
+        created,
+    })
 }
 
 /// Execute a drawio-mcp bridge command.
+///
+/// **Workspace-scoped.** The deny-list alone left this as a general-purpose
+/// read/write primitive for every path it did not happen to cover; a diagram
+/// bridge has no business outside the workspace the user opened. `workspace_path`
+/// is required for exactly that containment.
 #[tauri::command]
 pub async fn execute_drawio_mcp(
     command: String,
     file_path: String,
+    workspace_path: String,
     content: Option<String>,
 ) -> Result<String, String> {
     // DREAD #2 — `read_file`/`write_file` branches feed `file_path`
-    // directly into `std::fs::*`. Without this gate, the drawio bridge
-    // doubles as an arbitrary-FS-read/write primitive.
-    let resolved = reject_sensitive_path(&file_path)?;
+    // directly into `std::fs::*`. The deny-list refuses credential
+    // directories; `safe_resolve_path_in` refuses everything outside the
+    // workspace, which is the stronger and more appropriate bound here.
+    let root = reject_sensitive_path(&workspace_path)?;
+    let resolved = safe_resolve_path_in(std::slice::from_ref(&root), &file_path)?;
+    let _ = reject_sensitive_path(&resolved.to_string_lossy())?;
     match command.as_str() {
         "read_file" | "list_pages" => match std::fs::read_to_string(&resolved) {
             Ok(xml) => {
-                let pages = xml.matches("<diagram").count().max(1);
-                let vertices = xml.matches("vertex=\"1\"").count();
-                let edges = xml.matches("edge=\"1\"").count();
+                let (pages, vertices, edges) = drawio_counts(&xml);
                 Ok(serde_json::to_string_pretty(&serde_json::json!({
                     "command": command, "file": file_path,
                     "pages": pages, "vertices": vertices, "edges": edges,
@@ -67291,11 +67669,16 @@ pub struct ModelEntry {
 fn long_context_profiles() -> Vec<vibecli_cli::long_context::ModelContextProfile> {
     use vibecli_cli::long_context::ModelContextProfile;
     vec![
-        ModelContextProfile::new("claude-opus-5", "claude", 200_000, 0.015, 0.075),
-        ModelContextProfile::new("claude-sonnet-5", "claude", 200_000, 0.003, 0.015),
-        ModelContextProfile::new("gpt-4o", "openai", 128_000, 0.005, 0.015),
-        ModelContextProfile::new("gemini-2.5-pro", "gemini", 1_000_000, 0.00125, 0.005),
-        ModelContextProfile::new("llama3.2", "ollama", 128_000, 0.0, 0.0),
+        // Windows and prices re-read from each vendor's docs on 2026-09-02.
+        // The Claude rows carried Claude 3-era numbers (200K window, $15/$75 per
+        // MTok) under Claude 5 names, so `classify_context` was refusing
+        // long-context routes the models actually support: Opus 5 and Sonnet 5
+        // are 1M-context, at $5/$25 and $2/$10 per MTok.
+        ModelContextProfile::new("claude-opus-5", "claude", 1_000_000, 0.005, 0.025),
+        ModelContextProfile::new("claude-sonnet-5", "claude", 1_000_000, 0.002, 0.010),
+        ModelContextProfile::new("gpt-5.6-sol", "openai", 922_000, 0.004, 0.020),
+        ModelContextProfile::new("gemini-3.1-pro-preview", "gemini", 1_000_000, 0.002, 0.012),
+        ModelContextProfile::new("llama3.3", "ollama", 128_000, 0.0, 0.0),
     ]
 }
 
@@ -68861,5 +69244,305 @@ mod tls_inspector_live_tests {
         let err = check_tls_cert("localhost".into(), Some(9)).await.unwrap_err();
         println!("{err}");
         assert!(err.contains("localhost:9"), "{err}");
+    }
+}
+
+// ── Draw.io file I/O ─────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod drawio_io_tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    /// A workspace holding one diagram, one nested diagram, and noise that must
+    /// not show up in a listing.
+    fn workspace() -> TempDir {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        std::fs::create_dir_all(root.join("docs")).unwrap();
+        std::fs::create_dir_all(root.join("node_modules/pkg")).unwrap();
+        std::fs::write(
+            root.join("top.drawio"),
+            "<mxfile><diagram><mxGraphModel><root>\
+             <mxCell vertex=\"1\"/><mxCell vertex=\"1\"/><mxCell edge=\"1\"/>\
+             </root></mxGraphModel></diagram></mxfile>",
+        )
+        .unwrap();
+        std::fs::write(root.join("docs/nested.dio"), "<mxfile><diagram/></mxfile>").unwrap();
+        std::fs::write(root.join("docs/readme.md"), "not a diagram").unwrap();
+        // A vendored diagram is not the user's to edit and must stay out.
+        std::fs::write(root.join("node_modules/pkg/vendor.drawio"), "<mxfile/>").unwrap();
+        tmp
+    }
+
+    #[tokio::test]
+    async fn a_listing_finds_diagrams_and_skips_vendored_ones() {
+        let ws = workspace();
+        let files = list_drawio_files(ws.path().to_string_lossy().into_owned())
+            .await
+            .unwrap();
+        let paths: Vec<&str> = files.iter().map(|f| f.path.as_str()).collect();
+        assert!(paths.contains(&"top.drawio"), "{paths:?}");
+        assert!(paths.contains(&"docs/nested.dio"), "{paths:?}");
+        assert!(
+            !paths.iter().any(|p| p.contains("node_modules")),
+            "a vendored diagram is not the user's to edit: {paths:?}"
+        );
+        assert!(!paths.iter().any(|p| p.ends_with(".md")), "{paths:?}");
+    }
+
+    #[tokio::test]
+    async fn a_listing_reports_structure_it_actually_counted() {
+        let ws = workspace();
+        let files = list_drawio_files(ws.path().to_string_lossy().into_owned())
+            .await
+            .unwrap();
+        let top = files.iter().find(|f| f.path == "top.drawio").unwrap();
+        assert_eq!(top.pages, Some(1));
+        assert_eq!(top.vertices, Some(2));
+        assert_eq!(top.edges, Some(1));
+    }
+
+    #[tokio::test]
+    async fn reading_a_diagram_outside_the_workspace_is_refused() {
+        // The panel hands back paths from the listing, but nothing stops a
+        // caller composing one — and a diagram bridge has no business reading
+        // outside the workspace the user opened.
+        let ws = workspace();
+        let err = read_drawio_file(
+            ws.path().to_string_lossy().into_owned(),
+            "../../../etc/hosts".to_string(),
+        )
+        .await
+        .unwrap_err();
+        assert!(err.contains("outside workspace"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn a_save_reports_the_path_it_wrote() {
+        // The old command hard-coded `diagrams/diagram.drawio` and returned
+        // `()`, so the panel could only say "saved to workspace" — which is the
+        // question the user was left holding.
+        let ws = workspace();
+        let saved = save_drawio_file(
+            ws.path().to_string_lossy().into_owned(),
+            "docs/adr/topology.drawio".to_string(),
+            "<mxfile>x</mxfile>".to_string(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(saved.path, "docs/adr/topology.drawio");
+        assert!(saved.created, "the file did not exist before this write");
+        assert!(saved.absolute_path.ends_with("docs/adr/topology.drawio"));
+        assert_eq!(
+            std::fs::read_to_string(ws.path().join("docs/adr/topology.drawio")).unwrap(),
+            "<mxfile>x</mxfile>",
+        );
+    }
+
+    #[tokio::test]
+    async fn two_diagrams_do_not_overwrite_each_other() {
+        // The defect this whole change exists for: every diagram went to one
+        // path, so the second one replaced the first with no prompt.
+        let ws = workspace();
+        let root = ws.path().to_string_lossy().into_owned();
+        save_drawio_file(root.clone(), "diagrams/a.drawio".into(), "<mxfile>a</mxfile>".into())
+            .await
+            .unwrap();
+        save_drawio_file(root.clone(), "diagrams/b.drawio".into(), "<mxfile>b</mxfile>".into())
+            .await
+            .unwrap();
+        assert_eq!(
+            std::fs::read_to_string(ws.path().join("diagrams/a.drawio")).unwrap(),
+            "<mxfile>a</mxfile>",
+            "saving b overwrote a"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_second_save_is_not_reported_as_a_creation() {
+        let ws = workspace();
+        let root = ws.path().to_string_lossy().into_owned();
+        save_drawio_file(root.clone(), "diagrams/a.drawio".into(), "<mxfile>1</mxfile>".into())
+            .await
+            .unwrap();
+        let again =
+            save_drawio_file(root, "diagrams/a.drawio".into(), "<mxfile>2</mxfile>".into())
+                .await
+                .unwrap();
+        assert!(!again.created);
+    }
+
+    #[tokio::test]
+    async fn saving_outside_the_workspace_is_refused() {
+        let ws = workspace();
+        let err = save_drawio_file(
+            ws.path().to_string_lossy().into_owned(),
+            "../escaped.drawio".to_string(),
+            "<mxfile/>".to_string(),
+        )
+        .await
+        .unwrap_err();
+        assert!(err.contains("outside workspace"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn saving_under_a_non_diagram_name_is_refused() {
+        let ws = workspace();
+        let err = save_drawio_file(
+            ws.path().to_string_lossy().into_owned(),
+            "notes.txt".to_string(),
+            "<mxfile/>".to_string(),
+        )
+        .await
+        .unwrap_err();
+        assert!(err.contains("not a diagram filename"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn saving_an_empty_diagram_is_refused_rather_than_truncating_the_file() {
+        // The panel's Save is reachable before the editor has pushed anything.
+        // Writing "" would blank a file the user can see on screen.
+        let ws = workspace();
+        let err = save_drawio_file(
+            ws.path().to_string_lossy().into_owned(),
+            "top.drawio".to_string(),
+            "   ".to_string(),
+        )
+        .await
+        .unwrap_err();
+        assert!(err.contains("empty"), "{err}");
+        assert!(std::fs::read_to_string(ws.path().join("top.drawio")).unwrap().contains("mxfile"));
+    }
+
+    #[tokio::test]
+    async fn saving_back_into_an_editable_svg_is_refused_by_name() {
+        // Writing only the embedded XML would leave the rendered picture
+        // showing the previous version — a file that lies about itself.
+        let ws = workspace();
+        let err = save_drawio_file(
+            ws.path().to_string_lossy().into_owned(),
+            "docs/flow.drawio.svg".to_string(),
+            "<mxfile/>".to_string(),
+        )
+        .await
+        .unwrap_err();
+        assert!(err.contains("not supported"), "{err}");
+        assert!(err.contains("export an SVG beside it"), "must name the way out: {err}");
+    }
+
+    #[tokio::test]
+    async fn an_export_lands_in_the_workspace() {
+        let ws = workspace();
+        // "hi" base64-encoded.
+        let saved = export_drawio_file(
+            ws.path().to_string_lossy().into_owned(),
+            "docs/architecture.png".to_string(),
+            "data:image/png;base64,aGk=".to_string(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(saved.path, "docs/architecture.png");
+        assert_eq!(saved.size_bytes, 2);
+        assert_eq!(
+            std::fs::read(ws.path().join("docs/architecture.png")).unwrap(),
+            b"hi"
+        );
+    }
+
+    #[tokio::test]
+    async fn an_export_outside_the_workspace_is_refused() {
+        let ws = workspace();
+        let err = export_drawio_file(
+            ws.path().to_string_lossy().into_owned(),
+            "../../escaped.png".to_string(),
+            "data:image/png;base64,aGk=".to_string(),
+        )
+        .await
+        .unwrap_err();
+        assert!(err.contains("outside workspace"), "{err}");
+    }
+
+    #[test]
+    fn a_data_url_is_bounded_before_anything_is_allocated() {
+        // `AGENTS.md`: never size an allocation from unvalidated input, and
+        // check before allocating. The encoded length is what gets measured,
+        // so nothing is decoded to find out how big it was.
+        let huge = format!("data:image/png;base64,{}", "A".repeat(4_000_000));
+        let err = decode_data_url(&huge, 1024).unwrap_err();
+        assert!(err.contains("larger than"), "{err}");
+    }
+
+    #[test]
+    fn a_non_base64_export_is_named_rather_than_decoded() {
+        let err = decode_data_url("data:image/png,rawbytes", 1024).unwrap_err();
+        assert!(err.contains("not base64-encoded"), "{err}");
+    }
+
+    #[test]
+    fn the_diagram_inside_an_editable_svg_is_recovered() {
+        let svg = r#"<svg content="&lt;mxfile&gt;&lt;diagram id=&quot;p&quot;/&gt;&lt;/mxfile&gt;" width="10"/>"#;
+        assert_eq!(
+            drawio_xml_from_svg(svg).unwrap(),
+            "<mxfile><diagram id=\"p\"/></mxfile>"
+        );
+    }
+
+    #[test]
+    fn unescaping_does_not_double_decode_an_ampersand() {
+        // `&amp;lt;` is a literal "&lt;" in the diagram, not a "<". Unescaping
+        // `&amp;` first would turn it into one and corrupt the XML.
+        let svg = r#"<svg content="&lt;mxfile label=&quot;a &amp;amp; b&quot;/&gt;"/>"#;
+        assert_eq!(
+            drawio_xml_from_svg(svg).unwrap(),
+            "<mxfile label=\"a &amp; b\"/>"
+        );
+    }
+
+    #[test]
+    fn a_plain_svg_says_it_has_no_diagram_rather_than_failing_to_parse() {
+        // "This is a picture, not a diagram" is a real answer, and it names the
+        // export option that would have included one.
+        let err = drawio_xml_from_svg("<svg width=\"10\"/>").unwrap_err();
+        assert!(err.contains("Include a copy of my diagram"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn every_diagram_committed_to_this_repository_can_be_opened() {
+        // The point of the file browser is the diagrams that already exist.
+        // `docs/` holds five of them; if the reader cannot open those, it
+        // cannot open anything a user has.
+        let repo = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("..");
+        let docs = repo.join("docs");
+        if !docs.join("architecture.drawio").exists() {
+            // Checked out elsewhere, or docs pruned — skip rather than fail on
+            // an absence that says nothing about the code.
+            return;
+        }
+        let files = list_drawio_files(repo.to_string_lossy().into_owned())
+            .await
+            .unwrap();
+        let committed: Vec<_> = files.iter().filter(|f| f.path.starts_with("docs/")).collect();
+        assert!(
+            committed.len() >= 5,
+            "expected the five diagrams under docs/, found {}: {:?}",
+            committed.len(),
+            committed.iter().map(|f| &f.path).collect::<Vec<_>>()
+        );
+        for f in committed {
+            let xml = read_drawio_file(
+                repo.to_string_lossy().into_owned(),
+                f.path.clone(),
+            )
+            .await
+            .unwrap_or_else(|e| panic!("cannot open {}: {e}", f.path));
+            assert!(
+                xml.contains("mxGraphModel") || xml.contains("mxfile"),
+                "{} did not read back as a diagram",
+                f.path
+            );
+        }
     }
 }

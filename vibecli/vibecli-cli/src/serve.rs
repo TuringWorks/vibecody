@@ -10495,6 +10495,23 @@ pub async fn serve(
     )
     .with_graceful_shutdown(shutdown_signal())
     .await?;
+
+    // Take our token files with us. A token file that outlives its daemon is
+    // not a stale cache, it is a wrong answer with the shape of a right one —
+    // and a client reading one has no way to tell. That is exactly what an
+    // exited daemon left behind for two and a half days.
+    //
+    // Best-effort, and deliberately not relied upon: a `SIGKILL`, a power cut
+    // or a panic-abort never reaches this line, which is why `/health` also
+    // publishes a fingerprint clients can check.
+    let removed = vibe_daemon_token::remove_for_daemon(
+        &vibecli_dir,
+        port,
+        vibe_daemon_token::default_port(),
+    );
+    if !removed.is_empty() {
+        note_lifecycle(&format!("removed {} token file(s) on shutdown", removed.len()));
+    }
     eprintln!("[vibecli serve] Shutting down gracefully");
     Ok(())
 }

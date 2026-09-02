@@ -22,7 +22,9 @@ interface ContextBundle {
   createdAt: string;
 }
 
-const MODEL_OPTIONS = ["claude-opus-4-20250514", "claude-sonnet-4-20250514", "gpt-4o", "gpt-4o-mini", "gemini-2.0-pro", "ollama/llama3"];
+// Swept 2026-09-02: every previous entry was retired (Opus 4 / Sonnet 4 on
+// 2026-06-15, gemini-2.0-pro) or superseded (gpt-4o, gpt-4o-mini).
+const MODEL_OPTIONS = ["claude-opus-5", "claude-sonnet-5", "gpt-5.6-sol", "gpt-5.6-luna", "gemini-3.6-flash", "ollama/llama3.3"];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 

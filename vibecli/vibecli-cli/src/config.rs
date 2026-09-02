@@ -82,11 +82,11 @@ pub struct Config {
     /// ```toml
     /// [superbrain.routes.code]
     /// provider = "deepseek"
-    /// model = "deepseek-coder"        # omit to use that provider's default
+    /// model = "deepseek-v4-pro"      # omit to use that provider's default
     ///
     /// [[superbrain.panel]]            # used by consensus and chain modes
     /// provider = "openai"
-    /// model = "gpt-4o"
+    /// model = "gpt-5.6-sol"
     /// ```
     #[serde(default)]
     pub superbrain: SuperBrainSettings,
@@ -129,7 +129,7 @@ pub struct Config {
     /// [bedrock]
     /// enabled = true
     /// region = "us-east-1"
-    /// model = "anthropic.claude-3-5-sonnet-20241022-v2:0"
+    /// model = "anthropic.claude-sonnet-5"
     /// # Credentials come from the standard AWS env vars:
     /// # AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN
     /// ```
@@ -141,7 +141,7 @@ pub struct Config {
     /// enabled = true
     /// # Token is loaded from ~/.config/github-copilot/hosts.json automatically.
     /// # You may also set COPILOT_TOKEN env var.
-    /// model = "gpt-4o"
+    /// model = "gpt-5.6-sol"
     /// ```
     pub copilot: Option<CopilotConfig>,
     /// Mistral AI native API (MISTRAL_API_KEY).
@@ -2041,7 +2041,7 @@ pub struct BedrockConfig {
     /// AWS region (default: `us-east-1`).
     #[serde(default = "BedrockConfig::default_region")]
     pub region: String,
-    /// Bedrock model ID (default: `anthropic.claude-3-5-sonnet-20241022-v2:0`).
+    /// Bedrock model ID (default: `anthropic.claude-sonnet-5`).
     #[serde(default = "BedrockConfig::default_model")]
     pub model: String,
     /// Optional cross-account IAM role ARN to assume before calling Bedrock.
@@ -2053,7 +2053,9 @@ impl BedrockConfig {
         "us-east-1".to_string()
     }
     fn default_model() -> String {
-        "anthropic.claude-3-5-sonnet-20241022-v2:0".to_string()
+        // claude-3-5-sonnet retired 2025-10-28, so this default was a guaranteed
+        // failure for anyone who enabled Bedrock without naming a model.
+        "anthropic.claude-sonnet-5".to_string()
     }
 }
 
@@ -2080,7 +2082,7 @@ pub struct CopilotConfig {
     /// Whether this provider is active.
     #[serde(default = "default_true")]
     pub enabled: bool,
-    /// Model to request (default: `gpt-4o`).
+    /// Model to request (default: `gpt-5.6-sol`).
     #[serde(default = "CopilotConfig::default_model")]
     pub model: String,
     /// Explicit OAuth token (prefer env var or hosts.json for security).
@@ -2089,7 +2091,7 @@ pub struct CopilotConfig {
 
 impl CopilotConfig {
     fn default_model() -> String {
-        "gpt-4o".to_string()
+        "gpt-5.6-sol".to_string()
     }
 
     /// Resolve the Copilot token from ProfileStore → env → hosts.json → config field.
@@ -2651,7 +2653,7 @@ mod tests {
     fn copilot_default() {
         let c = CopilotConfig::default();
         assert!(c.enabled);
-        assert_eq!(c.model, "gpt-4o");
+        assert_eq!(c.model, "gpt-5.6-sol");
         assert!(c.token.is_none());
     }
 
@@ -2660,7 +2662,7 @@ mod tests {
         let b = BedrockConfig::default();
         assert!(b.enabled);
         assert_eq!(b.region, "us-east-1");
-        assert_eq!(b.model, "anthropic.claude-3-5-sonnet-20241022-v2:0");
+        assert_eq!(b.model, "anthropic.claude-sonnet-5");
         assert!(b.role_arn.is_none());
     }
 

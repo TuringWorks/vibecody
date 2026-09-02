@@ -97,7 +97,7 @@ fn create_raw_tui_provider(
                 .unwrap_or_default();
             let model = model
                 .or_else(|| provider_config.and_then(|c| c.model.clone()))
-                .unwrap_or_else(|| "gpt-4-turbo".to_string());
+                .unwrap_or_else(|| "gpt-5.6-sol".to_string());
             Ok(Arc::new(OpenAIProvider::new(ProviderConfig {
                 provider_type: "openai".to_string(),
                 api_url: None,
@@ -115,7 +115,7 @@ fn create_raw_tui_provider(
                 .unwrap_or_default();
             let model = model
                 .or_else(|| provider_config.and_then(|c| c.model.clone()))
-                .unwrap_or_else(|| "claude-3-opus-20240229".to_string());
+                .unwrap_or_else(|| "claude-opus-5".to_string());
             Ok(Arc::new(ClaudeProvider::new(ProviderConfig {
                 provider_type: "anthropic".to_string(),
                 api_url: None,
@@ -133,7 +133,7 @@ fn create_raw_tui_provider(
                 .unwrap_or_default();
             let model = model
                 .or_else(|| provider_config.and_then(|c| c.model.clone()))
-                .unwrap_or_else(|| "gemini-pro".to_string());
+                .unwrap_or_else(|| "gemini-3.6-flash".to_string());
             Ok(Arc::new(GeminiProvider::new(ProviderConfig {
                 provider_type: "gemini".to_string(),
                 api_url: None,
@@ -151,7 +151,7 @@ fn create_raw_tui_provider(
                 .unwrap_or_default();
             let model = model
                 .or_else(|| provider_config.and_then(|c| c.model.clone()))
-                .unwrap_or_else(|| "grok-beta".to_string());
+                .unwrap_or_else(|| "grok-4.6".to_string());
             Ok(Arc::new(GrokProvider::new(ProviderConfig {
                 provider_type: "grok".to_string(),
                 api_url: None,

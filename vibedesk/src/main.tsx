@@ -8,6 +8,7 @@ import "./App.css";
 // after tokens.css, whose variables it consumes.
 import "@vibe/shared/settings/settings.css";
 import "@vibe/shared/markdown/markdown.css";
+import "@vibe/shared/skills/skills.css";
 import "@vibe/shared/voice/voice.css";
 
 // Carry pre-rename (VibeX) theme prefs forward before the app reads them.

@@ -1027,7 +1027,7 @@ function ApiKeysSection() {
     vllm_api_key: "",
     lmstudio_api_key: "",
     ollama_api_key: "", ollama_api_url: "",
-    claude_model: "claude-3-5-sonnet-latest", openai_model: "gpt-4o", openrouter_model: "",
+    claude_model: "claude-opus-5", openai_model: "gpt-5.6-sol", openrouter_model: "",
   });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -1226,7 +1226,7 @@ function ApiKeysSection() {
         {renderSecretField("API Key", "openrouter_api_key", "sk-or-v1-...", "openrouter")}
         <div style={{ marginBottom: 12 }}>
           <label className="panel-label">Model</label>
-          <input className="panel-input panel-input-full" value={settings.openrouter_model} onChange={e => setSettings({ ...settings, openrouter_model: e.target.value })} placeholder="anthropic/claude-3.5-sonnet" />
+          <input className="panel-input panel-input-full" value={settings.openrouter_model} onChange={e => setSettings({ ...settings, openrouter_model: e.target.value })} placeholder="anthropic/claude-opus-5" />
         </div>
         <p style={modelsHintStyle}>
           Routes to 200+ models. Enter a model ID or browse at openrouter.ai/models

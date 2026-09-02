@@ -89,3 +89,12 @@ export {
   describeSpeechError,
   type SpeechRecognitionLike,
 } from "./voice/speech";
+export { SkillsView, type SkillsViewProps } from "./skills/SkillsView";
+export {
+  skilllensCatalog,
+  proxiedSkillCatalog,
+  skillPromptSeed,
+  type SkillCatalog,
+  type SkillRow,
+  type SkillDetail,
+} from "./skills/catalog";

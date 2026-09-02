@@ -26,11 +26,25 @@ The Draw.io tab embeds a full `diagrams.net` editor via `embed.diagrams.net` wit
 
 | Sub-tab | What it does |
 |---|---|
-| **Editor** | Full draw.io editor — create, edit, and save `.drawio` files without leaving VibeCoder |
-| **Preview** | Read-only viewer for any `.drawio` XML |
+| **Diagrams** | Every `.drawio`, `.dio` and `.drawio.svg` in the workspace, newest first, with its page and shape counts. Click one to open it |
+| **Editor** | Full draw.io editor. The file you are editing is named in the toolbar at all times, with a dot when it has unsaved changes |
+| **Preview** | Read-only viewer for the open diagram |
 | **AI Generate** | Describe a diagram in plain English and get draw.io XML back |
-| **Templates** | 8 built-in templates (microservices, CI/CD, ERD, C4 context/container, API sequence, state machine, domain model) |
-| **MCP Bridge** | Execute `jgraph/drawio-mcp` commands: read, write, export SVG, list pages |
+| **Templates** | 8 starter diagrams (microservices, CI/CD, ERD, C4 context/container, API sequence, state machine, domain model) |
+| **MCP Bridge** | Inspect and write diagram files by workspace-relative path |
+
+### Where the file goes
+
+Save writes back to the file you opened. A diagram that has no name yet asks for
+one — a bare `auth-flow` becomes `diagrams/auth-flow.drawio`, and a path you
+spell out is used exactly as typed. The message afterwards names the file and its
+size, because "saved to workspace" is the one thing a user does not need to be
+told.
+
+**Export** (PNG · SVG · editable SVG · PDF) writes into the workspace beside the
+diagram: `docs/architecture.drawio` exports to `docs/architecture.png`. draw.io's
+own export menu downloads through the browser, which the Tauri webview does not
+surface — so that route produced a file nobody could find.
 
 ### AI Diagram Generation
 

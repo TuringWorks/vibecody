@@ -1,8 +1,17 @@
 /**
  * DrawioPreview — renders Draw.io XML diagrams via the official viewer iframe.
  *
- * Uses viewer.diagrams.net with a data URI to render the diagram offline
- * (assuming the browser caches the viewer or has internet access).
+ * The diagram is delivered over `postMessage`, not in the URL: a `#R…` fragment
+ * has a length limit that a real architecture diagram passes, and it fails by
+ * showing an empty frame rather than saying anything.
+ *
+ * **The handshake has three steps, and skipping any one leaves a blank frame
+ * with a spinner and no error.** The viewer only speaks the JSON embed protocol
+ * when the URL asks it to (`embed=1&proto=json`); with `configure=1` it then
+ * blocks on a `configure` reply before it will emit `init`; and only after
+ * `init` will it accept `load`. This component asked for none of the first two
+ * while already handling `init`, so on a cold viewer the event never arrived and
+ * previewing a `.drawio` file from the file tree showed nothing at all.
  */
 
 import { useState, useRef, useCallback, useEffect } from "react";
@@ -23,18 +32,28 @@ export function DrawioPreview({ content, filePath }: DrawioPreviewProps) {
 
   const fileName = filePath?.split("/").pop() || filePath?.split("\\").pop() || "diagram.drawio";
 
-  const viewerUrl = `https://viewer.diagrams.net/?nav=1&highlight=0000ff&border=20&title=${encodeURIComponent(fileName)}&spin=1`;
+  const viewerUrl =
+    `https://viewer.diagrams.net/?embed=1&proto=json&configure=1&nav=1&layers=1` +
+    `&highlight=0000ff&border=20&spin=1&title=${encodeURIComponent(fileName)}`;
 
-  // Listen for the 'init' event from the iframe, and then send the raw XML
+  // Complete the embed handshake, then send the XML.
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
       // Filter out messages that don't belong to our iframe
       if (!iframeRef.current || e.source !== iframeRef.current.contentWindow) return;
-      
+
       try {
         const msg = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
-        if (msg.event === 'init') {
-          // Drawio iframe is ready to receive diagram data!
+        if (msg.event === 'configure') {
+          // `configure=1` makes the viewer wait for this reply before it will
+          // fire `init`. An empty config is fine — the acknowledgement is the
+          // whole point, and without it nothing else ever happens.
+          iframeRef.current.contentWindow?.postMessage(
+            JSON.stringify({ action: 'configure', config: {} }),
+            '*'
+          );
+        } else if (msg.event === 'init') {
+          // Ready to receive diagram data.
           iframeRef.current.contentWindow?.postMessage(
             JSON.stringify({
               action: 'load',

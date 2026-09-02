@@ -9,7 +9,8 @@ import { FilesView } from "../components/FilesView";
 import { SettingsView } from "@vibe/shared/settings/SettingsView";
 import { RecoveryView } from "../components/RecoveryView";
 import { ChatSearch } from "../components/ChatSearch";
-import { SkillsView } from "../components/SkillsView";
+import { SkillsView } from "@vibe/shared/skills/SkillsView";
+import { proxiedSkillCatalog } from "@vibe/shared/skills/catalog";
 import { SideChatPanel } from "../components/SideChatPanel";
 import { PluginsView } from "../components/PluginsView";
 import { ConnectorsView } from "../components/ConnectorsView";
@@ -87,6 +88,11 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
   const [dragging, setDragging] = useState(false);
   const [drafts, setDrafts] = useState<Drafts>({});
   const [attachments, setAttachments] = useState<Attachments>({});
+
+  // Memoised: SkillsView refetches the catalogue whenever its `catalog`
+  // identity changes, so a fresh object per render would poll the daemon on
+  // every keystroke in the filter box.
+  const skillCatalog = useMemo(() => proxiedSkillCatalog(daemonUrl), [daemonUrl]);
 
   const draftKey = activeChatId ?? "";
   const setDraft = useCallback(
@@ -405,13 +411,14 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
           <ConnectorsView daemonUrl={daemonUrl} path={scopePath} onClose={() => setOverlay(null)} />
         ) : overlay === "skills" ? (
           <SkillsView
-            daemonUrl={daemonUrl}
+            catalog={skillCatalog}
+            hint="Selected skills are written into the composer"
             onClose={() => setOverlay(null)}
-            onUse={(name) => {
+            onUse={(text) => {
               // Drop the skill into the current chat's draft and go back to it.
               setDrafts((prev) => ({
                 ...prev,
-                [draftKey]: `${prev[draftKey] ?? ""}${prev[draftKey] ? " " : ""}Use the ${name} skill: `,
+                [draftKey]: `${prev[draftKey] ?? ""}${prev[draftKey] ? " " : ""}${text}`,
               }));
               setOverlay(null);
             }}

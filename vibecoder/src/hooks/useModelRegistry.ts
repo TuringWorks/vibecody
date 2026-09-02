@@ -23,9 +23,11 @@ import { OLLAMA_CHAT_MODELS } from "../constants/ollamaModels";
  * the tests writing to a key nothing reads — they failed without anything
  * being wrong with the hook.
  */
-// v3 (2026-08-05): retired-model sweep — a v2 cache still holds
-// deepseek-v3.1:671b-cloud and friends, which now 410.
-export const CACHE_KEY = "vibecody:model-registry:v3";
+// v4 (2026-09-02): retired-model sweep — a v3 cache still holds
+// gpt-5.6-sol-pro (never a real id), deepseek-chat (retired 2026-07-24),
+// gemini-3-pro / gemini-2.5-pro and gpt-4o, all of which now fail at request
+// time. v3 (2026-08-05) swept deepseek-v3.1:671b-cloud and friends, which 410.
+export const CACHE_KEY = "vibecody:model-registry:v4";
 
 /**
  * Where the list actually comes from now.
@@ -54,54 +56,105 @@ export const STATIC_MODELS: Record<string, string[]> = {
   // claude-code uses the local Claude Code CLI — works with Free, Pro, Max, Team, and Enterprise plans
   // without consuming Anthropic API credits.
   //
-  // Fable 5 restored 2026-08-10. The 2026-06-12 US export-control directive that
-  // suspended it was lifted on 06-30, and Fable 5 returned *globally* on 07-01
-  // after 19 days — the comment that used to sit here claiming it was "not a
-  // routable production option" was 40 days stale.
+  // Both Claude rows are swept against Anthropic's own model-status table
+  // (platform.claude.com/docs/en/about-claude/model-deprecations, read
+  // 2026-09-02) and hold only rows marked `Active`.
   //
-  // Mythos 5 stays omitted, and for a different reason than before: it was
-  // restored only to approved *US organisations*, permanently. A flat string[]
-  // cannot say "available to some callers", so listing it would 403 for most
-  // users. It waits on per-model availability metadata.
-  "claude-code": ["claude-opus-5", "claude-fable-5", "claude-sonnet-5", "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5"],
-  // claude-3-5-sonnet-20241022 removed 2026-08-05 — retired 2025-10-28 (404s).
-  claude: ["claude-opus-5", "claude-fable-5", "claude-sonnet-5", "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5", "claude-sonnet-4-5"],
-  openai: ["gpt-5.6-sol-pro", "gpt-5.6-sol", "gpt-5.6-terra-pro", "gpt-5.6-terra", "gpt-5.6-luna-pro", "gpt-5.6-luna", "gpt-5.5-pro", "gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-5.3-codex", "gpt-5.3-chat", "gpt-5", "gpt-4.1", "gpt-4.1-mini", "gpt-4o", "gpt-4o-mini"],
-  // gemini-3.6-flash is the current workhorse (shipped 2026-07-21).
+  // claude-fable-5-1 added 2026-09-02 (Active, retirement not sooner than
+  // 2027-09-01). claude-sonnet-4-5 dropped the same day: still Active, but its
+  // tentative retirement is "not sooner than September 29, 2026" — inside a
+  // release cycle from now, while everything else here has months of runway.
+  // claude-haiku-4-5 is the next shortest (not sooner than 2026-10-15) and is
+  // kept only because it is Anthropic's sole cheap tier; re-check before then.
   //
-  // gemini-3.5-pro removed 2026-08-10: it has NEVER GA'd. It was announced at
-  // I/O on 2026-05-19, delayed three times, and as of August 2026 remains a
-  // limited Vertex AI preview for selected enterprise customers — absent from
-  // the consumer Gemini app and AI Studio. It was listed here (and defaulted
-  // to) on the strength of a *projection* written during a June refresh, so
-  // every user picking Gemini got a model id the API rejects on first call.
+  // Mythos 5 stays omitted: it was restored only to approved *US
+  // organisations*, permanently. A flat string[] cannot say "available to some
+  // callers", so listing it would 403 for most users. It waits on per-model
+  // availability metadata.
+  "claude-code": ["claude-fable-5-1", "claude-opus-5", "claude-fable-5", "claude-sonnet-5", "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5"],
+  claude: ["claude-fable-5-1", "claude-opus-5", "claude-fable-5", "claude-sonnet-5", "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5"],
+  // Swept 2026-09-02 against developers.openai.com/api/docs/models + /deprecations.
+  //
+  // The three `*-pro` ids that used to lead this row were never model ids.
+  // "Pro" on the 5.6 family is a request parameter — `reasoning.mode: "pro"` on
+  // the Responses API — and OpenAI's deprecation table spells the replacement
+  // for gpt-5-pro-2025-10-06 as "gpt-5.6-sol (reasoning.mode: pro)". So
+  // gpt-5.6-sol-pro and its siblings were three picker entries that could only
+  // 404. gpt-5.5-pro is real: the separate -pro id died *with* the 5.6
+  // generation, not before it. See the RULE on the gemini row — this is the
+  // same failure, an id written the way the marketing name reads.
+  //
+  // gpt-5 removed: its only snapshot (gpt-5-2025-08-07) was deprecated
+  // 2026-06-11, API shutdown 2026-12-11.
+  //
+  // gpt-4o / gpt-4o-mini / gpt-4.1 / gpt-4.1-mini removed as superseded, not as
+  // broken — OpenAI still lists all four Active on the API even though they
+  // left ChatGPT on 2026-02-13. They are two generations behind everything else
+  // here and the model guidance routes them all to the 5.6 family.
+  openai: ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-5.5-pro", "gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-5.3-codex", "gpt-5.3-chat"],
+  // gemini-3.6-flash is the current workhorse (shipped 2026-07-21) and stays the
+  // default; 3.8-flash (2026-09-02) and 3.7-flash (2026-08-13) are offered but
+  // not defaulted to until they have a track record.
+  //
+  // gemini-3.5-pro was removed 2026-08-10 for never having GA'd. The 2026-09-02
+  // sweep found the *same* mistake twice more: `gemini-3.1-pro` and
+  // `gemini-3-pro` were both listed and neither is a callable model code.
+  // Google ships the current Pro as `gemini-3.1-pro-preview`, and
+  // `gemini-3-pro-preview` is already in the deprecated/shut-down table. The
+  // `-preview` suffix is load-bearing — an id written the way the marketing
+  // name reads is not an id.
+  //
+  // gemini-2.5-pro removed: a newly created GCP project gets 404 "no longer
+  // available to new users", so for most callers it is already retired ahead of
+  // its published date. gemini-2.5-flash removed with it — the whole 2.5 line
+  // goes no earlier than 2026-10-16.
   //
   // RULE: only ship model ids that are shipped and callable today. A forecast
   // belongs in a planning note, never in the registry — the narrative can
   // absorb a wrong projection, the code cannot. Enforced by
   // `defaults are present in their provider list` in useModelRegistry.test.ts.
-  gemini: ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-pro", "gemini-3-pro", "gemini-2.5-pro", "gemini-2.5-flash"],
+  gemini: ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.1-pro-preview"],
   // llama-3.1-8b-instant / llama-3.3-70b-versatile were deprecated 2026-06-17 (Groq
   // points at gpt-oss-20b / gpt-oss-120b); mixtral-8x7b-32768 and gemma2-9b-it are gone.
   groq: ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.6-27b", "minimaxai/minimax-m2.7", "groq/compound", "groq/compound-mini"],
-  grok: ["grok-4.5", "grok-4.3", "grok-4.20"],
+  // grok-4.6 (2026-08-12) is xAI's current flagship. Bare "grok-4.20" dropped
+  // 2026-09-02 — docs.x.ai lists no such id; that generation is addressed as
+  // grok-4.20-0309-reasoning / -non-reasoning, and 4.6/4.5/4.3 supersede it.
+  grok: ["grok-4.6", "grok-4.5", "grok-4.3"],
   mistral: ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest", "codestral-latest"],
   // "deepseek-v4" was never an API id — the shipped pair is v4-pro / v4-flash.
-  deepseek: ["deepseek-v4-pro", "deepseek-v4-flash", "deepseek-chat", "deepseek-reasoner"],
+  // deepseek-chat / deepseek-reasoner removed 2026-09-02: DeepSeek retired both
+  // legacy names on 2026-07-24 and its model-list endpoint now returns only the
+  // v4 pair. deepseek-chat was also this provider's default, so every
+  // unconfigured DeepSeek call was aimed at a retired id.
+  deepseek: ["deepseek-v4-pro", "deepseek-v4-flash"],
   cerebras: ["gpt-oss-120b", "gemma-4-31b", "zai-glm-4.7"],
   perplexity: ["sonar-pro", "sonar", "sonar-reasoning-pro", "sonar-deep-research"],
   together: ["moonshotai/Kimi-K2.7-Code", "Qwen/Qwen3.8-Max", "Qwen/Qwen3.5-397B-A17B", "deepseek-ai/DeepSeek-V4-Pro"],
-  fireworks: ["accounts/fireworks/models/llama-v3p3-70b-instruct", "accounts/fireworks/models/mixtral-8x7b-instruct"],
+  // Both previous entries were off serverless: Fireworks pulled its Llama models
+  // after 2026-05-14 (llama-v3p3-70b-instruct migrated to gpt-oss-120b) and
+  // mixtral-8x7b-instruct is two years stale. `GET /v1/models` on the account
+  // is the authority; these two are a starting point and the picker takes a
+  // typed id.
+  fireworks: ["accounts/fireworks/models/gpt-oss-120b", "accounts/fireworks/models/minimax-m3"],
   // OpenRouter doubles as the home for frontier open-weight models that have no dedicated
   // VibeCody provider key yet — notably Moonshot's Kimi K2.7 Code (2026-06-13), which cuts
   // thinking tokens ~30% vs K2.6. Add a first-class Moonshot provider (6-file dance) if usage warrants.
   // Verified against the live https://openrouter.ai/api/v1/models catalog on 2026-08-05.
   openrouter: ["moonshotai/kimi-k3", "moonshotai/kimi-k2.7-code", "moonshotai/kimi-k2.6", "z-ai/glm-5.2", "qwen/qwen3.8-max", "deepseek/deepseek-v4-pro", "minimax/minimax-m3", "x-ai/grok-4.5", "anthropic/claude-opus-5", "anthropic/claude-sonnet-5", "openai/gpt-5.6-sol", "google/gemini-3.6-flash"],
-  azure_openai: ["gpt-4o", "gpt-4-turbo"],
+  // Azure deployment names are the operator's to choose, so this is a hint list
+  // of what Foundry currently offers. gpt-4-turbo retired long ago; gpt-4o
+  // retires on Foundry 2026-10-01 and gpt-4o-mini went 2026-03-31.
+  azure_openai: ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-5.5", "gpt-5.4"],
   // Bedrock ids take an `anthropic.` prefix. The previous entries were both dead:
   // claude-3-5-sonnet retired 2025-10-28, claude-3-haiku retires 2026-04-19.
   bedrock: ["anthropic.claude-opus-5", "anthropic.claude-sonnet-5", "anthropic.claude-opus-4-8", "anthropic.claude-haiku-4-5"],
-  copilot: ["gpt-4o"],
+  // Copilot brokers several vendors, but only the OpenAI ids are listed: its
+  // slugs for the Anthropic and Google models are not the vendors' own (it
+  // spells them `claude-opus-4.1`-style) and this registry ships no id it has
+  // not verified. `GET /models` on api.githubcopilot.com is the authority for
+  // an account, and the picker takes a typed id.
+  copilot: ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-5.3-codex"],
   ollama: OLLAMA_CHAT_MODELS,
   // vibecli-mistralrs talks to the local vibecli daemon (default :7878) and
   // pins the in-process mistralrs backend via X-VibeCLI-Backend. Models here
@@ -149,7 +202,10 @@ export const STATIC_MODELS: Record<string, string[]> = {
   // MiniMax-M3 (2026-06-01): 1M-token context + native multimodality in one open-weight model.
   // abab6.5s-chat dropped 2026-08-05 — superseded by the M-series.
   minimax: ["MiniMax-M3", "MiniMax-M2.7"],
-  sambanova: ["Meta-Llama-3.3-70B-Instruct"],
+  // Meta-Llama-3.3-70B-Instruct is not deprecated — SambaNova still calls it its
+  // most battle-tested model — but it was the only entry, which made the picker
+  // look like a one-model provider. The rest are what SambaNova Cloud serves now.
+  sambanova: ["DeepSeek-V3.2", "MiniMax-M3", "MiniMax-M2.7", "gpt-oss-120b", "gemma-4-31B-it", "Meta-Llama-3.3-70B-Instruct"],
   // Poolside AI — purpose-built coding models (Poolside AI).
   poolside: ["poolside/laguna-s-2.1", "poolside/laguna-xs-2.1", "poolside/laguna-m-1"],
 };
@@ -243,17 +299,17 @@ export const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
   openai:       "gpt-5.6-sol",
   gemini:       "gemini-3.6-flash",
   groq:         "openai/gpt-oss-120b",
-  grok:         "grok-4.5",
+  grok:         "grok-4.6",
   mistral:      "mistral-large-latest",
-  deepseek:     "deepseek-chat",
+  deepseek:     "deepseek-v4-pro",
   cerebras:     "gpt-oss-120b",
   perplexity:   "sonar-pro",
   together:     "moonshotai/Kimi-K2.7-Code",
-  fireworks:    "accounts/fireworks/models/llama-v3p3-70b-instruct",
+  fireworks:    "accounts/fireworks/models/gpt-oss-120b",
   openrouter:   "anthropic/claude-opus-5",
-  azure_openai: "gpt-4o",
+  azure_openai: "gpt-5.6-sol",
   bedrock:      "anthropic.claude-opus-5",
-  copilot:      "gpt-4o",
+  copilot:      "gpt-5.6-sol",
   ollama:       "devstral-2",
   vllm: "meta-llama/Llama-3.1-8B-Instruct",
   lmstudio: "qwen2.5-coder-7b-instruct",
@@ -261,7 +317,7 @@ export const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
   zhipu:        "glm-5.2",
   vercel_ai:    "",
   minimax:      "MiniMax-M3",
-  sambanova:    "Meta-Llama-3.3-70B-Instruct",
+  sambanova:    "DeepSeek-V3.2",
   poolside:     "poolside/laguna-s-2.1",
 };
 

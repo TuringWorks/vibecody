@@ -206,16 +206,42 @@ impl TokenUsage {
 
     /// Estimated cost in USD based on provider name and model string.
     pub fn estimated_cost_usd(&self, provider: &str, model: &str) -> f64 {
+        // Arms are matched top-down, so the newest families come first: every
+        // current-generation model used to fall through to the `_ => (0.0, 0.0)`
+        // arm at the bottom and be reported as *free*. That arm means "local,
+        // costs nothing"; a paid model reaching it turns a missing price into a
+        // claim that the request was free. Prices are list per 1M tokens, read
+        // from each vendor's pricing page on 2026-09-02. Families with no arm
+        // still fall through — a wrong price and a zero are equally wrong, and
+        // this signature has no way to say "unknown".
         let (input_price, output_price): (f64, f64) = match (provider, model) {
-            // Anthropic Claude
+            // Anthropic Claude — covers claude-fable-5-1 via the -5 prefix.
+            (_, m) if m.contains("claude-fable-5") || m.contains("claude-mythos-5") => {
+                (10.0 / 1_000_000.0, 50.0 / 1_000_000.0)
+            }
+            (_, m) if m.contains("claude-opus-5") => (5.0 / 1_000_000.0, 25.0 / 1_000_000.0),
+            (_, m) if m.contains("claude-sonnet-5") => (2.0 / 1_000_000.0, 10.0 / 1_000_000.0),
+            (_, m) if m.contains("claude-opus-4-8") || m.contains("claude-opus-4-7") => {
+                (5.0 / 1_000_000.0, 25.0 / 1_000_000.0)
+            }
+            (_, m) if m.contains("claude-opus-4-6") => (5.0 / 1_000_000.0, 25.0 / 1_000_000.0),
+            (_, m) if m.contains("claude-sonnet-4-6") => (3.0 / 1_000_000.0, 15.0 / 1_000_000.0),
+            (_, m) if m.contains("claude-haiku-4-5") => (1.0 / 1_000_000.0, 5.0 / 1_000_000.0),
             (_, m) if m.contains("claude-opus-4") => (15.0 / 1_000_000.0, 75.0 / 1_000_000.0),
             (_, m) if m.contains("claude-sonnet-4") => (3.0 / 1_000_000.0, 15.0 / 1_000_000.0),
             (_, m) if m.contains("claude-haiku-4") => (0.8 / 1_000_000.0, 4.0 / 1_000_000.0),
-            // OpenAI
+            // OpenAI — 5.6 rates are the short-context tier; long-context
+            // requests bill higher and this estimator does not model the split.
+            (_, m) if m.contains("gpt-5.6-sol") => (4.0 / 1_000_000.0, 20.0 / 1_000_000.0),
+            (_, m) if m.contains("gpt-5.6-terra") => (2.0 / 1_000_000.0, 12.0 / 1_000_000.0),
+            (_, m) if m.contains("gpt-5.6-luna") => (0.2 / 1_000_000.0, 1.2 / 1_000_000.0),
             (_, m) if m.contains("gpt-4o") => (2.5 / 1_000_000.0, 10.0 / 1_000_000.0),
             (_, m) if m.contains("gpt-4-turbo") => (10.0 / 1_000_000.0, 30.0 / 1_000_000.0),
             (_, m) if m.contains("gpt-3.5") => (0.5 / 1_000_000.0, 1.5 / 1_000_000.0),
-            // Google Gemini
+            // Google Gemini — 3.6 Flash is on promotional pricing that doubles
+            // on 2027-01-01; the Pro tier shown is the <=200k-prompt rate.
+            (_, m) if m.contains("gemini-3.1-pro") => (2.0 / 1_000_000.0, 12.0 / 1_000_000.0),
+            (_, m) if m.contains("gemini-3.6-flash") => (0.75 / 1_000_000.0, 3.75 / 1_000_000.0),
             (_, m) if m.contains("gemini-2.5-pro") => (1.25 / 1_000_000.0, 10.0 / 1_000_000.0),
             (_, m) if m.contains("gemini-2.5-flash") || m.contains("gemini-2.0-flash") => {
                 (0.15 / 1_000_000.0, 0.6 / 1_000_000.0)
@@ -234,6 +260,7 @@ impl TokenUsage {
             (_, m) if m.contains("sonar") => (1.0 / 1_000_000.0, 1.0 / 1_000_000.0),
             // xAI Grok
             (_, m) if m.contains("grok-3") => (3.0 / 1_000_000.0, 15.0 / 1_000_000.0),
+            // grok-4.x has no verified arm; it falls to the generic grok rate.
             (_, m) if m.contains("grok") => (5.0 / 1_000_000.0, 10.0 / 1_000_000.0),
             // Inference platforms (approximate per-provider pricing)
             ("groq", _) => (0.05 / 1_000_000.0, 0.08 / 1_000_000.0),

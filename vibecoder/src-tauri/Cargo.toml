@@ -86,6 +86,10 @@ tracing = "0.1"
 
 [dev-dependencies]
 tempfile = "3"
+# A real XML parser for the draw.io template tests. String counting passed two
+# templates that were not well-formed XML at all; draw.io renders those as an
+# empty canvas with no error, so nothing downstream would have caught it.
+quick-xml = "0.42"
 # `MockAIProvider` lives behind this feature. The chat path's reasoning-only
 # continuation is tested against it — a scripted provider is the only way to
 # assert "asked once more, kept the answer" without a live model.
