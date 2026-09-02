@@ -147,7 +147,7 @@ doctor: ## Verify development environment is ready
 	@printf "  %-20s" "npm:" && (npm --version 2>/dev/null || echo "MISSING")
 	@printf "  %-20s" "Git:" && (git --version 2>/dev/null || echo "MISSING")
 	@printf "  %-20s" "uv (vibe-rl-py):" && (uv --version 2>/dev/null || echo "not installed (needed for test-rl) — https://docs.astral.sh/uv/")
-	@printf "  %-20s" "Ollama:" && (ollama --version 2>/dev/null || echo "not installed (optional)")
+	@printf "  %-20s" "Ollama:" && (ollama --version 2>/dev/null || echo "not installed (optional)") | tail -1
 	@printf "  %-20s" "Docker:" && (docker --version 2>/dev/null || echo "not installed (optional)")
 	@printf "  %-20s" "JDK (watch-wear):" && \
 		if [ -f vibewatch/VibeCodyWear/.java-version ]; then \
