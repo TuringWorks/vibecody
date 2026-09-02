@@ -147,6 +147,8 @@ pub fn run() {
             // takes ?token= and the frontend needs the effective token to build it.
             vibe_desktop_voice::daemon_token_effective,
             commands::daemon_port,
+            commands::daemon_readiness,
+            commands::daemon_readiness_probe,
         ])
         .run(tauri::generate_context!())
         .expect("error while running vibedesk");

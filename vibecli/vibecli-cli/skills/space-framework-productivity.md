@@ -8,6 +8,34 @@ tools_allowed: ["read_file", "write_file", "bash"]
 
 # SPACE — the half of productivity that DORA cannot see
 
+## Run the frame first
+
+```
+vibecli --devex space  --path <repo>            # the five dimensions, and the gaps
+vibecli --devex space  --path <repo> --json
+vibecli --devex survey                          # the quarterly instrument, on stdout
+```
+
+Panel: **Cloud & Platform → Developer Excellence → Experience (SPACE)**.
+Route: `GET /devex/space`, `GET /devex/survey.md`.
+
+**The gaps are the point.** On a first run the tool fills Performance (by
+reference to DORA's stability pair), Activity, and part of Collaboration, and
+names the system that holds the rest — the survey, the forge's PR API, CI, the
+calendar. That list is your instrumentation roadmap, and it is more useful than
+any number the tool could have invented to fill it.
+
+Two things it will not do, by construction:
+
+- **Produce an aggregate SPACE score.** Summing a survey response with a commit
+  count yields something that cannot be wrong and therefore cannot be useful.
+- **Report volume without an outcome.** When Performance has no measure the
+  payload clears `outcome_signal` and every surface says so: Activity and
+  Collaboration describe how much happened and in what shape, and neither says
+  whether what shipped worked.
+
+
+
 DORA measures the delivery system. SPACE measures the people running it and
 what it costs them. A program with only DORA optimises a pipeline until the
 engineers leave; a program with only SPACE has opinions and no delivery signal.

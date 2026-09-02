@@ -726,7 +726,9 @@ curl -s http://127.0.0.1:7878/health
 |---|---|---|
 | No answer at all | Not running, or still starting | A cold daemon has been **measured at ~16 s** to first answer. Poll to a deadline, do not check once: `until curl -sf .../health; do sleep 2; done` |
 | An answer without `"service": "vibecli"` | Another program holds port 7878 | Free the port, or set `VIBECLI_DAEMON_PORT` (legacy `VIBEDESK_DAEMON_PORT`) |
-| `/health` fine, everything else `401` | Stale bearer token | The token is regenerated on **every** daemon start and written to `~/.vibecli/daemon.token`. Restart the client so it re-reads; anything caching one across a restart breaks |
+| `/health` fine, everything else `401`, and restarting the client does not help | The token file belongs to a **different daemon** | `~/.vibecli/daemon.token` names no port, so any daemon on any port used to overwrite it. One on 7979 did, then exited — and the healthy daemon on 7878 rejected every client for two and a half days. Compare `shasum -a 256 ~/.vibecli/daemon-7878.token \| cut -c1-16` against `curl -s .../health \| jq -r .api_token.fingerprint`; a mismatch means restart the daemon, not the client. Daemons now write `daemon-<port>.token` |
+| `/health` fine, everything else `401`, fixed by restarting the client | Stale bearer token | The token is regenerated on **every** daemon start. Restart the client so it re-reads; anything caching one across a restart breaks |
+| A route the docs describe answers `404` | The installed daemon predates it | `/health` reports `version`; compare it with your client's. Rebuild and restart — the source tree is not what is serving |
 | `401` from a WebSocket route | A handshake cannot send headers | `/ws/collab/{room_id}` and `/ws/voice/duplex` take `?token=` instead |
 | A daemon-side fix appears to do nothing | You rebuilt the source but not the binary that is running | The installed binary is what serves. Rebuild **and** restart the process |
 
@@ -743,7 +745,7 @@ guide]({{ site.baseurl }}/guides/). These apply to all of them.
 | `/health` refuses right after `terraform apply` | Image pull plus a ~16 s cold start | Poll to a deadline before concluding failure |
 | Reachable from the host, not from your laptop | Firewall or security group | Check the provider's inbound rules for 7878 |
 | Reachable from anywhere | Several templates open 7878 to `0.0.0.0/0` | Restrict the source range, or drop the rule and use [Tailscale]({{ site.baseurl }}/connectivity/). A token that rotates every restart is a poor fit for a public address |
-| Every request `401` | The token is on the server, not on your client | `ssh` in and read `~/.vibecli/daemon.token` |
+| Every request `401` | The token is on the server, not on your client | `ssh` in and read `~/.vibecli/daemon-<port>.token` (or `daemon.token` on the default port) |
 | "No provider configured" | Fresh host, no key and no local model | `vibecli set-key <provider> <key>` on the host, or run Ollama beside it |
 | Serverless instance is slow on first request every time | Scaled to zero, paying the cold start per request | Pin a minimum instance |
 | Local model OOMs or crawls | Cloud tiers are CPU-only, and RAM is the bound | [Sizing]({{ site.baseurl }}/sizing/). `lite` tiers are relays, not inference hosts |

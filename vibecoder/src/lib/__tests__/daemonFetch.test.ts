@@ -23,6 +23,13 @@ function res(status: number): Response {
   return { ok: status >= 200 && status < 300, status } as Response;
 }
 
+/** How many times the token was actually read (not the port lookup). */
+function tokenReads(): number {
+  return mockInvoke.mock.calls.filter(
+    ([cmd]) => cmd === 'daemon_token_effective' || cmd === 'daemon_auth_token',
+  ).length;
+}
+
 /** Authorization header of the Nth fetch call. */
 function authOf(call: number): string | null {
   const init = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[call][1] as
@@ -49,7 +56,9 @@ describe('Given the daemon is running with a token', () => {
     const r = await daemonFetch('http://localhost:7878/jobs');
 
     expect(r.status).toBe(200);
-    expect(mockInvoke).toHaveBeenCalledWith('daemon_auth_token');
+    // `daemon_token_effective` is the command all three shells register;
+    // `daemon_auth_token` remains a fallback for VibeCoder's older name.
+    expect(mockInvoke).toHaveBeenCalledWith('daemon_token_effective', { explicit: null });
     expect(authOf(0)).toBe('Bearer tok-abc');
   });
 
@@ -60,7 +69,9 @@ describe('Given the daemon is running with a token', () => {
     await daemonFetch('http://localhost:7878/jobs');
     await daemonFetch('http://localhost:7878/v1/metrics/jobs');
 
-    expect(mockInvoke).toHaveBeenCalledTimes(1);
+    // `daemon_port` is invoked per call for the base URL; the *token* read is
+    // the expensive one and happens once.
+    expect(tokenReads()).toBe(1);
   });
 
   it('When concurrent calls race, Then only one token read is issued', async () => {
@@ -73,7 +84,7 @@ describe('Given the daemon is running with a token', () => {
       daemonFetch('http://localhost:7878/jobs'),
     ]);
 
-    expect(mockInvoke).toHaveBeenCalledTimes(1);
+    expect(tokenReads()).toBe(1);
   });
 
   it('When caller supplies headers, Then they survive alongside the token', async () => {

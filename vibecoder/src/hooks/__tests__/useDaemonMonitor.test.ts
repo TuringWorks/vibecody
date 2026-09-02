@@ -12,6 +12,19 @@ import { useDaemonMonitor } from '../useDaemonMonitor';
 // ── Mock @tauri-apps/api/core ─────────────────────────────────────────────────
 
 const mockInvoke = vi.fn();
+
+/**
+ * How many times the hook asked the backend to *start* a daemon.
+ *
+ * These assertions used to read `expect(mockInvoke).not.toHaveBeenCalled()`,
+ * which was only ever true by accident: `start_daemon` happened to be the
+ * hook's one `invoke`. It now also asks `daemon_readiness_probe` whether the
+ * token it holds will authenticate — a question no amount of `/health` polling
+ * can answer — so the assertion has to name the command it actually means.
+ */
+function startDaemonCalls(): number {
+  return mockInvoke.mock.calls.filter(([cmd]) => cmd === 'start_daemon').length;
+}
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: (...args: unknown[]) => mockInvoke(...args),
 }));
@@ -121,7 +134,7 @@ describe('Given the daemon is already running when VibeCoder starts', () => {
     await act(async () => { vi.advanceTimersByTime(3100); });
     await act(async () => {});
 
-    expect(mockInvoke).not.toHaveBeenCalled();
+    expect(startDaemonCalls()).toBe(0);
   });
 
   it('When a subsequent poll finds daemon still online, Then no additional toast fires', async () => {
@@ -260,7 +273,7 @@ describe('Given a single probe fails while the daemon is merely busy', () => {
     await act(async () => { vi.advanceTimersByTime(30_100); });
     await act(async () => {});
 
-    expect(mockInvoke).not.toHaveBeenCalled();
+    expect(startDaemonCalls()).toBe(0);
     expect(toast.warn).not.toHaveBeenCalled();
 
     // It answers again on the next tick, and the user was never told anything.
@@ -284,7 +297,7 @@ describe('Given daemon was running but went offline during a session', () => {
     // First check — online
     await act(async () => { vi.advanceTimersByTime(3100); });
     await act(async () => {});
-    expect(mockInvoke).not.toHaveBeenCalled();
+    expect(startDaemonCalls()).toBe(0);
 
     // Daemon goes down
     mockFetchOffline();
@@ -438,6 +451,119 @@ describe('Given an older daemon that predates the `service` field', () => {
     await act(async () => {});
 
     expect(events[0].detail.online).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BDD Scenario: the daemon is healthy and our token will not authenticate
+//
+// The two-and-a-half-day outage this hook could not see. A second daemon on
+// port 7979 bound its own free port, wrote its token into the shared,
+// port-agnostic `~/.vibecli/daemon.token`, and exited. The daemon on 7878 kept
+// answering `/health` perfectly — so this monitor said "online" on every tick,
+// while every authenticated route in the app returned 401 and each panel
+// invented its own explanation. Health polling cannot see a credential; the
+// readiness probe compares the token's fingerprint against the daemon's.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('Given a reachable daemon whose token no longer authenticates', () => {
+  /** Readiness reporting a running daemon and a token that will not work. */
+  function mockStaleToken() {
+    mockInvoke.mockImplementation((cmd: string) =>
+      cmd === 'daemon_readiness_probe'
+        ? Promise.resolve({
+            port: 7878,
+            ready: false,
+            daemonRunning: true,
+            daemonVersion: '0.5.11',
+            clientVersion: '0.5.11',
+            versionMatches: true,
+            tokenState: 'stale',
+            features: null,
+            message:
+              'The saved daemon token (1b7d…) is not the one the daemon on port 7878 is ' +
+              'accepting (f392…). Restart the daemon on port 7878.',
+          })
+        : Promise.resolve('started'),
+    );
+  }
+
+  it('When the daemon is online but the token is stale, Then the user is warned', async () => {
+    mockFetchOnline();
+    mockStaleToken();
+    const toast = makeToast();
+
+    renderHook(() => useDaemonMonitor({ toast, addNotification: makeNotify() }));
+
+    await act(async () => { vi.advanceTimersByTime(3100); });
+    await act(async () => {});
+
+    expect(toast.warn).toHaveBeenCalled();
+    expect(toast.warn.mock.calls[0][0]).toContain('Restart the daemon');
+    // And the daemon is still reported online, because it is.
+    expect(startDaemonCalls()).toBe(0);
+  });
+
+  it('When the condition persists, Then it is said once, not every 30 seconds', async () => {
+    mockFetchOnline();
+    mockStaleToken();
+    const toast = makeToast();
+
+    renderHook(() => useDaemonMonitor({ toast, addNotification: makeNotify() }));
+
+    await act(async () => { vi.advanceTimersByTime(3100); });
+    await act(async () => {});
+    await act(async () => { vi.advanceTimersByTime(30_100); });
+    await act(async () => {});
+    await act(async () => { vi.advanceTimersByTime(30_100); });
+    await act(async () => {});
+
+    // A stale token does not fix itself; repeating it is noise, and noise is
+    // how a warning that matters gets ignored.
+    expect(toast.warn).toHaveBeenCalledTimes(1);
+  });
+
+  it('When the token becomes valid again, Then a later failure is reported afresh', async () => {
+    mockFetchOnline();
+    mockStaleToken();
+    const toast = makeToast();
+
+    renderHook(() => useDaemonMonitor({ toast, addNotification: makeNotify() }));
+    await act(async () => { vi.advanceTimersByTime(3100); });
+    await act(async () => {});
+    expect(toast.warn).toHaveBeenCalledTimes(1);
+
+    // The user restarts the daemon; readiness goes good.
+    mockInvoke.mockImplementation((cmd: string) =>
+      cmd === 'daemon_readiness_probe'
+        ? Promise.resolve({ ready: true, tokenState: 'valid', message: 'ok' })
+        : Promise.resolve('started'),
+    );
+    await act(async () => { vi.advanceTimersByTime(30_100); });
+    await act(async () => {});
+
+    // And it goes bad again later — the "said once" latch must have cleared,
+    // or the second outage would be silent.
+    mockStaleToken();
+    await act(async () => { vi.advanceTimersByTime(30_100); });
+    await act(async () => {});
+
+    expect(toast.warn).toHaveBeenCalledTimes(2);
+  });
+
+  it('When the shell cannot answer a readiness probe, Then nothing is claimed', async () => {
+    // An older shell without the command. Saying nothing is right; inventing a
+    // credential problem would be the same substitution in reverse.
+    mockFetchOnline();
+    mockInvoke.mockRejectedValue(new Error('no such command'));
+    const toast = makeToast();
+
+    renderHook(() => useDaemonMonitor({ toast, addNotification: makeNotify() }));
+
+    await act(async () => { vi.advanceTimersByTime(3100); });
+    await act(async () => {});
+
+    expect(toast.warn).not.toHaveBeenCalled();
   });
 });
 

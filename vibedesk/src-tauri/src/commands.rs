@@ -5,35 +5,19 @@
 use tauri::AppHandle;
 
 /// Resolve the daemon bearer token. Prefers an explicit token from the caller,
-/// then falls back to `~/.vibecli/daemon.token` (where `vibecli --serve` writes
-/// it) and the `VIBECLI_TOKEN` env var. This keeps VibeDesk zero-config: the
-/// frontend never has to know the token — the local daemon's token file is the
-/// source of truth. Returns `None` if no token is found (the daemon may be
-/// running without auth).
+/// then `VIBECLI_TOKEN`, then the daemon's token files. This keeps VibeDesk
+/// zero-config: the frontend never has to know the token. Returns `None` if no
+/// token is found (the daemon may be running without auth).
+///
+/// The layout lives in `vibe_daemon_token`, not here. This function used to
+/// join `~/.vibecli/daemon.token` itself — a path that names no port, and is
+/// therefore shared by every daemon on the machine, so one on a second port
+/// could overwrite it and take authentication down for all three shells.
 fn resolve_token(explicit: Option<String>) -> Option<String> {
-    if let Some(t) = explicit {
-        if !t.is_empty() {
-            return Some(t);
-        }
-    }
-    if let Ok(t) = std::env::var("VIBECLI_TOKEN") {
-        if !t.is_empty() {
-            return Some(t);
-        }
-    }
-    let path = dirs_home()?.join(".vibecli").join("daemon.token");
-    std::fs::read_to_string(path)
-        .ok()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
+    vibe_daemon_token::resolve_token(explicit.as_deref(), vibe_daemon_token::default_port())
 }
 
-/// Minimal home-dir lookup without pulling the `dirs` crate into vibedesk.
-fn dirs_home() -> Option<std::path::PathBuf> {
-    std::env::var_os("HOME").map(std::path::PathBuf::from)
-}
-
-/// The daemon's *current* token, read straight from `~/.vibecli/daemon.token`.
+/// The daemon's *current* token, read straight from its token files.
 ///
 /// Deliberately bypasses `resolve_token`'s precedence. That function prefers an
 /// explicit token, then `VIBECLI_TOKEN`, then the file — correct for the first
@@ -41,11 +25,7 @@ fn dirs_home() -> Option<std::path::PathBuf> {
 /// *why* the request came back 401. Retrying with the same stale token just
 /// produces a second 401.
 fn file_token() -> Option<String> {
-    let path = dirs_home()?.join(".vibecli").join("daemon.token");
-    std::fs::read_to_string(path)
-        .ok()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
+    vibe_daemon_token::read_token(vibe_daemon_token::default_port())
 }
 
 /// Send an authenticated daemon request, retrying once on 401 with a freshly
@@ -1318,4 +1298,57 @@ pub async fn stream_agent(
     });
 
     Ok(())
+}
+
+/// Everything a surface needs before it draws a panel: is the daemon there, can
+/// this client authenticate against it, is it the same build, and what does it
+/// say it can do.
+///
+/// **The call a shell makes on open.** `ensure_daemon_state` answers only
+/// whether a VibeCLI process is on the port — which stayed `true` throughout a
+/// two-day outage in which every authenticated route returned 401, because a
+/// daemon on a second port had overwritten the shared token file and exited.
+/// Nothing compared the credential this client holds against the one the daemon
+/// accepts, so every panel asked "is the daemon running?" about a daemon that
+/// was.
+#[tauri::command]
+pub async fn daemon_readiness() -> Result<serde_json::Value, String> {
+    let config = vibecli_cli::daemon_bootstrap::BootstrapConfig::default();
+    Ok(vibecli_cli::daemon_bootstrap::ensure_ready(&config)
+        .await
+        .to_json())
+}
+
+/// The same check without starting anything.
+///
+/// A panel polling readiness must not spawn a daemon on every tick, and a user
+/// who deliberately stopped theirs should not have it resurrected by opening a
+/// tab.
+#[tauri::command]
+pub async fn daemon_readiness_probe() -> Result<serde_json::Value, String> {
+    use vibecli_cli::daemon_bootstrap as boot;
+    let port = boot::default_port();
+    let Some(identity) = boot::probe(port).await else {
+        return Ok(serde_json::json!({
+            "port": port,
+            "ready": false,
+            "daemonRunning": false,
+            "daemonVersion": null,
+            "clientVersion": env!("CARGO_PKG_VERSION"),
+            "versionMatches": null,
+            "tokenState": "unverifiable",
+            "features": null,
+            "message": format!("The VibeCLI daemon is not answering on port {port}."),
+        }));
+    };
+    let held = vibe_daemon_token::resolve_token(None, port);
+    let token = vibe_daemon_token::classify(held, identity.api_token_fingerprint.as_deref());
+    Ok(boot::Readiness {
+        port,
+        daemon: boot::DaemonState::AlreadyRunning(identity.clone()),
+        token,
+        features: None,
+        daemon_version: Some(identity.version),
+    }
+    .to_json())
 }

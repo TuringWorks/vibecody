@@ -144,9 +144,12 @@ Full rules + the surfaces to touch: [AGENTS.md → Touching daemon startup, heal
 
 Nearly every daemon route sits behind `require_auth`. Genuinely public: `/health`, `/models`, `/web`, `/favicon.svg`, `/pair`, `/acp/v1/capabilities`, `/v1/capabilities`, `/mobile/beacon`, `/.well-known/mcp.json`. Bypass the middleware but authenticate themselves: `/ws/collab/{room_id}` and `/ws/voice/duplex` (`?token=`, since a WebSocket cannot set a header), and `/webhook/github` (`X-Hub-Signature-256`).
 
-- **Panels use `daemonFetch()`** (`vibecoder/src/lib/daemonFetch.ts`); the **Agent SDK** and **VS Code extension** use their `authedFetch()`. A plain `fetch` to a protected route is a silent 100% 401 — that was the state of both clients until recently.
+- **Panels use `daemonFetch()`** (`packages/vibe-ui-shared/src/lib/daemonFetch.ts`, re-exported at `vibecoder/src/lib/daemonFetch.ts`); the **Agent SDK** and **VS Code extension** use their `authedFetch()`. A plain `fetch` to a protected route is a silent 100% 401 — that was the state of both clients until recently.
 - **SSE**: `EventSource` can't set headers — append `?token=` (the daemon accepts it for exactly this case).
 - **The token rotates on every daemon start**, and VibeCoder restarts the daemon itself. `daemonFetch` caches then re-reads on a 401; don't cache a token at mount.
+- **The token file is named after the port**: `~/.vibecli/daemon-<port>.token`. `daemon.token` names no port, so every daemon on the machine shared it and the last writer won regardless of which was alive — a daemon on 7979 clobbered the live 7878 one's credential, exited, and left every client 401ing against a healthy daemon for two and a half days. **Never join the path yourself**: `vibe_daemon_token::{read_token, resolve_token}` in Rust, `daemonFetch` in TS.
+- **A 401 is not a diagnosis.** `/health` publishes `api_token.fingerprint`; `vibe_daemon_token::classify` turns it into `Valid` / `Stale` / `Missing` / `Unverifiable`. Report *that* — "is it running?" was the wrong question for two and a half days.
+- **Readiness ≠ liveness.** `daemon_bootstrap::ensure_ready` (process + credential + version + `/health.features`) is what a surface checks on open, exposed as `daemon_readiness` / `daemon_readiness_probe` in all three shells. `ensure_running` alone answered `true` throughout the outage.
 
 Full rules: [AGENTS.md → Calling a daemon route from any client](./AGENTS.md#calling-a-daemon-route-from-any-client).
 
@@ -175,9 +178,9 @@ Full guide: [evals/README.md](./evals/README.md).
 
 ### Developer Excellence metrics — absence is a first-class result
 
-`vibecli::devex_metrics` computes DORA four keys, engineering-practice maturity
-and onboarding readiness **from the repository**, and is built so a number
-nobody measured cannot reach a screen.
+`vibecli::devex_metrics` computes DORA four keys, the SPACE frame,
+engineering-practice maturity and onboarding readiness **from the repository**,
+and is built so a number nobody measured cannot reach a screen.
 
 - **No signal → `unmeasured`, never zero.** A repo whose deploys are not tagged
   gets `deployment_frequency: unmeasured` with a reason and a remedy. `0.0/week`
@@ -189,12 +192,19 @@ nobody measured cannot reach a screen.
 - **Detected maturity caps at 3 (`MAX_DETECTABLE_LEVEL`).** A file proves a
   practice exists, not that it is followed. Level 4 is attested by people.
   Known blind spots ship as `detection_caveat`, rendered beside the miss.
+- **SPACE has no aggregate score, and volume is never reported without an
+  outcome signal.** Both are enforced in the payload (`outcome_signal`), not
+  left to the renderer. A single-author window gets no multi-author file share:
+  it would be 0 by arithmetic, not by how the team works. SPACE
+  Performance *references* DORA's stability pair rather than recomputing it, so
+  nothing is double counted. Review latency is a named gap pointing at the forge
+  API — a merge commit records when a branch landed, not when it was reviewed.
 - **`--devex gate` exits 1 for a missed band and 3 for an unmeasurable metric**,
   and refuses a gate with no `--require-*` criterion.
 - Surfaces: `devex_metrics.rs` / `devex_routes.rs` (`/devex/*`, authenticated) /
   `devex_cmd.rs` (`vibecli --devex`), panel Cloud & Platform → Developer
   Excellence, slash commands `/devex` `/dora` `/practices` `/onboarding`
-  `/devex-plan`, skills in the `devex` category.
+  `/devex-plan` `/space`, skills in the `devex` category.
 
 Full rules: [AGENTS.md → An engineering metric with no signal is absent, not zero](./AGENTS.md#an-engineering-metric-with-no-signal-is-absent-not-zero) · [docs/developer-excellence.md](./docs/developer-excellence.md).
 

@@ -20,6 +20,17 @@ export { SettingsView } from "./settings/SettingsView";
 export { AccountSection } from "./settings/AccountSection";
 export { VoiceSection } from "./settings/VoiceSection";
 export { useVoiceSettings, type VoiceSettings } from "./voice/useVoiceSettings";
+export {
+  daemonFetch,
+  daemonBase,
+  daemonUrl,
+  getDaemonToken,
+  resetDaemonTokenCache,
+  daemonReadiness,
+  describeDaemonFailure,
+  type DaemonReadiness,
+  type TokenState,
+} from "./lib/daemonFetch";
 export { useTheme, type ThemeMode } from "./hooks/useTheme";
 export { useClickAway } from "./hooks/useClickAway";
 export {

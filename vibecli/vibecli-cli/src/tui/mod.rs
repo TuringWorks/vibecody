@@ -193,31 +193,32 @@ enum AppEvent {
     Error(String),
 }
 
-/// Poll `GET http://localhost:7878/v1/metrics/jobs` every 10 s and push the
+/// Poll `GET /v1/metrics/jobs` on the configured daemon port every 10 s and push the
 /// deserialized snapshot through `tx`. Fails silently when the daemon is not
 /// running or the token file is missing — the TUI just doesn't show a strip.
 fn spawn_metrics_poller(tx: mpsc::Sender<AppEvent>) {
     tokio::spawn(async move {
-        let token_path = dirs::home_dir()
-            .unwrap_or_else(|| std::path::PathBuf::from("."))
-            .join(".vibecli")
-            .join("daemon.token");
+        let port = vibe_daemon_token::default_port();
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(3))
             .build()
             .ok();
         let Some(client) = client else { return };
-        let url = "http://localhost:7878/v1/metrics/jobs";
+        // Honour the configured port. The URL was hard-coded to 7878 while the
+        // token came from a file any daemon on any port could have written —
+        // so on a machine running the daemon elsewhere the strip polled one
+        // daemon with another's credential.
+        let url = format!("http://127.0.0.1:{port}/v1/metrics/jobs");
         let mut ticker = tokio::time::interval(std::time::Duration::from_secs(10));
         ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         loop {
             ticker.tick().await;
-            let Ok(token) = std::fs::read_to_string(&token_path) else {
+            // Re-read every tick: the daemon mints a fresh token on each start.
+            let Some(token) = vibe_daemon_token::read_token(port) else {
                 continue;
             };
-            let token = token.trim();
             let Ok(resp) = client
-                .get(url)
+                .get(&url)
                 .header("authorization", format!("Bearer {token}"))
                 .send()
                 .await

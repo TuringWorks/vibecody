@@ -943,6 +943,8 @@ All Developer Excellence endpoints require authentication
 | `GET` | `/devex/onboarding` | Bootstrap readiness signals and first-time contributors |
 | `GET` | `/devex/scorecard` | Delivery and practices in one payload, with `dora_coverage` and a delivery grade over the metrics that exist |
 | `GET` | `/devex/scorecard.md` | The same, rendered as a markdown briefing (`text/markdown`) |
+| `GET` | `/devex/space` | The five SPACE dimensions: measures with their source, and for each dimension this repository cannot answer, the system that holds it. No aggregate score field exists |
+| `GET` | `/devex/survey.md` | The quarterly experience-survey instrument (`text/markdown`) |
 
 **Query parameters** (all endpoints):
 

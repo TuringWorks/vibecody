@@ -68,6 +68,43 @@ rendered next to the misses, not in a footnote: `automated-testing` cannot see
 Rust `#[cfg(test)]` or Go `_test.go` tests, and `golden-path` reads "missing"
 for a monorepo whose lint conventions live one level down.
 
+### SPACE — the experience half
+
+DORA measures the delivery system; SPACE measures the people running it and what
+it costs them. **Most of SPACE is not in a git repository, and the tool says so
+rather than approximating it.**
+
+| Dimension | Measured here | From what |
+|---|---|---|
+| Satisfaction & wellbeing | — | needs a survey; `vibecli --devex survey` prints the instrument |
+| Performance | ✅ | *references* DORA's stability pair rather than restating it |
+| Activity | ✅ | commits, distinct authors, deployments — counts, never names |
+| Communication & collaboration | ✅ partly | files touched by more than one author; `Co-authored-by` share. **Review latency is not here** — it lives in the forge's PR API, and a merge commit records when a branch landed, not when anyone first looked at it |
+| Efficiency & flow | — | pipeline queue/run time from CI; focus hours from the calendar |
+
+Two rules are enforced in the shape of the data, not left to the reader:
+
+- **There is no aggregate SPACE score.** Summing a survey response with a commit
+  count produces a number that cannot be wrong and therefore cannot be useful.
+  The payload has no field for one.
+- **Volume is never reported without an outcome signal.** When Performance has
+  no measure, `outcome_signal` is false and every renderer must say so: Activity
+  and Collaboration describe how much happened and in what shape, and read
+  without an outcome they are not a picture of productivity.
+
+  This began as an `activity_only` flag and a test proved it could never fire —
+  any repository with one commit gets a `Co-authored-by` percentage, so
+  Collaboration always had a measure. A flag that cannot fire is a reassurance
+  nobody earned, so the predicate became one that is both reachable and worth
+  warning about.
+
+Relatedly, a window with a **single author** does not get a multi-author file
+share: with one author it is 0 by arithmetic rather than by how the team works,
+so it is reported as a named gap instead of a measurement of the formula.
+
+Nothing in the SPACE report is per-individual. Author *counts* are activity;
+author *names* would be surveillance, and the shape has no field for them.
+
 ### Onboarding
 
 Bootstrap readiness (one-command setup, reproducible environment, a
@@ -86,6 +123,8 @@ missing half, rather than printing a number built on an invented start date.
 vibecli --devex dora        --path <repo> [--window 90] [--marker tags|merges] [--branch main]
 vibecli --devex practices   --path <repo>
 vibecli --devex onboarding  --path <repo> [--window 90]
+vibecli --devex space       --path <repo> [--window 90] [--markdown]
+vibecli --devex survey                             # the quarterly survey instrument
 vibecli --devex scorecard   --path <repo>          # delivery + practices in one view
 vibecli --devex report      --path <repo>          # the scorecard as markdown, on stdout
 vibecli --devex gate        --path <repo> --require-lead-time high
@@ -170,6 +209,8 @@ All `/devex/*` endpoints require authentication
 | `GET` | `/devex/onboarding` | Bootstrap readiness and first-time contributors |
 | `GET` | `/devex/scorecard` | Delivery and practices in one payload, with `dora_coverage` |
 | `GET` | `/devex/scorecard.md` | The same, rendered as a markdown briefing (`text/markdown`) |
+| `GET` | `/devex/space` | The SPACE frame: measures per dimension, and the system holding each one this repository cannot answer |
+| `GET` | `/devex/survey.md` | The quarterly experience-survey instrument (`text/markdown`) |
 
 **Query parameters** (all endpoints): `path` (**required**), `window` (days,
 1–1825, default 90), `marker` (`tags` \| `merges`), `branch` (with
@@ -200,6 +241,7 @@ accepts either spelling — so the source of the guidance is one click away.
 | `/dora` | The four keys, each with its band, sample size and proxy |
 | `/practices` | Practice maturity with the missing signals named |
 | `/onboarding` | Bootstrap readiness and first-time contributors |
+| `/space` | The five SPACE dimensions, and what this repository cannot answer |
 | `/devex-plan` | A sequenced improvement plan, instrumentation gaps before performance work |
 
 ---
@@ -226,7 +268,9 @@ The `devex` category. Load the router first, then the pillar skill.
 ## What this tooling will not do
 
 - **Report a metric per individual.** DORA and SPACE are team and system
-  measures. Aggregation stops at the team boundary.
+  measures. Aggregation stops at the team boundary, and the SPACE payload has no
+  per-author field to add one to.
+- **Produce an aggregate SPACE score.** There deliberately is not one.
 - **Substitute a default for a missing value.** Absent stays absent.
 - **Claim a maturity level it cannot observe.**
 - **Guess which directory you meant.**

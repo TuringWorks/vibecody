@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { daemonFetch, describeDaemonFailure } from "../lib/daemonFetch";
 
 /**
  * The daemon's speech settings, read and written over `/voice/settings`.
@@ -9,9 +9,10 @@ import { invoke } from "@tauri-apps/api/core";
  * contributes a microphone and speakers. A per-app copy of "which voice" would
  * be three settings that disagree about one machine.
  *
- * Resolves the daemon's port and token the same way `useVoiceDuplex` does — a
- * local daemon mints a fresh token on every start and stores it nowhere the
- * frontend can see, so asking the settings store returns null.
+ * Talks to the daemon through the shared `daemonFetch`, which owns the port,
+ * the bearer, and the 401 re-read — a local daemon mints a fresh token on every
+ * start and stores it nowhere the frontend can see, so asking the settings
+ * store returns null.
  */
 
 export interface VoiceEngine {
@@ -63,45 +64,29 @@ export interface VoiceSettings {
   models: VoiceModel[];
 }
 
-async function daemonBase(): Promise<{ url: string; token: string }> {
-  let url = "http://127.0.0.1:7878";
-  try {
-    url = `http://127.0.0.1:${await invoke<number>("daemon_port")}`;
-  } catch {
-    /* a host without the command falls back to the default port */
-  }
-  let token = "";
-  try {
-    token = (await invoke<string | null>("daemon_token_effective", { explicit: null })) ?? "";
-  } catch {
-    /* an unauthenticated daemon */
-  }
-  return { url, token };
-}
-
 export function useVoiceSettings() {
   const [settings, setSettings] = useState<VoiceSettings | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
+    let res: Response | null = null;
     try {
-      const { url, token } = await daemonBase();
-      const res = await fetch(`${url}/voice/settings`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) throw new Error(`daemon returned ${res.status}`);
-      setSettings(await res.json());
-      setError(null);
+      res = await daemonFetch("/voice/settings");
+      if (res.ok) {
+        setSettings(await res.json());
+        setError(null);
+        return;
+      }
     } catch (e) {
-      // Name the daemon. "Failed to fetch" sends people to their network
-      // settings for a process that is simply not running.
-      setError(
-        `Could not read speech settings from the daemon (${
-          e instanceof Error ? e.message : String(e)
-        }). Is it running?`,
-      );
+      setError(await describeDaemonFailure("read speech settings", null, e));
+      return;
     }
+    // A status code is not a diagnosis. This used to render every failure as
+    // "(daemon returned 401). Is it running?" — which was the wrong question
+    // for two and a half days, against a daemon whose token file had been
+    // overwritten by a second daemon on another port.
+    setError(await describeDaemonFailure("read speech settings", res));
   }, []);
 
   useEffect(() => {
@@ -120,21 +105,20 @@ export function useVoiceSettings() {
     ) => {
       setSaving(true);
       try {
-        const { url, token } = await daemonBase();
-        const res = await fetch(`${url}/voice/settings`, {
+        const res = await daemonFetch("/voice/settings", {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(patch),
         });
         if (!res.ok) {
           // The daemon explains refusals in words — "the neural engine is not
           // installed" is the whole answer, and replacing it with the status
-          // code would throw that away.
+          // code would throw that away. Only when it says nothing does the
+          // transport-level diagnosis take over.
           const body = await res.json().catch(() => null);
-          throw new Error(body?.error ?? `daemon returned ${res.status}`);
+          throw new Error(
+            body?.error ?? (await describeDaemonFailure("save speech settings", res)),
+          );
         }
         // Re-read rather than trusting the patch: changing the engine changes
         // the available voices, and the daemon is the one that knows them.

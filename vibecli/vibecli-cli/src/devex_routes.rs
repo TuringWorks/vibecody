@@ -297,6 +297,43 @@ mod tests {
         assert!(clean.chars().count() <= 64);
     }
 
+    #[tokio::test]
+    async fn space_needs_a_path_like_every_other_measurement() {
+        let (status, body) = get("/devex/space").await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert!(body["error"].as_str().unwrap_or_default().contains("path"));
+    }
+
+    #[tokio::test]
+    async fn the_survey_is_served_without_a_path_because_it_measures_nothing() {
+        // Every other route refuses to guess a repository. This one has no
+        // repository to guess: it is an instrument, identical for everyone, and
+        // served here so its wording cannot drift per client.
+        let res = app()
+            .oneshot(
+                Request::builder()
+                    .uri("/devex/survey.md")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .expect("router responded");
+        assert_eq!(res.status(), StatusCode::OK);
+        assert_eq!(
+            res.headers()
+                .get(axum::http::header::CONTENT_TYPE)
+                .and_then(|v| v.to_str().ok()),
+            Some("text/markdown; charset=utf-8")
+        );
+        let bytes = axum::body::to_bytes(res.into_body(), 1 << 20)
+            .await
+            .expect("body");
+        let text = String::from_utf8_lossy(&bytes);
+        assert!(text.contains("Engineering experience survey"));
+        // The commitments travel with the questions, not in a wiki somewhere.
+        assert!(text.contains("Anonymous"));
+    }
+
     #[test]
     fn every_route_is_a_read() {
         // Measurement must never mutate the repository it measures. If a write

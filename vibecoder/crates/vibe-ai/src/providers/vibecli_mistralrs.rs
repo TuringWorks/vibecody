@@ -6,7 +6,8 @@
 //! beats the daemon's `VIBECLI_DEFAULT_BACKEND` and any per-model pin —
 //! see [`crate::inference_routes`] in vibecli-cli.
 //!
-//! Auth: bearer token from `~/.vibecli/daemon.token`. Re-read on every
+//! Auth: bearer token from the daemon's token files (`vibe_daemon_token`).
+//! Re-read on every
 //! request so a daemon restart (which rotates the token) doesn't require
 //! re-launching the host process. If the file is missing we send no auth
 //! and let the daemon return 401 with a message the user can act on.
@@ -86,27 +87,26 @@ impl VibeCliMistralRsProvider {
     }
 
     /// Token resolution: explicit `config.api_key`, then env `VIBECLI_DAEMON_TOKEN`,
-    /// then `~/.vibecli/daemon.token`. Re-read each call so daemon restarts that
-    /// rotate the file are picked up without restarting the host.
+    /// then the daemon's token files. Re-read each call so daemon restarts that
+    /// rotate the token are picked up without restarting the host.
+    ///
+    /// The file layout comes from `vibe_daemon_token` rather than a private path
+    /// join here: the old one named `daemon.token`, which every daemon on the
+    /// machine shares regardless of port, so a second daemon could leave this
+    /// provider authenticating with a credential the daemon it talks to never
+    /// minted.
     fn current_token(&self) -> Option<String> {
-        if let Some(k) = &self.config.api_key {
-            if !k.is_empty() {
-                return Some(k.clone());
-            }
-        }
-        if let Ok(env) = std::env::var("VIBECLI_DAEMON_TOKEN") {
-            if !env.is_empty() {
-                return Some(env);
-            }
-        }
-        let home = std::env::var("HOME").ok().filter(|s| !s.is_empty())?;
-        let path = std::path::PathBuf::from(home)
-            .join(".vibecli")
-            .join("daemon.token");
-        std::fs::read_to_string(&path)
-            .ok()
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
+        self.config
+            .api_key
+            .as_deref()
+            .filter(|k| !k.is_empty())
+            .map(str::to_string)
+            .or_else(|| {
+                std::env::var("VIBECLI_DAEMON_TOKEN")
+                    .ok()
+                    .filter(|t| !t.is_empty())
+            })
+            .or_else(|| vibe_daemon_token::read_token(vibe_daemon_token::default_port()))
     }
 
     fn auth_post(&self, url: String) -> reqwest::RequestBuilder {
@@ -163,16 +163,10 @@ impl VibeCliMistralRsProvider {
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
 
-        let token = std::env::var("VIBECLI_DAEMON_TOKEN").ok().or_else(|| {
-            let home = std::env::var("HOME").ok().filter(|s| !s.is_empty())?;
-            std::fs::read_to_string(
-                std::path::PathBuf::from(home)
-                    .join(".vibecli")
-                    .join("daemon.token"),
-            )
+        let token = std::env::var("VIBECLI_DAEMON_TOKEN")
             .ok()
-            .map(|s| s.trim().to_string())
-        });
+            .filter(|t| !t.is_empty())
+            .or_else(|| vibe_daemon_token::read_token(vibe_daemon_token::default_port()));
 
         let mut req = client
             .get(format!("{}/api/tags", base_url))

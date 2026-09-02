@@ -28,6 +28,7 @@ a preference.
 ```
 vibecli --devex scorecard --path <repo>       # what the code says about delivery
 vibecli --devex practices --path <repo>       # what standards are actually present
+vibecli --devex space      --path <repo>      # the experience half, and its gaps
 vibecli --devex onboarding --path <repo>      # what a new joiner walks into
 vibecli --devex report --path <repo> > devex-baseline.md
 ```
@@ -45,6 +46,7 @@ week. A lead-time number derived from a guess is not.
 | `/devex` | Scorecard for the current workspace: DORA + practice maturity |
 | `/dora` | The four keys only, with the proxy each was derived from |
 | `/practices` | Practice-by-practice maturity with the missing signals named |
+| `/space` | The five SPACE dimensions, and what this repository cannot answer |
 | `/onboarding` | Bootstrap readiness and new-contributor activity |
 | `/devex-plan` | Turn a scorecard into a sequenced improvement plan with owners |
 
@@ -69,7 +71,8 @@ Load the pillar skill, not this one, once you know which pillar the task is in.
 
 **Adjacent skills already in the catalogue** — prefer these over rewriting them:
 `platform-engineering.md`, `devex-developer-experience.md`,
-`leadership-people-management.md`, `observability-opentelemetry.md`.
+`leadership-people-management.md`, `observability-metrics.md`,
+`observability-tracing.md`.
 
 ## The cadence
 

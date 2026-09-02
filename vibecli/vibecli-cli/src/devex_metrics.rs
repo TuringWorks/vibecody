@@ -1209,10 +1209,17 @@ pub fn scan_onboarding(repo: &Path, window_days: u32) -> Result<OnboardingReport
 //  * **No aggregate SPACE score.** There is no single number, because summing
 //    a survey score with a commit count produces something that cannot be wrong
 //    and therefore cannot be useful.
-//  * **Activity is never reported alone.** It is the dimension that decays into
-//    commit-counting, and the framework's own guidance is that it belongs in a
-//    triangulated picture. When Activity is the only dimension with data,
-//    [`SpaceReport::activity_only`] is set and every renderer must say so.
+//  * **Volume is never reported without an outcome signal.** Activity and
+//    Collaboration describe how much happened and in what shape; neither says
+//    whether what shipped worked. When Performance has no measure,
+//    [`SpaceReport::outcome_signal`] is false and every renderer must say so.
+//
+//    This began as an `activity_only` flag — "Activity is the only dimension
+//    with data" — and a test proved it could never fire: any repository with a
+//    single commit gets a `Co-authored-by` percentage, so Collaboration always
+//    has a measure. A flag that cannot fire is a reassurance nobody earned, so
+//    the predicate was changed to one that is both reachable and the thing
+//    actually worth warning about.
 //
 // And the ethics line from `space-framework-productivity.md` is structural
 // here: nothing in this report is per-individual. Author *counts* are activity;
@@ -1311,16 +1318,26 @@ pub struct SpaceReport {
     pub dimensions: Vec<SpaceDimensionResult>,
     /// How many of the five have at least one measure here.
     pub dimensions_measured: usize,
-    /// True when Activity is the *only* dimension with data. Renderers must
-    /// surface this: activity alone is the reading SPACE exists to prevent.
-    pub activity_only: bool,
+    /// False when Performance has no measure — nothing here says whether what
+    /// shipped worked. Renderers must surface this: volume and shape read as
+    /// productivity is the mistake SPACE exists to prevent.
+    pub outcome_signal: bool,
     /// Stated in the payload so a client cannot present this as a productivity
     /// score by omission.
     pub scope_note: String,
 }
 
 impl SpaceReport {
-    fn dimension(&self, d: SpaceDimension) -> Option<&SpaceDimensionResult> {
+    /// One dimension by its variant. Public because every consumer that renders
+    /// SPACE wants to reach a named dimension.
+    ///
+    /// `allow(dead_code)` is the lib/bin duality, not an unused accessor: this
+    /// file is `pub mod` in `lib.rs` (where the method is public API) *and*
+    /// `mod` in `main.rs` (where the binary happens not to call it, so `pub`
+    /// means nothing and the lint fires). Same reason `engagement_scan.rs`
+    /// carries a module-level allow. It is exercised by the tests below.
+    #[allow(dead_code)]
+    pub fn dimension(&self, d: SpaceDimension) -> Option<&SpaceDimensionResult> {
         self.dimensions.iter().find(|x| x.dimension == d)
     }
 }
@@ -1500,7 +1517,23 @@ pub fn compute_space(repo: &Path, window_days: u32, dora: &DoraReport) -> Result
 
     // ── Collaboration: the one thing git genuinely sees. ────────────────────
     let (collab, truncated) = collaboration_signals(&root, since)?;
-    if collab.touched_files > 0 {
+    // With one author, "files touched by more than one author" is 0 by
+    // construction: it is determined by the author count, not by how the team
+    // works. Reporting it would be a measurement of the arithmetic.
+    let multi_author = dora.authors_in_window >= 2;
+    if !multi_author {
+        put(SpaceDimension::Collaboration, &|d| {
+            d.unmeasured.push(Unmeasured {
+                metric: "file_co_ownership".into(),
+                reason: format!(
+                    "only {} author committed in this window, so a multi-author file share is 0 by construction and says nothing about collaboration",
+                    dora.authors_in_window
+                ),
+                to_measure_this: "widen the window, or scope the measurement to a repository more than one person works in".into(),
+            });
+        });
+    }
+    if multi_author && collab.touched_files > 0 {
         let share = collab.shared_files as f64 / collab.touched_files as f64 * 100.0;
         put(SpaceDimension::Collaboration, &|d| {
             d.measures.push(SpaceMeasure {
@@ -1554,11 +1587,9 @@ pub fn compute_space(repo: &Path, window_days: u32, dora: &DoraReport) -> Result
     });
 
     let dimensions_measured = dims.iter().filter(|d| !d.measures.is_empty()).count();
-    let activity_only = dimensions_measured == 1
-        && dims
-            .iter()
-            .find(|d| !d.measures.is_empty())
-            .is_some_and(|d| d.dimension == SpaceDimension::Activity);
+    let outcome_signal = dims
+        .iter()
+        .any(|d| d.dimension == SpaceDimension::Performance && !d.measures.is_empty());
 
     let mut scope_note = format!(
         "SPACE frame over {window_days} days. {dimensions_measured} of 5 dimensions have a measure \
@@ -1566,11 +1597,13 @@ pub fn compute_space(repo: &Path, window_days: u32, dora: &DoraReport) -> Result
          NO aggregate SPACE score — summing a survey response with a commit count produces a number \
          that cannot be wrong and therefore cannot be useful. Nothing here is per-individual."
     );
-    if activity_only {
+    if !outcome_signal {
         scope_note.push_str(
-            " WARNING: Activity is the only dimension with data. SPACE's own guidance is that \
-             Activity must never be read alone — on its own it is commit counting. Treat this as \
-             an instrumentation gap, not as a picture of productivity.",
+            " WARNING: no outcome signal. Nothing in this report says whether what shipped \
+             worked — Performance has no measure, because no DORA stability metric could be \
+             computed here. Activity and Collaboration describe volume and shape; read without \
+             an outcome they are not a picture of productivity. Treat this as an instrumentation \
+             gap, and fix the DORA `unmeasured` block first.",
         );
     }
     if truncated {
@@ -1586,7 +1619,7 @@ pub fn compute_space(repo: &Path, window_days: u32, dora: &DoraReport) -> Result
         generated_at: now,
         dimensions: dims,
         dimensions_measured,
-        activity_only,
+        outcome_signal,
         scope_note,
     })
 }
@@ -1966,6 +1999,250 @@ mod tests {
         assert_eq!(sc.delivery_grade, None);
         assert_eq!(sc.dora_coverage, 0.0);
         assert!(sc.headline.contains("No DORA key could be measured"));
+    }
+
+    /// A DORA report with nothing measured — the shape SPACE receives on a
+    /// repository that has never tagged a release.
+    fn empty_dora() -> DoraReport {
+        DoraReport {
+            repo: "/x".into(),
+            window_days: 90,
+            since: 0,
+            generated_at: 0,
+            release_marker: ReleaseMarker::VersionTags,
+            release_marker_description: "version-like git tags".into(),
+            band_source: BAND_SOURCE.into(),
+            deployment_frequency: None,
+            lead_time_for_changes: None,
+            change_failure_rate: None,
+            time_to_restore: None,
+            unmeasured: Vec::new(),
+            deployments: Vec::new(),
+            commits_in_window: 3,
+            authors_in_window: 2,
+            notes: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn space_has_no_aggregate_score_field() {
+        // The absence is the design. If someone adds a total, this test is
+        // where the argument happens: a number summing a survey response with a
+        // commit count cannot be wrong, and therefore cannot be useful.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let run = |args: &[&str]| {
+            let out = std::process::Command::new("git")
+                .arg("-C")
+                .arg(dir.path())
+                .args(args)
+                .output()
+                .expect("git");
+            assert!(out.status.success());
+        };
+        run(&["init", "-q", "."]);
+        run(&["config", "user.email", "t@example.com"]);
+        run(&["config", "user.name", "T"]);
+        run(&["commit", "-q", "--allow-empty", "-m", "feat: first"]);
+
+        let report =
+            compute_space(dir.path(), 90, &empty_dora()).expect("space frame");
+        let json = serde_json::to_value(&report).expect("serialize");
+        let obj = json.as_object().expect("object");
+        for forbidden in ["score", "total", "overall", "index", "rating"] {
+            assert!(
+                !obj.keys().any(|k| k.contains(forbidden)),
+                "SPACE payload must not carry a `{forbidden}` field"
+            );
+        }
+    }
+
+    #[test]
+    fn space_covers_all_five_dimensions_measured_or_not() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let run = |args: &[&str]| {
+            let _ = std::process::Command::new("git")
+                .arg("-C")
+                .arg(dir.path())
+                .args(args)
+                .output()
+                .expect("git");
+        };
+        run(&["init", "-q", "."]);
+        run(&["config", "user.email", "t@example.com"]);
+        run(&["config", "user.name", "T"]);
+        run(&["commit", "-q", "--allow-empty", "-m", "feat: first"]);
+
+        let report = compute_space(dir.path(), 90, &empty_dora()).expect("space");
+        assert_eq!(report.dimensions.len(), 5);
+        // Every dimension has *something* — a measure or a named gap. A silent
+        // dimension would read as "nothing to say here", which is never true.
+        for d in &report.dimensions {
+            assert!(
+                !d.measures.is_empty() || !d.unmeasured.is_empty(),
+                "dimension {} says nothing at all",
+                d.key
+            );
+        }
+        // The dimensions git cannot answer name the system that can.
+        for key in ["satisfaction", "efficiency"] {
+            let d = report
+                .dimensions
+                .iter()
+                .find(|d| d.key == key)
+                .unwrap_or_else(|| panic!("{key} missing"));
+            assert!(d.measures.is_empty(), "{key} must not be measured from git");
+            assert!(d.unmeasured.iter().all(|u| !u.to_measure_this.is_empty()));
+        }
+        // Review latency is explicitly absent from Collaboration, not faked
+        // from merge timestamps.
+        let collab = report
+            .dimension(SpaceDimension::Collaboration)
+            .expect("collaboration");
+        assert!(collab.unmeasured.iter().any(|u| u.metric == "review_latency"));
+    }
+
+    #[test]
+    fn space_warns_when_there_is_no_outcome_signal() {
+        // The predicate this replaced — "Activity is the only dimension with
+        // data" — could never fire: any repository with one commit gets a
+        // Co-authored-by percentage, so Collaboration always had a measure. A
+        // flag that cannot fire is a reassurance nobody earned. This one is
+        // reachable, and it warns about the thing worth warning about: volume
+        // and shape with nothing saying whether what shipped worked.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let run = |args: &[&str]| {
+            let _ = std::process::Command::new("git")
+                .arg("-C")
+                .arg(dir.path())
+                .args(args)
+                .output()
+                .expect("git");
+        };
+        run(&["init", "-q", "."]);
+        run(&["config", "user.email", "t@example.com"]);
+        run(&["config", "user.name", "T"]);
+        run(&["commit", "-q", "--allow-empty", "-m", "feat: first"]);
+
+        let report = compute_space(dir.path(), 90, &empty_dora()).expect("space");
+        assert!(!report.outcome_signal, "no DORA stability means no outcome signal");
+        assert!(report.scope_note.contains("no outcome signal"));
+        assert!(report.scope_note.contains("not a picture of productivity"));
+    }
+
+    #[test]
+    fn space_reports_an_outcome_signal_once_stability_exists() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let run = |args: &[&str]| {
+            let _ = std::process::Command::new("git")
+                .arg("-C")
+                .arg(dir.path())
+                .args(args)
+                .output()
+                .expect("git");
+        };
+        run(&["init", "-q", "."]);
+        run(&["config", "user.email", "t@example.com"]);
+        run(&["config", "user.name", "T"]);
+        run(&["commit", "-q", "--allow-empty", "-m", "feat: first"]);
+
+        let mut dora = empty_dora();
+        dora.change_failure_rate = Some(Measure {
+            value: 0.0,
+            unit: "percent of deployments".into(),
+            band: Band::Elite,
+            sample_size: 4,
+            proxy: "a deployment followed by a revert".into(),
+            percentiles: Vec::new(),
+        });
+        let report = compute_space(dir.path(), 90, &dora).expect("space");
+        assert!(report.outcome_signal);
+        assert!(!report.scope_note.contains("no outcome signal"));
+    }
+
+    #[test]
+    fn a_single_author_window_refuses_the_degenerate_co_ownership_share() {
+        // With one author the multi-author file share is 0 by arithmetic, not
+        // by how the team works. Reporting it would be measuring the formula.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let run = |args: &[&str]| {
+            let _ = std::process::Command::new("git")
+                .arg("-C")
+                .arg(dir.path())
+                .args(args)
+                .output()
+                .expect("git");
+        };
+        run(&["init", "-q", "."]);
+        run(&["config", "user.email", "t@example.com"]);
+        run(&["config", "user.name", "T"]);
+        std::fs::write(dir.path().join("a.txt"), "x").expect("write");
+        run(&["add", "."]);
+        run(&["commit", "-q", "-m", "feat: a"]);
+
+        let mut dora = empty_dora();
+        dora.authors_in_window = 1;
+        let report = compute_space(dir.path(), 90, &dora).expect("space");
+        let collab = report
+            .dimension(SpaceDimension::Collaboration)
+            .expect("collaboration");
+        assert!(
+            !collab.measures.iter().any(|m| m.name.contains("more than one author")),
+            "the degenerate share must not be reported as a measure"
+        );
+        let gap = collab
+            .unmeasured
+            .iter()
+            .find(|u| u.metric == "file_co_ownership")
+            .expect("the gap is named");
+        assert!(gap.reason.contains("by construction"));
+    }
+
+    #[test]
+    fn space_performance_references_dora_rather_than_recomputing_it() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let run = |args: &[&str]| {
+            let _ = std::process::Command::new("git")
+                .arg("-C")
+                .arg(dir.path())
+                .args(args)
+                .output()
+                .expect("git");
+        };
+        run(&["init", "-q", "."]);
+        run(&["config", "user.email", "t@example.com"]);
+        run(&["config", "user.name", "T"]);
+        run(&["commit", "-q", "--allow-empty", "-m", "feat: first"]);
+
+        let mut dora = empty_dora();
+        dora.change_failure_rate = Some(Measure {
+            value: 12.5,
+            unit: "percent of deployments".into(),
+            band: Band::Medium,
+            sample_size: 8,
+            proxy: "a deployment followed by a revert".into(),
+            percentiles: Vec::new(),
+        });
+        let report = compute_space(dir.path(), 90, &dora).expect("space");
+        let perf = report
+            .dimension(SpaceDimension::Performance)
+            .expect("performance");
+        let m = perf.measures.first().expect("one measure");
+        assert_eq!(m.value, 12.5, "the DORA value is carried, not recomputed");
+        assert!(
+            m.source.starts_with("DORA stability"),
+            "the source must say it came from DORA, so nobody counts it twice"
+        );
+    }
+
+    #[test]
+    fn the_survey_instrument_states_the_ethics_line() {
+        // The commitments are what make the answers worth having. If they are
+        // ever edited out, this fails.
+        let s = render_survey_markdown();
+        assert!(s.contains("Anonymous"));
+        assert!(s.contains("team level"));
+        assert!(s.to_lowercase().contains("not** an input to performance review"));
+        assert!(s.contains("last two weeks"));
     }
 
     #[test]

@@ -33,13 +33,37 @@ class VibeCLIService {
 
     // ── Health ─────────────────────────────────────────────────────────────────
 
+    /**
+     * Is **VibeCLI** on the configured address — not merely *something*.
+     *
+     * A bare `responseCode == 200` treats any local service on the port as the
+     * daemon, and every subsequent call then fails blaming the daemon instead of
+     * the port conflict. `/health` reports `service: "vibecli"`; a daemon
+     * predating that field is accepted via its legacy shape (`status: "ok"` plus
+     * a `version`), because refusing it would tell someone running an older
+     * `vibecli` that their own daemon is another program.
+     */
     fun isHealthy(): Boolean = try {
         val url = URL("${settings.daemonUrl}/health")
         val conn = url.openConnection() as HttpURLConnection
         conn.connectTimeout = 2_000
         conn.readTimeout = 2_000
         conn.requestMethod = "GET"
-        conn.responseCode == 200
+        conn.responseCode == 200 && isVibeCli(conn.inputStream.bufferedReader().readText())
+    } catch (_: Exception) {
+        false
+    }
+
+    /** Identity, not liveness — see [isHealthy]. */
+    private fun isVibeCli(body: String): Boolean = try {
+        val json = gson.fromJson(body, com.google.gson.JsonObject::class.java)
+        val service = json?.get("service")?.asString
+        if (service != null) {
+            service.equals("vibecli", ignoreCase = true)
+        } else {
+            json?.get("status")?.asString.equals("ok", ignoreCase = true) &&
+                json?.get("version")?.asString?.isNotBlank() == true
+        }
     } catch (_: Exception) {
         false
     }
@@ -173,23 +197,50 @@ class VibeCLIService {
      * all before this, so the tool window's "Error" line was a 401 every time.
      *
      * Order matches every other client: `VIBECLI_TOKEN`, then
-     * `VIBECLI_DAEMON_TOKEN`, then `~/.vibecli/daemon.token`, which is where
-     * `vibecli --serve` writes it. Null is legitimate — a daemon may run
-     * without auth — so this is not an error path.
+     * `VIBECLI_DAEMON_TOKEN`, then the daemon's token files. Null is legitimate
+     * — a daemon may run without auth — so this is not an error path.
+     *
+     * **The port matters.** `~/.vibecli/daemon.token` names no port and is
+     * therefore shared by every daemon on the machine: a second daemon on a
+     * different port overwrote it and exited, and every client then presented a
+     * dead daemon's credential to a live one and 401'd for two days. The daemon
+     * now writes `daemon-<port>.token` as well, checked first here — mirroring
+     * `crates/vibe-daemon-token`, which is the Rust clients' one implementation.
+     * The shared file remains the fallback for a daemon predating that.
      */
     private fun resolveToken(): String? {
         System.getenv("VIBECLI_TOKEN")?.takeIf { it.isNotBlank() }?.let { return it }
         System.getenv("VIBECLI_DAEMON_TOKEN")?.takeIf { it.isNotBlank() }?.let { return it }
-        return try {
-            java.io.File(System.getProperty("user.home"), ".vibecli/daemon.token")
-                .takeIf { it.isFile }
-                ?.readText()
-                ?.trim()
-                ?.takeIf { it.isNotBlank() }
-        } catch (_: Exception) {
-            null
-        }
+        val home = System.getProperty("user.home")
+        return sequenceOf("daemon-${daemonPort()}.token", "daemon.token")
+            .mapNotNull { name ->
+                try {
+                    java.io.File(home, ".vibecli/$name")
+                        .takeIf { it.isFile }
+                        ?.readText()
+                        ?.trim()
+                        ?.takeIf { it.isNotBlank() }
+                } catch (_: Exception) {
+                    null
+                }
+            }
+            .firstOrNull()
     }
+
+    /**
+     * The port of the daemon this plugin is configured to talk to.
+     *
+     * Taken from the configured `daemonUrl` so the token file looked up is the
+     * one belonging to the daemon actually being addressed — reading the default
+     * port's token while posting to a different port is precisely the mismatch
+     * this whole change exists to prevent.
+     */
+    private fun daemonPort(): Int =
+        try {
+            java.net.URI(settings.daemonUrl).port.takeIf { it > 0 } ?: 7878
+        } catch (_: Exception) {
+            7878
+        }
 
     private fun HttpURLConnection.withAuth(): HttpURLConnection = apply {
         resolveToken()?.let { setRequestProperty("Authorization", "Bearer $it") }

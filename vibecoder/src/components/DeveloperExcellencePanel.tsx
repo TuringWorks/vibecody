@@ -32,6 +32,7 @@ import {
   Gauge,
   RefreshCw,
   UserPlus,
+  Users,
 } from "lucide-react";
 // Daemon routes are behind `require_auth`; a plain fetch() 401s. See daemonFetch.ts.
 import { daemonFetch } from "../lib/daemonFetch";
@@ -146,6 +147,35 @@ interface Scorecard {
   headline: string;
 }
 
+// ── SPACE ────────────────────────────────────────────────────────────────────
+
+interface SpaceMeasure {
+  name: string;
+  value: number;
+  unit: string;
+  source: string;
+  sample_size: number;
+  caveat?: string;
+}
+
+interface SpaceDimensionResult {
+  dimension: string;
+  key: string;
+  title: string;
+  measures: SpaceMeasure[];
+  unmeasured: Unmeasured[];
+}
+
+interface SpaceReport {
+  repo: string;
+  window_days: number;
+  dimensions: SpaceDimensionResult[];
+  dimensions_measured: number;
+  /** False when Performance has no measure — nothing says whether what shipped worked. */
+  outcome_signal: boolean;
+  scope_note: string;
+}
+
 export interface DeveloperExcellencePanelProps {
   workspacePath?: string | null;
   daemonUrl?: string;
@@ -153,10 +183,11 @@ export interface DeveloperExcellencePanelProps {
 
 const DAEMON_DEFAULT = "http://localhost:7878";
 
-type TabId = "delivery" | "practices" | "onboarding";
+type TabId = "delivery" | "space" | "practices" | "onboarding";
 
 const TABS: ReadonlyArray<{ id: TabId; label: string; icon: React.ReactNode }> = [
   { id: "delivery", label: "Delivery (DORA)", icon: <Gauge size={12} strokeWidth={1.5} /> },
+  { id: "space", label: "Experience (SPACE)", icon: <Users size={12} strokeWidth={1.5} /> },
   { id: "practices", label: "Practices", icon: <ClipboardCheck size={12} strokeWidth={1.5} /> },
   { id: "onboarding", label: "Onboarding", icon: <UserPlus size={12} strokeWidth={1.5} /> },
 ];
@@ -171,6 +202,12 @@ const METRIC_LABELS: Readonly<Record<string, string>> = {
   change_failure_rate: "Change failure rate",
   time_to_restore: "Time to restore",
   time_to_first_commit: "Time to first commit",
+  tooling_satisfaction: "Tooling satisfaction",
+  delivery_stability: "Delivery stability",
+  review_latency: "Review latency",
+  pipeline_wait: "Pipeline wait",
+  uninterrupted_focus_hours: "Uninterrupted focus hours",
+  file_co_ownership: "File co-ownership",
 };
 
 function metricLabel(key: string): string {
@@ -224,6 +261,7 @@ export function DeveloperExcellencePanel({
   const [marker, setMarker] = useState<"tags" | "merges">("tags");
   const [scorecard, setScorecard] = useState<Scorecard | null>(null);
   const [onboarding, setOnboarding] = useState<OnboardingReport | null>(null);
+  const [space, setSpace] = useState<SpaceReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exportDoc, setExportDoc] = useState<string | null>(null);
@@ -264,14 +302,17 @@ export function DeveloperExcellencePanel({
     setLoading(true);
     setError(null);
     try {
-      const [scRes, obRes] = await Promise.all([
+      const [scRes, obRes, spRes] = await Promise.all([
         request(`/devex/scorecard?${query}`),
         request(`/devex/onboarding?${query}`),
+        request(`/devex/space?${query}`),
       ]);
       const scBody = await scRes.json();
       const obBody = await obRes.json();
+      const spBody = await spRes.json();
       setScorecard(scBody.scorecard ?? null);
       setOnboarding(obBody.onboarding ?? null);
+      setSpace(spBody.space ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       // The previous run's numbers are cleared on failure. Leaving a stale
@@ -279,6 +320,7 @@ export function DeveloperExcellencePanel({
       // old measurements to a window they did not come from.
       setScorecard(null);
       setOnboarding(null);
+      setSpace(null);
     } finally {
       setLoading(false);
     }
@@ -297,6 +339,15 @@ export function DeveloperExcellencePanel({
       setError(e instanceof Error ? e.message : String(e));
     }
   }, [query, request]);
+
+  const showSurvey = useCallback(async () => {
+    try {
+      const res = await request(`/devex/survey.md`);
+      setExportDoc(await res.text());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, [request]);
 
   const measured: ReadonlyArray<[string, Measure]> = useMemo(() => {
     const d = scorecard?.dora;
@@ -496,6 +547,67 @@ export function DeveloperExcellencePanel({
             <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 10 }}>
               {scorecard.dora.band_source}
             </div>
+          </>
+        )}
+
+        {tab === "space" && space && (
+          <>
+            {!space.outcome_signal && (
+              <div className="panel-error" role="alert" style={{ marginBottom: 8 }}>
+                No outcome signal: nothing here says whether what shipped worked, because no DORA
+                stability metric could be computed. Activity and Collaboration describe volume and
+                shape — read without an outcome they are not a picture of productivity. Fix the
+                Delivery tab&apos;s unmeasured block first.
+              </div>
+            )}
+            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8 }}>
+              {space.scope_note}
+            </div>
+            {space.dimensions.map((d) => (
+              <div key={d.key} className="panel-card" style={{ marginBottom: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                  <span style={{ fontWeight: 600 }}>{d.title}</span>
+                  <span style={{ fontSize: 11, color: "var(--text-secondary)" }}>
+                    {d.measures.length === 0
+                      ? "no measure from this repository"
+                      : `${d.measures.length} measure${d.measures.length === 1 ? "" : "s"}`}
+                  </span>
+                </div>
+                {d.measures.map((m) => (
+                  <div key={m.name} style={{ fontSize: 11, marginTop: 6 }}>
+                    <div>
+                      <strong>{formatValue(m.value)}</strong>{" "}
+                      <span style={{ color: "var(--text-secondary)" }}>{m.unit}</span> — {m.name}
+                    </div>
+                    <div style={{ color: "var(--text-secondary)", fontSize: 10 }}>
+                      source: {m.source} · n={m.sample_size}
+                    </div>
+                    {m.caveat && (
+                      <div style={{ color: "var(--text-secondary)", fontSize: 10, fontStyle: "italic" }}>
+                        {m.caveat}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {d.unmeasured.map((u) => (
+                  <div key={u.metric} style={{ fontSize: 11, marginTop: 6 }}>
+                    <div style={{ fontWeight: 600 }}>
+                      <CircleHelp size={11} strokeWidth={1.5} style={{ verticalAlign: "-1px", marginRight: 4 }} />
+                      {metricLabel(u.metric)} — not measured here
+                    </div>
+                    <div>{u.reason}</div>
+                    <div style={{ color: "var(--accent-primary)" }}>To measure it: {u.to_measure_this}</div>
+                  </div>
+                ))}
+              </div>
+            ))}
+            <button
+              className="panel-btn panel-btn-secondary panel-btn-xs"
+              onClick={showSurvey}
+              title="The quarterly experience-survey instrument"
+            >
+              <FileText size={12} strokeWidth={1.5} /> Survey instrument
+            </button>
           </>
         )}
 

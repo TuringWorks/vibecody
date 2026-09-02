@@ -137,20 +137,12 @@ pub trait Harness: Send + Sync {
 /// captured at construction is stale by the time a long suite reaches its
 /// second surface.
 pub(crate) fn read_daemon_token() -> Option<String> {
-    let home = std::env::var_os("HOME").map(std::path::PathBuf::from)?;
-    std::fs::read_to_string(home.join(".vibecli").join("daemon.token"))
-        .ok()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
+    vibe_daemon_token::read_token(daemon_port())
 }
 
 /// Default daemon port, honouring the documented environment overrides.
 pub(crate) fn daemon_port() -> u16 {
-    std::env::var("VIBECLI_DAEMON_PORT")
-        .or_else(|_| std::env::var("VIBEDESK_DAEMON_PORT"))
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(7878)
+    vibe_daemon_token::default_port()
 }
 
 /// Identity check against `GET /health`.

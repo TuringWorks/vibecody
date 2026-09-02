@@ -601,3 +601,56 @@ mod token_tests {
         assert_eq!(effective_token(Some("  tok  ")).as_deref(), Some("tok"));
     }
 }
+
+/// Everything a surface needs before it draws a panel: is the daemon there, can
+/// this client authenticate against it, is it the same build, and what does it
+/// say it can do.
+///
+/// **The call a shell makes on open.** `ensure_daemon_state` answers only
+/// whether a VibeCLI process is on the port — which stayed `true` throughout a
+/// two-day outage in which every authenticated route returned 401, because a
+/// daemon on a second port had overwritten the shared token file and exited.
+/// Nothing compared the credential this client holds against the one the daemon
+/// accepts, so every panel asked "is the daemon running?" about a daemon that
+/// was.
+#[tauri::command]
+pub async fn daemon_readiness() -> Result<serde_json::Value, String> {
+    let config = vibecli_cli::daemon_bootstrap::BootstrapConfig::default();
+    Ok(vibecli_cli::daemon_bootstrap::ensure_ready(&config)
+        .await
+        .to_json())
+}
+
+/// The same check without starting anything.
+///
+/// A panel polling readiness must not spawn a daemon on every tick, and a user
+/// who deliberately stopped theirs should not have it resurrected by opening a
+/// tab.
+#[tauri::command]
+pub async fn daemon_readiness_probe() -> Result<serde_json::Value, String> {
+    use vibecli_cli::daemon_bootstrap as boot;
+    let port = boot::default_port();
+    let Some(identity) = boot::probe(port).await else {
+        return Ok(serde_json::json!({
+            "port": port,
+            "ready": false,
+            "daemonRunning": false,
+            "daemonVersion": null,
+            "clientVersion": env!("CARGO_PKG_VERSION"),
+            "versionMatches": null,
+            "tokenState": "unverifiable",
+            "features": null,
+            "message": format!("The VibeCLI daemon is not answering on port {port}."),
+        }));
+    };
+    let held = vibe_daemon_token::resolve_token(None, port);
+    let token = vibe_daemon_token::classify(held, identity.api_token_fingerprint.as_deref());
+    Ok(boot::Readiness {
+        port,
+        daemon: boot::DaemonState::AlreadyRunning(identity.clone()),
+        token,
+        features: None,
+        daemon_version: Some(identity.version),
+    }
+    .to_json())
+}

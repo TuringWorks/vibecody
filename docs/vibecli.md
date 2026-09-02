@@ -85,7 +85,7 @@ vibecli --provider gemini
 | `--port <n>` | `7878` | Port for `--serve` |
 | `--bind <addr>` | `127.0.0.1` | Bind address for `--serve`; use `0.0.0.0` to expose to LAN |
 | `--registry <kind>` | `all` | Print the ACP agent-card / MCP Registry server entry for a registry-submission PR: `acp`, `mcp`, or `all` |
-| `--devex <command>` | — | Developer Excellence measurement: `dora`, `practices`, `onboarding`, `scorecard`, `report`, `gate`. See [Developer Excellence](/vibecody/developer-excellence/) |
+| `--devex <command>` | — | Developer Excellence measurement: `dora`, `space`, `practices`, `onboarding`, `scorecard`, `report`, `survey`, `gate`. See [Developer Excellence](/vibecody/developer-excellence/) |
 
 ### Reasoning effort
 
@@ -412,6 +412,8 @@ Run outside the REPL as `vibecli --devex <command>`. Full guide:
 | `--devex dora [--path P] [--window D] [--marker tags\|merges] [--branch B]` | DORA four keys from git history; each value carries its proxy and sample size |
 | `--devex practices [--path P]` | Engineering-practice maturity, detected from files, capped at level 3 |
 | `--devex onboarding [--path P] [--window D]` | Bootstrap readiness and first-time contributors |
+| `--devex space [--path P] [--window D] [--markdown]` | SPACE frame: the dimensions this repository can answer, and the system holding each one it cannot |
+| `--devex survey` | Print the quarterly experience-survey instrument |
 | `--devex scorecard [--path P]` | Delivery and practices in one view |
 | `--devex report [--path P]` | The scorecard as a markdown briefing on stdout |
 | `--devex gate [--path P] --require-<key> <band>` | CI check; exits 1 when a required band is missed, 3 when a required metric is unmeasurable |

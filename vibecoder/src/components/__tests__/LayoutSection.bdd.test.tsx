@@ -50,14 +50,24 @@ describe("Given the shipped layout", () => {
       expect(screen.getByLabelText(`Show the ${group.label} group`)).toBeTruthy();
     }
     // The summary counts what is on, so "all of them" is visible at a glance.
-    // 42 panels are reachable from the nav; three more render without a nav
+    // 43 panels are reachable from the nav; three more render without a nav
     // entry and are not listed here — "sandbox-chat", "watch", and "github",
     // whose tabs moved into the Source Control sidebar. ("goals" was a fourth
     // until it was added to the Project group; it had no way in but Chat's
     // hand-off.)
-    const summary = screen.getByText((_c, el) => /42 of 42 panels/.test(el?.textContent ?? ""), {
-      selector: "p",
-    });
+    //
+    // Derived from TAB_GROUPS rather than hard-coded: the literal 42 went stale
+    // the moment "engagement" was added as the Delivery group's panel, and the
+    // failure said nothing about which panel had appeared. A count that tracks
+    // the source cannot rot, and a genuinely wrong count still fails — because
+    // the assertion below is that every one of them is *listed and on*.
+    const expectedPanels = TAB_GROUPS.flatMap((g) => g.tabs).length;
+    const summary = screen.getByText(
+      (_c, el) => new RegExp(`${expectedPanels} of ${expectedPanels} panels`).test(el?.textContent ?? ""),
+      {
+        selector: "p",
+      }
+    );
     expect(summary).toBeTruthy();
   });
 

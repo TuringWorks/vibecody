@@ -7,6 +7,10 @@ authors.workspace = true
 license.workspace = true
 
 [dependencies]
+# The daemon token layout. `vibe-eval` is depended on *by* `vibecli`, so it
+# cannot reach `daemon_bootstrap` — which is why this lives in its own crate
+# rather than five private copies of one path join.
+vibe-daemon-token = { path = "../vibe-daemon-token" }
 serde.workspace = true
 serde_json.workspace = true
 # Suite files are YAML: eval tasks carry multi-line source fixtures and nested

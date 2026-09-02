@@ -2017,6 +2017,8 @@ pub fn run() {
             // Daemon management
             commands::get_daemon_status,
             commands::daemon_auth_token,
+            commands::daemon_readiness,
+            commands::daemon_readiness_probe,
             commands::list_daemon_models,
             commands::start_daemon,
             commands::stop_daemon,

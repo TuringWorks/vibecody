@@ -217,11 +217,12 @@ degraded.
 
 | Client | Use |
 |---|---|
-| VibeCoder panel | `daemonFetch()` from `vibecoder/src/lib/daemonFetch.ts` — never bare `fetch()` |
-| Agent SDK | `this.authedFetch(...)`; token via `AgentOptions.token` → `VIBECLI_DAEMON_TOKEN` → `~/.vibecli/daemon.token` |
+| Any desktop panel | `daemonFetch()` from `packages/vibe-ui-shared/src/lib/daemonFetch.ts` (VibeCoder re-exports it at `vibecoder/src/lib/daemonFetch.ts`) — never bare `fetch()` |
+| Agent SDK | `this.authedFetch(...)`; token via `AgentOptions.token` → `VIBECLI_DAEMON_TOKEN` → the token files |
 | VS Code extension | `this.authedFetch(...)`; same resolution order |
+| JetBrains plugin | `withAuth()` in `VibeCLIService.kt` |
 | Mobile / watch | pairing-issued token in `Authorization: Bearer` (already correct) |
-| Rust side | `daemon_bearer_token()` in `commands.rs` |
+| **Rust side, any crate** | `vibe_daemon_token::{read_token, resolve_token}` — never join the path yourself |
 | **Any SSE stream** | `EventSource` **cannot** set headers — append `?token=` (the daemon's auth middleware accepts it for exactly this reason); SDK/VS Code expose `tokenizedUrl(path)` |
 
 **The token rotates on every daemon start.** `vibecli serve` mints a fresh
@@ -229,6 +230,43 @@ random token each run (implicit rotation), and VibeCoder restarts the daemon
 itself on autostart — so a token captured once is stale routinely, not rarely.
 **Resolve it per call, or cache and re-read on a 401.** `daemonFetch` does the
 latter; the SDK and VS Code client do the former.
+
+#### The token file is named after the port — `daemon-<port>.token`
+
+`~/.vibecli/daemon.token` names no port, and the daemon runs on any port, so
+**every daemon on the machine shared one file and the last writer won regardless
+of which was still alive.** A daemon on 7979 bound its own free port, wrote that
+file, and exited two minutes later; the daemon on 7878 stayed healthy and every
+client on the machine 401'd against it for two and a half days, being told "is
+the daemon running?" about a daemon that was. `serve.rs` had already been taught
+to bind before writing, which only covers a *same-port* daemon losing the race.
+
+- **`vibe_daemon_token::files_owned_by` decides what a daemon writes.** Its own
+  `daemon-<port>.token`, plus the legacy `daemon.token` **only** when its port is
+  the one clients resolve by default. Never write either file by hand.
+- **`read_token(port)` reads the port's file first, then the legacy one.** The
+  fallback is what keeps a daemon predating this working.
+- **`/health` publishes `api_token.fingerprint`** — SHA-256 prefix of the live
+  token, non-secret over a 128-bit CSPRNG value. `vibe_daemon_token::classify`
+  compares it against what a client holds and returns one of four states:
+  `Valid`, `Stale`, `Missing`, `Unverifiable` (a daemon too old to report one —
+  proceed, do not fail).
+- **A 401 has three causes with three different fixes.** Never render one as
+  "is the daemon running?". `describeDaemonFailure()` (TS) and
+  `Readiness::user_message()` (Rust) name the actual one; a 404 from a correct
+  panel usually means the *installed* daemon predates the route, which
+  `versionMatches` reports.
+
+#### Readiness, not liveness — what a surface checks on open
+
+`ensure_running` proves a VibeCLI process is on the port. That was `true`
+throughout the outage above. **`daemon_bootstrap::ensure_ready` is the call that
+means "your next request will not 401"**: process + credential + version +
+`/health.features`. All three shells expose it as `daemon_readiness`
+(starts one if needed) and `daemon_readiness_probe` (never starts one — a poll
+must not resurrect a daemon the user stopped). `useDaemonMonitor` warns **once**
+per bad-credential episode; repeating a condition that cannot fix itself is
+noise.
 
 This is a live-bug class, not a hypothetical. All of the following were **100 %
 401** against a default daemon, verified with curl:
@@ -246,6 +284,9 @@ call either targets a route on the public list above or carries a token:
 ```bash
 grep -rn 'fetch(`${daemonUrl}\|new EventSource(' vibecoder/src
 grep -rn 'fetch(`${this.baseUrl}' packages/agent-sdk/src vscode-extension/src
+# And: nobody joins the token path themselves. Expect hits only in
+# crates/vibe-daemon-token and the JetBrains plugin's Kotlin mirror.
+grep -rn 'daemon\.token' --include='*.rs' --include='*.ts' --include='*.kt' .
 ```
 
 ### Adding a new Tauri command
@@ -974,6 +1015,15 @@ as a measurement.
   cheapest route to green is never to delete the criteria.
 - **A grade over zero measured metrics is `None`, not "F".** Same rule as
   `vibe-eval`: a rate over zero scored items is `n/a`.
+- **Some frameworks must refuse to produce their headline number.** The SPACE
+  report has no aggregate score field, because summing a survey response with a
+  commit count yields a value that cannot be wrong and therefore cannot be
+  useful. It also clears `outcome_signal` when Performance has no measure — so
+  volume and shape are never read as productivity — and carries Performance *by
+  reference* from the DORA computation so the same signal is never counted in
+  two places. That flag started life as `activity_only` and a test proved it
+  could never fire; **a guard that cannot trigger is a decorative parameter**,
+  and the fix was to change the predicate, not to delete the test.
 
 A client that drops the `unmeasured` block from its render has undone all of it.
 `DeveloperExcellencePanel.bdd.test.tsx` exists to catch exactly that.

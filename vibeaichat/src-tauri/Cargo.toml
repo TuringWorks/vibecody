@@ -35,6 +35,9 @@ anyhow = { workspace = true }
 vibe-desktop-settings = { path = "../../crates/vibe-desktop-settings" }
 # Voice input — the same daemon bridge every shell uses (crates/vibe-desktop-voice).
 vibe-desktop-voice = { path = "../../crates/vibe-desktop-voice" }
+# The daemon's token layout and the "is mine the live one" check. Shared so a
+# shell cannot disagree with the daemon about where the credential lives.
+vibe-daemon-token = { path = "../../crates/vibe-daemon-token" }
 # Daemon autostart + `/health` identity probe. AGENTS.md is explicit that this
 # logic has exactly one implementation (`vibecli/vibecli-cli/src/daemon_bootstrap.rs`)
 # and that clients must not write another copy — so this shell takes the

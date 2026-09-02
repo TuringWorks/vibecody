@@ -7,6 +7,10 @@ authors.workspace = true
 license.workspace = true
 
 [dependencies]
+# The daemon token layout, shared with the daemon itself so the
+# `vibecli-mistralrs` provider cannot disagree with it about where the
+# credential lives.
+vibe-daemon-token = { path = "../../../crates/vibe-daemon-token" }
 # Shared embedding-model catalog — keeps the chat-model filter and the
 # embedding-model picker reading one classifier.
 vibe-embed = { path = "../../../crates/vibe-embed" }

@@ -58,7 +58,7 @@ export interface AgentOptions {
    * Bearer token for the daemon.
    *
    * Optional: when omitted the SDK reads `VIBECLI_DAEMON_TOKEN`, then
-   * `~/.vibecli/daemon.token` — the file `vibecli serve` writes on startup.
+   * `~/.vibecli/daemon-<port>.token` — a file `vibecli serve` writes on startup.
    * Almost every daemon route is behind `require_auth`, so without a token
    * every call returns 401.
    */
@@ -288,13 +288,20 @@ export interface GoalRecapResponse {
 
 /**
  * Resolve the daemon bearer token: explicit value, then `VIBECLI_DAEMON_TOKEN`,
- * then `~/.vibecli/daemon.token`.
+ * then the daemon's token files.
  *
- * `vibecli serve` mints a fresh random token on every start and writes it to
- * that file, so it is re-read per call rather than captured once — a daemon
- * restart otherwise leaves a long-lived SDK client 401ing forever.
+ * `vibecli serve` mints a fresh random token on every start, so this is re-read
+ * per call rather than captured once — a daemon restart otherwise leaves a
+ * long-lived client 401ing forever.
+ *
+ * **`daemon-<port>.token` first, `daemon.token` second.** The shared file names
+ * no port and is therefore written by every daemon on the machine, so a daemon
+ * on a second port could overwrite the live one's credential and then exit —
+ * leaving a healthy daemon that rejects everything. The port-specific file is
+ * the only one known to belong to the daemon being addressed; the shared one
+ * remains the fallback for a daemon predating this.
  */
-function resolveDaemonToken(explicit?: string): string | undefined {
+function resolveDaemonToken(explicit?: string, port = daemonPort()): string | undefined {
   if (explicit) return explicit;
   const env = process?.env?.VIBECLI_DAEMON_TOKEN;
   if (env) return env;
@@ -304,12 +311,25 @@ function resolveDaemonToken(explicit?: string): string | undefined {
     const fs = require('node:fs') as typeof import('node:fs');
     const os = require('node:os') as typeof import('node:os');
     const path = require('node:path') as typeof import('node:path');
-    const file = path.join(os.homedir(), '.vibecli', 'daemon.token');
-    const token = fs.readFileSync(file, 'utf8').trim();
-    return token.length > 0 ? token : undefined;
+    for (const name of [`daemon-${port}.token`, 'daemon.token']) {
+      try {
+        const token = fs.readFileSync(path.join(os.homedir(), '.vibecli', name), 'utf8').trim();
+        if (token.length > 0) return token;
+      } catch {
+        /* try the next file */
+      }
+    }
+    return undefined;
   } catch {
     return undefined;
   }
+}
+
+/** The daemon port this process addresses, honouring the documented overrides. */
+function daemonPort(): number {
+  const raw = process?.env?.VIBECLI_DAEMON_PORT ?? process?.env?.VIBEDESK_DAEMON_PORT;
+  const parsed = raw ? Number.parseInt(raw.trim(), 10) : NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 7878;
 }
 
 // ── Embeddings ───────────────────────────────────────────────────────────────

@@ -4988,14 +4988,7 @@ fn write_to_session_store(
 /// follows the user's phone, mirroring the W1.1 watch sync.
 #[tauri::command]
 pub async fn mobile_get_active_session() -> Result<serde_json::Value, String> {
-    let token_path = dirs::home_dir()
-        .ok_or("HOME not found")?
-        .join(".vibecli")
-        .join("daemon.token");
-    let token = std::fs::read_to_string(&token_path)
-        .unwrap_or_default()
-        .trim()
-        .to_string();
+    let token = daemon_token_opt().unwrap_or_default();
     if token.is_empty() {
         return Ok(serde_json::json!({"active_session": null}));
     }
@@ -5026,26 +5019,30 @@ pub async fn mobile_get_active_session() -> Result<serde_json::Value, String> {
 // them in the request body — STRICT provider-agnostic, never a hard-coded
 // default. See CLAUDE.md → Provider-Agnostic Panels.
 
+/// The daemon bearer token, or `None` when there is no usable one.
+///
+/// **The one place VibeCoder learns where the token lives.** There were nine
+/// copies of this eight-line read in this file alone, each joining
+/// `~/.vibecli/daemon.token` — a path that names no port and is therefore
+/// shared by every daemon on the machine. A daemon on a second port overwrote
+/// it and exited, and every one of those nine call sites then authenticated
+/// with a dead daemon's credential against a live one. `vibe_daemon_token`
+/// owns the layout so there is nothing left to get individually wrong.
+fn daemon_token_opt() -> Option<String> {
+    vibe_daemon_token::read_token(vibe_daemon_token::default_port())
+}
+
 const SKILLFORGE_DAEMON_BASE: &str = "http://localhost:7878";
 
-/// Read the daemon bearer token from `~/.vibecli/daemon.token`.
+/// Read the daemon bearer token, naming the port when there is not one.
 fn daemon_bearer_token() -> Result<String, String> {
-    let token_path = dirs::home_dir()
-        .ok_or("HOME not found")?
-        .join(".vibecli")
-        .join("daemon.token");
-    let token = std::fs::read_to_string(&token_path)
-        .unwrap_or_default()
-        .trim()
-        .to_string();
-    if token.is_empty() {
-        Err(
-            "daemon not running or no token at ~/.vibecli/daemon.token — start `vibecli serve`"
-                .to_string(),
+    let port = vibe_daemon_token::default_port();
+    daemon_token_opt().ok_or_else(|| {
+        format!(
+            "daemon not running, or no token file for port {port} — start \
+             `vibecli --serve --port {port}`, which writes one on every start"
         )
-    } else {
-        Ok(token)
-    }
+    })
 }
 
 /// Current daemon bearer token, for panels that call daemon routes directly
@@ -5085,6 +5082,70 @@ pub async fn list_daemon_models(url: String) -> Result<Vec<serde_json::Value>, S
 #[tauri::command]
 pub async fn daemon_auth_token() -> Result<String, String> {
     daemon_bearer_token()
+}
+
+/// Everything a surface needs before it draws a panel: is the daemon there, can
+/// this client authenticate against it, is it the same build, and what does it
+/// say it can do.
+///
+/// **This is the call a shell makes on open**, and the reason it exists is that
+/// the two halves of "ready" were never checked together. `get_daemon_status`
+/// answers whether a VibeCLI process is on the port — which was `true`
+/// throughout a two-day outage in which every authenticated route returned 401,
+/// because a daemon on a second port had overwritten the shared token file and
+/// then exited. Nothing anywhere compared the credential the client holds
+/// against the one the daemon accepts, so every panel reported a variation of
+/// "is the daemon running?" about a daemon that was.
+///
+/// Starts the daemon if it is not up — same contract as autostart — so a surface
+/// can call this once and know the answer covers the whole path.
+#[tauri::command]
+pub async fn daemon_readiness() -> Result<serde_json::Value, String> {
+    let config = vibecli_cli::daemon_bootstrap::BootstrapConfig::default();
+    Ok(vibecli_cli::daemon_bootstrap::ensure_ready(&config)
+        .await
+        .to_json())
+}
+
+/// The same check without starting anything.
+///
+/// A panel polling readiness must not spawn a daemon on every tick, and a user
+/// who deliberately stopped theirs should not have it resurrected by opening a
+/// tab.
+#[tauri::command]
+pub async fn daemon_readiness_probe() -> Result<serde_json::Value, String> {
+    use vibecli_cli::daemon_bootstrap as boot;
+    let port = boot::default_port();
+    let Some(identity) = boot::probe(port).await else {
+        return Ok(serde_json::json!({
+            "port": port,
+            "ready": false,
+            "daemonRunning": false,
+            "daemonVersion": null,
+            "clientVersion": env!("CARGO_PKG_VERSION"),
+            "versionMatches": null,
+            "tokenState": "unverifiable",
+            "features": null,
+            "message": if port_open(port).await {
+                format!(
+                    "Port {port} is in use by another program (it answered, but it is not \
+                     VibeCLI). Stop it, or set VIBECLI_DAEMON_PORT to a free port."
+                )
+            } else {
+                format!("The VibeCLI daemon is not running on port {port}.")
+            },
+        }));
+    };
+    let held = vibe_daemon_token::resolve_token(None, port);
+    let token = vibe_daemon_token::classify(held, identity.api_token_fingerprint.as_deref());
+    let readiness = vibecli_cli::daemon_bootstrap::Readiness {
+        port,
+        daemon: vibecli_cli::daemon_bootstrap::DaemonState::AlreadyRunning(identity.clone()),
+        token,
+        features: None,
+        daemon_version: Some(identity.version),
+    };
+    Ok(readiness.to_json())
 }
 
 async fn skillforge_daemon_get(path: &str) -> Result<serde_json::Value, String> {
@@ -5242,14 +5303,7 @@ pub async fn skillopt_promote(skill: String, content: String) -> Result<serde_js
 #[tauri::command]
 pub async fn watch_get_active_session() -> Result<serde_json::Value, String> {
     // Read the daemon API token
-    let token_path = dirs::home_dir()
-        .ok_or("HOME not found")?
-        .join(".vibecli")
-        .join("daemon.token");
-    let token = std::fs::read_to_string(&token_path)
-        .unwrap_or_default()
-        .trim()
-        .to_string();
+    let token = daemon_token_opt().unwrap_or_default();
     if token.is_empty() {
         return Ok(serde_json::json!({"session_id": null}));
     }
@@ -5272,14 +5326,7 @@ pub async fn watch_get_active_session() -> Result<serde_json::Value, String> {
 /// Watch reads this so it can navigate to the sandbox conversation.
 #[tauri::command]
 pub async fn watch_get_sandbox_chat_session() -> Result<serde_json::Value, String> {
-    let token_path = dirs::home_dir()
-        .ok_or("HOME not found")?
-        .join(".vibecli")
-        .join("daemon.token");
-    let token = std::fs::read_to_string(&token_path)
-        .unwrap_or_default()
-        .trim()
-        .to_string();
+    let token = daemon_token_opt().unwrap_or_default();
     if token.is_empty() {
         return Ok(serde_json::json!({"session_id": null}));
     }
@@ -5304,14 +5351,7 @@ pub async fn watch_get_sandbox_chat_session() -> Result<serde_json::Value, Strin
 pub async fn watch_set_sandbox_chat_session(
     session_id: Option<String>,
 ) -> Result<serde_json::Value, String> {
-    let token_path = dirs::home_dir()
-        .ok_or("HOME not found")?
-        .join(".vibecli")
-        .join("daemon.token");
-    let token = std::fs::read_to_string(&token_path)
-        .unwrap_or_default()
-        .trim()
-        .to_string();
+    let token = daemon_token_opt().unwrap_or_default();
     if token.is_empty() {
         return Ok(serde_json::json!({"ok": false, "error": "daemon not running"}));
     }
@@ -19614,16 +19654,7 @@ fn build_temp_provider_with_effort(
             // provider when the token file exists but isn't pre-loaded into env.
             std::env::var("VIBECLI_DAEMON_TOKEN")
                 .ok()
-                .or_else(|| {
-                    let home = std::env::var("HOME").ok().filter(|s| !s.is_empty())?;
-                    std::fs::read_to_string(
-                        std::path::PathBuf::from(home)
-                            .join(".vibecli")
-                            .join("daemon.token"),
-                    )
-                    .ok()
-                    .map(|s| s.trim().to_string())
-                })
+                .or_else(daemon_token_opt)
                 .or_else(|| Some(String::new()))
         }
         _ => std::env::var(format!("{}_API_KEY", provider_type.to_uppercase())).ok(),
@@ -64303,12 +64334,8 @@ pub async fn get_watch_pairing_info() -> Result<serde_json::Value, String> {
         format!("http://localhost:{}", port)
     };
     // Read the daemon bearer token
-    let token_path = dirs::home_dir()
-        .map(|h| h.join(".vibecli").join("daemon.token"))
-        .ok_or("Cannot determine home directory")?;
-    let bearer = std::fs::read_to_string(&token_path)
-        .map(|s| s.trim().to_string())
-        .map_err(|_| "Daemon is not running (no token file found)")?;
+    let bearer = daemon_token_opt()
+        .ok_or("Daemon is not running (no token file found)")?;
     // Issue a challenge nonce via the daemon
     let client = reqwest::Client::new();
     let resp = client
@@ -64333,12 +64360,7 @@ pub async fn get_watch_pairing_info() -> Result<serde_json::Value, String> {
 /// List all paired Apple Watch devices.
 #[tauri::command]
 pub async fn list_watch_devices() -> Result<serde_json::Value, String> {
-    let token_path = dirs::home_dir()
-        .map(|h| h.join(".vibecli").join("daemon.token"))
-        .ok_or("Cannot determine home directory")?;
-    let bearer = std::fs::read_to_string(&token_path)
-        .map(|s| s.trim().to_string())
-        .map_err(|_| "Daemon not running")?;
+    let bearer = daemon_token_opt().ok_or("Daemon not running")?;
     let client = reqwest::Client::new();
     let resp = client
         .get("http://localhost:7878/watch/devices")
@@ -64354,12 +64376,7 @@ pub async fn list_watch_devices() -> Result<serde_json::Value, String> {
 /// Revoke an Apple Watch device by device_id.
 #[tauri::command]
 pub async fn revoke_watch_device(device_id: String) -> Result<(), String> {
-    let token_path = dirs::home_dir()
-        .map(|h| h.join(".vibecli").join("daemon.token"))
-        .ok_or("Cannot determine home directory")?;
-    let bearer = std::fs::read_to_string(&token_path)
-        .map(|s| s.trim().to_string())
-        .map_err(|_| "Daemon not running")?;
+    let bearer = daemon_token_opt().ok_or("Daemon not running")?;
     let client = reqwest::Client::new();
     let resp = client
         .delete(format!("http://localhost:7878/watch/devices/{}", device_id))
@@ -65145,21 +65162,13 @@ pub async fn team_onboarding_guide(
 //
 // Three thin Tauri wrappers around the daemon's `/v1/recap` and
 // `/v1/resume` HTTP routes (slice plan: docs/design/recap-resume/).
-// Each follows the same shape as `watch_get_active_session`: read
-// `~/.vibecli/daemon.token`, call `http://localhost:7878/...`, fall back
+// Each follows the same shape as `watch_get_active_session`: read the token
+// via `daemon_token_opt`, call `http://localhost:7878/...`, fall back
 // to a recognisable null/error JSON when the daemon isn't reachable so
 // the UI can degrade silently.
 
 async fn recap_daemon_token() -> Result<String, String> {
-    let path = dirs::home_dir()
-        .ok_or("HOME not found")?
-        .join(".vibecli")
-        .join("daemon.token");
-    let token = std::fs::read_to_string(&path)
-        .unwrap_or_default()
-        .trim()
-        .to_string();
-    Ok(token)
+    Ok(daemon_token_opt().unwrap_or_default())
 }
 
 /// The shared 5-second client for recap calls.

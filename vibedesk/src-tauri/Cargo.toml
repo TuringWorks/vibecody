@@ -37,6 +37,9 @@ vibecli_cli = { package = "vibecli", path = "../../vibecli/vibecli-cli" }
 vibe-desktop-settings = { path = "../../crates/vibe-desktop-settings" }
 # Voice input — the same daemon bridge every shell uses (crates/vibe-desktop-voice).
 vibe-desktop-voice = { path = "../../crates/vibe-desktop-voice" }
+# The daemon's token layout and the "is mine the live one" check. Shared so a
+# shell cannot disagree with the daemon about where the credential lives.
+vibe-daemon-token = { path = "../../crates/vibe-daemon-token" }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

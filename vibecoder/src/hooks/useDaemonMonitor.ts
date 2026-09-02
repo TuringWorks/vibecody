@@ -2,7 +2,9 @@
  * useDaemonMonitor — periodic daemon health monitoring with change-based notifications.
  *
  * Runs at app level (in App.tsx) so it works regardless of which panel is open.
- * Only fires notifications when the daemon status *changes* (online ↔ offline).
+ * Only fires notifications when the daemon status *changes* (online ↔ offline),
+ * and — separately — when the daemon is reachable but this client's bearer token
+ * will not authenticate against it, which no amount of health polling can see.
  * Emits a custom event "vibecoder:daemon-status" so BackgroundJobsPanel can display
  * live status without running its own polling loop.
  *
@@ -12,6 +14,7 @@
 
 import { useEffect, useRef, useCallback, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { daemonReadiness } from "../lib/daemonFetch";
 import type { ToastApi } from "./useToast";
 import type { AddNotificationOpts } from "./useNotifications";
 
@@ -99,6 +102,10 @@ export function useDaemonMonitor({
   const startingRef = useRef(false);
   // Consecutive failed probes. Reset by any success — see `check`.
   const failuresRef = useRef(0);
+  // Whether the "your token will not authenticate" warning has been shown for
+  // the current bad-credential episode. Cleared the moment readiness is good
+  // again, so a later recurrence is reported rather than swallowed.
+  const credentialWarnedRef = useRef(false);
 
   const check = useCallback(async () => {
     let probeOk: boolean;
@@ -146,6 +153,34 @@ export function useDaemonMonitor({
     if (isOnline) {
       // Reset the "starting" guard so we retry if it ever goes offline again.
       startingRef.current = false;
+
+      // **Online is not the same as usable.** This probe proves a VibeCLI
+      // daemon is on the port; it says nothing about whether we hold a token it
+      // accepts. Those came apart for two and a half days: a second daemon on
+      // another port overwrote the shared token file and exited, so this hook
+      // reported a healthy daemon on every tick while every authenticated route
+      // in the app returned 401 and each panel blamed the daemon in its own
+      // words. Check the credential too, and say so once — a stale token does
+      // not fix itself, so repeating it every 30 s would only be noise.
+      void (async () => {
+        const readiness = await daemonReadiness();
+        if (!readiness || readiness.ready) {
+          credentialWarnedRef.current = false;
+          return;
+        }
+        if (credentialWarnedRef.current) return;
+        credentialWarnedRef.current = true;
+        toastRef.current.warn(readiness.message);
+        addNotificationRef.current({
+          title:
+            readiness.tokenState === "stale"
+              ? "Daemon token is stale"
+              : "Cannot authenticate with the daemon",
+          body: readiness.message,
+          severity: "warn",
+          category: "system",
+        });
+      })();
 
       if (prev === null) {
         // First check and already running — silent confirmation.

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { getDaemonToken, daemonUrl as resolveDaemonUrl } from "../lib/daemonFetch";
 
 /**
  * Full-duplex voice, against the daemon's `/ws/voice/duplex` route.
@@ -439,25 +439,11 @@ export function useVoiceDuplex(opts: UseVoiceDuplexOptions): UseVoiceDuplex {
       capturePath.current = usedWorklet ? "worklet" : "scriptprocessor";
 
       // Resolve late: the daemon rotates its token on every restart, and the
-      // shells restart it themselves.
-      let token = opts.token ?? "";
-      if (!token) {
-        try {
-          token = (await invoke<string | null>("daemon_token_effective", { explicit: null })) ?? "";
-        } catch {
-          /* a host without the command falls back to an unauthenticated daemon */
-        }
-      }
-      let daemonUrl = opts.daemonUrl;
-      if (!daemonUrl) {
-        try {
-          const port = await invoke<number>("daemon_port");
-          daemonUrl = `http://127.0.0.1:${port}`;
-        } catch {
-          daemonUrl = "http://127.0.0.1:7878";
-        }
-      }
-      const base = daemonUrl.replace(/^http/, "ws");
+      // shells restart it themselves. A socket cannot retry a 401 the way
+      // `daemonFetch` does — the handshake either authenticates or it doesn't —
+      // so the token is read fresh here and never from a mount-time cache.
+      const token = opts.token || (await getDaemonToken(true)) || "";
+      const base = (opts.daemonUrl ?? (await resolveDaemonUrl())).replace(/^http/, "ws");
       const q = new URLSearchParams({ token });
       if (opts.provider) q.set("provider", opts.provider);
       if (opts.model) q.set("model", opts.model);

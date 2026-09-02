@@ -26,42 +26,16 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RotateCcw, Loader2, AlertCircle, Check } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
+import { daemonFetch, daemonUrl } from "../lib/daemonFetch";
 import { KEYED_PROVIDERS } from "../hooks/useProviderSettings";
 
 /** Addresses every model a provider serves. */
 const ALL_MODELS = "*";
 
-/**
- * The daemon's address and bearer token.
- *
- * Same shape as `useVoiceSettings`: the port comes from the host shell when it
- * exposes the command, and the token rotates on every daemon start so it is
- * read per call rather than cached. Every `/harness/*` route is authenticated —
- * a plain fetch would be a silent 401.
- */
-async function daemonBase(): Promise<{ url: string; token: string }> {
-  let url = "http://127.0.0.1:7878";
-  try {
-    url = `http://127.0.0.1:${await invoke<number>("daemon_port")}`;
-  } catch {
-    /* a host without the command falls back to the default port */
-  }
-  let token = "";
-  try {
-    token = (await invoke<string | null>("daemon_token_effective", { explicit: null })) ?? "";
-  } catch {
-    /* an unauthenticated daemon */
-  }
-  return { url, token };
-}
-
-async function daemonFetch(path: string, init?: RequestInit): Promise<Response> {
-  const { url, token } = await daemonBase();
-  const headers = new Headers(init?.headers);
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-  return fetch(`${url}${path}`, { ...init, headers });
-}
+// Every `/harness/*` route is authenticated, so a plain fetch is a silent 401.
+// Port, bearer and the 401 re-read all come from the shared `daemonFetch`. The
+// copy that used to live here had no retry, so every call in this panel stayed
+// 401 from the moment the daemon restarted until the app was relaunched.
 
 /** One row of the daemon's `/models` listing. */
 interface ModelRow {
@@ -182,8 +156,7 @@ export function HarnessSection() {
     let live = true;
     void (async () => {
       try {
-        const { url } = await daemonBase();
-        const res = await fetch(`${url}/models`);
+        const res = await fetch(`${await daemonUrl()}/models`);
         if (!res.ok) return;
         const body: unknown = await res.json();
         const rows =
