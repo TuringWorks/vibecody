@@ -919,7 +919,7 @@ function getChatHtml(_webview: vscode.Webview): string {
       } else if (msg.type === 'voice-transcript') {
         // Append rather than replace: dictating twice, or dictating after
         // typing, should extend the prompt.
-        input.value = input.value ? input.value.replace(/\s+$/, '') + ' ' + msg.content : msg.content;
+        input.value = input.value ? input.value.replace(/\\s+$/, '') + ' ' + msg.content : msg.content;
         input.focus();
       }
     });

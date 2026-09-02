@@ -12,6 +12,8 @@ import { VoiceTranscript } from "@vibe/shared/voice/VoiceTranscript";
 import { VoiceApproval } from "@vibe/shared/voice/VoiceApproval";
 import { useVoiceDuplexPreference } from "@vibe/shared/voice/useVoiceDuplexPreference";
 import { ComposerDrawer, type ComposerGroup } from "@vibe/shared/composer/ComposerDrawer";
+import { SkillsView } from "@vibe/shared/skills/SkillsView";
+import { skilllensCatalog } from "@vibe/shared/skills/catalog";
 import { useClickAway } from "@vibe/shared/hooks/useClickAway";
 import "@vibe/shared/composer/composer.css";
 import { tauriTranscriber } from "@vibe/shared/voice/transcribers";
@@ -22,6 +24,7 @@ import "./App.css";
 // App.css, which imports the design-system tokens its var()s consume.
 import "@vibe/shared/settings/settings.css";
 import "@vibe/shared/markdown/markdown.css";
+import "@vibe/shared/skills/skills.css";
 import "@vibe/shared/voice/voice.css";
 
 // ── Thin SVG Icons ───────────────────────────────────────────────────────────
@@ -68,8 +71,10 @@ const IconSend = () => (
   </svg>
 );
 
-const IconSparkle = () => (
-  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+// Sized by the caller: 28 for the empty state it was written for, 15 in the
+// composer drawer, which hands every icon its own size.
+const IconSparkle = ({ size = 28 }: { size?: number | string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
   </svg>
 );
@@ -227,6 +232,9 @@ export default function App() {
   const [daemonOk, setDaemonOk]     = useState<boolean | null>(null);
   const [pinned, setPinned]         = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  // The skill catalogue, which this shell has been able to reach since the
+  // SkillForge commands were registered — it just never rendered them.
+  const [showSkills, setShowSkills] = useState(false);
   const { models: availableModels } = useDaemonModels({
     daemonUrl,
     cacheKey: MODELS_CACHE_KEY,
@@ -439,6 +447,9 @@ export default function App() {
     if (!trimmed) return;
     setInput(prev => (prev ? `${prev.replace(/\s+$/, "")} ${trimmed}` : trimmed));
   }, []);
+  // Memoised: SkillsView refetches whenever `catalog` changes identity, so a
+  // fresh object each render would re-list the catalogue on every keystroke.
+  const skillCatalog = useMemo(() => skilllensCatalog(), []);
   const transcribe = useMemo(
     () => tauriTranscriber(daemonUrl, { token: daemonToken || undefined }),
     [daemonUrl, daemonToken],
@@ -453,6 +464,7 @@ export default function App() {
     }
     if (e.key === "Escape") {
       setShowSettings(false);
+      setShowSkills(false);
     }
   };
 
@@ -552,6 +564,18 @@ export default function App() {
   const drawerGroups: ComposerGroup[] = useMemo(
     () => [
       {
+        title: "Context",
+        items: [
+          {
+            id: "skills",
+            icon: IconSparkle,
+            label: "Skills",
+            sub: "Browse the catalogue and write picks into the composer",
+            onSelect: () => setShowSkills(true),
+          },
+        ],
+      },
+      {
         title: "Voice",
         items: [
           {
@@ -632,8 +656,26 @@ export default function App() {
         />
       )}
 
+      {/* Skill catalogue. Takes the thread's place rather than sharing the
+          window with it: at 440px wide there is not room for both, and the
+          picks it makes land in the composer below, which stays visible. */}
+      {showSkills && (
+        <div className="aic-skills">
+          <SkillsView
+            catalog={skillCatalog}
+            hint="Picks are written into the composer"
+            onClose={() => setShowSkills(false)}
+            onUse={text => {
+              setInput(prev => (prev ? `${prev.replace(/\s+$/, "")} ${text}` : text));
+              setShowSkills(false);
+              inputRef.current?.focus();
+            }}
+          />
+        </div>
+      )}
+
       {/* Message list */}
-      <div className="messages">
+      <div className="messages" hidden={showSkills}>
         {messages.length === 0 && (
           <div className="empty-state">
             <div className="empty-icon"><IconSparkle /></div>

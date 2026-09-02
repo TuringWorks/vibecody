@@ -391,7 +391,7 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
       setPhase("error");
     }
   }, [instruction, originalContent, selectionText, selectionStartLine,
-      selectionEndLine, filePath, language, provider, additionalFiles]);
+      selectionEndLine, filePath, language, provider, model, additionalFiles]);
 
   const submit = useCallback(() => runGenerate(), [runGenerate]);
 

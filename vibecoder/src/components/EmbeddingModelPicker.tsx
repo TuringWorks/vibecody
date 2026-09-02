@@ -72,7 +72,10 @@ export function EmbeddingModelPicker({ workspacePath }: Props) {
 
   const selected = state.status === "ready" ? state.data.selected : null;
 
-  const providers = state.status === "ready" ? state.data.providers : [];
+  const providers = useMemo(
+    () => (state.status === "ready" ? state.data.providers : []),
+    [state],
+  );
   const activeProvider = useMemo(
     () => providers.find((p) => p.id === selected?.provider) ?? null,
     [providers, selected?.provider],

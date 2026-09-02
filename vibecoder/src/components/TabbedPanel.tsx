@@ -2,6 +2,7 @@ import { useState, useRef, useMemo, useEffect, lazy, Suspense, type ComponentTyp
 import { applyLayout, tabHost, tabKey, tabsMovedInto } from "../lib/layoutPrefs";
 import { useLayoutPrefs } from "../hooks/useLayoutPrefs";
 import type { RegisteredTab } from "../constants/tabRegistry";
+import { takePendingTab } from "../lib/panelDeepLink";
 import { PanelVisibilityContext } from "../hooks/usePanelVisibility";
 
 export interface SubTab {
@@ -167,11 +168,44 @@ export function TabbedPanel({ tabs, defaultTab, activeTab, onTabChange, panelId,
   // Tracked by key, not id. A tab moved in from another panel can share an id
   // with one already here — "dashboard" is a tab in several panels — and with
   // ids alone, clicking one of them would open the other.
-  const [activeKey, setActiveKey] = useState<string | null>(null);
+  //
+  // Seeded from a deep link parked before this panel existed: panels are lazy,
+  // so the first `vibecoder:open-tab` into one fires while its listener is
+  // still unmounted. Claiming it here is what makes that first link work.
+  const [activeKey, setActiveKey] = useState<string | null>(() =>
+    panelId ? takePendingTab(panelId) : null,
+  );
   const setActive = (entry: Entry) => {
     setActiveKey(entry.key);
     onTabChange?.(entry.id);
   };
+
+  // Deep link from elsewhere in the app: `vibecoder:open-tab` carrying a
+  // `panelId/tabId` key opens that subtab, the same key Settings already uses
+  // to move tabs between panels. A bare panel id is App's business (it decides
+  // which panel is on screen) and is ignored here.
+  //
+  // The panel stays uncontrolled — this sets the same state a click does, so
+  // the next click still wins. `shown` is read through a ref because its
+  // identity changes on every render (the composites build `tabs` and
+  // `hostProps` inline), and subscribing per render would be pure churn.
+  const shownRef = useRef(shown);
+  shownRef.current = shown;
+  useEffect(() => {
+    if (!panelId) return;
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<unknown>).detail;
+      if (typeof detail !== "string" || !detail.includes("/")) return;
+      const entry = shownRef.current.find((x) => x.key === detail);
+      if (!entry) return;
+      // Claim the parked copy too, or it would re-fire the next time this
+      // panel mounts and override whatever the user had opened by then.
+      takePendingTab(panelId);
+      setActiveKey(entry.key);
+    };
+    window.addEventListener("vibecoder:open-tab", handler);
+    return () => window.removeEventListener("vibecoder:open-tab", handler);
+  }, [panelId]);
   // A controlled `activeTab` names a tab id, which is the contract the outside
   // world (Watch-driven switching) already speaks. Hiding or moving away the
   // tab that happened to be open must not blank the panel: fall back to the

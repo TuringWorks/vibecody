@@ -19,6 +19,7 @@ import { ContextPicker } from "./ContextPicker";
 import { McpAppEmbed, type McpAppPayload } from "./McpAppEmbed";
 import { flowContext } from "../utils/FlowContext";
 import { getSelectedEffort } from "../utils/effort";
+import { openPanelTab } from "../lib/panelDeepLink";
 import { Mic, User, Paperclip, X, FileText, Loader2, Download, ZoomIn, AtSign, AudioLines, Plus } from "lucide-react";
 // The same Markdown renderer VibeDesk and VibeAIChat use. Chat replies are
 // markdown — headings, lists, bold and above all tables — and rendering them
@@ -252,7 +253,8 @@ const DEFAULT_APPROVAL_MODE: ApprovalMode = "suggest";
  * it default to `prefix` semantics.
  */
 type SlashCommandAction =
-  | "switch-to-goals";
+  | "switch-to-goals"
+  | "open-skills";
 
 interface SlashCommand {
   command: string;
@@ -273,6 +275,10 @@ const SLASH_COMMANDS: SlashCommand[] = [
   { command: "/review",   label: "Review",     description: "Code review",                       prefix: "Perform a thorough code review of:\n" },
   { command: "/compact",  label: "Compact",    description: "Summarize conversation",            prefix: "Summarize our conversation so far into key points and action items:\n" },
   { command: "/goal",     label: "Goal",       description: "Open the Goals panel (durable execution intent)", action: "switch-to-goals" },
+  // The catalogue is a panel, not a prompt: picking a skill there writes the
+  // reference back into this composer. `/skills` is the keyboard route to it,
+  // so a user who knows what they want never has to find AI/ML in the rail.
+  { command: "/skills",   label: "Skills",     description: "Browse the skill catalogue and pick skills for this task", action: "open-skills" },
 
   // ── Developer Excellence ──────────────────────────────────────────────────
   // Each of these names its skill file *with the extension*. That is not
@@ -2749,6 +2755,16 @@ export function AIChat({
     // as a chat message. Bare `/goal` opens the panel; `/goal <text>`
     // seeds the New Goal modal. Mirrors the palette-action branch in
     // handleSlashSelect so both entry-points behave the same.
+    // Same hybrid for `/skills` typed straight into the composer. It takes no
+    // argument — the catalogue is where the picking happens — so anything
+    // after it is left alone and sent as an ordinary message.
+    if (/^\/skills\s*$/i.test(messageText)) {
+      openPanelTab("ai-ml/skills");
+      setInput("");
+      setSlashQuery(null);
+      return;
+    }
+
     const goalMatch = messageText.match(/^\/goals?\s*(.*)$/i);
     if (goalMatch) {
       const seed = goalMatch[1].trim() || undefined;
@@ -2998,6 +3014,12 @@ export function AIChat({
   };
 
   const handleSlashSelect = (cmd: SlashCommand) => {
+    if (cmd.action === "open-skills") {
+      openPanelTab("ai-ml/skills");
+      setInput("");
+      setSlashQuery(null);
+      return;
+    }
     if (cmd.action === "switch-to-goals") {
       // Hybrid UX: any text the user already typed after `/goal` becomes
       // the seed for the New Goal modal. With the palette open, slashQuery

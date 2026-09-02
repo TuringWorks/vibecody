@@ -84,14 +84,32 @@ The daemon is the single source of truth; clients proxy it.
 |---|---|---|
 | **VibeCLI REPL** | full (drive) | `/skillforge list/show/refresh/score/train/status/cancel/promote/health` — calls the bridge in-process; `score`/`train` use the REPL `active_provider`/`active_model` (STRICT) |
 | **VibeCLI TUI** | read-only browse | `/skillforge` opens a Ratatui screen — catalogue (cov/evolvability) + train-jobs pane + `/health` footer; `j`/`k`/`r` navigate |
-| **VibeCoder** (desktop) | full | `SkillForgePanel` (Catalog / Lens / Optimize) via 10 Tauri commands that proxy the daemon |
-| **VibeAIChat** (companion) | backend surface | 10 Tauri proxy commands registered in `vibeaichat/src-tauri` (the bespoke UI has no panel; reachable via `invoke()`) |
+| **VibeCoder** (desktop) | full | `SkillForgePanel` (Catalog / Lens / Optimize) via 10 Tauri commands that proxy the daemon, plus the **Skill Catalog** tab (AI/ML) for browsing and picking skills — `/skills` in the chat composer opens it |
+| **VibeDesk** (desktop) | browse + pick | **Skills** overlay (`/skills`, or the nav rail) — the shared `SkillsView` over `list_skills` / `get_skill` |
+| **VibeAIChat** (companion) | browse + pick | **Skills** in the composer's More menu — the shared `SkillsView` over `skilllens_list_skills` / `skilllens_get_skill`; the other 8 proxy commands stay `invoke()`-only |
 | **VS Code extension** | full | `skilllens{ListSkills,GetSkill,Refresh,Convert,Extract,Score}` + `skillopt{Train,StreamTrain,Status,Cancel,Promote}` |
 | **Agent SDK** (TypeScript) | full | `agent.skilllens.{list,get,refresh,convert,extract,score}` + `agent.skillopt.{train,streamTrain,status,cancel,promote}` |
 | **VibeMobile** (Flutter) | read-only | `SkillforgeScreen` (8th "Skills" tab) — catalogue across paired machines + detail + train-status lookup |
 | **Apple Watch** | read-only | `SkillforgeView` (6th "Skills" tab) — `top5` catalogue → one-line detail |
 | **Wear OS** | read-only | `SkillforgeScreen` + `SkillforgeTileService` — `top5` catalogue → detail |
 | **Agent system prompt** | auto | a compact `## Skill Health` line (`N skills, M scored, top evolvability X`) auto-injected when `cached_reports > 0` (G3) |
+
+### The skill browser — one view, three shells
+
+Browsing the catalogue and *using* what you find used to be two different
+apps: SkillForge scores skills, and nothing in it puts one to work. The
+browser that does is `packages/vibe-ui-shared/src/skills/SkillsView.tsx`,
+rendered by all three Tauri shells over a `SkillCatalog` adapter, because the
+shells reach the same route through differently-named commands.
+
+Picking skills writes a sentence into the shell's composer —
+`skillPromptSeed` builds it, so the three of them ask for a skill in identical
+words. That is the whole mechanism, deliberately: `AgentRequest` has no
+`skills` field, so a skill reaches a run as prompt text or not at all, and a
+checkbox implying "armed for the next run" would describe a daemon feature
+that does not exist. The detail pane's **Insert full text** is the escape
+hatch when the guidance itself, rather than a reference to it, is what the
+model needs.
 
 Read-only endpoints (catalogue + train-status) fan out to every client; the heavy `score`/`train`/`promote` mutations ship only in the desktop-class clients (VibeCLI REPL, VibeCoder, VS Code, Agent SDK) — the wrist/mobile form factor doesn't surface a toolbar-selected LLM, so the mutations would have no `provider`/`model` to forward.
 

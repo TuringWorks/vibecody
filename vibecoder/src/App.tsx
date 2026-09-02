@@ -272,8 +272,12 @@ function App() {
   // against ALL_TABS so a stale mapping is a no-op rather than a blank screen.
   useEffect(() => {
     const handler = (e: Event) => {
-      const tab = (e as CustomEvent<unknown>).detail;
-      if (typeof tab !== "string" || !ALL_TABS.includes(tab)) return;
+      const detail = (e as CustomEvent<unknown>).detail;
+      if (typeof detail !== "string") return;
+      // A `panelId/tabId` key names a subtab; the panel is the part this
+      // handler owns, and TabbedPanel picks the subtab out of the same event.
+      const tab = detail.split("/")[0];
+      if (!ALL_TABS.includes(tab)) return;
       setShowAIChat(true);
       setAiPanelTab(tab);
     };

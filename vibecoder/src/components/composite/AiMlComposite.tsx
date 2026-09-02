@@ -7,6 +7,7 @@ export const AiMlComposite = createComposite([
   { id: "inference", label: "Inference", importFn: () => import("../InferencePanel"), exportName: "InferencePanel" },
   { id: "quantum", label: "Quantum", importFn: () => import("../QuantumComputingPanel"), exportName: "QuantumComputingPanel" },
   { id: "rlcef", label: "RLCEF", importFn: () => import("../RlcefPanel"), exportName: "RlcefPanel" },
+  { id: "skills", label: "Skill Catalog", importFn: () => import("../SkillsPanel"), exportName: "SkillsPanel" },
   { id: "skilldistill", label: "Distillation", importFn: () => import("../SkillDistillationPanel") },
   { id: "skillforge", label: "SkillForge", importFn: () => import("../SkillForgePanel"), exportName: "SkillForgePanel" },
   { id: "selfimproving", label: "Self-Improving", importFn: () => import("../SelfImprovingSkillsPanel"), exportName: "SelfImprovingSkillsPanel" },

@@ -1,8 +1,8 @@
 /**
  * Every panel and the subfeature tabs it contains.
  *
- * Pure data on purpose. Settings needs to list all 234 subfeatures across
- * 45 panels without pulling in the panels themselves —
+ * Pure data on purpose. Settings needs to list all 236 subfeatures across
+ * 46 panels without pulling in the panels themselves —
  * importing the composites to read their tab lists would defeat the code
  * splitting that keeps startup cheap, loading every panel in the app the
  * moment someone opens Settings.
@@ -97,8 +97,6 @@ export const PANEL_CATALOG: Record<string, SubfeatureMeta[]> = {
   "goals": [
 
   ],
-  // The Engagement panel owns its own four-phase navigation; sub-tabs here
-  // would compete with it.
   "engagement": [
 
   ],
@@ -194,6 +192,7 @@ export const PANEL_CATALOG: Record<string, SubfeatureMeta[]> = {
     { id: "inference", label: "Inference" },
     { id: "quantum", label: "Quantum" },
     { id: "rlcef", label: "RLCEF" },
+    { id: "skills", label: "Skill Catalog" },
     { id: "skilldistill", label: "Distillation" },
     { id: "skillforge", label: "SkillForge" },
     { id: "selfimproving", label: "Self-Improving" },
@@ -368,7 +367,7 @@ export const SINGLE_VIEW_PANELS: string[] = Object.entries(PANEL_CATALOG)
  * knows how to load on their own.
  *
  * Here rather than read from `tabRegistry` because Settings needs the answer
- * for every row and the registry is 37 KB of import thunks that only a panel
+ * for every row and the registry is 38 KB of import thunks that only a panel
  * actually hosting a moved tab should have to load.
  */
 export const MOVABLE_TABS: readonly string[] = [
@@ -487,6 +486,7 @@ export const MOVABLE_TABS: readonly string[] = [
   "ai-ml/inference",
   "ai-ml/quantum",
   "ai-ml/rlcef",
+  "ai-ml/skills",
   "ai-ml/skilldistill",
   "ai-ml/skillforge",
   "ai-ml/selfimproving",

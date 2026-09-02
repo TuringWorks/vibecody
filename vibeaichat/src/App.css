@@ -330,3 +330,16 @@ body {
 .spin-icon { animation: spin 1s linear infinite; }
 
 @keyframes spin { 100% { transform: rotate(360deg); } }
+
+/* ── Skill catalogue ───────────────────────────────────────────────────────── */
+
+/* The catalogue stands in for the thread, so it takes the same slice of the
+   column the message list does — `min-height: 0` included, or its own inner
+   scroller would push the composer off the bottom of the window. */
+.aic-skills {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}

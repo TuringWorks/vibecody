@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { gitStatusCode, gitStatusLabel } from '../lib/gitStatus';
 import { MiddleTruncate } from './MiddleTruncate';
 import { FolderOpen, AlertTriangle, X } from 'lucide-react';
@@ -158,37 +158,7 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  const [repoSuggestion, setRepoSuggestion] = useState<GitRepoSuggestion | null>(null);
  const [initializingRepo, setInitializingRepo] = useState(false);
 
- useEffect(() => {
- if (workspacePath) {
- loadRepoSuggestion();
- loadGitStatus();
- loadBranches();
- loadGitConfig();
- }
- // eslint-disable-next-line react-hooks/exhaustive-deps
- }, [workspacePath]);
-
- // Auto-refresh git status every 30 seconds
- useEffect(() => {
- if (!workspacePath) return;
- const id = setInterval(loadGitStatus, 30_000);
- return () => clearInterval(id);
- }, [workspacePath]);
-
- // The embedded GitHub tabs send the user back here for anything that writes
- // to the repo. Both halves are inside this panel, so no shell round-trip.
- useEffect(() => {
- const handler = (e: Event) => {
- const next = (e as CustomEvent<unknown>).detail;
- if (next !== 'changes' && next !== 'github') return;
- setLocalView(next);
- onViewChange?.(next);
- };
- window.addEventListener('vibecoder:git-view', handler);
- return () => window.removeEventListener('vibecoder:git-view', handler);
- }, [onViewChange]);
-
- const loadGitStatus = async () => {
+ const loadGitStatus = useCallback(async () => {
  try {
  const status = await invoke<GitStatus>('get_git_status');
  setGitStatus(status);
@@ -204,7 +174,37 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  } catch {
  setUpstream(null);
  }
+ }, [workspacePath]);
+
+ useEffect(() => {
+ if (workspacePath) {
+ loadRepoSuggestion();
+ loadGitStatus();
+ loadBranches();
+ loadGitConfig();
+ }
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [workspacePath]);
+
+ // Auto-refresh git status every 30 seconds
+ useEffect(() => {
+ if (!workspacePath) return;
+ const id = setInterval(loadGitStatus, 30_000);
+ return () => clearInterval(id);
+ }, [workspacePath, loadGitStatus]);
+
+ // The embedded GitHub tabs send the user back here for anything that writes
+ // to the repo. Both halves are inside this panel, so no shell round-trip.
+ useEffect(() => {
+ const handler = (e: Event) => {
+ const next = (e as CustomEvent<unknown>).detail;
+ if (next !== 'changes' && next !== 'github') return;
+ setLocalView(next);
+ onViewChange?.(next);
  };
+ window.addEventListener('vibecoder:git-view', handler);
+ return () => window.removeEventListener('vibecoder:git-view', handler);
+ }, [onViewChange]);
 
  /** Asks the backend — which walks up to the enclosing repo — rather than
   *  inferring "no repo" from the text of a git error message. */

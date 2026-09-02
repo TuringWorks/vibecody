@@ -2407,7 +2407,13 @@ mod tests {
             &[0.5, 0.3, 0.8],
         );
         assert!(result.mean_reward > 0.0);
-        assert!(result.kl_divergence != 0.0 || true); // kl may be 0 if identical
+        // KL may legitimately be 0 when the policies are identical, so assert
+        // the property that always holds rather than a value that need not.
+        assert!(
+            result.kl_divergence >= 0.0 && result.kl_divergence.is_finite(),
+            "KL divergence must be finite and non-negative: {}",
+            result.kl_divergence
+        );
     }
 
     // ── DPO tests ──
@@ -3618,7 +3624,7 @@ mod tests {
     #[test]
     fn test_log_sigmoid_values() {
         let ls0 = log_sigmoid(0.0);
-        assert!((ls0 - (-0.6931471805599453)).abs() < 1e-6); // ln(0.5)
+        assert!((ls0 - -std::f64::consts::LN_2).abs() < 1e-6); // ln(0.5)
         assert!(log_sigmoid(100.0) > -0.001);
         assert!(log_sigmoid(-100.0) < -99.0);
     }

@@ -928,8 +928,12 @@ mod tests {
     fn test_ucb_more_visits_lower_exploration() {
         let few_visits = UcbScore::compute(5.0, 2, 100, 1.414);
         let many_visits = UcbScore::compute(25.0, 10, 100, 1.414);
-        // fewer visits -> higher exploration term per visit
-        assert!(few_visits > many_visits || true); // both valid; check no panic
+        // Exploitation is equal (2.5 both), so the ordering is decided by the
+        // exploration term alone: sqrt(ln(100)/2) > sqrt(ln(100)/10).
+        assert!(
+            few_visits > many_visits,
+            "fewer visits must score a higher exploration bonus: {few_visits} vs {many_visits}"
+        );
     }
 
     // -- Reward computation --

@@ -2110,7 +2110,7 @@ mod tests {
 
     #[test]
     fn test_gate_qasm3_rotation() {
-        let rx = QuantumGate::Rx(0, 1.5707963);
+        let rx = QuantumGate::Rx(0, std::f64::consts::FRAC_PI_2);
         assert!(rx.qasm3().starts_with("rx("));
     }
 

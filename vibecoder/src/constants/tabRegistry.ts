@@ -30,7 +30,7 @@ export interface RegisteredTab {
   exportName?: string;
 }
 
-/** `panelId/tabId` -> how to render it. 226 of 234 tabs. */
+/** `panelId/tabId` -> how to render it. 228 of 236 tabs. */
 export const TAB_REGISTRY: Record<string, RegisteredTab> = {
   "agent-os/dashboard": { panelId: "agent-os", tabId: "dashboard", label: "Dashboard", load: () => import("../components/AgentOSDashboard"), exportName: "AgentOSDashboard" },
   "agent-os/agent": { panelId: "agent-os", tabId: "agent", label: "Agent", load: () => import("../components/AgentPanel"), exportName: "AgentPanel" },
@@ -147,6 +147,7 @@ export const TAB_REGISTRY: Record<string, RegisteredTab> = {
   "ai-ml/inference": { panelId: "ai-ml", tabId: "inference", label: "Inference", load: () => import("../components/InferencePanel"), exportName: "InferencePanel" },
   "ai-ml/quantum": { panelId: "ai-ml", tabId: "quantum", label: "Quantum", load: () => import("../components/QuantumComputingPanel"), exportName: "QuantumComputingPanel" },
   "ai-ml/rlcef": { panelId: "ai-ml", tabId: "rlcef", label: "RLCEF", load: () => import("../components/RlcefPanel"), exportName: "RlcefPanel" },
+  "ai-ml/skills": { panelId: "ai-ml", tabId: "skills", label: "Skill Catalog", load: () => import("../components/SkillsPanel"), exportName: "SkillsPanel" },
   "ai-ml/skilldistill": { panelId: "ai-ml", tabId: "skilldistill", label: "Distillation", load: () => import("../components/SkillDistillationPanel") },
   "ai-ml/skillforge": { panelId: "ai-ml", tabId: "skillforge", label: "SkillForge", load: () => import("../components/SkillForgePanel"), exportName: "SkillForgePanel" },
   "ai-ml/selfimproving": { panelId: "ai-ml", tabId: "selfimproving", label: "Self-Improving", load: () => import("../components/SelfImprovingSkillsPanel"), exportName: "SelfImprovingSkillsPanel" },

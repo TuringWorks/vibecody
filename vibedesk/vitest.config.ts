@@ -17,6 +17,11 @@ export default defineConfig({
       { find: /^react\//, replacement: resolve(__dirname, "node_modules/react") + "/" },
       { find: /^react-dom$/, replacement: resolve(__dirname, "node_modules/react-dom") },
       { find: /^react-dom\//, replacement: resolve(__dirname, "node_modules/react-dom") + "/" },
+      // Same two the dev/build config maps. Missing here, any test that
+      // renders shared markdown — the skill browser's detail pane — failed to
+      // load the suite rather than failing an assertion.
+      { find: /^react-markdown$/, replacement: resolve(__dirname, "node_modules/react-markdown") },
+      { find: /^remark-gfm$/, replacement: resolve(__dirname, "node_modules/remark-gfm") },
       { find: /^@tauri-apps\/api\//, replacement: resolve(__dirname, "node_modules/@tauri-apps/api") + "/" },
     ],
   },

@@ -1212,8 +1212,8 @@ mod tests {
 
         assert_eq!(probe(port).await, None, "foreign service must not pass");
         assert!(
-            port_is_occupied(port).await || true,
-            "occupancy is checked separately"
+            port_is_occupied(port).await,
+            "the stub server still holds the port"
         );
     }
 
