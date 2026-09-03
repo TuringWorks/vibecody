@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Users, Send, LogOut, Copy, Check, Bot, Loader2, WifiOff } from "lucide-react";
 import { getDefaultProvider } from "../hooks/useModelRegistry";
+import { isVibeCliHealth } from "../hooks/useDaemonMonitor";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -84,7 +85,10 @@ export function CollabChatPanel({ provider = getDefaultProvider(), daemonPort = 
     window.addEventListener("vibecoder:daemon-status", onStatus);
     // Seed on mount via a quick health check
     fetch(`http://localhost:${daemonPort}/health`, { signal: AbortSignal.timeout(3000) })
-      .then((r) => { if (r.ok) setDaemonOnline(true); })
+      .then(async (r) => {
+        const body: unknown = r.ok ? await r.json().catch(() => null) : null;
+        if (isVibeCliHealth(body)) setDaemonOnline(true);
+      })
       .catch(() => {});
     return () => window.removeEventListener("vibecoder:daemon-status", onStatus);
   }, [daemonPort]);

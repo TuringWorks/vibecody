@@ -192,8 +192,8 @@ interface AIChatProps {
  approvalMode?: ApprovalMode;
  /** Called when the user picks a different approval mode. */
  onApprovalModeChange?: (mode: ApprovalMode) => void;
- /** /goal slash command — switch to Goals panel (and optionally seed the New Goal modal). */
- onSwitchToGoals?: (seed?: string) => void;
+ /** `/goals` slash command — open the advanced Goals panel. */
+ onSwitchToGoals?: () => void;
  /** Show a file in the editor, by absolute path.
   *
   * Used by the spoken path, which is the one that needs it: a typed answer
@@ -247,7 +247,7 @@ const DEFAULT_APPROVAL_MODE: ApprovalMode = "suggest";
  * Slash command shape. Two kinds:
  *  - `prefix` (default): selecting the command replaces the input with the prefix string.
  *  - `action`: selecting the command runs a side-effect (e.g. switch tab, open modal)
- *    and clears the input. Used by `/goal` to open the Goals panel.
+ *    and clears the input.
  *
  * The `kind` field is optional for backward compatibility — entries without
  * it default to `prefix` semantics.
@@ -274,7 +274,8 @@ const SLASH_COMMANDS: SlashCommand[] = [
   { command: "/refactor", label: "Refactor",   description: "Refactor code",                     prefix: "Refactor the following code for better readability, performance, and maintainability:\n" },
   { command: "/review",   label: "Review",     description: "Code review",                       prefix: "Perform a thorough code review of:\n" },
   { command: "/compact",  label: "Compact",    description: "Summarize conversation",            prefix: "Summarize our conversation so far into key points and action items:\n" },
-  { command: "/goal",     label: "Goal",       description: "Open the Goals panel (durable execution intent)", action: "switch-to-goals" },
+  { command: "/goal",     label: "Goal",       description: "Start or control one durable goal", prefix: "/goal " },
+  { command: "/goals",    label: "Goal history", description: "Open advanced goal history and details", action: "switch-to-goals" },
   // The catalogue is a panel, not a prompt: picking a skill there writes the
   // reference back into this composer. `/skills` is the keyboard route to it,
   // so a user who knows what they want never has to find AI/ML in the rail.
@@ -2792,14 +2793,15 @@ export function AIChat({
       );
       return;
     }
-    const messageText = text.trim() || (attachments.length > 0 ? `[Attached ${attachments.length} file(s) — please review]` : "");
+    let messageText = text.trim() || (attachments.length > 0 ? `[Attached ${attachments.length} file(s) — please review]` : "");
+    const submittedText = messageText;
+    let startsGoalRun = false;
 
-    // G3.3 — chat-submit hybrid for `/goal <text>`. If the user types
-    // the slash command directly (without picking from the palette)
-    // and hits Enter, route into the Goals panel instead of sending it
-    // as a chat message. Bare `/goal` opens the panel; `/goal <text>`
-    // seeds the New Goal modal. Mirrors the palette-action branch in
-    // handleSlashSelect so both entry-points behave the same.
+    // `/goal` is intentionally a command, not a route into a management UI.
+    // The common path mirrors Codex/Claude-style durable work: state one
+    // objective and start working. Bare/status, pause, resume and clear are
+    // the complete control surface; the Goals panel remains available as an
+    // advanced history/detail view.
     // Same hybrid for `/skills` typed straight into the composer. It takes no
     // argument — the catalogue is where the picking happens — so anything
     // after it is left alone and sent as an ordinary message.
@@ -2810,14 +2812,73 @@ export function AIChat({
       return;
     }
 
-    const goalMatch = messageText.match(/^\/goals?\s*(.*)$/i);
+    const goalMatch = messageText.match(/^\/goal(?:\s+(.*))?$/i);
     if (goalMatch) {
-      const seed = goalMatch[1].trim() || undefined;
-      onSwitchToGoals?.(seed);
-      setInput("");
-      setAttachments([]);
-      setSlashQuery(null);
-      return;
+      const arg = (goalMatch[1] ?? "").trim();
+      const workspace = workspacePath || null;
+      const appendGoalResult = (content: string, isError = false) => {
+        setMessages((prev) => [
+          ...prev,
+          { role: "user", content: submittedText, timestamp: Date.now() },
+          { role: "assistant", content, timestamp: Date.now(), isError },
+        ]);
+        setInput("");
+        setAttachments([]);
+        setSlashQuery(null);
+      };
+      try {
+        const current = async () => (await invoke("exec_goal_current", { workspace })) as {
+          goal_id?: string | null;
+          goal?: { id: string; title: string; statement?: string; status: string };
+        };
+        if (!arg || arg === "status") {
+          const found = await current();
+          appendGoalResult(found.goal
+            ? `Current goal: **${found.goal.title}** · ${found.goal.status}\n\n${found.goal.statement || ""}`.trim()
+            : "No active goal. Start one with `/goal <objective>`." );
+          return;
+        }
+        if (arg === "pause" || arg === "clear" || arg === "resume") {
+          const found = await current();
+          if (!found.goal) {
+            appendGoalResult("No active goal. Start one with `/goal <objective>`.", true);
+            return;
+          }
+          if (arg === "clear") {
+            await invoke("exec_goal_unpin", { workspace });
+            window.dispatchEvent(new CustomEvent("vibecoder:pin-changed"));
+            appendGoalResult(`Cleared **${found.goal.title}** as the current goal.`);
+            return;
+          }
+          await invoke("exec_goal_update", {
+            id: found.goal.id,
+            status: arg === "pause" ? "paused" : "active",
+          });
+          if (arg === "pause") {
+            appendGoalResult(`Paused **${found.goal.title}**. Use \`/goal resume\` to continue.`);
+            return;
+          }
+          messageText = found.goal.statement || found.goal.title;
+          startsGoalRun = true;
+        } else {
+          const objective = arg;
+          const created = (await invoke("exec_goal_create", {
+            title: objective.slice(0, 120),
+            statement: objective,
+            workspace,
+            successCriteria: [],
+            tags: [],
+            parentGoalId: null,
+          })) as { id: string };
+          await invoke("exec_goal_pin", { id: created.id, workspace });
+          window.dispatchEvent(new CustomEvent("vibecoder:pin-changed"));
+          messageText = objective;
+          startsGoalRun = true;
+        }
+      } catch (error) {
+        appendGoalResult(`Goal command failed: ${String(error)}`, true);
+        return;
+      }
     }
 
     if (!provider) {
@@ -2832,7 +2893,7 @@ export function AIChat({
     const currentAttachments = [...attachments];
     const userMessage: Message = {
       role: "user",
-      content: messageText,
+      content: startsGoalRun ? submittedText : messageText,
       timestamp: Date.now(),
       attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
     };
@@ -2870,7 +2931,7 @@ export function AIChat({
     // as the task description. (Phase-1 limitation; Phase 3 will plumb
     // history.) Listeners (agent:chunk/step/pending/complete/...) update
     // the same streamingText / messages state used by the chat path.
-    if (useAgentLoopRef.current) {
+    if (startsGoalRun || useAgentLoopRef.current) {
       setAgentSteps([]);
       setVerifierResult(null);
       setPendingApproval(null);
@@ -2955,7 +3016,7 @@ export function AIChat({
       setIsLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [input, provider, context, fileTree, currentFile, messages, backendMode, attachments, pendingApproval, toast]);
+  }, [input, provider, context, fileTree, currentFile, workspacePath, messages, backendMode, attachments, pendingApproval, toast]);
 
   const stopMessage = useCallback(async () => {
     cancelledRef.current = true;
@@ -3025,6 +3086,15 @@ export function AIChat({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Bare `/goal` is itself meaningful (show current status), unlike prefix
+    // commands such as `/fix`. Do not let the palette turn Enter into another
+    // autocomplete step that merely inserts a trailing space.
+    if (e.key === "Enter" && !e.shiftKey && input.trim().toLowerCase() === "/goal") {
+      e.preventDefault();
+      setSlashQuery(null);
+      sendMessage();
+      return;
+    }
     // Let ContextPicker or SlashPalette handle navigation keys when visible
     if ((pickerQuery !== null || slashQuery !== null) && ["ArrowUp", "ArrowDown", "Enter", "Escape"].includes(e.key)) {
       e.preventDefault();
@@ -3065,13 +3135,7 @@ export function AIChat({
       return;
     }
     if (cmd.action === "switch-to-goals") {
-      // Hybrid UX: any text the user already typed after `/goal` becomes
-      // the seed for the New Goal modal. With the palette open, slashQuery
-      // captures only the leading `/goal` token, so for now the seed is
-      // empty — the user types their goal in the modal. The chat-submit
-      // path (intercepting `/goal <text>\n`) is a future enhancement.
-      const seed = input.replace(/^\/goal\s*/i, "").trim() || undefined;
-      onSwitchToGoals?.(seed);
+      onSwitchToGoals?.();
       setInput("");
       setSlashQuery(null);
       return;

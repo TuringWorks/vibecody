@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { lazy, Suspense, useRef, type ComponentType } from "react";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { PanelVisibilityContext } from "../hooks/usePanelVisibility";
 
 const PanelLoading = () => (
   <div style={{ padding: 16, color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>Loading panel...</div>
@@ -23,15 +24,17 @@ function LazyPanel<P extends object>({ Component, props }: { Component: Componen
  */
 function KeepAlivePanel({ active, children }: { active: boolean; children: React.ReactNode }) {
   return (
-    <div
-      style={{
-        display: active ? "contents" : "none",
-        // "contents" makes this wrapper invisible to layout — the panel renders
-        // as if it were a direct child of the parent container.
-      }}
-    >
-      {children}
-    </div>
+    <PanelVisibilityContext.Provider value={active}>
+      <div
+        style={{
+          display: active ? "contents" : "none",
+          // "contents" makes this wrapper invisible to layout — the panel renders
+          // as if it were a direct child of the parent container.
+        }}
+      >
+        {children}
+      </div>
+    </PanelVisibilityContext.Provider>
   );
 }
 
@@ -103,12 +106,8 @@ interface PanelHostProps {
   onPendingWrite: (path: string, content: string) => void;
   onInjectContext: (text: string) => void;
   onOpenFile?: (path: string, line?: number) => void;
-  /** /goal slash command — forwarded into ChatComposite → AIChat. */
-  onSwitchToGoals?: (seed?: string) => void;
-  /** Pre-fill text for the Goal panel's New Goal modal. Cleared once consumed. */
-  newGoalSeed?: string | null;
-  /** Called by GoalPanel once newGoalSeed has been applied. */
-  onNewGoalSeedConsumed?: () => void;
+  /** `/goals` slash command — forwarded into ChatComposite → AIChat. */
+  onSwitchToGoals?: () => void;
   collab: {
     connected: boolean;
     roomId: string | null;
@@ -132,7 +131,7 @@ interface PanelHostProps {
  * can use the `usePersistentState` hook or `usePanelSettings`.
  */
 export function PanelHost(props: PanelHostProps) {
-  const { tab, selectedProvider, availableProviders, editorContent, fileTree, currentFile, workspacePath, onPendingWrite, onOpenFile, onSwitchToGoals, newGoalSeed, onNewGoalSeedConsumed } = props;
+  const { tab, selectedProvider, availableProviders, editorContent, fileTree, currentFile, workspacePath, onPendingWrite, onOpenFile, onSwitchToGoals } = props;
   const wp = workspacePath;
 
   // Track which tabs have been visited so we only mount them once they're first opened.
@@ -182,7 +181,7 @@ export function PanelHost(props: PanelHostProps) {
       {/* --- Project --- */}
       {panel("project-hub", <LazyPanel Component={ProjectHubComposite} props={{ workspacePath: wp, provider: selectedProvider, onOpenFile }} />)}
       {panel("planning", <LazyPanel Component={PlanningComposite} props={{ workspacePath: wp, provider: selectedProvider, onOpenFile }} />)}
-      {panel("goals", <LazyPanel Component={GoalPanel} props={{ workspacePath: wp, selectedProvider, newGoalSeed, onSeedConsumed: onNewGoalSeedConsumed }} />)}
+      {panel("goals", <LazyPanel Component={GoalPanel} props={{ workspacePath: wp, selectedProvider }} />)}
       {panel("engagement", <LazyPanel Component={EngagementPanel} props={{ workspacePath: wp }} />)}
       {panel("observability", <LazyPanel Component={ObservabilityComposite} props={{ provider: selectedProvider }} />)}
       {panel("design", <LazyPanel Component={DesignComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}

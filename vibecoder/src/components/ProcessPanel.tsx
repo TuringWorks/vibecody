@@ -2,6 +2,7 @@ import React, { useCallback, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Play, Moon, AlertOctagon, Square, MinusCircle, X } from "lucide-react";
 import { useVisibleInterval } from "../hooks/usePanelVisibility";
+import { ConfirmationDialog } from "./ConfirmationDialog";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -39,6 +40,7 @@ const ProcessPanel: React.FC = () => {
  const [filter, setFilter] = useState("");
  const [killing, setKilling] = useState<number | null>(null);
  const [killFeedback, setKillFeedback] = useState<{ pid: number; ok: boolean; msg: string } | null>(null);
+ const [pendingKill, setPendingKill] = useState<{ pid: number; name: string } | null>(null);
 
  const loadProcesses = useCallback(async () => {
  setLoading(true);
@@ -56,8 +58,7 @@ const ProcessPanel: React.FC = () => {
  // Auto-refresh every 5 s
  useVisibleInterval(() => void loadProcesses(), 5_000);
 
- const handleKill = async (pid: number, name: string) => {
- if (!window.confirm(`Send SIGTERM to "${name}" (PID ${pid})?`)) return;
+ const handleKill = async (pid: number) => {
  setKilling(pid);
  setKillFeedback(null);
  try {
@@ -69,6 +70,7 @@ const ProcessPanel: React.FC = () => {
  setKillFeedback({ pid, ok: false, msg: String(e) });
  } finally {
  setKilling(null);
+ setPendingKill(null);
  }
  };
 
@@ -80,6 +82,16 @@ const ProcessPanel: React.FC = () => {
 
  return (
  <div className="panel-container" style={{ fontSize: "var(--font-size-md)" }}>
+ <ConfirmationDialog
+ open={pendingKill !== null}
+ title="Terminate process?"
+ message={`Send SIGTERM to “${pendingKill?.name ?? ""}” (PID ${pendingKill?.pid ?? ""})? Unsaved process state may be lost.`}
+ confirmLabel="Terminate"
+ danger
+ busy={killing !== null}
+ onCancel={() => setPendingKill(null)}
+ onConfirm={() => { if (pendingKill) void handleKill(pendingKill.pid); }}
+ />
  {/* Toolbar */}
  <div className="panel-header">
  <input
@@ -170,7 +182,7 @@ const ProcessPanel: React.FC = () => {
  </td>
  <td style={tdNumStyle}>
  <button
- onClick={() => void handleKill(proc.pid, proc.name)}
+ onClick={() => setPendingKill({ pid: proc.pid, name: proc.name })}
  disabled={killing === proc.pid}
  aria-label={`Kill process ${proc.name} (PID ${proc.pid})`}
  style={{

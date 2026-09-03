@@ -6,6 +6,8 @@ import { useModelRegistry } from '../hooks/useModelRegistry';
 import type { Recap } from '../types/recap';
 // Daemon routes are behind `require_auth`; a plain fetch() 401s. See daemonFetch.ts.
 import { daemonFetch, getDaemonToken } from '../lib/daemonFetch';
+import { isVibeCliHealth } from '../hooks/useDaemonMonitor';
+import { useVisibleInterval } from '../hooks/usePanelVisibility';
 
 interface JobRecord {
  session_id: string;
@@ -104,7 +106,10 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  // fetchJobs() runs. This prevents a stale offline state when the panel
  // mounts after useDaemonMonitor already confirmed the daemon is up.
  fetch(`${daemonUrl}/health`, { signal: AbortSignal.timeout(4000) })
-  .then((r) => { if (r.ok) setDaemonOnline(true); })
+  .then(async (r) => {
+   const body: unknown = r.ok ? await r.json().catch(() => null) : null;
+   if (isVibeCliHealth(body)) setDaemonOnline(true);
+  })
   .catch(() => { /* remain false until useDaemonMonitor next fires */ })
   .finally(() => { fetchJobs(); fetchMetrics(); });
 
@@ -114,12 +119,11 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
 
  // While the panel is open, refresh the job list every 10 s (daemon status
  // itself is managed by useDaemonMonitor at app level every 30 s).
- useEffect(() => {
- if (!daemonOnline) return;
- const id = setInterval(() => { fetchJobs(); fetchMetrics(); }, 10_000);
- return () => clearInterval(id);
- // eslint-disable-next-line react-hooks/exhaustive-deps
- }, [daemonOnline, daemonUrl]);
+ useVisibleInterval(
+  () => { void fetchJobs(); void fetchMetrics(); },
+  daemonOnline ? 10_000 : null,
+  { runOnShow: false },
+ );
 
  // Close all open EventSources on unmount to prevent resource leaks
  useEffect(() => {

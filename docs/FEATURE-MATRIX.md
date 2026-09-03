@@ -283,7 +283,7 @@ Coverage, so the ✅ is not read as more than it is: only **macOS arm64** runs t
 | Per-workspace "current pin" + global slot | ✅ | ✅ | `GET/PUT/DELETE /v1/goals/current` |
 | `/agent` auto-link to pinned goal | ✅ | ✅ | Silent best-effort |
 | Read-only TUI Goals screen | ✅ | n/a | `/goal` from chat opens; `f` cycles filter |
-| Slash hybrid in chat input | n/a | ✅ | AIChat `/goal <text>` opens panel + seeds modal |
+| Goal command in chat input | ✅ | ✅ | `/goal <objective>` starts durable work immediately; `/goal` reports current; `pause`, `resume`, `clear` control it. `/goals` opens advanced history/details |
 | REPL subcommands | ✅ | n/a | `new`, `list`, `show`, `status`, `link`, `start`, `children`, `reparent`, `pin`, `unpin`, `current`, `delete`, `plan` |
 | Mobile remote control (Flutter) | ✅ | n/a | `listGoals`, `getGoal`, `startGoal`, `getGoalTree`, `getCurrentGoal`, `pinGoal`, `unpinGoal` |
 | Apple Watch (curated `/watch/goals`) | ✅ | n/a | `loadGoals`, `fetchGoal`, `startGoal` |
