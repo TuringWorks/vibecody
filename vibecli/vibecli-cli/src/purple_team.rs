@@ -171,6 +171,12 @@ impl MitreTactic {
     }
 }
 
+impl Default for PurpleTeamManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PurpleTeamManager {
     pub fn new() -> Self {
         let technique_db = vec![

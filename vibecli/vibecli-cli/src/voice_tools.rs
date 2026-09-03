@@ -100,22 +100,7 @@ const OPEN_CLAUSE: &str =
 
 fn change_contract(may_change: bool) -> &'static str {
     if may_change {
-        concat!(
-            "\n\nYou can look at the project, and you can change it — but a change is asked \
-             for out loud and the user has to agree before it happens. To use a tool, reply \
-             with ONE tool call and nothing else; it is not read aloud:\n\
-             <tool_call name=\"read_file\"><path>README.md</path></tool_call>\n\
-             <tool_call name=\"list_directory\"><path>src</path></tool_call>\n\
-             <tool_call name=\"search_files\"><query>fn main</query></tool_call>\n\
-             <tool_call name=\"write_file\"><path>src/main.rs</path><content>…</content></tool_call>\n\
-             Paths are relative to the project root. Read a file before rewriting it — \
-             write_file replaces the whole file, so anything you did not include is gone. \
-             You will be told whether the user agreed. If the workspace block above already \
-             answers, answer from it — every look is a pause the user hears. If it does not, \
-             look rather than saying you cannot tell: a question about what the project *is* \
-             is usually answered by its README. Never claim to have read or changed a file \
-             you did not."
-        )
+        "\n\nYou can look at the project, and you can change it — but a change is asked for out loud and the user has to agree before it happens. To use a tool, reply with ONE tool call and nothing else; it is not read aloud:\n<tool_call name=\"read_file\"><path>README.md</path></tool_call>\n<tool_call name=\"list_directory\"><path>src</path></tool_call>\n<tool_call name=\"search_files\"><query>fn main</query></tool_call>\n<tool_call name=\"write_file\"><path>src/main.rs</path><content>…</content></tool_call>\nPaths are relative to the project root. Read a file before rewriting it — write_file replaces the whole file, so anything you did not include is gone. You will be told whether the user agreed. If the workspace block above already answers, answer from it — every look is a pause the user hears. If it does not, look rather than saying you cannot tell: a question about what the project *is* is usually answered by its README. Never claim to have read or changed a file you did not."
     } else {
         read_only_contract()
     }

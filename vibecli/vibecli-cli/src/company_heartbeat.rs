@@ -272,6 +272,36 @@ fn row_to_run(row: &rusqlite::Row) -> rusqlite::Result<HeartbeatRun> {
     })
 }
 
+impl HeartbeatRun {
+    pub fn summary_line(&self) -> String {
+        let status_icon = match self.status {
+            HeartbeatStatus::Running => "▶",
+            HeartbeatStatus::Completed => "✓",
+            HeartbeatStatus::Failed => "✗",
+        };
+        let duration = match self.finished_at {
+            Some(end) => {
+                let ms = end.saturating_sub(self.started_at);
+                if ms < 1000 {
+                    format!("{}ms", ms)
+                } else {
+                    format!("{:.1}s", ms as f64 / 1000.0)
+                }
+            }
+            None => "running".to_string(),
+        };
+        format!(
+            "{} [{}] {}  agent:{}  {}  [{}]",
+            status_icon,
+            self.trigger.as_str(),
+            duration,
+            &self.agent_id[..8.min(self.agent_id.len())],
+            self.summary.as_deref().unwrap_or(""),
+            &self.id[..8.min(self.id.len())]
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -482,35 +512,5 @@ mod tests {
         let run = store.trigger_manual("co1", "ag1").unwrap();
         assert_eq!(run.trigger, HeartbeatTrigger::Manual);
         assert_eq!(run.status, HeartbeatStatus::Running);
-    }
-}
-
-impl HeartbeatRun {
-    pub fn summary_line(&self) -> String {
-        let status_icon = match self.status {
-            HeartbeatStatus::Running => "▶",
-            HeartbeatStatus::Completed => "✓",
-            HeartbeatStatus::Failed => "✗",
-        };
-        let duration = match self.finished_at {
-            Some(end) => {
-                let ms = end.saturating_sub(self.started_at);
-                if ms < 1000 {
-                    format!("{}ms", ms)
-                } else {
-                    format!("{:.1}s", ms as f64 / 1000.0)
-                }
-            }
-            None => "running".to_string(),
-        };
-        format!(
-            "{} [{}] {}  agent:{}  {}  [{}]",
-            status_icon,
-            self.trigger.as_str(),
-            duration,
-            &self.agent_id[..8.min(self.agent_id.len())],
-            self.summary.as_deref().unwrap_or(""),
-            &self.id[..8.min(self.id.len())]
-        )
     }
 }

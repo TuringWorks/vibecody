@@ -177,7 +177,7 @@ impl InlineDiffSession {
             .iter()
             .filter(|h| h.decision == HunkDecision::Accepted)
             .collect();
-        accepted_hunks.sort_by(|a, b| b.start_line.cmp(&a.start_line));
+        accepted_hunks.sort_by_key(|b| std::cmp::Reverse(b.start_line));
 
         let mut line_delta: i64 = 0;
         for hunk in accepted_hunks {

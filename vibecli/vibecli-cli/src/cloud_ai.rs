@@ -1514,19 +1514,15 @@ impl CloudClient {
 /// How the router picks among configured backends.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "policy", rename_all = "snake_case")]
+#[derive(Default)]
 pub enum RoutePolicy {
     /// Try backends in the given order, first ready one wins.
     Ordered { order: Vec<String> },
     /// Cheapest configured `price_per_mtok` first.
     Cheapest,
     /// Catalog order.
+    #[default]
     FirstReady,
-}
-
-impl Default for RoutePolicy {
-    fn default() -> Self {
-        Self::FirstReady
-    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -2420,8 +2416,8 @@ Cloud AI backends — serving, training, eval and routing.
 fn cli_list() -> anyhow::Result<()> {
     let catalog = Catalog::load()?;
     println!(
-        "{:<15} {:<34} {:<12} {}",
-        "ID", "PROVIDER", "STAGES", "ENDPOINTS VERIFIED"
+        "{:<15} {:<34} {:<12} ENDPOINTS VERIFIED",
+        "ID", "PROVIDER", "STAGES"
     );
     println!("{}", "-".repeat(96));
     for b in &catalog.backends {

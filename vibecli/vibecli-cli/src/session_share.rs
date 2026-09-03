@@ -897,7 +897,7 @@ mod tests {
         assert!(payload.contains(r#""public":false"#));
         assert!(payload.contains(r#""session-test.html""#));
         assert!(payload.contains(r#""content""#));
-        assert!(payload.contains("&lt;html/&gt;") == false); // content is JSON-escaped, not HTML-escaped
+        assert!(!payload.contains("&lt;html/&gt;")); // content is JSON-escaped, not HTML-escaped
     }
 
     #[test]

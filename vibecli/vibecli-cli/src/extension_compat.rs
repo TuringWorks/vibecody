@@ -839,7 +839,7 @@ mod tests {
     fn sample_extension(id: &str) -> VsCodeExtension {
         VsCodeExtension {
             id: id.to_string(),
-            name: id.split('.').last().unwrap_or(id).to_string(),
+            name: id.split('.').next_back().unwrap_or(id).to_string(),
             publisher: id.split('.').next().unwrap_or("test").to_string(),
             version: "1.0.0".to_string(),
             description: "Test extension".to_string(),

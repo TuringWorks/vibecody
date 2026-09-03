@@ -12,7 +12,7 @@
 //! back to a provider the daemon can actually build. Ollama is served
 //! separately by the endpoint (live `/api/tags` locals + [`OLLAMA_CHAT_MODELS`]
 //! + `providers::ollama::OLLAMA_CLOUD_MODELS`), so it is intentionally absent
-//! from [`PROVIDER_MODELS`].
+//!   from [`PROVIDER_MODELS`].
 
 /// Ollama chat models addressable via a local pull or ollama.com. Excludes the
 /// `*-cloud` datacenter models, which live in
@@ -110,11 +110,19 @@ const CLAUDE: &[&str] = &[
 // `gpt-5` removed: its only snapshot, gpt-5-2025-08-07, was deprecated
 // 2026-06-11 with an API shutdown on 2026-12-11.
 //
-// gpt-4o / gpt-4o-mini / gpt-4.1 / gpt-4.1-mini removed as superseded, not as
-// broken — OpenAI's deprecation table still lists them Active on the API even
-// though they left ChatGPT on 2026-02-13. They are two generations behind every
-// other entry here and the model guidance routes all four to the 5.6 family.
-// gpt-4.1-nano, by contrast, *is* deprecated (shutdown 2026-10-23).
+// gpt-4o / gpt-4o-mini / gpt-4.1 / gpt-4.1-mini are kept, at the end of the
+// list. They are two generations behind everything above and OpenAI's model
+// guidance routes all four to the 5.6 family, but the deprecation table still
+// lists them **Active on the API** — leaving ChatGPT on 2026-02-13 retired them
+// from the consumer product, not from here. This file's job is to drop ids that
+// fail, not ids that are merely old, so "superseded" is not grounds for removal
+// while the API still answers. They were briefly cut in the 2026-09-02 sweep and
+// restored the same day.
+//
+// Their neighbours in that generation are a different matter and stay out:
+// gpt-4.1-nano, gpt-4-turbo and gpt-3.5-turbo are deprecated with an API
+// shutdown on 2026-10-23, and gpt-5's only snapshot (gpt-5-2025-08-07) shuts
+// down 2026-12-11. Re-check the four below when OpenAI dates them.
 const OPENAI: &[&str] = &[
     "gpt-5.6-sol",
     "gpt-5.6-terra",
@@ -125,6 +133,10 @@ const OPENAI: &[&str] = &[
     "gpt-5.4-mini",
     "gpt-5.3-codex",
     "gpt-5.3-chat",
+    "gpt-4.1",
+    "gpt-4.1-mini",
+    "gpt-4o",
+    "gpt-4o-mini",
 ];
 
 // Swept 2026-09-02 against ai.google.dev/gemini-api/docs/models and
@@ -441,7 +453,10 @@ mod tests {
             "clients send `name` verbatim, so it must be the API's own id"
         );
         for name in POOLSIDE {
-            assert!(name.starts_with("poolside/"), "`{name}` would be rejected bare");
+            assert!(
+                name.starts_with("poolside/"),
+                "`{name}` would be rejected bare"
+            );
         }
     }
 
@@ -473,7 +488,10 @@ mod tests {
             composed_id("groq", "openai/gpt-oss-120b"),
             "groq/openai/gpt-oss-120b"
         );
-        assert_eq!(composed_id("claude", "claude-opus-5"), "claude/claude-opus-5");
+        assert_eq!(
+            composed_id("claude", "claude-opus-5"),
+            "claude/claude-opus-5"
+        );
 
         for (provider, names) in PROVIDER_MODELS {
             for name in *names {

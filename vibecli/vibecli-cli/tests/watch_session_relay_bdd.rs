@@ -52,7 +52,7 @@ fn given_string(_world: &mut RelayWorld, _s: String, _len: u32) {
 #[given(expr = "a string of {int} repeated {string} characters")]
 fn given_repeated_string(world: &mut RelayWorld, count: u32, ch: String) {
     let c = ch.chars().next().unwrap_or('a');
-    world.input_str = std::iter::repeat(c).take(count as usize).collect();
+    world.input_str = std::iter::repeat_n(c, count as usize).collect();
 }
 
 #[given(expr = "an SSE payload with type {string} and text {string}")]
@@ -281,7 +281,7 @@ fn then_replay_fails(world: &mut RelayWorld, needle: String) {
         .as_ref()
         .unwrap()
         .check_and_record(&nonce, ts);
-    let err = result.err().expect("expected replay error");
+    let err = result.expect_err("expected replay error");
     assert!(
         err.to_string().contains(&needle),
         "expected '{}' in: {}",

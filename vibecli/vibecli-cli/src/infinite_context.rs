@@ -1687,7 +1687,7 @@ mod tests {
 
     #[test]
     fn test_chunk_type_variants() {
-        let types = vec![
+        let types = [
             ChunkType::FileContent,
             ChunkType::Summary,
             ChunkType::Symbol,

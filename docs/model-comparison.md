@@ -5,7 +5,7 @@ permalink: /model-comparison/
 ---
 
 > A practical guide to picking the right model for the job across every provider VibeCody supports.
-> Last updated: **2026-05-08**.
+> Last updated: **2026-09-02** (deprecated-model sweep across every provider table).
 >
 > **Caveat**: model leaderboards shift weekly. Treat the strength/weakness blurbs as a *shape* of each model's bias (what it was trained for), not a final benchmark verdict. When in doubt, run the same prompt through two candidates side-by-side in VibeCoder's MultiModel panel.
 
@@ -43,32 +43,32 @@ The "right" pick depends on what you're doing. Use this matrix as a starting poi
 
 | Tier | Cloud-hosted | Open-weights (Ollama Cloud) | Local pull |
 |---|---|---|---|
-| **Flagship** | Claude Sonnet 4.6, gpt-5.3-codex | devstral-2 (123B) | devstral-small-2 |
-| **Strong** | gpt-5.5, GPT-4.1 | qwen3-coder | qwen2.5-coder:7b |
-| **Cheap/fast** | Claude Haiku 4.5, gpt-5.3-codex-spark, gpt-4.1-mini | ministral-3, devstral-small-2 | qwen2.5-coder:1.5b |
+| **Flagship** | Claude Sonnet 5, gpt-5.6-sol, gpt-5.3-codex | devstral-2 (123B) | devstral-small-2 |
+| **Strong** | Claude Sonnet 4.6, gpt-5.5 | qwen3-coder | qwen2.5-coder:7b |
+| **Cheap/fast** | Claude Haiku 4.5, gpt-5.6-luna | ministral-3, devstral-small-2 | qwen2.5-coder:1.5b |
 
 ### One-shot reasoning, math, hard algorithms
 
 | Tier | Cloud-hosted | Open-weights | Local pull |
 |---|---|---|---|
-| **Flagship** | Claude Opus 4.7, gpt-5.5, o3 | nemotron-3-super, deepseek-v4-pro | deepseek-r1:14b |
-| **Strong** | Gemini 3.1 Pro, gpt-4.1 | glm-5.1, magistral | qwq:32b |
-| **Cheap** | o4-mini, gpt-4.1-mini | nemotron-3-nano | phi4-reasoning |
+| **Flagship** | Claude Fable 5.1, Claude Opus 5, gpt-5.6-sol | nemotron-3-super, deepseek-v4-pro | deepseek-r1:14b |
+| **Strong** | gemini-3.1-pro-preview, gpt-5.5 | glm-5.1, magistral | qwq:32b |
+| **Cheap** | gpt-5.6-luna, Claude Haiku 4.5 | nemotron-3-nano | phi4-reasoning |
 
 ### Long context (≥200k tokens)
 
 | Tier | Provider · Model |
 |---|---|
-| **Flagship** | Gemini 3.1 Pro (1M+), gpt-5.5 (1M), Claude Sonnet 4.6 (200k) |
-| **Strong** | gpt-4.1 (1M), Grok-3 (256k) |
+| **Flagship** | gemini-3.1-pro-preview (1M+), gpt-5.6-sol (922k in), Claude Opus 5 (1M) |
+| **Strong** | gemini-3.6-flash (1M+), grok-4.3 (1M) |
 | **Open** | qwen3-next, llama4 (variable) |
 
 ### Vision (image input)
 
 | Tier | Provider · Model |
 |---|---|
-| **Flagship** | Gemini 3.1 Pro, gpt-5.5, Claude Sonnet 4.6 |
-| **Strong** | GPT-4o, Grok-3, gpt-4.1 |
+| **Flagship** | gemini-3.1-pro-preview, gpt-5.6-sol, Claude Sonnet 5 |
+| **Strong** | gemini-3.6-flash, grok-4.6, gpt-5.5 |
 | **Open** | qwen3-coder (vision variant), llama4 vision |
 | **Local** | llama3.2-vision, gemma3 |
 
@@ -76,7 +76,7 @@ The "right" pick depends on what you're doing. Use this matrix as a starting poi
 
 | Tier | Provider · Model |
 |---|---|
-| **Cloud** | Claude Haiku 4.5, gpt-5.3-codex-spark, gpt-4.1-mini, Gemini 2.5 Flash, Grok-3-mini |
+| **Cloud** | Claude Haiku 4.5, gpt-5.6-luna, gemini-3.5-flash-lite |
 | **Open cloud** | ministral-3, devstral-small-2, gemma4 |
 | **Local** | phi4-mini, llama3.2:3b, qwen2.5:1.5b |
 
@@ -92,7 +92,7 @@ The "right" pick depends on what you're doing. Use this matrix as a starting poi
 | Tier | Provider · Model |
 |---|---|
 | **Native** | Perplexity Sonar Pro, Sonar Reasoning |
-| **With tools** | gpt-4.1 + browser tool, Claude Sonnet 4.7 + web tool |
+| **With tools** | gpt-5.6-sol + browser tool, Claude Sonnet 5 + web tool |
 
 ---
 
@@ -106,14 +106,22 @@ Three-tier family — Opus (deepest reasoning), Sonnet (balanced workhorse), Hai
 
 | Model | Ctx | Tools | Vision | Reasoning | Notes |
 |---|---|---|---|---|---|
+| claude-fable-5-1 | 1M | ✅ | ✅ | ✅ | Most capable widely released model |
 | claude-opus-5 | 1M | ✅ | ✅ | ✅ | Flagship reasoning + agent default |
+| claude-fable-5 | 1M | ✅ | ✅ | ✅ | Previous Fable release |
 | claude-sonnet-5 | 1M | ✅ | ✅ | ✅ | Current Sonnet — near-Opus coding at Sonnet cost |
 | claude-haiku-4-5 | 200k | ✅ | ✅ | ✅ | Current Haiku — cheap/fast tool calls + classification |
 | claude-opus-4-8 | 1M | ✅ | ✅ | ✅ | Previous-gen Opus |
 | claude-opus-4-7 | 1M | ✅ | ✅ | ✅ | Older Opus |
 | claude-opus-4-6 | 1M | ✅ | ✅ | ✅ | Older Opus |
 | claude-sonnet-4-6 | 1M | ✅ | ✅ | ✅ | Previous-gen Sonnet |
-| claude-sonnet-4-5 | 200k | ✅ | ✅ | ✅ | Older Sonnet |
+
+Every row above is marked `Active` on Anthropic's own model-status table, checked
+2026-09-02. `claude-fable-5-1` was added that day; `claude-sonnet-4-5` was dropped
+the same day — still Active, but its tentative retirement is "not sooner than
+2026-09-29", inside a release cycle. `claude-haiku-4-5` is the next shortest
+runway (not sooner than 2026-10-15) and stays only because it is Anthropic's sole
+cheap tier.
 
 `claude-3-5-sonnet-20241022` was dropped on 2026-08-05 — Anthropic retired it on
 2025-10-28 and it now 404s. Retired alongside it: Claude 3 Opus (2026-01-05),
@@ -127,26 +135,45 @@ Claude 3.5 Haiku and Claude 3.7 Sonnet (both 2026-02-19).
 
 ### `claude-code` (local Claude Code CLI passthrough)
 
-Same Anthropic models (Opus 5, Sonnet 5, Haiku 4.5), but billed against the user's Claude.ai Free/Pro/Max/Team/Enterprise plan instead of API credits. Same capabilities; payment shape differs.
+Same Anthropic models (Fable 5.1, Opus 5, Sonnet 5, Haiku 4.5, …), but billed against the user's Claude.ai Free/Pro/Max/Team/Enterprise plan instead of API credits. Same capabilities; payment shape differs.
 
 ### OpenAI (`openai`)
 
-As of August 2026: the **GPT-5.6 line** (`-sol`, `-terra`, `-luna`, each with a `-pro` variant) is the current flagship family with built-in adaptive reasoning; **GPT-5.5 / 5.4** remain as cheaper previous flagships; the **codex variants** (gpt-5.3-codex) are coding-tuned for agent loops; the **GPT-4 line** (gpt-4o, gpt-4.1) remains for compatibility and long-context cases. VibeCody's default is `gpt-5.6-sol`. The o-line (o3, o3-mini, o4-mini) and gpt-4-turbo were dropped from the picker on 2026-08-05.
+As of September 2026: the **GPT-5.6 line** (`-sol`, `-terra`, `-luna`) is the current flagship family with built-in adaptive reasoning; **GPT-5.5 / 5.4** remain as cheaper previous flagships; the **codex variant** (gpt-5.3-codex) is coding-tuned for agent loops. VibeCody's default is `gpt-5.6-sol`. The o-line (o3, o3-mini, o4-mini) and gpt-4-turbo were dropped from the picker on 2026-08-05.
+
+> **There is no `gpt-5.6-*-pro` model id.** This page and the picker both listed
+> `gpt-5.6-sol-pro`, `gpt-5.6-terra-pro` and `gpt-5.6-luna-pro` until 2026-09-02.
+> "Pro" on the 5.6 family is a *request parameter* — `reasoning.mode: "pro"` on
+> the Responses API — not a separate model; OpenAI's own deprecation table spells
+> the replacement for `gpt-5-pro-2025-10-06` as "gpt-5.6-sol (reasoning.mode:
+> pro)". The three ids could only ever 404. `gpt-5.5-pro` is real: the separate
+> `-pro` id was retired *with* the 5.6 generation, not before it.
+
+> **The GPT-4 line stays in the picker.** `gpt-4o`, `gpt-4o-mini`, `gpt-4.1` and
+> `gpt-4.1-mini` are two generations behind the rest of the table and OpenAI's
+> model guidance routes all four to the 5.6 family — but they are still callable,
+> and OpenAI lists all four Active. Leaving ChatGPT on 2026-02-13 retired them
+> from the consumer product, not from the API. They were cut in the 2026-09-02
+> sweep as "superseded" and restored the same day: this page drops ids that fail,
+> not ids that are merely old.
+>
+> Their neighbours in that generation are genuinely gone. `gpt-4.1-nano`,
+> `gpt-4-turbo` and `gpt-3.5-turbo` are deprecated with an API shutdown on
+> 2026-10-23. `gpt-5` went with them: its only snapshot, `gpt-5-2025-08-07`, was
+> deprecated 2026-06-11 and shuts down 2026-12-11.
 
 | Model | Ctx | Tools | Vision | Reasoning | Notes |
 |---|---|---|---|---|---|
-| gpt-5.6-sol | 1M | ✅ | ✅ | ✅ | Current flagship — default in VibeCody |
-| gpt-5.6-sol-pro | 1M | ✅ | ✅ | ✅ | Highest-effort `sol` variant |
-| gpt-5.6-terra / -pro | 1M | ✅ | ✅ | ✅ | Sibling 5.6 tuning |
-| gpt-5.6-luna / -pro | 1M | ✅ | ✅ | ✅ | Sibling 5.6 tuning |
+| gpt-5.6-sol | 1.05M (922k in) | ✅ | ✅ | ✅ | Current flagship — default in VibeCody |
+| gpt-5.6-terra | 1M | ✅ | ✅ | ✅ | Balanced 5.6 tier |
+| gpt-5.6-luna | 1M | ✅ | ✅ | ✅ | Cheapest 5.6 tier |
 | gpt-5.5-pro | 1M | ✅ | ✅ | ✅ | Previous flagship, high effort |
 | gpt-5.5 | 1M | ✅ | ✅ | ✅ | Previous flagship |
 | gpt-5.4 | 1M | ✅ | ✅ | ✅ | Older flagship; cheaper |
 | gpt-5.4-mini | 1M | ✅ | ✅ | ⚠️ | Cheap 5.4 variant |
 | gpt-5.3-codex | 200k | ✅ | ❌ | ✅ | Coding-tuned, agent-loop optimised |
 | gpt-5.3-chat | 200k | ✅ | ✅ | ⚠️ | Chat-tuned 5.3 |
-| gpt-5 | 1M | ✅ | ✅ | ✅ | First GPT-5 release; kept for reproducibility |
-| gpt-4.1 | 1M | ✅ | ✅ | ❌ | Long-context GPT-4 flagship |
+| gpt-4.1 | 1M | ✅ | ✅ | ❌ | Long-context GPT-4 flagship; non-reasoning baseline |
 | gpt-4.1-mini | 1M | ✅ | ✅ | ❌ | Fast long-context |
 | gpt-4o | 128k | ✅ | ✅ | ❌ | Workhorse multimodal, omni input/output |
 | gpt-4o-mini | 128k | ✅ | ✅ | ❌ | Fast/cheap variant |
@@ -155,29 +182,42 @@ As of August 2026: the **GPT-5.6 line** (`-sol`, `-terra`, `-luna`, each with a 
 
 **gpt-5.3-codex** — Coding-specialised GPT-5 variant; tuned for multi-step file edits, run-and-fix loops, and tool-heavy agent flows. Pick this over `gpt-5.6-sol` when the workload is overwhelmingly code-editing.
 
-**gpt-4.1** — Still useful when you need a non-reasoning baseline at low cost or want to A/B against GPT-5 outputs. 1M-token context retrieves well. For new work, default to a GPT-5 entry instead.
+**gpt-5.6-luna** — The cheap tier of the current family ($0.20 / $1.20 per MTok at short context, list, 2026-09-02). Prefer it over `gpt-4o-mini` / `gpt-4.1-mini` for high-volume classification and routing on new work.
+
+**gpt-4.1** — Still useful when you want a non-reasoning baseline at low cost, or an A/B against a GPT-5 output. 1M-token context retrieves well. For new work, default to a GPT-5 entry instead — and note it has no dated retirement, which is not the same as a commitment to keep it.
 
 ### Google Gemini (`gemini`)
 
-Long context is the headline (1M+ across the line). The Gemini 3 generation (released Q1 2026) is competitive with GPT-5-class models on most general tasks and remains best-in-class for long-context retrieval. The 2.5 line stays in the picker for cost-sensitive workloads. VibeCody's default is `gemini-3.6-flash`. The 2.0 line was dropped from the picker on 2026-08-05.
+Long context is the headline (1M+ across the line). The Gemini 3 generation (released Q1 2026) is competitive with GPT-5-class models on most general tasks and remains best-in-class for long-context retrieval. VibeCody's default is `gemini-3.6-flash`. The 2.0 line was dropped from the picker on 2026-08-05; the 2.5 line followed on 2026-09-02.
 
 > **`gemini-3.5-pro` is not in the picker, because it has never shipped.** Google announced it at I/O on 2026-05-19 and it has slipped three times; as of August 2026 it remains a limited Vertex AI preview for selected enterprise customers, absent from the consumer Gemini app and AI Studio. This page previously listed it as the current flagship and as VibeCody's default — both were wrong, written from a projected release date. Corrected 2026-08-10.
 
 | Model | Ctx | Tools | Vision | Reasoning | Notes |
 |---|---|---|---|---|---|
-| gemini-3.6-flash | 1M+ | ✅ | ✅ | ✅ | Newest flash tier — **default in VibeCody** |
+| gemini-3.8-flash | 1M+ | ✅ | ✅ | ✅ | Newest flash tier (2026-09-02) |
+| gemini-3.7-flash | 1M+ | ✅ | ✅ | ✅ | Previous flash (2026-08-13) |
+| gemini-3.6-flash | 1M+ | ✅ | ✅ | ✅ | **Default in VibeCody** |
 | gemini-3.5-flash | 1M+ | ✅ | ✅ | ⚠️ | Cheap workhorse |
 | gemini-3.5-flash-lite | 1M+ | ✅ | ❌ | ❌ | Cheapest tier |
-| gemini-3.1-pro | 1M+ | ✅ | ✅ | ✅ | Previous flagship |
-| gemini-3-pro | 1M+ | ✅ | ✅ | ✅ | Initial Gemini 3 release; kept for reproducibility |
-| gemini-2.5-pro | 1M | ✅ | ✅ | ✅ | Previous-gen long-context flagship |
-| gemini-2.5-flash | 1M | ✅ | ✅ | ⚠️ | Previous-gen cheap workhorse |
+| gemini-3.1-flash-lite | 1M+ | ✅ | ❌ | ❌ | Cheapest tier, prior gen |
+| gemini-3.1-pro-preview | 1M+ | ✅ | ✅ | ✅ | Current Pro tier — still preview |
 
-**gemini-3.6-flash** — the current default for the Gemini provider (shipped 2026-07-21). Google's workhorse tier: roughly 17% fewer output tokens than the model it replaced, with tools, vision, and reasoning across a 1M+ window. Tool calling caught up to Claude/GPT-5 with the 3.x line; argument-shape hallucinations on complex tools have largely cleared. For the deepest long-context work, `gemini-3.1-pro` remains the strongest *shipped* Pro-tier option in the picker.
+> **The Pro tier has no GA id, and this page had the wrong one twice.** After
+> `gemini-3.5-pro` was removed on 2026-08-10 for never having shipped, the
+> 2026-09-02 sweep found `gemini-3.1-pro` and `gemini-3-pro` here and in the
+> picker — neither is a callable model code. Google ships the current Pro as
+> `gemini-3.1-pro-preview`, and `gemini-3-pro-preview` is already in the
+> deprecated/shut-down table. The `-preview` suffix is load-bearing: an id
+> written the way the marketing name reads is not an id.
 
-**gemini-2.5-pro** — Still a strong long-context option at lower cost than 3.1 Pro. Use when you need depth on a long input but don't need the latest reasoning quality.
+> **The 2.5 line left the picker on 2026-09-02.** A newly created GCP project
+> gets `404 … no longer available to new users` for `gemini-2.5-pro`, so for most
+> callers it is already retired ahead of its published date, and the whole 2.5
+> line goes no earlier than 2026-10-16.
 
-**gemini-2.5-flash** — Sub-second time-to-first-token, supports tools and vision, costs roughly 10× less than Pro. Good for chat-style use and high-volume tool-calling agents.
+**gemini-3.6-flash** — the current default for the Gemini provider (shipped 2026-07-21). Google's workhorse tier: roughly 17% fewer output tokens than the model it replaced, with tools, vision, and reasoning across a 1M+ window. Tool calling caught up to Claude/GPT-5 with the 3.x line; argument-shape hallucinations on complex tools have largely cleared. The default stays here rather than on 3.8/3.7 until those two have a track record.
+
+**gemini-3.1-pro-preview** — the strongest Gemini in the picker for deep long-context work, at $2 / $12 per MTok for prompts ≤200k (list, 2026-09-02). Being a preview id, it can move without a deprecation window — pin deliberately.
 
 ### xAI Grok (`grok`)
 
@@ -185,13 +225,16 @@ Strong on real-time / news-aware tasks (it has live X data feed integration on t
 
 | Model | Ctx | Tools | Vision | Reasoning | Notes |
 |---|---|---|---|---|---|
-| grok-4.5 | 256k | ✅ | ✅ | ✅ | Flagship — VibeCody default |
-| grok-4.3 | 256k | ✅ | ✅ | ✅ | Previous gen |
-| grok-4.20 | 256k | ✅ | ✅ | ✅ | Older 4.x |
+| grok-4.6 | 500k | ✅ | ✅ | ✅ | Flagship (2026-08-12) — VibeCody default |
+| grok-4.5 | 256k | ✅ | ✅ | ✅ | Previous flagship |
+| grok-4.3 | 1M | ✅ | ✅ | ✅ | Previous gen |
 
-The grok-3 and grok-2 entries were dropped on 2026-08-05 — superseded by the 4.x line.
+The grok-3 and grok-2 entries were dropped on 2026-08-05 — superseded by the 4.x
+line, and requests to them redirect to grok-4.3. Bare `grok-4.20` was dropped on
+2026-09-02: docs.x.ai lists no such id — that generation is addressed as
+`grok-4.20-0309-reasoning` / `-non-reasoning`.
 
-**grok-4.5** — Useful when the task involves recent events, market data, or code where the relevant docs were published in the last few months — it tends to be more current than rivals. Coding capability roughly between gpt-4o and gpt-4.1. Tool calling works but the JSON schema adherence is fussier than Claude's.
+**grok-4.6** — Useful when the task involves recent events, market data, or code where the relevant docs were published in the last few months — it tends to be more current than rivals. Tool calling works but the JSON schema adherence is fussier than Claude's.
 
 ### Mistral (`mistral`)
 
@@ -214,13 +257,15 @@ Chinese provider; very strong reasoning (R1) and aggressively cheap pricing. Not
 |---|---|---|---|---|---|
 | deepseek-v4-pro | 128k | ✅ | ❌ | ✅ | Current flagship (MIT, 2026-04-24) |
 | deepseek-v4-flash | 128k | ✅ | ❌ | ⚠️ | Cheaper/faster V4 |
-| deepseek-chat | 128k | ✅ | ❌ | ❌ | General workhorse |
-| deepseek-reasoner | 128k | ✅ | ❌ | ✅ | R1-class reasoning |
 
 `deepseek-coder` was dropped on 2026-08-05 (folded into the chat line), as was
 the bare `deepseek-v4` id — the shipped pair is `-pro` / `-flash`.
+`deepseek-chat` and `deepseek-reasoner` were dropped on 2026-09-02: DeepSeek
+retired both legacy names on 2026-07-24 and its model-list endpoint now returns
+only the v4 pair. `deepseek-chat` had also been this provider's default model, so
+every unconfigured DeepSeek call was aimed at a retired id.
 
-**deepseek-reasoner** — Strong at math and algorithmic reasoning; meaningfully cheaper than o3 for similar quality on bench tasks. Tool calling support is recent and a bit rough; verify your function schemas round-trip cleanly before relying on it for agent loops.
+**deepseek-v4-pro** — Strong at math and algorithmic reasoning at a fraction of frontier pricing. Tool calling is solid on the v4 line; verify your function schemas round-trip cleanly before relying on it for long agent loops.
 
 ### Cerebras (`cerebras`)
 
@@ -264,13 +309,14 @@ Same shape as Together — inference-only, open-weights focus.
 
 | Model | Ctx | Tools | Vision | Reasoning | Notes |
 |---|---|---|---|---|---|
-| accounts/fireworks/models/llama-v3p3-70b-instruct | 128k | ⚠️ | ❌ | ❌ | Llama 3.3 default |
-| accounts/fireworks/models/mixtral-8x7b-instruct | 32k | ⚠️ | ❌ | ❌ | Older Mixtral |
+| accounts/fireworks/models/gpt-oss-120b | 128k | ✅ | ❌ | ✅ | Default; what Llama 3.3 was migrated to |
+| accounts/fireworks/models/minimax-m3 | 1M | ✅ | ✅ | ✅ | 1M context + multimodal |
 
-> ⚠️ **Not verified in the 2026-08-05 sweep.** Both ids predate the Mixtral-era
-> lineup and are likely stale, but Fireworks' catalog was not checked against a
-> live source, so they were left as-is rather than replaced with guesses.
-> Same caveat applies to `sambanova`, `azure_openai`, and `copilot`.
+The two previous entries were replaced on 2026-09-02. Fireworks pulled its Llama
+models from serverless after 2026-05-14 — `llama-v3p3-70b-instruct` was migrated
+to `gpt-oss-120b` — and the Mixtral endpoints went with them. Fireworks serves a
+large rotating catalogue; `GET /v1/models` on your account is the authority and
+the picker accepts a typed id.
 
 ### OpenRouter (`openrouter`)
 
@@ -302,8 +348,17 @@ Enterprise Azure-region-pinned OpenAI deployments. Same models as `openai` but b
 
 | Model | Notes |
 |---|---|
-| gpt-4o | Standard 4o on Azure |
-| gpt-4-turbo | Older; kept for compliance reproducibility |
+| gpt-5.6-sol | Current flagship — VibeCody default |
+| gpt-5.6-terra | Balanced tier |
+| gpt-5.6-luna | Cheapest tier |
+| gpt-5.5 | Previous flagship |
+| gpt-5.4 | Older flagship |
+
+Azure deployment names are chosen by whoever created the deployment, so this is a
+hint list of what Foundry currently offers rather than a claim about your
+resource. `gpt-4o` and `gpt-4-turbo` were dropped on 2026-09-02: gpt-4-turbo
+retired long ago, gpt-4o retires on Foundry 2026-10-01, and gpt-4o-mini went
+2026-03-31.
 
 ### Amazon Bedrock (`bedrock`)
 
@@ -323,11 +378,24 @@ your region, pin an older entry from the table above.
 
 ### GitHub Copilot (`copilot`)
 
-Copilot's chat back-end uses gpt-4o-class models. We expose it as a provider for users on Copilot Business/Enterprise who want to channel chat through that quota.
+Copilot brokers models from OpenAI, Anthropic, Google, xAI and Microsoft. We expose it as a provider for users on Copilot Business/Enterprise who want to channel chat through that quota.
 
 | Model | Notes |
 |---|---|
-| gpt-4o | Routed via the Copilot endpoint |
+| gpt-5.6-sol | Current flagship — VibeCody default |
+| gpt-5.6-terra | Balanced tier |
+| gpt-5.6-luna | Cheapest tier |
+| gpt-5.5 | Previous flagship |
+| gpt-5.4 | Older flagship |
+| gpt-5.4-mini | Cheap tier |
+| gpt-5.3-codex | Coding-tuned |
+
+Only the OpenAI ids are listed. Copilot also brokers Claude, Gemini and Grok, but
+its slugs for those are not the vendors' own (it spells them
+`claude-opus-4.1`-style) and this table ships no id it has not verified. `GET
+/models` on `api.githubcopilot.com` is the authority for a given account, and the
+picker accepts a typed id. `gpt-4o` was dropped on 2026-09-02 — superseded, and
+it had been the provider default.
 
 ### Ollama (`ollama`)
 
@@ -448,11 +516,20 @@ Chinese provider.
 
 ### SambaNova (`sambanova`)
 
-Inference-only, similar shape to Cerebras (fast Llama runs).
+Inference-only, similar shape to Cerebras — open weights on custom RDU hardware.
 
 | Model | Notes |
 |---|---|
-| Meta-Llama-3.3-70B-Instruct | Default |
+| DeepSeek-V3.2 | Default |
+| MiniMax-M3 | 1M context + multimodal |
+| MiniMax-M2.7 | Previous MiniMax |
+| gpt-oss-120b | OpenAI open-weights line |
+| gemma-4-31B-it | Google open weights |
+| Meta-Llama-3.3-70B-Instruct | SambaNova's most battle-tested model |
+
+Expanded on 2026-09-02. The Llama row is not deprecated — SambaNova still calls
+it its most battle-tested model — but it had been the only entry, which made the
+picker look like a one-model provider.
 
 ---
 

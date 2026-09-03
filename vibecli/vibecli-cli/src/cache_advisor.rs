@@ -413,9 +413,11 @@ mod tests {
 
     #[test]
     fn test_cache_efficiency_label() {
-        let mut s = CacheAdvisorySummary::default();
-        s.total_tokens = 100;
-        s.cacheable_tokens = 80;
+        let mut s = CacheAdvisorySummary {
+            total_tokens: 100,
+            cacheable_tokens: 80,
+            ..Default::default()
+        };
         assert_eq!(s.cache_efficiency_label(), "excellent");
         s.cacheable_tokens = 45;
         assert_eq!(s.cache_efficiency_label(), "good");

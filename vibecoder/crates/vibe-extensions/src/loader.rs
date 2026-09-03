@@ -64,21 +64,16 @@ pub const DEFAULT_EPOCH_INTERVAL: Duration = Duration::from_millis(100);
 /// and the loader either routes to Hyperlight or transparently falls
 /// back to Wasmtime, emitting a structured `extension.tier.downgrade`
 /// trace event so the recap pipeline sees the chosen tier.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ExtensionTier {
     /// Run in-process via Wasmtime. The current behavior; available
     /// on every supported platform.
+    #[default]
     Wasmtime,
     /// Try Hyperlight (KVM/mshv on Linux, WHP on Windows). If the
     /// host doesn't support Hyperlight or the H1 guest binary isn't
     /// installed yet, transparently fall back to Wasmtime.
     HyperlightIfAvailable,
-}
-
-impl Default for ExtensionTier {
-    fn default() -> Self {
-        ExtensionTier::Wasmtime
-    }
 }
 
 impl std::fmt::Display for ExtensionTier {
@@ -639,6 +634,34 @@ fn default_extension_dir() -> PathBuf {
         .join("extensions")
 }
 
+/// Validate a length the *guest* chose before it sizes a *host* allocation.
+///
+/// `len` is an `i32` under the extension's control, and `len as usize` trusts
+/// it twice over: a negative value wraps to something near `usize::MAX` (a
+/// capacity-overflow abort), and even an honest `i32::MAX` asks the host for
+/// 2 GiB on demand. The extension sandbox bounds fuel, epochs and *guest*
+/// memory, but none of that bounds a `Vec` allocated on the host's side of the
+/// call.
+///
+/// The bound is not arbitrary: a read cannot legitimately exceed the guest's
+/// own linear memory, because that is where the bytes would have to come from.
+fn checked_guest_len(store: impl AsContext, mem: &Memory, len: i32) -> Option<usize> {
+    // `try_from` rejects negatives; `as` would have wrapped them.
+    let len = usize::try_from(len).ok()?;
+    (len <= mem.data_size(store)).then_some(len)
+}
+
+fn wasm_read_str(caller: &mut Caller<HostState>, ptr: i32, len: i32) -> Option<String> {
+    let mem = match caller.get_export("memory") {
+        Some(Extern::Memory(m)) => m,
+        _ => return None,
+    };
+    let len = checked_guest_len(&*caller, &mem, len)?;
+    let mut buf = vec![0u8; len];
+    mem.read(caller, ptr as usize, &mut buf).ok()?;
+    String::from_utf8(buf).ok()
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -1064,32 +1087,4 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(&dir);
     }
-}
-
-/// Validate a length the *guest* chose before it sizes a *host* allocation.
-///
-/// `len` is an `i32` under the extension's control, and `len as usize` trusts
-/// it twice over: a negative value wraps to something near `usize::MAX` (a
-/// capacity-overflow abort), and even an honest `i32::MAX` asks the host for
-/// 2 GiB on demand. The extension sandbox bounds fuel, epochs and *guest*
-/// memory, but none of that bounds a `Vec` allocated on the host's side of the
-/// call.
-///
-/// The bound is not arbitrary: a read cannot legitimately exceed the guest's
-/// own linear memory, because that is where the bytes would have to come from.
-fn checked_guest_len(store: impl AsContext, mem: &Memory, len: i32) -> Option<usize> {
-    // `try_from` rejects negatives; `as` would have wrapped them.
-    let len = usize::try_from(len).ok()?;
-    (len <= mem.data_size(store)).then_some(len)
-}
-
-fn wasm_read_str(caller: &mut Caller<HostState>, ptr: i32, len: i32) -> Option<String> {
-    let mem = match caller.get_export("memory") {
-        Some(Extern::Memory(m)) => m,
-        _ => return None,
-    };
-    let len = checked_guest_len(&*caller, &mem, len)?;
-    let mut buf = vec![0u8; len];
-    mem.read(caller, ptr as usize, &mut buf).ok()?;
-    String::from_utf8(buf).ok()
 }

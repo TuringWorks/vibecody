@@ -377,7 +377,6 @@ static COMPILED_RULES: LazyLock<Vec<(&'static ContentRule, Regex)>> = LazyLock::
         .collect()
 });
 
-
 /// Values that look like a credential but are documentation.
 static PLACEHOLDER: LazyLock<Option<Regex>> = LazyLock::new(|| {
     Regex::new(r"example|placeholder|your[_-]?|xxx|changeme|change[_-]me|dummy|sample|redacted|todo|fake|insert[_-]|\.\.\.|<.+>|\$\{").ok()
@@ -392,11 +391,71 @@ static DOCKER_USER: LazyLock<Option<Regex>> =
 /// Extensions worth reading. Anything else is treated as opaque: its path may
 /// still carry a signal, but its bytes are never loaded.
 const TEXT_EXTENSIONS: &[&str] = &[
-    "rs", "ts", "tsx", "js", "jsx", "mjs", "cjs", "py", "go", "java", "kt", "kts", "swift", "rb",
-    "php", "cs", "scala", "clj", "ex", "exs", "dart", "lua", "pl", "r", "jl", "c", "cc", "cpp", "h",
-    "hpp", "m", "mm", "sh", "bash", "zsh", "fish", "ps1", "sql", "toml", "yaml", "yml", "json",
-    "jsonc", "md", "mdx", "rst", "txt", "tf", "tfvars", "hcl", "ini", "cfg", "conf", "properties",
-    "gradle", "xml", "html", "css", "scss", "vue", "svelte", "env", "example", "template", "nix",
+    "rs",
+    "ts",
+    "tsx",
+    "js",
+    "jsx",
+    "mjs",
+    "cjs",
+    "py",
+    "go",
+    "java",
+    "kt",
+    "kts",
+    "swift",
+    "rb",
+    "php",
+    "cs",
+    "scala",
+    "clj",
+    "ex",
+    "exs",
+    "dart",
+    "lua",
+    "pl",
+    "r",
+    "jl",
+    "c",
+    "cc",
+    "cpp",
+    "h",
+    "hpp",
+    "m",
+    "mm",
+    "sh",
+    "bash",
+    "zsh",
+    "fish",
+    "ps1",
+    "sql",
+    "toml",
+    "yaml",
+    "yml",
+    "json",
+    "jsonc",
+    "md",
+    "mdx",
+    "rst",
+    "txt",
+    "tf",
+    "tfvars",
+    "hcl",
+    "ini",
+    "cfg",
+    "conf",
+    "properties",
+    "gradle",
+    "xml",
+    "html",
+    "css",
+    "scss",
+    "vue",
+    "svelte",
+    "env",
+    "example",
+    "template",
+    "nix",
 ];
 
 /// Filenames with no extension that are still text worth reading.
@@ -484,8 +543,18 @@ fn test_region_start(haystack: &str) -> Option<usize> {
 /// Paths whose credential-shaped literals are fixtures or documentation.
 fn is_fixture_path(rel_lower: &str) -> bool {
     const MARKERS: &[&str] = &[
-        "test", "spec", "fixture", "mock", "example", "sample", "docs/", "doc/", "demo",
-        "__snapshots__", "benches/", "testdata",
+        "test",
+        "spec",
+        "fixture",
+        "mock",
+        "example",
+        "sample",
+        "docs/",
+        "doc/",
+        "demo",
+        "__snapshots__",
+        "benches/",
+        "testdata",
     ];
     MARKERS.iter().any(|m| rel_lower.contains(m))
 }
@@ -716,8 +785,7 @@ pub fn scan(root: &Path) -> ProjectFacts {
     // Both are `None` off a checkout: an audit file says "unknown", never a
     // plausible-looking commit nobody read.
     let git_commit = git_output(root, &["rev-parse", "HEAD"]).map(|s| s.trim().to_string());
-    let git_dirty =
-        git_output(root, &["status", "--porcelain"]).map(|s| !s.trim().is_empty());
+    let git_dirty = git_output(root, &["status", "--porcelain"]).map(|s| !s.trim().is_empty());
     let mut facts = ProjectFacts {
         root: root.display().to_string(),
         git_tracked: tracked.as_ref().map(|t| t.len()),
@@ -754,7 +822,9 @@ pub fn scan(root: &Path) -> ProjectFacts {
         let is_tracked = tracked
             .as_ref()
             .is_some_and(|t| t.contains(rel_lower.as_str()));
-        let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(u64::MAX);
+        let size = std::fs::metadata(&path)
+            .map(|m| m.len())
+            .unwrap_or(u64::MAX);
 
         // Committed credential files: keystores count on sight, PEM-shaped
         // files only when they actually hold a private key.
@@ -880,10 +950,12 @@ fn is_plausible_credential(original: &str, haystack: &str, re: &Regex) -> bool {
 /// - It draws on fewer than two of {lowercase, uppercase, digit}. Generated
 ///   credentials mix character classes; english-ish names do not.
 fn looks_like_a_secret(value: &str) -> bool {
-    let identifier = value
-        .split(['.', '_', '-'])
-        .all(|part| !part.is_empty() && part.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit()))
-        && value.contains(['.', '_', '-']);
+    let identifier = value.split(['.', '_', '-']).all(|part| {
+        !part.is_empty()
+            && part
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+    }) && value.contains(['.', '_', '-']);
     if identifier {
         return false;
     }
@@ -1630,11 +1702,7 @@ fn evidence_for(facts: &ProjectFacts, signals: &[Signal]) -> Vec<String> {
                 .iter()
                 .take(2)
                 .map(|e| e.render())
-                .chain(
-                    (extra > 0)
-                        .then(|| format!("+{extra} more matching {}", s.describe()))
-                        .into_iter(),
-                )
+                .chain((extra > 0).then(|| format!("+{extra} more matching {}", s.describe())))
                 .collect::<Vec<_>>()
         })
         .take(MAX_EVIDENCE_PER_CONTROL)

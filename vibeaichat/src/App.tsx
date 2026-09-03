@@ -532,7 +532,7 @@ export default function App() {
             <input
               value={selectedModel}
               onChange={e => setSelectedModel(e.target.value)}
-              placeholder="e.g. llama3.2, gpt-4o, claude-sonnet-4-6"
+              placeholder="e.g. llama3.3, gpt-5.6-sol, claude-sonnet-5"
             />
           )}
         </label>

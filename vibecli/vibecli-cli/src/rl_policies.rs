@@ -218,7 +218,7 @@ impl PolicyStore {
         )
         .map_err(|e| match e {
             rusqlite::Error::SqliteFailure(_, ref m)
-                if m.as_deref().map_or(false, |x| x.contains("UNIQUE")) =>
+                if m.as_deref().is_some_and(|x| x.contains("UNIQUE")) =>
             {
                 RunError::Invalid(format!(
                     "policy {}@{} already exists",

@@ -775,7 +775,7 @@ pub fn list_demos() -> Result<Vec<DemoRecording>> {
             }
         }
     }
-    demos.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+    demos.sort_by_key(|b| std::cmp::Reverse(b.started_at));
     Ok(demos)
 }
 

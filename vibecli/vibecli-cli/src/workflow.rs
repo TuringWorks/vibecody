@@ -123,6 +123,9 @@ impl fmt::Display for StageStatus {
 }
 
 impl StageStatus {
+    // Not `FromStr`: that trait must return a `Result`, and this parser is deliberately
+    // total — every input maps to a variant, so there is no error to report.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s.trim() {
             "in-progress" => Self::InProgress,

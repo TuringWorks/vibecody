@@ -2708,20 +2708,22 @@ mod tests {
 
     #[test]
     fn config_toml_serde_roundtrip() {
-        let mut cfg = Config::default();
-        cfg.ollama = Some(ProviderConfig {
-            enabled: true,
-            api_url: Some("http://localhost:11434".into()),
-            model: Some("llama3".into()),
-            api_key: None,
-            api_key_helper: None,
-            thinking_budget_tokens: None,
-        });
-        cfg.routing = RoutingConfig {
-            planning_provider: Some("claude".into()),
-            planning_model: Some("opus".into()),
-            execution_provider: None,
-            execution_model: None,
+        let cfg = Config {
+            ollama: Some(ProviderConfig {
+                enabled: true,
+                api_url: Some("http://localhost:11434".into()),
+                model: Some("llama3".into()),
+                api_key: None,
+                api_key_helper: None,
+                thinking_budget_tokens: None,
+            }),
+            routing: RoutingConfig {
+                planning_provider: Some("claude".into()),
+                planning_model: Some("opus".into()),
+                execution_provider: None,
+                execution_model: None,
+            },
+            ..Default::default()
         };
         let toml_str = toml::to_string_pretty(&cfg).expect("serialize");
         let cfg2: Config = toml::from_str(&toml_str).expect("deserialize");
@@ -2783,15 +2785,17 @@ mod tests {
 
     #[test]
     fn get_provider_config_various_names() {
-        let mut cfg = Config::default();
-        cfg.claude = Some(ProviderConfig {
-            enabled: true,
-            api_url: None,
-            model: None,
-            api_key: None,
-            api_key_helper: None,
-            thinking_budget_tokens: None,
-        });
+        let cfg = Config {
+            claude: Some(ProviderConfig {
+                enabled: true,
+                api_url: None,
+                model: None,
+                api_key: None,
+                api_key_helper: None,
+                thinking_budget_tokens: None,
+            }),
+            ..Default::default()
+        };
         assert!(cfg.get_provider_config("claude").is_some());
         assert!(cfg.get_provider_config("anthropic").is_some());
         assert!(cfg.get_provider_config("Claude").is_some());
@@ -2816,15 +2820,17 @@ mod tests {
         let cfg_path = dir.path().join("config.toml");
 
         // Build a non-trivial config
-        let mut cfg = Config::default();
-        cfg.ollama = Some(ProviderConfig {
-            enabled: true,
-            api_url: Some("http://localhost:11434".into()),
-            model: Some("llama3".into()),
-            api_key: None,
-            api_key_helper: None,
-            thinking_budget_tokens: None,
-        });
+        let mut cfg = Config {
+            ollama: Some(ProviderConfig {
+                enabled: true,
+                api_url: Some("http://localhost:11434".into()),
+                model: Some("llama3".into()),
+                api_key: None,
+                api_key_helper: None,
+                thinking_budget_tokens: None,
+            }),
+            ..Default::default()
+        };
         cfg.safety.approval_policy = "full-auto".to_string();
         cfg.routing.planning_provider = Some("claude".into());
         cfg.failover.chain = vec!["claude".into(), "openai".into()];
@@ -3110,31 +3116,33 @@ api_key = "key123"
 
     #[test]
     fn get_provider_config_all_aliases() {
-        let mut cfg = Config::default();
-        cfg.zhipu = Some(ProviderConfig {
-            enabled: true,
-            api_url: None,
-            model: None,
-            api_key: None,
-            api_key_helper: None,
-            thinking_budget_tokens: None,
-        });
-        cfg.vercel_ai = Some(ProviderConfig {
-            enabled: true,
-            api_url: None,
-            model: None,
-            api_key: None,
-            api_key_helper: None,
-            thinking_budget_tokens: None,
-        });
-        cfg.azure_openai = Some(ProviderConfig {
-            enabled: true,
-            api_url: None,
-            model: None,
-            api_key: None,
-            api_key_helper: None,
-            thinking_budget_tokens: None,
-        });
+        let cfg = Config {
+            zhipu: Some(ProviderConfig {
+                enabled: true,
+                api_url: None,
+                model: None,
+                api_key: None,
+                api_key_helper: None,
+                thinking_budget_tokens: None,
+            }),
+            vercel_ai: Some(ProviderConfig {
+                enabled: true,
+                api_url: None,
+                model: None,
+                api_key: None,
+                api_key_helper: None,
+                thinking_budget_tokens: None,
+            }),
+            azure_openai: Some(ProviderConfig {
+                enabled: true,
+                api_url: None,
+                model: None,
+                api_key: None,
+                api_key_helper: None,
+                thinking_budget_tokens: None,
+            }),
+            ..Default::default()
+        };
         // "glm" is alias for zhipu
         assert!(cfg.get_provider_config("glm").is_some());
         assert!(cfg.get_provider_config("zhipu").is_some());
@@ -3262,15 +3270,17 @@ model = "gpt-4o"
 
     #[test]
     fn get_provider_config_case_insensitive() {
-        let mut cfg = Config::default();
-        cfg.groq = Some(ProviderConfig {
-            enabled: true,
-            api_url: None,
-            model: Some("llama3-70b".into()),
-            api_key: None,
-            api_key_helper: None,
-            thinking_budget_tokens: None,
-        });
+        let cfg = Config {
+            groq: Some(ProviderConfig {
+                enabled: true,
+                api_url: None,
+                model: Some("llama3-70b".into()),
+                api_key: None,
+                api_key_helper: None,
+                thinking_budget_tokens: None,
+            }),
+            ..Default::default()
+        };
         assert!(cfg.get_provider_config("groq").is_some());
         assert!(cfg.get_provider_config("Groq").is_some());
         assert!(cfg.get_provider_config("GROQ").is_some());
@@ -3313,26 +3323,28 @@ model = "gpt-4o"
             api_key_helper: None,
             thinking_budget_tokens: None,
         };
-        let mut cfg = Config::default();
-        cfg.ollama = Some(pc());
-        cfg.openai = Some(pc());
-        cfg.claude = Some(pc());
-        cfg.gemini = Some(pc());
-        cfg.grok = Some(pc());
-        cfg.groq = Some(pc());
-        cfg.openrouter = Some(pc());
-        cfg.azure_openai = Some(pc());
-        cfg.mistral = Some(pc());
-        cfg.cerebras = Some(pc());
-        cfg.deepseek = Some(pc());
-        cfg.zhipu = Some(pc());
-        cfg.vercel_ai = Some(pc());
-        cfg.minimax = Some(pc());
-        cfg.perplexity = Some(pc());
-        cfg.together = Some(pc());
-        cfg.fireworks = Some(pc());
-        cfg.sambanova = Some(pc());
-        cfg.poolside = Some(pc());
+        let cfg = Config {
+            ollama: Some(pc()),
+            openai: Some(pc()),
+            claude: Some(pc()),
+            gemini: Some(pc()),
+            grok: Some(pc()),
+            groq: Some(pc()),
+            openrouter: Some(pc()),
+            azure_openai: Some(pc()),
+            mistral: Some(pc()),
+            cerebras: Some(pc()),
+            deepseek: Some(pc()),
+            zhipu: Some(pc()),
+            vercel_ai: Some(pc()),
+            minimax: Some(pc()),
+            perplexity: Some(pc()),
+            together: Some(pc()),
+            fireworks: Some(pc()),
+            sambanova: Some(pc()),
+            poolside: Some(pc()),
+            ..Default::default()
+        };
 
         let names = &[
             "ollama",

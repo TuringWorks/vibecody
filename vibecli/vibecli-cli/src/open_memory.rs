@@ -2060,7 +2060,7 @@ impl OpenMemoryStore {
     /// Get all memories (paginated).
     pub fn list_memories(&self, offset: usize, limit: usize) -> Vec<&MemoryNode> {
         let mut mems: Vec<&MemoryNode> = self.memories.values().collect();
-        mems.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        mems.sort_by_key(|b| std::cmp::Reverse(b.created_at));
         mems.into_iter().skip(offset).take(limit).collect()
     }
 
@@ -2693,7 +2693,7 @@ impl OpenMemoryStore {
             }
         }
         let mut top_tags: Vec<(String, usize)> = tag_counts.into_iter().collect();
-        top_tags.sort_by(|a, b| b.1.cmp(&a.1));
+        top_tags.sort_by_key(|b| std::cmp::Reverse(b.1));
         if !top_tags.is_empty() {
             let tags_str: Vec<String> = top_tags
                 .iter()
@@ -2731,7 +2731,7 @@ impl OpenMemoryStore {
             .values()
             .filter(|m| m.created_at >= from && m.created_at <= to)
             .collect();
-        results.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        results.sort_by_key(|b| std::cmp::Reverse(b.created_at));
         results
     }
 
@@ -4214,7 +4214,7 @@ mod tests {
         let original_salience = store.get(&id).expect("exists").salience;
 
         // Salience is already 1.0 for new memories, but reinforce should still update last_seen
-        store.reinforce(&[id.clone()]);
+        store.reinforce(std::slice::from_ref(&id));
         let updated = store.get(&id).expect("exists");
         assert!(updated.salience >= original_salience);
     }
@@ -4301,7 +4301,7 @@ mod tests {
     fn store_list_memories_pagination() {
         let mut store = test_store();
         for i in 0..10 {
-            store.add(&format!("memory {}", i));
+            store.add(format!("memory {}", i));
         }
         let page1 = store.list_memories(0, 5);
         assert_eq!(page1.len(), 5);
@@ -4548,7 +4548,7 @@ mod tests {
     fn store_large_batch_add() {
         let mut store = test_store();
         for i in 0..100 {
-            store.add(&format!("Memory number {} about topic {}", i, i % 10));
+            store.add(format!("Memory number {} about topic {}", i, i % 10));
         }
         assert_eq!(store.total_memories(), 100);
         let results = store.query("topic 5", 10);
@@ -4742,7 +4742,7 @@ mod tests {
     fn auto_reflect_generates_reflection() {
         let mut store = test_store();
         for i in 0..10 {
-            store.add(&format!("Memory number {} about various topics", i));
+            store.add(format!("Memory number {} about various topics", i));
         }
         let reflection = store.auto_reflect();
         assert!(reflection.is_some());
@@ -5279,7 +5279,7 @@ mod tests {
         if let Some(m) = store.get_mut(&id) {
             m.salience = 0.5; // Lower from default 1.0
         }
-        store.reinforce(&[id.clone()]);
+        store.reinforce(std::slice::from_ref(&id));
         assert!((store.get(&id).unwrap().salience - 0.6).abs() < 0.01);
     }
 
@@ -5288,7 +5288,7 @@ mod tests {
         let mut store = test_store();
         let id = store.add("max salience");
         // Already at 1.0
-        store.reinforce(&[id.clone()]);
+        store.reinforce(std::slice::from_ref(&id));
         assert_eq!(store.get(&id).unwrap().salience, 1.0);
     }
 
@@ -5299,7 +5299,7 @@ mod tests {
         let original = store.get(&id).unwrap().last_seen_at;
         // Small delay to ensure timestamp difference
         std::thread::sleep(std::time::Duration::from_millis(10));
-        store.reinforce(&[id.clone()]);
+        store.reinforce(std::slice::from_ref(&id));
         assert!(store.get(&id).unwrap().last_seen_at >= original);
     }
 
@@ -5423,7 +5423,7 @@ mod tests {
     fn list_memories_respects_offset_and_limit() {
         let mut store = test_store();
         for i in 0..20 {
-            store.add(&format!("Memory {}", i));
+            store.add(format!("Memory {}", i));
         }
         let page = store.list_memories(5, 3);
         assert_eq!(page.len(), 3);
@@ -5753,7 +5753,7 @@ mod tests {
     fn build_essential_story_respects_token_budget() {
         let mut store = test_store();
         for i in 0..50 {
-            store.add(&format!(
+            store.add(format!(
                 "Memory content item number {} with lots of details about topic",
                 i
             ));

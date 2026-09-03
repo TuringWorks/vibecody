@@ -50,6 +50,9 @@ impl TaskStatus {
     /// Unknown values fall back to `Draft`, so **every status a client can send
     /// must be listed here** — a missing arm silently demotes a finished task
     /// to a draft rather than failing loudly.
+    // Not `FromStr`: that trait must return a `Result`, and this parser is deliberately
+    // total — every input maps to a variant, so there is no error to report.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> TaskStatus {
         match s {
             "queued" => TaskStatus::Queued,
@@ -410,10 +413,7 @@ fn row_to_task(r: &rusqlite::Row) -> Result<TaskRow> {
 /// `rusqlite::Error` the closure must return.
 fn map_row(r: &rusqlite::Row) -> rusqlite::Result<TaskRow> {
     row_to_task(r).map_err(|e| {
-        rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            e.to_string(),
-        )))
+        rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::other(e.to_string())))
     })
 }
 

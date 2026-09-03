@@ -82,16 +82,12 @@ pub struct VirtioFsShare {
 /// virtiofsd cache mode.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum CacheMode {
+    #[default]
     Auto,
     Always,
     None,
-}
-
-impl Default for CacheMode {
-    fn default() -> Self {
-        CacheMode::Auto
-    }
 }
 
 impl VirtioFsShare {

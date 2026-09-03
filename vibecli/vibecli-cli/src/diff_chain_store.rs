@@ -146,6 +146,27 @@ pub struct DiffChainStore {
     workspace_path: PathBuf,
 }
 
+/// One `diff_chains` row as SQLite hands it back, in `SELECT` order:
+/// `id`, `file_path`, `language`, `selection_start`, `selection_end`,
+/// `original_text` (encrypted), `steps` (encrypted), `final_state`,
+/// `final_meta_json`, `parent_chain_id`, `created_at`, `updated_at`,
+/// `schema_version`.
+type ChainRow = (
+    String,
+    String,
+    String,
+    i64,
+    i64,
+    Vec<u8>,
+    Vec<u8>,
+    String,
+    Option<String>,
+    Option<String>,
+    String,
+    String,
+    i64,
+);
+
 impl DiffChainStore {
     pub fn open(workspace_path: &Path) -> Result<Self, String> {
         let canonical = workspace_path
@@ -181,6 +202,10 @@ impl DiffChainStore {
     /// untouched (matches the design doc's "POSTed twice" rule).
     /// When `chain_id` does not yet exist, the chain row is created
     /// with `final_state = "open"`.
+    // The arguments are the chain's own columns plus the step being appended.
+    // A params struct here would duplicate `DiffChain` minus its derived fields,
+    // and this signature is mirrored by the `/diffcomplete/chain` route body.
+    #[allow(clippy::too_many_arguments)]
     pub fn upsert_step(
         &self,
         chain_id: &str,
@@ -360,24 +385,7 @@ impl DiffChainStore {
         Ok(out)
     }
 
-    fn row_to_chain(
-        &self,
-        t: (
-            String,
-            String,
-            String,
-            i64,
-            i64,
-            Vec<u8>,
-            Vec<u8>,
-            String,
-            Option<String>,
-            Option<String>,
-            String,
-            String,
-            i64,
-        ),
-    ) -> Result<DiffChain, String> {
+    fn row_to_chain(&self, t: ChainRow) -> Result<DiffChain, String> {
         let (
             id,
             file_path,

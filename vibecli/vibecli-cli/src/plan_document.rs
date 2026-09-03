@@ -515,6 +515,12 @@ impl PlanDocument {
 
 // ─── PlanManager impl ───────────────────────────────────────────────────────
 
+impl Default for PlanManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PlanManager {
     pub fn new() -> Self {
         Self {

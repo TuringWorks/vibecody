@@ -112,13 +112,14 @@ fn host_no_fc(world: &mut SbWorld) {
 #[when(expr = "I call select on the {word} tier")]
 fn call_select_on(world: &mut SbWorld, name: String) {
     let tier = SandboxTier::from_str(&name).unwrap();
-    let mut opts = SelectOptions::default();
-    opts.host_supports_firecracker = world.host_supports_firecracker;
-    opts.host_supports_hyperlight = false;
-    opts.on_downgrade = Some(Box::new(|| {
-        // Captured below via shared flag — here we just no-op since the test
-        // checks via a thread-local recorded inside select itself.
-    }));
+    let opts = SelectOptions {
+        host_supports_firecracker: world.host_supports_firecracker,
+        host_supports_hyperlight: false,
+        on_downgrade: Some(Box::new(|| {
+            // Captured below via shared flag — here we just no-op since the test
+            // checks via a thread-local recorded inside select itself.
+        })),
+    };
     let out = select(tier, &opts).expect("select succeeds");
     world.downgrade_recorded = out.downgraded();
     world.sandbox = Some(out.into_sandbox());

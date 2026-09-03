@@ -364,8 +364,7 @@ fn parse_imperative(sentence: &str) -> Option<String> {
         if let Some(rest) = lower.strip_prefix(p) {
             // Map back to the original case at the same byte offset.
             let cut = s.len() - rest.len();
-            let raw =
-                s[cut..].trim_start_matches(|c: char| c == ' ' || c == ',' || c == ':' || c == '-');
+            let raw = s[cut..].trim_start_matches([' ', ',', ':', '-']);
             let trimmed = raw.trim_end_matches(|c: char| {
                 c == '.' || c == '!' || c == '?' || c == ';' || c == ','
             });

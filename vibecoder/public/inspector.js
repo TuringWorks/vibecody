@@ -135,37 +135,48 @@
     }
 
     // ── Event listeners ──────────────────────────────────────────────────────
-    document.addEventListener('mouseover', function (e) {
+    //
+    // Held in named bindings so deactivation can remove exactly these. The
+    // teardown below used to reference `arguments.callee`, which is a
+    // TypeError under 'use strict' — so deactivating threw before removing
+    // anything, and even had it run, `arguments.callee` inside the message
+    // handler is the message handler, not these.
+    function onMouseOver(e) {
         if (e.target === overlay || e.target === label) return;
         showOverlay(e.target);
         window.parent.postMessage({ type: 'vibe:element-hovered', data: buildInfo(e.target) }, '*');
-    }, true);
+    }
 
-    document.addEventListener('mouseout', function (e) {
+    function onMouseOut(e) {
         if (!e.relatedTarget || e.relatedTarget === document.body) {
             hideOverlay();
         }
-    }, true);
+    }
 
-    document.addEventListener('click', function (e) {
+    function onClick(e) {
         e.preventDefault();
         e.stopPropagation();
-        const info = buildInfo(e.target);
-        window.parent.postMessage({ type: 'vibe:element-selected', data: info }, '*');
-    }, true);
+        window.parent.postMessage({ type: 'vibe:element-selected', data: buildInfo(e.target) }, '*');
+    }
+
+    document.addEventListener('mouseover', onMouseOver, true);
+    document.addEventListener('mouseout', onMouseOut, true);
+    document.addEventListener('click', onClick, true);
 
     // Signal to parent that inspector is ready
     window.parent.postMessage({ type: 'vibe:inspector-ready' }, '*');
 
-    // Listen for deactivation command
-    window.addEventListener('message', function (e) {
-        if (e.data && e.data.type === 'vibe:deactivate-inspector') {
-            document.removeEventListener('mouseover', arguments.callee, true);
-            document.removeEventListener('click', arguments.callee, true);
-            hideOverlay();
-            overlay.remove();
-            label.remove();
-            delete window.__vibeInspectorActive;
-        }
-    });
+    function onMessage(e) {
+        if (!e.data || e.data.type !== 'vibe:deactivate-inspector') return;
+        document.removeEventListener('mouseover', onMouseOver, true);
+        document.removeEventListener('mouseout', onMouseOut, true);
+        document.removeEventListener('click', onClick, true);
+        window.removeEventListener('message', onMessage);
+        hideOverlay();
+        overlay.remove();
+        label.remove();
+        delete window.__vibeInspectorActive;
+    }
+
+    window.addEventListener('message', onMessage);
 })();

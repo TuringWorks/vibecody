@@ -75,6 +75,12 @@ pub struct ProfileManager {
     pub profiles_dir: PathBuf,
 }
 
+impl Default for ProfileManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ProfileManager {
     /// Create a manager rooted at `~/.vibecli/profiles/`.
     pub fn new() -> Self {

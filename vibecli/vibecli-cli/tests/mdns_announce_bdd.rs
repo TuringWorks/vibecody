@@ -75,7 +75,7 @@ fn build_announce(
 
     let mut rd = Vec::new();
     push_txt_kv(&mut rd, &format!("machine_id={machine_id}"));
-    push_txt_kv(&mut rd, &format!("version=test"));
+    push_txt_kv(&mut rd, "version=test");
     push_rr(&mut answers, &encode_name(&fqdn_instance), 16, &rd);
     count += 1;
 

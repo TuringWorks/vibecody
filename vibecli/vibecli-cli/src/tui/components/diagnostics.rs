@@ -32,6 +32,12 @@ pub struct DiagnosticsComponent {
     pub status: String,
 }
 
+impl Default for DiagnosticsComponent {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DiagnosticsComponent {
     pub fn new() -> Self {
         Self {

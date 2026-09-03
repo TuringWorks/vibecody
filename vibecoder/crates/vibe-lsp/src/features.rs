@@ -329,13 +329,18 @@ mod tests {
     #[test]
     fn range_multiline_serialization() {
         let range = Range::new(Position::new(0, 0), Position::new(100, 0));
-        let json = serde_json::to_value(&range).unwrap();
+        let json = serde_json::to_value(range).unwrap();
         assert_eq!(json["start"]["line"], 0);
         assert_eq!(json["end"]["line"], 100);
     }
 
     // ── WorkspaceEdit tests ─────────────────────────────────────────────────
 
+    // `WorkspaceEdit.changes` is keyed by `Uri`, whose `Cell` refcount makes
+    // clippy call it a mutable key. The interior mutability is refcounting, not
+    // the hashed value, and the map shape is fixed by `lsp-types` — there is no
+    // other key to use here.
+    #[allow(clippy::mutable_key_type)]
     #[test]
     fn workspace_edit_with_changes() {
         let uri: Uri = "file:///tmp/test.rs".parse().unwrap();

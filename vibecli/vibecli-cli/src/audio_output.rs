@@ -725,7 +725,7 @@ mod tests {
 
     #[test]
     fn test_estimate_duration_long() {
-        let words: Vec<&str> = std::iter::repeat("word").take(300).collect();
+        let words: Vec<&str> = std::iter::repeat_n("word", 300).collect();
         let text = words.join(" ");
         // 300 words / 150 wpm = 2 min = 120 sec
         let dur = AudioOutput::estimate_duration(&text, 1.0);
@@ -768,8 +768,10 @@ mod tests {
 
     #[test]
     fn test_tts_command_google_cloud() {
-        let mut cfg = AudioConfig::default();
-        cfg.tts_provider = TtsProvider::GoogleCloud;
+        let cfg = AudioConfig {
+            tts_provider: TtsProvider::GoogleCloud,
+            ..Default::default()
+        };
         let ao = AudioOutput::new(cfg);
         let cmd = ao.generate_tts_command("hello", "/tmp/out.mp3");
         assert!(cmd.contains("gcloud text-to-speech"));
@@ -779,8 +781,10 @@ mod tests {
 
     #[test]
     fn test_tts_command_aws_polly() {
-        let mut cfg = AudioConfig::default();
-        cfg.tts_provider = TtsProvider::AwsPolly;
+        let cfg = AudioConfig {
+            tts_provider: TtsProvider::AwsPolly,
+            ..Default::default()
+        };
         let ao = AudioOutput::new(cfg);
         let cmd = ao.generate_tts_command("test", "/tmp/out.mp3");
         assert!(cmd.contains("aws polly synthesize-speech"));
@@ -789,8 +793,10 @@ mod tests {
 
     #[test]
     fn test_tts_command_azure_speech() {
-        let mut cfg = AudioConfig::default();
-        cfg.tts_provider = TtsProvider::AzureSpeech;
+        let cfg = AudioConfig {
+            tts_provider: TtsProvider::AzureSpeech,
+            ..Default::default()
+        };
         let ao = AudioOutput::new(cfg);
         let cmd = ao.generate_tts_command("test", "/tmp/out.mp3");
         assert!(cmd.contains("az cognitiveservices speech"));
@@ -798,8 +804,10 @@ mod tests {
 
     #[test]
     fn test_tts_command_piper_local() {
-        let mut cfg = AudioConfig::default();
-        cfg.tts_provider = TtsProvider::PiperLocal;
+        let cfg = AudioConfig {
+            tts_provider: TtsProvider::PiperLocal,
+            ..Default::default()
+        };
         let ao = AudioOutput::new(cfg);
         let cmd = ao.generate_tts_command("test", "/tmp/out.wav");
         assert!(cmd.contains("piper"));
@@ -826,8 +834,10 @@ mod tests {
 
     #[test]
     fn test_output_path_different_format() {
-        let mut cfg = AudioConfig::default();
-        cfg.output_format = AudioFormat::Wav;
+        let cfg = AudioConfig {
+            output_format: AudioFormat::Wav,
+            ..Default::default()
+        };
         let ao = AudioOutput::new(cfg);
         let path = ao.generate_output_path(&AudioRequestType::PrSummary, "feat");
         assert!(path.ends_with(".wav"));
@@ -867,8 +877,10 @@ mod tests {
 
     #[test]
     fn test_text_too_long_error() {
-        let mut cfg = AudioConfig::default();
-        cfg.max_text_length = 10;
+        let cfg = AudioConfig {
+            max_text_length: 10,
+            ..Default::default()
+        };
         let mut ao = AudioOutput::new(cfg);
         let result = ao.generate_custom_audio("this text is definitely longer than ten chars", "t");
         assert!(result.is_err());

@@ -15,6 +15,12 @@ pub struct DockerRuntime {
     binary: String,
 }
 
+impl Default for DockerRuntime {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DockerRuntime {
     pub fn new() -> Self {
         Self {

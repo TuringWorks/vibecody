@@ -597,6 +597,12 @@ pub struct DesktopAutomation {
     pub action_delay_ms: u64,
 }
 
+impl Default for DesktopAutomation {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DesktopAutomation {
     /// Create a new automation engine for the current platform.
     pub fn new() -> Self {

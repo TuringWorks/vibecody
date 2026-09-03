@@ -448,6 +448,12 @@ pub struct ResearchMemory {
     pub total_sessions: usize,
 }
 
+impl Default for ResearchMemory {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ResearchMemory {
     pub fn new() -> Self {
         Self {
@@ -622,6 +628,12 @@ pub struct ResearchEngine {
     pub sessions: Vec<ResearchSession>,
     pub global_memory: ResearchMemory,
     pub active_session: Option<String>,
+}
+
+impl Default for ResearchEngine {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ResearchEngine {
@@ -1293,6 +1305,12 @@ pub struct ExperimentGraph {
     children: HashMap<String, Vec<String>>,
     /// Root experiments (no parent)
     roots: Vec<String>,
+}
+
+impl Default for ExperimentGraph {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ExperimentGraph {
@@ -2488,8 +2506,10 @@ mod tests {
     #[test]
     fn test_record_experiment_discard() {
         let mut engine = ResearchEngine::new();
-        let mut config = ResearchConfig::default();
-        config.metrics = vec![MetricDef::new("score", "S", MetricDirection::Higher, 1.0)];
+        let config = ResearchConfig {
+            metrics: vec![MetricDef::new("score", "S", MetricDirection::Higher, 1.0)],
+            ..Default::default()
+        };
         let sid = engine.create_session("test", config);
 
         // First experiment sets baseline
@@ -2783,7 +2803,7 @@ mod tests {
 
     #[test]
     fn test_experiment_status_variants() {
-        let statuses = vec![
+        let statuses = [
             ExperimentStatus::Pending,
             ExperimentStatus::Running,
             ExperimentStatus::Completed,
@@ -2828,7 +2848,7 @@ mod tests {
 
     #[test]
     fn test_confidence_levels() {
-        let levels = vec![
+        let levels = [
             Confidence::Speculative,
             Confidence::Low,
             Confidence::Medium,
@@ -2841,7 +2861,7 @@ mod tests {
 
     #[test]
     fn test_session_status_variants() {
-        let statuses = vec![
+        let statuses = [
             SessionStatus::Idle,
             SessionStatus::Running,
             SessionStatus::Paused,

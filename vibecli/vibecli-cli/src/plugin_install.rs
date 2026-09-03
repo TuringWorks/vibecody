@@ -803,7 +803,7 @@ mod tests {
         // Sanity check the bound — large enough for plugins shipping
         // small server binaries (Node script + a couple of native
         // tools), small enough that a hostile URL can't fill a disk.
-        assert!(MAX_BUNDLE_BYTES >= 10 * 1024 * 1024);
-        assert!(MAX_BUNDLE_BYTES <= 100 * 1024 * 1024);
+        const { assert!(MAX_BUNDLE_BYTES >= 10 * 1024 * 1024) };
+        const { assert!(MAX_BUNDLE_BYTES <= 100 * 1024 * 1024) };
     }
 }

@@ -38,3 +38,25 @@ export function takePendingTab(panelId: string): string | null {
   pending = null;
   return key;
 }
+
+/**
+ * DesignMode keeps its own tab strip *inside* the Design panel's "Design" tab,
+ * so `panelId/tabId` cannot name Draw.io or Penpot — those are one level
+ * further in. The same park-and-claim shape applies for the same reason: the
+ * first link fires before DesignMode is mounted.
+ */
+let pendingDesignSubTab: string | null = null;
+
+/** Open one of DesignMode's inner tabs (`drawio`, `pencil`, `penpot`, …). */
+export function openDesignSubTab(subTabId: string): void {
+  pendingDesignSubTab = subTabId;
+  openPanelTab("design/design");
+  window.dispatchEvent(new CustomEvent("vibecoder:design-subtab", { detail: subTabId }));
+}
+
+/** The parked inner-tab request, consumed. */
+export function takePendingDesignSubTab(): string | null {
+  const key = pendingDesignSubTab;
+  pendingDesignSubTab = null;
+  return key;
+}

@@ -1569,9 +1569,9 @@ mod tests {
             let mut v = vec![0.0f32; dim];
             for tok in text.to_lowercase().split_whitespace() {
                 let h = fnv1a_hash(tok);
-                for i in 0..dim {
+                for (i, slot) in v.iter_mut().enumerate() {
                     let bit = (h >> (i % 64)) & 1;
-                    v[i] += if bit == 1 { 1.0 } else { -1.0 };
+                    *slot += if bit == 1 { 1.0 } else { -1.0 };
                 }
             }
             // L2 normalise so cosine == dot product.

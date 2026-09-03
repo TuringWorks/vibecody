@@ -133,7 +133,7 @@ impl LatencyStats {
         let n = samples.len();
         let percentile = |p: f64| -> f64 {
             let idx = ((p / 100.0) * n as f64).ceil() as usize;
-            samples[(idx.min(n) - 1).max(0)]
+            samples[idx.min(n) - 1]
         };
         let mean = samples.iter().sum::<f64>() / n as f64;
         Some(Self {
@@ -259,7 +259,7 @@ impl PerfProfiler {
     /// Top N hotspots by self-sample count.
     pub fn hotspots(&self, n: usize) -> Vec<&Sample> {
         let mut sorted: Vec<&Sample> = self.samples.iter().collect();
-        sorted.sort_by(|a, b| b.self_samples.cmp(&a.self_samples));
+        sorted.sort_by_key(|b| std::cmp::Reverse(b.self_samples));
         sorted.truncate(n);
         sorted
     }

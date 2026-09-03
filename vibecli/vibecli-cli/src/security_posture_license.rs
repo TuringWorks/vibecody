@@ -273,17 +273,28 @@ fn parse_package_license(content: &str) -> Option<String> {
 
 /// `package.json` `"dependencies"` and `"devDependencies"` keys.
 fn parse_package_dependencies(content: &str) -> Vec<DependencyRecord> {
+    // Both patterns are fixed, so they are compiled once for the process rather
+    // than once per section per file scanned — `Regex::new` in a loop is the
+    // allocation mistake this codebase has paid for before.
+    static SECTION_RES: std::sync::LazyLock<Vec<(&'static str, regex::Regex)>> =
+        std::sync::LazyLock::new(|| {
+            ["dependencies", "devDependencies"]
+                .into_iter()
+                .filter_map(|section| {
+                    let pattern = format!(r#""{section}"\s*:\s*\{{([^}}]*)\}}"#);
+                    regex::Regex::new(&pattern).ok().map(|re| (section, re))
+                })
+                .collect()
+        });
+    static DEP_RE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(r#""([^"]+)"\s*:\s*"[^"]*""#).expect("valid regex: dependency line")
+    });
+
     let mut out = Vec::new();
-    for section in &["dependencies", "devDependencies"] {
-        let pattern = format!(r#""{section}"\s*:\s*\{{([^}}]*)\}}"#);
-        let Ok(re) = regex::Regex::new(&pattern) else {
-            continue;
-        };
+    for (_section, re) in SECTION_RES.iter() {
         if let Some(caps) = re.captures(content) {
             if let Some(body) = caps.get(1) {
-                let dep_re = regex::Regex::new(r#""([^"]+)"\s*:\s*"[^"]*""#)
-                    .expect("valid regex: dependency line");
-                for dep_cap in dep_re.captures_iter(body.as_str()) {
+                for dep_cap in DEP_RE.captures_iter(body.as_str()) {
                     if let Some(name) = dep_cap.get(1) {
                         out.push(DependencyRecord {
                             name: name.as_str().to_string(),

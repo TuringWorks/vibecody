@@ -850,8 +850,10 @@ mod tests {
 
     #[test]
     fn test_generate_branch_name_custom_prefix() {
-        let mut cfg = BranchAgentConfig::default();
-        cfg.branch_prefix = "feature/bot-".to_string();
+        let cfg = BranchAgentConfig {
+            branch_prefix: "feature/bot-".to_string(),
+            ..Default::default()
+        };
         let mgr = BranchAgentManager::new(cfg);
         let name = mgr.generate_branch_name("add login");
         assert!(name.starts_with("feature/bot-add-login-"));
@@ -891,8 +893,10 @@ mod tests {
 
     #[test]
     fn test_create_agent_max_reached() {
-        let mut cfg = BranchAgentConfig::default();
-        cfg.max_parallel_agents = 2;
+        let cfg = BranchAgentConfig {
+            max_parallel_agents: 2,
+            ..Default::default()
+        };
         let mut mgr = BranchAgentManager::new(cfg);
         mgr.create_agent("task one").unwrap();
         // Tiny sleep to ensure different short_id
@@ -1016,8 +1020,10 @@ mod tests {
 
     #[test]
     fn test_fail_agent_without_wip_pr() {
-        let mut cfg = BranchAgentConfig::default();
-        cfg.wip_pr_on_failure = false;
+        let cfg = BranchAgentConfig {
+            wip_pr_on_failure: false,
+            ..Default::default()
+        };
         let mut mgr = BranchAgentManager::new(cfg);
         let id = mgr.create_agent("broken task").unwrap();
         let pr = mgr.fail_agent(&id, "err").unwrap();
@@ -1411,9 +1417,11 @@ mod tests {
 
     #[test]
     fn test_generate_git_commands_no_auto_pr() {
-        let mut cfg = BranchAgentConfig::default();
-        cfg.auto_pr = false;
-        cfg.auto_cleanup = false;
+        let cfg = BranchAgentConfig {
+            auto_pr: false,
+            auto_cleanup: false,
+            ..Default::default()
+        };
         let mgr = BranchAgentManager::new(cfg);
         let agent = BranchAgent {
             id: "ba-1".into(),

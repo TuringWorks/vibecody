@@ -149,7 +149,7 @@ pub fn build_user_prompt(req: &DiffCompleteRequest) -> String {
 
     out.push_str("=== Before selection ===\n");
     out.push_str(&req.before_context);
-    out.push_str("\n");
+    out.push('\n');
 
     if let Some(sel) = &req.selection_text {
         out.push_str("=== Selected (");
@@ -161,12 +161,12 @@ pub fn build_user_prompt(req: &DiffCompleteRequest) -> String {
         }
         out.push_str(") ===\n");
         out.push_str(sel);
-        out.push_str("\n");
+        out.push('\n');
     }
 
     out.push_str("=== After selection ===\n");
     out.push_str(&req.after_context);
-    out.push_str("\n");
+    out.push('\n');
 
     if !req.additional_files.is_empty() {
         out.push_str("\n=== Additional files (user-supplied context) ===\n");
@@ -175,20 +175,20 @@ pub fn build_user_prompt(req: &DiffCompleteRequest) -> String {
             out.push_str(&file.path);
             out.push_str(" ---\n");
             out.push_str(&file.content);
-            out.push_str("\n");
+            out.push('\n');
         }
     }
 
     if let Some(prev) = req.previous_diff.as_ref().filter(|s| !s.trim().is_empty()) {
         out.push_str("\n=== Previous attempt (your last unified diff) ===\n");
         out.push_str(prev);
-        out.push_str("\n");
+        out.push('\n');
     }
 
     if let Some(refine) = req.refinement.as_ref().filter(|s| !s.trim().is_empty()) {
         out.push_str("\nRefinement: ");
         out.push_str(refine);
-        out.push_str("\n");
+        out.push('\n');
     }
 
     out.push_str("\nInstruction: ");
@@ -211,10 +211,10 @@ pub fn extract_diff(response: &str) -> (String, Option<String>) {
         match state {
             ExtractState::Before => {
                 let trimmed = line.trim_start();
-                if trimmed.starts_with("```diff") || trimmed.starts_with("```patch") {
-                    state = ExtractState::InDiff;
-                } else if trimmed.starts_with("```")
-                    && looks_like_diff_header(lines.peek().copied())
+                if trimmed.starts_with("```diff")
+                    || trimmed.starts_with("```patch")
+                    || (trimmed.starts_with("```")
+                        && looks_like_diff_header(lines.peek().copied()))
                 {
                     state = ExtractState::InDiff;
                 } else {

@@ -617,7 +617,7 @@ mod tests {
         // Remove the nonce manually to simulate consumption
         mgr.pending_nonces.remove(&ch.nonce);
         // Second removal should find nothing
-        assert!(mgr.pending_nonces.get(&ch.nonce).is_none());
+        assert!(!mgr.pending_nonces.contains_key(&ch.nonce));
     }
 
     #[test]
@@ -1032,14 +1032,14 @@ mod tests {
     #[test]
     fn verify_ed25519_pub_rejects_short_key() {
         let pk = vec![0u8; 31]; // too short for P256 (must be 64)
-        let result = verify_ed25519_signature_pub(&pk, b"msg", &vec![0u8; 64]);
+        let result = verify_ed25519_signature_pub(&pk, b"msg", &[0u8; 64]);
         assert!(result.is_err());
     }
 
     #[test]
     fn verify_ed25519_pub_rejects_short_sig() {
         let pk = vec![0u8; 64];
-        let result = verify_ed25519_signature_pub(&pk, b"msg", &vec![0u8; 63]);
+        let result = verify_ed25519_signature_pub(&pk, b"msg", &[0u8; 63]);
         assert!(result.is_err());
     }
 

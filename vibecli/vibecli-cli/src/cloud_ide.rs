@@ -349,6 +349,12 @@ pub struct CloudIdeManager {
     pub snapshots: Vec<Snapshot>,
 }
 
+impl Default for CloudIdeManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CloudIdeManager {
     pub fn new() -> Self {
         Self {

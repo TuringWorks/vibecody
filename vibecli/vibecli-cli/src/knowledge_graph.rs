@@ -608,7 +608,7 @@ impl KnowledgeGraph {
             .iter()
             .filter_map(|(id, deg)| self.nodes.get(id).map(|n| (n.name.clone(), *deg)))
             .collect();
-        most_connected.sort_by(|a, b| b.1.cmp(&a.1));
+        most_connected.sort_by_key(|b| std::cmp::Reverse(b.1));
         most_connected.truncate(10);
 
         let orphan_count = self.nodes.len() - connected.len();

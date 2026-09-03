@@ -158,7 +158,7 @@ impl EvalStore {
         )
         .map_err(|e| match e {
             rusqlite::Error::SqliteFailure(_, ref msg)
-                if msg.as_deref().map_or(false, |m| m.contains("UNIQUE")) =>
+                if msg.as_deref().is_some_and(|m| m.contains("UNIQUE")) =>
             {
                 RunError::Invalid(format!(
                     "a suite named '{}' already exists in this workspace",

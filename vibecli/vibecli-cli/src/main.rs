@@ -196,7 +196,6 @@ mod config;
 // here rather than dead.
 #[allow(dead_code)]
 mod daemon_bootstrap;
-mod supervise;
 mod diff_viewer;
 mod mcp_taint;
 mod mcpb_bundle;
@@ -204,6 +203,7 @@ mod memory;
 mod redact;
 mod sandbox_policy;
 mod schema;
+mod supervise;
 // Offers a git repository when the agent edits files no version control is
 // watching. Named by the REPL turn loop and by `/git-init`, and by
 // `tool_executor`, which records the writes. `open_with` is exercised only by
@@ -315,36 +315,20 @@ use rustyline::error::ReadlineError;
 #[allow(dead_code)]
 mod agent_host;
 #[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
 mod automations;
 #[allow(dead_code)]
 mod batch_builder;
 #[allow(dead_code)]
 mod calendar_client;
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
 mod container_runtime;
 #[allow(dead_code)]
-#[allow(dead_code)]
 mod database_client;
-#[allow(dead_code)]
 mod discovery;
 #[allow(dead_code)]
-#[allow(dead_code)]
 mod distributed_training;
-#[allow(dead_code)]
 mod docker_runtime;
 #[allow(dead_code)]
 mod document_ingest;
-#[allow(dead_code)]
 #[allow(dead_code)]
 mod email_client;
 mod embedding_index;
@@ -357,9 +341,9 @@ mod engagement_scan;
 // Developer Excellence metrics: `serve.rs` mounts `devex_routes::build_routes()`,
 // and both it and `devex_cmd` name `devex_metrics` — so the binary crate needs
 // all three, not just the library.
+mod devex_cmd;
 mod devex_metrics;
 mod devex_routes;
-mod devex_cmd;
 
 /// Resolve the model `/index` should use.
 ///
@@ -399,19 +383,12 @@ fn resolve_index_settings(
     )
 }
 
-#[allow(dead_code)]
 mod feature_demo;
 #[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
 mod gpu_cluster;
-#[allow(dead_code)]
 mod handoff;
 #[allow(dead_code)]
 mod home_assistant;
-#[allow(dead_code)]
 #[allow(dead_code)]
 mod inference;
 #[allow(dead_code)]
@@ -419,26 +396,17 @@ mod inference_routes;
 #[allow(dead_code)]
 mod inference_server;
 #[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
 mod legacy_migration;
 #[allow(dead_code)]
-#[allow(dead_code)]
 mod migrate;
-#[allow(dead_code)]
 mod ngrok;
 mod opensandbox_client;
 mod pairing;
-#[allow(dead_code)]
 mod podman_runtime;
 #[allow(dead_code)]
 mod productivity;
 #[allow(dead_code)]
 mod qa_validation;
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
 #[allow(dead_code)]
 mod self_review;
 #[allow(dead_code)]
@@ -447,9 +415,6 @@ mod setup;
 mod skill_catalog;
 #[allow(dead_code)]
 mod skills_embedded;
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
 mod tailscale;
 #[allow(dead_code)]
 mod tui;
@@ -462,7 +427,6 @@ mod verification;
 mod voice;
 mod voice_duplex;
 mod voice_tools;
-#[allow(dead_code)]
 #[allow(dead_code)]
 mod web_crawler;
 mod workflow_orchestration;
@@ -914,7 +878,10 @@ fn run_compliance_command(args: &[String]) {
             // directory, and nothing to checksum if they go to stdout.
             let frameworks = if all {
                 if output.is_some() {
-                    fail("--all writes one file per framework — use --output-dir, not --output".into());
+                    fail(
+                        "--all writes one file per framework — use --output-dir, not --output"
+                            .into(),
+                    );
                 }
                 compliance::ComplianceFramework::all().to_vec()
             } else {
@@ -952,7 +919,10 @@ fn run_compliance_command(args: &[String]) {
                         scope.root,
                         scope.files_seen,
                         scope.files_read,
-                        scope.git_commit.as_deref().unwrap_or("unknown (not a git checkout)"),
+                        scope
+                            .git_commit
+                            .as_deref()
+                            .unwrap_or("unknown (not a git checkout)"),
                         match scope.git_dirty {
                             Some(true) => " — uncommitted changes present",
                             Some(false) => " (clean tree)",
@@ -968,7 +938,10 @@ fn run_compliance_command(args: &[String]) {
                         dir.display()
                     );
                     println!();
-                    println!("  {:<12} {:>8}  {:>6}  {}", "Framework", "Score", "Scored", "File");
+                    println!(
+                        "  {:<12} {:>8}  {:>6}  File",
+                        "Framework", "Score", "Scored"
+                    );
                     for r in &bundle.reports {
                         println!(
                             "  {:<12} {:>8}  {:>6}  {}",
@@ -982,7 +955,10 @@ fn run_compliance_command(args: &[String]) {
                         );
                     }
                     println!();
-                    println!("  {} — index, scan scope, sha256 per report", bundle.manifest_file);
+                    println!(
+                        "  {} — index, scan scope, sha256 per report",
+                        bundle.manifest_file
+                    );
                     println!(
                         "  {} — verify with: shasum -a 256 -c {}",
                         bundle.checksums_file, bundle.checksums_file
@@ -3157,22 +3133,13 @@ fn run_k8s_command(args: &[String]) {
 }
 
 #[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
 mod cloud_ai;
-#[allow(dead_code)]
 #[allow(dead_code)]
 mod compressed_hnsw;
 #[allow(dead_code)]
-#[allow(dead_code)]
 mod idp;
 #[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
 mod open_memory;
-#[allow(dead_code)]
 // `swe_bench` is no longer referenced from the binary: `--benchmark` now
 // delegates to `eval_cmd`, which drives the real harness in `vibe-eval`. Left
 // declared only in `lib.rs` — a `mod` here would compile it into the binary a
@@ -3180,15 +3147,10 @@ mod open_memory;
 // Recap & Resume — Phase F1.1 foundation (types + heuristic).
 mod recap;
 #[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
 mod soul_generator;
 // Recap & Resume — Phase F1.3 resume routes (in-memory handle registry).
-#[allow(dead_code)]
 mod resume;
 // /goal — durable execution intent.
-#[allow(dead_code)]
 mod exec_goal;
 #[allow(dead_code)]
 mod exec_goal_repl;
@@ -3211,9 +3173,7 @@ pub mod context_streaming;
 pub mod cross_surface_routing;
 pub mod data_analysis;
 pub mod diagnostics;
-#[allow(dead_code)]
 mod diff_chain;
-#[allow(dead_code)]
 mod diff_chain_store;
 pub mod extension_compat;
 #[allow(dead_code)]
@@ -3234,7 +3194,6 @@ pub mod workspace_detect;
 // Design platform — multi-provider (Pencil, Penpot, Draw.io, Figma, in-house)
 mod a2a_protocol;
 #[allow(dead_code)]
-#[allow(dead_code)]
 mod api_key_monitor;
 #[allow(dead_code)]
 mod browser_agent;
@@ -3244,9 +3203,6 @@ pub mod diagram_generator;
 #[allow(dead_code)]
 mod doc_sync;
 pub mod drawio_connector;
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
 // MCP Tasks extension + stateless _meta (2026-07-28 RC, gap C3).
 #[allow(dead_code)]
 mod mcp_tasks;
@@ -3261,7 +3217,6 @@ mod security_watch_daemon;
 #[allow(dead_code)]
 mod webmcp;
 // Design Mode → diffcomplete-into-source.
-#[allow(dead_code)]
 // Dynamic large-scale workflow primitive (gap C2).
 #[allow(dead_code)]
 mod dynamic_workflow;
@@ -3270,8 +3225,6 @@ mod graph_index;
 mod mcts_repair;
 mod mobile_gateway;
 #[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
 pub mod pencil_connector;
 pub mod penpot_connector;
 mod proactive_agent;
@@ -3279,10 +3232,7 @@ mod proactive_agent;
 // walking the tree a second way.
 #[allow(dead_code)]
 mod proactive_scanner;
-#[allow(dead_code)]
-#[allow(dead_code)]
 mod signed_agent_card;
-#[allow(dead_code)]
 #[allow(dead_code)]
 mod skillforge_index;
 #[allow(dead_code)]
@@ -3292,8 +3242,6 @@ mod spawn_agent;
 mod visual_verify;
 #[allow(dead_code)]
 mod voice_local;
-#[allow(dead_code)]
-#[allow(dead_code)]
 #[allow(dead_code)]
 mod web_client;
 mod web_grounding;
@@ -3334,48 +3282,14 @@ mod review_protocol;
 mod skill_distillation;
 mod workspace_store;
 // Phase 33-39: FIT-GAP v8
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
 // FIT-GAP v9 — P0 modules
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
 // FIT-GAP v9 — P1 modules
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
 // FIT-GAP v9 — P2 modules
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
 // FIT-GAP v9 — P3 modules
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
 // Claw-code parity — Wave 1: correctness/reliability
-#[allow(dead_code)]
-#[allow(dead_code)]
 // Claw-code parity — Wave 2: agent coordination
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
 // Claw-code parity — Wave 3: governance
-#[allow(dead_code)]
-#[allow(dead_code)]
 // Claw-code parity — Wave 4: config/hooks
-#[allow(dead_code)]
 // FIT-GAP v10 — Phase 40: Execution Engine (P0)
 // FIT-GAP v10 — Phase 41: Agent Intelligence (P1)
 mod file_watcher;
@@ -3389,54 +3303,20 @@ mod agent_stream_filter;
 mod mem_benchmark;
 // FIT-GAP v11 — Phase 45: Agent-OS (P0)
 #[allow(dead_code)]
-#[allow(dead_code)]
 mod agent_quota;
-#[allow(dead_code)]
 #[allow(dead_code)]
 mod agent_registry;
 // FIT-GAP v11 — Phase 46: Context & Workspace (P1)
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
 // FIT-GAP v11 — Phase 47: Developer Workflow (P2)
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
 // FIT-GAP v11 — Phase 48: P3 Gaps (closed)
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
 // FIT-GAP v12 — P0
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
 // FIT-GAP v12 — P1
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
 #[allow(dead_code)]
 mod context_handoff;
 #[allow(dead_code)]
-#[allow(dead_code)]
 mod reasoning_provider;
 // FIT-GAP v12 — P2
-#[allow(dead_code)]
-#[allow(dead_code)]
 // FIT-GAP v12 — P3
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
 #[allow(dead_code)]
 // RL-OS: Unified Reinforcement Learning Lifecycle Platform
 mod rl_advanced;
@@ -3447,13 +3327,10 @@ mod rl_eval;
 #[allow(dead_code)]
 mod rl_executor;
 #[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
 mod rl_policies;
 #[allow(dead_code)]
 mod rl_runs;
 mod rl_runtime;
-#[allow(dead_code)]
 #[allow(dead_code)]
 #[derive(Parser)]
 #[command(name = "vibecli")]
@@ -9912,7 +9789,7 @@ async fn main() -> Result<()> {
                                         }
                                     }
                                 }
-                                records.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+                                records.sort_by_key(|b| std::cmp::Reverse(b.started_at));
                                 if records.is_empty() {
                                     println!("No background jobs found.\n");
                                 } else {
@@ -10445,7 +10322,7 @@ async fn main() -> Result<()> {
                                     // command itself went to the terminal and the log verbatim.
                                     println!(
                                         "Running: {}\n",
-                                        warp_features::SecretRedactor::new().redact(&cmd)
+                                        warp_features::SecretRedactor::new().redact(cmd)
                                     );
                                     let status = std::process::Command::new("sh")
                                         .args(["-c", cmd])
@@ -10509,7 +10386,7 @@ async fn main() -> Result<()> {
                             // command itself went to the terminal and the log verbatim.
                             println!(
                                 "Running: {}\n",
-                                warp_features::SecretRedactor::new().redact(&fw)
+                                warp_features::SecretRedactor::new().redact(fw)
                             );
                             let status = std::process::Command::new("sh")
                                 .args(["-c", fw])
@@ -19034,6 +18911,10 @@ fn run_chat_command(command: &str) -> String {
     format!("$ {command}\n(exit {exit_code})\n{clipped}\n\n")
 }
 
+// One agent run's full context: the two providers, the task, the four mode
+// flags and the resume handle. They are independent switches read straight
+// off the CLI, not a value with a name of its own.
+#[allow(clippy::too_many_arguments)]
 async fn run_agent_repl_with_context(
     llm: Arc<dyn LLMProvider>,
     task: &str,
@@ -23409,18 +23290,8 @@ mod tests {
 }
 
 // Pi-mono gap bridge — Phases A1-D1
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
 mod oauth_login; // inner `#![allow(dead_code)]` in the file
 mod parallel_tools; // inner `#![allow(dead_code)]` in the file
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
-#[allow(dead_code)]
 #[allow(dead_code)]
 mod tui_ime; // inner `#![allow(dead_code)]` in the file
 

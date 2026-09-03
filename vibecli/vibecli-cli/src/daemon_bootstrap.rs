@@ -338,7 +338,10 @@ fn default_system_prefixes() -> Vec<PathBuf> {
 ///
 /// Kept to directories something in this repo actually creates. A guessed
 /// `%ProgramFiles%\…` would be a claim about an installer that does not exist.
-pub fn windows_prefixes(local_appdata: Option<PathBuf>, user_profile: Option<PathBuf>) -> Vec<PathBuf> {
+pub fn windows_prefixes(
+    local_appdata: Option<PathBuf>,
+    user_profile: Option<PathBuf>,
+) -> Vec<PathBuf> {
     local_appdata
         .map(|d| d.join("VibeCody"))
         .into_iter()
@@ -394,7 +397,7 @@ fn is_executable_file(path: &std::path::Path) -> bool {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        return meta.permissions().mode() & 0o111 != 0;
+        meta.permissions().mode() & 0o111 != 0
     }
     #[cfg(not(unix))]
     {

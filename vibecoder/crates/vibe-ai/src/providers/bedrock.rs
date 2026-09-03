@@ -721,7 +721,7 @@ mod tests {
         let dt = BedrockProvider::utc_datetime();
         let year: u32 = dt[..4].parse().unwrap();
         assert!(
-            year >= 2024 && year <= 2100,
+            (2024..=2100).contains(&year),
             "year {} seems unreasonable",
             year
         );
@@ -799,7 +799,10 @@ mod tests {
         );
         // Converse nests the schema two levels deeper than OpenAI does.
         assert!(tools[0]["toolSpec"]["name"].is_string());
-        assert_eq!(tools[0]["toolSpec"]["inputSchema"]["json"]["type"], "object");
+        assert_eq!(
+            tools[0]["toolSpec"]["inputSchema"]["json"]["type"],
+            "object"
+        );
     }
 
     #[test]
@@ -847,7 +850,10 @@ mod tests {
     fn a_prose_only_reply_is_unchanged() {
         let json = r#"{"output":{"message":{"content":[{"text":"just prose"}]}}}"#;
         let resp: ConverseResponse = serde_json::from_str(json).unwrap();
-        assert_eq!(render_converse_content(&resp.output.message.content), "just prose");
+        assert_eq!(
+            render_converse_content(&resp.output.message.content),
+            "just prose"
+        );
     }
 
     // ── build_converse_request ──────────────────────────────────────────

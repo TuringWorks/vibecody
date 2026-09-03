@@ -465,6 +465,10 @@ impl GlobalMemStore {
         Ok(count as usize)
     }
 
+    // Each argument is a distinct column of the row being built. Grouping them
+    // would mean a second struct that restates `MemoryEntry`, which is what this
+    // already returns — the parameter list is the honest shape of the write.
+    #[allow(clippy::too_many_arguments)]
     async fn create_entry(
         &self,
         content: &str,

@@ -21,7 +21,9 @@ pub use schema::initialize_store;
 /// Memory sector classification.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum MemorySector {
+    #[default]
     Episodic,
     Semantic,
     Procedural,
@@ -124,6 +126,9 @@ impl MemorySector {
         }
     }
 
+    // Not `FromStr`: that trait must return a `Result`, and this parser reports an
+    // unknown input as `None` rather than as an error value it would have to invent.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "episodic" => Some(Self::Episodic),
@@ -143,12 +148,6 @@ impl MemorySector {
             Self::Emotional,
             Self::Reflective,
         ]
-    }
-}
-
-impl Default for MemorySector {
-    fn default() -> Self {
-        Self::Episodic
     }
 }
 

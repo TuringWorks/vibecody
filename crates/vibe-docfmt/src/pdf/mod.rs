@@ -496,10 +496,8 @@ fn scan(operations: &[Operation], encoders: &PageEncoders) -> Vec<Line> {
                             };
                             show(bytes, reference, &mut open, &mut lines, text, ctm, &mut gap);
                         }
-                        Object::Integer(_) | Object::Real(_) => {
-                            if -number(Some(item)) >= WORD_GAP {
-                                gap = true;
-                            }
+                        Object::Integer(_) | Object::Real(_) if -number(Some(item)) >= WORD_GAP => {
+                            gap = true;
                         }
                         _ => {}
                     }
@@ -809,7 +807,7 @@ fn align(lines: &[Line], target: &[String]) -> Result<Vec<(usize, String)>, DocE
                     "a line cannot be added to a PDF: {:?} has no place on the page. \
                      A PDF stores glyphs at fixed positions and does not re-flow, so text \
                      can be changed or removed here but not inserted",
-                    truncate(&new[new_index])
+                    truncate(new[new_index])
                 )));
             }
             DiffOp::Replace {
@@ -823,7 +821,7 @@ fn align(lines: &[Line], target: &[String]) -> Result<Vec<(usize, String)>, DocE
                         "a line cannot be added to a PDF: {:?} has no place on the page. \
                          A PDF stores glyphs at fixed positions and does not re-flow, so text \
                          can be changed or removed here but not inserted",
-                        truncate(&new[new_index + old_len])
+                        truncate(new[new_index + old_len])
                     )));
                 }
                 for k in 0..old_len {

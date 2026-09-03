@@ -616,7 +616,7 @@ fn extract_skill_triggers(task: &str, response: &str) -> Vec<String> {
     }
 
     let mut sorted: Vec<(String, usize)> = freq.into_iter().collect();
-    sorted.sort_by(|a, b| b.1.cmp(&a.1));
+    sorted.sort_by_key(|b| std::cmp::Reverse(b.1));
     sorted
         .into_iter()
         .filter(|(_, c)| *c >= NEW_SKILL_MIN_PATTERN_FREQ)

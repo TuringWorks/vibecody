@@ -33,19 +33,19 @@ model = "claude-sonnet-4-6"
 [openai]
 enabled = false
 api_key = "sk-..."                  # OpenAI API key (or OPENAI_API_KEY)
-model = "gpt-4o"
+model = "gpt-5.6-sol"
 # api_key_helper = "~/.vibecli/get-key.sh openai"
 
 [gemini]
 enabled = false
 api_key = "AIza..."                 # Google AI Studio key (or GEMINI_API_KEY)
-model = "gemini-2.5-flash"
+model = "gemini-3.6-flash"
 # api_key_helper = "~/.vibecli/get-key.sh gemini"
 
 [grok]
 enabled = false
 api_key = "..."                     # xAI API key (or GROK_API_KEY)
-model = "grok-3-mini"
+model = "grok-4.6"
 # api_key_helper = "~/.vibecli/get-key.sh grok"
 
 # ── UI ─────────────────────────────────────────────────────────────
@@ -113,18 +113,18 @@ auto_report = true                 # Auto-generate report on completion
 [groq]
 enabled = false
 api_key = "gsk_..."                # Groq API key (or GROQ_API_KEY)
-model = "llama-3.3-70b-versatile"
+model = "openai/gpt-oss-120b"
 
 [openrouter]
 enabled = false
 api_key = "sk-or-..."             # OpenRouter key (or OPENROUTER_API_KEY)
-model = "anthropic/claude-3.5-sonnet"
+model = "anthropic/claude-opus-5"
 
 [azure_openai]
 enabled = false
 api_key = "..."                    # Azure key (or AZURE_OPENAI_API_KEY)
 api_url = "https://<resource>.openai.azure.com"
-model = "gpt-4o"                   # Deployment name
+model = "gpt-5.6-sol"              # Deployment name
 
 [bedrock]
 enabled = false
@@ -139,28 +139,28 @@ model = "mistral-large-latest"
 [cerebras]
 enabled = false
 api_key = "..."                    # Cerebras key (or CEREBRAS_API_KEY)
-model = "llama3.1-70b"
+model = "gpt-oss-120b"
 
 [deepseek]
 enabled = false
 api_key = "..."                    # DeepSeek key (or DEEPSEEK_API_KEY)
-model = "deepseek-chat"
+model = "deepseek-v4-pro"
 
 [zhipu]
 enabled = false
 api_key = "..."                    # Zhipu key (or ZHIPU_API_KEY)
-model = "glm-4"
+model = "glm-5.2"
 
 [vercel_ai]
 enabled = false
 api_key = "..."                    # Vercel AI key (or VERCEL_AI_API_KEY)
 api_url = "https://..."            # Your Vercel AI Gateway URL (REQUIRED)
-model = "gpt-4o"
+model = "gpt-5.6-sol"
 
 [copilot]
 enabled = false
 # Uses GITHUB_TOKEN or ~/.config/github-copilot/hosts.json
-model = "gpt-4o"
+model = "gpt-5.6-sol"
 
 [perplexity]
 enabled = false
@@ -170,17 +170,17 @@ model = "sonar-pro"
 [together]
 enabled = false
 api_key = "..."                    # Together AI key (or TOGETHER_API_KEY)
-model = "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo"
+model = "moonshotai/Kimi-K2.7-Code"
 
 [fireworks]
 enabled = false
 api_key = "..."                    # Fireworks AI key (or FIREWORKS_API_KEY)
-model = "accounts/fireworks/models/llama-v3p1-70b-instruct"
+model = "accounts/fireworks/models/gpt-oss-120b"
 
 [sambanova]
 enabled = false
 api_key = "..."                    # SambaNova key (or SAMBANOVA_API_KEY)
-model = "Meta-Llama-3.1-70B-Instruct"
+model = "DeepSeek-V3.2"
 
 [poolside]
 enabled = false
@@ -190,7 +190,7 @@ model = "poolside/laguna-s-2.1"      # "poolside/laguna-s-2.1", "poolside/laguna
 [minimax]
 enabled = false
 api_key = "..."                    # MiniMax key (or MINIMAX_API_KEY)
-model = "abab6.5s-chat"
+model = "MiniMax-M3"
 
 # ── Failover (multi-provider chain) ──────────────────────────────
 
@@ -399,19 +399,26 @@ forgot how to use tools. Set `VIBECLI_OLLAMA_NUM_CTX` to raise it:
    ```toml
    [openai]
    enabled = true
-   model = "gpt-4o"
+   model = "gpt-5.6-sol"
    ```
 
    ```bash
    export OPENAI_API_KEY="sk-..."
    ```
 
-   Available models: `gpt-4o` (default), `gpt-4o-mini`, `gpt-4-turbo`, `o1`, `o1-mini`.
+   Available models: `gpt-5.6-sol` (default), `gpt-5.6-terra`, `gpt-5.6-luna`,
+   `gpt-5.5-pro`, `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.3-codex`,
+   `gpt-5.3-chat`, `gpt-4.1`, `gpt-4.1-mini`, `gpt-4o`, `gpt-4o-mini`.
+   (The four 4-series ids are superseded but still Active on the API. What is
+   deprecated, with an API shutdown on 2026-10-23: `gpt-4-turbo`, `gpt-4.1-nano`,
+   `gpt-3.5-turbo`, `o1`, `o1-mini`, `o3-mini`, `o4-mini`. `gpt-5` shuts down
+   2026-12-11. There is no `gpt-5.6-*-pro` model — "pro" is `reasoning.mode` on
+   the Responses API.)
 
    CLI aliases: `openai`, `gpt`
 
 
-### 4. Google Gemini — Gemini 2.5 Pro/Flash
+### 4. Google Gemini — Gemini 3 Flash/Pro
 
 1. Get an API key at [aistudio.google.com](https://aistudio.google.com/)
 
@@ -420,19 +427,24 @@ forgot how to use tools. Set `VIBECLI_OLLAMA_NUM_CTX` to raise it:
    ```toml
    [gemini]
    enabled = true
-   model = "gemini-2.5-flash"
+   model = "gemini-3.6-flash"
    ```
 
    ```bash
    export GEMINI_API_KEY="AIza..."
    ```
 
-   Available models: `gemini-2.5-pro` (highest quality), `gemini-2.5-flash` (default, fast), `gemini-2.0-flash-lite` (cheapest).
+   Available models: `gemini-3.1-pro-preview` (highest quality), `gemini-3.6-flash`
+   (default), `gemini-3.8-flash`, `gemini-3.7-flash`, `gemini-3.5-flash`,
+   `gemini-3.5-flash-lite` / `gemini-3.1-flash-lite` (cheapest).
+   (The 2.0 line shut down 2026-06-01 and the 2.5 line left the picker
+   2026-09-02 — `gemini-2.5-pro` already 404s for new GCP projects. The Pro tier
+   has no GA id: it is `gemini-3.1-pro-preview`, `-preview` included.)
 
    CLI aliases: `gemini`, `google`
 
 
-### 5. xAI Grok — Grok 2
+### 5. xAI Grok — Grok 4.x
 
 1. Get an API key at [x.ai](https://x.ai/)
 
@@ -441,14 +453,16 @@ forgot how to use tools. Set `VIBECLI_OLLAMA_NUM_CTX` to raise it:
    ```toml
    [grok]
    enabled = true
-   model = "grok-3-mini"
+   model = "grok-4.6"
    ```
 
    ```bash
    export GROK_API_KEY="..."
    ```
 
-   Available models: `grok-2`, `grok-3-mini` (default).
+   Available models: `grok-4.6` (default), `grok-4.5`, `grok-4.3`.
+   (Requests to the grok-3 / grok-4-fast / grok-4-0709 families were redirected
+   to grok-4.3 on 2026-05-15.)
 
    CLI aliases: `grok`, `xai`
 
@@ -464,7 +478,7 @@ Groq runs open-source models on custom LPU hardware with extremely low latency.
    ```toml
    [groq]
    enabled = true
-   model = "llama-3.3-70b-versatile"
+   model = "openai/gpt-oss-120b"
    ```
 
    ```bash
@@ -488,7 +502,7 @@ OpenRouter aggregates 300+ models from multiple providers behind a single API ke
    ```toml
    [openrouter]
    enabled = true
-   model = "anthropic/claude-3.5-sonnet"
+   model = "anthropic/claude-opus-5"
    ```
 
    ```bash
@@ -503,7 +517,7 @@ OpenRouter aggregates 300+ models from multiple providers behind a single API ke
 For organizations using Azure-managed OpenAI deployments with enterprise compliance.
 
 1. Create an Azure OpenAI resource in the [Azure Portal](https://portal.azure.com/)
-2. Deploy a model (e.g., `gpt-4o`) and note the deployment name
+2. Deploy a model (e.g., `gpt-5.6-sol`) and note the deployment name
 
 3. Configure:
 
@@ -511,7 +525,7 @@ For organizations using Azure-managed OpenAI deployments with enterprise complia
    [azure_openai]
    enabled = true
    api_url = "https://<resource>.openai.azure.com"
-   model = "gpt-4o"       # Must match your deployment name
+   model = "gpt-5.6-sol"  # Must match your deployment name
    ```
 
    ```bash
@@ -547,7 +561,10 @@ Uses your existing AWS credentials. No separate API key needed.
    # export AWS_SESSION_TOKEN="..."  # If using temporary credentials
    ```
 
-   Available models: `anthropic.claude-3-5-sonnet-*`, `anthropic.claude-3-haiku-*`, `meta.llama3-*`, `amazon.titan-*`.
+   Available models: `anthropic.claude-opus-5`, `anthropic.claude-sonnet-5`,
+   `anthropic.claude-opus-4-8`, `anthropic.claude-haiku-4-5`, `meta.llama3-*`,
+   `amazon.titan-*`. (The Claude 3 ids are retired: 3.5 Sonnet 2025-10-28,
+   3 Haiku 2026-04-20.)
 
    CLI aliases: `bedrock`, `aws`, `aws-bedrock`
 
@@ -563,7 +580,7 @@ Uses your existing GitHub Copilot subscription.
    ```toml
    [copilot]
    enabled = true
-   model = "gpt-4o"
+   model = "gpt-5.6-sol"
    ```
 
    Authentication is resolved automatically in this order:
@@ -643,14 +660,15 @@ Strong coding performance at very low prices.
    ```toml
    [deepseek]
    enabled = true
-   model = "deepseek-chat"
+   model = "deepseek-v4-pro"
    ```
 
    ```bash
    export DEEPSEEK_API_KEY="..."
    ```
 
-   Available models: `deepseek-chat` (V3, default), `deepseek-reasoner` (R1, chain-of-thought reasoning).
+   Available models: `deepseek-v4-pro` (default), `deepseek-v4-flash`.
+   (`deepseek-chat` and `deepseek-reasoner` were retired 2026-07-24.)
 
 
 ### 15. Zhipu — GLM-4 Models
@@ -664,7 +682,7 @@ Chinese AI models from Zhipu AI (BigModel).
    ```toml
    [zhipu]
    enabled = true
-   model = "glm-4"
+   model = "glm-5.2"
    ```
 
    ```bash
@@ -688,7 +706,7 @@ A unified proxy that routes to multiple AI services through your Vercel deployme
    [vercel_ai]
    enabled = true
    api_url = "https://your-gateway.vercel.app/api"   # REQUIRED
-   model = "gpt-4o"
+   model = "gpt-5.6-sol"
    ```
 
    ```bash
@@ -712,14 +730,15 @@ Chinese AI large language models.
    ```toml
    [minimax]
    enabled = true
-   model = "abab6.5s-chat"
+   model = "MiniMax-M3"
    ```
 
    ```bash
    export MINIMAX_API_KEY="..."
    ```
 
-   Available models: `abab6.5s-chat` (default), `abab6.5-chat`, `MiniMax-Text-01`.
+   Available models: `MiniMax-M3` (default), `MiniMax-M2.7`.
+   (The abab* line was superseded by the M-series.)
 
 
 ### 18. Perplexity — Search-Augmented Sonar Models
@@ -928,7 +947,7 @@ Override the model for any provider:
 
 ```bash
 vibecli --tui --provider claude --model claude-opus-4-6
-vibecli --tui --provider openai --model gpt-4o-mini
+vibecli --tui --provider openai --model gpt-5.6-luna
 vibecli --tui --provider groq --model openai/gpt-oss-120b
 ```
 
@@ -1073,7 +1092,7 @@ vibecli --provider claude --model claude-opus-4-6 \
 
 ```bash
 # Feed an entire codebase (Gemini supports up to 2M tokens)
-vibecli --provider gemini --model gemini-2.5-pro \
+vibecli --provider gemini --model gemini-3.1-pro-preview \
   "Summarize the architecture of this project and identify dead code" \
   --add-dir ./src/
 ```
@@ -1092,7 +1111,7 @@ vibecli --provider sambanova "Explain this error: cannot borrow as mutable"
 ```bash
 # Strong coding quality at ~1/10th the price of Claude/GPT-4o
 vibecli --provider deepseek "Write comprehensive unit tests for src/auth.rs"
-vibecli --provider deepseek --model deepseek-reasoner "Debug this race condition" # R1 reasoning
+vibecli --provider deepseek --model deepseek-v4-pro "Debug this race condition" # V4 reasoning
 ```
 
 **Perplexity — Search-augmented answers:**
@@ -1108,7 +1127,7 @@ vibecli --provider perplexity "Compare axum vs actix-web performance benchmarks 
 ```bash
 # Try niche or new models via unified API
 vibecli --provider openrouter --model "meta-llama/llama-3.3-70b" "Explain monads"
-vibecli --provider openrouter --model "google/gemini-2.5-pro" "Review this code"
+vibecli --provider openrouter --model "google/gemini-3.6-flash" "Review this code"
 vibecli --provider openrouter --model "deepseek/deepseek-r1" "Solve this optimization"
 ```
 
@@ -1132,7 +1151,7 @@ vibecli --provider failover --agent "Fix the build errors in src/"
 ```bash
 export AZURE_OPENAI_API_KEY="..."
 export AZURE_OPENAI_ENDPOINT="https://mycompany.openai.azure.com"
-vibecli --provider azure --model gpt-4o "Audit this code for OWASP top 10 vulnerabilities"
+vibecli --provider azure --model gpt-5.6-sol "Audit this code for OWASP top 10 vulnerabilities"
 ```
 
 **AWS Bedrock — IAM-authenticated, no API keys in code:**

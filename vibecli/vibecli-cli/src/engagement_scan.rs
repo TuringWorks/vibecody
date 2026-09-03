@@ -98,13 +98,32 @@ pub static RULES: &[Rule] = &[
     r!(
         "current-state-architecture-map",
         "architecture document or diagram",
-        ["architecture", "system-design", "c4-model", "context-diagram"],
-        &[".md", ".markdown", ".adoc", ".drawio", ".mmd", ".svg", ".puml", ".pdf"]
+        [
+            "architecture",
+            "system-design",
+            "c4-model",
+            "context-diagram"
+        ],
+        &[
+            ".md",
+            ".markdown",
+            ".adoc",
+            ".drawio",
+            ".mmd",
+            ".svg",
+            ".puml",
+            ".pdf"
+        ]
     ),
     r!(
         "system-inventory",
         "service inventory or catalog",
-        ["inventory", "service-catalog", "catalog-info", "system-catalog"],
+        [
+            "inventory",
+            "service-catalog",
+            "catalog-info",
+            "system-catalog"
+        ],
         &[".md", ".yaml", ".yml", ".csv", ".json"]
     ),
     r!(
@@ -116,13 +135,25 @@ pub static RULES: &[Rule] = &[
     r!(
         "functional-requirements",
         "requirements or user stories",
-        ["functional-requirement", "user-stories", "user-story", "/prd", "prd-"],
+        [
+            "functional-requirement",
+            "user-stories",
+            "user-story",
+            "/prd",
+            "prd-"
+        ],
         DOCS
     ),
     r!(
         "non-functional-requirements",
         "NFR document",
-        ["non-functional", "nfr.", "nfr-", "/nfr", "quality-attributes"],
+        [
+            "non-functional",
+            "nfr.",
+            "nfr-",
+            "/nfr",
+            "quality-attributes"
+        ],
         DOCS
     ),
     r!(
@@ -134,7 +165,13 @@ pub static RULES: &[Rule] = &[
     r!(
         "dependency-register",
         "dependency inventory or SBOM",
-        ["sbom", "cyclonedx", "spdx", "dependency-register", "dependencies."],
+        [
+            "sbom",
+            "cyclonedx",
+            "spdx",
+            "dependency-register",
+            "dependencies."
+        ],
         &[".md", ".json", ".xml", ".csv", ".yaml", ".yml"]
     ),
     r!(
@@ -159,14 +196,26 @@ pub static RULES: &[Rule] = &[
     r!(
         "measured-results",
         "measured results",
-        ["benchmark", "eval-results", "measured-results", "pilot-results"],
+        [
+            "benchmark",
+            "eval-results",
+            "measured-results",
+            "pilot-results"
+        ],
         &[".md", ".json", ".csv", ".html"]
     ),
     r!(
         "cost-model",
         "cost model",
         // "tco" bare matches "ou-tco-mes". Delimit it.
-        ["cost-model", "cost-estimate", "tco.", "tco-", "/tco", "pricing-model"],
+        [
+            "cost-model",
+            "cost-estimate",
+            "tco.",
+            "tco-",
+            "/tco",
+            "pricing-model"
+        ],
         &[".md", ".csv", ".xlsx", ".json"]
     ),
     r!(
@@ -208,13 +257,26 @@ pub static RULES: &[Rule] = &[
     r!(
         "test-coverage",
         "coverage report",
-        ["lcov.info", "coverage.xml", "cobertura", "tarpaulin-report", "coverage-summary"],
+        [
+            "lcov.info",
+            "coverage.xml",
+            "cobertura",
+            "tarpaulin-report",
+            "coverage-summary"
+        ],
         &[]
     ),
     r!(
         "observability",
         "telemetry or dashboard configuration",
-        ["opentelemetry", "otel-", "otel.", "grafana", "dashboards/", "jaeger"],
+        [
+            "opentelemetry",
+            "otel-",
+            "otel.",
+            "grafana",
+            "dashboards/",
+            "jaeger"
+        ],
         &[".yaml", ".yml", ".json", ".toml", ".md"]
     ),
     r!(
@@ -246,7 +308,15 @@ pub static RULES: &[Rule] = &[
     r!(
         "compliance-evidence",
         "compliance artifact",
-        ["compliance", "soc2", "soc-2", "iso27001", "hipaa", "pci-dss", "audit-evidence"],
+        [
+            "compliance",
+            "soc2",
+            "soc-2",
+            "iso27001",
+            "hipaa",
+            "pci-dss",
+            "audit-evidence"
+        ],
         &[".md", ".pdf", ".csv", ".json", ".yaml", ".yml"]
     ),
     r!(
@@ -257,12 +327,7 @@ pub static RULES: &[Rule] = &[
     ),
     // ── Operate ───────────────────────────────────────────────────────────
     r!("runbooks", "runbook", ["runbook", "playbook"], DOCS),
-    r!(
-        "escalation-paths",
-        "escalation path",
-        ["escalation"],
-        DOCS
-    ),
+    r!("escalation-paths", "escalation path", ["escalation"], DOCS),
     r!(
         "oncall-handbook",
         "on-call handbook",
@@ -326,11 +391,7 @@ pub fn rule_matches(rule: &Rule, normalised_path: &str) -> bool {
     if !needle_hit {
         return false;
     }
-    rule.extensions.is_empty()
-        || rule
-            .extensions
-            .iter()
-            .any(|e| normalised_path.ends_with(e))
+    rule.extensions.is_empty() || rule.extensions.iter().any(|e| normalised_path.ends_with(e))
 }
 
 /// Walk `root` and propose evidence.
@@ -492,10 +553,8 @@ mod tests {
         // A rule pointing at a key the template does not have would propose
         // evidence for a deliverable that cannot receive it — silently, since
         // `attach` skips unknown keys.
-        let keys: std::collections::HashSet<&str> = crate::engagement::TEMPLATE
-            .iter()
-            .map(|t| t.key)
-            .collect();
+        let keys: std::collections::HashSet<&str> =
+            crate::engagement::TEMPLATE.iter().map(|t| t.key).collect();
         for r in RULES {
             assert!(
                 keys.contains(r.key),
@@ -607,10 +666,7 @@ mod tests {
     fn a_report_always_says_a_file_is_not_a_deliverable() {
         let dir = TempDir::new().expect("tempdir");
         let report = scan(dir.path()).expect("scan");
-        assert!(report
-            .notes
-            .iter()
-            .any(|n| n.contains("not a deliverable")));
+        assert!(report.notes.iter().any(|n| n.contains("not a deliverable")));
         // And it always names what it could not look for.
         assert!(!report.undetectable.is_empty());
     }
@@ -627,8 +683,7 @@ mod tests {
     fn attach_creates_evidence_but_never_changes_status() {
         use crate::engagement::{DeliverableStatus, EngagementStore};
         let store_dir = TempDir::new().expect("tempdir");
-        let store =
-            EngagementStore::open(store_dir.path().join("e.db")).expect("open");
+        let store = EngagementStore::open(store_dir.path().join("e.db")).expect("open");
         let e = store.create("Acme", "Acme", None, "").expect("create");
 
         let ws = TempDir::new().expect("tempdir");

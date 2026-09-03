@@ -19,14 +19,8 @@
 use serde::{Deserialize, Serialize};
 
 /// Whether WebMCP is enabled. Off by default — origin-trial gated.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct WebMcpFlag(pub bool);
-
-impl Default for WebMcpFlag {
-    fn default() -> Self {
-        WebMcpFlag(false)
-    }
-}
 
 impl WebMcpFlag {
     pub fn enabled(self) -> bool {
@@ -287,7 +281,7 @@ mod tests {
     fn producer_roundtrips_through_publish() {
         let tool = panel_as_tool("git", "Inspect git status", &[("path", false)]);
         assert_eq!(tool.name, "vibecoder.git");
-        let json = publish_tools(&[tool.clone()]);
+        let json = publish_tools(std::slice::from_ref(&tool));
         let reparsed = parse_advertised_tools(&json);
         assert_eq!(reparsed, vec![tool]);
     }

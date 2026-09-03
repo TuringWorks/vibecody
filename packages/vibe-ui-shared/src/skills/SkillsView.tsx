@@ -128,6 +128,9 @@ export function SkillsView({ catalog, onClose, onUse, hint }: SkillsViewProps) {
           <input
             className="vsk__filter"
             placeholder="Filter skills…"
+            // Every host mounts this view because the user just asked for the
+            // catalogue, so the filter is where they are already headed.
+            autoFocus
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           />

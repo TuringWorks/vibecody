@@ -703,10 +703,7 @@ fn rewrite_paragraph(
             _ => None,
         })
         .collect();
-    let insert_at = text_indices
-        .first()
-        .copied()
-        .unwrap_or_else(|| el.children.len());
+    let insert_at = text_indices.first().copied().unwrap_or(el.children.len());
     for index in text_indices.into_iter().rev() {
         el.children.remove(index);
     }
@@ -862,10 +859,7 @@ fn apply_paragraph_props(el: &mut Element, block: &Block, adapter: &mut DocxAdap
 
 // ── Package parts written on demand ──────────────────────────────────
 
-fn apply_new_rels(
-    entries: &mut Vec<ZipEntry>,
-    new_rels: &[(String, String)],
-) -> Result<(), DocError> {
+fn apply_new_rels(entries: &mut [ZipEntry], new_rels: &[(String, String)]) -> Result<(), DocError> {
     if new_rels.is_empty() {
         return Ok(());
     }
@@ -973,7 +967,7 @@ fn numbering_xml() -> String {
 
 /// Define any heading style the edit introduced that the package lacks, so Word
 /// renders `# Title` as a heading rather than body text.
-fn ensure_heading_styles(entries: &mut Vec<ZipEntry>, levels: &[u8]) -> Result<(), DocError> {
+fn ensure_heading_styles(entries: &mut [ZipEntry], levels: &[u8]) -> Result<(), DocError> {
     if levels.is_empty() {
         return Ok(());
     }

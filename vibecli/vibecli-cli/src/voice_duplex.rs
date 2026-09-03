@@ -169,7 +169,10 @@ impl SentenceSplitter {
 /// feature is never silently unavailable.
 pub enum Tts {
     /// Resident `AVSpeechSynthesizer` sidecar: ~15–25 ms to first audio.
-    Streaming(Sidecar),
+    ///
+    /// Boxed so the enum stays the size of its small `Batch` arm — the sidecar
+    /// carries a child process and two buffered pipes.
+    Streaming(Box<Sidecar>),
     /// `say` / `espeak` / PowerShell to a WAV, then read it back.
     Batch,
 }
@@ -222,7 +225,7 @@ impl Tts {
             );
         };
         match Sidecar::spawn(&prog, args).await {
-            Ok(s) => (Tts::Streaming(s), None),
+            Ok(s) => (Tts::Streaming(Box::new(s)), None),
             Err(e) => (
                 Tts::Batch,
                 Some(format!(
@@ -683,7 +686,9 @@ pub async fn transcribe_server(
     if !out.status.success() {
         anyhow::bail!(
             "curl exited {} talking to {server}/inference{}",
-            out.status.code().map_or_else(|| "on a signal".into(), |c| c.to_string()),
+            out.status
+                .code()
+                .map_or_else(|| "on a signal".into(), |c| c.to_string()),
             why()
         );
     }
@@ -719,13 +724,11 @@ pub async fn transcribe_server(
 /// Whisper emits bracketed non-speech markers ("[BLANK_AUDIO]", "(music)").
 /// They are not words and must not reach the model as if they were.
 pub fn clean_transcript(raw: &str) -> String {
+    // Whisper brackets its non-speech annotations — `[BLANK_AUDIO]`, `(music)`.
+    let wrapped_in = |l: &str, open: char, close: char| l.starts_with(open) && l.ends_with(close);
     raw.lines()
         .map(str::trim)
-        .filter(|l| {
-            !l.is_empty()
-                && !(l.starts_with('[') && l.ends_with(']'))
-                && !(l.starts_with('(') && l.ends_with(')'))
-        })
+        .filter(|l| !l.is_empty() && !wrapped_in(l, '[', ']') && !wrapped_in(l, '(', ')'))
         .collect::<Vec<_>>()
         .join(" ")
 }
@@ -862,10 +865,7 @@ fn bin_roots_from(
         .map(|h| h.join(".vibecli"))
         .into_iter()
         .flat_map(|d| [d.join("bin"), d.join("whisper")]);
-    from_host
-        .chain(beside_exe)
-        .chain(hand_installed)
-        .collect()
+    from_host.chain(beside_exe).chain(hand_installed).collect()
 }
 
 /// The bundle of whichever app spawned this daemon, when it said so.
@@ -1416,10 +1416,15 @@ mod tests {
             let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
             l.local_addr().unwrap().port()
         };
-        let err = transcribe_server(&format!("http://127.0.0.1:{dead}"), &[0i16; 320], 16_000, None)
-            .await
-            .expect_err("a refused connection is not a transcript")
-            .to_string();
+        let err = transcribe_server(
+            &format!("http://127.0.0.1:{dead}"),
+            &[0i16; 320],
+            16_000,
+            None,
+        )
+        .await
+        .expect_err("a refused connection is not a transcript")
+        .to_string();
         assert!(
             !err.contains("EOF while parsing"),
             "the parser must not be the one reporting a transport failure: {err}"

@@ -348,7 +348,7 @@ mod tests {
 
     #[test]
     fn next_level_chain() {
-        let chain = vec![
+        let chain = [
             ThinkingLevel::Off,
             ThinkingLevel::Minimal,
             ThinkingLevel::Low,

@@ -74,6 +74,12 @@ pub struct DiscussionManager {
     next_message_id: u64,
 }
 
+impl Default for DiscussionManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DiscussionManager {
     pub fn new() -> Self {
         Self {

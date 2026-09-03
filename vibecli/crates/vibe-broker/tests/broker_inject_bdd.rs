@@ -124,7 +124,7 @@ fn stub_echo(world: &mut IWorld) {
                     let head = String::from_utf8_lossy(&buf[..total]);
                     let auth = head.lines().find_map(|l| {
                         if l.to_ascii_lowercase().starts_with("authorization:") {
-                            l.splitn(2, ':').nth(1).map(|s| s.trim().to_owned())
+                            l.split_once(':').map(|x| x.1).map(|s| s.trim().to_owned())
                         } else {
                             None
                         }

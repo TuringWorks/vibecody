@@ -473,7 +473,7 @@ impl AgentlessPipeline {
             .filter(|(_, score)| *score > 0)
             .collect();
 
-        scored.sort_by(|a, b| b.1.cmp(&a.1));
+        scored.sort_by_key(|b| std::cmp::Reverse(b.1));
         let result: Vec<String> = scored.into_iter().map(|(f, _)| f).collect();
 
         // If no keyword match, return all files (fallback)
@@ -1012,8 +1012,10 @@ mod tests {
 
     #[test]
     fn test_tree_max_depth_enforced() {
-        let mut config = MctsConfig::default();
-        config.max_depth = 2;
+        let config = MctsConfig {
+            max_depth: 2,
+            ..Default::default()
+        };
         let mut tree = MctsTree::new(make_edit("root"), config);
         tree.add_node("c1".into(), "root", make_edit("d1")).unwrap();
         tree.add_node("c2".into(), "c1", make_edit("d2")).unwrap();
@@ -1024,8 +1026,10 @@ mod tests {
 
     #[test]
     fn test_tree_max_breadth_enforced() {
-        let mut config = MctsConfig::default();
-        config.max_breadth = 2;
+        let config = MctsConfig {
+            max_breadth: 2,
+            ..Default::default()
+        };
         let mut tree = MctsTree::new(make_edit("root"), config);
         tree.add_node("c1".into(), "root", make_edit("a")).unwrap();
         tree.add_node("c2".into(), "root", make_edit("b")).unwrap();
@@ -1391,8 +1395,10 @@ mod tests {
 
     #[test]
     fn test_mcts_iteration_max_iterations() {
-        let mut config = MctsConfig::default();
-        config.max_iterations = 1;
+        let config = MctsConfig {
+            max_iterations: 1,
+            ..Default::default()
+        };
         let mut engine = RepairEngine::new(config);
         engine
             .new_session(
@@ -1418,8 +1424,11 @@ mod tests {
 
     #[test]
     fn test_mcts_iteration_cost_limit() {
-        let mut config = MctsConfig::default();
-        config.cost_limit = Some(0.005); // lower than per-iteration cost of 0.01
+        let config = MctsConfig {
+            // lower than the per-iteration cost of 0.01
+            cost_limit: Some(0.005),
+            ..Default::default()
+        };
         let mut engine = RepairEngine::new(config);
         engine
             .new_session(
@@ -1680,7 +1689,7 @@ mod tests {
 
     #[test]
     fn test_edit_type_variants() {
-        let types = vec![
+        let types = [
             EditType::Replace,
             EditType::Insert,
             EditType::Delete,
@@ -1700,7 +1709,7 @@ mod tests {
 
     #[test]
     fn test_session_status_variants() {
-        let statuses = vec![
+        let statuses = [
             SessionStatus::Planning,
             SessionStatus::Searching,
             SessionStatus::Evaluating,

@@ -1,7 +1,8 @@
 //! Ollama AI provider implementation
 
 use crate::provider::{
-    record_stop_reason, AIProvider, CodeContext, CompletionResponse, CompletionStream, Message, StopReason, StopReasonSink, ProviderConfig,
+    record_stop_reason, AIProvider, CodeContext, CompletionResponse, CompletionStream, Message,
+    ProviderConfig, StopReason, StopReasonSink,
 };
 use anyhow::{Context, Result};
 use async_trait::async_trait;
@@ -641,7 +642,6 @@ impl OllamaProvider {
             .collect())
     }
 }
-
 
 impl OllamaProvider {
     /// The streaming body shared by [`AIProvider::stream_chat`] and
@@ -1655,13 +1655,14 @@ mod tests {
     /// The response carries the only evidence that a prompt was truncated —
     /// there is no flag for it — so the field must survive deserialization.
     #[test]
-    #[test]
     fn a_reply_cut_at_the_cap_is_distinguishable_from_a_finished_one() {
         // The bug: `done_reason` was not a field, so serde dropped it and both
         // of these parsed identically. The chat rendered the truncated one as
         // complete and the user had to type "continue" to get the rest.
-        let finished = r#"{"message":{"role":"assistant","content":"hi"},"done":true,"done_reason":"stop"}"#;
-        let truncated = r#"{"message":{"role":"assistant","content":"hi"},"done":true,"done_reason":"length"}"#;
+        let finished =
+            r#"{"message":{"role":"assistant","content":"hi"},"done":true,"done_reason":"stop"}"#;
+        let truncated =
+            r#"{"message":{"role":"assistant","content":"hi"},"done":true,"done_reason":"length"}"#;
 
         let finished: OllamaChatResponse = serde_json::from_str(finished).unwrap();
         let truncated: OllamaChatResponse = serde_json::from_str(truncated).unwrap();
@@ -1699,6 +1700,7 @@ mod tests {
         assert!(!r.is_truncated());
     }
 
+    #[test]
     fn prompt_eval_count_is_captured() {
         let json = r#"{"message":{"role":"assistant","content":"hi"},"done":true,"prompt_eval_count":4517}"#;
         let parsed: OllamaChatResponse = serde_json::from_str(json).expect("parse");

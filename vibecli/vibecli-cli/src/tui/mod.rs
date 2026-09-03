@@ -1,5 +1,6 @@
 pub mod app;
 pub mod components;
+#[cfg(test)]
 mod tests;
 pub mod theme;
 pub mod ui;
@@ -65,6 +66,25 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
     Ok(vibe_ai::ResilientProvider::wrap(raw))
 }
 
+/// The model a provider falls back to when neither the `--model` flag nor the
+/// user's config names one.
+///
+/// Pure and separate from [`create_raw_tui_provider`] so the fallback can be
+/// asserted without `Config::load()` reading the developer's real `~/.vibecli`
+/// or the surrounding environment deciding the answer. The tests that covered
+/// this previously restated the literal inline and so kept passing after the
+/// defaults moved on.
+fn default_model_for(provider_name: &str) -> Option<&'static str> {
+    Some(match provider_name {
+        "ollama" => "glm-5.2:cloud",
+        "openai" => "gpt-5.6-sol",
+        "anthropic" | "claude" => "claude-opus-5",
+        "gemini" => "gemini-3.6-flash",
+        "grok" => "grok-4.6",
+        _ => return None,
+    })
+}
+
 fn create_raw_tui_provider(
     provider_name: &str,
     model: Option<String>,
@@ -79,7 +99,8 @@ fn create_raw_tui_provider(
                 .unwrap_or_else(|| "http://127.0.0.1:11434".to_string());
             let model = model
                 .or_else(|| provider_config.and_then(|c| c.model.clone()))
-                .unwrap_or_else(|| "glm-5.2:cloud".to_string());
+                .or_else(|| default_model_for("ollama").map(str::to_string))
+                .ok_or_else(|| anyhow::anyhow!("no default model registered for {}", "ollama"))?;
             Ok(Arc::new(OllamaProvider::new(ProviderConfig {
                 provider_type: "ollama".to_string(),
                 api_url: Some(base_url),
@@ -97,7 +118,8 @@ fn create_raw_tui_provider(
                 .unwrap_or_default();
             let model = model
                 .or_else(|| provider_config.and_then(|c| c.model.clone()))
-                .unwrap_or_else(|| "gpt-5.6-sol".to_string());
+                .or_else(|| default_model_for("openai").map(str::to_string))
+                .ok_or_else(|| anyhow::anyhow!("no default model registered for {}", "openai"))?;
             Ok(Arc::new(OpenAIProvider::new(ProviderConfig {
                 provider_type: "openai".to_string(),
                 api_url: None,
@@ -115,7 +137,8 @@ fn create_raw_tui_provider(
                 .unwrap_or_default();
             let model = model
                 .or_else(|| provider_config.and_then(|c| c.model.clone()))
-                .unwrap_or_else(|| "claude-opus-5".to_string());
+                .or_else(|| default_model_for("anthropic").map(str::to_string))
+                .ok_or_else(|| anyhow::anyhow!("no default model registered for {}", "anthropic"))?;
             Ok(Arc::new(ClaudeProvider::new(ProviderConfig {
                 provider_type: "anthropic".to_string(),
                 api_url: None,
@@ -133,7 +156,8 @@ fn create_raw_tui_provider(
                 .unwrap_or_default();
             let model = model
                 .or_else(|| provider_config.and_then(|c| c.model.clone()))
-                .unwrap_or_else(|| "gemini-3.6-flash".to_string());
+                .or_else(|| default_model_for("gemini").map(str::to_string))
+                .ok_or_else(|| anyhow::anyhow!("no default model registered for {}", "gemini"))?;
             Ok(Arc::new(GeminiProvider::new(ProviderConfig {
                 provider_type: "gemini".to_string(),
                 api_url: None,
@@ -151,7 +175,8 @@ fn create_raw_tui_provider(
                 .unwrap_or_default();
             let model = model
                 .or_else(|| provider_config.and_then(|c| c.model.clone()))
-                .unwrap_or_else(|| "grok-4.6".to_string());
+                .or_else(|| default_model_for("grok").map(str::to_string))
+                .ok_or_else(|| anyhow::anyhow!("no default model registered for {}", "grok"))?;
             Ok(Arc::new(GrokProvider::new(ProviderConfig {
                 provider_type: "grok".to_string(),
                 api_url: None,

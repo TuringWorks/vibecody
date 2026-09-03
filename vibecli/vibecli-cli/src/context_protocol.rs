@@ -320,7 +320,7 @@ impl ContextManager {
     /// Select highest-priority items that fit in the given token budget.
     pub fn build_prompt(&self, budget: usize) -> Vec<&ContextItem> {
         let mut sorted: Vec<&ContextItem> = self.window.items.iter().collect();
-        sorted.sort_by(|a, b| b.priority.cmp(&a.priority));
+        sorted.sort_by_key(|b| std::cmp::Reverse(b.priority));
 
         let mut result = Vec::new();
         let mut used = 0;
@@ -697,7 +697,7 @@ mod tests {
         assert!(mgr.get("a").is_some());
         assert_eq!(mgr.count(), 2);
         // "b" was evicted
-        assert!(mgr.index.get("b").is_none());
+        assert!(!mgr.index.contains_key("b"));
     }
 
     #[test]
@@ -715,7 +715,7 @@ mod tests {
         let _ = mgr.get("c");
         mgr.add(make_item("d", 50, ContextPriority::Medium))
             .unwrap();
-        assert!(mgr.index.get("a").is_none()); // a evicted
+        assert!(!mgr.index.contains_key("a")); // a evicted
         assert!(mgr.get("b").is_some());
         assert!(mgr.get("c").is_some());
         assert!(mgr.get("d").is_some());
@@ -734,7 +734,7 @@ mod tests {
         // Adding another should evict "low"
         mgr.add(make_item("med", 100, ContextPriority::Medium))
             .unwrap();
-        assert!(mgr.index.get("low").is_none());
+        assert!(!mgr.index.contains_key("low"));
         assert!(mgr.get("high").is_some());
     }
 
@@ -748,7 +748,7 @@ mod tests {
             .unwrap();
         mgr.add(make_item("new", 100, ContextPriority::High))
             .unwrap();
-        assert!(mgr.index.get("bg").is_none());
+        assert!(!mgr.index.contains_key("bg"));
         assert!(mgr.get("crit").is_some());
     }
 
@@ -765,7 +765,7 @@ mod tests {
         // Even though "first" has higher priority, FIFO evicts it first
         mgr.add(make_item("third", 100, ContextPriority::Medium))
             .unwrap();
-        assert!(mgr.index.get("first").is_none());
+        assert!(!mgr.index.contains_key("first"));
         assert!(mgr.get("second").is_some());
     }
 
@@ -783,7 +783,7 @@ mod tests {
         let _ = mgr.get("a");
         mgr.add(make_item("d", 50, ContextPriority::Medium))
             .unwrap();
-        assert!(mgr.index.get("a").is_none()); // a evicted despite recent access
+        assert!(!mgr.index.contains_key("a")); // a evicted despite recent access
     }
 
     // --- Eviction: SmallestFirst ---
@@ -801,7 +801,7 @@ mod tests {
         // Use a value that fits after one eviction: need 120+new <= 200 => new <= 80
         mgr.add(make_item("new", 80, ContextPriority::Medium))
             .unwrap();
-        assert!(mgr.index.get("small").is_none()); // smallest evicted
+        assert!(!mgr.index.contains_key("small")); // smallest evicted
         assert!(mgr.get("big").is_some());
         assert!(mgr.get("new").is_some());
     }
@@ -819,8 +819,8 @@ mod tests {
         // Full at 100. Need 40 free -> evict b(20) then a(30) = 50 freed
         mgr.add(make_item("d", 40, ContextPriority::Medium))
             .unwrap();
-        assert!(mgr.index.get("b").is_none());
-        assert!(mgr.index.get("a").is_none());
+        assert!(!mgr.index.contains_key("b"));
+        assert!(!mgr.index.contains_key("a"));
         assert!(mgr.get("c").is_some());
         assert!(mgr.get("d").is_some());
     }

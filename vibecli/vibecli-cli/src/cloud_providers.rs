@@ -783,6 +783,12 @@ fn azure_patterns() -> Vec<ServicePattern> {
     ]
 }
 
+impl Default for CloudProviderManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CloudProviderManager {
     /// Create a new empty manager.
     pub fn new() -> Self {

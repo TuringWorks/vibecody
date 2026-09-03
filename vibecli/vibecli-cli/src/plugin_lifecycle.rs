@@ -36,6 +36,12 @@ pub struct PluginStateStore {
     pub version: String,
 }
 
+impl Default for PluginStateStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PluginStateStore {
     pub fn new() -> Self {
         Self {

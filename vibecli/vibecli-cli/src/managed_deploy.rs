@@ -723,13 +723,12 @@ CMD ["echo", "Configure your start command"]
         let previous = self
             .deployments
             .iter()
-            .filter(|d| {
+            .rfind(|d| {
                 d.project_name == project
                     && d.platform == platform
                     && d.id != deploy_id
                     && d.status == DeployStatus::Live
-            })
-            .next_back();
+            });
 
         let rollback_to_id = match previous {
             Some(prev) => prev.id.clone(),

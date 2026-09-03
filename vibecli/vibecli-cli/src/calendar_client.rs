@@ -998,6 +998,11 @@ pub async fn handle_calendar_command(args: &str) -> String {
 
 // ── Unit tests ───────────────────────────────────────────────────────────────
 
+// Held across `.await` on purpose: this is the process-global serialiser that
+// AGENTS.md requires around env-var and $HOME mutation in tests. Dropping it
+// before the await would let a concurrent test observe the other's environment,
+// which is the exact shared-state flakiness the lock exists to prevent.
+#[allow(clippy::await_holding_lock)]
 #[cfg(test)]
 mod tests {
     use super::*;

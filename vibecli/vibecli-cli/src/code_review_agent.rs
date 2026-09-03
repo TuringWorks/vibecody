@@ -1315,8 +1315,10 @@ mod tests {
 
     #[test]
     fn test_praise_excluded_when_disabled() {
-        let mut cfg = ReviewConfig::default();
-        cfg.include_praise = false;
+        let cfg = ReviewConfig {
+            include_praise: false,
+            ..Default::default()
+        };
         let mut agent = CodeReviewAgent::new(cfg);
         let session = agent.review_file("clean.rs", "fn main() {}\n");
         assert!(!session
@@ -1327,8 +1329,10 @@ mod tests {
 
     #[test]
     fn test_min_confidence_filter() {
-        let mut cfg = ReviewConfig::default();
-        cfg.min_confidence = 0.99;
+        let cfg = ReviewConfig {
+            min_confidence: 0.99,
+            ..Default::default()
+        };
         let mut agent = CodeReviewAgent::new(cfg);
         let session = agent.review_file("f.rs", "let x = foo().unwrap();\n");
         // unwrap confidence is 0.85, should be filtered out
@@ -1337,8 +1341,10 @@ mod tests {
 
     #[test]
     fn test_max_findings_cap() {
-        let mut cfg = ReviewConfig::default();
-        cfg.max_findings = 1;
+        let cfg = ReviewConfig {
+            max_findings: 1,
+            ..Default::default()
+        };
         let mut agent = CodeReviewAgent::new(cfg);
         let code =
             "let api_key = \"x\";\nlet password = \"y\";\nlet x = foo().unwrap();\n// TODO fix\n";
@@ -1348,9 +1354,11 @@ mod tests {
 
     #[test]
     fn test_category_filter() {
-        let mut cfg = ReviewConfig::default();
-        cfg.categories = vec![ReviewCategory::Security]; // only security
-        cfg.include_praise = false;
+        let cfg = ReviewConfig {
+            categories: vec![ReviewCategory::Security], // only security
+            include_praise: false,
+            ..Default::default()
+        };
         let mut agent = CodeReviewAgent::new(cfg);
         let code = "let x = foo().unwrap();\nlet password = \"abc\";\n";
         let session = agent.review_file("f.rs", code);

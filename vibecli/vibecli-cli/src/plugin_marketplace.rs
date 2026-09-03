@@ -173,7 +173,7 @@ impl PluginRegistry {
 
     pub fn all(&self) -> Vec<&PluginManifest> {
         let mut v: Vec<&PluginManifest> = self.plugins.values().collect();
-        v.sort_by(|a, b| b.downloads.cmp(&a.downloads));
+        v.sort_by_key(|b| std::cmp::Reverse(b.downloads));
         v
     }
 

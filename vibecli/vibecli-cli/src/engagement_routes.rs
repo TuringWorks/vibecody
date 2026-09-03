@@ -798,7 +798,10 @@ mod tests {
         let _db = TestDb::new();
         let id = create_engagement_for_test().await;
         let (_, body) = call("GET", &format!("/engagements/{id}/gates"), None).await;
-        let gid = body["gates"][0]["id"].as_str().expect("gate id").to_string();
+        let gid = body["gates"][0]["id"]
+            .as_str()
+            .expect("gate id")
+            .to_string();
 
         let (status, body) = call(
             "POST",
@@ -811,7 +814,10 @@ mod tests {
             StatusCode::BAD_REQUEST,
             "a pass with nothing observed is an assertion, not a measurement"
         );
-        assert!(body["error"].as_str().unwrap_or_default().contains("observed"));
+        assert!(body["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("observed"));
 
         let (status, body) = call(
             "POST",
@@ -828,7 +834,10 @@ mod tests {
         let _db = TestDb::new();
         let id = create_engagement_for_test().await;
         let (_, body) = call("GET", &format!("/engagements/{id}/gates"), None).await;
-        let gid = body["gates"][0]["id"].as_str().expect("gate id").to_string();
+        let gid = body["gates"][0]["id"]
+            .as_str()
+            .expect("gate id")
+            .to_string();
 
         let (status, _) = call(
             "POST",

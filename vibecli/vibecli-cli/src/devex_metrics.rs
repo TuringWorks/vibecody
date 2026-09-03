@@ -203,6 +203,9 @@ pub enum ReleaseMarker {
 }
 
 impl ReleaseMarker {
+    // Not `FromStr`: that trait must return a `Result`, and this parser reports an
+    // unknown input as `None` rather than as an error value it would have to invent.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<ReleaseMarker> {
         match s {
             "tags" | "version-tags" => Some(ReleaseMarker::VersionTags),
@@ -380,7 +383,11 @@ fn version_tags(repo: &Path) -> Result<Vec<(String, String, i64)>> {
 }
 
 /// Merge commits on `branch`, oldest first.
-fn release_branch_merges(repo: &Path, branch: &str, since: i64) -> Result<Vec<(String, String, i64)>> {
+fn release_branch_merges(
+    repo: &Path,
+    branch: &str,
+    since: i64,
+) -> Result<Vec<(String, String, i64)>> {
     let since_arg = format!("--since={since}");
     let raw = git(
         repo,
@@ -689,7 +696,10 @@ pub fn compute_dora(repo: &Path, opts: &DoraOptions) -> Result<DoraReport> {
         });
     }
 
-    let failed = deployments.iter().filter(|d| d.followed_by_remediation).count();
+    let failed = deployments
+        .iter()
+        .filter(|d| d.followed_by_remediation)
+        .count();
     let change_failure_rate = if deployments.is_empty() {
         unmeasured.push(Unmeasured {
             metric: "change_failure_rate".into(),
@@ -1125,7 +1135,10 @@ pub fn scan_onboarding(repo: &Path, window_days: u32) -> Result<OnboardingReport
 
     // Every commit, so "first commit ever" is not confused with "first commit
     // in the window" — the distinction is the whole point of "new contributor".
-    let raw = git(&root, &["log", "--no-merges", "--format=%at\t%an", "--reverse"])?;
+    let raw = git(
+        &root,
+        &["log", "--no-merges", "--format=%at\t%an", "--reverse"],
+    )?;
     let mut first_seen: HashMap<String, i64> = HashMap::new();
     let mut second_seen: HashMap<String, i64> = HashMap::new();
     let mut counts: HashMap<String, usize> = HashMap::new();
@@ -1393,9 +1406,7 @@ fn collaboration_signals(repo: &Path, since: i64) -> Result<(CollaborationSignal
         }
         let files = parts.next().unwrap_or("");
         for path in files.lines().map(str::trim).filter(|l| !l.is_empty()) {
-            if authors_per_path.len() >= MAX_TRACKED_PATHS
-                && !authors_per_path.contains_key(path)
-            {
+            if authors_per_path.len() >= MAX_TRACKED_PATHS && !authors_per_path.contains_key(path) {
                 truncated = true;
                 continue;
             }
@@ -1501,7 +1512,9 @@ pub fn compute_space(repo: &Path, window_days: u32, dora: &DoraReport) -> Result
             unit: "distinct authors".into(),
             source: "git history".into(),
             sample_size: dora.authors_in_window,
-            caveat: Some("A count. This report has no per-author view and will not grow one.".into()),
+            caveat: Some(
+                "A count. This report has no per-author view and will not grow one.".into(),
+            ),
         });
         if deployments > 0 {
             d.measures.push(SpaceMeasure {
@@ -1582,7 +1595,8 @@ pub fn compute_space(repo: &Path, window_days: u32, dora: &DoraReport) -> Result
         d.unmeasured.push(Unmeasured {
             metric: "uninterrupted_focus_hours".into(),
             reason: "calendar and meeting load are not in the repository".into(),
-            to_measure_this: "derive meeting-free blocks from the calendar system, aggregated per team".into(),
+            to_measure_this:
+                "derive meeting-free blocks from the calendar system, aggregated per team".into(),
         });
     });
 
@@ -1904,7 +1918,13 @@ mod tests {
         for good in ["v1.2.3", "1.0", "release-2.4.0", "2024.11.1", "v0.5.5-rc1"] {
             assert!(is_version_tag(good), "{good} should be a version tag");
         }
-        for bad in ["nightly", "latest", "backup-before-migration", "42", "stable"] {
+        for bad in [
+            "nightly",
+            "latest",
+            "backup-before-migration",
+            "42",
+            "stable",
+        ] {
             assert!(!is_version_tag(bad), "{bad} should not be a version tag");
         }
     }
@@ -2044,8 +2064,7 @@ mod tests {
         run(&["config", "user.name", "T"]);
         run(&["commit", "-q", "--allow-empty", "-m", "feat: first"]);
 
-        let report =
-            compute_space(dir.path(), 90, &empty_dora()).expect("space frame");
+        let report = compute_space(dir.path(), 90, &empty_dora()).expect("space frame");
         let json = serde_json::to_value(&report).expect("serialize");
         let obj = json.as_object().expect("object");
         for forbidden in ["score", "total", "overall", "index", "rating"] {
@@ -2098,7 +2117,10 @@ mod tests {
         let collab = report
             .dimension(SpaceDimension::Collaboration)
             .expect("collaboration");
-        assert!(collab.unmeasured.iter().any(|u| u.metric == "review_latency"));
+        assert!(collab
+            .unmeasured
+            .iter()
+            .any(|u| u.metric == "review_latency"));
     }
 
     #[test]
@@ -2124,7 +2146,10 @@ mod tests {
         run(&["commit", "-q", "--allow-empty", "-m", "feat: first"]);
 
         let report = compute_space(dir.path(), 90, &empty_dora()).expect("space");
-        assert!(!report.outcome_signal, "no DORA stability means no outcome signal");
+        assert!(
+            !report.outcome_signal,
+            "no DORA stability means no outcome signal"
+        );
         assert!(report.scope_note.contains("no outcome signal"));
         assert!(report.scope_note.contains("not a picture of productivity"));
     }
@@ -2186,7 +2211,10 @@ mod tests {
             .dimension(SpaceDimension::Collaboration)
             .expect("collaboration");
         assert!(
-            !collab.measures.iter().any(|m| m.name.contains("more than one author")),
+            !collab
+                .measures
+                .iter()
+                .any(|m| m.name.contains("more than one author")),
             "the degenerate share must not be reported as a measure"
         );
         let gap = collab
@@ -2241,7 +2269,9 @@ mod tests {
         let s = render_survey_markdown();
         assert!(s.contains("Anonymous"));
         assert!(s.contains("team level"));
-        assert!(s.to_lowercase().contains("not** an input to performance review"));
+        assert!(s
+            .to_lowercase()
+            .contains("not** an input to performance review"));
         assert!(s.contains("last two weeks"));
     }
 

@@ -136,9 +136,7 @@ mod tests {
     static GLOBAL_OVERRIDES: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     fn with_global_overrides<T>(f: impl FnOnce() -> T) -> T {
-        let _guard = GLOBAL_OVERRIDES
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
+        let _guard = GLOBAL_OVERRIDES.lock().unwrap_or_else(|e| e.into_inner());
         let out = f();
         vibe_ai::harness::set_overrides(HashMap::new());
         out
@@ -184,7 +182,12 @@ mod tests {
         let (store, _dir) = temp_store();
         let good = override_key("claude", "claude-opus-5");
         store
-            .set("default", PANEL, &good, &serde_json::to_string(&patch()).unwrap())
+            .set(
+                "default",
+                PANEL,
+                &good,
+                &serde_json::to_string(&patch()).unwrap(),
+            )
             .unwrap();
         store
             .set("default", PANEL, "openai/gpt-5.5", "{not json at all")
@@ -204,7 +207,12 @@ mod tests {
             let (store, _dir) = temp_store();
             let key = override_key("claude", "claude-opus-5");
             store
-                .set("default", PANEL, &key, &serde_json::to_string(&patch()).unwrap())
+                .set(
+                    "default",
+                    PANEL,
+                    &key,
+                    &serde_json::to_string(&patch()).unwrap(),
+                )
                 .unwrap();
             assert_eq!(load(&store, "default").len(), 1);
 

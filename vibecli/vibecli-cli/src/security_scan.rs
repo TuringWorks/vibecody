@@ -434,6 +434,12 @@ pub struct SecurityScanner {
     pub suppressed_ids: Vec<String>,
 }
 
+impl Default for SecurityScanner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SecurityScanner {
     pub fn new() -> Self {
         Self {
@@ -1254,7 +1260,7 @@ mod tests {
 
     #[test]
     fn test_scan_type_variants() {
-        let types = vec![
+        let types = [
             ScanType::SecretDetection,
             ScanType::DependencyVulnerability,
             ScanType::StaticAnalysis,

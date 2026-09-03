@@ -219,10 +219,10 @@ async fn vector_search_with_filters() {
     // Add many similar memories
     for i in 0..100 {
         let content = match i % 5 {
-            0 => format!("Rust programming language with ownership and borrowing"),
-            1 => format!("Go programming language with goroutines and channels"),
-            2 => format!("Python programming language with dynamic typing"),
-            3 => format!("JavaScript programming with async and promises"),
+            0 => "Rust programming language with ownership and borrowing".to_string(),
+            1 => "Go programming language with goroutines and channels".to_string(),
+            2 => "Python programming language with dynamic typing".to_string(),
+            3 => "JavaScript programming with async and promises".to_string(),
             _ => format!("Memory {} about various programming topics", i),
         };
         hub.store_to_project(workspace.path(), &content)

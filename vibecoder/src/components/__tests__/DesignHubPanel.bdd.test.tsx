@@ -245,9 +245,8 @@ describe('DesignHubPanel — UX and a11y', () => {
 
     renderPanel();
     fireEvent.click(screen.getByRole('button', { name: /Load Design Tokens/i }));
-    await waitFor(() => expect(screen.queryByText(/75 token/)).not.toBeNull());
-
-    fireEvent.click(screen.getByRole('tab', { name: /^Tokens$/ }));
+    // Loading switches to the Tokens tab, where the count lives in the header.
+    await waitFor(() => expect(screen.queryByText(/Tokens \(75\/75\)/)).not.toBeNull());
 
     // Without filtering, all 75 tokens render — and the legacy "+25 more" footer should be gone.
     await waitFor(() => {
@@ -263,6 +262,28 @@ describe('DesignHubPanel — UX and a11y', () => {
       expect(matches.length).toBe(15);
       expect(screen.queryByText(/^gray-/)).toBeNull();
     });
+  });
+
+  it("6b. a provider that contributed nothing reports why, not silence", async () => {
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'load_design_system_tokens') {
+        return Promise.resolve({
+          tokens: [],
+          sources: [
+            { provider: 'inhouse', status: 'unavailable', reason: 'No workspace folder is open, so there are no stylesheets to read.' },
+          ],
+        });
+      }
+      return defaultInvokeImpl(cmd);
+    });
+
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: /Load Design Tokens/i }));
+
+    // The empty result must be distinguishable from a provider that cannot answer.
+    await waitFor(() =>
+      expect(screen.queryByText(/no workspace folder is open/i)).not.toBeNull(),
+    );
   });
 
   it('7. provider toggle is rendered as a button (not div onClick)', async () => {

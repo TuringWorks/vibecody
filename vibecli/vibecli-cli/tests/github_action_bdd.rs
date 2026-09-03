@@ -59,16 +59,15 @@ fn when_validate(world: &mut GaWorld) {
 #[then(expr = "the workflow should have trigger {string}")]
 fn then_has_trigger(world: &mut GaWorld, trigger_name: String) {
     let wf = world.workflow.as_ref().unwrap();
-    let found = wf
-        .triggers
-        .iter()
-        .any(|t| match (t, trigger_name.as_str()) {
-            (ActionTrigger::PullRequest, "pull_request") => true,
-            (ActionTrigger::IssueComment { .. }, "issue_comment") => true,
-            (ActionTrigger::Push { .. }, "push") => true,
-            (ActionTrigger::WorkflowDispatch, "workflow_dispatch") => true,
-            _ => false,
-        });
+    let found = wf.triggers.iter().any(|t| {
+        matches!(
+            (t, trigger_name.as_str()),
+            (ActionTrigger::PullRequest, "pull_request")
+                | (ActionTrigger::IssueComment { .. }, "issue_comment")
+                | (ActionTrigger::Push { .. }, "push")
+                | (ActionTrigger::WorkflowDispatch, "workflow_dispatch")
+        )
+    });
     assert!(found, "No trigger '{}' in workflow", trigger_name);
 }
 

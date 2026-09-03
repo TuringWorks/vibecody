@@ -838,12 +838,13 @@ mod tests {
 
     #[test]
     fn severity_counts_individual_fields() {
-        let mut counts = SeverityCounts::default();
-        counts.critical = 1;
-        counts.high = 2;
-        counts.medium = 3;
-        counts.low = 4;
-        counts.info = 5;
+        let counts = SeverityCounts {
+            critical: 1,
+            high: 2,
+            medium: 3,
+            low: 4,
+            info: 5,
+        };
         assert_eq!(counts.critical, 1);
         assert_eq!(counts.high, 2);
         assert_eq!(counts.medium, 3);

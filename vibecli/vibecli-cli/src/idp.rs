@@ -323,6 +323,12 @@ pub struct IdpManager {
     pub self_service_actions: Vec<SelfServiceAction>,
 }
 
+impl Default for IdpManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl IdpManager {
     pub fn new() -> Self {
         let platform_configs: Vec<IdpPlatformConfig> = IdpPlatform::all()

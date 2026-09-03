@@ -69,6 +69,12 @@ pub struct SearchContext {
 #[derive(Debug, Clone)]
 pub struct AnswerSynthesizer;
 
+impl Default for AnswerSynthesizer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AnswerSynthesizer {
     pub fn new() -> Self {
         Self
@@ -183,6 +189,12 @@ pub struct ConversationalSearchEngine {
     synthesizer: AnswerSynthesizer,
     /// Simple in-memory index: keyword → vec of (file, line, snippet, explanation).
     index: HashMap<String, Vec<(String, usize, String, String)>>,
+}
+
+impl Default for ConversationalSearchEngine {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ConversationalSearchEngine {

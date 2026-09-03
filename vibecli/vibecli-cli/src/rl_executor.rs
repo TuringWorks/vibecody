@@ -198,7 +198,7 @@ impl PythonExecutor {
             );
             m.insert(
                 serde_yaml::Value::String("total_timesteps".into()),
-                serde_yaml::Value::Number((run.total_timesteps as i64).into()),
+                serde_yaml::Value::Number(run.total_timesteps.into()),
             );
             m.insert(
                 serde_yaml::Value::String("seed".into()),

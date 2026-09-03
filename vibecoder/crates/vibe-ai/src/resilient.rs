@@ -353,7 +353,7 @@ mod tests {
         };
         let b = config.backoff_ms(0);
         // Should be between 1000 and 1250 (1000 + 25% jitter)
-        assert!(b >= 1000 && b <= 1250, "backoff was {}", b);
+        assert!((1000..=1250).contains(&b), "backoff was {}", b);
     }
 
     #[tokio::test]

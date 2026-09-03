@@ -5,7 +5,7 @@
  * (Renamed from DesignModePanel to disambiguate from DesignMode.tsx, which
  * is the larger multi-tab design hub.)
  */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useToast } from "../hooks/useToast";
 import { Toaster } from "./Toaster";
@@ -30,6 +30,19 @@ interface DesignToken {
   category: string;
 }
 
+/** `DesignTokenType`'s serde names, as a reader would say them. */
+const TOKEN_CATEGORY_LABEL: Record<string, string> = {
+  color: "Color",
+  typography: "Typography",
+  spacing: "Spacing",
+  border_radius: "Radius",
+  shadow: "Shadow",
+  animation: "Motion",
+  breakpoint: "Breakpoint",
+  z_index: "Z-index",
+  other: "Other",
+};
+
 const ANNOTATION_KINDS = ["spacing", "color", "typography", "layout", "component", "interaction"] as const;
 
 // Semantic mapping from annotation kind to a design-system color token.
@@ -43,6 +56,15 @@ const KIND_VAR: Record<string, string> = {
   interaction: "var(--accent-blue)",
 };
 
+/** Render an RFC3339 timestamp in the viewer's locale. Older records stored a
+ *  bare unix-seconds string; those are shown as they are rather than as a date
+ *  in 1970. */
+function formatCreatedAt(raw: string): string {
+  if (!raw) return "";
+  const at = new Date(/^\d+$/.test(raw) ? Number(raw) * 1000 : raw);
+  return Number.isNaN(at.getTime()) ? raw : at.toLocaleString();
+}
+
 export function DesignAnnotationsPanel() {
   const { toasts, toast, dismiss } = useToast();
   const [tab, setTab] = useState<"annotate" | "instructions" | "tokens">("annotate");
@@ -50,35 +72,40 @@ export function DesignAnnotationsPanel() {
   const [instructions, setInstructions] = useState<Instruction[]>([]);
   const [tokens, setTokens] = useState<DesignToken[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [newKind, setNewKind] = useState<typeof ANNOTATION_KINDS[number]>("spacing");
   const [newDesc, setNewDesc] = useState("");
   const [newSelector, setNewSelector] = useState("");
   const [generating, setGenerating] = useState(false);
 
+  /** Re-read everything the backend derives from the annotation list. */
+  const reload = useCallback(async () => {
+    try {
+      const [annRes, instrRes, tokenRes] = await Promise.all([
+        invoke<Annotation[]>("design_mode_annotations"),
+        invoke<Instruction[]>("design_mode_generate"),
+        invoke<DesignToken[]>("design_mode_tokens"),
+      ]);
+      setAnnotations(Array.isArray(annRes) ? annRes : []);
+      setInstructions(Array.isArray(instrRes) ? instrRes : []);
+      setTokens(Array.isArray(tokenRes) ? tokenRes : []);
+      setLoadError(null);
+    } catch (e) {
+      // An unreadable store is not an empty one — the panel used to show
+      // "No annotations yet." either way. The banner persists; the toast is
+      // what makes the failure noticeable on a tab the user is not looking at.
+      setLoadError(String(e));
+      toast.error(`Failed to load design annotations: ${e}`);
+    }
+  }, [toast]);
+
   useEffect(() => {
     let cancelled = false;
-    async function load() {
-      setLoading(true);
-      try {
-        const [annRes, instrRes, tokenRes] = await Promise.all([
-          invoke<Annotation[]>("design_mode_annotations"),
-          invoke<Instruction[]>("design_mode_generate"),
-          invoke<DesignToken[]>("design_mode_tokens"),
-        ]);
-        if (cancelled) return;
-        setAnnotations(Array.isArray(annRes) ? annRes : []);
-        setInstructions(Array.isArray(instrRes) ? instrRes : []);
-        setTokens(Array.isArray(tokenRes) ? tokenRes : []);
-      } catch (e) {
-        if (!cancelled) toast.error(`Failed to load design annotations: ${e}`);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
+    setLoading(true);
+    reload().finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [reload]);
 
   async function addAnnotation() {
     if (!newDesc.trim()) return;
@@ -89,14 +116,27 @@ export function DesignAnnotationsPanel() {
         description: newDesc.trim(),
         selector: newSelector.trim() || null,
       });
-      if (ann) {
-        setAnnotations((prev) => [...prev, ann]);
-        toast.success(`Added ${ann.kind} annotation`);
-      }
+      if (ann) toast.success(`Added ${ann.kind} annotation`);
       setNewDesc("");
       setNewSelector("");
+      // Instructions are derived from the annotations, so adding one changes
+      // them. Appending locally left the Instructions tab a step behind.
+      await reload();
     } catch (e) {
       toast.error(`Failed to add annotation: ${e}`);
+    }
+  }
+
+  async function deleteAnnotation(id: string) {
+    setDeleting(id);
+    try {
+      await invoke("design_mode_annotations", { action: "delete", id });
+      toast.success("Annotation deleted");
+      await reload();
+    } catch (e) {
+      toast.error(`Failed to delete annotation: ${e}`);
+    } finally {
+      setDeleting(null);
     }
   }
 
@@ -138,6 +178,12 @@ export function DesignAnnotationsPanel() {
 
       <div className="panel-body" role="tabpanel" aria-label={tab}>
         {loading && <div className="panel-loading">Loading design annotations…</div>}
+
+        {!loading && loadError && (
+          <div role="alert" style={{ color: "var(--error-color)", fontSize: "var(--font-size-base)", marginBottom: "var(--space-3)" }}>
+            Could not read design annotations: {loadError}
+          </div>
+        )}
 
         {!loading && tab === "annotate" && (
           <>
@@ -207,7 +253,21 @@ export function DesignAnnotationsPanel() {
                             {ann.selector}
                           </code>
                         )}
-                        <span style={{ marginLeft: "auto", fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>{ann.created_at}</span>
+                        <span
+                          title={ann.created_at}
+                          style={{ marginLeft: "auto", fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}
+                        >
+                          {formatCreatedAt(ann.created_at)}
+                        </span>
+                        <button
+                          type="button"
+                          className="panel-btn panel-btn-secondary panel-btn-sm"
+                          aria-label={`Delete ${ann.kind} annotation`}
+                          onClick={() => deleteAnnotation(ann.id)}
+                          disabled={deleting === ann.id}
+                        >
+                          {deleting === ann.id ? "…" : "Delete"}
+                        </button>
                       </div>
                       <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-primary)" }}>{ann.description}</div>
                     </div>
@@ -255,12 +315,19 @@ export function DesignAnnotationsPanel() {
 
         {!loading && tab === "tokens" && (
           <>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", marginBottom: "var(--space-3)" }}>
+              CSS custom properties declared in this workspace's stylesheets.
+            </div>
             {Object.keys(tokensByCategory).length === 0 && (
-              <div className="panel-empty">No design tokens extracted.</div>
+              <div className="panel-empty">
+                No CSS custom properties found in this workspace's stylesheets.
+              </div>
             )}
             {Object.entries(tokensByCategory).map(([category, categoryTokens]) => (
               <div key={category} style={{ marginBottom: "var(--space-5)" }}>
-                <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, color: "var(--text-muted)", marginBottom: "var(--space-2)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{category}</div>
+                <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, color: "var(--text-muted)", marginBottom: "var(--space-2)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  {TOKEN_CATEGORY_LABEL[category] ?? category}
+                </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-1)" }}>
                   {categoryTokens.map((t) => (
                     <div key={t.name} className="panel-card" style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", padding: "var(--space-2) var(--space-3)" }}>

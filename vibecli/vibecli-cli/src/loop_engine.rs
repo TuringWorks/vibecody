@@ -400,9 +400,11 @@ fn criteria_block(brief: &GoalBrief) -> String {
 /// is decided by [`goal_validator_prompt`] in a separate turn, so a model that
 /// declares victory mid-edit can't end the loop.
 pub fn goal_loop_prompt(brief: &GoalBrief, guidance: &str) -> String {
-    let statement = (!brief.statement.trim().is_empty())
-        .then(|| format!("\n## Statement\n{}\n", brief.statement.trim()))
-        .unwrap_or_default();
+    let statement = if !brief.statement.trim().is_empty() {
+        format!("\n## Statement\n{}\n", brief.statement.trim())
+    } else {
+        Default::default()
+    };
     let plan = brief
         .plan
         .as_deref()
@@ -410,14 +412,16 @@ pub fn goal_loop_prompt(brief: &GoalBrief, guidance: &str) -> String {
         .filter(|p| !p.is_empty())
         .map(|p| format!("\n## Current plan\n{p}\n"))
         .unwrap_or_default();
-    let extra = (!guidance.trim().is_empty())
-        .then(|| {
+    let extra = if !guidance.trim().is_empty() {
+        {
             format!(
                 "\n## Additional guidance for this run\n{}\n",
                 guidance.trim()
             )
-        })
-        .unwrap_or_default();
+        }
+    } else {
+        Default::default()
+    };
     format!(
         "You are advancing a single durable goal. Make concrete progress in this \
          iteration; the loop will re-run you until every success criterion is met.\n\n\
@@ -452,9 +456,11 @@ pub fn validator_says_done(reply: &str) -> bool {
 /// The validator prompt for a goal-bound loop: criterion-by-criterion, and
 /// `DONE` only when every one of them holds.
 pub fn goal_validator_prompt(brief: &GoalBrief) -> String {
-    let statement = (!brief.statement.trim().is_empty())
-        .then(|| format!("\nStatement:\n{}\n", brief.statement.trim()))
-        .unwrap_or_default();
+    let statement = if !brief.statement.trim().is_empty() {
+        format!("\nStatement:\n{}\n", brief.statement.trim())
+    } else {
+        Default::default()
+    };
     format!(
         "Goal: {title}\n{statement}\nSuccess criteria:\n{criteria}\n\n\
          Check each criterion against the current repository state. Answer DONE only \

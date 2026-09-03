@@ -178,8 +178,8 @@ pub fn run_engagement_command(args: &[String]) -> i32 {
                         r.engagement.current_phase.index() + 1
                     );
                     println!(
-                        "{:<20} {:<16} {:>8} {:>10} {:>12} {}",
-                        "PHASE", "CADENCE", "ACCEPTED", "COMPLETE", "GATES PASS", "EXIT"
+                        "{:<20} {:<16} {:>8} {:>10} {:>12} EXIT",
+                        "PHASE", "CADENCE", "ACCEPTED", "COMPLETE", "GATES PASS"
                     );
                     for p in &r.phases {
                         let in_scope = p.deliverables.total - p.deliverables.waived;
@@ -386,7 +386,11 @@ pub fn run_engagement_command(args: &[String]) -> i32 {
             // Same rule the HTTP route enforces: a pass with nothing observed
             // is an assertion, not a measurement.
             if parsed == GateVerdict::Pass
-                && observed.as_deref().map(str::trim).unwrap_or_default().is_empty()
+                && observed
+                    .as_deref()
+                    .map(str::trim)
+                    .unwrap_or_default()
+                    .is_empty()
             {
                 eprintln!("a passing gate must record what was observed (--observed \"…\")");
                 return EXIT_USAGE;
@@ -801,10 +805,24 @@ mod tests {
             EXIT_BLOCKED
         );
         assert_eq!(
-            run_engagement_command(&v(&["evidence", &id, "threat-model", "x", "--kind", "psychic"])),
+            run_engagement_command(&v(&[
+                "evidence",
+                &id,
+                "threat-model",
+                "x",
+                "--kind",
+                "psychic"
+            ])),
             EXIT_USAGE
         );
-        for cmd in ["show", "report", "handover", "deliverables", "gates", "list"] {
+        for cmd in [
+            "show",
+            "report",
+            "handover",
+            "deliverables",
+            "gates",
+            "list",
+        ] {
             assert_eq!(
                 run_engagement_command(&v(&[cmd, &id])),
                 EXIT_OK,

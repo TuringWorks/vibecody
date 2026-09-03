@@ -196,7 +196,7 @@ fn then_replay_fails(world: &mut BridgeWorld, needle: String) {
         .as_ref()
         .unwrap()
         .check_and_record(&nonce, ts);
-    let err = result.err().expect("expected replay error");
+    let err = result.expect_err("expected replay error");
     assert!(
         err.to_string().contains(&needle),
         "expected '{}' in: {}",

@@ -200,7 +200,7 @@ impl TextBuffer {
             .collect();
 
         // Sort by position descending
-        edits_with_pos.sort_by(|a, b| b.0.cmp(&a.0));
+        edits_with_pos.sort_by_key(|b| std::cmp::Reverse(b.0));
 
         let sorted_edits: Vec<Edit> = edits_with_pos.into_iter().map(|(_, edit)| edit).collect();
         let mut applied_edits = Vec::new();

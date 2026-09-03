@@ -653,7 +653,7 @@ impl DataAnalyzer {
         }
         let mut top_values: Vec<(String, usize)> =
             freq.into_iter().map(|(k, v)| (k.to_string(), v)).collect();
-        top_values.sort_by(|a, b| b.1.cmp(&a.1));
+        top_values.sort_by_key(|b| std::cmp::Reverse(b.1));
         top_values.truncate(10);
 
         // Numeric statistics

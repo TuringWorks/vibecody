@@ -775,7 +775,7 @@ describe('AIChat — response does not disappear (controlled mode)', () => {
     expect(screen.getByText(/Destructive tool/)).toBeInTheDocument();
     const rejectBtn = screen.getByRole('button', { name: /Reject/i });
     expect(rejectBtn).toBeInTheDocument();
-    // Exact match — the banner also carries "Approve all for this run".
+    // Exact match — the banner also carries the session-level approval button.
     expect(screen.getByRole('button', { name: 'Approve' })).toBeInTheDocument();
 
     // User rejects → respond_to_agent_approval(false)
@@ -788,6 +788,44 @@ describe('AIChat — response does not disappear (controlled mode)', () => {
     );
     // Banner clears after rejection
     expect(screen.queryByText(/Destructive tool/)).not.toBeInTheDocument();
+  });
+
+  it('asks once, then auto-approves changes for later runs in the session', async () => {
+    function ControlledAgentChat() {
+      const [messages, setMessages] = useState<Message[]>([]);
+      return (
+        <AIChat
+          provider="test-provider"
+          messages={messages}
+          onMessagesChange={setMessages}
+          useAgentLoop={true}
+          onUseAgentLoopChange={() => {}}
+        />
+      );
+    }
+    render(<ControlledAgentChat />);
+    await flushAll();
+    await sendUserMessage('update the icons');
+
+    act(() => emitTauriEvent('agent:pending', {
+      name: 'write_file', summary: "write 'page.tsx'", is_destructive: false,
+    }));
+    await flushAll();
+    fireEvent.click(screen.getByRole('button', { name: 'Approve changes for this session' }));
+    await flushAll();
+
+    act(() => emitTauriEvent('agent:complete', 'Updated the icons.'));
+    await flushAll();
+    await sendUserMessage('update the footer too');
+
+    mockInvoke.mockClear();
+    act(() => emitTauriEvent('agent:pending', {
+      name: 'write_file', summary: "write 'footer.tsx'", is_destructive: false,
+    }));
+    await flushAll();
+
+    expect(screen.queryByRole('alertdialog', { name: 'Tool approval required' })).not.toBeInTheDocument();
+    expect(mockInvoke).toHaveBeenCalledWith('respond_to_agent_approval', { approved: true });
   });
 
   it('verifier card renders PASS / NITS / FAIL (useAgentLoop=true)', async () => {
@@ -1098,17 +1136,17 @@ describe('AIChat — agent approvals', () => {
     await flushAll();
 
     expect(screen.getByText(/Tool approval required/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Approve all for this run/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Approve changes for this session/ })).toBeInTheDocument();
   });
 
-  it('"Approve all" auto-approves every later call in the run', async () => {
+  it('session approval auto-approves every later call', async () => {
     render(<ControlledAgentChat />);
     await flushAll();
     await sendUserMessage('review the codebase');
 
     emitPending('bash', 'bash(ls)', false);
     await flushAll();
-    fireEvent.click(screen.getByRole('button', { name: /Approve all for this run/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Approve changes for this session/ }));
     await flushAll();
     expect(approvalCalls()).toHaveLength(1);
 
@@ -1120,13 +1158,13 @@ describe('AIChat — agent approvals', () => {
     expect(approvalCalls()[1][1]).toEqual({ approved: true });
   });
 
-  it('auto-approval does not carry into the next run', async () => {
+  it('session approval carries into the next run', async () => {
     render(<ControlledAgentChat />);
     await flushAll();
     await sendUserMessage('first task');
     emitPending('bash', 'bash(ls)', false);
     await flushAll();
-    fireEvent.click(screen.getByRole('button', { name: /Approve all for this run/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Approve changes for this session/ }));
     await flushAll();
 
     act(() => { emitTauriEvent('agent:complete', 'done'); });
@@ -1135,7 +1173,8 @@ describe('AIChat — agent approvals', () => {
 
     emitPending('bash', 'bash(ls)', false);
     await flushAll();
-    expect(screen.getByText(/approval required/i)).toBeInTheDocument();
+    expect(screen.queryByText(/approval required/i)).not.toBeInTheDocument();
+    expect(approvalCalls()).toHaveLength(2);
   });
 
   it('refuses to start a second run while an approval is pending', async () => {
@@ -1403,8 +1442,10 @@ describe('AIChat — canonical tool_call blocks render as cards', () => {
     expect(document.body.textContent).not.toContain('<tool_call');
     expect(screen.getByText('Adding it now.')).toBeInTheDocument();
     expect(screen.getByText('Work · 1 tool')).toBeInTheDocument();
+    expect(screen.queryByText('fn main() {}')).not.toBeInTheDocument();
     expandWork();
     expect(screen.getByText('src/main.rs')).toBeInTheDocument();
+    expect(screen.queryByText('fn main() {}')).not.toBeInTheDocument();
   });
 
   it('decodes escaped content in the card', () => {
@@ -1549,6 +1590,24 @@ describe('AIChat truncation auto-continue', () => {
     await complete({ message: 'let me look', tool_output: 'file contents' });
 
     expect(streamCalls()).toBe(before + 1);
+  });
+
+  it('shows only a tool summary while sending full file contents to the model', async () => {
+    render(<AIChat provider="ollama" />);
+    await startTurn();
+
+    const rawOutput = "Read file 'src/page.tsx':\nconst secretMarker = 'whole file';\n"
+      + "Wrote file 'src/page.tsx'.\n";
+    await complete({ message: 'I will update the icons.', tool_output: rawOutput });
+
+    expect(document.body.textContent).toContain('Inspected src/page.tsx.');
+    expect(document.body.textContent).toContain('Updated src/page.tsx.');
+    expect(screen.queryByText(/secretMarker/)).not.toBeInTheDocument();
+
+    const continuation = mockInvoke.mock.calls
+      .filter((call) => call[0] === 'stream_chat_message')
+      .at(-1)?.[1] as { request?: { messages?: Array<{ content: string }> } } | undefined;
+    expect(continuation?.request?.messages?.at(-1)?.content).toContain("secretMarker = 'whole file'");
   });
 
   it('stops after the continue budget and says why instead of going quiet', async () => {

@@ -177,7 +177,7 @@ fn insert_after<A: BlockAdapter>(
     anchor_path: &[usize],
     blocks: &[Block],
     adapter: &mut A,
-    warnings: &mut Vec<Warning>,
+    warnings: &mut [Warning],
 ) -> Result<(), DocError> {
     insert_at_offset(container, anchor_path, 1, blocks, adapter, warnings)
 }
@@ -187,7 +187,7 @@ fn insert_before<A: BlockAdapter>(
     anchor_path: &[usize],
     blocks: &[Block],
     adapter: &mut A,
-    warnings: &mut Vec<Warning>,
+    warnings: &mut [Warning],
 ) -> Result<(), DocError> {
     insert_at_offset(container, anchor_path, 0, blocks, adapter, warnings)
 }

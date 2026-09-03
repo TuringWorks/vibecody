@@ -142,6 +142,12 @@ pub struct TeamTemplateStore {
     templates_dir: PathBuf,
 }
 
+impl Default for TeamTemplateStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TeamTemplateStore {
     /// Create a store using the default templates directory.
     pub fn new() -> Self {

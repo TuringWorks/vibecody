@@ -122,7 +122,7 @@ fn matches_file(world: &mut RulesWorld, name: String, file: String) {
         .find_rule(&name)
         .unwrap_or_else(|| panic!("rule '{name}' not found"));
     assert!(
-        rule.matches_open_files(&[file.clone()]),
+        rule.matches_open_files(std::slice::from_ref(&file)),
         "rule '{name}' should match '{file}'"
     );
 }
@@ -133,7 +133,7 @@ fn not_matches_file(world: &mut RulesWorld, name: String, file: String) {
         .find_rule(&name)
         .unwrap_or_else(|| panic!("rule '{name}' not found"));
     assert!(
-        !rule.matches_open_files(&[file.clone()]),
+        !rule.matches_open_files(std::slice::from_ref(&file)),
         "rule '{name}' should NOT match '{file}'"
     );
 }

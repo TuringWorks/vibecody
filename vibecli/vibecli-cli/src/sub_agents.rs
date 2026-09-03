@@ -413,6 +413,12 @@ impl SubAgent {
     }
 }
 
+impl Default for SubAgentOrchestrator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SubAgentOrchestrator {
     pub fn new() -> Self {
         Self {
@@ -813,8 +819,10 @@ mod tests {
 
     #[test]
     fn test_orchestrator_delegate_disabled() {
-        let mut config = SubAgentConfig::default();
-        config.enable_delegation = false;
+        let config = SubAgentConfig {
+            enable_delegation: false,
+            ..Default::default()
+        };
         let mut orch = SubAgentOrchestrator::with_config(config);
         orch.spawn(SubAgentRole::Oracle);
         orch.spawn(SubAgentRole::Implementer);

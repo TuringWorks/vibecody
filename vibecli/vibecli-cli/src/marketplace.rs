@@ -38,6 +38,12 @@ pub struct Marketplace {
     cache_path: std::path::PathBuf,
 }
 
+impl Default for Marketplace {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Marketplace {
     pub fn new() -> Self {
         let cache_path = dirs::home_dir()
@@ -286,7 +292,7 @@ mod tests {
         let m = Marketplace::new();
         let results = m.search("devops").await.unwrap();
         assert!(
-            results.len() >= 1,
+            !results.is_empty(),
             "should match plugins tagged with devops"
         );
     }

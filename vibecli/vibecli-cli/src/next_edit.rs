@@ -142,6 +142,12 @@ impl EditPrediction {
     }
 }
 
+impl Default for EditHistory {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EditHistory {
     pub fn new() -> Self {
         Self {
@@ -187,7 +193,7 @@ impl EditHistory {
                 counts.push((&edit.file_path, 1));
             }
         }
-        counts.sort_by(|a, b| b.1.cmp(&a.1));
+        counts.sort_by_key(|b| std::cmp::Reverse(b.1));
         counts.truncate(n);
         counts
     }
@@ -312,6 +318,12 @@ impl EditPattern {
     }
 }
 
+impl Default for PredictorStats {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PredictorStats {
     pub fn new() -> Self {
         Self {
@@ -332,6 +344,12 @@ impl PredictorStats {
         if self.total_predictions > 0 {
             self.accuracy = self.accepted as f64 / self.total_predictions as f64;
         }
+    }
+}
+
+impl Default for NextEditPredictor {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -680,8 +698,10 @@ mod tests {
 
     #[test]
     fn test_predict_disabled() {
-        let mut config = PredictorConfig::default();
-        config.enabled = false;
+        let config = PredictorConfig {
+            enabled: false,
+            ..Default::default()
+        };
         let mut predictor = NextEditPredictor::with_config(config);
         predictor.record_edit(RecordedEdit::new("f.rs", 1, EditType::Rename, "a", "b"));
         let preds = predictor.predict("f.rs", 10);

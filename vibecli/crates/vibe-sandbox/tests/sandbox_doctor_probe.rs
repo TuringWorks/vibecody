@@ -98,11 +98,13 @@ fn probe_json_shape_is_stable() {
 
     // ── Every tier present + correctly shaped ────────────────────────────
     for tier in ["native", "wasi", "hyperlight", "firecracker"] {
-        let t = tiers.get(tier).expect(&format!(".tiers.{} missing", tier));
+        let t = tiers
+            .get(tier)
+            .unwrap_or_else(|| panic!(".tiers.{} missing", tier));
         let status = t
             .get("status")
             .and_then(|v| v.as_str())
-            .expect(&format!(".tiers.{}.status missing", tier));
+            .unwrap_or_else(|| panic!(".tiers.{}.status missing", tier));
         assert!(
             STATUSES.contains(&status),
             ".tiers.{}.status = {:?} — not in documented enum {:?}",

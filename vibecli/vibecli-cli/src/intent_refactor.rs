@@ -1764,10 +1764,7 @@ mod tests {
     #[test]
     fn suggest_duplicates_for_repeated_lines() {
         let line = "let result = some_function_call(arg1, arg2, arg3);";
-        let code = std::iter::repeat(line)
-            .take(10)
-            .collect::<Vec<_>>()
-            .join("\n");
+        let code = std::iter::repeat_n(line, 10).collect::<Vec<_>>().join("\n");
         let suggestions = IntentParser::suggest_intents(&code);
         assert!(suggestions
             .iter()

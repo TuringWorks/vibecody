@@ -281,19 +281,15 @@ mod tests {
     use super::*;
 
     fn sample_bundle() -> SessionBundle {
-        let mut msgs = Vec::new();
-        msgs.push(Message::new(
-            "m1",
-            Role::User,
-            "Hello, explain Rust ownership.",
-            1000,
-        ));
-        msgs.push(Message::new(
-            "m2",
-            Role::Assistant,
-            "Rust ownership means each value has one owner.",
-            2000,
-        ));
+        let msgs = vec![
+            Message::new("m1", Role::User, "Hello, explain Rust ownership.", 1000),
+            Message::new(
+                "m2",
+                Role::Assistant,
+                "Rust ownership means each value has one owner.",
+                2000,
+            ),
+        ];
         SessionBundle {
             session_id: "sess-abc".to_string(),
             title: "Rust Ownership Q&A".to_string(),

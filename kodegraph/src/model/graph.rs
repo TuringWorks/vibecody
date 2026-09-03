@@ -403,7 +403,7 @@ impl CodeGraph {
                 (id, i + o)
             })
             .collect();
-        scored.sort_by(|a, b| b.1.cmp(&a.1));
+        scored.sort_by_key(|b| std::cmp::Reverse(b.1));
         scored.truncate(n);
         scored
     }
@@ -422,7 +422,7 @@ impl CodeGraph {
             .filter(|id| {
                 self.g
                     .node_weight(*id)
-                    .map_or(false, |n| n.file_path() == Some(file_path))
+                    .is_some_and(|n| n.file_path() == Some(file_path))
             })
             .collect();
         for id in to_remove {

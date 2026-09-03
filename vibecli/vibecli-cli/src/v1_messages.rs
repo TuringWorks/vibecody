@@ -252,7 +252,7 @@ impl Usage {
     ) -> Self {
         fn estimate(chars: usize) -> u32 {
             // Round up so a 1-char input doesn't report 0 tokens.
-            let est = (chars as u64 + 3) / 4;
+            let est = (chars as u64).div_ceil(4);
             u32::try_from(est).unwrap_or(u32::MAX)
         }
         Usage {

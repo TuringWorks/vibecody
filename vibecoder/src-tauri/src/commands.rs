@@ -192,7 +192,6 @@ pub struct AppState {
     // Phase 31: RLCEF + LangGraph + Sketch
     pub rlcef_outcomes: Arc<Mutex<Vec<serde_json::Value>>>,
     pub langgraph_pipelines: Arc<Mutex<Vec<serde_json::Value>>>,
-    pub sketch_elements: Arc<Mutex<Vec<serde_json::Value>>>,
     // Data Analysis
     pub da_datasets: Arc<Mutex<Vec<serde_json::Value>>>,
     pub da_charts: Arc<Mutex<Vec<serde_json::Value>>>,
@@ -214,7 +213,6 @@ pub struct AppState {
     // CI Gates
     pub ci_gates: Arc<Mutex<Vec<serde_json::Value>>>,
     // Design Import
-    pub design_imports: Arc<Mutex<Vec<serde_json::Value>>>,
     // Desktop Agent
     pub desktop_windows: Arc<Mutex<Vec<serde_json::Value>>>,
     // DataGen schemas
@@ -666,10 +664,11 @@ pub async fn read_archive_file(
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
     let (archive, inner) = resolve_archive_path(&path, &state).await?;
-    let bytes = tokio::task::spawn_blocking(move || vibe_core::archive::read_member(&archive, &inner))
-        .await
-        .map_err(|e| e.to_string())?
-        .map_err(|e| e.to_string())?;
+    let bytes =
+        tokio::task::spawn_blocking(move || vibe_core::archive::read_member(&archive, &inner))
+            .await
+            .map_err(|e| e.to_string())?
+            .map_err(|e| e.to_string())?;
     String::from_utf8(bytes).map_err(|_| format!("{path} is not UTF-8 text"))
 }
 
@@ -681,10 +680,11 @@ pub async fn read_archive_file_base64(
 ) -> Result<String, String> {
     use base64::Engine;
     let (archive, inner) = resolve_archive_path(&path, &state).await?;
-    let bytes = tokio::task::spawn_blocking(move || vibe_core::archive::read_member(&archive, &inner))
-        .await
-        .map_err(|e| e.to_string())?
-        .map_err(|e| e.to_string())?;
+    let bytes =
+        tokio::task::spawn_blocking(move || vibe_core::archive::read_member(&archive, &inner))
+            .await
+            .map_err(|e| e.to_string())?
+            .map_err(|e| e.to_string())?;
     Ok(base64::engine::general_purpose::STANDARD.encode(&bytes))
 }
 
@@ -732,8 +732,8 @@ pub async fn plan_archive_extraction(
             .parent()
             .unwrap_or_else(|| std::path::Path::new("."))
             .join(vibe_core::archive::strip_archive_extension(&archive_name));
-        let member_destination = (!member.is_empty())
-            .then(|| destination.join(&member).to_string_lossy().to_string());
+        let member_destination =
+            (!member.is_empty()).then(|| destination.join(&member).to_string_lossy().to_string());
         Ok(ArchiveExtractPlan {
             archive: archive.to_string_lossy().to_string(),
             archive_name,
@@ -2436,8 +2436,7 @@ pub async fn rename_item(
         .map_err(|e| e.to_string())
 }
 
-/// Workspace operations
-
+/// Workspace operations///
 /// Path to the recents file — single JSON array of absolute paths,
 /// most-recent-first, capped at 10. Lives in the same `~/.vibecoder/`
 /// directory as other panel state so a `~/.vibecoder` backup captures
@@ -3518,7 +3517,7 @@ pub async fn send_chat_message(
         tool_output,
         pending_write,
         session_msg_id: None,
-            // Non-streaming path: no finish reason is reported.
+        // Non-streaming path: no finish reason is reported.
         stop_reason: None,
     })
 }
@@ -11099,10 +11098,10 @@ fn parse_build_errors(output: &str, build_system: &str) -> Vec<BuildError> {
                     }
                 }
             }
-            "dotnet" => {
+            "dotnet"
                 // .NET: "File.cs(10,5): error CS0001: message"
                 if (line.contains("): error") || line.contains("): warning")) && line.contains("CS")
-                {
+                => {
                     let severity = if line.contains("warning") {
                         "warning"
                     } else {
@@ -11127,7 +11126,6 @@ fn parse_build_errors(output: &str, build_system: &str) -> Vec<BuildError> {
                         }
                     }
                 }
-            }
             _ => {}
         }
     }
@@ -11233,7 +11231,7 @@ pub async fn get_all_trace_entries() -> Result<Vec<TrustTraceEntry>, String> {
         }
     }
     // Sort newest first
-    all_entries.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+    all_entries.sort_by_key(|b| std::cmp::Reverse(b.timestamp));
     Ok(all_entries)
 }
 
@@ -11497,7 +11495,7 @@ pub async fn list_sessions(workspace: String) -> Result<Vec<SessionBrowserEntry>
             })
         })
         .collect();
-    sessions.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+    sessions.sort_by_key(|b| std::cmp::Reverse(b.timestamp));
     Ok(sessions)
 }
 
@@ -12913,11 +12911,11 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
     }
 
     if !settings.openai_api_key.is_empty() {
-        // Every id here was a generation or more behind the picker until
-        // 2026-09-02: gpt-4/gpt-4-turbo/gpt-3.5-turbo/o1/o1-mini/o1-preview/
-        // o3-mini are all deprecated with an API shutdown on 2026-10-23, and
-        // o1-preview was retired outright. Mirrors OPENAI in
-        // vibe-ai/src/catalog.rs.
+        // Mirrors OPENAI in vibe-ai/src/catalog.rs. The 4-series tail is kept:
+        // OpenAI still lists those four Active on the API. What left on
+        // 2026-09-02 was the deprecated set — gpt-4/gpt-4-turbo/gpt-3.5-turbo/
+        // o1/o1-mini/o3-mini all shut down 2026-10-23, and o1-preview was
+        // retired outright.
         let openai_models = [
             "gpt-5.6-sol",
             "gpt-5.6-terra",
@@ -12928,6 +12926,10 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
             "gpt-5.4-mini",
             "gpt-5.3-codex",
             "gpt-5.3-chat",
+            "gpt-4.1",
+            "gpt-4.1-mini",
+            "gpt-4o",
+            "gpt-4o-mini",
         ];
         for model_id in &openai_models {
             let config = vibe_ai::provider::ProviderConfig {
@@ -13147,7 +13149,12 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
     }
 
     if !settings.perplexity_api_key.is_empty() {
-        for model_id in &["sonar-pro", "sonar", "sonar-reasoning-pro", "sonar-deep-research"] {
+        for model_id in &[
+            "sonar-pro",
+            "sonar",
+            "sonar-reasoning-pro",
+            "sonar-deep-research",
+        ] {
             let config = vibe_ai::provider::ProviderConfig {
                 provider_type: "perplexity".to_string(),
                 api_key: Some(settings.perplexity_api_key.clone()),
@@ -14625,6 +14632,10 @@ pub async fn shadow_get_lint_result(
 
 /// AI-powered visual element edit.
 /// Receives selected element info from inspector.js and produces an edited version.
+///
+/// `provider` is the toolbar's selection. It is required rather than optional:
+/// falling through to whatever provider the shared engine happened to be left
+/// on is how a panel silently stops honouring the toolbar.
 #[tauri::command]
 pub async fn visual_edit_element(
     state: tauri::State<'_, AppState>,
@@ -14633,6 +14644,7 @@ pub async fn visual_edit_element(
     instruction: String,
     current_html: String,
     react_component: Option<String>,
+    provider: String,
 ) -> Result<String, String> {
     use vibe_ai::provider::{Message, MessageRole};
     let component_hint = react_component
@@ -14653,11 +14665,27 @@ pub async fn visual_edit_element(
         content: prompt,
     }];
 
-    let engine = state.chat_engine.lock().await;
+    let mut engine = state.chat_engine.lock().await;
+    select_provider(&mut engine, &provider)?;
     engine
         .chat(&messages, None)
         .await
         .map_err(|e| e.to_string())
+}
+
+/// Point the shared chat engine at the toolbar's provider, or say why not.
+///
+/// `let _ = engine.set_provider_by_name(..)` was the previous form: a name the
+/// engine did not know left the *previous* provider active and the call
+/// succeeded, so the panel reported a result from a model the user had not
+/// chosen.
+fn select_provider(engine: &mut ChatEngine, provider: &str) -> Result<(), String> {
+    if provider.trim().is_empty() {
+        return Err("No provider selected — pick one in the toolbar dropdown.".to_string());
+    }
+    engine
+        .set_provider_by_name(provider)
+        .map_err(|e| format!("Cannot use provider \"{provider}\": {e}"))
 }
 
 /// Generate a new React/HTML component from a natural-language description.
@@ -14686,9 +14714,7 @@ pub async fn generate_component(
     }];
 
     let mut engine = state.chat_engine.lock().await;
-    if !provider.is_empty() {
-        let _ = engine.set_provider_by_name(&provider);
-    }
+    select_provider(&mut engine, &provider)?;
     engine
         .chat(&messages, None)
         .await
@@ -14775,9 +14801,7 @@ pub async fn import_figma(
         content: prompt,
     }];
     let mut engine = state.chat_engine.lock().await;
-    if !provider.is_empty() {
-        let _ = engine.set_provider_by_name(&provider);
-    }
+    select_provider(&mut engine, &provider)?;
 
     let response = engine
         .chat(&messages, None)
@@ -14792,29 +14816,19 @@ pub async fn import_figma(
     } else {
         "[]"
     };
-    let files: Vec<serde_json::Value> = serde_json::from_str(json_slice)
-        .unwrap_or_else(|_| {
-            // Fallback: create a single placeholder component
-            vec![serde_json::json!({
-                "path": format!("src/components/{}.tsx", doc_name.replace(' ', "")),
-                "content": format!("// Generated from Figma: {}\nexport function {} () {{\n  return <div>{}</div>;\n}}", doc_name, doc_name.replace(' ', ""), doc_name)
-            })]
-        });
+    // A response we cannot parse is a failed import, not an import of one
+    // invented component. The old fallback returned a stub named after the
+    // Figma document — indistinguishable, in the panel, from a real result.
+    let files: Vec<serde_json::Value> = serde_json::from_str(json_slice).map_err(|e| {
+        let head: String = response.chars().take(400).collect();
+        format!("The model did not return the expected JSON array ({e}). It said:\n{head}")
+    })?;
 
-    // Optionally write files to workspace
-    if !workspace_path.is_empty() {
-        // DREAD #2 — refuse Figma import into a credential dir.
-        let _ = reject_sensitive_path(&workspace_path)?;
-        for file in &files {
-            if let (Some(path), Some(content)) = (file["path"].as_str(), file["content"].as_str()) {
-                let full_path = std::path::Path::new(&workspace_path).join(path);
-                if let Some(parent) = full_path.parent() {
-                    let _ = std::fs::create_dir_all(parent);
-                }
-                let _ = std::fs::write(&full_path, content);
-            }
-        }
-    }
+    // Nothing is written here. The caller shows the generated files and the
+    // user chooses which to write — this used to write every one of them into
+    // the workspace silently, at a path the model chose, ignoring every write
+    // error, while the panel described itself as a preview.
+    let _ = &workspace_path;
 
     Ok(files)
 }
@@ -16024,7 +16038,7 @@ pub async fn db_list_profiles(workspace_path: String) -> Result<Vec<DbSavedProfi
             }
         }
     }
-    profiles.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    profiles.sort_by_key(|b| std::cmp::Reverse(b.created_at));
     Ok(profiles)
 }
 
@@ -20554,7 +20568,7 @@ pub async fn get_cost_metrics() -> Result<CostMetrics, String> {
     }
 
     // Sort newest first
-    entries.sort_by(|a, b| b.timestamp_ms.cmp(&a.timestamp_ms));
+    entries.sort_by_key(|b| std::cmp::Reverse(b.timestamp_ms));
 
     // Aggregate by provider
     let mut by_provider: std::collections::HashMap<String, ProviderCostSummary> =
@@ -23832,7 +23846,7 @@ mod tests {
         let dir = std::env::temp_dir().join("vibecody_test_attach_unk");
         let _ = std::fs::create_dir_all(&dir);
         let path = dir.join("data.xyz123");
-        std::fs::write(&path, &[0xFF, 0xFE, 0x00]).unwrap();
+        std::fs::write(&path, [0xFF, 0xFE, 0x00]).unwrap();
 
         let att = read_attachment(path.to_string_lossy().to_string())
             .await
@@ -23897,6 +23911,217 @@ mod tests {
         let req: ChatRequest = serde_json::from_str(json).unwrap();
         assert_eq!(req.attachments.len(), 1);
         assert_eq!(req.attachments[0].name, "main.rs");
+    }
+
+    // ── Design panel ────────────────────────────────────────────────────────
+
+    #[test]
+    fn declared_components_finds_exported_pascal_case_bindings() {
+        let src = r#"
+            import x from "y";
+            export function Header() { return null; }
+            export const Card = () => null;
+            export default function App() { return null; }
+            export const helper = 1;      // not PascalCase — not a component
+            function Internal() {}        // not exported
+        "#;
+        let found = declared_components(src);
+        assert_eq!(found, vec!["Header", "Card", "App"]);
+    }
+
+    #[test]
+    fn declared_components_reports_each_name_once() {
+        let src = "export const Foo = () => null;\nexport const Foo = () => null;";
+        assert_eq!(declared_components(src), vec!["Foo"]);
+    }
+
+    #[test]
+    fn sketch_color_rejects_a_css_variable() {
+        // The canvas palette stores `var(--error-color)`. Appending an alpha
+        // byte to that produced `var(--error-color)22`, which is not a colour.
+        assert_eq!(sketch_color("var(--error-color)"), "#4f8ff7");
+        assert_eq!(sketch_color(""), "#4f8ff7");
+        assert_eq!(sketch_color("#ff0000"), "#ff0000");
+        assert_eq!(sketch_color("#f00"), "#f00");
+    }
+
+    #[test]
+    fn svg_escape_neutralises_a_label_that_would_close_its_own_node() {
+        assert_eq!(svg_escape("a < b & c"), "a &lt; b &amp; c");
+        assert_eq!(svg_escape("</text><script>"), "&lt;/text&gt;&lt;script&gt;");
+    }
+
+    #[test]
+    fn jsx_escape_also_neutralises_braces() {
+        // `{` opens a JSX expression, so an unescaped brace is a compile error
+        // in the generated component rather than a stray character.
+        assert_eq!(jsx_escape("{count}"), "&#123;count&#125;");
+    }
+
+    #[test]
+    fn swift_escape_keeps_a_quote_inside_the_string_literal() {
+        assert_eq!(swift_escape(r#"say "hi""#), r#"say \"hi\""#);
+    }
+
+    #[tokio::test]
+    async fn design_tokens_report_why_a_provider_contributed_nothing() {
+        // A provider with no token reader must not look the same as one that
+        // read the workspace and found nothing.
+        let out = load_design_system_tokens(
+            vec!["drawio".into(), "figma".into(), "inhouse".into()],
+            String::new(),
+        )
+        .await
+        .expect("the command reports per-provider status rather than failing");
+
+        let sources = out["sources"].as_array().expect("sources array");
+        assert_eq!(sources.len(), 3);
+        let status_of = |p: &str| {
+            sources
+                .iter()
+                .find(|s| s["provider"] == p)
+                .and_then(|s| s["status"].as_str())
+                .unwrap_or("")
+                .to_string()
+        };
+        assert_eq!(status_of("drawio"), "not_applicable");
+        assert_eq!(status_of("figma"), "elsewhere");
+        // No workspace path — absent, not an empty success.
+        assert_eq!(status_of("inhouse"), "unavailable");
+        assert!(out["tokens"].as_array().expect("tokens array").is_empty());
+        for source in sources {
+            assert!(
+                source["reason"].is_string() || source["status"] == "ok",
+                "a provider that contributed nothing must say why: {source}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn design_tokens_read_the_workspace_stylesheets() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir_all(dir.path().join("src/styles")).unwrap();
+        std::fs::write(
+            dir.path().join("src/styles/theme.css"),
+            ":root{--brand:#6366f1;--space-md:16px;--font-size-md:14px}",
+        )
+        .unwrap();
+        // Must be skipped, or every project's tokens would be its dependencies'.
+        std::fs::create_dir_all(dir.path().join("node_modules/pkg")).unwrap();
+        std::fs::write(
+            dir.path().join("node_modules/pkg/vendor.css"),
+            ":root{--vendor:#000000}",
+        )
+        .unwrap();
+
+        let out = load_design_system_tokens(
+            vec!["inhouse".into()],
+            dir.path().to_string_lossy().to_string(),
+        )
+        .await
+        .expect("scan succeeds");
+
+        let tokens = out["tokens"].as_array().expect("tokens array");
+        let names: Vec<&str> = tokens.iter().filter_map(|t| t["name"].as_str()).collect();
+        assert!(names.contains(&"brand"), "got {names:?}");
+        assert!(names.contains(&"space-md"), "got {names:?}");
+        assert!(
+            !names.contains(&"vendor"),
+            "node_modules must not be scanned"
+        );
+
+        let type_of = |name: &str| {
+            tokens
+                .iter()
+                .find(|t| t["name"] == name)
+                .and_then(|t| t["token_type"].as_str())
+                .unwrap_or("")
+                .to_string()
+        };
+        assert_eq!(type_of("brand"), "color");
+        assert_eq!(type_of("space-md"), "spacing");
+        assert_eq!(type_of("font-size-md"), "typography");
+        assert_eq!(out["sources"][0]["status"], "ok");
+    }
+
+    #[tokio::test]
+    async fn token_export_uses_the_shared_design_system_formatters() {
+        let tokens = serde_json::json!([
+            { "name": "brand", "token_type": "color", "value": "#6366f1", "provider": "inhouse" },
+            { "name": "gap-md", "token_type": "spacing", "value": "16px", "provider": "inhouse" },
+        ]);
+
+        let css = export_design_tokens(tokens.clone(), "css".into(), "Demo".into())
+            .await
+            .expect("css export");
+        assert!(css.contains("--brand"), "got {css}");
+
+        // Style Dictionary output did not exist before this went through
+        // design_system_hub — "json" used to echo the input array back.
+        let sd = export_design_tokens(tokens.clone(), "json".into(), "Demo".into())
+            .await
+            .expect("style dictionary export");
+        let parsed: serde_json::Value = serde_json::from_str(&sd).expect("valid JSON object");
+        assert_eq!(parsed["color"]["brand"]["value"], "#6366f1", "got {sd}");
+
+        // Tailwind must file a spacing token under spacing, not colors.
+        let tw = export_design_tokens(tokens.clone(), "tailwind".into(), "Demo".into())
+            .await
+            .expect("tailwind export");
+        let spacing_at = tw.find("spacing").expect("a spacing block");
+        assert!(tw[spacing_at..].contains("gap-md"), "got {tw}");
+
+        let err = export_design_tokens(tokens, "sass".into(), "Demo".into())
+            .await
+            .expect_err("an unknown format is an error, not a silent CSS fallback");
+        assert!(err.contains("sass"), "got {err}");
+    }
+
+    #[tokio::test]
+    async fn token_audit_catches_a_duplicate_the_old_check_could_not_see() {
+        let tokens = serde_json::json!([
+            { "name": "brand", "token_type": "color", "value": "#111111", "provider": "inhouse" },
+            { "name": "brand", "token_type": "color", "value": "#222222", "provider": "inhouse" },
+        ]);
+        let report = audit_design_system_tokens(tokens, "Demo".into())
+            .await
+            .expect("audit runs");
+        let codes: Vec<&str> = report["issues"]
+            .as_array()
+            .expect("issues")
+            .iter()
+            .filter_map(|i| i["code"].as_str())
+            .collect();
+        assert!(codes.contains(&"DUPLICATE_TOKENS"), "got {codes:?}");
+        assert_eq!(report["token_count"], 2);
+    }
+
+    #[tokio::test]
+    async fn component_tree_refuses_a_path_that_is_not_a_directory() {
+        // "no workspace" and "an empty workspace" must not render the same.
+        let err = design_component_tree(String::new())
+            .await
+            .expect_err("an empty path is an error, not an empty tree");
+        assert!(err.contains("workspace"), "got {err}");
+    }
+
+    #[tokio::test]
+    async fn component_tree_lists_declared_components() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir_all(dir.path().join("src")).unwrap();
+        std::fs::write(
+            dir.path().join("src/Widget.tsx"),
+            "export function Widget() { return null; }\nexport const Row = () => null;\n",
+        )
+        .unwrap();
+        std::fs::write(dir.path().join("src/util.ts"), "export const x = 1;\n").unwrap();
+
+        let out = design_component_tree(dir.path().to_string_lossy().to_string())
+            .await
+            .expect("scan succeeds");
+        assert_eq!(out["file_count"], 1, "only component files are listed");
+        assert_eq!(out["component_count"], 2);
+        assert_eq!(out["truncated"], false);
     }
 }
 
@@ -23990,7 +24215,7 @@ pub async fn list_processes() -> Result<Vec<ProcessInfo>, String> {
             })
             .collect();
         // Sort by memory desc on macOS (ps aux there doesn't support --sort)
-        procs.sort_by(|a, b| b.mem_kb.cmp(&a.mem_kb));
+        procs.sort_by_key(|b| std::cmp::Reverse(b.mem_kb));
         Ok(procs)
     }
 }
@@ -27592,7 +27817,7 @@ pub async fn discover_log_sources(workspace: String) -> Result<Vec<LogSource>, S
         }
     }
 
-    sources.sort_by(|a, b| b.size_bytes.cmp(&a.size_bytes));
+    sources.sort_by_key(|b| std::cmp::Reverse(b.size_bytes));
     Ok(sources)
 }
 
@@ -29652,14 +29877,14 @@ pub async fn analyze_code_metrics(workspace: String) -> Result<CodeMetrics, Stri
     let total_blank_lines: usize = lang_map.values().map(|l| l.blank_lines).sum();
 
     let mut languages: Vec<LanguageStat> = lang_map.into_values().collect();
-    languages.sort_by(|a, b| b.lines.cmp(&a.lines));
+    languages.sort_by_key(|b| std::cmp::Reverse(b.lines));
 
     let mut largest_files = all_files.clone();
-    largest_files.sort_by(|a, b| b.lines.cmp(&a.lines));
+    largest_files.sort_by_key(|b| std::cmp::Reverse(b.lines));
     largest_files.truncate(10);
 
     let mut most_complex = all_files;
-    most_complex.sort_by(|a, b| b.complexity.cmp(&a.complexity));
+    most_complex.sort_by_key(|b| std::cmp::Reverse(b.complexity));
     most_complex.truncate(10);
 
     Ok(CodeMetrics {
@@ -31713,7 +31938,7 @@ fn parse_file_marker(raw: &str) -> Option<String> {
     // Every comment opener in play is built from these, so one trim covers all.
     let body = raw
         .trim()
-        .trim_start_matches(|c: char| matches!(c, '/' | '*' | '#' | '-' | '<' | '!' | ';' | '%'))
+        .trim_start_matches(['/', '*', '#', '-', '<', '!', ';', '%'])
         .trim_start();
     let rest = body
         .get(..5)
@@ -31721,8 +31946,8 @@ fn parse_file_marker(raw: &str) -> Option<String> {
         .map(|_| &body[5..])?;
     let path = rest
         .trim()
-        .trim_end_matches(|c: char| matches!(c, '-' | '>' | '*' | '/' | '`' | '"' | '\''))
-        .trim_start_matches(|c: char| matches!(c, '`' | '"' | '\''));
+        .trim_end_matches(['-', '>', '*', '/', '`', '"', '\''])
+        .trim_start_matches(['`', '"', '\'']);
     sanitize_generated_path(path)
 }
 
@@ -33879,7 +34104,7 @@ pub async fn get_webhook_logs() -> Result<Vec<WebhookLogEntry>, String> {
         .lines()
         .filter_map(|line| serde_json::from_str(line).ok())
         .collect();
-    entries.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+    entries.sort_by_key(|b| std::cmp::Reverse(b.timestamp));
     // Keep last 200 entries
     entries.truncate(200);
     Ok(entries)
@@ -34093,7 +34318,7 @@ pub async fn get_audit_log(limit: Option<usize>) -> Result<Vec<AuditEntry>, Stri
         .lines()
         .filter_map(|line| serde_json::from_str(line).ok())
         .collect();
-    entries.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+    entries.sort_by_key(|b| std::cmp::Reverse(b.timestamp));
     entries.truncate(limit.unwrap_or(200));
     Ok(entries)
 }
@@ -38552,11 +38777,7 @@ pub async fn record_purple_team_simulation(
             .iter()
             .filter(|s| s["outcome"].as_str() == Some("Detected"))
             .count();
-        let coverage_score = if technique_count > 0 {
-            (detected_count * 100) / technique_count
-        } else {
-            0
-        };
+        let coverage_score = (detected_count * 100).checked_div(technique_count).unwrap_or(0);
 
         if let Some(ex) = ex_arr
             .iter_mut()
@@ -47402,7 +47623,7 @@ fn compute_kg_stats(nodes: &[KgNode], edges: &[KgEdge]) -> KgStats {
             (name.to_string(), count)
         })
         .collect();
-    most_connected.sort_by(|a, b| b.1.cmp(&a.1));
+    most_connected.sort_by_key(|b| std::cmp::Reverse(b.1));
     most_connected.truncate(10);
 
     let connected_ids: std::collections::HashSet<usize> =
@@ -48236,11 +48457,8 @@ pub async fn run_render_optimization() -> Result<OptimizationResult, String> {
     data.dirty_regions.clear();
     data.stats.cache_hits += regions_cleared as u64;
     data.stats.total_frames += 1;
-    if data.stats.total_frames > 0 {
-        data.stats.avg_reduction = (data.stats.cache_hits * 100) / data.stats.total_frames;
-        if data.stats.avg_reduction > 100 {
-            data.stats.avg_reduction = 100;
-        }
+    if let Some(reduction) = (data.stats.cache_hits * 100).checked_div(data.stats.total_frames) {
+        data.stats.avg_reduction = reduction.min(100);
     }
     save_render_data(&data).await?;
 
@@ -49816,11 +50034,7 @@ pub async fn get_fine_tuning_stats(workspace: String) -> Result<FtDatasetStats, 
                             // Rough token estimate: ~4 chars per token
                             let char_count = content.len() as u64;
                             let token_estimate = char_count / 4;
-                            let tokens_per_line = if line_count > 0 {
-                                token_estimate / line_count
-                            } else {
-                                0
-                            };
+                            let tokens_per_line = token_estimate.checked_div(line_count).unwrap_or(0);
 
                             *examples += line_count;
                             *tokens += token_estimate;
@@ -49869,11 +50083,7 @@ pub async fn get_fine_tuning_stats(workspace: String) -> Result<FtDatasetStats, 
         );
     }
 
-    let avg = if example_count > 0 {
-        total_tokens / example_count
-    } else {
-        0
-    };
+    let avg = total_tokens.checked_div(example_count).unwrap_or(0);
 
     Ok(FtDatasetStats {
         example_count,
@@ -55600,11 +55810,7 @@ pub async fn voice_download_model(
     let mut last_pct = u64::MAX;
     let emit_id = id.clone();
     let path = vibecli_cli::voice::download_model_with_progress(&model, |downloaded, total| {
-        let pct = if total > 0 {
-            downloaded * 100 / total
-        } else {
-            u64::MAX
-        };
+        let pct = (downloaded * 100).checked_div(total).unwrap_or(u64::MAX);
         if pct == last_pct && downloaded < total {
             return;
         }
@@ -56018,39 +56224,93 @@ pub async fn langgraph_get_events(
 
 // ── Sketch Canvas ──
 
+/// Map each drawn shape onto the UI component it most plausibly stands for.
+///
+/// The mapping is `design_mode::suggest_component` — geometric rules with a
+/// stated reason and a `fit` that is only present when a band actually matched.
+/// This used to return the tool name back with a flat `confidence: 0.85`
+/// stamped on every shape: a number nothing computed, attached to a
+/// "recognition" that recognised nothing.
 #[tauri::command]
-pub async fn sketch_recognize(
-    state: tauri::State<'_, AppState>,
-    elements: String,
-) -> Result<serde_json::Value, String> {
-    let parsed: Vec<serde_json::Value> = serde_json::from_str(&elements).unwrap_or_default();
+pub async fn sketch_recognize(elements: String) -> Result<serde_json::Value, String> {
+    use vibecli_cli::design_mode::{suggest_component, SketchShape};
+
+    let parsed: Vec<serde_json::Value> =
+        serde_json::from_str(&elements).map_err(|e| format!("shapes were not valid JSON: {e}"))?;
+
     let recognized: Vec<serde_json::Value> = parsed
         .iter()
         .enumerate()
         .map(|(i, el)| {
-            let el_type = el.get("type").and_then(|v| v.as_str()).unwrap_or("unknown");
+            let num = |k: &str| el.get(k).and_then(serde_json::Value::as_f64).unwrap_or(0.0);
+            let shape = SketchShape {
+                kind: el
+                    .get("type")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown")
+                    .to_string(),
+                width: num("w"),
+                height: num("h"),
+                text: el.get("text").and_then(|v| v.as_str()).map(str::to_string),
+            };
+            let suggestion = suggest_component(&shape);
             serde_json::json!({
-                "id": format!("shape-{}", i),
-                "type": match el_type {
-                    "rect" | "rectangle" => "Rectangle",
-                    "circle" | "ellipse" => "Circle",
-                    "line" => "Line",
-                    "text" => "Text",
-                    "arrow" => "Arrow",
-                    _ => "FreeformShape"
-                },
-                "confidence": 0.85,
-                "bounds": el.get("bounds").cloned().unwrap_or(serde_json::json!({})),
-                "original": el
+                "id": format!("shape-{i}"),
+                "shape": shape.kind,
+                "component": suggestion.component,
+                "rule": suggestion.rule,
+                "fit": suggestion.fit,
+                "reason": suggestion.reason,
             })
         })
         .collect();
-    let mut sketch_els = state.sketch_elements.lock().await;
-    for r in &recognized {
-        sketch_els.push(r.clone());
-    }
-    Ok(serde_json::json!({ "recognized": recognized, "input_length": elements.len() }))
+
+    Ok(serde_json::json!({ "recognized": recognized }))
 }
+
+/// Escape text for an XML/SVG text node. Without this a label containing
+/// `<` or `&` produces a document no parser will open, and one containing
+/// `</text>` rewrites the surrounding markup.
+fn svg_escape(text: &str) -> String {
+    text.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+}
+
+/// Escape text for a JSX text child. On top of the XML entities, `{` and `}`
+/// open and close a JSX expression — a label containing either would turn into
+/// code that does not compile.
+fn jsx_escape(text: &str) -> String {
+    svg_escape(text)
+        .replace('{', "&#123;")
+        .replace('}', "&#125;")
+}
+
+/// Escape text for a Swift string literal.
+fn swift_escape(text: &str) -> String {
+    text.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+/// A stroke colour safe to write into generated markup.
+///
+/// The canvas stores palette entries as `var(--error-color)`; a stylesheet
+/// variable means nothing inside a standalone SVG or a SwiftUI `Color(hex:)`,
+/// and `var(--error-color)22` — the old way of getting a translucent fill —
+/// is not a colour at all. Anything that is not a hex literal falls back to
+/// the default, and the fill uses a real `fill-opacity` attribute.
+fn sketch_color(raw: &str) -> &str {
+    const DEFAULT: &str = "#4f8ff7";
+    let body = raw.strip_prefix('#').unwrap_or("");
+    let hex_ok = matches!(body.len(), 3 | 4 | 6 | 8) && body.chars().all(|c| c.is_ascii_hexdigit());
+    if hex_ok {
+        raw
+    } else {
+        DEFAULT
+    }
+}
+
+/// The translucent fill drawn behind a sketch outline.
+const SKETCH_FILL_OPACITY: &str = "0.13";
 
 #[tauri::command]
 pub async fn sketch_generate(
@@ -56070,13 +56330,12 @@ pub async fn sketch_generate(
         let y = s.get("y").and_then(|v| v.as_f64()).unwrap_or(0.0);
         let w = s.get("w").and_then(|v| v.as_f64()).unwrap_or(0.0);
         let h = s.get("h").and_then(|v| v.as_f64()).unwrap_or(0.0);
-        let color = s.get("color").and_then(|v| v.as_str()).unwrap_or("#4f8ff7");
-        let text = s.get("text").and_then(|v| v.as_str()).unwrap_or("Text");
-        let fill_opacity = format!("{}22", color);
+        let color = sketch_color(s.get("color").and_then(|v| v.as_str()).unwrap_or(""));
+        let text = svg_escape(s.get("text").and_then(|v| v.as_str()).unwrap_or("Text"));
         match stype {
             "rect" | "rectangle" => format!(
-                "    <rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{}\" stroke=\"{}\" stroke-width=\"2\" rx=\"2\" />",
-                x, y, w.abs(), h.abs(), fill_opacity, color
+                "    <rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"{}\" fill-opacity=\"{}\" stroke=\"{}\" stroke-width=\"2\" rx=\"2\" />",
+                x, y, w.abs(), h.abs(), color, SKETCH_FILL_OPACITY, color
             ),
             "circle" | "ellipse" => {
                 let rx = w.abs() / 2.0;
@@ -56084,8 +56343,8 @@ pub async fn sketch_generate(
                 let cx = x + w / 2.0;
                 let cy = y + h / 2.0;
                 format!(
-                    "    <ellipse cx=\"{}\" cy=\"{}\" rx=\"{}\" ry=\"{}\" fill=\"{}\" stroke=\"{}\" stroke-width=\"2\" />",
-                    cx, cy, rx, ry, fill_opacity, color
+                    "    <ellipse cx=\"{}\" cy=\"{}\" rx=\"{}\" ry=\"{}\" fill=\"{}\" fill-opacity=\"{}\" stroke=\"{}\" stroke-width=\"2\" />",
+                    cx, cy, rx, ry, color, SKETCH_FILL_OPACITY, color
                 )
             },
             "line" => format!(
@@ -56127,13 +56386,12 @@ pub async fn sketch_generate(
                 let y = s.get("y").and_then(|v| v.as_f64()).unwrap_or(0.0);
                 let w = s.get("w").and_then(|v| v.as_f64()).unwrap_or(0.0);
                 let h = s.get("h").and_then(|v| v.as_f64()).unwrap_or(0.0);
-                let color = s.get("color").and_then(|v| v.as_str()).unwrap_or("#4f8ff7");
-                let text = s.get("text").and_then(|v| v.as_str()).unwrap_or("Text");
-                let fill_opacity = format!("{}22", color);
+                let color = sketch_color(s.get("color").and_then(|v| v.as_str()).unwrap_or(""));
+                let text = jsx_escape(s.get("text").and_then(|v| v.as_str()).unwrap_or("Text"));
                 match stype {
                     "rect" | "rectangle" => format!(
-                        "      <rect x={{{}}} y={{{}}} width={{{}}} height={{{}}} fill=\"{}\" stroke=\"{}\" strokeWidth={{2}} rx={{2}} />",
-                        x, y, w.abs(), h.abs(), fill_opacity, color
+                        "      <rect x={{{}}} y={{{}}} width={{{}}} height={{{}}} fill=\"{}\" fillOpacity={{{}}} stroke=\"{}\" strokeWidth={{2}} rx={{2}} />",
+                        x, y, w.abs(), h.abs(), color, SKETCH_FILL_OPACITY, color
                     ),
                     "circle" | "ellipse" => {
                         let rx = w.abs() / 2.0;
@@ -56141,8 +56399,8 @@ pub async fn sketch_generate(
                         let cx = x + w / 2.0;
                         let cy = y + h / 2.0;
                         format!(
-                            "      <ellipse cx={{{}}} cy={{{}}} rx={{{}}} ry={{{}}} fill=\"{}\" stroke=\"{}\" strokeWidth={{2}} />",
-                            cx, cy, rx, ry, fill_opacity, color
+                            "      <ellipse cx={{{}}} cy={{{}}} rx={{{}}} ry={{{}}} fill=\"{}\" fillOpacity={{{}}} stroke=\"{}\" strokeWidth={{2}} />",
+                            cx, cy, rx, ry, color, SKETCH_FILL_OPACITY, color
                         )
                     },
                     "line" => format!(
@@ -56188,7 +56446,7 @@ pub async fn sketch_generate(
                 let y = s.get("y").and_then(|v| v.as_f64()).unwrap_or(0.0);
                 let w = s.get("w").and_then(|v| v.as_f64()).unwrap_or(0.0);
                 let h = s.get("h").and_then(|v| v.as_f64()).unwrap_or(0.0);
-                let color = s.get("color").and_then(|v| v.as_str()).unwrap_or("#4f8ff7");
+                let color = sketch_color(s.get("color").and_then(|v| v.as_str()).unwrap_or(""));
                 match stype {
                     "rect" | "rectangle" => format!(
                         "      Rectangle()\n        .fill(Color(hex: \"{}\").opacity(0.13))\n        .stroke(Color(hex: \"{}\"), lineWidth: 2)\n        .frame(width: {}, height: {})\n        .position(x: {}, y: {})",
@@ -56199,7 +56457,7 @@ pub async fn sketch_generate(
                         color, color, w.abs(), h.abs(), x + w / 2.0, y + h / 2.0
                     ),
                     "text" => {
-                        let text = s.get("text").and_then(|v| v.as_str()).unwrap_or("Text");
+                        let text = swift_escape(s.get("text").and_then(|v| v.as_str()).unwrap_or("Text"));
                         format!(
                             "      Text(\"{}\")\n        .foregroundColor(Color(hex: \"{}\"))\n        .font(.system(size: 14))\n        .position(x: {}, y: {})",
                             text, color, x, y
@@ -56216,40 +56474,6 @@ pub async fn sketch_generate(
         _ => svg_body.to_string(),
     };
     Ok(serde_json::json!({ "framework": framework, "code": code, "shape_count": shapes.len() }))
-}
-
-#[tauri::command]
-pub async fn sketch_export(
-    state: tauri::State<'_, AppState>,
-    format: String,
-) -> Result<serde_json::Value, String> {
-    let sketch_els = state.sketch_elements.lock().await;
-    let data = match format.as_str() {
-        "json" => serde_json::to_string_pretty(&*sketch_els).unwrap_or_default(),
-        "svg" => {
-            let mut svg = String::from(
-                "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"800\" height=\"600\">\n",
-            );
-            for el in sketch_els.iter() {
-                let el_type = el
-                    .get("type")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("FreeformShape");
-                match el_type {
-                    "Rectangle" => svg.push_str("  <rect x=\"10\" y=\"10\" width=\"100\" height=\"60\" fill=\"none\" stroke=\"black\"/>\n"),
-                    "Circle" => svg.push_str("  <circle cx=\"50\" cy=\"50\" r=\"30\" fill=\"none\" stroke=\"black\"/>\n"),
-                    "Line" => svg.push_str("  <line x1=\"0\" y1=\"0\" x2=\"100\" y2=\"100\" stroke=\"black\"/>\n"),
-                    _ => svg.push_str(&format!("  <!-- {} -->\n", el_type)),
-                }
-            }
-            svg.push_str("</svg>");
-            svg
-        }
-        _ => serde_json::to_string(&*sketch_els).unwrap_or_default(),
-    };
-    Ok(
-        serde_json::json!({ "format": format, "data": data, "element_count": sketch_els.len(), "exported_at": chrono::Utc::now().timestamp() }),
-    )
 }
 
 // ── Agent Recordings ────────────────────────────────────────────────────
@@ -56564,36 +56788,125 @@ pub async fn toggle_ci_gate(
     Err(format!("Gate '{}' not found", name))
 }
 
-// ── Design Import ──
+// ── Design Import history ────────────────────────────────────────────────────
+//
+// One record per completed import. It lives on disk rather than in `AppState`
+// because the previous in-memory list was empty on every launch — a "History"
+// tab that could only ever show what you did since the window opened.
 
-#[tauri::command]
-pub async fn list_design_imports(
-    state: tauri::State<'_, AppState>,
-) -> Result<serde_json::Value, String> {
-    let imports = state.design_imports.lock().await;
-    Ok(serde_json::json!(*imports))
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DesignImportRecord {
+    pub id: String,
+    pub name: String,
+    pub framework: String,
+    /// `"figma"` or `"image"` — where the design came in from.
+    pub source: String,
+    pub created_at: String,
+    /// Paths of the generated files, as the generator named them.
+    #[serde(default)]
+    pub files: Vec<String>,
+    /// Paths actually written into the workspace, if the user wrote any.
+    #[serde(default)]
+    pub written: Vec<String>,
 }
 
+fn design_imports_path() -> Option<PathBuf> {
+    dirs::home_dir().map(|h| h.join(".vibecli").join("design-imports.json"))
+}
+
+fn load_design_imports() -> Vec<DesignImportRecord> {
+    design_imports_path()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .and_then(|b| serde_json::from_str(&b).ok())
+        .unwrap_or_default()
+}
+
+fn save_design_imports(items: &[DesignImportRecord]) -> Result<(), String> {
+    let path = design_imports_path()
+        .ok_or_else(|| "No home directory to store import history in".to_string())?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let body = serde_json::to_string_pretty(items).map_err(|e| e.to_string())?;
+    std::fs::write(&path, body).map_err(|e| format!("cannot save import history: {e}"))
+}
+
+/// Every recorded import, newest first.
 #[tauri::command]
-pub async fn create_design_import(
-    state: tauri::State<'_, AppState>,
+pub async fn design_import_history() -> Result<Vec<DesignImportRecord>, String> {
+    Ok(load_design_imports())
+}
+
+/// Record a completed import.
+///
+/// `files` are the paths the generator produced; the count of them *is* the
+/// component count. The old command took a count it never computed and stored
+/// `0` for every import.
+#[tauri::command]
+pub async fn design_import_record(
     name: String,
     framework: String,
     source: String,
-) -> Result<serde_json::Value, String> {
-    let id = chrono::Utc::now().timestamp();
-    let entry = serde_json::json!({
-        "id": id,
-        "name": name,
-        "framework": framework,
-        "source": source,
-        "date": chrono::Utc::now().format("%Y-%m-%d").to_string(),
-        "components": 0,
-        "status": "imported"
-    });
-    let mut imports = state.design_imports.lock().await;
-    imports.insert(0, entry.clone());
-    Ok(entry)
+    files: Vec<String>,
+    written: Option<Vec<String>>,
+) -> Result<DesignImportRecord, String> {
+    const MAX_HISTORY: usize = 200;
+    let record = DesignImportRecord {
+        id: format!("imp-{}", uuid_like_id()),
+        name,
+        framework,
+        source,
+        created_at: chrono::Utc::now().to_rfc3339(),
+        files,
+        written: written.unwrap_or_default(),
+    };
+    let mut items = load_design_imports();
+    items.insert(0, record.clone());
+    items.truncate(MAX_HISTORY);
+    save_design_imports(&items)?;
+    Ok(record)
+}
+
+/// Record that some of an import's generated files were written to disk.
+///
+/// Written on disk, not just in the panel's state: a "3 written" badge that
+/// disappears on the next launch is a claim the history cannot back up.
+#[tauri::command]
+pub async fn design_import_mark_written(
+    id: String,
+    paths: Vec<String>,
+) -> Result<DesignImportRecord, String> {
+    let mut items = load_design_imports();
+    let record = items
+        .iter_mut()
+        .find(|r| r.id == id)
+        .ok_or_else(|| format!("No import with id {id}"))?;
+    for path in paths {
+        if !record.written.contains(&path) {
+            record.written.push(path);
+        }
+    }
+    let updated = record.clone();
+    save_design_imports(&items)?;
+    Ok(updated)
+}
+
+/// Forget one import, or all of them when `id` is absent.
+#[tauri::command]
+pub async fn design_import_forget(id: Option<String>) -> Result<Vec<DesignImportRecord>, String> {
+    let mut items = load_design_imports();
+    match id {
+        Some(id) => {
+            let before = items.len();
+            items.retain(|r| r.id != id);
+            if items.len() == before {
+                return Err(format!("No import with id {id}"));
+            }
+        }
+        None => items.clear(),
+    }
+    save_design_imports(&items)?;
+    Ok(items)
 }
 
 // ── Desktop Agent commands ──────────────────────────────────────────────────
@@ -57897,7 +58210,7 @@ pub async fn rl_refresh_environments(workspace_path: String) -> Result<serde_jso
     let report = store
         .refresh_from_sidecar(&cfg)
         .map_err(|e| e.to_string())?;
-    Ok(serde_json::to_value(report).map_err(|e| e.to_string())?)
+    serde_json::to_value(report).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -57943,6 +58256,10 @@ pub async fn rl_list_policies(
 }
 
 #[tauri::command]
+// A Tauri command's arguments are named by the caller — they arrive as keys of
+// the JS `invoke` payload — so the readability problem this lint guards against
+// does not exist here, and collapsing them would change the IPC contract.
+#[allow(clippy::too_many_arguments)]
 pub async fn rl_register_policy(
     workspace_path: String,
     name: String,
@@ -62354,7 +62671,7 @@ pub async fn hard_problem_decompose(description: String) -> Result<DecomposeResu
             }
         };
 
-    let parsed: LLMDecompose = serde_json::from_str(&json_str).map_err(|e| {
+    let parsed: LLMDecompose = serde_json::from_str(json_str).map_err(|e| {
         format!(
             "JSON parse error: {}. Extracted content: {}",
             e,
@@ -63909,12 +64226,14 @@ pub async fn list_drawio_templates() -> Result<Vec<DrawioTemplate>, String> {
 #[tauri::command]
 pub async fn get_drawio_template(template_id: String) -> Result<String, String> {
     crate::drawio_templates::template_xml(&template_id).ok_or_else(|| {
-        format!("No template named `{template_id}`. Ask for one of: {}.",
+        format!(
+            "No template named `{template_id}`. Ask for one of: {}.",
             crate::drawio_templates::TEMPLATES
                 .iter()
                 .map(|t| t.id)
                 .collect::<Vec<_>>()
-                .join(", "))
+                .join(", ")
+        )
     })
 }
 
@@ -63939,8 +64258,19 @@ const DRAWIO_EXTENSIONS: &[&str] = &[".drawio.svg", ".drawio.xml", ".drawio", ".
 
 /// Directories a diagram search never descends into.
 const DRAWIO_SKIP_DIRS: &[&str] = &[
-    "node_modules", ".git", "target", "dist", "build", ".next", "vendor",
-    "__pycache__", ".venv", "venv", ".gradle", "out", ".cache",
+    "node_modules",
+    ".git",
+    "target",
+    "dist",
+    "build",
+    ".next",
+    "vendor",
+    "__pycache__",
+    ".venv",
+    "venv",
+    ".gradle",
+    "out",
+    ".cache",
 ];
 
 /// Largest file whose structure is counted during a listing.
@@ -63991,7 +64321,10 @@ fn drawio_counts(xml: &str) -> (usize, usize, usize) {
 /// Does this filename look like something the draw.io editor can open?
 fn drawio_extension_of(name: &str) -> Option<&'static str> {
     let lower = name.to_ascii_lowercase();
-    DRAWIO_EXTENSIONS.iter().copied().find(|ext| lower.ends_with(ext))
+    DRAWIO_EXTENSIONS
+        .iter()
+        .copied()
+        .find(|ext| lower.ends_with(ext))
 }
 
 /// List every draw.io diagram in the workspace.
@@ -64036,7 +64369,9 @@ pub async fn list_drawio_files(workspace_path: String) -> Result<Vec<DrawioFile>
             .map(|d| d.as_secs());
 
         let counts = if size_bytes <= DRAWIO_COUNT_LIMIT_BYTES {
-            std::fs::read_to_string(path).ok().map(|xml| drawio_counts(&xml))
+            std::fs::read_to_string(path)
+                .ok()
+                .map(|xml| drawio_counts(&xml))
         } else {
             None
         };
@@ -64081,16 +64416,17 @@ pub async fn list_drawio_files(workspace_path: String) -> Result<Vec<DrawioFile>
 /// diagram"), not a failure to parse, and it is named as such.
 fn drawio_xml_from_svg(svg: &str) -> Result<String, String> {
     let Some(start) = svg.find("content=\"") else {
-        return Err(
-            "This SVG has no embedded diagram. It was exported without \
+        return Err("This SVG has no embedded diagram. It was exported without \
              \"Include a copy of my diagram\", so only the picture exists — \
              there is nothing to edit. Open the original .drawio file instead."
-                .to_string(),
-        );
+            .to_string());
     };
     let rest = &svg[start + "content=\"".len()..];
     let Some(end) = rest.find('"') else {
-        return Err("This SVG's embedded diagram is truncated — its `content` attribute never closes.".to_string());
+        return Err(
+            "This SVG's embedded diagram is truncated — its `content` attribute never closes."
+                .to_string(),
+        );
     };
     let escaped = &rest[..end];
     // Ampersand last: unescaping it first would turn `&amp;lt;` into `<`.
@@ -64172,7 +64508,10 @@ pub async fn save_drawio_file(
             DRAWIO_EXTENSIONS.join(", ")
         ));
     }
-    if resolved.extension().and_then(|e| e.to_str()).map(|e| e.eq_ignore_ascii_case("svg"))
+    if resolved
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.eq_ignore_ascii_case("svg"))
         == Some(true)
     {
         return Err(
@@ -64187,8 +64526,7 @@ pub async fn save_drawio_file(
         std::fs::create_dir_all(parent)
             .map_err(|e| format!("Cannot create {}: {e}", parent.display()))?;
     }
-    std::fs::write(&resolved, &xml)
-        .map_err(|e| format!("Cannot write {relative_path}: {e}"))?;
+    std::fs::write(&resolved, &xml).map_err(|e| format!("Cannot write {relative_path}: {e}"))?;
     Ok(DrawioSaved {
         path: relative_path,
         absolute_path: resolved.to_string_lossy().into_owned(),
@@ -64245,8 +64583,7 @@ pub async fn export_drawio_file(
             .map_err(|e| format!("Cannot create {}: {e}", parent.display()))?;
     }
     let size_bytes = bytes.len() as u64;
-    std::fs::write(&resolved, bytes)
-        .map_err(|e| format!("Cannot write {relative_path}: {e}"))?;
+    std::fs::write(&resolved, bytes).map_err(|e| format!("Cannot write {relative_path}: {e}"))?;
     Ok(DrawioSaved {
         path: relative_path,
         absolute_path: resolved.to_string_lossy().into_owned(),
@@ -64530,119 +64867,408 @@ pub async fn save_diagram_file(
     std::fs::write(path, content).map_err(|e| e.to_string())
 }
 
-/// Load design tokens from the VibeCody built-in design system.
+/// Directories whose stylesheets belong to something other than this project.
+const CSS_SCAN_SKIP_DIRS: &[&str] = &[
+    "node_modules",
+    "target",
+    ".git",
+    "dist",
+    "build",
+    ".next",
+    "vendor",
+    "coverage",
+    ".venv",
+];
+
+/// Stylesheet extensions worth opening. `--custom-property` declarations are
+/// valid in all of them.
+const CSS_SCAN_EXTENSIONS: &[&str] = &["css", "scss", "sass", "less"];
+
+/// Walking further than this, or opening more files than this, is a design-token
+/// scan turning into a full-repository read. Both bounds are reported alongside
+/// the result so a truncated scan is visible rather than silently partial.
+const CSS_SCAN_MAX_DEPTH: usize = 8;
+const CSS_SCAN_MAX_FILES: usize = 400;
+
+/// What a workspace stylesheet scan found.
+pub struct CssScan {
+    pub variables: Vec<vibecli_cli::design_mode::CssVariable>,
+    pub files_scanned: usize,
+    /// True when the file cap stopped the walk — the result is a sample, not
+    /// the whole workspace, and the caller must say so.
+    pub truncated: bool,
+}
+
+/// Collect every CSS custom property declared under `root`.
+///
+/// One implementation for both design-token surfaces (the Hub's provider view
+/// and the Annotations panel's token list) so the two cannot disagree about
+/// what this workspace's design system contains.
+fn scan_workspace_css_variables(root: &Path) -> CssScan {
+    use vibecli_cli::design_mode::{extract_css_variables, CssVariable};
+
+    let mut variables: Vec<CssVariable> = Vec::new();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut files_scanned = 0usize;
+    let mut truncated = false;
+
+    for entry in walkdir::WalkDir::new(root)
+        .max_depth(CSS_SCAN_MAX_DEPTH)
+        .into_iter()
+        .filter_entry(|e| {
+            !e.file_name()
+                .to_str()
+                .is_some_and(|n| CSS_SCAN_SKIP_DIRS.contains(&n))
+        })
+        .filter_map(Result::ok)
+        .filter(|e| e.file_type().is_file())
+    {
+        let path = entry.path();
+        let is_stylesheet = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .is_some_and(|e| CSS_SCAN_EXTENSIONS.contains(&e.to_ascii_lowercase().as_str()));
+        if !is_stylesheet {
+            continue;
+        }
+        if files_scanned >= CSS_SCAN_MAX_FILES {
+            truncated = true;
+            break;
+        }
+        let Ok(css) = std::fs::read_to_string(path) else {
+            continue;
+        };
+        files_scanned += 1;
+        for var in extract_css_variables(&css) {
+            if seen.insert(var.name.clone()) {
+                variables.push(var);
+            }
+        }
+    }
+
+    CssScan {
+        variables,
+        files_scanned,
+        truncated,
+    }
+}
+
+/// The panel's wire shape for one token.
+///
+/// `token_type` is the serde name of `DesignTokenType`, so the frontend, the
+/// Tauri layer and `design_system_hub` all use one vocabulary.
+fn token_to_json(token: &vibecli_cli::design_providers::DesignToken) -> serde_json::Value {
+    serde_json::json!({
+        "name": token.name,
+        "token_type": serde_json::to_value(&token.token_type)
+            .unwrap_or(serde_json::Value::String("other".into())),
+        "value": token.value,
+        "provider": serde_json::to_value(&token.provider)
+            .unwrap_or(serde_json::Value::String("inhouse".into())),
+        "description": token.description,
+    })
+}
+
+/// Read the panel's token list back into the design system's own type.
+///
+/// A row the panel could not have produced is dropped rather than defaulted:
+/// a token with no value is not a token with an empty value.
+fn tokens_from_json(value: &serde_json::Value) -> Vec<vibecli_cli::design_providers::DesignToken> {
+    use vibecli_cli::design_providers::{DesignToken, DesignTokenType, ProviderKind};
+    value
+        .as_array()
+        .map(|rows| {
+            rows.iter()
+                .filter_map(|row| {
+                    Some(DesignToken {
+                        name: row.get("name")?.as_str()?.to_string(),
+                        value: row.get("value")?.as_str()?.to_string(),
+                        token_type: row
+                            .get("token_type")
+                            .and_then(|t| serde_json::from_value::<DesignTokenType>(t.clone()).ok())
+                            .unwrap_or(DesignTokenType::Other),
+                        description: row
+                            .get("description")
+                            .and_then(|d| d.as_str())
+                            .map(str::to_string),
+                        provider: row
+                            .get("provider")
+                            .and_then(|p| serde_json::from_value::<ProviderKind>(p.clone()).ok())
+                            .unwrap_or(ProviderKind::Inhouse),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Gather a token list into a `DesignSystem`, grouped into one namespace per
+/// token type — which is the shape `design_system_hub`'s exporters and auditor
+/// expect.
+fn design_system_from_tokens(
+    name: &str,
+    tokens: Vec<vibecli_cli::design_providers::DesignToken>,
+) -> vibecli_cli::design_system_hub::DesignSystem {
+    use vibecli_cli::design_system_hub::{DesignSystem, TokenNamespace};
+
+    let mut system = DesignSystem::new(name, env!("CARGO_PKG_VERSION"));
+    let mut by_type: Vec<(String, Vec<_>)> = Vec::new();
+    for token in tokens {
+        let key = serde_json::to_value(&token.token_type)
+            .ok()
+            .and_then(|v| v.as_str().map(str::to_string))
+            .unwrap_or_else(|| "other".to_string());
+        match by_type.iter_mut().find(|(k, _)| *k == key) {
+            Some((_, bucket)) => bucket.push(token),
+            None => by_type.push((key, vec![token])),
+        }
+    }
+    for (key, bucket) in by_type {
+        let provider = bucket.first().map(|t| t.provider.clone());
+        let mut ns = TokenNamespace {
+            name: key,
+            tokens: Vec::new(),
+            provider,
+        };
+        ns.tokens = bucket;
+        system.add_namespace(ns);
+    }
+    system
+}
+
+/// Load design tokens for the providers the Design Hub has enabled.
+///
+/// Only `inhouse` can answer here, and it answers from the workspace's own
+/// stylesheets — there is no built-in token list to fall back on, because a
+/// canned palette would be a claim about the user's design system that nothing
+/// measured. Every other provider reports why it has no tokens instead of
+/// contributing silence, so an empty result can be told apart from an
+/// unimplemented one.
 #[tauri::command]
 pub async fn load_design_system_tokens(
     providers: Vec<String>,
     workspace_path: String,
 ) -> Result<serde_json::Value, String> {
-    let _ = (providers, workspace_path);
-    Ok(serde_json::json!({ "tokens": [
-        { "name": "color.primary", "token_type": "color", "value": "#6366f1", "provider": "inhouse" },
-        { "name": "color.secondary", "token_type": "color", "value": "#8b5cf6", "provider": "inhouse" },
-        { "name": "color.background", "token_type": "color", "value": "#0f0f0f", "provider": "inhouse" },
-        { "name": "color.surface", "token_type": "color", "value": "#1a1a1a", "provider": "inhouse" },
-        { "name": "color.text", "token_type": "color", "value": "#e5e7eb", "provider": "inhouse" },
-        { "name": "spacing.xs", "token_type": "spacing", "value": "4px", "provider": "inhouse" },
-        { "name": "spacing.sm", "token_type": "spacing", "value": "8px", "provider": "inhouse" },
-        { "name": "spacing.md", "token_type": "spacing", "value": "16px", "provider": "inhouse" },
-        { "name": "spacing.lg", "token_type": "spacing", "value": "24px", "provider": "inhouse" },
-        { "name": "font.size.md", "token_type": "typography", "value": "14px", "provider": "inhouse" },
-    ]}))
+    use vibecli_cli::design_providers::{DesignToken, ProviderKind};
+
+    let mut tokens: Vec<serde_json::Value> = Vec::new();
+    let mut sources: Vec<serde_json::Value> = Vec::new();
+
+    for provider in &providers {
+        match provider.as_str() {
+            "inhouse" => {
+                if workspace_path.trim().is_empty() {
+                    sources.push(serde_json::json!({
+                        "provider": provider,
+                        "status": "unavailable",
+                        "reason": "No workspace folder is open, so there are no stylesheets to read.",
+                    }));
+                    continue;
+                }
+                let root = Path::new(&workspace_path);
+                if !root.is_dir() {
+                    sources.push(serde_json::json!({
+                        "provider": provider,
+                        "status": "unavailable",
+                        "reason": format!("{workspace_path} is not a directory."),
+                    }));
+                    continue;
+                }
+                let scan = scan_workspace_css_variables(root);
+                let found = scan.variables.len();
+                for var in scan.variables {
+                    tokens.push(token_to_json(&DesignToken {
+                        name: var.name.trim_start_matches("--").to_string(),
+                        token_type: var.token_type,
+                        value: var.value,
+                        description: None,
+                        provider: ProviderKind::Inhouse,
+                    }));
+                }
+                sources.push(serde_json::json!({
+                    "provider": provider,
+                    "status": "ok",
+                    "token_count": found,
+                    "files_scanned": scan.files_scanned,
+                    "truncated": scan.truncated,
+                }));
+            }
+            "figma" => sources.push(serde_json::json!({
+                "provider": provider,
+                "status": "elsewhere",
+                "reason": "Figma tokens come with an imported file — use the Figma tab.",
+            })),
+            "penpot" => sources.push(serde_json::json!({
+                "provider": provider,
+                "status": "elsewhere",
+                "reason": "Penpot tokens need project credentials — use Design → Penpot.",
+            })),
+            "drawio" | "mermaid" | "pencil" => sources.push(serde_json::json!({
+                "provider": provider,
+                "status": "not_applicable",
+                "reason": "Diagram and wireframe tools do not declare design tokens.",
+            })),
+            other => sources.push(serde_json::json!({
+                "provider": other,
+                "status": "unknown",
+                "reason": "No token reader is registered for this provider.",
+            })),
+        }
+    }
+
+    Ok(serde_json::json!({ "tokens": tokens, "sources": sources }))
 }
 
-/// Export design tokens to CSS, Tailwind, TypeScript, or JSON.
+/// A component file found in the workspace, with the component names it
+/// declares.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ComponentFile {
+    /// Path relative to the workspace root.
+    pub path: String,
+    /// Exported component names, in declaration order.
+    pub components: Vec<String>,
+    pub lines: usize,
+}
+
+/// Extensions whose files can declare a UI component.
+const COMPONENT_EXTENSIONS: &[&str] = &["tsx", "jsx", "vue", "svelte"];
+
+/// Names exported from a source file that look like a component: an exported
+/// binding whose name is PascalCase.
+///
+/// This is a scanner, not a parser — it reports what a name looks like, which
+/// is why the panel labels the result "declared components" rather than
+/// claiming a render tree it never built.
+fn declared_components(source: &str) -> Vec<String> {
+    static PATTERN: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        // `export function Foo`, `export const Foo =`, `export default function Foo`,
+        // `export class Foo`.
+        regex::Regex::new(
+            r"(?m)^\s*export\s+(?:default\s+)?(?:async\s+)?(?:function|const|let|class)\s+([A-Z][A-Za-z0-9_]*)",
+        )
+        .expect("component export pattern is a literal and compiles")
+    });
+    let mut out: Vec<String> = Vec::new();
+    for caps in PATTERN.captures_iter(source) {
+        let name = caps[1].to_string();
+        if !out.contains(&name) {
+            out.push(name);
+        }
+    }
+    out
+}
+
+/// The workspace's component files and the components each declares.
+///
+/// Bounded the same way the stylesheet scan is: a design panel must not turn
+/// into a full-repository read.
+#[tauri::command]
+pub async fn design_component_tree(workspace_path: String) -> Result<serde_json::Value, String> {
+    const MAX_FILES: usize = 600;
+
+    if workspace_path.trim().is_empty() {
+        return Err("Open a workspace folder first.".to_string());
+    }
+    let root = Path::new(&workspace_path);
+    if !root.is_dir() {
+        return Err(format!("{workspace_path} is not a directory."));
+    }
+
+    let mut files: Vec<ComponentFile> = Vec::new();
+    let mut truncated = false;
+
+    for entry in walkdir::WalkDir::new(root)
+        .max_depth(CSS_SCAN_MAX_DEPTH)
+        .into_iter()
+        .filter_entry(|e| {
+            !e.file_name()
+                .to_str()
+                .is_some_and(|n| CSS_SCAN_SKIP_DIRS.contains(&n))
+        })
+        .filter_map(Result::ok)
+        .filter(|e| e.file_type().is_file())
+    {
+        let path = entry.path();
+        let is_component = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .is_some_and(|e| COMPONENT_EXTENSIONS.contains(&e.to_ascii_lowercase().as_str()));
+        if !is_component {
+            continue;
+        }
+        if files.len() >= MAX_FILES {
+            truncated = true;
+            break;
+        }
+        let Ok(source) = std::fs::read_to_string(path) else {
+            continue;
+        };
+        let components = declared_components(&source);
+        if components.is_empty() {
+            continue;
+        }
+        let relative = path
+            .strip_prefix(root)
+            .unwrap_or(path)
+            .to_string_lossy()
+            .to_string();
+        files.push(ComponentFile {
+            path: relative,
+            components,
+            lines: source.lines().count(),
+        });
+    }
+
+    files.sort_by(|a, b| a.path.cmp(&b.path));
+    let component_count: usize = files.iter().map(|f| f.components.len()).sum();
+    Ok(serde_json::json!({
+        "files": files,
+        "file_count": files.len(),
+        "component_count": component_count,
+        "truncated": truncated,
+    }))
+}
+
+/// Export design tokens to CSS, Tailwind, TypeScript, or Style Dictionary JSON.
+///
+/// The formatting is `design_system_hub`'s, not a second implementation here.
+/// The hand-rolled version this replaced emitted a different CSS shape from
+/// the one `vibecli` exports, had no Style Dictionary output at all, and put
+/// every token into Tailwind's `colors` block regardless of its type.
 #[tauri::command]
 pub async fn export_design_tokens(
     tokens: serde_json::Value,
     format: String,
     system_name: String,
 ) -> Result<String, String> {
-    let tok_array = tokens.as_array().cloned().unwrap_or_default();
-    match format.as_str() {
-        "tailwind" => {
-            let entries: String = tok_array
-                .iter()
-                .filter_map(|t| {
-                    Some(format!(
-                        "        \"{}\": \"{}\",\n",
-                        t["name"].as_str()?.replace('.', "-"),
-                        t["value"].as_str()?
-                    ))
-                })
-                .collect();
-            Ok(format!(
-                "module.exports = {{\n  theme: {{ extend: {{\n{}}}}}\n}}\n",
-                entries
-            ))
-        }
-        "typescript" => {
-            let entries: String = tok_array
-                .iter()
-                .filter_map(|t| {
-                    Some(format!(
-                        "  \"{}\": \"{}\",\n",
-                        t["name"].as_str()?,
-                        t["value"].as_str()?
-                    ))
-                })
-                .collect();
-            Ok(format!(
-                "// {} tokens\nexport const tokens = {{\n{}}} as const;\n",
-                system_name, entries
-            ))
-        }
-        "json" | "style_dictionary" => {
-            Ok(serde_json::to_string_pretty(&tokens).unwrap_or_default())
-        }
-        _ => {
-            let vars: String = tok_array
-                .iter()
-                .filter_map(|t| {
-                    Some(format!(
-                        "  --{}: {};\n",
-                        t["name"].as_str()?.replace('.', "-"),
-                        t["value"].as_str()?
-                    ))
-                })
-                .collect();
-            Ok(format!("/* {} */\n:root {{\n{}}}\n", system_name, vars))
-        }
-    }
+    let system = design_system_from_tokens(&system_name, tokens_from_json(&tokens));
+    Ok(match format.as_str() {
+        "tailwind" => system.export_tailwind(),
+        "typescript" | "ts" => system.export_ts(),
+        "json" | "style_dictionary" => system.export_style_dictionary(),
+        "css" => system.export_css(),
+        other => return Err(format!("Unknown export format '{other}'")),
+    })
 }
 
 /// Audit a set of design tokens for completeness and consistency.
+///
+/// Delegates to `design_system_hub::audit_design_system`, which is the audit
+/// `vibecli` itself runs and is covered by its own BDD suite. The version this
+/// replaced checked three things and could not see a duplicate token name.
 #[tauri::command]
 pub async fn audit_design_system_tokens(
     tokens: serde_json::Value,
     system_name: String,
 ) -> Result<serde_json::Value, String> {
-    let tok_array = tokens.as_array().cloned().unwrap_or_default();
-    let mut issues = Vec::new();
-    if !tok_array
-        .iter()
-        .any(|t| t["token_type"].as_str() == Some("color"))
-    {
-        issues.push(serde_json::json!({ "severity": "Warning", "code": "MISSING_COLOR", "message": "No color tokens found", "suggestion": "Add primary/secondary color tokens" }));
+    let system = design_system_from_tokens(&system_name, tokens_from_json(&tokens));
+    let report = vibecli_cli::design_system_hub::audit_design_system(&system);
+    let token_count = system.all_tokens().len();
+    let mut value = serde_json::to_value(&report).map_err(|e| e.to_string())?;
+    if let Some(obj) = value.as_object_mut() {
+        obj.insert("token_count".into(), serde_json::json!(token_count));
     }
-    if !tok_array
-        .iter()
-        .any(|t| t["token_type"].as_str() == Some("spacing"))
-    {
-        issues.push(serde_json::json!({ "severity": "Info", "code": "MISSING_SPACING", "message": "No spacing tokens found", "suggestion": "Add xs/sm/md/lg spacing tokens" }));
-    }
-    if !tok_array
-        .iter()
-        .any(|t| t["token_type"].as_str() == Some("typography"))
-    {
-        issues.push(serde_json::json!({ "severity": "Info", "code": "MISSING_TYPOGRAPHY", "message": "No typography tokens", "suggestion": "Add font-size tokens" }));
-    }
-    let score = 100u32.saturating_sub(issues.len() as u32 * 15);
-    Ok(serde_json::json!({
-        "system_name": system_name, "token_count": tok_array.len(), "score": score,
-        "summary": format!("{} tokens — {} issue(s)", tok_array.len(), issues.len()),
-        "issues": issues,
-    }))
+    Ok(value)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -64712,8 +65338,7 @@ pub async fn get_watch_pairing_info() -> Result<serde_json::Value, String> {
         format!("http://localhost:{}", port)
     };
     // Read the daemon bearer token
-    let bearer = daemon_token_opt()
-        .ok_or("Daemon is not running (no token file found)")?;
+    let bearer = daemon_token_opt().ok_or("Daemon is not running (no token file found)")?;
     // Issue a challenge nonce via the daemon
     let client = reqwest::Client::new();
     let resp = client
@@ -65291,7 +65916,7 @@ pub async fn team_onboarding_members(
                 first_commit: format_unix_date(agg.first_ts),
             })
             .collect();
-        contributors.sort_by(|a, b| b.commits.cmp(&a.commits));
+        contributors.sort_by_key(|b| std::cmp::Reverse(b.commits));
         contributors
     })
     .await
@@ -65375,7 +66000,7 @@ pub async fn team_onboarding_hotspots(
                 contributor_count: agg.contributors.len() as u32,
             })
             .collect();
-        hotspots.sort_by(|a, b| b.commits.cmp(&a.commits));
+        hotspots.sort_by_key(|b| std::cmp::Reverse(b.commits));
         hotspots.truncate(30);
         hotspots
     })
@@ -66845,26 +67470,21 @@ pub async fn fluxo_stream_run(app: tauri::AppHandle, workflow_id: String) -> Res
         };
         let mut buffer = String::new();
         let mut data_lines: Vec<String> = Vec::new();
-        loop {
-            match resp.chunk().await {
-                Ok(Some(bytes)) => {
-                    buffer.push_str(&String::from_utf8_lossy(&bytes));
-                    while let Some(nl) = buffer.find('\n') {
-                        let line = buffer[..nl].trim_end_matches('\r').to_string();
-                        buffer.drain(..=nl);
-                        if line.is_empty() {
-                            if !data_lines.is_empty() {
-                                let data = std::mem::take(&mut data_lines).join("\n");
-                                if let Ok(v) = serde_json::from_str::<serde_json::Value>(&data) {
-                                    let _ = app.emit("fluxo:run", v);
-                                }
-                            }
-                        } else if let Some(rest) = line.strip_prefix("data:") {
-                            data_lines.push(rest.trim_start().to_string());
+        while let Ok(Some(bytes)) = resp.chunk().await {
+            buffer.push_str(&String::from_utf8_lossy(&bytes));
+            while let Some(nl) = buffer.find('\n') {
+                let line = buffer[..nl].trim_end_matches('\r').to_string();
+                buffer.drain(..=nl);
+                if line.is_empty() {
+                    if !data_lines.is_empty() {
+                        let data = std::mem::take(&mut data_lines).join("\n");
+                        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&data) {
+                            let _ = app.emit("fluxo:run", v);
                         }
                     }
+                } else if let Some(rest) = line.strip_prefix("data:") {
+                    data_lines.push(rest.trim_start().to_string());
                 }
-                Ok(None) | Err(_) => break,
             }
         }
         fluxo_stream_forget(&id);
@@ -67491,7 +68111,7 @@ pub async fn voice_vocab_stats(
     // Highest-frequency identifiers first: a hot-word list is bounded, so the
     // ones the project actually says most are the ones worth spending it on.
     let mut ranked = symbols;
-    ranked.sort_by(|a, b| b.frequency.cmp(&a.frequency));
+    ranked.sort_by_key(|b| std::cmp::Reverse(b.frequency));
     let hotwords: Vec<String> = ranked.iter().take(64).map(|s| s.name.clone()).collect();
     let initial_prompt = if hotwords.is_empty() {
         String::new()
@@ -68111,44 +68731,80 @@ fn load_design_annotations() -> Vec<DesignAnnotation> {
         .unwrap_or_default()
 }
 
-/// List annotations, or add one when `action == "add"`.
-///
-/// Returns the whole list for a read and the created item for an add, matching
-/// what the panel destructures in each case.
-#[tauri::command]
-pub async fn design_mode_annotations(
-    action: Option<String>,
-    kind: Option<String>,
-    description: Option<String>,
-    selector: Option<String>,
-) -> Result<serde_json::Value, String> {
-    let mut items = load_design_annotations();
-    if action.as_deref() != Some("add") {
-        return serde_json::to_value(&items).map_err(|e| e.to_string());
-    }
-
-    let description = description
-        .filter(|d| !d.trim().is_empty())
-        .ok_or_else(|| "An annotation needs a description".to_string())?;
-    let created = DesignAnnotation {
-        id: format!("ann-{}", unix_now_secs()),
-        kind: kind.unwrap_or_else(|| "component".to_string()),
-        description,
-        selector: selector.filter(|s| !s.trim().is_empty()),
-        created_at: unix_now_secs().to_string(),
-    };
-    items.push(created.clone());
-
+/// Persist the annotation list, creating the parent directory if needed.
+fn save_design_annotations(items: &[DesignAnnotation]) -> Result<(), String> {
     let path = design_annotations_path()
         .ok_or_else(|| "No home directory to store annotations in".to_string())?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    let body = serde_json::to_string_pretty(&items).map_err(|e| e.to_string())?;
-    // Written before returning: reporting a saved annotation that is not on
-    // disk would lose it on the next reload.
-    std::fs::write(&path, body).map_err(|e| format!("cannot save annotations: {e}"))?;
-    serde_json::to_value(&created).map_err(|e| e.to_string())
+    let body = serde_json::to_string_pretty(items).map_err(|e| e.to_string())?;
+    std::fs::write(&path, body).map_err(|e| format!("cannot save annotations: {e}"))
+}
+
+/// List annotations, add one (`action == "add"`), or remove one
+/// (`action == "delete"`, with `id`).
+///
+/// Returns the whole list for a read and a delete, and the created item for an
+/// add, matching what the panel destructures in each case. Every mutation is
+/// written to disk before it returns: reporting a change that is not on disk
+/// would lose it on the next reload.
+#[tauri::command]
+pub async fn design_mode_annotations(
+    action: Option<String>,
+    id: Option<String>,
+    kind: Option<String>,
+    description: Option<String>,
+    selector: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let mut items = load_design_annotations();
+    match action.as_deref() {
+        Some("add") => {
+            let description = description
+                .filter(|d| !d.trim().is_empty())
+                .ok_or_else(|| "An annotation needs a description".to_string())?;
+            let created = DesignAnnotation {
+                // Seconds alone collide when two annotations are added in the
+                // same second, and a colliding id makes delete ambiguous.
+                id: format!("ann-{}", uuid_like_id()),
+                kind: kind.unwrap_or_else(|| "component".to_string()),
+                description,
+                selector: selector.filter(|s| !s.trim().is_empty()),
+                created_at: chrono::Utc::now().to_rfc3339(),
+            };
+            items.push(created.clone());
+            save_design_annotations(&items)?;
+            serde_json::to_value(&created).map_err(|e| e.to_string())
+        }
+        Some("delete") => {
+            let id = id.ok_or_else(|| "Deleting an annotation needs its id".to_string())?;
+            let before = items.len();
+            items.retain(|a| a.id != id);
+            if items.len() == before {
+                return Err(format!("No annotation with id {id}"));
+            }
+            save_design_annotations(&items)?;
+            serde_json::to_value(&items).map_err(|e| e.to_string())
+        }
+        Some("clear") => {
+            items.clear();
+            save_design_annotations(&items)?;
+            serde_json::to_value(&items).map_err(|e| e.to_string())
+        }
+        _ => serde_json::to_value(&items).map_err(|e| e.to_string()),
+    }
+}
+
+/// A collision-resistant id: the nanosecond clock plus a counter, so two
+/// annotations created in the same nanosecond still differ.
+fn uuid_like_id() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or_default();
+    format!("{nanos:x}-{:x}", SEQ.fetch_add(1, Ordering::Relaxed))
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -68165,7 +68821,9 @@ pub async fn design_mode_generate() -> Result<Vec<DesignInstruction>, String> {
         .into_iter()
         .enumerate()
         .map(|(i, a)| DesignInstruction {
-            index: i as u32,
+            // 1-based: this is an ordinal the panel renders as "1.", and the
+            // list used to start at "0.".
+            index: i as u32 + 1,
             text: match &a.selector {
                 Some(sel) => format!("[{}] {} — applies to `{}`", a.kind, a.description, sel),
                 None => format!("[{}] {}", a.kind, a.description),
@@ -68183,6 +68841,11 @@ pub struct DesignTokenView {
 }
 
 /// Design tokens declared in the workspace's stylesheets.
+///
+/// Shares `scan_workspace_css_variables` with the Design Hub so both token
+/// views read the same declarations and agree on their categories. The
+/// category used to be `usage_context`, which the extractor never fills — so
+/// every token arrived filed under the empty string.
 #[tauri::command]
 pub async fn design_mode_tokens(
     state: tauri::State<'_, AppState>,
@@ -68195,42 +68858,18 @@ pub async fn design_mode_tokens(
         return Ok(Vec::new());
     };
 
-    let mut extractor = vibecli_cli::design_mode::DesignTokenExtractor::new();
-    let mut scanned = 0usize;
-    for entry in walkdir::WalkDir::new(&root)
-        .max_depth(6)
+    Ok(scan_workspace_css_variables(&root)
+        .variables
         .into_iter()
-        .filter_map(Result::ok)
-        .filter(|e| e.file_type().is_file())
-    {
-        let path = entry.path();
-        if path.components().any(|c| {
-            matches!(
-                c.as_os_str().to_str(),
-                Some("node_modules") | Some("target") | Some(".git") | Some("dist")
-            )
-        }) {
-            continue;
-        }
-        if path.extension().and_then(|e| e.to_str()) != Some("css") {
-            continue;
-        }
-        if scanned >= 200 {
-            break;
-        }
-        if let Ok(css) = std::fs::read_to_string(path) {
-            extractor.extract_from_css(&css);
-            scanned += 1;
-        }
-    }
-
-    Ok(extractor
-        .tokens()
-        .iter()
-        .map(|t| DesignTokenView {
-            name: t.var_name.clone(),
-            value: t.hex_value.clone(),
-            category: t.usage_context.clone(),
+        .map(|v| DesignTokenView {
+            name: v.name,
+            // The serde name of the design system's own token type, so this
+            // list and the Hub's group by the same vocabulary.
+            category: serde_json::to_value(&v.token_type)
+                .ok()
+                .and_then(|t| t.as_str().map(str::to_string))
+                .unwrap_or_else(|| "other".to_string()),
+            value: v.value,
         })
         .collect())
 }
@@ -68826,9 +69465,7 @@ const MAX_INGEST_BYTES: u64 = 32 * 1024 * 1024;
 /// `vibe-docfmt` rather than `read_to_string`, which returns an encoding error
 /// for all four. The panel's format dropdown offers them, so they must work.
 fn read_ingestable_text(path: &std::path::Path) -> Result<(String, Vec<String>), String> {
-    let size = std::fs::metadata(path)
-        .map_err(|e| format!("{e}"))?
-        .len();
+    let size = std::fs::metadata(path).map_err(|e| format!("{e}"))?.len();
     if size > MAX_INGEST_BYTES {
         return Err(format!(
             "file is {size} bytes, over the {MAX_INGEST_BYTES}-byte ingestion limit"
@@ -68950,19 +69587,16 @@ pub async fn ingest_document_directory(
                         .and_then(|e| e.to_str())
                         .is_some_and(|e| wanted.contains(&e.to_ascii_lowercase()))
             })
-            .fold(
-                (Vec::new(), Vec::new()),
-                |(mut docs, mut skipped), file| {
-                    match ingest_one(&file, &config, format.as_deref()) {
-                        Ok(summary) => docs.push(summary),
-                        Err(reason) => skipped.push(SkippedDoc {
-                            path: file.display().to_string(),
-                            reason,
-                        }),
-                    }
-                    (docs, skipped)
-                },
-            );
+            .fold((Vec::new(), Vec::new()), |(mut docs, mut skipped), file| {
+                match ingest_one(&file, &config, format.as_deref()) {
+                    Ok(summary) => docs.push(summary),
+                    Err(reason) => skipped.push(SkippedDoc {
+                        path: file.display().to_string(),
+                        reason,
+                    }),
+                }
+                (docs, skipped)
+            });
         DirectoryIngestResult {
             documents,
             skipped,
@@ -68979,11 +69613,8 @@ mod document_ingest_tests {
     use std::path::PathBuf;
 
     fn tmpdir(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!(
-            "vibecody-ingest-{}-{}",
-            name,
-            std::process::id()
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("vibecody-ingest-{}-{}", name, std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).expect("create temp dir");
         dir
@@ -69083,7 +69714,7 @@ mod document_ingest_tests {
 
     #[test]
     fn oversized_files_are_refused_before_being_read() {
-        assert!(MAX_INGEST_BYTES > 0);
+        const { assert!(MAX_INGEST_BYTES > 0) };
         let dir = tmpdir("oversize");
         let path = dir.join("big.txt");
         std::fs::write(&path, "x").expect("write");
@@ -69117,16 +69748,16 @@ mod document_ingest_tests {
 
         let files = vibecli_cli::proactive_scanner::discover_files(&dir);
         let cfg = config();
-        let (docs, skipped) = files.into_iter().fold(
-            (Vec::new(), Vec::new()),
-            |(mut d, mut s), f| {
-                match ingest_one(&f, &cfg, None) {
-                    Ok(ok) => d.push(ok),
-                    Err(e) => s.push(e),
-                }
-                (d, s)
-            },
-        );
+        let (docs, skipped) =
+            files
+                .into_iter()
+                .fold((Vec::new(), Vec::new()), |(mut d, mut s), f| {
+                    match ingest_one(&f, &cfg, None) {
+                        Ok(ok) => d.push(ok),
+                        Err(e) => s.push(e),
+                    }
+                    (d, s)
+                });
         assert_eq!(docs.len(), 1, "only the readable file ingests");
         assert_eq!(skipped.len(), 1, "the unreadable one must be reported");
         let _ = std::fs::remove_dir_all(&dir);
@@ -69189,8 +69820,15 @@ mod tls_inspector_live_tests {
                 return;
             }
         };
-        println!("{} | {} | {:?}d", cert.status, cert.not_after, cert.days_remaining);
-        assert!(cert.valid, "github.com should be valid, got {}", cert.status);
+        println!(
+            "{} | {} | {:?}d",
+            cert.status, cert.not_after, cert.days_remaining
+        );
+        assert!(
+            cert.valid,
+            "github.com should be valid, got {}",
+            cert.status
+        );
         assert_eq!(cert.status, "Valid");
         assert!(
             cert.days_remaining.is_some_and(|d| d > 0),
@@ -69199,7 +69837,11 @@ mod tls_inspector_live_tests {
             cert.not_after
         );
         assert!(cert.subject.contains("github.com"));
-        assert!(cert.san.contains(&"github.com".to_string()), "{:?}", cert.san);
+        assert!(
+            cert.san.contains(&"github.com".to_string()),
+            "{:?}",
+            cert.san
+        );
         assert!(!cert.issuer.is_empty() && !cert.serial.is_empty());
     }
 
@@ -69213,9 +69855,16 @@ mod tls_inspector_live_tests {
                 return;
             }
         };
-        println!("{} | {} | {:?}d", cert.status, cert.not_after, cert.days_remaining);
+        println!(
+            "{} | {} | {:?}d",
+            cert.status, cert.not_after, cert.days_remaining
+        );
         assert!(!cert.valid);
-        assert!(cert.days_remaining.is_some_and(|d| d < 0), "{:?}", cert.days_remaining);
+        assert!(
+            cert.days_remaining.is_some_and(|d| d < 0),
+            "{:?}",
+            cert.days_remaining
+        );
         // openssl rejects the chain for an expired leaf, so the reason is its own.
         assert!(cert.status.contains("expired"), "{}", cert.status);
     }
@@ -69232,7 +69881,11 @@ mod tls_inspector_live_tests {
         };
         println!("{} | {:?}d", cert.status, cert.days_remaining);
         assert!(!cert.valid);
-        assert!(cert.status.starts_with("Chain not trusted"), "{}", cert.status);
+        assert!(
+            cert.status.starts_with("Chain not trusted"),
+            "{}",
+            cert.status
+        );
         // The dates are readable even though the chain is not trusted, and the
         // panel should show them rather than a zero.
         assert!(cert.days_remaining.is_some(), "dates were readable");
@@ -69241,7 +69894,9 @@ mod tls_inspector_live_tests {
     #[tokio::test]
     #[ignore = "needs the network"]
     async fn nothing_listening_is_an_error_not_an_empty_certificate() {
-        let err = check_tls_cert("localhost".into(), Some(9)).await.unwrap_err();
+        let err = check_tls_cert("localhost".into(), Some(9))
+            .await
+            .unwrap_err();
         println!("{err}");
         assert!(err.contains("localhost:9"), "{err}");
     }
@@ -69346,12 +70001,20 @@ mod drawio_io_tests {
         // path, so the second one replaced the first with no prompt.
         let ws = workspace();
         let root = ws.path().to_string_lossy().into_owned();
-        save_drawio_file(root.clone(), "diagrams/a.drawio".into(), "<mxfile>a</mxfile>".into())
-            .await
-            .unwrap();
-        save_drawio_file(root.clone(), "diagrams/b.drawio".into(), "<mxfile>b</mxfile>".into())
-            .await
-            .unwrap();
+        save_drawio_file(
+            root.clone(),
+            "diagrams/a.drawio".into(),
+            "<mxfile>a</mxfile>".into(),
+        )
+        .await
+        .unwrap();
+        save_drawio_file(
+            root.clone(),
+            "diagrams/b.drawio".into(),
+            "<mxfile>b</mxfile>".into(),
+        )
+        .await
+        .unwrap();
         assert_eq!(
             std::fs::read_to_string(ws.path().join("diagrams/a.drawio")).unwrap(),
             "<mxfile>a</mxfile>",
@@ -69363,13 +70026,20 @@ mod drawio_io_tests {
     async fn a_second_save_is_not_reported_as_a_creation() {
         let ws = workspace();
         let root = ws.path().to_string_lossy().into_owned();
-        save_drawio_file(root.clone(), "diagrams/a.drawio".into(), "<mxfile>1</mxfile>".into())
-            .await
-            .unwrap();
-        let again =
-            save_drawio_file(root, "diagrams/a.drawio".into(), "<mxfile>2</mxfile>".into())
-                .await
-                .unwrap();
+        save_drawio_file(
+            root.clone(),
+            "diagrams/a.drawio".into(),
+            "<mxfile>1</mxfile>".into(),
+        )
+        .await
+        .unwrap();
+        let again = save_drawio_file(
+            root,
+            "diagrams/a.drawio".into(),
+            "<mxfile>2</mxfile>".into(),
+        )
+        .await
+        .unwrap();
         assert!(!again.created);
     }
 
@@ -69412,7 +70082,9 @@ mod drawio_io_tests {
         .await
         .unwrap_err();
         assert!(err.contains("empty"), "{err}");
-        assert!(std::fs::read_to_string(ws.path().join("top.drawio")).unwrap().contains("mxfile"));
+        assert!(std::fs::read_to_string(ws.path().join("top.drawio"))
+            .unwrap()
+            .contains("mxfile"));
     }
 
     #[tokio::test]
@@ -69428,7 +70100,10 @@ mod drawio_io_tests {
         .await
         .unwrap_err();
         assert!(err.contains("not supported"), "{err}");
-        assert!(err.contains("export an SVG beside it"), "must name the way out: {err}");
+        assert!(
+            err.contains("export an SVG beside it"),
+            "must name the way out: {err}"
+        );
     }
 
     #[tokio::test]
@@ -69524,7 +70199,10 @@ mod drawio_io_tests {
         let files = list_drawio_files(repo.to_string_lossy().into_owned())
             .await
             .unwrap();
-        let committed: Vec<_> = files.iter().filter(|f| f.path.starts_with("docs/")).collect();
+        let committed: Vec<_> = files
+            .iter()
+            .filter(|f| f.path.starts_with("docs/"))
+            .collect();
         assert!(
             committed.len() >= 5,
             "expected the five diagrams under docs/, found {}: {:?}",
@@ -69532,12 +70210,9 @@ mod drawio_io_tests {
             committed.iter().map(|f| &f.path).collect::<Vec<_>>()
         );
         for f in committed {
-            let xml = read_drawio_file(
-                repo.to_string_lossy().into_owned(),
-                f.path.clone(),
-            )
-            .await
-            .unwrap_or_else(|e| panic!("cannot open {}: {e}", f.path));
+            let xml = read_drawio_file(repo.to_string_lossy().into_owned(), f.path.clone())
+                .await
+                .unwrap_or_else(|e| panic!("cannot open {}: {e}", f.path));
             assert!(
                 xml.contains("mxGraphModel") || xml.contains("mxfile"),
                 "{} did not read back as a diagram",

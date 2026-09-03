@@ -235,7 +235,7 @@ impl StaleBranchDetector {
     /// Classify all branches and return sorted by age descending.
     pub fn classify_all(&self, branches: &[BranchInfo], now_ms: u64) -> Vec<StalenessReport> {
         let mut reports: Vec<_> = branches.iter().map(|b| self.classify(b, now_ms)).collect();
-        reports.sort_by(|a, b| b.age_days.cmp(&a.age_days));
+        reports.sort_by_key(|b| std::cmp::Reverse(b.age_days));
         reports
     }
 

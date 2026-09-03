@@ -1259,6 +1259,12 @@ pub struct EnvVersionControl {
     pub branch: String,
 }
 
+impl Default for EnvVersionControl {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EnvVersionControl {
     pub fn new() -> Self {
         Self {
@@ -1695,6 +1701,12 @@ pub struct RegistryEntry {
 #[derive(Debug, Clone)]
 pub struct EnvironmentRegistry {
     pub entries: HashMap<String, RegistryEntry>,
+}
+
+impl Default for EnvironmentRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl EnvironmentRegistry {
@@ -2780,6 +2792,12 @@ pub struct RoboticsSimToReal {
     pub sim_episodes: u64,
 }
 
+impl Default for RoboticsSimToReal {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RoboticsSimToReal {
     pub fn new() -> Self {
         Self {
@@ -2873,6 +2891,12 @@ pub struct RlEnvOs {
     pub robotics: HashMap<String, RoboticsSimToReal>,
     pub order_books: HashMap<String, OrderBook>,
     pub global_step: u64,
+}
+
+impl Default for RlEnvOs {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl RlEnvOs {

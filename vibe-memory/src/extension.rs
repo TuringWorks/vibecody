@@ -9,20 +9,15 @@ use serde::{Deserialize, Serialize};
 use tracing::{debug, info, warn};
 
 /// Vector extension selection strategy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum VectorExtension {
     /// SQLite-vec: pure C, zero deps, WASM-compatible
+    #[default]
     Vec,
     /// SQLite-vector: SIMD-accelerated (x86_64 only)
     Vector,
     /// VectorLite: HNSW-based, good for large scale
     Lite,
-}
-
-impl Default for VectorExtension {
-    fn default() -> Self {
-        Self::Vec // Most portable default
-    }
 }
 
 impl VectorExtension {
@@ -168,7 +163,7 @@ impl ExtensionManager {
                         embedding REAL[{dimensions}]
                     );
                     "#,
-                    table = format!("{}_{}", table, column),
+                    table = format_args!("{table}_{column}"),
                     dimensions = self.dimensions
                 )
             }
@@ -183,7 +178,7 @@ impl ExtensionManager {
                         k=50
                     );
                     "#,
-                    table = format!("{}_{}", table, column),
+                    table = format_args!("{table}_{column}"),
                     dimensions = self.dimensions
                 )
             }
@@ -198,7 +193,7 @@ impl ExtensionManager {
                         ef_construction=200
                     );
                     "#,
-                    table = format!("{}_{}", table, column),
+                    table = format_args!("{table}_{column}"),
                     dimensions = self.dimensions
                 )
             }
@@ -217,7 +212,7 @@ impl ExtensionManager {
                     ORDER BY distance 
                     LIMIT {k};
                     "#,
-                    table = format!("{}_embedding", table),
+                    table = format_args!("{table}_embedding"),
                     vector = "{}" // Placeholder for vector binding
                 )
             }
@@ -229,7 +224,7 @@ impl ExtensionManager {
                     ORDER BY distance 
                     LIMIT {k};
                     "#,
-                    table = format!("{}_embedding", table),
+                    table = format_args!("{table}_embedding"),
                     k = k
                 )
             }

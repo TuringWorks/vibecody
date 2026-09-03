@@ -625,8 +625,10 @@ mod tests {
     #[test]
     fn test_suggest_adjustments_slow_runtime() {
         let mut e = eng();
-        let mut cfg = RlcefConfig::default();
-        cfg.time_budget_ms = 100;
+        let cfg = RlcefConfig {
+            time_budget_ms: 100,
+            ..Default::default()
+        };
         e.config = cfg;
         let mut o = pass_outcome("rust");
         o.runtime_ms = 90;

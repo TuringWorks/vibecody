@@ -112,6 +112,12 @@ pub struct DocumentIngestor {
     pub config: ChunkingConfig,
 }
 
+impl Default for DocumentIngestor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DocumentIngestor {
     pub fn new() -> Self {
         Self {
@@ -430,8 +436,7 @@ impl DocumentIngestor {
         // 100` is enough — so the guarantee belongs here rather than in each
         // caller's validation.
         let max_words = ((config.max_tokens as f64 / 1.3) as usize).max(1);
-        let overlap_words =
-            ((config.overlap_tokens as f64 / 1.3) as usize).min(max_words - 1);
+        let overlap_words = ((config.overlap_tokens as f64 / 1.3) as usize).min(max_words - 1);
         let min_words = (config.min_chunk_size as f64 / 1.3) as usize;
 
         if words.len() <= max_words {
@@ -735,8 +740,6 @@ mod tests {
         assert!(chunks.len() <= 100, "got {} chunks", chunks.len());
         assert!(chunks.len() > 1);
     }
-
-    use super::*;
 
     #[test]
     fn test_document_format_from_extension() {

@@ -133,6 +133,12 @@ pub struct BenchmarkRunner {
     next_run_id: u64,
 }
 
+impl Default for BenchmarkRunner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BenchmarkRunner {
     pub fn new() -> Self {
         Self {

@@ -116,7 +116,7 @@
         "vibecli.model": {
           "type": "string",
           "default": "",
-          "description": "Model id for vibecli.provider (e.g. \"claude-opus-5\", \"gpt-5\"). The daemon only honours the provider override when a model is set too — leave this empty to use whichever provider and model the daemon itself was started with."
+          "description": "Model id for vibecli.provider (e.g. \"claude-opus-5\", \"gpt-5.6-sol\"). The daemon only honours the provider override when a model is set too — leave this empty to use whichever provider and model the daemon itself was started with."
         },
         "vibecli.approval": {
           "type": "string",

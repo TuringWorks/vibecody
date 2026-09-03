@@ -36,7 +36,7 @@ fn with_two_responses(world: &mut MpWorld, r1: String, r2: String) {
 
 #[given(expr = "a mock provider with {int} responses")]
 fn with_n_responses(world: &mut MpWorld, n: usize) {
-    let pool = vec!["a", "b", "c", "d", "e"];
+    let pool = ["a", "b", "c", "d", "e"];
     let resps = pool[..n.min(pool.len())].to_vec();
     world.provider = Some(MockAIProvider::with_responses("bdd-mock", resps));
 }
@@ -90,7 +90,7 @@ async fn call_with_msg(world: &mut MpWorld, content: String) {
 
 #[then(expr = "the first response should be {string}")]
 fn check_first(world: &mut MpWorld, expected: String) {
-    assert_eq!(world.responses.get(0).unwrap(), &expected);
+    assert_eq!(world.responses.first().unwrap(), &expected);
 }
 
 #[then(expr = "the second response should be {string}")]
@@ -114,7 +114,7 @@ fn check_count(world: &mut MpWorld, expected: usize) {
 
 #[then(expr = "the response should be {string}")]
 fn check_response(world: &mut MpWorld, expected: String) {
-    assert_eq!(world.responses.get(0).unwrap(), &expected);
+    assert_eq!(world.responses.first().unwrap(), &expected);
 }
 
 // ── Runner ────────────────────────────────────────────────────────────────────

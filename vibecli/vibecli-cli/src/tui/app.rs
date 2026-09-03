@@ -117,6 +117,12 @@ impl MetricsFreshness {
     }
 }
 
+impl Default for App {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl App {
     pub fn new() -> Self {
         let config = crate::config::Config::load().unwrap_or_default();

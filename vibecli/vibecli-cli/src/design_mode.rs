@@ -1,5 +1,6 @@
 //! Design mode — visual annotation, change spec, and design token extraction.
 
+use crate::design_providers::DesignTokenType;
 use serde::{Deserialize, Serialize};
 
 // ─── AnnotationKind ──────────────────────────────────────────────────────────
@@ -176,34 +177,23 @@ impl DesignTokenExtractor {
         &self.tokens
     }
 
-    /// Parses CSS for `--var-name: #hexcolor` patterns and stores them.
+    /// Parses CSS for `--var-name: #hexcolor` declarations and stores them.
+    ///
+    /// Delegates to [`extract_css_variables`] so there is one CSS parser here,
+    /// then keeps only the color-valued declarations this type is about.
     pub fn extract_from_css(&mut self, css: &str) {
-        for line in css.lines() {
-            let line = line.trim();
-            // Look for patterns like `--some-var: #abc123`
-            if let Some(colon_pos) = line.find(':') {
-                let var_part = line[..colon_pos].trim();
-                let val_part = line[colon_pos + 1..].trim().trim_end_matches(';').trim();
-                if var_part.starts_with("--") && val_part.starts_with('#') {
-                    // Validate it looks like a hex color (3, 4, 6, or 8 hex digits after #)
-                    let hex_digits: String = val_part[1..]
-                        .chars()
-                        .take_while(|c| c.is_ascii_hexdigit())
-                        .collect();
-                    let len = hex_digits.len();
-                    if len == 3 || len == 4 || len == 6 || len == 8 {
-                        let hex_value = format!("#{}", hex_digits);
-                        // Avoid duplicates by var_name
-                        if !self.tokens.iter().any(|t| t.var_name == var_part) {
-                            self.tokens.push(DesignTokenRef {
-                                var_name: var_part.to_string(),
-                                hex_value,
-                                usage_context: String::new(),
-                            });
-                        }
-                    }
-                }
+        for var in extract_css_variables(css) {
+            if !var.value.starts_with('#') {
+                continue;
             }
+            if self.tokens.iter().any(|t| t.var_name == var.name) {
+                continue;
+            }
+            self.tokens.push(DesignTokenRef {
+                var_name: var.name,
+                hex_value: var.value,
+                usage_context: String::new(),
+            });
         }
     }
 
@@ -217,6 +207,346 @@ impl DesignTokenExtractor {
 
     pub fn all_tokens(&self) -> &[DesignTokenRef] {
         &self.tokens
+    }
+}
+
+// ─── CSS custom properties ───────────────────────────────────────────────────
+
+/// One `--name: value` declaration found in a stylesheet.
+///
+/// `token_type` is inferred from the declaration, never guessed: a value whose
+/// shape matches no rule is [`DesignTokenType::Other`] rather than being filed
+/// under a plausible-looking category it was never shown to belong to. It is
+/// the design system's own token type — not a second vocabulary — so a scanned
+/// stylesheet drops straight into `design_system_hub`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CssVariable {
+    pub name: String,
+    pub value: String,
+    pub token_type: DesignTokenType,
+}
+
+/// Remove `/* … */` comments so a commented-out declaration is not reported as
+/// a live token.
+fn strip_css_comments(css: &str) -> String {
+    let mut out = String::with_capacity(css.len());
+    let bytes = css.as_bytes();
+    let mut i = 0usize;
+    while i < bytes.len() {
+        if bytes[i] == b'/' && bytes.get(i + 1) == Some(&b'*') {
+            match css[i + 2..].find("*/") {
+                Some(end) => i = i + 2 + end + 2,
+                // Unterminated comment: everything after it is commented out.
+                None => break,
+            }
+        } else {
+            // Push the whole UTF-8 character, not the byte, so a multi-byte
+            // character in a `content:` string cannot corrupt the output.
+            let ch = css[i..].chars().next().unwrap_or('\0');
+            out.push(ch);
+            i += ch.len_utf8();
+        }
+    }
+    out
+}
+
+/// Every `--name: value` declaration in a stylesheet, in source order, with the
+/// first definition of a name winning.
+///
+/// Declarations are separated by `;`, `{` or `}` — a line-based scan misses
+/// `:root{--a:#fff;--b:8px}`, which is exactly what a minified or generated
+/// sheet looks like.
+pub fn extract_css_variables(css: &str) -> Vec<CssVariable> {
+    let cleaned = strip_css_comments(css);
+    let mut out: Vec<CssVariable> = Vec::new();
+    for decl in cleaned.split([';', '{', '}']) {
+        let decl = decl.trim();
+        if !decl.starts_with("--") {
+            continue;
+        }
+        let Some(colon) = decl.find(':') else {
+            continue;
+        };
+        let name = decl[..colon].trim();
+        let value = decl[colon + 1..].trim();
+        // A name with whitespace in it is not a custom property; it is the
+        // tail of a selector that happened to contain a colon.
+        if name.len() < 3 || name.contains(char::is_whitespace) || value.is_empty() {
+            continue;
+        }
+        if out.iter().any(|v| v.name == name) {
+            continue;
+        }
+        out.push(CssVariable {
+            name: name.to_string(),
+            value: value.to_string(),
+            token_type: categorize_css_value(name, value),
+        });
+    }
+    out
+}
+
+/// Does this value read as a color literal or color function?
+fn looks_like_color(value: &str) -> bool {
+    let v = value.trim();
+    if let Some(hex) = v.strip_prefix('#') {
+        let digits = hex.chars().take_while(|c| c.is_ascii_hexdigit()).count();
+        return digits == hex.len() && matches!(digits, 3 | 4 | 6 | 8);
+    }
+    let lower = v.to_ascii_lowercase();
+    [
+        "rgb(", "rgba(", "hsl(", "hsla(", "oklch(", "oklab(", "lab(", "lch(", "color(",
+    ]
+    .iter()
+    .any(|f| lower.starts_with(f))
+}
+
+/// The design-system token type a `--name: value` declaration belongs to.
+///
+/// The name is consulted before the unit because `--font-size-md: 14px` and
+/// `--space-md: 14px` have identical values and different meanings; the value
+/// only decides when the name says nothing. Nothing here guesses — a
+/// declaration matching no rule is `Other`.
+pub fn categorize_css_value(name: &str, value: &str) -> DesignTokenType {
+    if looks_like_color(value) {
+        return DesignTokenType::Color;
+    }
+    let n = name.trim_start_matches('-').to_ascii_lowercase();
+    let has = |needles: &[&str]| needles.iter().any(|k| n.contains(k));
+    if has(&[
+        "font",
+        "text-size",
+        "leading",
+        "line-height",
+        "tracking",
+        "letter-spacing",
+    ]) {
+        return DesignTokenType::Typography;
+    }
+    if has(&["radius", "rounded"]) {
+        return DesignTokenType::BorderRadius;
+    }
+    if has(&["shadow", "elevation"]) {
+        return DesignTokenType::Shadow;
+    }
+    if has(&["duration", "transition", "ease", "delay", "animation"]) {
+        return DesignTokenType::Animation;
+    }
+    if has(&["breakpoint", "screen-", "viewport"]) {
+        return DesignTokenType::Breakpoint;
+    }
+    if has(&["z-index", "zindex", "z-layer", "layer-z"]) {
+        return DesignTokenType::ZIndex;
+    }
+    if has(&[
+        "color",
+        "bg",
+        "background",
+        "border-color",
+        "accent",
+        "fg",
+        "foreground",
+    ]) {
+        return DesignTokenType::Color;
+    }
+    if has(&[
+        "space", "spacing", "gap", "margin", "padding", "inset", "size", "width", "height",
+    ]) {
+        return DesignTokenType::Spacing;
+    }
+    let v = value.trim().to_ascii_lowercase();
+    if v.ends_with("ms") || (v.ends_with('s') && v[..v.len() - 1].parse::<f64>().is_ok()) {
+        return DesignTokenType::Animation;
+    }
+    if ["px", "rem", "em", "vh", "vw", "ch", "%"]
+        .iter()
+        .any(|u| v.ends_with(u))
+    {
+        return DesignTokenType::Spacing;
+    }
+    DesignTokenType::Other
+}
+
+// ─── Sketch shape recognition ────────────────────────────────────────────────
+
+/// One shape drawn on the sketch canvas, in canvas units.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SketchShape {
+    /// The tool it was drawn with: `rect`, `circle`, `line`, `arrow`, `text`.
+    pub kind: String,
+    pub width: f64,
+    pub height: f64,
+    #[serde(default)]
+    pub text: Option<String>,
+}
+
+/// What a drawn shape most plausibly stands for, and why.
+///
+/// `fit` is deliberately not called "confidence": it is how centrally the
+/// drawn geometry sits inside the band the matched rule accepts, not a
+/// probability that the suggestion is correct. A shape that only matched a
+/// catch-all rule has **no** fit — reporting one would be inventing a
+/// measurement — so it is `None`, and the UI must render that as "—".
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ShapeSuggestion {
+    pub component: String,
+    pub rule: String,
+    pub fit: Option<f64>,
+    pub reason: String,
+}
+
+/// How centrally `value` sits inside `[lo, hi]`: 1.0 at the midpoint, 0.0 at
+/// either edge, `None` outside the band.
+fn band_fit(value: f64, lo: f64, hi: f64) -> Option<f64> {
+    if !(lo..=hi).contains(&value) || hi <= lo {
+        return None;
+    }
+    let mid = (lo + hi) / 2.0;
+    let half = (hi - lo) / 2.0;
+    Some((1.0 - (value - mid).abs() / half).clamp(0.0, 1.0))
+}
+
+/// Map a drawn shape onto the UI component it most plausibly stands for.
+///
+/// Pure and total: every shape gets an answer, and the answer always says
+/// which rule produced it, so a wrong suggestion can be argued with instead of
+/// merely disbelieved.
+pub fn suggest_component(shape: &SketchShape) -> ShapeSuggestion {
+    let w = shape.width.abs();
+    let h = shape.height.abs();
+    let aspect = if h > 0.0 { w / h } else { f64::INFINITY };
+
+    match shape.kind.as_str() {
+        "text" => {
+            let len = shape.text.as_deref().map(str::len).unwrap_or(0);
+            if len == 0 {
+                return ShapeSuggestion {
+                    component: "Text".into(),
+                    rule: "text.empty".into(),
+                    fit: None,
+                    reason: "Empty text shape — nothing to classify by.".into(),
+                };
+            }
+            if len <= 24 {
+                ShapeSuggestion {
+                    component: "Heading".into(),
+                    rule: "text.short".into(),
+                    fit: band_fit(len as f64, 0.0, 24.0),
+                    reason: format!("{len} characters — short enough to be a heading or label."),
+                }
+            } else {
+                ShapeSuggestion {
+                    component: "Paragraph".into(),
+                    rule: "text.long".into(),
+                    fit: None,
+                    reason: format!("{len} characters — body copy rather than a label."),
+                }
+            }
+        }
+        "line" => ShapeSuggestion {
+            component: "Divider".into(),
+            rule: "line".into(),
+            fit: None,
+            reason: "A bare line separates content.".into(),
+        },
+        "arrow" => ShapeSuggestion {
+            component: "Connector".into(),
+            rule: "arrow".into(),
+            fit: None,
+            reason: "An arrow is flow between screens, not a rendered element.".into(),
+        },
+        "circle" | "ellipse" => {
+            let roundness = if w.max(h) > 0.0 {
+                w.min(h) / w.max(h)
+            } else {
+                1.0
+            };
+            if roundness > 0.85 && w.max(h) <= 72.0 {
+                ShapeSuggestion {
+                    component: "Avatar".into(),
+                    rule: "circle.small_round".into(),
+                    fit: band_fit(w.max(h), 16.0, 72.0),
+                    reason: format!("Near-circular and {:.0}px across.", w.max(h)),
+                }
+            } else if roundness > 0.85 {
+                ShapeSuggestion {
+                    component: "Badge".into(),
+                    rule: "circle.large_round".into(),
+                    fit: None,
+                    reason: format!(
+                        "Circular but {:.0}px across — too large for an avatar.",
+                        w.max(h)
+                    ),
+                }
+            } else {
+                ShapeSuggestion {
+                    component: "Ellipse".into(),
+                    rule: "circle.oblong".into(),
+                    fit: None,
+                    reason: "Oblong — no standard component matches.".into(),
+                }
+            }
+        }
+        "rect" | "rectangle" => {
+            if h <= 10.0 && aspect >= 8.0 {
+                return ShapeSuggestion {
+                    component: "Divider".into(),
+                    rule: "rect.hairline".into(),
+                    fit: band_fit(h, 1.0, 10.0),
+                    reason: format!("{h:.0}px tall and {aspect:.0}× as wide — a rule, not a box."),
+                };
+            }
+            if h <= 56.0 {
+                if let Some(fit) = band_fit(aspect, 1.5, 6.0) {
+                    return ShapeSuggestion {
+                        component: "Button".into(),
+                        rule: "rect.button".into(),
+                        fit: Some(fit),
+                        reason: format!("{h:.0}px tall, {aspect:.1}:1 — button proportions."),
+                    };
+                }
+                if aspect > 6.0 {
+                    return ShapeSuggestion {
+                        component: "Input".into(),
+                        rule: "rect.input".into(),
+                        fit: band_fit(aspect, 6.0, 20.0),
+                        reason: format!("{h:.0}px tall and {aspect:.1}× as wide — a text field."),
+                    };
+                }
+                if let Some(fit) = band_fit(aspect, 0.7, 1.5) {
+                    return ShapeSuggestion {
+                        component: "IconButton".into(),
+                        rule: "rect.icon".into(),
+                        fit: Some(fit),
+                        reason: format!("{w:.0}×{h:.0} and roughly square — an icon target."),
+                    };
+                }
+            }
+            if let Some(fit) = band_fit(aspect, 0.5, 2.5) {
+                if h > 56.0 && h <= 420.0 {
+                    return ShapeSuggestion {
+                        component: "Card".into(),
+                        rule: "rect.card".into(),
+                        fit: Some(fit),
+                        reason: format!("{w:.0}×{h:.0} — card proportions."),
+                    };
+                }
+            }
+            ShapeSuggestion {
+                component: "Container".into(),
+                rule: "rect.fallback".into(),
+                fit: None,
+                reason: format!(
+                    "{w:.0}×{h:.0} matched no component rule — a container is the safe reading."
+                ),
+            }
+        }
+        other => ShapeSuggestion {
+            component: "Unknown".into(),
+            rule: "unrecognised_tool".into(),
+            fit: None,
+            reason: format!("No rule covers a `{other}` shape."),
+        },
     }
 }
 
@@ -661,6 +991,149 @@ mod tests {
         ext.extract_from_css("color: #ff0000;");
         // "color" doesn't start with "--", so it should not be extracted
         assert_eq!(ext.all_tokens().len(), 0);
+    }
+
+    fn shape(kind: &str, w: f64, h: f64) -> SketchShape {
+        SketchShape {
+            kind: kind.into(),
+            width: w,
+            height: h,
+            text: None,
+        }
+    }
+
+    #[test]
+    fn wide_short_rect_reads_as_a_button() {
+        let s = suggest_component(&shape("rect", 120.0, 40.0));
+        assert_eq!(s.component, "Button");
+        assert_eq!(s.rule, "rect.button");
+        assert!(s.fit.is_some());
+    }
+
+    #[test]
+    fn very_wide_short_rect_reads_as_an_input() {
+        let s = suggest_component(&shape("rect", 400.0, 36.0));
+        assert_eq!(s.component, "Input");
+    }
+
+    #[test]
+    fn tall_rect_reads_as_a_card() {
+        let s = suggest_component(&shape("rect", 240.0, 180.0));
+        assert_eq!(s.component, "Card");
+    }
+
+    #[test]
+    fn hairline_rect_reads_as_a_divider() {
+        let s = suggest_component(&shape("rect", 300.0, 2.0));
+        assert_eq!(s.component, "Divider");
+    }
+
+    #[test]
+    fn small_circle_reads_as_an_avatar() {
+        let s = suggest_component(&shape("circle", 48.0, 48.0));
+        assert_eq!(s.component, "Avatar");
+    }
+
+    #[test]
+    fn fallback_rule_reports_no_fit_rather_than_inventing_one() {
+        // Taller than any card band, and far too narrow for one. A number
+        // here would be a measurement nobody took.
+        let s = suggest_component(&shape("rect", 40.0, 600.0));
+        assert_eq!(s.rule, "rect.fallback");
+        assert!(s.fit.is_none(), "a catch-all rule must not report a fit");
+        // A page-sized frame is also past the card band, not a big card.
+        let s = suggest_component(&shape("rect", 900.0, 600.0));
+        assert_eq!(s.rule, "rect.fallback");
+        assert!(s.fit.is_none());
+    }
+
+    #[test]
+    fn band_fit_peaks_at_the_midpoint_and_vanishes_at_the_edges() {
+        assert_eq!(band_fit(5.0, 0.0, 10.0), Some(1.0));
+        assert_eq!(band_fit(0.0, 0.0, 10.0), Some(0.0));
+        assert_eq!(band_fit(10.0, 0.0, 10.0), Some(0.0));
+        assert_eq!(band_fit(11.0, 0.0, 10.0), None);
+    }
+
+    #[test]
+    fn unknown_tool_is_reported_as_unknown_not_guessed() {
+        let s = suggest_component(&shape("spiral", 10.0, 10.0));
+        assert_eq!(s.component, "Unknown");
+        assert!(s.fit.is_none());
+    }
+
+    #[test]
+    fn css_vars_parse_minified_single_line() {
+        // A line-based scan finds one of these; a declaration-based scan
+        // finds all three, which is what a generated sheet looks like.
+        let vars = extract_css_variables(":root{--a:#fff;--b:8px;--c:1.5}");
+        assert_eq!(vars.len(), 3);
+        assert_eq!(vars[0].name, "--a");
+        assert_eq!(vars[1].value, "8px");
+    }
+
+    #[test]
+    fn css_vars_skip_commented_out_declarations() {
+        let vars = extract_css_variables(":root{ /* --dead: #000; */ --live: #fff; }");
+        assert_eq!(vars.len(), 1);
+        assert_eq!(vars[0].name, "--live");
+    }
+
+    #[test]
+    fn css_vars_first_definition_wins() {
+        let vars = extract_css_variables("--x: #111;\n--x: #222;");
+        assert_eq!(vars.len(), 1);
+        assert_eq!(vars[0].value, "#111");
+    }
+
+    #[test]
+    fn css_vars_categorise_by_name_before_unit() {
+        // Identical values, different meanings — the name is what separates them.
+        assert_eq!(
+            categorize_css_value("--font-size-md", "14px"),
+            DesignTokenType::Typography
+        );
+        assert_eq!(
+            categorize_css_value("--space-md", "14px"),
+            DesignTokenType::Spacing
+        );
+        assert_eq!(
+            categorize_css_value("--radius-sm", "4px"),
+            DesignTokenType::BorderRadius
+        );
+    }
+
+    #[test]
+    fn css_vars_categorise_colors_by_value() {
+        for value in ["#6366f1", "oklch(0.7 0.1 250)", "rgba(0,0,0,.5)"] {
+            assert_eq!(
+                categorize_css_value("--brand", value),
+                DesignTokenType::Color,
+                "{value}"
+            );
+        }
+    }
+
+    #[test]
+    fn css_vars_unknown_shape_is_other_not_a_guess() {
+        // Nothing about `--grid-template: auto 1fr` says spacing, colour or
+        // motion, so it must not be filed under one.
+        assert_eq!(
+            categorize_css_value("--grid-template", "auto 1fr"),
+            DesignTokenType::Other
+        );
+        assert_eq!(
+            categorize_css_value("--opacity-muted", "0.6"),
+            DesignTokenType::Other
+        );
+    }
+
+    #[test]
+    fn css_vars_reject_selector_fragments() {
+        // `a--b: hover` is not a custom property; only a leading `--` is.
+        let vars = extract_css_variables("a--b: hover; --real: 1px;");
+        assert_eq!(vars.len(), 1);
+        assert_eq!(vars[0].name, "--real");
     }
 
     #[test]

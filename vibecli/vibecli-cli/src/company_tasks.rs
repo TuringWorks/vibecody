@@ -466,6 +466,36 @@ fn row_to_task(row: &rusqlite::Row) -> Result<CompanyTask, rusqlite::Error> {
     })
 }
 
+// ── Display helpers ───────────────────────────────────────────────────────────
+
+impl CompanyTask {
+    pub fn summary_line(&self) -> String {
+        let status_icon = match self.status {
+            TaskStatus::Backlog => "▫",
+            TaskStatus::Todo => "□",
+            TaskStatus::InProgress => "▶",
+            TaskStatus::InReview => "◎",
+            TaskStatus::Done => "✓",
+            TaskStatus::Blocked => "⊘",
+            TaskStatus::Cancelled => "✗",
+        };
+        let priority_icon = match self.priority {
+            TaskPriority::Critical => "!!!",
+            TaskPriority::High => "!! ",
+            TaskPriority::Medium => "!  ",
+            TaskPriority::Low => "   ",
+        };
+        format!(
+            "{} {} [{}]  {}  [{}]",
+            status_icon,
+            priority_icon,
+            self.status.as_str(),
+            self.title,
+            &self.id[..8.min(self.id.len())]
+        )
+    }
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -941,35 +971,5 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_millis(2));
         let updated = store.transition(&task.id, TaskStatus::Todo).unwrap();
         assert!(updated.updated_at >= original_updated);
-    }
-}
-
-// ── Display helpers ───────────────────────────────────────────────────────────
-
-impl CompanyTask {
-    pub fn summary_line(&self) -> String {
-        let status_icon = match self.status {
-            TaskStatus::Backlog => "▫",
-            TaskStatus::Todo => "□",
-            TaskStatus::InProgress => "▶",
-            TaskStatus::InReview => "◎",
-            TaskStatus::Done => "✓",
-            TaskStatus::Blocked => "⊘",
-            TaskStatus::Cancelled => "✗",
-        };
-        let priority_icon = match self.priority {
-            TaskPriority::Critical => "!!!",
-            TaskPriority::High => "!! ",
-            TaskPriority::Medium => "!  ",
-            TaskPriority::Low => "   ",
-        };
-        format!(
-            "{} {} [{}]  {}  [{}]",
-            status_icon,
-            priority_icon,
-            self.status.as_str(),
-            self.title,
-            &self.id[..8.min(self.id.len())]
-        )
     }
 }

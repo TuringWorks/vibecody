@@ -285,17 +285,13 @@ impl TokenUsage {
 /// Default tier is `High` (see `Effort::default`), matching the C5 spec.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum Effort {
     Low,
     Medium,
+    #[default]
     High,
     XHigh,
-}
-
-impl Default for Effort {
-    fn default() -> Self {
-        Effort::High
-    }
 }
 
 impl Effort {

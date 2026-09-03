@@ -281,7 +281,7 @@ mod tests {
     fn canonical_json_sorts_object_keys() {
         let card = fixture_card();
         let json_str = canonical_json(&card).unwrap();
-        let first_key = json_str.splitn(3, '"').nth(1).expect("first JSON key");
+        let first_key = json_str.split('"').nth(1).expect("first JSON key");
         // AgentCard fields include name, description, url, ...; the
         // alphabetically smallest is "authentication".
         assert_eq!(

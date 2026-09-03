@@ -141,11 +141,12 @@ impl FirecrackerSpawn {
     /// Build the firecracker argv (without the binary itself — the
     /// binary is `program`, argv0 is the program name by convention).
     pub fn argv(&self) -> Vec<OsString> {
-        let mut a = Vec::<OsString>::new();
-        a.push(OsString::from("--api-sock"));
-        a.push(self.api_socket_path.clone().into_os_string());
-        a.push(OsString::from("--id"));
-        a.push(OsString::from(self.vm_id.clone()));
+        let mut a = vec![
+            OsString::from("--api-sock"),
+            self.api_socket_path.clone().into_os_string(),
+            OsString::from("--id"),
+            OsString::from(self.vm_id.clone()),
+        ];
         if let Some(p) = &self.log_path {
             a.push(OsString::from("--log-path"));
             a.push(p.clone().into_os_string());

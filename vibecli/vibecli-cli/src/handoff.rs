@@ -151,6 +151,12 @@ pub struct HandoffStore {
     dir: PathBuf,
 }
 
+impl Default for HandoffStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HandoffStore {
     pub fn new() -> Self {
         let dir = dirs_handoff_dir();
@@ -275,7 +281,7 @@ mod tests {
         assert_eq!(doc.sections.work_done.len(), 2); // 2 successful steps
         assert!(doc.sections.assessment.contains("1 failure"));
         assert_eq!(doc.sections.resources_used.len(), 2);
-        assert!(doc.sections.issues.len() >= 1); // at least the error
+        assert!(!doc.sections.issues.is_empty()); // at least the error
     }
 
     #[test]

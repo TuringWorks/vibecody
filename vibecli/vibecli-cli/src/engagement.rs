@@ -1363,7 +1363,15 @@ impl EngagementStore {
              SET verdict = ?2, observed = ?3, rationale = ?4, decided_by = ?5, decided_at = ?6,
                  updated_at = ?7
              WHERE id = ?1",
-            params![id, verdict.as_str(), observed, rationale, decider, decided_at, now],
+            params![
+                id,
+                verdict.as_str(),
+                observed,
+                rationale,
+                decider,
+                decided_at,
+                now
+            ],
         )?;
         Ok(())
     }
@@ -1684,7 +1692,9 @@ pub fn render_report_markdown(store: &EngagementStore, engagement_id: &str) -> R
     }
 
     out.push_str("## Phase summary\n\n");
-    out.push_str("| Phase | Cadence | Accepted | In scope | Complete | Gates pass | Gates open | Exit |\n");
+    out.push_str(
+        "| Phase | Cadence | Accepted | In scope | Complete | Gates pass | Gates open | Exit |\n",
+    );
     out.push_str("|---|---|---:|---:|---:|---:|---:|---|\n");
     for p in &report.phases {
         let in_scope = p.deliverables.total - p.deliverables.waived;
@@ -1811,7 +1821,10 @@ pub fn render_handover_markdown(store: &EngagementStore, engagement_id: &str) ->
         }
         out.push_str(&format!("### {}\n\n", p.title()));
         for d in accepted {
-            out.push_str(&format!("- **{}** — {} evidence item(s)\n", d.title, d.evidence_count));
+            out.push_str(&format!(
+                "- **{}** — {} evidence item(s)\n",
+                d.title, d.evidence_count
+            ));
         }
         out.push('\n');
     }
@@ -2028,7 +2041,10 @@ mod tests {
         let r = s
             .phase_readiness(&e.id, Phase::Discover)
             .expect("readiness");
-        assert_eq!(r.completion, None, "no in-scope work must report n/a, not 0%");
+        assert_eq!(
+            r.completion, None,
+            "no in-scope work must report n/a, not 0%"
+        );
         assert_eq!(pct(r.completion), "n/a");
     }
 
@@ -2149,7 +2165,8 @@ mod tests {
     #[test]
     fn report_markdown_names_unmeasured_gates_honestly() {
         let (_d, s) = store();
-        let e = s.create("Acme platform", "Acme Corp", None, "Pilot then build")
+        let e = s
+            .create("Acme platform", "Acme Corp", None, "Pilot then build")
             .expect("create");
         let md = render_report_markdown(&s, &e.id).expect("render");
         assert!(md.contains("Acme platform"));

@@ -14,17 +14,21 @@
  * Reads and writes go through `lib/figmaToken`, shared with DesignMode's Figma
  * tab so the two panels cannot drift apart on where the token lives.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { save } from "@tauri-apps/plugin-dialog";
 import { loadFigmaToken, saveFigmaToken, deleteFigmaToken } from "../lib/figmaToken";
 import { Icon } from "./Icon";
 import { useToast } from "../hooks/useToast";
 import { usePanelSettings } from "../hooks/usePanelSettings";
 import { Toaster } from "./Toaster";
+import { openDesignSubTab } from "../lib/panelDeepLink";
+import { GeneratedFileList, type GeneratedFile } from "./design/GeneratedFileList";
 
 interface DesignHubPanelProps {
   workspacePath: string | null;
   provider: string;
+  onOpenFile?: (path: string, line?: number) => void;
 }
 
 type HubTab = "providers" | "tokens" | "audit" | "figma" | "settings";
@@ -37,6 +41,30 @@ const TAB_DEFS: { id: HubTab; label: string }[] = [
   { id: "settings", label: "Settings" },
 ];
 
+/** File extension for each export format. */
+const EXPORT_EXTENSION: Record<string, string> = {
+  css: "css",
+  tailwind: "js",
+  typescript: "ts",
+  json: "json",
+};
+
+/**
+ * `DesignTokenType`'s serde names, as a reader would say them. Rendering
+ * "border_radius" would be showing the wire format.
+ */
+const TOKEN_TYPE_LABEL: Record<string, string> = {
+  color: "Color",
+  typography: "Typography",
+  spacing: "Spacing",
+  border_radius: "Radius",
+  shadow: "Shadow",
+  animation: "Motion",
+  breakpoint: "Breakpoint",
+  z_index: "Z-index",
+  other: "Other",
+};
+
 const PROVIDERS = [
   { id: "penpot", label: "Penpot", icon: "palette", desc: "Open-source Figma alternative" },
   { id: "figma", label: "Figma", icon: "pen-tool", desc: "Figma design import (API token required)" },
@@ -46,11 +74,76 @@ const PROVIDERS = [
   { id: "inhouse", label: "Built-in", icon: "zap", desc: "VibeCody built-in design system" },
 ] as const;
 
-interface DesignToken { name: string; token_type: string; value: string; provider: string; }
-interface AuditIssue { severity: string; code: string; message: string; }
-interface AuditReport { score: number; summary: string; issues: AuditIssue[]; }
+/**
+ * What configuring each provider actually involves. Every line here names a
+ * place that exists — the Penpot line used to point at a "Penpot tab" this
+ * panel has never had.
+ */
+const PROVIDER_SETTING_NOTE: Record<string, string> = {
+  penpot: "Needs a Penpot instance URL and credentials, entered in the Penpot editor.",
+  figma: "Needs a personal access token, stored encrypted in your VibeCody profile.",
+  pencil: "Reads and writes .ep wireframes from the workspace — no account needed.",
+  drawio: "Edits .drawio files in the workspace — no account needed.",
+  mermaid: "Generates diagrams with the toolbar's selected model — no account needed.",
+  inhouse: "Reads the CSS custom properties declared in this workspace — no account needed.",
+};
 
-export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps) {
+/** Providers whose editor lives in Design → its own inner tab. */
+const PROVIDER_TAB_LINK: Record<string, string> = {
+  penpot: "penpot",
+  pencil: "pencil",
+  drawio: "drawio",
+  mermaid: "diagrams",
+};
+
+interface DesignToken { name: string; token_type: string; value: string; provider: string; }
+/** Mirrors `design_system_hub::AuditIssue`; severity is serde snake_case. */
+interface AuditIssue {
+  severity: "error" | "warning" | "info";
+  code: string;
+  message: string;
+  affected: string[];
+  suggestion?: string | null;
+}
+
+interface AuditReport {
+  system_name: string;
+  system_version: string;
+  score: number;
+  summary: string;
+  issues: AuditIssue[];
+  token_count?: number;
+}
+
+const SEVERITY_TONE: Record<AuditIssue["severity"], string> = {
+  error: "var(--error-color)",
+  warning: "var(--warning-color)",
+  info: "var(--accent-blue)",
+};
+
+/**
+ * What one enabled provider had to say. A provider that contributed nothing
+ * reports *why* — an empty result and an unimplemented reader look identical
+ * in a flat token list, and only one of them is the user's problem to fix.
+ */
+interface TokenSource {
+  provider: string;
+  status: "ok" | "unavailable" | "elsewhere" | "not_applicable" | "unknown";
+  reason?: string;
+  token_count?: number;
+  files_scanned?: number;
+  truncated?: boolean;
+}
+
+const SOURCE_TONE: Record<TokenSource["status"], string> = {
+  ok: "var(--text-success)",
+  unavailable: "var(--warning-color)",
+  elsewhere: "var(--text-secondary)",
+  not_applicable: "var(--text-secondary)",
+  unknown: "var(--warning-color)",
+};
+
+export function DesignHubPanel({ workspacePath, provider, onOpenFile }: DesignHubPanelProps) {
   const { toasts, toast, dismiss } = useToast();
   const { settings, setSetting, loading: settingsLoading } = usePanelSettings("design-hub");
   const [activeTab, setActiveTabState] = useState<HubTab>("providers");
@@ -80,6 +173,8 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
     });
   };
   const [tokens, setTokens] = useState<DesignToken[]>([]);
+  const [tokenSources, setTokenSources] = useState<TokenSource[]>([]);
+  const [tokensLoaded, setTokensLoaded] = useState(false);
   const [tokenFilter, setTokenFilter] = useState("");
   const [auditReport, setAuditReport] = useState<AuditReport | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -88,8 +183,7 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
   const [figmaUrl, setFigmaUrl] = useState("");
   const [figmaToken, setFigmaToken] = useState("");
   const [figmaSaveToken, setFigmaSaveToken] = useState(false);
-  const [figmaResult, setFigmaResult] = useState<Array<{ path: string; content: string }>>([]);
-  const [figmaExpandedFile, setFigmaExpandedFile] = useState<string | null>(null);
+  const [figmaResult, setFigmaResult] = useState<GeneratedFile[]>([]);
 
   // Hydrate the Figma token from the encrypted ProfileStore on mount. This
   // also drains any plaintext localStorage copy left by an older build.
@@ -116,14 +210,23 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
   const loadTokens = async () => {
     setIsLoading(true);
     try {
-      const result = await invoke<{ tokens: DesignToken[] }>("load_design_system_tokens", {
-        providers: activeProviders,
-        workspacePath,
-        workspace_path: workspacePath,
-      });
-      setTokens(result.tokens);
-      toast.success(`Loaded ${result.tokens.length} token(s)`);
+      const result = await invoke<{ tokens: DesignToken[]; sources: TokenSource[] }>(
+        "load_design_system_tokens",
+        {
+          providers: activeProviders,
+          workspacePath: workspacePath ?? "",
+          workspace_path: workspacePath ?? "",
+        },
+      );
+      setTokens(result.tokens ?? []);
+      setTokenSources(result.sources ?? []);
+      setTokensLoaded(true);
+      // A zero here is a real answer — this workspace declares no custom
+      // properties — so it is reported as one rather than as a failure.
+      toast.success(`${result.tokens?.length ?? 0} token(s) from ${activeProviders.length} provider(s)`);
+      setActiveTab("tokens");
     } catch (e) {
+      setTokensLoaded(false);
       toast.error(`Failed to load tokens: ${e}`);
     } finally {
       setIsLoading(false);
@@ -134,17 +237,34 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
     setIsLoading(true);
     try {
       const result = await invoke<string>("export_design_tokens", {
-        tokens,
+        tokens: filteredTokens,
         format: tokenExportFormat,
         systemName: "VibeCody Design System",
         system_name: "VibeCody Design System",
       });
       setTokenExportResult(result);
-      toast.success(`Exported ${tokens.length} token(s) as ${tokenExportFormat.toUpperCase()}`);
+      toast.success(`Exported ${filteredTokens.length} token(s) as ${tokenExportFormat.toUpperCase()}`);
     } catch (e) {
       toast.error(`Export failed: ${e}`);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  /** Write the current export to a file the user picks. */
+  const saveExport = async () => {
+    if (!tokenExportResult) return;
+    const ext = EXPORT_EXTENSION[tokenExportFormat] ?? "txt";
+    try {
+      const path = await save({
+        defaultPath: `design-tokens.${ext}`,
+        filters: [{ name: tokenExportFormat.toUpperCase(), extensions: [ext] }],
+      });
+      if (!path) return; // user cancelled — not a failure
+      await invoke("fullstack_write_file", { path, content: tokenExportResult });
+      toast.success(`Saved ${path}`);
+    } catch (e) {
+      toast.error(`Save failed: ${e}`);
     }
   };
 
@@ -156,6 +276,7 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
       });
       setAuditReport(result);
       toast.success(`Audit complete — score: ${result.score}/100`);
+      setActiveTab("audit");
     } catch (e) {
       toast.error(`Audit failed: ${e}`);
     } finally {
@@ -174,14 +295,17 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
 
   const handleFigmaImport = async () => {
     if (!figmaUrl.trim() || !figmaToken.trim()) return;
+    if (!provider) {
+      toast.error("No provider selected — pick one in the toolbar dropdown.");
+      return;
+    }
     await persistFigmaToken();
     setIsLoading(true);
     setFigmaResult([]);
-    setFigmaExpandedFile(null);
     try {
-      const files = await invoke<Array<{ path: string; content: string }>>("import_figma", {
+      const files = await invoke<GeneratedFile[]>("import_figma", {
         url: figmaUrl, token: figmaToken,
-        workspacePath, workspace_path: workspacePath,
+        workspacePath: workspacePath ?? "", workspace_path: workspacePath ?? "",
         provider,
       });
       setFigmaResult(files);
@@ -193,18 +317,49 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
     }
   };
 
+  /** Jump to the editor that owns a provider's settings. */
+  const openDesignTab = (subTabId: string) => {
+    openDesignSubTab(subTabId);
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
       .then(() => toast.info("Copied to clipboard"))
       .catch((e) => toast.error(`Copy failed: ${e}`));
   };
 
-  const filteredTokens = tokenFilter.trim() === ""
-    ? tokens
-    : tokens.filter((t) => {
-        const q = tokenFilter.toLowerCase();
-        return t.name.toLowerCase().includes(q) || t.value.toLowerCase().includes(q);
-      });
+  const filteredTokens = useMemo(() => {
+    const q = tokenFilter.trim().toLowerCase();
+    if (!q) return tokens;
+    return tokens.filter(
+      (t) => t.name.toLowerCase().includes(q) || t.value.toLowerCase().includes(q),
+    );
+  }, [tokens, tokenFilter]);
+
+  /** One line per enabled provider explaining what it contributed. */
+  const renderSources = () => {
+    if (tokenSources.length === 0) return null;
+    return (
+      <div style={{ marginTop: "var(--space-3)", display: "flex", flexDirection: "column", gap: "var(--space-1)" }}>
+        {tokenSources.map((src) => {
+          const label = PROVIDERS.find((p) => p.id === src.provider)?.label ?? src.provider;
+          const detail =
+            src.status === "ok"
+              ? `${src.token_count ?? 0} token(s) from ${src.files_scanned ?? 0} stylesheet(s)` +
+                (src.truncated ? " — scan hit its file limit, this is a sample" : "")
+              : (src.reason ?? "No detail reported.");
+          return (
+            <div
+              key={src.provider}
+              style={{ fontSize: "var(--font-size-sm)", color: SOURCE_TONE[src.status] ?? "var(--text-secondary)", lineHeight: 1.5 }}
+            >
+              <strong style={{ color: "var(--text-primary)" }}>{label}</strong>{" — "}{detail}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   // ── Render ────────────────────────────────────────────────────────────
 
@@ -263,11 +418,7 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
       >
         {isLoading ? "Loading…" : "Load Design Tokens"}
       </button>
-      {tokens.length > 0 && (
-        <div style={{ marginTop: "var(--space-3)", fontSize: "var(--font-size-base)", color: "var(--text-success)" }}>
-          ✓ {tokens.length} token(s) loaded from {activeProviders.length} provider(s)
-        </div>
-      )}
+      {tokensLoaded && renderSources()}
     </div>
   );
 
@@ -294,14 +445,22 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
               {f.toUpperCase()}
             </button>
           ))}
-          <button type="button" onClick={exportTokens} disabled={tokens.length === 0} className="panel-btn panel-btn-primary panel-btn-sm">Export</button>
-          <button type="button" onClick={runAudit} disabled={tokens.length === 0} className="panel-btn panel-btn-secondary panel-btn-sm">Audit</button>
+          <button type="button" onClick={exportTokens} disabled={filteredTokens.length === 0 || isLoading} className="panel-btn panel-btn-primary panel-btn-sm">Export</button>
+          <button type="button" onClick={saveExport} disabled={!tokenExportResult} className="panel-btn panel-btn-secondary panel-btn-sm">Save…</button>
+          <button type="button" onClick={runAudit} disabled={tokens.length === 0 || isLoading} className="panel-btn panel-btn-secondary panel-btn-sm">Audit</button>
         </div>
       </div>
       <div style={{ flex: 1, overflow: "auto", padding: "var(--space-4)" }}>
         {tokens.length === 0 ? (
           <div className="panel-empty">
-            Enable providers and click "Load Design Tokens".
+            {tokensLoaded ? (
+              <>
+                <div style={{ marginBottom: "var(--space-2)" }}>No design tokens found.</div>
+                <div style={{ textAlign: "left", display: "inline-block" }}>{renderSources()}</div>
+              </>
+            ) : (
+              <>Enable providers on the Providers tab, then click “Load Design Tokens”.</>
+            )}
           </div>
         ) : filteredTokens.length === 0 ? (
           <div className="panel-empty">
@@ -321,7 +480,9 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
                 >
                   {t.value}
                 </div>
-                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", minWidth: 60, textAlign: "right" }}>{t.provider}</div>
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", minWidth: 84, textAlign: "right" }}>
+                  {TOKEN_TYPE_LABEL[t.token_type] ?? t.token_type}
+                </div>
               </div>
             ))}
             {tokenExportResult && (
@@ -343,10 +504,23 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
 
   const renderAudit = () => (
     <div style={{ flex: 1, overflow: "auto", padding: "var(--space-4)" }}>
-      <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)", marginBottom: "var(--space-1)" }}>Design System Audit</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--space-3)", gap: "var(--space-2)" }}>
+        <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)" }}>Design System Audit</div>
+        <button
+          type="button"
+          className="panel-btn panel-btn-primary panel-btn-sm"
+          onClick={runAudit}
+          disabled={tokens.length === 0 || isLoading}
+          title={tokens.length === 0 ? "Load design tokens first" : `Audit ${tokens.length} token(s)`}
+        >
+          {isLoading ? "Running…" : auditReport ? "Re-run Audit" : "Run Audit"}
+        </button>
+      </div>
       {!auditReport ? (
         <div className="panel-empty">
-          Load tokens first, then run audit from the Tokens tab.
+          {tokens.length === 0
+            ? "No tokens loaded yet — load them on the Providers tab, then run the audit."
+            : `${tokens.length} token(s) ready. Run the audit to score them.`}
         </div>
       ) : (
         <>
@@ -372,10 +546,25 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
               padding: "var(--space-3) var(--space-4)",
               background: "var(--bg-secondary)",
               borderRadius: "var(--radius-sm-alt)",
-              borderLeft: `3px solid ${issue.severity === "Error" ? "var(--error-color)" : issue.severity === "Warning" ? "var(--warning-color)" : "var(--accent-blue)"}`,
+              borderLeft: `3px solid ${SEVERITY_TONE[issue.severity] ?? "var(--accent-blue)"}`,
             }}>
-              <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 2 }}>{issue.code}</div>
+              <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)", marginBottom: 2, display: "flex", gap: "var(--space-2)", alignItems: "baseline" }}>
+                <span>{issue.code}</span>
+                <span style={{ fontSize: "var(--font-size-xs)", textTransform: "uppercase", color: SEVERITY_TONE[issue.severity] ?? "var(--text-secondary)" }}>
+                  {issue.severity}
+                </span>
+              </div>
               <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>{issue.message}</div>
+              {issue.affected.length > 0 && (
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4, fontFamily: "var(--font-mono)" }}>
+                  {issue.affected.join(", ")}
+                </div>
+              )}
+              {issue.suggestion && (
+                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4 }}>
+                  → {issue.suggestion}
+                </div>
+              )}
             </div>
           ))}
           {auditReport.issues.length === 0 && (
@@ -465,42 +654,15 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
           {isLoading ? "Importing…" : "Import & Generate Components"}
         </button>
 
-        {/* Results */}
-        {figmaResult.length > 0 && (
-          <div>
-            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-success)", fontWeight: 600, marginBottom: "var(--space-2)" }}>
-              <Icon name="check" size={12} style={{ verticalAlign: "middle", marginRight: 4 }} />
-              {figmaResult.length} component{figmaResult.length > 1 ? "s" : ""} generated — click a file to preview
-            </div>
-            {figmaResult.map((f) => (
-              <div key={f.path} style={{ marginBottom: "var(--space-2)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", overflow: "hidden" }}>
-                <button
-                  type="button"
-                  onClick={() => setFigmaExpandedFile(figmaExpandedFile === f.path ? null : f.path)}
-                  style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", padding: "8px 12px", background: "var(--bg-secondary)", cursor: "pointer", width: "100%", border: "none", color: "inherit", font: "inherit", textAlign: "left" }}
-                >
-                  <Icon name="file-code" size={12} style={{ flexShrink: 0, color: "var(--text-secondary)" }} />
-                  <span style={{ flex: 1, fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.path}</span>
-                  <span
-                    role="button"
-                    aria-label={`Copy ${f.path}`}
-                    tabIndex={0}
-                    onClick={(e) => { e.stopPropagation(); copyToClipboard(f.content); }}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); copyToClipboard(f.content); } }}
-                    style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", borderRadius: 3, color: "var(--text-secondary)" }}
-                  >
-                    Copy
-                  </span>
-                </button>
-                {figmaExpandedFile === f.path && (
-                  <pre style={{ margin: 0, padding: "var(--space-3) var(--space-4)", fontSize: "var(--font-size-xs)", lineHeight: 1.5, overflow: "auto", maxHeight: 220, background: "var(--bg-tertiary)", color: "var(--text-primary)" }}>
-                    <code>{f.content}</code>
-                  </pre>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Results — the shared review-and-write list, so a Figma import can
+            put its components into the workspace instead of only being read.
+            Nothing is written until the user picks a file. */}
+        <GeneratedFileList
+          files={figmaResult}
+          workspacePath={workspacePath}
+          onError={(m) => toast.error(m)}
+          onOpenFile={onOpenFile}
+        />
       </div>
     );
   };
@@ -514,11 +676,30 @@ export function DesignHubPanel({ workspacePath, provider }: DesignHubPanelProps)
             <Icon name={p.icon} size={14} /> {p.label}
           </div>
           <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: "var(--space-2)" }}>{p.desc}</div>
-          {p.id === "penpot" && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Configure via the Penpot tab</div>}
-          {p.id === "figma" && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Token is stored encrypted in your VibeCody profile.</div>}
-          {(p.id === "pencil" || p.id === "drawio" || p.id === "mermaid" || p.id === "inhouse") && (
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-success)" }}>✓ No authentication required</div>
+          {PROVIDER_SETTING_NOTE[p.id] && (
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
+              {PROVIDER_SETTING_NOTE[p.id]}
+            </div>
           )}
+          {p.id === "figma" ? (
+            <button
+              type="button"
+              className="panel-btn panel-btn-secondary panel-btn-sm"
+              style={{ marginTop: "var(--space-2)" }}
+              onClick={() => setActiveTab("figma")}
+            >
+              Open Figma tab
+            </button>
+          ) : PROVIDER_TAB_LINK[p.id] ? (
+            <button
+              type="button"
+              className="panel-btn panel-btn-secondary panel-btn-sm"
+              style={{ marginTop: "var(--space-2)" }}
+              onClick={() => openDesignTab(PROVIDER_TAB_LINK[p.id])}
+            >
+              Open {p.label}
+            </button>
+          ) : null}
         </div>
       ))}
     </div>

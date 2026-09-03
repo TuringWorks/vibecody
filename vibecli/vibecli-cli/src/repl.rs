@@ -668,6 +668,12 @@ pub struct VibeHelper {
     highlighter: MatchingBracketHighlighter,
 }
 
+impl Default for VibeHelper {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl VibeHelper {
     pub fn new() -> Self {
         Self {

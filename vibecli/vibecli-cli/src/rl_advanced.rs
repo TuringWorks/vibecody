@@ -267,7 +267,7 @@ pub fn list_optimization_runs(
     let mut out = Vec::new();
     for kind in [RunKind::Distill, RunKind::Quantize, RunKind::Prune] {
         let rs = runs.list(RunFilter {
-            kind: Some(kind.clone()),
+            kind: Some(kind),
             ..RunFilter::default()
         })?;
         for r in rs {
@@ -286,7 +286,7 @@ pub fn list_optimization_runs(
             });
         }
     }
-    out.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    out.sort_by_key(|b| std::cmp::Reverse(b.created_at));
     Ok(out)
 }
 

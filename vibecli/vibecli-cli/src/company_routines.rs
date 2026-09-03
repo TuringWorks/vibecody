@@ -283,6 +283,25 @@ fn row_to_routine_full(row: &rusqlite::Row) -> rusqlite::Result<Routine> {
     })
 }
 
+impl Routine {
+    pub fn summary_line(&self) -> String {
+        let status = if self.active { "●" } else { "○" };
+        let interval = if self.interval_secs < 3600 {
+            format!("{}m", self.interval_secs / 60)
+        } else {
+            format!("{}h", self.interval_secs / 3600)
+        };
+        format!(
+            "{} {} [every {}]  agent:{}  [{}]",
+            status,
+            self.name,
+            interval,
+            &self.agent_id[..8.min(self.agent_id.len())],
+            &self.id[..8.min(self.id.len())]
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -473,24 +492,5 @@ mod tests {
         let expected_diff = r.interval_secs as u64 * 1000;
         let actual_diff = updated.next_run_at.saturating_sub(updated.last_run_at);
         assert_eq!(actual_diff, expected_diff);
-    }
-}
-
-impl Routine {
-    pub fn summary_line(&self) -> String {
-        let status = if self.active { "●" } else { "○" };
-        let interval = if self.interval_secs < 3600 {
-            format!("{}m", self.interval_secs / 60)
-        } else {
-            format!("{}h", self.interval_secs / 3600)
-        };
-        format!(
-            "{} {} [every {}]  agent:{}  [{}]",
-            status,
-            self.name,
-            interval,
-            &self.agent_id[..8.min(self.agent_id.len())],
-            &self.id[..8.min(self.id.len())]
-        )
     }
 }

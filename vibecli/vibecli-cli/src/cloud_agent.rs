@@ -210,8 +210,10 @@ mod tests {
 
     #[test]
     fn build_command_with_mount() {
-        let mut config = CloudAgentConfig::default();
-        config.workspace_mount = Some("/home/user/project".to_string());
+        let config = CloudAgentConfig {
+            workspace_mount: Some("/home/user/project".to_string()),
+            ..Default::default()
+        };
         let args = build_docker_command(&config, "test");
         assert!(args.contains(&"-v".to_string()));
         assert!(args
@@ -223,11 +225,13 @@ mod tests {
 
     #[test]
     fn build_command_with_env_vars() {
-        let mut config = CloudAgentConfig::default();
-        config.env_vars = vec![
-            ("API_KEY".to_string(), "secret123".to_string()),
-            ("DEBUG".to_string(), "1".to_string()),
-        ];
+        let config = CloudAgentConfig {
+            env_vars: vec![
+                ("API_KEY".to_string(), "secret123".to_string()),
+                ("DEBUG".to_string(), "1".to_string()),
+            ],
+            ..Default::default()
+        };
         let args = build_docker_command(&config, "deploy");
         // Should have two -e flags for user env vars plus the VIBECODY_TASK one
         let env_count = args.iter().filter(|a| *a == "-e").count();
@@ -236,8 +240,10 @@ mod tests {
 
     #[test]
     fn build_command_custom_image() {
-        let mut config = CloudAgentConfig::default();
-        config.image = "rust:1.77-slim".to_string();
+        let config = CloudAgentConfig {
+            image: "rust:1.77-slim".to_string(),
+            ..Default::default()
+        };
         let args = build_docker_command(&config, "cargo test");
         assert!(args.contains(&"rust:1.77-slim".to_string()));
     }
@@ -287,8 +293,10 @@ mod tests {
 
     #[test]
     fn config_custom_timeout() {
-        let mut config = CloudAgentConfig::default();
-        config.timeout_secs = 120;
+        let config = CloudAgentConfig {
+            timeout_secs: 120,
+            ..Default::default()
+        };
         let args = build_docker_command(&config, "test");
         assert!(args.contains(&"120".to_string()));
     }
@@ -384,12 +392,14 @@ mod tests {
 
     #[test]
     fn build_command_multiple_env_vars_order() {
-        let mut config = CloudAgentConfig::default();
-        config.env_vars = vec![
-            ("A".to_string(), "1".to_string()),
-            ("B".to_string(), "2".to_string()),
-            ("C".to_string(), "3".to_string()),
-        ];
+        let config = CloudAgentConfig {
+            env_vars: vec![
+                ("A".to_string(), "1".to_string()),
+                ("B".to_string(), "2".to_string()),
+                ("C".to_string(), "3".to_string()),
+            ],
+            ..Default::default()
+        };
         let args = build_docker_command(&config, "test");
         assert!(args.iter().any(|a| a == "A=1"));
         assert!(args.iter().any(|a| a == "B=2"));
