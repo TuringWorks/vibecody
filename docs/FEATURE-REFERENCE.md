@@ -994,7 +994,7 @@ pub struct Goal {
 |---|---|
 | **VibeCLI TUI** | Read-only `Goals` screen — `/goal` from chat opens it; `f` cycles status filter, `j/k` scroll, `r` refresh |
 | **VibeCoder** | `GoalPanel` (tab `goals`) — list + detail + status switcher + Generate Plan + Start session + Linked sessions; tree-view toggle; Aggregate recap routed through toolbar `selectedProvider` + `selectedModel` |
-| **VibeCoder slash palette + AIChat** | `/goal` opens the panel; `/goal <text>` seeds the New Goal modal |
+| **VibeCoder slash palette + AIChat** | `/goal <objective>` creates, pins, and immediately starts an agent run in chat. Bare `/goal` reports current status; `/goal pause`, `/goal resume`, and `/goal clear` control it. `/goals` opens the advanced panel |
 | **VibeMobile** | `listGoals`, `getGoal`, `startGoal`, `getGoalTree`, `getCurrentGoal`, `pinGoal`, `unpinGoal` |
 | **Apple Watch** | `loadGoals`, `fetchGoal`, `startGoal` |
 | **Wear OS** | `listGoals`, `getGoal`, `startGoal` + `GoalDetailScreen` + `GoalsTileService` Tile (freshest active goal) |

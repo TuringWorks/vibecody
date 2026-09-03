@@ -69,11 +69,6 @@ interface GoalPanelProps {
   workspacePath: string | null;
   selectedProvider: string;
   selectedModel?: string;
-  /** Optional seed text used to pre-fill the New Goal modal when the
-   *  user typed `/goal <text>` in the chat input. */
-  newGoalSeed?: string | null;
-  /** Called after the seed has been consumed so the parent can clear it. */
-  onSeedConsumed?: () => void;
 }
 
 const STATUS_INTENT: Record<GoalStatus, string> = {
@@ -140,8 +135,6 @@ export function GoalPanel({
   workspacePath,
   selectedProvider,
   selectedModel,
-  newGoalSeed,
-  onSeedConsumed,
 }: GoalPanelProps) {
   const { toasts, toast, dismiss } = useToast();
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -296,17 +289,6 @@ export function GoalPanel({
       setDetail(null);
     }
   }, [selectedId, refreshDetail]);
-
-  // Open the New Goal modal when the parent sends a seed (typed via `/goal …`
-  // in the chat input).
-  useEffect(() => {
-    if (newGoalSeed && newGoalSeed.trim().length > 0) {
-      setNewTitle(newGoalSeed.trim().slice(0, 120));
-      setNewStatement('');
-      setShowNewModal(true);
-      onSeedConsumed?.();
-    }
-  }, [newGoalSeed, onSeedConsumed]);
 
   // ── Mutations ──────────────────────────────────────────────────────────────
 

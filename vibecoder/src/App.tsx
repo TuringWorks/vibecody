@@ -133,8 +133,6 @@ function App() {
   const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git" | "testing" | "project" | "infra" | "ai" | "security">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
   const [aiPanelTab, setAiPanelTab] = useState("chat");
-  // /goal slash command — seed forwarded into the Goals panel's New Goal modal.
-  const [newGoalSeed, setNewGoalSeed] = useState<string | null>(null);
   const [panelsMaximized, setPanelsMaximized] = useState(false);
   const [showEditorArea, setShowEditorArea] = useState(true);
   const [showFilterBar, setShowFilterBar] = useState(true);
@@ -2736,15 +2734,10 @@ function App() {
                       setAiPanelTab("chat");
                       window.dispatchEvent(new CustomEvent("vibecoder:inject-context", { detail: text }));
                     }}
-                    onSwitchToGoals={(seed?: string) => {
+                    onSwitchToGoals={() => {
                       setShowAIChat(true);
                       setAiPanelTab("goals");
-                      if (seed && seed.length > 0) {
-                        setNewGoalSeed(seed);
-                      }
                     }}
-                    newGoalSeed={newGoalSeed}
-                    onNewGoalSeedConsumed={() => setNewGoalSeed(null)}
                     collab={collab}
                   />
                 </div>

@@ -21,8 +21,8 @@ export interface ChatCompositeProps {
   fileTree?: string[];
   currentFile?: string | null;
   onPendingWrite?: (path: string, content: string) => void;
-  /** /goal slash command → forwarded down to AIChat. */
-  onSwitchToGoals?: (seed?: string) => void;
+  /** `/goals` slash command → forwarded down to AIChat. */
+  onSwitchToGoals?: () => void;
   /** G9.1 — workspace this VibeCoder instance is rooted in. Used by the
    *  PinnedGoalBanner to look up the right `current` pin row. */
   workspacePath?: string | null;

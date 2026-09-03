@@ -67,7 +67,7 @@ const DAEMON_SERVICE_NAME = "vibecli";
  * "another program" for holding the port. A body naming a *different* service
  * is still rejected — that is the case this check exists for.
  */
-function isVibeCliHealth(body: unknown): boolean {
+export function isVibeCliHealth(body: unknown): boolean {
   if (typeof body !== "object" || body === null) return false;
   const b = body as { service?: unknown; status?: unknown; version?: unknown };
   if (typeof b.service === "string") return b.service === DAEMON_SERVICE_NAME;

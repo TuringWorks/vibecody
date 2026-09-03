@@ -95,7 +95,7 @@ Watch never talks to `/v1/*` directly. The curated `/watch/goals` routes return 
 | **VibeCLI REPL** (`/goal`) | `new`, `list`, `show`, `status`, `link`, `start`, `children`, `reparent`, `pin`, `unpin`, `current`, `delete`; `plan` points to daemon |
 | **VibeCLI TUI** | Read-only `Goals` screen — `/goal` from chat opens it; `f` cycles status filter, `j/k` scroll, `r` refresh |
 | **VibeCoder** (Goals panel, tab `goals`) | List + detail + status switcher + Generate Plan + Start session + Linked sessions; New Goal modal; tree-view toggle (children indented under parents); Aggregate recap routed through toolbar `selectedProvider` + `selectedModel` |
-| **VibeCoder** slash palette | `/goal` opens the Goals panel; `/goal <text>` opens it and seeds the New Goal modal; AIChat input hybrid mirrors the palette action |
+| **VibeCoder** slash palette | `/goal <objective>` creates, pins, and starts durable work directly in chat; `/goal` reports status; `pause`, `resume`, and `clear` are inline controls. `/goals` opens the advanced Goals panel |
 | **VibeMobile** (Flutter) | `listGoals`, `getGoal`, `startGoal`, `getGoalTree`, `getCurrentGoal`, `pinGoal`, `unpinGoal` |
 | **Apple Watch** | `loadGoals`, `fetchGoal`, `startGoal` — read-mostly via `/watch/goals` plus the curated `/start` wrapper |
 | **Wear OS** | `listGoals`, `getGoal`, `startGoal` plus `GoalDetailScreen` (row tap → detail) and `GoalsTileService` (freshest active goal as a Tile) |
@@ -123,7 +123,7 @@ VibeCoder already has `CompanyGoalsPanel` (company strategy goals via `company_c
 
 - **G3.1** — Read-only TUI `Goals` screen (`CurrentScreen::Goals` + `GoalsComponent` + `draw_goals`).
 - **G3.2** — Goal trees: `parent_goal_id` column + `idx_goals_parent`, `GoalPatch.parent_goal_id` as double-`Option`, `/v1/goals/:id/children` one-level query, REPL `/goal children` + `/goal reparent`.
-- **G3.3** — AIChat `/goal <text>` hybrid (typing the command in the chat input opens the Goals panel, seeded when text is present).
+- **G3.3** — AIChat `/goal <text>` fast path: create + pin + start without a modal. Bare `/goal`, `pause`, `resume`, and `clear` keep lifecycle control in the conversation; `/goals` preserves access to advanced history and metadata.
 - **G3.4** — Per-request planner provider override: body `provider`/`model` honored when key resolves (env or `profile_settings.db`); response carries `plan_provider_override_applied`, `plan_provider_requested`, `plan_model_requested`.
 - **G3.6** — Wear OS `GoalDetailScreen` behind a row tap; `GoalsTileService` for the freshest active goal; `AndroidManifest` service registration.
 
