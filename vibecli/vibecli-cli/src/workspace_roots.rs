@@ -57,7 +57,7 @@ impl WorkspaceRoots {
         // Sort by path length descending so longest-prefix wins for
         // nested roots.
         let mut roots = roots;
-        roots.sort_by(|a, b| b.path.as_os_str().len().cmp(&a.path.as_os_str().len()));
+        roots.sort_by_key(|b| std::cmp::Reverse(b.path.as_os_str().len()));
         Self { roots }
     }
     pub fn len(&self) -> usize {

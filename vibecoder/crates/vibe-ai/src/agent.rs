@@ -215,7 +215,7 @@ impl CircuitBreaker {
         tool_result: &ToolResult,
         output_len: usize,
     ) -> Option<AgentHealthState> {
-        let old_state = self.state.clone();
+        let old_state = self.state;
 
         // ── Recovery probing (antifragility) ─────────────────────────────────
         // When in a non-Progress state, check if cooldown elapsed and probe.
@@ -309,7 +309,7 @@ impl CircuitBreaker {
             } else {
                 self.last_state_change = None;
             }
-            Some(self.state.clone())
+            Some(self.state)
         } else {
             None
         }
@@ -3191,7 +3191,7 @@ impl AgentLoop {
                     let hint = cb.rotation_hint();
                     let _ = event_tx
                         .send(AgentEvent::CircuitBreak {
-                            state: new_state.clone(),
+                            state: new_state,
                             reason: hint.clone(),
                         })
                         .await;
@@ -3238,7 +3238,7 @@ impl AgentLoop {
                             );
                             let _ = event_tx
                                 .send(AgentEvent::CircuitBreak {
-                                    state: new_state.clone(),
+                                    state: new_state,
                                     reason:
                                         "Context is already minimal, so shortening responses are \
                                          not caused by context length. Leaving history intact."
@@ -3922,9 +3922,11 @@ mod context_tests {
     // as a `## Skill Health` section only when `Some`.
     #[test]
     fn system_prompt_includes_skill_health_when_set() {
-        let mut context = AgentContext::default();
-        context.workspace_root = std::path::PathBuf::from("/nonexistent-vibe-test");
-        context.skill_health = Some("7 skills, 3 scored, top evolvability 0.82".to_string());
+        let context = AgentContext {
+            workspace_root: std::path::PathBuf::from("/nonexistent-vibe-test"),
+            skill_health: Some("7 skills, 3 scored, top evolvability 0.82".to_string()),
+            ..Default::default()
+        };
         let prompt = build_system_prompt(
             &context,
             &ApprovalPolicy::FullAuto,
@@ -3940,8 +3942,10 @@ mod context_tests {
 
     #[test]
     fn system_prompt_omits_skill_health_when_none() {
-        let mut context = AgentContext::default();
-        context.workspace_root = std::path::PathBuf::from("/nonexistent-vibe-test");
+        let context = AgentContext {
+            workspace_root: std::path::PathBuf::from("/nonexistent-vibe-test"),
+            ..Default::default()
+        };
         // skill_health defaults to None — the auto-gate path.
         let prompt = build_system_prompt(
             &context,
@@ -3960,9 +3964,11 @@ mod context_tests {
     // two different claims, and only this one is about the run.
     #[test]
     fn system_prompt_includes_plugin_rules_when_set() {
-        let mut context = AgentContext::default();
-        context.workspace_root = std::path::PathBuf::from("/nonexistent-vibe-test");
-        context.plugin_rules = Some("### acme/no-secrets\n\nNever echo a token.".to_string());
+        let context = AgentContext {
+            workspace_root: std::path::PathBuf::from("/nonexistent-vibe-test"),
+            plugin_rules: Some("### acme/no-secrets\n\nNever echo a token.".to_string()),
+            ..Default::default()
+        };
         let prompt = build_system_prompt(
             &context,
             &ApprovalPolicy::FullAuto,
@@ -3978,8 +3984,10 @@ mod context_tests {
 
     #[test]
     fn system_prompt_omits_plugin_rules_when_absent_or_empty() {
-        let mut context = AgentContext::default();
-        context.workspace_root = std::path::PathBuf::from("/nonexistent-vibe-test");
+        let mut context = AgentContext {
+            workspace_root: std::path::PathBuf::from("/nonexistent-vibe-test"),
+            ..Default::default()
+        };
         let none = build_system_prompt(
             &context,
             &ApprovalPolicy::FullAuto,
@@ -5309,8 +5317,10 @@ mod circuit_breaker_tests {
 
     #[test]
     fn rotation_hint_blocked_mentions_stopping() {
-        let mut cb = CircuitBreaker::default();
-        cb.state = AgentHealthState::Blocked;
+        let cb = CircuitBreaker {
+            state: AgentHealthState::Blocked,
+            ..Default::default()
+        };
         let hint = cb.rotation_hint();
         assert!(hint.contains("BLOCKED"));
     }
@@ -5540,7 +5550,7 @@ mod circuit_breaker_tests {
     #[test]
     fn health_state_clone_eq() {
         let s = AgentHealthState::Spinning;
-        let s2 = s.clone();
+        let s2 = s;
         assert_eq!(s, s2);
         assert_ne!(s, AgentHealthState::Progress);
     }
@@ -5734,9 +5744,10 @@ mod handoff_tests {
     use super::*;
 
     fn degraded_breaker() -> CircuitBreaker {
-        let mut cb = CircuitBreaker::default();
-        cb.state = AgentHealthState::Degraded;
-        cb
+        CircuitBreaker {
+            state: AgentHealthState::Degraded,
+            ..Default::default()
+        }
     }
 
     #[test]
@@ -6352,10 +6363,11 @@ mod reasoning_turn_tests {
                 }
             }
         }
-        let responses: Vec<&str> =
-            std::iter::repeat("<tool_call name=\"list_directory\"><path>.</path></tool_call>")
-                .take(60)
-                .collect();
+        let responses: Vec<&str> = std::iter::repeat_n(
+            "<tool_call name=\"list_directory\"><path>.</path></tool_call>",
+            60,
+        )
+        .collect();
         let provider: Arc<dyn crate::provider::AIProvider> =
             Arc::new(MockAIProvider::with_responses("mock", responses));
         let exec: Arc<dyn ToolExecutorTrait> = Arc::new(FailingExecutor);

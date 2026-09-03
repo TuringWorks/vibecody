@@ -3033,7 +3033,7 @@ mod tests {
             "abc-token".to_string(),
         );
         assert_eq!(gw.name(), "synology");
-        assert_eq!(gw.incoming_url.contains("incoming"), true);
+        assert!(gw.incoming_url.contains("incoming"));
     }
 
     #[test]
@@ -3144,7 +3144,7 @@ mod tests {
 
     #[test]
     fn telegram_whitelist_matching() {
-        let allowed = vec!["alice".to_string(), "@bob".to_string()];
+        let allowed = ["alice".to_string(), "@bob".to_string()];
         // Direct match
         assert!(allowed
             .iter()
@@ -3386,7 +3386,7 @@ mod tests {
 
     #[test]
     fn whitelist_match_with_at_prefix() {
-        let allowed = vec!["@alice".to_string(), "bob".to_string()];
+        let allowed = ["@alice".to_string(), "bob".to_string()];
         let check = |user: &str| -> bool {
             allowed.is_empty()
                 || allowed.iter().any(|u| {

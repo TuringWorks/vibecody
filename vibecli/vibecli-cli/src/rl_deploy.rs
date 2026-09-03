@@ -52,6 +52,9 @@ impl DeploymentStatus {
         }
     }
 
+    // Not `FromStr`: that trait must return a `Result`, and this parser reports an
+    // unknown input as `None` rather than as an error value it would have to invent.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         Some(match s {
             "staging" => Self::Staging,
@@ -242,7 +245,7 @@ impl DeploymentStore {
         )
         .map_err(|e| match e {
             rusqlite::Error::SqliteFailure(_, ref m)
-                if m.as_deref().map_or(false, |x| x.contains("FOREIGN KEY")) =>
+                if m.as_deref().is_some_and(|x| x.contains("FOREIGN KEY")) =>
             {
                 RunError::Invalid(format!(
                     "artifact {} not found in rl_artifacts — register the run's artifact first",

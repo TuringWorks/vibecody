@@ -4,9 +4,9 @@
 //!
 //! Commit `5a7eef7c` deleted the previous ghost-text path (`SupercompleteEngine`
 //! + `request_inline_completion` + `predict_next_edit`) after an internal patent
-//! audit flagged it HIGH. That surface was **keystroke-driven**: an edit-history
-//! ring buffer fed a debounced FIM request on every pause in typing, and the
-//! model's output was inserted inline on a single keypress.
+//!   audit flagged it HIGH. That surface was **keystroke-driven**: an edit-history
+//!   ring buffer fed a debounced FIM request on every pause in typing, and the
+//!   model's output was inserted inline on a single keypress.
 //!
 //! This module deliberately keeps the useful half and drops the flagged half:
 //!

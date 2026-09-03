@@ -2356,8 +2356,10 @@ mod tests {
 
     #[test]
     fn test_ppo_compute_kl_penalty_abs() {
-        let mut cfg = PpoConfig::default();
-        cfg.kl_penalty = KlPenaltyMode::Abs;
+        let cfg = PpoConfig {
+            kl_penalty: KlPenaltyMode::Abs,
+            ..Default::default()
+        };
         let old = vec![-1.0, -2.0];
         let new = vec![-0.9, -2.1];
         let kl = cfg.compute_kl_penalty(&old, &new);
@@ -2367,8 +2369,10 @@ mod tests {
 
     #[test]
     fn test_ppo_compute_kl_penalty_mse() {
-        let mut cfg = PpoConfig::default();
-        cfg.kl_penalty = KlPenaltyMode::Mse;
+        let cfg = PpoConfig {
+            kl_penalty: KlPenaltyMode::Mse,
+            ..Default::default()
+        };
         let old = vec![-1.0];
         let new = vec![-1.5];
         let kl = cfg.compute_kl_penalty(&old, &new);
@@ -2442,8 +2446,10 @@ mod tests {
 
     #[test]
     fn test_dpo_compute_loss_hinge() {
-        let mut cfg = DpoConfig::default();
-        cfg.loss_type = DpoLossType::Hinge;
+        let cfg = DpoConfig {
+            loss_type: DpoLossType::Hinge,
+            ..Default::default()
+        };
         let loss = cfg.compute_loss(&[2.0], &[-2.0]);
         // beta * (2.0 - (-2.0)) = 0.1 * 4.0 = 0.4; hinge: max(0, 1 - 0.4) = 0.6
         assert!((loss - 0.6).abs() < 1e-10);
@@ -2451,8 +2457,10 @@ mod tests {
 
     #[test]
     fn test_dpo_compute_loss_ipo() {
-        let mut cfg = DpoConfig::default();
-        cfg.loss_type = DpoLossType::Ipo;
+        let cfg = DpoConfig {
+            loss_type: DpoLossType::Ipo,
+            ..Default::default()
+        };
         let loss = cfg.compute_loss(&[1.0], &[-1.0]);
         assert!(loss > 0.0);
     }
@@ -2531,9 +2539,11 @@ mod tests {
 
     #[test]
     fn test_kto_asymmetric_weights() {
-        let mut cfg = KtoConfig::default();
-        cfg.desirable_weight = 2.0;
-        cfg.undesirable_weight = 0.5;
+        let cfg = KtoConfig {
+            desirable_weight: 2.0,
+            undesirable_weight: 0.5,
+            ..Default::default()
+        };
         let loss_d = cfg.compute_loss(&[1.0], &[KtoExampleKind::Desirable], 0.0);
         let loss_u = cfg.compute_loss(&[-1.0], &[KtoExampleKind::Undesirable], 0.0);
         // desirable weight is 4x undesirable weight
@@ -3028,8 +3038,10 @@ mod tests {
 
     #[test]
     fn test_reward_hacking_record_snapshot() {
-        let mut det = RewardHackingDetector::default();
-        det.window_size = 3;
+        let mut det = RewardHackingDetector {
+            window_size: 3,
+            ..Default::default()
+        };
         for i in 0..5 {
             det.record_snapshot(RewardSnapshot {
                 step: i,
@@ -3052,8 +3064,10 @@ mod tests {
 
     #[test]
     fn test_reward_hacking_check_reward_distribution() {
-        let mut det = RewardHackingDetector::default();
-        det.reward_shift_threshold = 2.0;
+        let mut det = RewardHackingDetector {
+            reward_shift_threshold: 2.0,
+            ..Default::default()
+        };
         // Use varied rewards so std is non-trivial
         for i in 0..20 {
             det.record_snapshot(RewardSnapshot {
@@ -3121,8 +3135,10 @@ mod tests {
 
     #[test]
     fn test_alignment_evaluator_safety_pass() {
-        let mut eval = AlignmentEvaluator::default();
-        eval.safety_threshold = 0.9;
+        let mut eval = AlignmentEvaluator {
+            safety_threshold: 0.9,
+            ..Default::default()
+        };
         eval.add_result(AlignmentBenchmarkResult {
             benchmark: AlignmentBenchmark::Harmfulness,
             score: 0.95,
@@ -3142,8 +3158,10 @@ mod tests {
 
     #[test]
     fn test_alignment_evaluator_safety_fail() {
-        let mut eval = AlignmentEvaluator::default();
-        eval.safety_threshold = 0.95;
+        let mut eval = AlignmentEvaluator {
+            safety_threshold: 0.95,
+            ..Default::default()
+        };
         eval.add_result(AlignmentBenchmarkResult {
             benchmark: AlignmentBenchmark::Harmfulness,
             score: 0.80,
@@ -3156,8 +3174,10 @@ mod tests {
 
     #[test]
     fn test_alignment_evaluator_helpfulness_pass() {
-        let mut eval = AlignmentEvaluator::default();
-        eval.helpfulness_threshold = 0.7;
+        let mut eval = AlignmentEvaluator {
+            helpfulness_threshold: 0.7,
+            ..Default::default()
+        };
         eval.add_result(AlignmentBenchmarkResult {
             benchmark: AlignmentBenchmark::Helpfulness,
             score: 0.85,
@@ -3170,9 +3190,11 @@ mod tests {
 
     #[test]
     fn test_alignment_evaluator_alignment_pass() {
-        let mut eval = AlignmentEvaluator::default();
-        eval.safety_threshold = 0.9;
-        eval.helpfulness_threshold = 0.7;
+        let mut eval = AlignmentEvaluator {
+            safety_threshold: 0.9,
+            helpfulness_threshold: 0.7,
+            ..Default::default()
+        };
         for bench in &[
             AlignmentBenchmark::Harmfulness,
             AlignmentBenchmark::Toxicity,

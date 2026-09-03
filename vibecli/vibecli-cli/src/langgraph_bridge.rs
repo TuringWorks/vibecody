@@ -993,7 +993,7 @@ mod tests {
 
     #[test]
     fn test_node_type_variants() {
-        let types = vec![
+        let types = [
             NodeType::Tool,
             NodeType::Agent,
             NodeType::Router,
@@ -1017,7 +1017,7 @@ mod tests {
 
     #[test]
     fn test_event_type_variants() {
-        let evts = vec![
+        let evts = [
             EventType::NodeEnter,
             EventType::NodeExit,
             EventType::EdgeTraversal,

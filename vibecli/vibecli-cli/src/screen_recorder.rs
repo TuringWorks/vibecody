@@ -105,7 +105,7 @@ impl ScreenRecorder {
                 }
             }
         }
-        recordings.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+        recordings.sort_by_key(|b| std::cmp::Reverse(b.started_at));
         Ok(recordings)
     }
 }

@@ -13,7 +13,7 @@ fn main() {
 
     let t = Instant::now();
     let mut total = 0usize;
-    for (_, id) in &pages {
+    for id in pages.values() {
         if let Ok(c) = file.get_page_content(*id) {
             total += c.len();
         }
@@ -22,7 +22,7 @@ fn main() {
 
     let t = Instant::now();
     let mut fonts = 0usize;
-    for (_, id) in &pages {
+    for id in pages.values() {
         fonts += file.get_page_fonts(*id).map(|f| f.len()).unwrap_or(0);
     }
     println!("get_page_fonts {:?} ({fonts} font refs)", t.elapsed());

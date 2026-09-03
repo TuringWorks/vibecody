@@ -1104,6 +1104,12 @@ pub struct PlatformManager {
     pub default_platform: Option<String>,
 }
 
+impl Default for PlatformManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PlatformManager {
     pub fn new() -> Self {
         Self {

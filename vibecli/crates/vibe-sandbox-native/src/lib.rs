@@ -25,7 +25,7 @@ pub fn native() -> Result<Box<dyn Sandbox>> {
     }
     #[cfg(target_os = "macos")]
     {
-        return macos::MacosSandbox::new().map(|s| Box::new(s) as Box<dyn Sandbox>);
+        macos::MacosSandbox::new().map(|s| Box::new(s) as Box<dyn Sandbox>)
     }
     #[cfg(target_os = "windows")]
     {

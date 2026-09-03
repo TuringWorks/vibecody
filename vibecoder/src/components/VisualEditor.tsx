@@ -6,7 +6,6 @@
  * toolbar near the selected element for AI-powered edits.
  */
 import React, { useState, useEffect, useCallback } from "react";
-import { invoke } from "@tauri-apps/api/core";
 
 export interface SelectedElement {
   selector: string;
@@ -18,9 +17,13 @@ export interface SelectedElement {
 }
 
 interface VisualEditorProps {
-  /** Called when the user submits an AI edit instruction */
-  onEdit: (element: SelectedElement, instruction: string) => void;
-  workspacePath: string;
+  /**
+   * Called when the user submits an AI edit instruction. The host owns the
+   * request, its errors and its result — this toolbar used to *also* call
+   * `visual_edit_element` itself, so one click billed two model calls and the
+   * toolbar reported "Edit applied." even when its own copy had failed.
+   */
+  onEdit: (element: SelectedElement, instruction: string) => void | Promise<void>;
   iframeOffset?: { top: number; left: number };
 }
 
@@ -32,12 +35,11 @@ const QUICK_ACTIONS = [
   "Add border",
 ];
 
-export function VisualEditor({ onEdit, workspacePath, iframeOffset = { top: 0, left: 0 } }: VisualEditorProps) {
+export function VisualEditor({ onEdit, iframeOffset = { top: 0, left: 0 } }: VisualEditorProps) {
   const [selected, setSelected] = useState<SelectedElement | null>(null);
   const [_hovered, setHovered] = useState<SelectedElement | null>(null);
   const [instruction, setInstruction] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [lastResult, setLastResult] = useState<string>("");
 
   useEffect(() => {
     const handler = (event: MessageEvent) => {
@@ -45,7 +47,6 @@ export function VisualEditor({ onEdit, workspacePath, iframeOffset = { top: 0, l
       if (event.data.type === "vibe:element-selected") {
         setSelected(event.data.data as SelectedElement);
         setInstruction("");
-        setLastResult("");
       } else if (event.data.type === "vibe:element-hovered") {
         setHovered(event.data.data as SelectedElement);
       }
@@ -58,20 +59,12 @@ export function VisualEditor({ onEdit, workspacePath, iframeOffset = { top: 0, l
     if (!selected || !instruction.trim()) return;
     setIsGenerating(true);
     try {
-      onEdit(selected, instruction);
-      // Optionally call Tauri for AI-powered edit
-      const result = await invoke<string>("visual_edit_element", {
-        workspacePath,
-        selector: selected.selector,
-        instruction,
-        currentHtml: selected.outerHTML,
-        reactComponent: selected.reactComponent ?? null,
-      }).catch(() => "");
-      setLastResult(result || "Edit applied.");
+      // The host runs the request and shows its result in the Inspector tab.
+      await onEdit(selected, instruction);
     } finally {
       setIsGenerating(false);
     }
-  }, [selected, instruction, onEdit, workspacePath]);
+  }, [selected, instruction, onEdit]);
 
   if (!selected) {
     return (
@@ -189,9 +182,9 @@ export function VisualEditor({ onEdit, workspacePath, iframeOffset = { top: 0, l
           </div>
         </details>
 
-        {lastResult && (
-          <div style={{ marginTop: 8, fontSize: "var(--font-size-base)", color: "var(--success-color)", fontFamily: "var(--font-mono)" }}>
-            {lastResult}
+        {isGenerating && (
+          <div style={{ marginTop: 8, fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
+            Working — the result appears in the Inspector tab.
           </div>
         )}
       </div>

@@ -710,6 +710,39 @@ impl TauriToolExecutor {
     }
 }
 
+#[async_trait]
+impl ToolExecutorTrait for TauriToolExecutor {
+    async fn execute(&self, call: &ToolCall) -> ToolResult {
+        match call {
+            ToolCall::ReadFile { path } => self.read_file(path).await,
+            ToolCall::WriteFile { path, content } => self.write_file(path, content).await,
+            ToolCall::ApplyPatch { path, patch } => self.apply_patch_tool(path, patch).await,
+            ToolCall::Bash { command } => self.run_bash(command).await,
+            ToolCall::SearchFiles { query, glob } => {
+                self.search_files(query, glob.as_deref()).await
+            }
+            ToolCall::ListDirectory { path } => self.list_dir(path).await,
+            ToolCall::WebSearch { query, .. } => self.web_search(query).await,
+            ToolCall::FetchUrl { url } => self.fetch_url(url).await,
+            ToolCall::TaskComplete { summary } => ToolResult::ok("task_complete", summary.clone()),
+            ToolCall::SpawnAgent {
+                task,
+                max_steps,
+                max_depth,
+            } => self.spawn_sub_agent(task, *max_steps, *max_depth).await,
+            ToolCall::Think { thought } => ToolResult::ok(
+                "think",
+                format!("Reasoning noted ({} chars).", thought.len()),
+            ),
+            ToolCall::PlanTask { steps } => {
+                ToolResult::ok("plan_task", format!("Plan recorded:\n{}", steps))
+            }
+            ToolCall::Diffstat { path } => self.diffstat_tool(path).await,
+            ToolCall::RecordMemory { key, value } => self.record_memory_tool(key, value).await,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1285,39 +1318,6 @@ mod tests {
             Ok(Box::pin(stream::once(async {
                 Ok("<task_complete>\nAll done.\n</task_complete>".to_string())
             })))
-        }
-    }
-}
-
-#[async_trait]
-impl ToolExecutorTrait for TauriToolExecutor {
-    async fn execute(&self, call: &ToolCall) -> ToolResult {
-        match call {
-            ToolCall::ReadFile { path } => self.read_file(path).await,
-            ToolCall::WriteFile { path, content } => self.write_file(path, content).await,
-            ToolCall::ApplyPatch { path, patch } => self.apply_patch_tool(path, patch).await,
-            ToolCall::Bash { command } => self.run_bash(command).await,
-            ToolCall::SearchFiles { query, glob } => {
-                self.search_files(query, glob.as_deref()).await
-            }
-            ToolCall::ListDirectory { path } => self.list_dir(path).await,
-            ToolCall::WebSearch { query, .. } => self.web_search(query).await,
-            ToolCall::FetchUrl { url } => self.fetch_url(url).await,
-            ToolCall::TaskComplete { summary } => ToolResult::ok("task_complete", summary.clone()),
-            ToolCall::SpawnAgent {
-                task,
-                max_steps,
-                max_depth,
-            } => self.spawn_sub_agent(task, *max_steps, *max_depth).await,
-            ToolCall::Think { thought } => ToolResult::ok(
-                "think",
-                format!("Reasoning noted ({} chars).", thought.len()),
-            ),
-            ToolCall::PlanTask { steps } => {
-                ToolResult::ok("plan_task", format!("Plan recorded:\n{}", steps))
-            }
-            ToolCall::Diffstat { path } => self.diffstat_tool(path).await,
-            ToolCall::RecordMemory { key, value } => self.record_memory_tool(key, value).await,
         }
     }
 }

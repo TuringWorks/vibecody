@@ -616,12 +616,12 @@ fn configured_provider_names_with(
 ///
 /// Tier-0 (native) is the only tier shipping today:
 ///   - Linux:   `bwrap` (bubblewrap) — filesystem isolation when the
-///              binary is on PATH, network isolation via `unshare --net`.
-///              Landlock + seccomp are deferred (slices N1.2 / N1.3).
+///     binary is on PATH, network isolation via `unshare --net`.
+///     Landlock + seccomp are deferred (slices N1.2 / N1.3).
 ///   - macOS:   `sandbox-exec -n no-network` — network isolation only.
-///              Filesystem isolation via Seatbelt profile is deferred.
+///     Filesystem isolation via Seatbelt profile is deferred.
 ///   - Windows: AppContainer + Restricted Token + Job Object — present
-///              but lightly tested in production.
+///     but lightly tested in production.
 ///
 /// Tiers 1-3 (WASI, Hyperlight, Firecracker) are stubs that return
 /// `TierUnsupported`. The egress broker is designed but not wired.
@@ -2618,8 +2618,6 @@ async fn start_agent(
     // Move context_request into the spawned task. Empty default keeps
     // the existing-clients path zero-overhead.
     let ctx_request = req.context_request;
-    // VX-111: carry the resolved thinking budget into the spawned agent.
-    let reasoning_budget = reasoning_budget;
     // DREAD #1 — propagate the daemon's tainted-strict / prompter
     // flags into every executor the agent loop uses. Extracted by
     // value (Copy) so the spawn closure doesn't capture `state`.
@@ -3639,8 +3637,8 @@ fn clip(mut s: String) -> (String, bool) {
 ///   - `tokio::process` rather than `std::process`, so stdout/stderr are drained
 ///     concurrently — a child filling a pipe would otherwise deadlock against a
 ///     sequential read, which is the classic way this goes wrong.
-/// One-shot only: there is no PTY, so `vim`, `top` and anything else expecting a
-/// terminal will not work, and the UI says so rather than appearing to hang.
+///     One-shot only: there is no PTY, so `vim`, `top` and anything else expecting a
+///     terminal will not work, and the UI says so rather than appearing to hang.
 async fn vibedesk_exec(
     State(state): State<ServeState>,
     Json(req): Json<ExecRequest>,
@@ -8759,9 +8757,9 @@ async fn rl_multi_agent_runs_h(
 
 // ── Server startup ────────────────────────────────────────────────────────────
 
-/// Build the full axum router with all middleware, CORS, auth, and routes.
-/// Extracted so that tests can call it with `tower::ServiceExt::oneshot()`
-/// without binding to a TCP port.
+// /// Build the full axum router with all middleware, CORS, auth, and routes.
+// /// Extracted so that tests can call it with `tower::ServiceExt::oneshot()`
+// /// without binding to a TCP port.
 // ── Observe-Act — the visual grounding loop's HTTP surface ─────────────────
 //
 // The panel (VibeCoder → System Monitor → Observe-Act) drives all of this over
@@ -8770,7 +8768,6 @@ async fn rl_multi_agent_runs_h(
 // desktop automation tools, all of which the daemon already owns — and because
 // a second copy of the session registry in each shell would mean three
 // disagreeing answers to "is a session running".
-
 /// POST /observe/sessions request body.
 #[derive(Debug, Deserialize)]
 pub struct ObserveStartRequest {
@@ -9064,7 +9061,11 @@ async fn observe_events(
                 match events.recv().await {
                     Ok(event) => {
                         let json = serde_json::to_string(&event).unwrap_or_default();
-                        if tx.send(Ok(Event::default().event("step").data(json))).await.is_err() {
+                        if tx
+                            .send(Ok(Event::default().event("step").data(json)))
+                            .await
+                            .is_err()
+                        {
                             return;
                         }
                     }
@@ -9088,9 +9089,9 @@ async fn observe_events(
         });
     } else {
         let _ = tx
-            .send(Ok(Event::default()
-                .event("error")
-                .data(serde_json::json!({ "error": "unknown session" }).to_string())))
+            .send(Ok(Event::default().event("error").data(
+                serde_json::json!({ "error": "unknown session" }).to_string(),
+            )))
             .await;
     }
 
@@ -9185,7 +9186,9 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         // VibeDesk task API (VX-112): task-card CRUD + lifecycle status.
         .route(
             "/harness/profile",
-            get(harness_profile).put(put_harness_profile).delete(delete_harness_profile),
+            get(harness_profile)
+                .put(put_harness_profile)
+                .delete(delete_harness_profile),
         )
         .route("/harness/profiles", get(harness_profiles_list))
         .route("/api/tasks", post(create_task).get(list_tasks))
@@ -9321,7 +9324,10 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         )
         .route("/observe/sessions/{id}", get(observe_get_session))
         .route("/observe/sessions/{id}/pause", post(observe_pause_session))
-        .route("/observe/sessions/{id}/resume", post(observe_resume_session))
+        .route(
+            "/observe/sessions/{id}/resume",
+            post(observe_resume_session),
+        )
         .route("/observe/sessions/{id}/abort", post(observe_abort_session))
         .route("/observe/sessions/{id}/approve", post(observe_approve))
         .route("/observe/sessions/{id}/events", get(observe_events))
@@ -10504,13 +10510,13 @@ pub async fn serve(
     // Best-effort, and deliberately not relied upon: a `SIGKILL`, a power cut
     // or a panic-abort never reaches this line, which is why `/health` also
     // publishes a fingerprint clients can check.
-    let removed = vibe_daemon_token::remove_for_daemon(
-        &vibecli_dir,
-        port,
-        vibe_daemon_token::default_port(),
-    );
+    let removed =
+        vibe_daemon_token::remove_for_daemon(&vibecli_dir, port, vibe_daemon_token::default_port());
     if !removed.is_empty() {
-        note_lifecycle(&format!("removed {} token file(s) on shutdown", removed.len()));
+        note_lifecycle(&format!(
+            "removed {} token file(s) on shutdown",
+            removed.len()
+        ));
     }
     eprintln!("[vibecli serve] Shutting down gracefully");
     Ok(())
@@ -13868,9 +13874,8 @@ async fn mobile_session_context(
     }
 }
 
-/// Pure builder for the `/mobile/sessions/{id}/context` response body.
+// /// Pure builder for the `/mobile/sessions/{id}/context` response body.
 // ── F3.x: cross-device active session ───────────────────────────────────────
-
 /// `PUT /mobile/active-session` request body.
 #[derive(Debug, Deserialize)]
 struct SetMobileActiveSessionRequest {
@@ -13983,6 +13988,11 @@ fn build_mobile_context_response(
 
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
+// Held across `.await` on purpose: this is the process-global serialiser that
+// AGENTS.md requires around env-var and $HOME mutation in tests. Dropping it
+// before the await would let a concurrent test observe the other's environment,
+// which is the exact shared-state flakiness the lock exists to prevent.
+#[allow(clippy::await_holding_lock)]
 #[cfg(test)]
 mod tests {
     /// A panicking route must cost that request, not the daemon.
@@ -14014,7 +14024,9 @@ mod tests {
             .await
             .expect("the panic must not propagate out of the service");
         assert_eq!(res.status(), 500);
-        let body = axum::body::to_bytes(res.into_body(), 64 * 1024).await.unwrap();
+        let body = axum::body::to_bytes(res.into_body(), 64 * 1024)
+            .await
+            .unwrap();
         let body = String::from_utf8_lossy(&body);
         assert!(
             !body.contains("secret internal detail"),
@@ -14885,13 +14897,14 @@ mod tests {
                 tainted: TaintedDaemonFlags::default(),
                 tainted_http_queue: Arc::new(crate::tainted_http_bridge::HttpPromptQueue::new()),
                 security_findings: crate::security_watch_daemon::SecurityFindingsQueue::new(),
-        // A registry rooted in a temp directory: `default_root()` opens the
-        // developer's real `~/.vibecli/observe_act`, and a test that reads
-        // their actual session history is a test that fails on their machine
-        // and nowhere else (AGENTS.md → Test Isolation).
-        observe_act: Arc::new(crate::observe_act_runtime::ObserveActRegistry::new(
-            std::env::temp_dir().join(format!("vibecli-observe-test-{}", std::process::id())),
-        )),
+                // A registry rooted in a temp directory: `default_root()` opens the
+                // developer's real `~/.vibecli/observe_act`, and a test that reads
+                // their actual session history is a test that fails on their machine
+                // and nowhere else (AGENTS.md → Test Isolation).
+                observe_act: Arc::new(crate::observe_act_runtime::ObserveActRegistry::new(
+                    std::env::temp_dir()
+                        .join(format!("vibecli-observe-test-{}", std::process::id())),
+                )),
             };
             (build_router(state, 7878), tmp_dir)
         }
@@ -15672,13 +15685,14 @@ mod tests {
                 tainted: TaintedDaemonFlags::default(),
                 tainted_http_queue: Arc::new(crate::tainted_http_bridge::HttpPromptQueue::new()),
                 security_findings: crate::security_watch_daemon::SecurityFindingsQueue::new(),
-        // A registry rooted in a temp directory: `default_root()` opens the
-        // developer's real `~/.vibecli/observe_act`, and a test that reads
-        // their actual session history is a test that fails on their machine
-        // and nowhere else (AGENTS.md → Test Isolation).
-        observe_act: Arc::new(crate::observe_act_runtime::ObserveActRegistry::new(
-            std::env::temp_dir().join(format!("vibecli-observe-test-{}", std::process::id())),
-        )),
+                // A registry rooted in a temp directory: `default_root()` opens the
+                // developer's real `~/.vibecli/observe_act`, and a test that reads
+                // their actual session history is a test that fails on their machine
+                // and nowhere else (AGENTS.md → Test Isolation).
+                observe_act: Arc::new(crate::observe_act_runtime::ObserveActRegistry::new(
+                    std::env::temp_dir()
+                        .join(format!("vibecli-observe-test-{}", std::process::id())),
+                )),
             };
             (build_router(state, 7878), tmp_dir)
         }

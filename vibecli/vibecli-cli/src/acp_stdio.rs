@@ -20,12 +20,12 @@
 //!
 //! Methods implemented in this slice (A4 of the v13 fitgap):
 //!   - `initialize`   — handshake, returns supported protocol version +
-//!                      agent capabilities + serverInfo.
+//!     agent capabilities + serverInfo.
 //!   - `authenticate` — optional, advertises no auth required.
 //!   - `newSession`   — start a new session, return session id.
 //!   - `loadSession`  — resume an existing session by id (404 if
-//!                      unknown — full resume semantics arrive in a
-//!                      follow-up).
+//!     unknown — full resume semantics arrive in a
+//!     follow-up).
 //!   - `cancel`       — cancel an in-flight prompt for a session.
 //!
 //! Out of scope for this slice (intentional, sized for one PR):
@@ -326,19 +326,19 @@ pub enum HandlerError {
 /// Parse a single JSON-RPC line from stdin. Returns the typed envelope
 /// on success or a pre-formed parse-error response on failure (so the
 /// caller can write it directly without further translation).
-pub fn parse_request(line: &str) -> std::result::Result<AcpRequest, AcpResponse> {
+pub fn parse_request(line: &str) -> std::result::Result<AcpRequest, Box<AcpResponse>> {
     match serde_json::from_str::<AcpRequest>(line) {
         Ok(req) if req.jsonrpc == "2.0" => Ok(req),
-        Ok(_) => Err(AcpResponse::err(
+        Ok(_) => Err(Box::new(AcpResponse::err(
             json!(null),
             errors::INVALID_REQUEST,
             "jsonrpc must be \"2.0\"",
-        )),
-        Err(e) => Err(AcpResponse::err(
+        ))),
+        Err(e) => Err(Box::new(AcpResponse::err(
             json!(null),
             errors::PARSE_ERROR,
             format!("parse: {e}"),
-        )),
+        ))),
     }
 }
 
@@ -391,7 +391,7 @@ pub fn run_stdio<R: std::io::BufRead, W: std::io::Write>(input: R, output: &mut 
                     )),
                 }
             }
-            Err(parse_err) => Some(parse_err),
+            Err(parse_err) => Some(*parse_err),
         };
         if let Some(resp) = reply {
             writeln!(output, "{}", serde_json::to_string(&resp)?)?;

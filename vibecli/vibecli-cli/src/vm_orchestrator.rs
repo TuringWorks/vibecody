@@ -244,7 +244,7 @@ impl VmOrchestrator {
     /// List all environments.
     pub fn list_environments(&self) -> Vec<&AgentEnvironment> {
         let mut envs: Vec<&AgentEnvironment> = self.environments.values().collect();
-        envs.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+        envs.sort_by_key(|a| a.created_at);
         envs
     }
 
@@ -599,8 +599,10 @@ mod tests {
 
     #[test]
     fn test_launch_environment_max_reached() {
-        let mut config = OrchestratorConfig::default();
-        config.max_parallel_envs = 2;
+        let config = OrchestratorConfig {
+            max_parallel_envs: 2,
+            ..Default::default()
+        };
         let mut orch = VmOrchestrator::new(config);
         orch.launch_environment("task 1").unwrap();
         orch.launch_environment("task 2").unwrap();
@@ -807,8 +809,10 @@ mod tests {
 
     #[test]
     fn test_docker_run_cmd_podman() {
-        let mut config = OrchestratorConfig::default();
-        config.runtime = RuntimeType::Podman;
+        let config = OrchestratorConfig {
+            runtime: RuntimeType::Podman,
+            ..Default::default()
+        };
         let orch = VmOrchestrator::new(config);
         let env = AgentEnvironment {
             id: "env-test".to_string(),
@@ -830,8 +834,10 @@ mod tests {
 
     #[test]
     fn test_docker_run_cmd_with_git_remote() {
-        let mut config = OrchestratorConfig::default();
-        config.git_remote = Some("https://github.com/org/repo.git".to_string());
+        let config = OrchestratorConfig {
+            git_remote: Some("https://github.com/org/repo.git".to_string()),
+            ..Default::default()
+        };
         let orch = VmOrchestrator::new(config);
         let env = AgentEnvironment {
             id: "env-test".to_string(),

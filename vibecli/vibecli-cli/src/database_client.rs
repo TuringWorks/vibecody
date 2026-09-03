@@ -671,9 +671,11 @@ mod tests {
 
     #[test]
     fn test_build_connection_string_postgres() {
-        let mut config = DatabaseConfig::default();
-        config.username = Some("admin".to_string());
-        config.password = Some("secret".to_string());
+        let config = DatabaseConfig {
+            username: Some("admin".to_string()),
+            password: Some("secret".to_string()),
+            ..Default::default()
+        };
         let client = DatabaseClient::new(config);
         let cs = client.build_connection_string();
         assert_eq!(cs, "postgresql://admin:secret@localhost:5432/vibecody");
@@ -726,8 +728,10 @@ mod tests {
 
     #[test]
     fn test_build_psql_command() {
-        let mut config = DatabaseConfig::default();
-        config.username = Some("pguser".to_string());
+        let config = DatabaseConfig {
+            username: Some("pguser".to_string()),
+            ..Default::default()
+        };
         let client = DatabaseClient::new(config);
         let cmd = client.build_psql_command("SELECT 1");
         assert_eq!(

@@ -1,13 +1,24 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
+import { useToast } from "../hooks/useToast";
+import { Toaster } from "./Toaster";
 
+/**
+ * One recognised shape.
+ *
+ * `fit` is how centrally the drawn geometry sits inside the band the matched
+ * rule accepts — not a probability that the suggestion is right, and absent
+ * when only a catch-all rule matched. It replaced a flat `confidence: 0.85`
+ * the backend stamped on every shape without computing anything.
+ */
 interface RecognizedComponent {
+  id: string;
   shape: string;
   component: string;
-  confidence: number;
-  x: number;
-  y: number;
+  rule: string;
+  fit: number | null;
+  reason: string;
 }
 
 interface DrawnShape {
@@ -49,7 +60,15 @@ function hexWithAlpha(c: string, alphaHex: string): string {
   return /^#[0-9a-fA-F]{6}$/.test(c) ? c + alphaHex : c;
 }
 
+// Text drawn on the canvas becomes an SVG text node. Unescaped, a label
+// containing `<` or `&` produces a document no parser will open — and one
+// containing `</text>` rewrites the markup around it.
+function xmlEscape(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 export function SketchCanvasPanel() {
+  const { toasts, toast, dismiss } = useToast();
   const [tab, setTab] = useState("canvas");
   const [activeTool, setActiveTool] = useState("rect");
   const [activeColor, setActiveColor] = useState(COLORS[0]);
@@ -291,29 +310,57 @@ export function SketchCanvasPanel() {
     setShapes((prev) => prev.slice(0, -1));
   };
 
+  const handleDeleteSelected = useCallback(() => {
+    setSelectedIndex((idx) => {
+      if (idx === null) return null;
+      setShapes((prev) => prev.filter((_, i) => i !== idx));
+      return null;
+    });
+  }, []);
+
+  // Delete/Backspace removes the selected shape — the only way to remove one
+  // was Undo, which removes the *last* shape drawn, not the selected one.
+  useEffect(() => {
+    if (selectedIndex === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      // Never steal the key from a field the user is typing in.
+      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+      if (target?.isContentEditable) return;
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        handleDeleteSelected();
+      } else if (e.key === "Escape") {
+        setSelectedIndex(null);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedIndex, handleDeleteSelected]);
+
   /* ── Backend actions ─────────────────────────────────────────────── */
 
   const handleRecognize = async () => {
     setRecognizing(true);
     try {
       const elements = JSON.stringify(shapes.map((s) => ({
-        type: s.tool, x: Math.round(s.x), y: Math.round(s.y),
-        w: Math.round(Math.abs(s.w)), h: Math.round(Math.abs(s.h)),
-        bounds: { x: Math.round(s.x), y: Math.round(s.y), w: Math.round(Math.abs(s.w)), h: Math.round(Math.abs(s.h)) },
+        type: s.tool,
+        x: Math.round(s.x),
+        y: Math.round(s.y),
+        w: Math.round(Math.abs(s.w)),
+        h: Math.round(Math.abs(s.h)),
+        // A text shape is classified by its length, so the label has to travel
+        // with it — without this every text shape came back as "empty".
+        text: s.text,
       })));
-      const res = await invoke<{ recognized: Array<{ id: string; type: string; confidence: number; bounds: { x?: number; y?: number } }> }>("sketch_recognize", { elements });
-      const recognized = (res.recognized ?? []).map((r) => ({
-        shape: r.type,
-        component: r.type.replace(/\s+/g, ""),
-        confidence: Math.round((r.confidence ?? 0.85) * 100),
-        x: r.bounds?.x ?? 0,
-        y: r.bounds?.y ?? 0,
-      }));
-      setRecognized(recognized);
+      const res = await invoke<{ recognized: RecognizedComponent[] }>("sketch_recognize", { elements });
+      setRecognized(res.recognized ?? []);
     } catch (e) {
-      console.error("Failed to recognize shapes:", e);
+      // console.error alone meant the button simply stopped doing anything.
+      toast.error(`Recognition failed: ${e}`);
+    } finally {
+      setRecognizing(false);
     }
-    setRecognizing(false);
   };
 
   const handleGenerate = async () => {
@@ -325,15 +372,18 @@ export function SketchCanvasPanel() {
         y: Math.round(s.y),
         w: Math.round(s.w),
         h: Math.round(s.h),
-        color: s.color,
+        // Resolved here: the palette stores entries like `var(--error-color)`,
+        // which means nothing in generated SVG, JSX or SwiftUI.
+        color: resolveColor(s.color),
         text: s.text,
       })));
       const res = await invoke<{ code: string }>("sketch_generate", { framework, components });
       setGeneratedCode(res.code ?? "");
     } catch (e) {
-      console.error("Failed to generate code:", e);
+      toast.error(`Code generation failed: ${e}`);
+    } finally {
+      setGenerating(false);
     }
-    setGenerating(false);
   };
 
   const buildSvgString = () => {
@@ -363,7 +413,7 @@ export function SketchCanvasPanel() {
           break;
         }
         case "text":
-          lines.push(`  <text x="${s.x}" y="${s.y + 16}" fill="${color}" font-size="14" font-family="sans-serif">${s.text ?? "Text"}</text>`);
+          lines.push(`  <text x="${s.x}" y="${s.y + 16}" fill="${color}" font-size="14" font-family="sans-serif">${xmlEscape(s.text ?? "Text")}</text>`);
           break;
       }
     }
@@ -430,9 +480,13 @@ export function SketchCanvasPanel() {
         await invoke("fullstack_write_binary", { path, base64Content: base64 });
       }
     } catch (e) {
-      console.error("Failed to export:", e);
+      toast.error(`Export failed: ${e}`);
+    } finally {
+      // `finally`, because cancelling the save dialog returns from inside the
+      // try — which used to skip this and leave both export buttons disabled
+      // for the rest of the session.
+      setExporting(false);
     }
-    setExporting(false);
   };
 
   const confColor = (c: number) => c >= 85 ? "var(--success-color)" : c >= 70 ? "var(--warning-color)" : "var(--error-color)";
@@ -473,6 +527,15 @@ export function SketchCanvasPanel() {
           </button>
           <button className="panel-btn panel-btn-secondary" style={{ background: "transparent", color: "var(--text-primary)" }} onClick={handleClear} disabled={shapes.length === 0}>
             Clear
+          </button>
+          <button
+            className="panel-btn panel-btn-secondary"
+            style={{ background: "transparent", color: "var(--text-primary)" }}
+            onClick={handleDeleteSelected}
+            disabled={selectedIndex === null}
+            title="Delete the selected shape (Delete)"
+          >
+            Delete
           </button>
           <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginLeft: "auto" }}>
             {shapes.length} shape{shapes.length !== 1 ? "s" : ""}
@@ -532,15 +595,29 @@ export function SketchCanvasPanel() {
           {recognizing && <div className="panel-loading">Analyzing shapes...</div>}
           {!recognizing && shapes.length === 0 && <div className="panel-empty">Draw shapes on the canvas first.</div>}
           {!recognizing && shapes.length > 0 && recognized.length === 0 && <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>Click Recognize to analyze your sketch.</div>}
-          {recognized.map((r, i) => (
-            <div key={i} className="panel-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
+          {recognized.length > 0 && (
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 8, lineHeight: 1.5 }}>
+              Suggestions come from geometric rules. <em>Fit</em> is how centrally a shape
+              sits inside the band its rule accepts — not a probability that the suggestion
+              is right, and blank when only a catch-all rule matched.
+            </div>
+          )}
+          {recognized.map((r) => (
+            <div key={r.id} className="panel-card" style={{ marginBottom: 6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
                 <span style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>{r.shape}</span>
-                <span style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginLeft: 8 }}>at ({r.x}, {r.y})</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: "var(--font-size-base)", color: "var(--accent-color)", fontWeight: 600 }}>{r.component}</span>
+                  <span
+                    title={r.fit === null ? "No band matched — no fit to report" : "Fit within the matched rule's band"}
+                    style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, minWidth: 42, textAlign: "right", color: r.fit === null ? "var(--text-secondary)" : confColor(Math.round(r.fit * 100)) }}
+                  >
+                    {r.fit === null ? "—" : `${Math.round(r.fit * 100)}%`}
+                  </span>
+                </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: "var(--font-size-base)", color: "var(--accent-color)", fontWeight: 600 }}>{r.component}</span>
-                <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: confColor(r.confidence) }}>{r.confidence}%</span>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 4 }}>
+                {r.reason} <code style={{ opacity: 0.7 }}>({r.rule})</code>
               </div>
             </div>
           ))}
@@ -590,6 +667,7 @@ export function SketchCanvasPanel() {
           </div>
         </div>
       )}
+      <Toaster toasts={toasts} onDismiss={dismiss} />
     </div>
   );
 }

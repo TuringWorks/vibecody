@@ -125,6 +125,12 @@ impl WorkflowTemplate {
     }
 }
 
+impl Default for GhActionsAgent {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GhActionsAgent {
     /// Creates a new GhActionsAgent with default settings.
     pub fn new() -> Self {

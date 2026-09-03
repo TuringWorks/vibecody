@@ -530,7 +530,7 @@ impl SpeculativeEngine {
                         .as_ref()
                         .map(|t| t.pass_rate())
                         .unwrap_or(0.0);
-                    if best.map_or(true, |(_, s)| score > s) {
+                    if best.is_none_or(|(_, s)| score > s) {
                         best = Some((&b.id, score));
                     }
                 }

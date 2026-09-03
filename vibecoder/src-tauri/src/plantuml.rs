@@ -110,7 +110,7 @@ const JAR_LOCATIONS: &[&str] = &[
 pub fn discover() -> Option<Renderer> {
     discover_with(
         |path| Path::new(path).is_file(),
-        |name| which(name),
+        which,
         |key| std::env::var(key).ok(),
     )
 }
@@ -461,12 +461,11 @@ mod tests {
             .await
             .expect("a two-line diagram");
         assert!(svg.contains("<svg"), "not SVG");
-        assert_eq!(
+        assert!(
             crate::commands::plantuml_renderer()
                 .await
                 .unwrap()
                 .is_some(),
-            true,
             "the renderer that just drew a diagram must be reportable"
         );
     }

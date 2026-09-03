@@ -386,7 +386,7 @@ impl PluginDirectory {
 
     pub fn recently_updated(&self, limit: usize) -> Vec<&McpPlugin> {
         let mut plugins: Vec<&McpPlugin> = self.plugins.values().collect();
-        plugins.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+        plugins.sort_by_key(|b| std::cmp::Reverse(b.updated_at));
         plugins.truncate(limit);
         plugins
     }

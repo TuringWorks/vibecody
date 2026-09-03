@@ -322,7 +322,7 @@ pub fn list_traces(dir: &Path) -> Vec<TraceSession> {
             })
         })
         .collect();
-    sessions.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+    sessions.sort_by_key(|b| std::cmp::Reverse(b.timestamp));
     sessions
 }
 
@@ -359,7 +359,7 @@ pub fn load_eval_records(dir: &Path) -> Vec<SkillEvalRecord> {
             serde_json::from_str(&json).ok()
         })
         .collect();
-    records.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+    records.sort_by_key(|b| std::cmp::Reverse(b.timestamp));
     records
 }
 
@@ -453,6 +453,96 @@ fn now_secs() -> u64 {
 fn count_lines(path: &Path) -> std::io::Result<usize> {
     let f = File::open(path)?;
     Ok(BufReader::new(f).lines().count())
+}
+
+// ── DecisionWriter ──────────────────────────────────────────────────────────────
+
+/// Appends [`DecisionTraceEntry`] records to a JSONL file in `dir`.
+///
+/// Each entry captures a significant agent decision point for audit and debugging.
+/// Decision types include: tool_selection, plan_update, plan_execution, approval_decision,
+/// user_approval, context_pruning, circuit_breaker, double_check, prose_turn, max_steps_reached, etc.
+///
+/// All string fields are passed through secret redaction to prevent accidental
+/// leakage of sensitive information (API keys, passwords, etc.).
+pub struct DecisionWriter {
+    session_id: String,
+    path: PathBuf,
+}
+
+impl DecisionWriter {
+    /// Create a new writer.  The file is created lazily on the first
+    /// [`record`] call, so construction never fails.
+    pub fn new(dir: PathBuf) -> Self {
+        let _ = fs::create_dir_all(&dir);
+        let session_id = format!("{}", now_secs());
+        let path = dir.join(format!("{}-decisions.jsonl", &session_id));
+        Self { session_id, path }
+    }
+
+    /// Like [`new`] but prefixes the session ID with a human-readable name.
+    /// Useful for `--session-name` so traces are easy to identify.
+    /// Example: `new_named(dir, "my-task")` → `"my-task-1700000000-decisions.jsonl"`
+    pub fn new_named(dir: PathBuf, name: &str) -> Self {
+        let _ = fs::create_dir_all(&dir);
+        let session_id = format!("{}-{}", name, now_secs());
+        let path = dir.join(format!("{}-decisions.jsonl", &session_id));
+        Self { session_id, path }
+    }
+
+    /// Unique identifier for this session (also the stem of the decision file).
+    pub fn session_id(&self) -> &str {
+        &self.session_id
+    }
+
+    /// Absolute path to the JSONL file.
+    pub fn path(&self) -> &PathBuf {
+        &self.path
+    }
+
+    /// Append one decision entry to the log.
+    #[allow(clippy::too_many_arguments)]
+    pub fn record(
+        &self,
+        step: usize,
+        decision_type: &str,
+        description: &str,
+        context: &str,
+        decision_source: &str,
+        metadata: &str,
+    ) {
+        let entry = DecisionTraceEntry {
+            timestamp: now_secs(),
+            session_id: self.session_id.clone(),
+            step,
+            decision_type: decision_type.to_string(),
+            description: description.to_string(),
+            context: {
+                let truncated = if context.len() > 600 {
+                    let safe_end = context
+                        .char_indices()
+                        .nth(600)
+                        .map(|(i, _)| i)
+                        .unwrap_or(context.len());
+                    format!("{}\n…(truncated)", &context[..safe_end])
+                } else {
+                    context.to_string()
+                };
+                redact_secrets(&truncated)
+            },
+            decision_source: decision_source.to_string(),
+            metadata: redact_secrets(metadata),
+        };
+        if let Ok(line) = serde_json::to_string(&entry) {
+            if let Ok(mut f) = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&self.path)
+            {
+                let _ = writeln!(f, "{}", line);
+            }
+        }
+    }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -843,96 +933,6 @@ mod tests {
         assert_eq!(records[0].session_id, "1700000000");
 
         let _ = fs::remove_dir_all(&dir);
-    }
-}
-
-// ── DecisionWriter ──────────────────────────────────────────────────────────────
-
-/// Appends [`DecisionTraceEntry`] records to a JSONL file in `dir`.
-///
-/// Each entry captures a significant agent decision point for audit and debugging.
-/// Decision types include: tool_selection, plan_update, plan_execution, approval_decision,
-/// user_approval, context_pruning, circuit_breaker, double_check, prose_turn, max_steps_reached, etc.
-///
-/// All string fields are passed through secret redaction to prevent accidental
-/// leakage of sensitive information (API keys, passwords, etc.).
-pub struct DecisionWriter {
-    session_id: String,
-    path: PathBuf,
-}
-
-impl DecisionWriter {
-    /// Create a new writer.  The file is created lazily on the first
-    /// [`record`] call, so construction never fails.
-    pub fn new(dir: PathBuf) -> Self {
-        let _ = fs::create_dir_all(&dir);
-        let session_id = format!("{}", now_secs());
-        let path = dir.join(format!("{}-decisions.jsonl", &session_id));
-        Self { session_id, path }
-    }
-
-    /// Like [`new`] but prefixes the session ID with a human-readable name.
-    /// Useful for `--session-name` so traces are easy to identify.
-    /// Example: `new_named(dir, "my-task")` → `"my-task-1700000000-decisions.jsonl"`
-    pub fn new_named(dir: PathBuf, name: &str) -> Self {
-        let _ = fs::create_dir_all(&dir);
-        let session_id = format!("{}-{}", name, now_secs());
-        let path = dir.join(format!("{}-decisions.jsonl", &session_id));
-        Self { session_id, path }
-    }
-
-    /// Unique identifier for this session (also the stem of the decision file).
-    pub fn session_id(&self) -> &str {
-        &self.session_id
-    }
-
-    /// Absolute path to the JSONL file.
-    pub fn path(&self) -> &PathBuf {
-        &self.path
-    }
-
-    /// Append one decision entry to the log.
-    #[allow(clippy::too_many_arguments)]
-    pub fn record(
-        &self,
-        step: usize,
-        decision_type: &str,
-        description: &str,
-        context: &str,
-        decision_source: &str,
-        metadata: &str,
-    ) {
-        let entry = DecisionTraceEntry {
-            timestamp: now_secs(),
-            session_id: self.session_id.clone(),
-            step,
-            decision_type: decision_type.to_string(),
-            description: description.to_string(),
-            context: {
-                let truncated = if context.len() > 600 {
-                    let safe_end = context
-                        .char_indices()
-                        .nth(600)
-                        .map(|(i, _)| i)
-                        .unwrap_or(context.len());
-                    format!("{}\n…(truncated)", &context[..safe_end])
-                } else {
-                    context.to_string()
-                };
-                redact_secrets(&truncated)
-            },
-            decision_source: decision_source.to_string(),
-            metadata: redact_secrets(metadata),
-        };
-        if let Ok(line) = serde_json::to_string(&entry) {
-            if let Ok(mut f) = OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(&self.path)
-            {
-                let _ = writeln!(f, "{}", line);
-            }
-        }
     }
 }
 

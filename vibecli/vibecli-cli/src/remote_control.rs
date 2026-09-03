@@ -297,6 +297,12 @@ impl BridgeConfig {
 
 // ─── RemoteControlManager impl ──────────────────────────────────────────────
 
+impl Default for RemoteControlManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RemoteControlManager {
     pub fn new() -> Self {
         Self {

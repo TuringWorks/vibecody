@@ -671,6 +671,11 @@ async fn handle_automation_trigger(client: &HomeAssistantClient, entity_id: &str
 
 // ── Unit tests ────────────────────────────────────────────────────────────────
 
+// Held across `.await` on purpose: this is the process-global serialiser that
+// AGENTS.md requires around env-var and $HOME mutation in tests. Dropping it
+// before the await would let a concurrent test observe the other's environment,
+// which is the exact shared-state flakiness the lock exists to prevent.
+#[allow(clippy::await_holding_lock)]
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1019,8 +1019,10 @@ mod tests {
 
     #[test]
     fn test_gate_fail_on_warning() {
-        let mut config = SelfReviewConfig::default();
-        config.fail_on_warning = true;
+        let config = SelfReviewConfig {
+            fail_on_warning: true,
+            ..Default::default()
+        };
         let mut gate = SelfReviewGate::new(config, test_project());
         let results = vec![CheckResult::fail(
             CheckKind::Lint,
@@ -1161,8 +1163,10 @@ mod tests {
 
     #[test]
     fn test_min_blocking_severity() {
-        let mut config = SelfReviewConfig::default();
-        config.min_blocking_severity = Severity::Critical;
+        let config = SelfReviewConfig {
+            min_blocking_severity: Severity::Critical,
+            ..Default::default()
+        };
         let mut gate = SelfReviewGate::new(config, test_project());
         // Error severity is below Critical, so should pass
         let results = vec![CheckResult::fail(

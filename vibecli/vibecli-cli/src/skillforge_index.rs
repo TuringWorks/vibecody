@@ -363,7 +363,7 @@ pub fn list_skills_value() -> Value {
 
 /// `GET /skilllens/skills/:name` — one skill + its body + cached report.
 pub fn get_skill_value(name: &str) -> Option<Value> {
-    let entry = with_state(|s| s.catalog.get(name).map(|e| e.clone()))??;
+    let entry = with_state(|s| s.catalog.get(name).cloned())??;
     // Prefer the file (it carries the frontmatter the panel renders); fall
     // back to the already-parsed body rather than `unwrap_or_default()`,
     // which turned an unreadable skill into a convincing empty one.
@@ -475,7 +475,7 @@ pub async fn score_value(
             .into_iter::<EvalTask>()
             .collect::<Result<_, _>>()
             .map_err(|e| format!("parsing tasks: {e}"))?,
-        _ => RepoAgentEnv::from_catalog_for(&skill_name).tasks(),
+        _ => RepoAgentEnv::from_catalog_for(skill_name).tasks(),
     };
 
     // Static (no-LLM) portion — always available.
@@ -787,7 +787,7 @@ pub struct TrainConfigOverride {
 }
 
 impl TrainConfigOverride {
-    fn into_cfg(&self) -> TrainConfig {
+    fn to_cfg(&self) -> TrainConfig {
         let mut c = TrainConfig::default();
         if let Some(v) = self.epochs {
             c.epochs = v;
@@ -933,7 +933,7 @@ fn prepare_run(req: &TrainRequest) -> Result<RunPrep, String> {
     let llm = adapter_from_selection(&req.provider, &req.model)
         .ok_or_else(|| format!("provider '{}' not configured", req.provider))?;
     let env = env_for(&req.env)?;
-    let cfg = req.config.into_cfg();
+    let cfg = req.config.to_cfg();
 
     // Deterministic-ish job id: skill + provider+model + seed. Collisions
     // (same triple re-submitted) overwrite the prior job — intended.
@@ -1344,7 +1344,7 @@ mod tests {
             seed: Some(7),
             ..Default::default()
         };
-        let c = o.into_cfg();
+        let c = o.to_cfg();
         assert_eq!(c.epochs, 2);
         assert_eq!(c.seed, 7);
         // untouched fields keep defaults

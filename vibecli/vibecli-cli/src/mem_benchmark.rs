@@ -368,11 +368,11 @@ mod tests {
         let cases = default_benchmark_cases();
         let sectors: Vec<_> = cases.iter().filter_map(|c| c.sector).collect();
         // Should cover all 5 sectors
-        assert!(sectors.iter().any(|&s| s == MemorySector::Episodic));
-        assert!(sectors.iter().any(|&s| s == MemorySector::Semantic));
-        assert!(sectors.iter().any(|&s| s == MemorySector::Procedural));
-        assert!(sectors.iter().any(|&s| s == MemorySector::Emotional));
-        assert!(sectors.iter().any(|&s| s == MemorySector::Reflective));
+        assert!(sectors.contains(&MemorySector::Episodic));
+        assert!(sectors.contains(&MemorySector::Semantic));
+        assert!(sectors.contains(&MemorySector::Procedural));
+        assert!(sectors.contains(&MemorySector::Emotional));
+        assert!(sectors.contains(&MemorySector::Reflective));
     }
 
     #[test]

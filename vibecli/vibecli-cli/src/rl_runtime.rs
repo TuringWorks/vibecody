@@ -94,7 +94,7 @@ impl PythonRuntime {
     ///
     /// - `"python"` → `inference --checkpoint <path>` (PyTorch checkpoint)
     /// - `"onnx"`   → `onnx-inference --model <path>` (ONNX file from
-    ///                slice 7a's quantize, or any FP32 .onnx export)
+    ///   slice 7a's quantize, or any FP32 .onnx export)
     ///
     /// Returns once the sidecar emits its `{"t":"ready", ...}` line.
     pub async fn spawn(
@@ -417,8 +417,8 @@ impl RuntimePool {
     ///
     /// - `"python"` → spawn `python -m vibe_rl inference` (PyTorch).
     /// - `"onnx"`   → with `--features rl-ort`, load via `ort` in-process;
-    ///                without the feature, falls back to spawning
-    ///                `python -m vibe_rl onnx-inference`.
+    ///   without the feature, falls back to spawning
+    ///   `python -m vibe_rl onnx-inference`.
     pub async fn get_or_spawn(
         &self,
         cfg: &crate::rl_executor::ExecutorConfig,

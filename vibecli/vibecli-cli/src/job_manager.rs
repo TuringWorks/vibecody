@@ -129,7 +129,7 @@ fn default_priority() -> u8 {
 
 /// Agent event shape shared by the SSE stream and (in M4) the durable
 /// event log. Defined here so `serve.rs` is a thin consumer.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AgentEventPayload {
     #[serde(rename = "type")]
     pub kind: String,
@@ -160,24 +160,6 @@ pub struct AgentEventPayload {
     /// `retry`: backoff before the next attempt.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub backoff_ms: Option<u64>,
-}
-
-impl Default for AgentEventPayload {
-    fn default() -> Self {
-        Self {
-            kind: String::new(),
-            content: None,
-            step_num: None,
-            tool_name: None,
-            success: None,
-            steps_completed: None,
-            steps_planned: None,
-            remaining_plan: None,
-            attempt: None,
-            max_attempts: None,
-            backoff_ms: None,
-        }
-    }
 }
 
 impl AgentEventPayload {
@@ -742,7 +724,7 @@ impl JobsDb {
             .map_err(|e| e.to_string())?;
         let mut out = Vec::new();
         for r in rows {
-            out.push(r.map_err(|e| e.to_string())?.map_err(|e| e)?);
+            out.push(r.map_err(|e| e.to_string())??);
         }
         Ok(out)
     }

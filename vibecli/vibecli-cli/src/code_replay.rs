@@ -241,6 +241,12 @@ pub struct ReplayEngine {
     timestamp_counter: u64,
 }
 
+impl Default for ReplayEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ReplayEngine {
     pub fn new() -> Self {
         Self {
@@ -1615,7 +1621,7 @@ mod tests {
 
     #[test]
     fn test_edit_types_all_variants() {
-        let types = vec![
+        let types = [
             EditType::Insert,
             EditType::Delete,
             EditType::Replace,

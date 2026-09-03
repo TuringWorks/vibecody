@@ -236,7 +236,7 @@ impl BackgroundAgentManager {
     pub fn list_runs(&self) -> Vec<AgentRun> {
         let runs = self.runs.lock().unwrap_or_else(|e| e.into_inner());
         let mut list: Vec<AgentRun> = runs.values().cloned().collect();
-        list.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+        list.sort_by_key(|b| std::cmp::Reverse(b.started_at));
         list
     }
 

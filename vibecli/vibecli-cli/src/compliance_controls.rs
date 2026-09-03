@@ -146,6 +146,12 @@ pub struct ControlInventory {
     pub retention_policies: Vec<DataRetentionPolicy>,
 }
 
+impl Default for ControlInventory {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ControlInventory {
     pub fn new() -> Self {
         Self {

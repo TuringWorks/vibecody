@@ -89,6 +89,12 @@ pub struct VimEditorComponent {
     count_buf: String,
 }
 
+impl Default for VimEditorComponent {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl VimEditorComponent {
     pub fn new() -> Self {
         Self {
@@ -1006,7 +1012,7 @@ impl VimEditorComponent {
             // Render line content with cursor, search, visual highlights
             let chars: Vec<char> = line_str.chars().collect();
             let mut col = 0usize;
-            while col <= chars.len() && col < text_w + self.cursor.1.saturating_sub(text_w).max(0) {
+            while col <= chars.len() && col < text_w + self.cursor.1.saturating_sub(text_w) {
                 if col == chars.len() {
                     // End-of-line cursor in insert mode
                     if is_cursor_row

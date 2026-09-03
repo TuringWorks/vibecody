@@ -72,6 +72,12 @@ pub struct TeamGovernanceManager {
     next_id: u64,
 }
 
+impl Default for TeamGovernanceManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TeamGovernanceManager {
     pub fn new() -> Self {
         Self {
@@ -500,9 +506,9 @@ mod tests {
         };
         mgr.set_policy("team-1", policy);
         let retrieved = mgr.get_policy("team-1");
-        assert_eq!(retrieved.require_approval, true);
+        assert!(retrieved.require_approval);
         assert_eq!(retrieved.max_plugin_size_mb, 100);
-        assert_eq!(retrieved.require_sha_pin, true);
+        assert!(retrieved.require_sha_pin);
     }
 
     #[test]
@@ -510,7 +516,7 @@ mod tests {
         let mgr = TeamGovernanceManager::new();
         let policy = mgr.get_policy("unknown-team");
         assert_eq!(policy.team_id, "unknown-team");
-        assert_eq!(policy.require_approval, true);
+        assert!(policy.require_approval);
         assert_eq!(policy.max_plugin_size_mb, 50);
     }
 

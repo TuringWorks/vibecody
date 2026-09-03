@@ -94,9 +94,7 @@ impl BrokerDaemon {
 
         // ---- 3. Audit sink ------------------------------------------
         let audit: Arc<dyn AuditSink> = match &config.broker.audit {
-            Some(a) => {
-                Arc::new(JsonlFileAuditSink::open(&a.jsonl_path).map_err(|e| DaemonError::Io(e))?)
-            }
+            Some(a) => Arc::new(JsonlFileAuditSink::open(&a.jsonl_path).map_err(DaemonError::Io)?),
             None => Arc::new(NullAuditSink),
         };
 
@@ -125,8 +123,8 @@ impl BrokerDaemon {
                     .await;
             }
             for prof in &config.gcp {
-                let key_pem = std::fs::read_to_string(&prof.private_key_pem_path)
-                    .map_err(|e| DaemonError::Io(e))?;
+                let key_pem =
+                    std::fs::read_to_string(&prof.private_key_pem_path).map_err(DaemonError::Io)?;
                 let minter = GcpServiceAccountMinter::new(&prof.client_email, key_pem, &prof.scope);
                 let minter = match &prof.endpoint {
                     Some(ep) => minter.with_endpoint(ep),

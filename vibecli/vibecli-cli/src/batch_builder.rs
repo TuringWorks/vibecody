@@ -646,6 +646,12 @@ impl GeneratedFile {
     }
 }
 
+impl Default for GenerationMetrics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GenerationMetrics {
     pub fn new() -> Self {
         Self {
@@ -960,6 +966,12 @@ impl BatchConfig {
             checkpoint_interval_minutes: 60,
             output_dir: PathBuf::from("./batch_output"),
         }
+    }
+}
+
+impl Default for BatchBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

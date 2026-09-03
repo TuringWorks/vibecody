@@ -392,11 +392,7 @@ impl LstmHiddenState {
     }
 
     pub fn dim(&self) -> usize {
-        if self.layer_count == 0 {
-            0
-        } else {
-            self.h.len() / self.layer_count
-        }
+        self.h.len().checked_div(self.layer_count).unwrap_or(0)
     }
 }
 
@@ -2062,6 +2058,12 @@ pub struct RequestRouter {
     pub total_errors: u64,
 }
 
+impl Default for RequestRouter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RequestRouter {
     pub fn new() -> Self {
         Self {
@@ -2194,6 +2196,12 @@ pub struct ModelHotSwapManager {
     pub pending_swaps: Vec<(String, String)>,
 }
 
+impl Default for ModelHotSwapManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ModelHotSwapManager {
     pub fn new() -> Self {
         Self {
@@ -2275,6 +2283,12 @@ pub struct HealthCheckManager {
     pub startup_complete: bool,
     pub ready: bool,
     pub alive: bool,
+}
+
+impl Default for HealthCheckManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl HealthCheckManager {
@@ -2586,6 +2600,12 @@ pub struct DeploymentManager {
     pub deployments: HashMap<String, Deployment>,
     pub canaries: HashMap<String, CanaryDeployment>,
     pub autoscalers: HashMap<String, AutoscaleConfig>,
+}
+
+impl Default for DeploymentManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl DeploymentManager {

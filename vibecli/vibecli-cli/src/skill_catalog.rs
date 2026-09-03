@@ -466,7 +466,10 @@ mod tests {
         assert!(cat.get("dora-metrics-program").is_some());
         assert!(cat.get("dora-metrics-program.md").is_some());
         assert!(cat.get("dora-metrics-program.markdown").is_some());
-        assert!(cat.get("dora-metrics-progam.md").is_none(), "a typo is still not found");
+        assert!(
+            cat.get("dora-metrics-progam.md").is_none(),
+            "a typo is still not found"
+        );
     }
 
     #[test]
@@ -565,7 +568,7 @@ Just markdown body.
             "---\ntriggers: [unterminated\ncategory: oops\n---\n\nbody",
         );
         let cat = SkillCatalog::load_from(dir.path()).unwrap();
-        assert!(cat.len() >= 1);
+        assert!(!cat.is_empty());
         assert!(cat.get("good").is_some());
     }
 

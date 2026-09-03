@@ -219,8 +219,8 @@ export const APPROVAL_MODES: ReadonlyArray<{
 }> = [
   {
     value: "suggest",
-    label: "Ask every time",
-    hint: "Approve each tool call individually.",
+    label: "Ask once per session",
+    hint: "Ask before the first change, then allow later actions until this chat tab closes.",
   },
   {
     value: "read-only",
@@ -404,7 +404,9 @@ function toBackendMessage(
   if (!m.isToolOutput) return { role: m.role, content: m.rawContent ?? m.content };
   return {
     role: "user",
-    content: `[Tool results]\n${m.content}${isLast ? CONTINUE_HINT : ""}`,
+    // Tool bubbles deliberately show only a compact activity summary. The
+    // provider still needs the complete read/build output to finish the task.
+    content: `[Tool results]\n${m.rawContent ?? m.content}${isLast ? CONTINUE_HINT : ""}`,
   };
 }
 
@@ -566,8 +568,9 @@ function parseToolCalls(content: string): [string, ToolCallInfo[]] {
   let cleaned = content;
 
   // <write_file path="...">...</write_file>
-  cleaned = cleaned.replace(/<write_file path="([^"]+)">([\s\S]*?)<\/write_file>/g, (_m, path, output) => {
-    tools.push({ tool: "write_file", path, status: "success", output: output.trim() });
+  cleaned = cleaned.replace(/<write_file path="([^"]+)">([\s\S]*?)<\/write_file>/g, (_m, path) => {
+    // The payload is the complete new file, not useful user-facing output.
+    tools.push({ tool: "write_file", path, status: "success" });
     return "";
   });
 
@@ -594,7 +597,7 @@ function parseToolCalls(content: string): [string, ToolCallInfo[]] {
     };
     switch (name) {
       case "write_file":
-        tools.push({ tool: "write_file", path: param("path"), status: "success", output: param("content") });
+        tools.push({ tool: "write_file", path: param("path"), status: "success" });
         return "";
       case "read_file":
       case "list_dir":
@@ -634,6 +637,45 @@ function parseToolCalls(content: string): [string, ToolCallInfo[]] {
   });
 
   return [cleaned.trim(), tools];
+}
+
+/**
+ * Turn verbose executor output into the small status message shown in chat.
+ *
+ * A read result contains the complete file because the next model turn needs
+ * it. Rendering that same payload made a simple edit look as though the model
+ * pasted the entire source file into its answer. The raw value is retained in
+ * `Message.rawContent`; this function is presentation-only.
+ */
+function summarizeToolOutput(output: string): string {
+  const reads = new Set<string>();
+  const writes = new Set<string>();
+  const failures: string[] = [];
+
+  for (const match of output.matchAll(/^Read file '([^']+)':/gm)) reads.add(match[1]);
+  for (const match of output.matchAll(/^Wrote file '([^']+)'(?: \(from code block\))?\./gm)) writes.add(match[1]);
+  for (const match of output.matchAll(/^\s*•\s+(.+)$/gm)) writes.add(match[1].trim());
+  for (const match of output.matchAll(/^(?:Failed|Ignored)[^\n]*/gm)) failures.push(match[0]);
+
+  const lines: string[] = [];
+  if (reads.size > 0) lines.push(`Inspected ${[...reads].map((path) => `\`${path}\``).join(", ")}.`);
+  if (writes.size > 0) lines.push(`Updated ${[...writes].map((path) => `\`${path}\``).join(", ")}.`);
+  lines.push(...failures.slice(0, 3).map((failure) => `- ${failure}`));
+
+  return lines.join("\n") || "Tool step completed. Continuing with the result…";
+}
+
+/** Hide tool payloads while they stream, including a write block whose closing
+ * tag has not arrived yet. The backend continues accumulating and executing
+ * the untouched stream; only the live presentation is filtered. */
+function summarizeStreamingContent(content: string): string {
+  const [withoutCompletedTools] = parseToolCalls(content);
+  const incompleteTool = withoutCompletedTools.search(
+    /<(?:tool_call\b|write_file\b|read_file\b|list_dir\b|build\b|run\b)/,
+  );
+  return (incompleteTool >= 0
+    ? withoutCompletedTools.slice(0, incompleteTool)
+    : withoutCompletedTools).trim();
 }
 
 // ── Tool call icon/label helpers ─────────────────────────────────────────────
@@ -2215,9 +2257,11 @@ export function AIChat({
           const updated = isEmptyTurn ? [...prev] : [...prev, msg];
 
           if (hasToolOutput) {
+            const rawToolOutput = response.tool_output.trim();
             updated.push({
               role: "assistant",
-              content: "```\n" + response.tool_output.trim() + "\n```",
+              content: summarizeToolOutput(rawToolOutput),
+              rawContent: rawToolOutput,
               timestamp: Date.now(),
               isToolOutput: true,
             });
@@ -2561,7 +2605,8 @@ export function AIChat({
         }]);
         setPendingApproval(null);
         setAgentSteps([]);
-        setAutoApprove(false);
+        // Session approval survives terminal runs. Once the user grants this
+        // chat permission, later tasks in the same tab must not stop again.
         if (onMessagesChangeRef.current) {
           pendingClearRef.current += 1;
         } else {
@@ -2601,7 +2646,7 @@ export function AIChat({
         }]);
         setPendingApproval(null);
         setAgentSteps([]);
-        setAutoApprove(false);
+        // Keep the session-level approval grant across agent failures.
         if (onMessagesChangeRef.current) {
           pendingClearRef.current += 1;
         } else {
@@ -2628,7 +2673,7 @@ export function AIChat({
         }]);
         setPendingApproval(null);
         setAgentSteps([]);
-        setAutoApprove(false);
+        // Keep the session-level approval grant across circuit breaks.
         if (onMessagesChangeRef.current) {
           pendingClearRef.current += 1;
         } else {
@@ -2829,9 +2874,8 @@ export function AIChat({
       setAgentSteps([]);
       setVerifierResult(null);
       setPendingApproval(null);
-      // Each run starts asking again — "approve all" is never inherited.
-      setAutoApprove(false);
-      autoApproveRef.current = false;
+      // Approval is scoped to this mounted chat session/tab, not this run.
+      // A grant remains active until the session is closed.
       agentRunOwnerRef.current = true;
       try {
         await invoke("start_agent_task", {
@@ -2943,7 +2987,7 @@ export function AIChat({
     });
     setPendingApproval(null);
     setAgentSteps([]);
-    setAutoApprove(false);
+    // Stopping a task does not revoke the session's approval grant.
     setStreamingText("");
     setTokensPerSec(null);
     setStreamTokenCount(0);
@@ -3108,7 +3152,7 @@ export function AIChat({
   const streamingParts = useMemo(() => {
     if (!streamingText) return null;
     const [cleaned, thinking] = extractThinking(streamingText);
-    return { cleaned, thinking };
+    return { cleaned: summarizeStreamingContent(cleaned), thinking };
   }, [streamingText]);
 
   /**
@@ -3539,7 +3583,7 @@ export function AIChat({
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", alignItems: "center" }}>
             <button
               className="chat-action-btn"
-              title="Approve this call and every later one in this run. Resets when the run ends."
+              title="Approve this call and all later changes in this chat session"
               onClick={async () => {
                 setAutoApprove(true);
                 try {
@@ -3551,7 +3595,7 @@ export function AIChat({
               }}
               style={{ marginRight: "auto" }}
             >
-              Approve all for this run
+              Approve changes for this session
             </button>
             <button
               className="chat-action-btn"

@@ -114,11 +114,7 @@ impl ModeUsageStats {
 
     /// Average tokens per invocation, or 0 if no invocations.
     pub fn avg_tokens(&self) -> u64 {
-        if self.invocation_count == 0 {
-            0
-        } else {
-            self.total_tokens / self.invocation_count
-        }
+        self.total_tokens.checked_div(self.invocation_count).unwrap_or(0)
     }
 }
 

@@ -1190,7 +1190,7 @@ mod tests {
     // 60
     #[test]
     fn test_cycle_detector_default() {
-        let cd = CycleDetector::default();
+        let cd = CycleDetector;
         let nodes: HashMap<String, AgentNode> = HashMap::new();
         // Fresh tree: no ancestors, so no cycle.
         assert!(!cd.would_create_cycle(&nodes, "parent", "child"));

@@ -209,6 +209,12 @@ pub struct BlueTeamManager {
     next_id: u64,
 }
 
+impl Default for BlueTeamManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BlueTeamManager {
     pub fn new() -> Self {
         Self {
@@ -1350,7 +1356,7 @@ mod tests {
         );
         let id4 = mgr.add_playbook("P", ThreatCategory::Phishing);
         // All IDs should be unique
-        let ids = vec![&id1, &id2, &id3, &id4];
+        let ids = [&id1, &id2, &id3, &id4];
         for (i, a) in ids.iter().enumerate() {
             for (j, b) in ids.iter().enumerate() {
                 if i != j {

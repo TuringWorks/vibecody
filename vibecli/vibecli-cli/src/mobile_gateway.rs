@@ -511,6 +511,12 @@ pub struct MobileGateway {
     next_id: u64,
 }
 
+impl Default for MobileGateway {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MobileGateway {
     /// Create a new gateway with default configuration.
     pub fn new() -> Self {

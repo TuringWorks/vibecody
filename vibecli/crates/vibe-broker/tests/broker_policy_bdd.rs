@@ -126,9 +126,8 @@ fn parse_toml_into_policy(_: &mut PWorld) {
 
 #[when(expr = "I match a request {string}")]
 fn match_request(world: &mut PWorld, req_str: String) {
-    let mut parts = req_str.splitn(2, ' ');
-    let method = parts.next().unwrap();
-    let url = parts.next().unwrap();
+    let (method, url) = req_str.split_once(' ').unwrap();
+
     let p = world.policy.as_ref().unwrap();
     let d = p.match_request(&Request { method, url });
     world.decision = Some(match d {

@@ -55,7 +55,7 @@ impl FileHashes {
 
     /// True if `path` is recorded with the given `hash` (i.e. unchanged since last run).
     pub fn is_unchanged(&self, path: &str, hash: &str) -> bool {
-        self.map.get(path).map_or(false, |h| h == hash)
+        self.map.get(path).is_some_and(|h| h == hash)
     }
 
     /// Number of tracked files.

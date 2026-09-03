@@ -466,7 +466,7 @@ mod tests {
 
     #[test]
     fn test_relevance_scoring() {
-        let symbols = vec![
+        let symbols = [
             SymbolInfo {
                 name: "authenticate_user".to_string(),
                 kind: SymbolKind::Function,

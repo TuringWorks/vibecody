@@ -755,7 +755,7 @@ mod tests {
         let h1 = PerceptualHash::compute("abc");
         let h2 = PerceptualHash::compute("abd");
         let sim = PerceptualHash::similarity(h1, h2);
-        assert!(sim >= 0.0 && sim <= 1.0);
+        assert!((0.0..=1.0).contains(&sim));
     }
 
     // -- Visual diff --------------------------------------------------------
@@ -1045,7 +1045,7 @@ mod tests {
 
     #[test]
     fn test_diff_severity_enum() {
-        let severities = vec![
+        let severities = [
             DiffSeverity::Minor,
             DiffSeverity::Moderate,
             DiffSeverity::Major,

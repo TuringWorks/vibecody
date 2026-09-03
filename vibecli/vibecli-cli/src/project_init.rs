@@ -1158,7 +1158,7 @@ pub fn extract_relevant_files_for_task(workspace: &Path, task: &str) -> Vec<Stri
     }
 
     // Sort by score (highest first), deduplicate
-    relevant.sort_by(|a, b| b.1.cmp(&a.1));
+    relevant.sort_by_key(|b| std::cmp::Reverse(b.1));
     let mut seen = std::collections::HashSet::new();
     relevant
         .into_iter()

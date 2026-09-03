@@ -116,6 +116,12 @@ pub struct PluginLoader {
     pub plugins_dir: PathBuf,
 }
 
+impl Default for PluginLoader {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[allow(dead_code)]
 impl PluginLoader {
     /// Create a loader rooted at `~/.vibecli/plugins/`.

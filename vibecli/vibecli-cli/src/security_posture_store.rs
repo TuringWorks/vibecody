@@ -197,7 +197,7 @@ pub fn read_decision_log(store: &WorkspaceStore) -> Result<Vec<DecisionLogEntry>
         Some(json) => {
             let mut entries: Vec<DecisionLogEntry> = serde_json::from_str(&json)
                 .map_err(|e| format!("parse {KEY_DECISION_LOG}: {e}"))?;
-            entries.sort_by(|a, b| b.at_unix_ms.cmp(&a.at_unix_ms));
+            entries.sort_by_key(|b| std::cmp::Reverse(b.at_unix_ms));
             Ok(entries)
         }
         None => Ok(Vec::new()),

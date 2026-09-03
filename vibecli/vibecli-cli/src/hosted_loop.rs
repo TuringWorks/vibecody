@@ -310,7 +310,7 @@ mod tests {
         }
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("loops.json");
-        save_jobs(&path, &vec![recurring_job("a", 60, true)]).unwrap();
+        save_jobs(&path, &[recurring_job("a", 60, true)]).unwrap();
         let mut last = HashMap::new();
         // now=100 ≥ interval 60 (last_run defaults to 0) so the job is due.
         scheduler_tick(&path, 100, &mut last, &FailExec, |_| None, |_| None).await;
@@ -346,7 +346,7 @@ mod tests {
         };
         let mut job = LoopJob::new("a".into(), spec, 0);
         job.hosted = true;
-        save_jobs(&path, &vec![job]).unwrap();
+        save_jobs(&path, &[job]).unwrap();
         let mut last = HashMap::new();
         scheduler_tick(
             &path,
@@ -373,7 +373,7 @@ mod tests {
         };
         let mut job = LoopJob::new("a".into(), spec, 0);
         job.hosted = true;
-        save_jobs(&path, &vec![job]).unwrap();
+        save_jobs(&path, &[job]).unwrap();
 
         let exec = CountingExec {
             calls: AtomicU32::new(0),
@@ -422,7 +422,7 @@ mod tests {
     async fn hosted_goal_loop_completes_on_criteria_validator() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("loops.json");
-        save_jobs(&path, &vec![goal_job("a", LoopMode::SelfPaced)]).unwrap();
+        save_jobs(&path, &[goal_job("a", LoopMode::SelfPaced)]).unwrap();
 
         let exec = ValidatorSpyExec {
             seen: std::sync::Mutex::new(Vec::new()),
@@ -456,7 +456,7 @@ mod tests {
         let path = dir.path().join("loops.json");
         save_jobs(
             &path,
-            &vec![goal_job("a", LoopMode::Recurring { interval_secs: 1 })],
+            &[goal_job("a", LoopMode::Recurring { interval_secs: 1 })],
         )
         .unwrap();
 

@@ -727,11 +727,7 @@ impl ResultAggregator {
                     .iter()
                     .max_by_key(|a| {
                         let file_score = a.progress.files_modified.len() * 100;
-                        let efficiency = if a.progress.turns_completed > 0 {
-                            100 / a.progress.turns_completed
-                        } else {
-                            0
-                        };
+                        let efficiency = 100usize.checked_div(a.progress.turns_completed).unwrap_or(0);
                         file_score + efficiency
                     })
                     .map(|a| a.id.clone())
@@ -942,7 +938,7 @@ impl AgentPool {
             .filter(|a| status_filter.is_none() || status_filter == Some(&a.status))
             .cloned()
             .collect();
-        result.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        result.sort_by_key(|b| std::cmp::Reverse(b.created_at));
         result
     }
 
@@ -954,7 +950,7 @@ impl AgentPool {
         };
         let mut result: Vec<SpawnedAgent> =
             agents.values().filter(|a| a.is_active()).cloned().collect();
-        result.sort_by(|a, b| b.config.priority.cmp(&a.config.priority));
+        result.sort_by_key(|b| std::cmp::Reverse(b.config.priority));
         result
     }
 

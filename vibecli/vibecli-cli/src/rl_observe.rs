@@ -1015,6 +1015,12 @@ pub struct SafetyMonitor {
     pub total_checks: u64,
 }
 
+impl Default for SafetyMonitor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SafetyMonitor {
     pub fn new() -> Self {
         Self {
@@ -1225,7 +1231,7 @@ impl ExplorationTracker {
             .iter()
             .map(|(k, &v)| (k.clone(), v))
             .collect();
-        entries.sort_by(|a, b| b.1.cmp(&a.1));
+        entries.sort_by_key(|b| std::cmp::Reverse(b.1));
         entries.truncate(n);
         entries
     }
@@ -1287,6 +1293,12 @@ pub struct MultiAgentTracer {
     pub agents: HashMap<String, AgentTrace>,
     pub communication_graph: HashMap<(String, String), u64>,
     pub global_rewards: Vec<f64>,
+}
+
+impl Default for MultiAgentTracer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MultiAgentTracer {
@@ -1365,7 +1377,7 @@ impl MultiAgentTracer {
             .iter()
             .map(|(id, t)| (id.clone(), t.messages_sent + t.messages_received))
             .collect();
-        comm.sort_by(|a, b| b.1.cmp(&a.1));
+        comm.sort_by_key(|b| std::cmp::Reverse(b.1));
         comm.truncate(n);
         comm
     }
@@ -1423,6 +1435,12 @@ pub struct TrainingHealthMonitor {
     pub convergence_window: usize,
     pub gradient_explosion_threshold: f64,
     pub gradient_vanishing_threshold: f64,
+}
+
+impl Default for TrainingHealthMonitor {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TrainingHealthMonitor {
@@ -1632,6 +1650,12 @@ pub struct AlertManager {
     pub max_alerts: usize,
 }
 
+impl Default for AlertManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AlertManager {
     pub fn new() -> Self {
         Self {
@@ -1751,6 +1775,12 @@ pub enum DashboardData {
 #[derive(Debug, Clone)]
 pub struct DashboardProvider {
     pub widgets: Vec<DashboardWidget>,
+}
+
+impl Default for DashboardProvider {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl DashboardProvider {
@@ -2022,6 +2052,12 @@ impl Trajectory {
 #[derive(Debug, Clone)]
 pub struct TrajectoryAnalyzer {
     pub trajectories: Vec<Trajectory>,
+}
+
+impl Default for TrajectoryAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TrajectoryAnalyzer {
@@ -2622,6 +2658,12 @@ pub struct PercentileTracker {
     pub sorted: bool,
 }
 
+impl Default for PercentileTracker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PercentileTracker {
     pub fn new() -> Self {
         Self {
@@ -2820,6 +2862,12 @@ fn approx_p_value(r: f64, n: usize) -> f64 {
 pub struct CorrelationAnalyzer {
     pub series: HashMap<String, Vec<f64>>,
     pub results: Vec<CorrelationResult>,
+}
+
+impl Default for CorrelationAnalyzer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl CorrelationAnalyzer {

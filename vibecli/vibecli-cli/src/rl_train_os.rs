@@ -3114,32 +3114,40 @@ mod tests {
 
     #[test]
     fn test_config_validation_empty_name() {
-        let mut config = TrainingConfig::default();
-        config.name = "".into();
+        let config = TrainingConfig {
+            name: "".into(),
+            ..Default::default()
+        };
         let errors = config.validate();
         assert!(errors.iter().any(|e| e.contains("name")));
     }
 
     #[test]
     fn test_config_validation_bad_lr() {
-        let mut config = TrainingConfig::default();
-        config.learning_rate = -0.1;
+        let config = TrainingConfig {
+            learning_rate: -0.1,
+            ..Default::default()
+        };
         let errors = config.validate();
         assert!(errors.iter().any(|e| e.contains("learning_rate")));
     }
 
     #[test]
     fn test_config_validation_bad_gamma() {
-        let mut config = TrainingConfig::default();
-        config.gamma = 1.5;
+        let config = TrainingConfig {
+            gamma: 1.5,
+            ..Default::default()
+        };
         let errors = config.validate();
         assert!(errors.iter().any(|e| e.contains("gamma")));
     }
 
     #[test]
     fn test_config_effective_batch_size() {
-        let mut config = TrainingConfig::default();
-        config.batch_size = 64;
+        let mut config = TrainingConfig {
+            batch_size: 64,
+            ..Default::default()
+        };
         config.distributed.num_workers = 4;
         config.distributed.gradient_accumulation_steps = 2;
         assert_eq!(config.effective_batch_size(), 64 * 4 * 2);
@@ -3997,8 +4005,10 @@ mod tests {
 
     #[test]
     fn test_lifecycle_progress() {
-        let mut config = TrainingConfig::default();
-        config.total_timesteps = 100;
+        let config = TrainingConfig {
+            total_timesteps: 100,
+            ..Default::default()
+        };
         let mut lc = TrainingLifecycle::new(config);
         for _ in 0..50 {
             lc.step(1.0, 0.1);

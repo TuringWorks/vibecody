@@ -186,6 +186,12 @@ pub struct UsageMeter {
     pub pricing: HashMap<String, ModelPricing>,
 }
 
+impl Default for UsageMeter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl UsageMeter {
     /// Create a new empty usage meter.
     pub fn new() -> Self {

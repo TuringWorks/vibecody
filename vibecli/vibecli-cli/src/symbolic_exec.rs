@@ -894,7 +894,7 @@ mod tests {
         let (exec, entry, exit) = CfgBuilder::from_source(&src, ExecConfig::default());
         let paths = exec.enumerate_paths(entry, exit);
         // should produce at least 2 paths (true and false branch)
-        assert!(paths.len() >= 1);
+        assert!(!paths.is_empty());
         let _ = exec.dead_nodes(entry); // should not panic
     }
 

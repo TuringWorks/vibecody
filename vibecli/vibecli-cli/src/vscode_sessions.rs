@@ -255,6 +255,12 @@ fn format_cost(cost: f64) -> String {
     }
 }
 
+impl Default for SessionFilter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SessionFilter {
     pub fn new() -> Self {
         Self {
@@ -295,6 +301,12 @@ impl SessionFilter {
     pub fn with_since(mut self, since: SystemTime) -> Self {
         self.since = Some(since);
         self
+    }
+}
+
+impl Default for SessionBrowser {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -362,7 +374,7 @@ impl SessionBrowser {
 
     pub fn recent(&self, n: usize) -> Vec<&VsCodeSession> {
         let mut sorted: Vec<&VsCodeSession> = self.sessions.iter().collect();
-        sorted.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+        sorted.sort_by_key(|b| std::cmp::Reverse(b.updated_at));
         sorted.truncate(n);
         sorted
     }

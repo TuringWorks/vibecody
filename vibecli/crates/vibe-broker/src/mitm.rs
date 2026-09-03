@@ -527,7 +527,7 @@ mod base64ish {
 
     pub fn encode(input: &[u8]) -> String {
         const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-        let mut out = String::with_capacity((input.len() + 2) / 3 * 4);
+        let mut out = String::with_capacity(input.len().div_ceil(3) * 4);
         for chunk in input.chunks(3) {
             let b0 = chunk[0];
             let b1 = if chunk.len() > 1 { chunk[1] } else { 0 };
@@ -578,7 +578,7 @@ mod tests {
     #[test]
     fn default_upstream_roots_is_nonempty() {
         let store = default_upstream_roots();
-        assert!(store.len() > 0);
+        assert!(!store.is_empty());
     }
 
     #[test]

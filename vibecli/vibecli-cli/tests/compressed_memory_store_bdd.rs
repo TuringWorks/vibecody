@@ -3,7 +3,7 @@
  * OpenMemoryStore. Drives RED via:
  *   - missing accessor `embedding_compression_ratio`
  *   - the f32-backed HnswIndex would never report ≥ 8× compression
- * Once the swap lands, basic add → query → delete must still work.
+ *     Once the swap lands, basic add → query → delete must still work.
  *
  * Run with: cargo test --test compressed_memory_store_bdd
  */

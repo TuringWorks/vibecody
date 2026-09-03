@@ -623,9 +623,11 @@ mod tests {
 
     #[test]
     fn test_auto_resolve_rate() {
-        let mut summary = MergeSummary::default();
-        summary.total_conflicts = 4;
-        summary.auto_resolved = 3;
+        let summary = MergeSummary {
+            total_conflicts: 4,
+            auto_resolved: 3,
+            ..Default::default()
+        };
         assert!((summary.auto_resolve_rate() - 0.75).abs() < 1e-9);
     }
 

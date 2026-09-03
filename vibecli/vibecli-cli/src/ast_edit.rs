@@ -799,6 +799,12 @@ pub struct AstEditor {
     pub config: AstEditConfig,
 }
 
+impl Default for AstEditor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AstEditor {
     pub fn new() -> Self {
         Self {

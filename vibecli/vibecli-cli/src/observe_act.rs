@@ -863,13 +863,12 @@ impl LlmPromptBuilder {
                 // reads the empty list as "I did nothing" and proposes the same
                 // action forever — which is precisely what a read-only session
                 // looks like from the inside.
-                let (label, shown) = if step.actions_taken.is_empty()
-                    && !step.proposed_actions.is_empty()
-                {
-                    ("Proposed (not executed)", &step.proposed_actions)
-                } else {
-                    ("Actions", &step.actions_taken)
-                };
+                let (label, shown) =
+                    if step.actions_taken.is_empty() && !step.proposed_actions.is_empty() {
+                        ("Proposed (not executed)", &step.proposed_actions)
+                    } else {
+                        ("Actions", &step.actions_taken)
+                    };
                 prompt.push_str(&format!(
                     "Step {}: {} — {}: [{}]\n",
                     step.step_num,
@@ -950,7 +949,9 @@ impl LlmPromptBuilder {
 
         if let Some(decision) = serde_json::from_str::<LlmDecision>(trimmed)
             .ok()
-            .or_else(|| extract_between(trimmed, '{', '}').and_then(|s| serde_json::from_str(s).ok()))
+            .or_else(|| {
+                extract_between(trimmed, '{', '}').and_then(|s| serde_json::from_str(s).ok())
+            })
         {
             return decision;
         }
@@ -1027,9 +1028,9 @@ impl LlmPromptBuilder {
         }
 
         let trimmed = strip_code_fence(llm_response.trim());
-        let raw: Raw = serde_json::from_str(trimmed)
-            .ok()
-            .or_else(|| extract_between(trimmed, '{', '}').and_then(|s| serde_json::from_str(s).ok()))?;
+        let raw: Raw = serde_json::from_str(trimmed).ok().or_else(|| {
+            extract_between(trimmed, '{', '}').and_then(|s| serde_json::from_str(s).ok())
+        })?;
 
         Some(VerificationResult::new(
             expected.to_string(),
@@ -1050,10 +1051,7 @@ fn strip_code_fence(s: &str) -> &str {
     };
     // Drop the optional language tag on the opening fence line.
     let rest = rest.split_once('\n').map(|(_, tail)| tail).unwrap_or("");
-    rest.trim_end()
-        .strip_suffix("```")
-        .unwrap_or(rest)
-        .trim()
+    rest.trim_end().strip_suffix("```").unwrap_or(rest).trim()
 }
 
 /// The slice from the first `open` to the last `close`, if both are present

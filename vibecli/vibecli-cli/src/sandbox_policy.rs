@@ -141,10 +141,7 @@ impl SandboxPolicy {
 /// Delegates to the canonical deny-list in `vibe_core::path_guard` so the
 /// daemon and the desktop clients cannot drift on what counts as a credential.
 fn sensitive_reason(path: &Path) -> Option<String> {
-    match vibe_core::path_guard::reject_sensitive_path(&path.to_string_lossy()) {
-        Ok(_) => None,
-        Err(e) => Some(e),
-    }
+    vibe_core::path_guard::reject_sensitive_path(&path.to_string_lossy()).err()
 }
 
 #[cfg(test)]

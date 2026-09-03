@@ -1222,7 +1222,7 @@ mod tests {
 
     #[test]
     fn test_worktree_status_variants() {
-        let statuses = vec![
+        let statuses = [
             WorktreeStatus::Idle,
             WorktreeStatus::Running,
             WorktreeStatus::Completed,
@@ -1235,7 +1235,7 @@ mod tests {
 
     #[test]
     fn test_merge_strategy_variants() {
-        let strategies = vec![
+        let strategies = [
             MergeStrategy::Sequential,
             MergeStrategy::Rebase,
             MergeStrategy::OctopusMerge,

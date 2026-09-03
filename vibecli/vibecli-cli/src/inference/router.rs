@@ -3,7 +3,7 @@
 //! Picks `&dyn Backend` for a (model, request) pair via:
 //!   1. **request override**  — `body.backend` or `X-VibeCLI-Backend` header
 //!   2. **per-model pin**     — `VIBECLI_BACKEND_PINS` env or `[backends]`
-//!                              table in `config.toml`
+//!      table in `config.toml`
 //!   3. **daemon default**    — `VIBECLI_DEFAULT_BACKEND` env, fallback `ollama`
 //!
 //! The tiers exist so a single deployment can mix-and-match without surgery:

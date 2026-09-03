@@ -524,6 +524,12 @@ impl QaConfig {
     }
 }
 
+impl Default for QaPipeline {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl QaPipeline {
     pub fn new() -> Self {
         Self {

@@ -116,9 +116,8 @@ match.require_tls = false
         expr = "the sandbox runs curl with --unix-socket pointing at the broker, target {string}"
     )]
     fn run_curl(world: &mut EWorld, target: String) {
-        let mut parts = target.splitn(2, ' ');
-        let method = parts.next().unwrap();
-        let url = parts.next().unwrap();
+        let (method, url) = target.split_once(' ').unwrap();
+
         let canon_sock = std::fs::canonicalize(world.sock_path.as_ref().unwrap()).unwrap();
         let work = std::fs::canonicalize(world.rw_dir.as_ref().unwrap().path()).unwrap();
         // -s silent, -o /dev/null, -w writes status code, -D <file> dumps

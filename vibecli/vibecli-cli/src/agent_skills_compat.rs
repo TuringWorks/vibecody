@@ -1336,7 +1336,7 @@ mod tests {
     fn test_compatibility_score_range() {
         let skill = make_standard_skill("compat-test");
         let score = SkillValidator::check_compatibility(&skill, &SkillFormat::Standard);
-        assert!(score >= 0.0 && score <= 1.0);
+        assert!((0.0..=1.0).contains(&score));
     }
 
     #[test]

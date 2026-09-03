@@ -227,9 +227,8 @@ fn imds_bound(world: &mut DWorld) {
 
 #[when(expr = "I send {string} through the daemon")]
 fn send_request(world: &mut DWorld, req: String) {
-    let mut parts = req.splitn(2, ' ');
-    let method = parts.next().unwrap();
-    let url = parts.next().unwrap();
+    let (method, url) = req.split_once(' ').unwrap();
+
     let parsed = url::Url::parse(url).unwrap();
     let host = parsed.host_str().unwrap().to_owned();
     let path = format!(

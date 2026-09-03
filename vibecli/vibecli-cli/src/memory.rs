@@ -260,7 +260,7 @@ mod tests {
         let dir = std::env::temp_dir().join("vibecli_empty_test");
         let _ = std::fs::create_dir_all(&dir);
         let mem = ProjectMemory::load(&dir);
-        assert!(mem.combined().is_some() == !mem.is_empty());
+        assert!(mem.combined().is_some() != mem.is_empty());
     }
 
     #[test]

@@ -749,7 +749,7 @@ fn collect_source_files(workspace: &Path, max_files: usize) -> Vec<(String, Stri
     }
 
     // Sort: priority files first.
-    files.sort_by(|a, b| b.2.cmp(&a.2));
+    files.sort_by_key(|b| std::cmp::Reverse(b.2));
     files.truncate(max_files);
     files.into_iter().map(|(p, c, _)| (p, c)).collect()
 }

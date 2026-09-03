@@ -975,7 +975,7 @@ mod tests {
 
     #[test]
     fn test_link_type_variants() {
-        let types = vec![
+        let types = [
             LinkType::Implements,
             LinkType::Tests,
             LinkType::Documents,
@@ -997,7 +997,7 @@ mod tests {
 
     #[test]
     fn test_sync_action_type_variants() {
-        let types = vec![
+        let types = [
             SyncActionType::UpdateSpec,
             SyncActionType::GenerateTask,
             SyncActionType::MarkStale,

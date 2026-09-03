@@ -56,7 +56,7 @@ impl GapReport {
     /// Returns the top `n` gaps sorted by impact_score descending.
     pub fn top_gaps(&self, n: usize) -> Vec<&KnowledgeGap> {
         let mut sorted: Vec<&KnowledgeGap> = self.gaps.iter().collect();
-        sorted.sort_by(|a, b| b.impact_score.cmp(&a.impact_score));
+        sorted.sort_by_key(|b| std::cmp::Reverse(b.impact_score));
         sorted.truncate(n);
         sorted
     }
@@ -134,7 +134,7 @@ impl HotspotMap {
     /// Returns the top `n` files by veteran_access_count descending.
     pub fn top_veteran_files(&self, n: usize) -> Vec<&HotspotFile> {
         let mut sorted: Vec<&HotspotFile> = self.files.iter().collect();
-        sorted.sort_by(|a, b| b.veteran_access_count.cmp(&a.veteran_access_count));
+        sorted.sort_by_key(|b| std::cmp::Reverse(b.veteran_access_count));
         sorted.truncate(n);
         sorted
     }

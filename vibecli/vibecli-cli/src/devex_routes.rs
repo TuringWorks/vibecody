@@ -164,7 +164,10 @@ async fn get_scorecard_markdown(
     let opts = resolve_opts(&q)?;
     let sc = blocking("scorecard", move || scorecard(&path, &opts)).await?;
     Ok((
-        [(axum::http::header::CONTENT_TYPE, "text/markdown; charset=utf-8")],
+        [(
+            axum::http::header::CONTENT_TYPE,
+            "text/markdown; charset=utf-8",
+        )],
         render_scorecard_markdown(&sc),
     ))
 }
@@ -285,7 +288,9 @@ mod tests {
         let uri = format!("/devex/practices?path={}", dir.path().display());
         let (status, body) = get(&uri).await;
         assert_eq!(status, StatusCode::OK);
-        assert!(body["practices"]["practices"].as_array().is_some_and(|a| !a.is_empty()));
+        assert!(body["practices"]["practices"]
+            .as_array()
+            .is_some_and(|a| !a.is_empty()));
         assert_eq!(body["practices"]["mean_level"].as_f64(), Some(0.0));
     }
 

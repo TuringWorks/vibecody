@@ -1238,7 +1238,7 @@ impl SessionStore {
                 results.push(s);
             }
         }
-        results.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+        results.sort_by_key(|b| std::cmp::Reverse(b.started_at));
         Ok(results)
     }
 
@@ -2562,7 +2562,7 @@ mod tests {
         assert_eq!(deserialized.id, 7);
         assert_eq!(deserialized.step_num, 3);
         assert_eq!(deserialized.tool_name, "write_file");
-        assert_eq!(deserialized.success, false);
+        assert!(!deserialized.success);
     }
 
     #[test]

@@ -9,9 +9,9 @@ mod memory;
 mod no_window;
 mod panel_store;
 mod plantuml;
-mod tls_cert;
 pub mod shadow_workspace;
 mod shell;
+mod tls_cert;
 // `sonar_rules` moved to `vibe-core` 2026-05-19 — re-export the
 // public path so any in-tree consumer that hasn't updated yet
 // keeps compiling. New code should use `vibe_core::sonar_rules`
@@ -496,7 +496,6 @@ pub fn run() {
             // Phase 31: RLCEF + LangGraph + Sketch
             rlcef_outcomes: Arc::new(Mutex::new(Vec::new())),
             langgraph_pipelines: Arc::new(Mutex::new(Vec::new())),
-            sketch_elements: Arc::new(Mutex::new(Vec::new())),
             // Data Analysis
             da_datasets: Arc::new(Mutex::new(Vec::new())),
             da_charts: Arc::new(Mutex::new(Vec::new())),
@@ -517,7 +516,6 @@ pub fn run() {
             // CI Gates
             ci_gates: Arc::new(Mutex::new(Vec::new())),
             // Design Import
-            design_imports: Arc::new(Mutex::new(Vec::new())),
             desktop_windows: Arc::new(Mutex::new(Vec::new())),
             datagen_schemas: Arc::new(Mutex::new(Vec::new())),
             wizard_configs: Arc::new(Mutex::new(Vec::new())),
@@ -1797,7 +1795,6 @@ pub fn run() {
             commands::langgraph_get_events,
             commands::sketch_recognize,
             commands::sketch_generate,
-            commands::sketch_export,
             // Data Analysis
             commands::da_list_datasets,
             commands::da_add_dataset,
@@ -1822,8 +1819,10 @@ pub fn run() {
             commands::list_ci_gates,
             commands::toggle_ci_gate,
             // Design Import
-            commands::list_design_imports,
-            commands::create_design_import,
+            commands::design_import_history,
+            commands::design_import_record,
+            commands::design_import_forget,
+            commands::design_import_mark_written,
             commands::desktop_list_windows,
             commands::desktop_run_action,
             commands::datagen_list_schemas,
@@ -2087,6 +2086,7 @@ pub fn run() {
             commands::export_penpot_tokens,
             commands::generate_diagram,
             commands::save_diagram_file,
+            commands::design_component_tree,
             commands::load_design_system_tokens,
             commands::export_design_tokens,
             commands::audit_design_system_tokens,
@@ -2231,7 +2231,7 @@ mod tests {
         use std::path::PathBuf;
         use vibe_ai::AIConfig;
         let config =
-            AIConfig::load_from_file(&PathBuf::from("/nonexistent/vibe.toml")).unwrap_or_default();
+            AIConfig::load_from_file(PathBuf::from("/nonexistent/vibe.toml")).unwrap_or_default();
         // Default config should have no ollama section
         assert!(config.ollama.is_none());
     }

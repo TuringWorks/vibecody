@@ -613,7 +613,7 @@ impl OrgContextEngine {
     /// Return the most common patterns ordered by occurrence count (descending).
     pub fn get_most_common_patterns(&self, limit: usize) -> Vec<&OrgPattern> {
         let mut sorted: Vec<&OrgPattern> = self.patterns.iter().collect();
-        sorted.sort_by(|a, b| b.occurrences.len().cmp(&a.occurrences.len()));
+        sorted.sort_by_key(|b| std::cmp::Reverse(b.occurrences.len()));
         sorted.truncate(limit);
         sorted
     }

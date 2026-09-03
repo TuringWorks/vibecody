@@ -67,9 +67,10 @@ fn is_iwa(name: &str) -> bool {
     name.ends_with(".iwa")
 }
 
-fn load_from_zip(
-    bytes: &[u8],
-) -> Result<(Vec<ZipEntry>, IwaHome, Vec<(String, Vec<u8>)>), DocError> {
+/// The package parts, where its IWA archives live, and those archives by name.
+type LoadedPackage = (Vec<ZipEntry>, IwaHome, Vec<(String, Vec<u8>)>);
+
+fn load_from_zip(bytes: &[u8]) -> Result<LoadedPackage, DocError> {
     let entries = zipedit::read_entries(bytes)?;
     let flat: Vec<(String, Vec<u8>)> = entries
         .iter()

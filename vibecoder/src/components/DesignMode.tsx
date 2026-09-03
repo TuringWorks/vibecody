@@ -1,30 +1,53 @@
 /**
  * DesignMode — full-screen visual design editor with tabbed layout.
  *
- * Tabs: Preview | Generate | Components | Inspector | Figma
+ * Tabs: Preview | Generate | Components | Inspector | Draw.io | Pencil | Penpot | Diagrams
  */
-import { useState, useRef, useCallback, useEffect } from "react";
+import { lazy, Suspense, useState, useRef, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { loadFigmaToken, saveFigmaToken, deleteFigmaToken } from "../lib/figmaToken";
 import { VisualEditor, SelectedElement } from "./VisualEditor";
-import { DrawioEditorPanel } from "./DrawioEditorPanel";
-import { PencilPanel } from "./PencilPanel";
-import { PenpotPanel } from "./PenpotPanel";
-import { DiagramGeneratorPanel } from "./DiagramGeneratorPanel";
 import { parseProviderSelection } from "../hooks/useModelRegistry";
 import { getSelectedEffort } from "../utils/effort";
+import { takePendingDesignSubTab } from "../lib/panelDeepLink";
+
+// The four editor tabs are lazy and are not mounted until visited.
+//
+// They used to be rendered eagerly and merely hidden with `display: none`, so
+// opening Design paid for all four: DrawioEditorPanel alone fires two Tauri
+// calls the moment it mounts, and Penpot, Pencil and the diagram generator
+// each carry their own state and effects. Loading the editor the user opened
+// is what they asked for; loading four is not.
+const DrawioEditorPanel = lazy(() =>
+  import("./DrawioEditorPanel").then((m) => ({ default: m.DrawioEditorPanel })),
+);
+const PencilPanel = lazy(() => import("./PencilPanel").then((m) => ({ default: m.PencilPanel })));
+const PenpotPanel = lazy(() => import("./PenpotPanel").then((m) => ({ default: m.PenpotPanel })));
+const DiagramGeneratorPanel = lazy(() =>
+  import("./DiagramGeneratorPanel").then((m) => ({ default: m.DiagramGeneratorPanel })),
+);
 
 interface DesignModeProps {
   workspacePath: string | null;
   provider: string;
+  onOpenFile?: (path: string, line?: number) => void;
 }
 
-interface GeneratedFile {
+/** One workspace file and the components it declares. */
+interface ComponentFile {
   path: string;
-  content: string;
+  components: string[];
+  lines: number;
 }
 
-type DesignTab = "preview" | "generate" | "components" | "inspector" | "figma" | "drawio" | "pencil" | "penpot" | "diagrams";
+interface ComponentTree {
+  files: ComponentFile[];
+  file_count: number;
+  component_count: number;
+  /** True when the scan hit its file cap — the list is a sample, and says so. */
+  truncated: boolean;
+}
+
+type DesignTab = "preview" | "generate" | "components" | "inspector" | "drawio" | "pencil" | "penpot" | "diagrams";
 
 // Ports and hostnames that serve the VibeCoder app itself — never load in the preview iframe.
 const BLOCKED_PATTERNS = [
@@ -66,10 +89,9 @@ const tabDefs: { id: DesignTab; label: string }[] = [
   { id: "pencil", label: "Pencil" },
   { id: "penpot", label: "Penpot" },
   { id: "diagrams", label: "Diagrams" },
-  // The "figma" tab moved to the unified DesignHubPanel ("Hub" tab in DesignComposite).
-  // The renderFigma() / handleFigmaImport() machinery below is kept for now so the
-  // "Import from Figma" empty-state CTA still has somewhere to land — but the tab
-  // is no longer reachable from the tab bar.
+  // Figma lives in DesignHubPanel ("Hub" tab) and in the Import tab. The copy
+  // that used to sit here was unreachable from the tab bar yet still mounted,
+  // with its own duplicate token handling; it is gone rather than hidden.
 ];
 
 const tabStyle = (active: boolean): React.CSSProperties => ({
@@ -91,7 +113,7 @@ const panelStyle: React.CSSProperties = {
   padding: 16,
 };
 
-export function DesignMode({ workspacePath, provider }: DesignModeProps) {
+export function DesignMode({ workspacePath, provider, onOpenFile }: DesignModeProps) {
   const [activeTab, setActiveTab] = useState<DesignTab>("preview");
   const [previewUrl, setPreviewUrl] = useState("");
   const [blockedError, setBlockedError] = useState(false);
@@ -106,31 +128,111 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
   const [diffError, setDiffError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationResult, setGenerationResult] = useState("");
+  /** Why the last generate or edit failed. Kept apart from the result so an
+   *  error can never be rendered as generated code. */
+  const [generationError, setGenerationError] = useState<string | null>(null);
   const [previewSrcdoc, setPreviewSrcdoc] = useState<string | null>(null);
-  const [figmaUrl, setFigmaUrl] = useState("");
-  // Hydrated from the encrypted ProfileStore below — never from localStorage,
-  // which is where this token used to live in the clear.
-  const [figmaToken, setFigmaToken] = useState("");
-  const [figmaSaveToken, setFigmaSaveToken] = useState(false);
-  const [figmaTokenError, setFigmaTokenError] = useState<string | null>(null);
-  const [figmaResult, setFigmaResult] = useState<GeneratedFile[]>([]);
-  const [figmaExpandedFile, setFigmaExpandedFile] = useState<string | null>(null);
+  const [componentTree, setComponentTree] = useState<ComponentTree | null>(null);
+  const [treeError, setTreeError] = useState<string | null>(null);
+  const [treeLoading, setTreeLoading] = useState(false);
+  const [treeFilter, setTreeFilter] = useState("");
+  /** Position of the preview iframe, tracked so the floating editor lands on
+   *  the element rather than wherever the iframe was at first paint. */
+  const [iframeRect, setIframeRect] = useState<{ top: number; left: number } | null>(null);
+  /** Why Visual Edit could not attach, when it could not. */
+  const [inspectorError, setInspectorError] = useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const iframeContainerRef = useRef<HTMLDivElement>(null);
+  /** `public/inspector.js`, read once so the generated preview can carry it. */
+  const inspectorSourceRef = useRef<string | null>(null);
 
-  // Read the stored Figma token once, and drain any plaintext localStorage
-  // copy into the store on the way (see lib/figmaToken.ts).
   useEffect(() => {
     let cancelled = false;
-    loadFigmaToken()
-      .then((token) => {
-        if (cancelled || !token) return;
-        setFigmaToken(token);
-        setFigmaSaveToken(true);
-      })
-      .catch((e) => { if (!cancelled) setFigmaTokenError(`Could not read the saved Figma token: ${e}`); });
+    // Same-origin fetch of the app's own asset — this is how the generated
+    // preview gets the inspector without a second copy of it in this file.
+    fetch("/inspector.js")
+      .then((r) => (r.ok ? r.text() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((text) => { if (!cancelled) inspectorSourceRef.current = text; })
+      .catch(() => { /* Visual Edit reports the absence when it is switched on. */ });
     return () => { cancelled = true; };
   }, []);
+
+  // A tab is mounted once it has been visited, and stays mounted after — the
+  // editors hold unsaved work, so switching away must not throw it out.
+  const [visited, setVisited] = useState<Set<DesignTab>>(() => new Set<DesignTab>(["preview"]));
+  const openTab = useCallback((id: DesignTab) => {
+    setActiveTab(id);
+    setVisited((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+  }, []);
+
+  // A deep link from the Hub's Settings tab names an editor in here. Panels
+  // are lazy, so the first such link fires before this component exists — the
+  // parked request is claimed on mount, the event covers every later one.
+  useEffect(() => {
+    const parked = takePendingDesignSubTab();
+    if (parked && tabDefs.some((t) => t.id === parked)) openTab(parked as DesignTab);
+    const handler = (e: Event) => {
+      const id = (e as CustomEvent<unknown>).detail;
+      if (typeof id === "string" && tabDefs.some((t) => t.id === id)) openTab(id as DesignTab);
+    };
+    window.addEventListener("vibecoder:design-subtab", handler);
+    return () => window.removeEventListener("vibecoder:design-subtab", handler);
+  }, [openTab]);
+
+  // Where the preview iframe actually is. Read during render, this was the
+  // value from *before* layout on first paint, and never updated when the
+  // window resized — so the floating edit toolbar sat away from its element.
+  useEffect(() => {
+    const node = iframeContainerRef.current;
+    if (!node) return;
+    const measure = () => {
+      const r = node.getBoundingClientRect();
+      setIframeRect((prev) =>
+        prev && prev.top === r.top && prev.left === r.left ? prev : { top: r.top, left: r.left },
+      );
+    };
+    measure();
+    // ResizeObserver is absent in jsdom and in some embedded webviews; the
+    // scroll/resize listeners below are the floor, and the observer is the
+    // improvement where it exists.
+    const observer =
+      typeof ResizeObserver === "function" ? new ResizeObserver(measure) : null;
+    observer?.observe(node);
+    window.addEventListener("scroll", measure, true);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("scroll", measure, true);
+      window.removeEventListener("resize", measure);
+    };
+  }, [activeTab]);
+
+  // Replacing the preview replaces the frame, which takes the inspector with
+  // it. Without this the button still read "Exit Edit" over a frame that had
+  // no inspector in it.
+  useEffect(() => {
+    setVisualEditEnabled(false);
+    setSelectedElement(null);
+    setInspectorError(null);
+  }, [previewSrcdoc, previewUrl]);
+
+  const loadComponentTree = useCallback(async () => {
+    setTreeLoading(true);
+    setTreeError(null);
+    try {
+      const tree = await invoke<ComponentTree>("design_component_tree", {
+        workspacePath,
+        workspace_path: workspacePath,
+      });
+      setComponentTree(tree);
+    } catch (e) {
+      // An unscannable workspace is not an empty one.
+      setComponentTree(null);
+      setTreeError(String(e));
+    } finally {
+      setTreeLoading(false);
+    }
+  }, [workspacePath]);
 
   // Build an inline HTML document that renders the generated component
   const buildPreviewSrcdoc = useCallback((code: string) => {
@@ -153,6 +255,22 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
     // literal (handles backticks, backslashes, newlines, quotes, </script>).
     const codeLiteral = JSON.stringify(clean);
     const nameLiteral = JSON.stringify(componentName);
+
+    // The inspector travels with the preview instead of being injected later:
+    // this frame is sandboxed into an opaque origin, so the parent cannot
+    // reach into its document at all. It installs on request, so a preview the
+    // user is only looking at carries no listeners.
+    const inspectorBlock = inspectorSourceRef.current
+      ? `<script>
+(function(){
+  var install = function(){ ${inspectorSourceRef.current} };
+  window.addEventListener('message', function(e){
+    if (e.data && e.data.type === 'vibe:activate-inspector') install();
+  });
+  window.parent.postMessage({ type: 'vibe:inspector-available' }, '*');
+})();
+</script>`
+      : "";
 
     return `<!DOCTYPE html>
 <html>
@@ -258,6 +376,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
   }
 })();
 </script>
+${inspectorBlock}
 </body>
 </html>`;
   }, []);
@@ -266,35 +385,68 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
     return <div className="empty-state"><p>Open a workspace folder to use the design editor.</p></div>;
   }
 
-  const injectInspector = () => {
+  /**
+   * Turn the element inspector on inside the preview frame.
+   *
+   * Two different frames, two different mechanisms:
+   *  - a generated preview carries the inspector already (see
+   *    `buildPreviewSrcdoc`) and only needs a message, because the frame is
+   *    sandboxed into an opaque origin the parent cannot script;
+   *  - an external URL has to be injected into, which only works when the page
+   *    is same-origin with this app. It usually is not — a dev server on
+   *    another port is another origin — and that used to fail into a
+   *    `console.warn` nobody sees, leaving a "Visual Edit" button that lit up
+   *    and did nothing.
+   */
+  const activateInspector = (): string | null => {
     const iframe = iframeRef.current;
-    if (!iframe || !iframe.contentWindow) return;
-    try {
-      const script = iframe.contentDocument?.createElement("script");
-      if (script) {
-        script.src = "/inspector.js";
-        iframe.contentDocument?.head?.appendChild(script);
+    if (!iframe?.contentWindow) return "The preview frame is not ready yet.";
+
+    if (previewSrcdoc) {
+      if (!inspectorSourceRef.current) {
+        return "The inspector script could not be loaded, so Visual Edit is unavailable.";
       }
+      iframe.contentWindow.postMessage({ type: "vibe:activate-inspector" }, "*");
+      return null;
+    }
+
+    try {
+      const doc = iframe.contentDocument;
+      if (!doc) throw new Error("no document");
+      const script = doc.createElement("script");
+      script.src = "/inspector.js";
+      doc.head?.appendChild(script);
+      return null;
     } catch {
-      console.warn("Cannot inject inspector into cross-origin iframe");
+      return (
+        "Visual Edit cannot attach to this page: it is served from a different " +
+        "origin than VibeCoder, so its document cannot be read. Generate a " +
+        "component here and edit that preview instead."
+      );
     }
   };
 
   const handleVisualEditToggle = () => {
-    if (!visualEditEnabled) {
-      injectInspector();
-    } else {
+    if (visualEditEnabled) {
       iframeRef.current?.contentWindow?.postMessage({ type: "vibe:deactivate-inspector" }, "*");
       setSelectedElement(null);
+      setInspectorError(null);
+      setVisualEditEnabled(false);
+      return;
     }
-    setVisualEditEnabled(!visualEditEnabled);
+    const failure = activateInspector();
+    setInspectorError(failure);
+    // Only claim the mode is on when the inspector actually attached.
+    setVisualEditEnabled(failure === null);
   };
 
   const handleElementEdit = async (element: SelectedElement, instruction: string) => {
     setSelectedElement(element);
     setAiInstruction(instruction);
     setIsGenerating(true);
-    setActiveTab("inspector");
+    setGenerationError(null);
+    setGenerationResult("");
+    openTab("inspector");
     try {
       const result = await invoke<string>("visual_edit_element", {
         workspacePath,
@@ -302,8 +454,14 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
         instruction,
         currentHtml: element.outerHTML,
         reactComponent: element.reactComponent ?? null,
-      }).catch(() => "Edit queued — check agent output.");
+        provider,
+      });
       setGenerationResult(result);
+    } catch (e) {
+      // The old catch swallowed this and wrote "Edit queued — check agent
+      // output." into the result pane: a sentence describing work that had not
+      // been queued and output that did not exist.
+      setGenerationError(String(e));
     } finally {
       setIsGenerating(false);
     }
@@ -350,15 +508,22 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
 
   const handleGenerateComponent = async () => {
     if (!aiInstruction.trim()) return;
+    if (!provider) {
+      setGenerationError("No provider selected — pick one in the toolbar dropdown.");
+      return;
+    }
     setIsGenerating(true);
     setGenerationResult("");
+    setGenerationError(null);
     setPreviewSrcdoc(null);
     try {
+      // No `.catch(e => String(e))` here: that turned a provider error into a
+      // string the panel then displayed as generated code and tried to render.
       const raw = await invoke<string>("generate_component", {
         workspacePath,
         description: aiInstruction,
         provider,
-      }).catch((e: unknown) => String(e));
+      });
       // Strip markdown fences + surrounding prose once, here, so the editor
       // shows clean code and the preview gets the same string the user sees.
       const result = extractGeneratedCode(raw);
@@ -372,43 +537,14 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
       );
       if (looksLikeCode) {
         setPreviewSrcdoc(buildPreviewSrcdoc(result));
-        setActiveTab("preview");
+        openTab("preview");
       }
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const handleFigmaImport = async () => {
-    if (!figmaUrl.trim() || !figmaToken.trim()) return;
-    setFigmaTokenError(null);
-    try {
-      // "Remember" is the user's answer for the encrypted store; unchecking it
-      // deletes the stored copy rather than leaving one behind.
-      if (figmaSaveToken) await saveFigmaToken(figmaToken);
-      else await deleteFigmaToken();
     } catch (e) {
-      // The import itself can still go ahead with the token in hand — say what
-      // failed instead of implying the token was kept.
-      setFigmaTokenError(`Could not save the Figma token: ${e}`);
-    }
-    setIsGenerating(true);
-    setFigmaResult([]);
-    setFigmaExpandedFile(null);
-    try {
-      const files = await invoke<GeneratedFile[]>("import_figma", {
-        url: figmaUrl,
-        token: figmaToken,
-        workspacePath,
-        provider,
-      }).catch(() => [] as GeneratedFile[]);
-      setFigmaResult(files);
+      setGenerationError(String(e));
     } finally {
       setIsGenerating(false);
     }
   };
-
-  const iframeRect = iframeContainerRef.current?.getBoundingClientRect();
 
   // ── Tab content renderers ───────────────────────────────────────────
 
@@ -467,6 +603,15 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
         </button>
       </div>
 
+      {inspectorError && (
+        <div
+          role="alert"
+          style={{ padding: "6px 12px", background: "color-mix(in srgb, var(--warning-color) 12%, transparent)", color: "var(--warning-color)", fontSize: "var(--font-size-sm)", lineHeight: 1.5, flexShrink: 0 }}
+        >
+          {inspectorError}
+        </div>
+      )}
+
       {/* Iframe */}
       <div ref={iframeContainerRef} style={{ flex: 1, position: "relative", overflow: "auto" }}>
         {blockedError ? (
@@ -482,7 +627,16 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
             ref={iframeRef}
             {...(previewSrcdoc ? { srcDoc: previewSrcdoc } : { src: previewUrl || "about:blank" })}
             title="Live Preview"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-modals"
+            // A srcdoc frame inherits the parent's origin when it is granted
+            // `allow-same-origin`, which would let model-generated code reach
+            // this app's document, storage and Tauri bridge. It is withheld
+            // there and kept for an external URL, where the frame has its own
+            // origin anyway and the page needs it to work at all.
+            sandbox={
+              previewSrcdoc
+                ? "allow-scripts allow-forms allow-modals"
+                : "allow-scripts allow-same-origin allow-forms allow-modals"
+            }
             style={{ width: "100%", height: "100%", border: "none", background: "var(--bg-elevated)" }}
           />
         )}
@@ -490,8 +644,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
           <div style={{ position: "absolute", top: 0, left: 0, pointerEvents: "none", width: "100%", height: "100%" }}>
             <VisualEditor
               onEdit={handleElementEdit}
-              workspacePath={workspacePath}
-              iframeOffset={iframeRect ? { top: iframeRect.top, left: iframeRect.left } : undefined}
+              iframeOffset={iframeRect ?? undefined}
             />
           </div>
         )}
@@ -509,13 +662,28 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
         rows={5}
         style={{ width: "100%", resize: "vertical", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", color: "inherit", padding: 12, fontSize: "var(--font-size-md)", boxSizing: "border-box" }}
       />
+      {!provider && (
+        <div style={{ marginTop: 8, fontSize: "var(--font-size-base)", color: "var(--warning-color)" }}>
+          Pick a provider in the toolbar dropdown before generating.
+        </div>
+      )}
       <button
+        aria-label="Generate component"
         onClick={handleGenerateComponent}
-        disabled={isGenerating || !aiInstruction.trim()}
+        disabled={isGenerating || !aiInstruction.trim() || !provider}
         style={{ width: "100%", background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-sm)", padding: "10px 0", cursor: "pointer", fontWeight: 600, fontSize: "var(--font-size-lg)", marginTop: 8, opacity: isGenerating || !aiInstruction.trim() ? 0.5 : 1 }}
       >
         {isGenerating ? "Generating..." : "Generate"}
       </button>
+
+      {generationError && (
+        <div
+          role="alert"
+          style={{ marginTop: 12, padding: 10, borderRadius: "var(--radius-sm)", border: "1px solid var(--error-color)", background: "color-mix(in srgb, var(--error-color) 10%, transparent)", color: "var(--error-color)", fontSize: "var(--font-size-base)", whiteSpace: "pre-wrap" }}
+        >
+          {generationError}
+        </div>
+      )}
 
       {generationResult && (
         <div style={{ marginTop: 16 }}>
@@ -525,7 +693,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
               <button
                 onClick={() => {
                   setPreviewSrcdoc(buildPreviewSrcdoc(generationResult));
-                  setActiveTab("preview");
+                  openTab("preview");
                 }}
                 style={{ background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", padding: "4px 10px", cursor: "pointer", fontSize: "var(--font-size-sm)", fontWeight: 600 }}
               >
@@ -559,26 +727,97 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
     </div>
   );
 
-  const renderComponents = () => (
-    <div style={panelStyle}>
-      <div style={{ fontWeight: 600, fontSize: "var(--font-size-xl)", marginBottom: 12 }}>Component Tree</div>
-      <div style={{ fontSize: "var(--font-size-md)", color: "var(--text-secondary)", lineHeight: 1.6 }}>
-        Component tree from your project files will appear here once a live dev server is running at the preview URL.
-      </div>
-      <div style={{ marginTop: 20, padding: 16, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)" }}>
-        <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 8 }}>Quick actions</div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+  const renderComponents = () => {
+    const q = treeFilter.trim().toLowerCase();
+    const shown = !componentTree
+      ? []
+      : q === ""
+        ? componentTree.files
+        : componentTree.files.filter(
+            (f) =>
+              f.path.toLowerCase().includes(q) ||
+              f.components.some((c) => c.toLowerCase().includes(q)),
+          );
+
+    return (
+      <div style={panelStyle}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+          <div style={{ fontWeight: 600, fontSize: "var(--font-size-xl)" }}>Components</div>
           <button
-            onClick={() => setActiveTab("generate")}
-            style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: "8px 14px", color: "var(--text-primary)", cursor: "pointer", fontSize: "var(--font-size-base)" }}
+            onClick={loadComponentTree}
+            disabled={treeLoading}
+            style={{ background: "var(--accent-color)", color: "#fff", border: "none", borderRadius: "var(--radius-sm)", padding: "5px 12px", cursor: treeLoading ? "default" : "pointer", fontSize: "var(--font-size-base)", fontWeight: 600, opacity: treeLoading ? 0.6 : 1 }}
           >
-            Generate Component
+            {treeLoading ? "Scanning…" : componentTree ? "Rescan" : "Scan workspace"}
           </button>
-          {/* "Import from Figma" CTA removed: Figma now lives in DesignHubPanel ("Hub" tab in DesignComposite). */}
+          {componentTree && (
+            <input
+              aria-label="Filter components"
+              value={treeFilter}
+              onChange={(e) => setTreeFilter(e.target.value)}
+              placeholder="Filter by file or component…"
+              style={{ flex: 1, minWidth: 160, background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "inherit", padding: "4px 8px", fontSize: "var(--font-size-base)" }}
+            />
+          )}
         </div>
+
+        {treeError && (
+          <div role="alert" style={{ color: "var(--error-color)", fontSize: "var(--font-size-md)", marginBottom: 12 }}>{treeError}</div>
+        )}
+
+        {!componentTree && !treeError && (
+          <div style={{ fontSize: "var(--font-size-md)", color: "var(--text-secondary)", lineHeight: 1.6 }}>
+            Scan the workspace to list the components it declares. This reads the
+            source files — it is not a live render tree, so a component that is never
+            rendered still appears here. The scan goes 8 directory levels deep and
+            skips <code>node_modules</code>, <code>dist</code>, <code>build</code> and
+            <code>target</code>.
+          </div>
+        )}
+
+        {componentTree && (
+          <>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 10 }}>
+              {componentTree.component_count} component(s) across {componentTree.file_count} file(s)
+              {componentTree.truncated && " — scan hit its file limit, so this is a sample"}
+              {q !== "" && ` · showing ${shown.length}`}
+            </div>
+            {shown.length === 0 ? (
+              <div style={{ fontSize: "var(--font-size-md)", color: "var(--text-secondary)" }}>
+                {componentTree.file_count === 0
+                  ? "No .tsx / .jsx / .vue / .svelte file in this workspace declares an exported component."
+                  : `Nothing matches "${treeFilter}".`}
+              </div>
+            ) : (
+              shown.map((file) => (
+                <div key={file.path} style={{ marginBottom: 6, border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", overflow: "hidden" }}>
+                  <button
+                    type="button"
+                    onClick={() => onOpenFile?.(file.path)}
+                    disabled={!onOpenFile}
+                    title={onOpenFile ? `Open ${file.path}` : file.path}
+                    style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "6px 10px", background: "var(--bg-secondary)", border: "none", color: "inherit", font: "inherit", textAlign: "left", cursor: onOpenFile ? "pointer" : "default" }}
+                  >
+                    <span style={{ flex: 1, fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {file.path}
+                    </span>
+                    <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{file.lines} lines</span>
+                  </button>
+                  <div style={{ padding: "6px 10px", display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {file.components.map((name) => (
+                      <span key={name} style={{ fontSize: "var(--font-size-xs)", fontFamily: "var(--font-mono)", padding: "2px 8px", borderRadius: 10, background: "var(--bg-tertiary)", color: "var(--text-primary)" }}>
+                        {name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </>
+        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderInspector = () => (
     <div style={panelStyle}>
@@ -634,6 +873,18 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
             )}
           </div>
 
+          {generationError && (
+            <div role="alert" style={{ marginTop: 12, fontSize: "var(--font-size-base)", color: "var(--error-color)", whiteSpace: "pre-wrap" }}>
+              {generationError}
+            </div>
+          )}
+
+          {isGenerating && !generationResult && !generationError && (
+            <div style={{ marginTop: 12, fontSize: "var(--font-size-base)", color: "var(--text-secondary)" }}>
+              Asking {provider || "the selected model"} for an edit…
+            </div>
+          )}
+
           {generationResult && (
             <div style={{ marginTop: 12 }}>
               <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 4 }}>Edit Result</div>
@@ -645,145 +896,39 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
         </div>
       ) : (
         <div style={{ fontSize: "var(--font-size-md)", color: "var(--text-secondary)", lineHeight: 1.6 }}>
-          No element selected. Go to the <button onClick={() => setActiveTab("preview")} style={{ background: "none", border: "none", color: "var(--accent-color)", cursor: "pointer", padding: 0, fontSize: "inherit", textDecoration: "underline" }}>Preview</button> tab, enable <strong>Visual Edit</strong>, and click an element to inspect it.
+          No element selected. Go to the <button onClick={() => openTab("preview")} style={{ background: "none", border: "none", color: "var(--accent-color)", cursor: "pointer", padding: 0, fontSize: "inherit", textDecoration: "underline" }}>Preview</button> tab, enable <strong>Visual Edit</strong>, and click an element to inspect it.
         </div>
       )}
     </div>
   );
 
-  const renderFigma = () => {
-    const steps = ["Connect", "Generate", "Review"];
-    const currentStep = figmaResult.length > 0 ? 2 : isGenerating ? 1 : 0;
-    const btnDisabled = isGenerating || !figmaUrl.trim() || !figmaToken.trim();
+  /**
+   * A tab's pane. Mounted the first time it is opened and kept mounted after,
+   * so unsaved work in an editor survives a tab switch — but never mounted
+   * before the user has asked for it.
+   */
+  const tabPane = (id: DesignTab, content: () => React.ReactNode) => {
+    if (!visited.has(id)) return null;
     return (
-      <div style={panelStyle}>
-        {/* Workflow steps */}
-        <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 14 }}>
-          {steps.map((s, i) => (
-            <div key={s} style={{ display: "flex", alignItems: "center", flex: i < steps.length - 1 ? 1 : undefined }}>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-                <div style={{
-                  width: 20, height: 20, borderRadius: "50%", fontSize: "var(--font-size-xs)", fontWeight: 700,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  background: i <= currentStep ? "var(--accent-blue)" : "var(--bg-secondary)",
-                  color: i <= currentStep ? "#fff" : "var(--text-secondary)",
-                  border: `1px solid ${i <= currentStep ? "var(--accent-blue)" : "var(--border-color)"}`,
-                }}>{i + 1}</div>
-                <div style={{ fontSize: 9, color: i <= currentStep ? "var(--text-primary)" : "var(--text-secondary)", whiteSpace: "nowrap" }}>{s}</div>
-              </div>
-              {i < steps.length - 1 && (
-                <div style={{ flex: 1, height: 1, background: i < currentStep ? "var(--accent-blue)" : "var(--border-color)", margin: "0 4px", marginBottom: 12 }} />
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* Form */}
-        <div style={{ background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)", padding: "12px 14px", marginBottom: 10 }}>
-          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 10, lineHeight: 1.5 }}>
-            Get your token from <em>Figma → Settings → Personal access tokens</em>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <div>
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 3 }}>Figma File URL</div>
-              <input
-                value={figmaUrl}
-                onChange={(e) => setFigmaUrl(e.target.value)}
-                placeholder="https://www.figma.com/file/…"
-                style={{ width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 5, color: "inherit", padding: "5px 8px", fontSize: "var(--font-size-base)", boxSizing: "border-box" }}
-              />
-            </div>
-            <div>
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 3 }}>Personal Access Token</div>
-              <input
-                type="password"
-                value={figmaToken}
-                onChange={(e) => setFigmaToken(e.target.value)}
-                placeholder="figd_…"
-                style={{ width: "100%", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", borderRadius: 5, color: "inherit", padding: "5px 8px", fontSize: "var(--font-size-base)", boxSizing: "border-box" }}
-              />
-            </div>
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", cursor: "pointer" }}>
-              <input
-                type="checkbox"
-                checked={figmaSaveToken}
-                onChange={(e) => setFigmaSaveToken(e.target.checked)}
-              />
-              Remember token on this device
-            </label>
-            {figmaTokenError && (
-              <div role="alert" style={{ fontSize: "var(--font-size-sm)", color: "var(--error-color)" }}>{figmaTokenError}</div>
-            )}
-          </div>
-        </div>
-
-        <button
-          onClick={handleFigmaImport}
-          disabled={btnDisabled}
-          style={{ width: "100%", background: "var(--accent-blue)", color: "var(--btn-primary-fg, #fff)", border: "none", borderRadius: "var(--radius-sm)", padding: "8px 0", cursor: btnDisabled ? "not-allowed" : "pointer", fontWeight: 600, fontSize: "var(--font-size-md)", opacity: btnDisabled ? 0.5 : 1, marginBottom: 14 }}
-        >
-          {isGenerating ? "Importing…" : "Import & Generate Components"}
-        </button>
-
-        {/* Results */}
-        {figmaResult.length > 0 && (
-          <div>
-            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-success)", fontWeight: 600, marginBottom: 8 }}>
-              {figmaResult.length} component{figmaResult.length > 1 ? "s" : ""} generated — click a file to preview
-            </div>
-            {figmaResult.map((f) => (
-              <div key={f.path} style={{ marginBottom: 6, borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", overflow: "hidden" }}>
-                <div
-                  onClick={() => setFigmaExpandedFile(figmaExpandedFile === f.path ? null : f.path)}
-                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", background: "var(--bg-secondary)", cursor: "pointer" }}
-                >
-                  <span style={{ flex: 1, fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.path}</span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(f.content); }}
-                    title="Copy code"
-                    style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: "var(--font-size-xs)", padding: "2px 4px", borderRadius: 3 }}
-                  >
-                    Copy
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setPreviewSrcdoc(buildPreviewSrcdoc(f.content));
-                      setActiveTab("preview");
-                    }}
-                    title="Preview in browser"
-                    style={{ background: "none", border: "none", color: "var(--accent-blue)", cursor: "pointer", fontSize: "var(--font-size-xs)", padding: "2px 4px", borderRadius: 3 }}
-                  >
-                    Preview
-                  </button>
-                </div>
-                {figmaExpandedFile === f.path && (
-                  <pre style={{ margin: 0, padding: "10px 12px", fontSize: "var(--font-size-xs)", lineHeight: 1.5, overflow: "auto", maxHeight: 220, background: "var(--bg-tertiary)", color: "var(--text-primary)" }}>
-                    <code>{f.content}</code>
-                  </pre>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+      <div
+        key={id}
+        style={{
+          flex: 1,
+          overflow: "hidden",
+          display: activeTab === id ? "flex" : "none",
+          flexDirection: "column",
+        }}
+      >
+        {content()}
       </div>
     );
   };
 
-  // Helper: wrap each tab so it stays mounted but hidden when inactive
-  const tabPane = (id: DesignTab, content: React.ReactNode) => (
-    <div
-      key={id}
-      style={{
-        flex: 1,
-        overflow: "hidden",
-        display: activeTab === id ? "flex" : "none",
-        flexDirection: "column",
-      }}
-    >
-      {content}
-    </div>
-  );
+  /** An editor tab: lazy, so its chunk is fetched on first open. */
+  const editorPane = (id: DesignTab, render: () => React.ReactNode) =>
+    tabPane(id, () => (
+      <Suspense fallback={<div style={panelStyle}>Loading editor…</div>}>{render()}</Suspense>
+    ));
 
   return (
     <div className="panel-container">
@@ -792,7 +937,7 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
         {tabDefs.map(({ id, label }) => (
           <button
             key={id}
-            onClick={() => setActiveTab(id)}
+            onClick={() => openTab(id)}
             style={tabStyle(activeTab === id)}
           >
             {label}
@@ -806,16 +951,15 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
         ))}
       </div>
 
-      {/* All tabs always mounted — hidden via display:none to preserve state */}
-      {tabPane("preview", renderPreview())}
-      {tabPane("generate", renderGenerate())}
-      {tabPane("components", renderComponents())}
-      {tabPane("inspector", renderInspector())}
-      {tabPane("drawio", <DrawioEditorPanel workspacePath={workspacePath} provider={provider} />)}
-      {tabPane("pencil", <PencilPanel workspacePath={workspacePath} provider={provider} />)}
-      {tabPane("penpot", <PenpotPanel workspacePath={workspacePath} provider={provider} />)}
-      {tabPane("diagrams", <DiagramGeneratorPanel workspacePath={workspacePath} provider={provider} />)}
-      {tabPane("figma", renderFigma())}
+      {/* Mounted on first visit, kept alive after — see `tabPane`. */}
+      {tabPane("preview", renderPreview)}
+      {tabPane("generate", renderGenerate)}
+      {tabPane("components", renderComponents)}
+      {tabPane("inspector", renderInspector)}
+      {editorPane("drawio", () => <DrawioEditorPanel workspacePath={workspacePath} provider={provider} />)}
+      {editorPane("pencil", () => <PencilPanel workspacePath={workspacePath} provider={provider} />)}
+      {editorPane("penpot", () => <PenpotPanel workspacePath={workspacePath} provider={provider} />)}
+      {editorPane("diagrams", () => <DiagramGeneratorPanel workspacePath={workspacePath} provider={provider} />)}
     </div>
   );
 }

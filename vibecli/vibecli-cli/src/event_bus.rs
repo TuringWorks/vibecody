@@ -368,7 +368,7 @@ impl EventBus {
         let mut subs = self.subscriptions.lock_recover();
         subs.push(sub);
         // Keep sorted: highest priority first, then insertion order (stable sort).
-        subs.sort_by(|a, b| b.priority.cmp(&a.priority));
+        subs.sort_by_key(|b| std::cmp::Reverse(b.priority));
         id
     }
 

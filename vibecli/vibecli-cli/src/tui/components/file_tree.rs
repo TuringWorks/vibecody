@@ -7,6 +7,12 @@ pub struct FileTreeComponent {
     pub selected_index: usize,
 }
 
+impl Default for FileTreeComponent {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FileTreeComponent {
     pub fn new() -> Self {
         let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));

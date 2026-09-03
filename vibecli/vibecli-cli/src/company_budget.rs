@@ -338,6 +338,42 @@ fn row_to_event(row: &rusqlite::Row) -> rusqlite::Result<CostEvent> {
     })
 }
 
+impl CompanyBudget {
+    pub fn summary_line(&self) -> String {
+        let limit_str = if self.limit_cents == 0 {
+            "unlimited".to_string()
+        } else {
+            format!("${:.2}", self.limit_cents as f64 / 100.0)
+        };
+        let spent_str = format!("${:.2}", self.spent_cents as f64 / 100.0);
+        let pct = if self.limit_cents > 0 {
+            format!(
+                "{:.1}%",
+                (self.spent_cents as f64 / self.limit_cents as f64) * 100.0
+            )
+        } else {
+            "—".to_string()
+        };
+        let alert = if BudgetStore::is_over_alert(self) {
+            " ⚠"
+        } else {
+            ""
+        };
+        let hard = if self.hard_stop { " [hard-stop]" } else { "" };
+        format!(
+            "[{}] {} {} / {}  ({}){}{} — agent:{}",
+            self.month,
+            &self.agent_id[..8.min(self.agent_id.len())],
+            spent_str,
+            limit_str,
+            pct,
+            alert,
+            hard,
+            &self.agent_id[..8.min(self.agent_id.len())]
+        )
+    }
+}
+
 // ── Display helpers ───────────────────────────────────────────────────────────
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -590,41 +626,5 @@ mod tests {
         let events = store.list_events("co1", Some("ag1")).unwrap();
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].agent_id, "ag1");
-    }
-}
-
-impl CompanyBudget {
-    pub fn summary_line(&self) -> String {
-        let limit_str = if self.limit_cents == 0 {
-            "unlimited".to_string()
-        } else {
-            format!("${:.2}", self.limit_cents as f64 / 100.0)
-        };
-        let spent_str = format!("${:.2}", self.spent_cents as f64 / 100.0);
-        let pct = if self.limit_cents > 0 {
-            format!(
-                "{:.1}%",
-                (self.spent_cents as f64 / self.limit_cents as f64) * 100.0
-            )
-        } else {
-            "—".to_string()
-        };
-        let alert = if BudgetStore::is_over_alert(self) {
-            " ⚠"
-        } else {
-            ""
-        };
-        let hard = if self.hard_stop { " [hard-stop]" } else { "" };
-        format!(
-            "[{}] {} {} / {}  ({}){}{} — agent:{}",
-            self.month,
-            &self.agent_id[..8.min(self.agent_id.len())],
-            spent_str,
-            limit_str,
-            pct,
-            alert,
-            hard,
-            &self.agent_id[..8.min(self.agent_id.len())]
-        )
     }
 }

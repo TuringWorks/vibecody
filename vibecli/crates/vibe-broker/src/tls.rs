@@ -92,7 +92,7 @@ impl BrokerCa {
 
     /// Read the CA from `<dir>/ca.pem` + `<dir>/ca.key.pem`, generating
     /// + saving a fresh one if either file is missing. The directory is
-    /// created with mode 0700 on Unix.
+    ///   created with mode 0700 on Unix.
     pub fn load_or_generate(dir: &Path) -> Result<Self, TlsError> {
         let cert_path = dir.join("ca.pem");
         let key_path = dir.join("ca.key.pem");

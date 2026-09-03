@@ -3194,7 +3194,7 @@ mod tests {
         let spec = ArchitectureSpec::new("Test");
         let score = spec.health_score();
         // Empty spec should have low health (governance violations exist)
-        assert!(score >= 0.0 && score <= 1.0);
+        assert!((0.0..=1.0).contains(&score));
     }
 
     #[test]

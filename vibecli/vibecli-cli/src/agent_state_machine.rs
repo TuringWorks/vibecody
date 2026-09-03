@@ -375,7 +375,8 @@ mod tests {
 
     #[test]
     fn test_abort_from_any_state() {
-        for initial_event in &[AgentEvent::TaskReceived] {
+        {
+            let initial_event = &AgentEvent::TaskReceived;
             let mut fsm = fresh();
             fsm.apply(initial_event.clone()).unwrap();
             fsm.apply(AgentEvent::Abort("user cancelled".into()))

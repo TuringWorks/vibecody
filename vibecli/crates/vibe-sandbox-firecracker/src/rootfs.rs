@@ -409,14 +409,14 @@ impl Sha256Stream {
         let mut f = h[5];
         let mut g = h[6];
         let mut hh = h[7];
-        for i in 0..64 {
+        for (k, wi) in Self::K.iter().zip(w.iter()) {
             let s1 = e.rotate_right(6) ^ e.rotate_right(11) ^ e.rotate_right(25);
             let ch = (e & f) ^ ((!e) & g);
             let t1 = hh
                 .wrapping_add(s1)
                 .wrapping_add(ch)
-                .wrapping_add(Self::K[i])
-                .wrapping_add(w[i]);
+                .wrapping_add(*k)
+                .wrapping_add(*wi);
             let s0 = a.rotate_right(2) ^ a.rotate_right(13) ^ a.rotate_right(22);
             let mj = (a & b) ^ (a & c) ^ (b & c);
             let t2 = s0.wrapping_add(mj);

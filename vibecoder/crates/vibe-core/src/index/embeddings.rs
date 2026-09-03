@@ -1178,7 +1178,10 @@ mod tests {
 
         let changed = ws.path().join("a.rs");
         std::fs::write(&changed, "fn alpha() {}\nfn beta() {}\nfn delta() {}").expect("write");
-        index.update(&[changed.clone()]).await.expect("updates");
+        index
+            .update(std::slice::from_ref(&changed))
+            .await
+            .expect("updates");
 
         assert!(index.docs().iter().any(|d| d.file == changed));
         assert_eq!(index.vectors().len(), index.docs().len());
@@ -1196,7 +1199,10 @@ mod tests {
         .expect("builds");
         let gone = ws.path().join("a.rs");
         std::fs::remove_file(&gone).expect("removes");
-        index.update(&[gone.clone()]).await.expect("updates");
+        index
+            .update(std::slice::from_ref(&gone))
+            .await
+            .expect("updates");
         assert!(!index.docs().iter().any(|d| d.file == gone));
         assert_eq!(index.vectors().len(), index.docs().len());
     }

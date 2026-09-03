@@ -73,6 +73,12 @@ pub struct DiffViewComponent {
     parsed_lines: Vec<DiffLine>,
 }
 
+impl Default for DiffViewComponent {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DiffViewComponent {
     pub fn new() -> Self {
         Self {

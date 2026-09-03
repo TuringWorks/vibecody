@@ -549,7 +549,7 @@ impl MigrationPlan {
                 .filter(|c| c.risk_level == RiskLevel::High)
                 .collect();
         }
-        critical.sort_by(|a, b| b.complexity_score.cmp(&a.complexity_score));
+        critical.sort_by_key(|b| std::cmp::Reverse(b.complexity_score));
         critical
     }
 
@@ -625,6 +625,12 @@ impl TranslationRule {
     }
 }
 
+impl Default for AnalysisResult {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AnalysisResult {
     pub fn new() -> Self {
         Self {
@@ -659,6 +665,12 @@ impl AnalysisResult {
             self.estimated_effort_hours,
             self.recommended_strategy,
         )
+    }
+}
+
+impl Default for MigrationEngine {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1898,7 +1910,7 @@ mod tests {
     fn test_engine_load_default_rules_perl_python() {
         let mut e = MigrationEngine::new();
         e.load_default_rules(&SourceLanguage::Perl, &TargetLanguage::Python);
-        assert!(e.translation_rules.len() >= 1);
+        assert!(!e.translation_rules.is_empty());
     }
 
     #[test]

@@ -922,30 +922,19 @@ async fn play_audio(path: &Path) {
 mod tests {
     use super::*;
 
-    #[test]
-    fn transcribe_requires_path() {
-        // Just verify the function signature compiles
-        let _ = async {
-            let path = std::path::Path::new("/tmp/test.wav");
-            let _ = transcribe_audio(path, "test_key").await;
-        };
-    }
-
-    #[test]
-    fn tts_requires_voice_id() {
-        let _ = async {
-            let _ = text_to_speech("hello", "test_key", "voice_123").await;
-        };
-    }
-
-    #[test]
-    fn transcribe_with_different_extensions() {
-        // Verify various audio file path extensions compile and work
-        for ext in &["wav", "mp3", "ogg", "flac", "m4a"] {
-            let path = std::path::PathBuf::from(format!("/tmp/audio.{}", ext));
-            let _ = async move {
-                let _ = transcribe_audio(&path, "key").await;
-            };
+    // These were `#[test] fn { let _ = async { .. }; }` — the future was built
+    // and dropped unpolled, so they asserted nothing at run time and their only
+    // real value was type-checking the call. Saying that in a never-called
+    // function is honest about what is and is not being measured; a `#[test]`
+    // that cannot fail reads like coverage it does not provide.
+    #[allow(dead_code)]
+    async fn _signatures_are_callable() {
+        let path = std::path::Path::new("/tmp/test.wav");
+        let _ = transcribe_audio(path, "test_key").await;
+        let _ = text_to_speech("hello", "test_key", "voice_123").await;
+        for ext in ["wav", "mp3", "ogg", "flac", "m4a"] {
+            let path = std::path::PathBuf::from(format!("/tmp/audio.{ext}"));
+            let _ = transcribe_audio(&path, "key").await;
         }
     }
 

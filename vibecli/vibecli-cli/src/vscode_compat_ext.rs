@@ -990,7 +990,7 @@ mod tests {
         ] {
             let s = compatibility_score_for_category(cat);
             assert!(
-                s >= 0.0 && s <= 1.0,
+                (0.0..=1.0).contains(&s),
                 "Score for {} out of bounds: {}",
                 cat,
                 s

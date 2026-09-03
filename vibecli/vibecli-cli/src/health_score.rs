@@ -1355,8 +1355,10 @@ mod tests {
 
     #[test]
     fn test_engine_no_history_when_disabled() {
-        let mut cfg = HealthConfig::default();
-        cfg.track_history = false;
+        let cfg = HealthConfig {
+            track_history: false,
+            ..Default::default()
+        };
         let mut engine = HealthEngine::new(cfg);
         engine.scan("/p", 50);
         assert_eq!(engine.history().len(), 0);

@@ -145,9 +145,8 @@ fn broker_forwarding_timeout(world: &mut FWorld, ms: u64) {
 
 #[when(expr = "I send {string} through the broker to the stub")]
 fn send(world: &mut FWorld, req_line: String) {
-    let mut parts = req_line.splitn(2, ' ');
-    let method = parts.next().unwrap();
-    let path = parts.next().unwrap();
+    let (method, path) = req_line.split_once(' ').unwrap();
+
     let upstream = world.upstream_addr.unwrap();
     let host_hdr = format!("{}:{}", upstream.ip(), upstream.port());
     let raw = format!("{method} {path} HTTP/1.1\r\nHost: {host_hdr}\r\nConnection: close\r\n\r\n");

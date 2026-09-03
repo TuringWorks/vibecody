@@ -524,6 +524,12 @@ pub struct CiStatusManager {
     pub config: CiStatusConfig,
 }
 
+impl Default for CiStatusManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CiStatusManager {
     pub fn new() -> Self {
         Self {

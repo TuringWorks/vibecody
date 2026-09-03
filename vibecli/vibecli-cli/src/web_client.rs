@@ -750,8 +750,10 @@ mod tests {
 
     #[test]
     fn test_html_custom_title() {
-        let mut cfg = WebClientConfig::default();
-        cfg.title = "My Custom Title".to_string();
+        let cfg = WebClientConfig {
+            title: "My Custom Title".to_string(),
+            ..Default::default()
+        };
         let html = web_client_html(&cfg);
         assert!(html.contains("<title>My Custom Title</title>"));
         assert!(html.contains("My Custom Title"));
@@ -800,8 +802,10 @@ mod tests {
 
     #[test]
     fn test_html_light_theme() {
-        let mut cfg = WebClientConfig::default();
-        cfg.theme = "light".to_string();
+        let cfg = WebClientConfig {
+            theme: "light".to_string(),
+            ..Default::default()
+        };
         let html = web_client_html(&cfg);
         assert!(html.contains(r#"data-theme="light""#));
     }
@@ -868,8 +872,10 @@ mod tests {
 
     #[test]
     fn test_html_agent_mode_disabled() {
-        let mut cfg = WebClientConfig::default();
-        cfg.enable_agent_mode = false;
+        let cfg = WebClientConfig {
+            enable_agent_mode: false,
+            ..Default::default()
+        };
         let html = web_client_html(&cfg);
         // Should still have chat label but NOT agent label
         assert!(html.contains(r#"data-mode="chat""#));
@@ -886,8 +892,10 @@ mod tests {
 
     #[test]
     fn test_html_file_upload_disabled() {
-        let mut cfg = WebClientConfig::default();
-        cfg.enable_file_upload = false;
+        let cfg = WebClientConfig {
+            enable_file_upload: false,
+            ..Default::default()
+        };
         let html = web_client_html(&cfg);
         assert!(!html.contains("id=\"upload-btn\""));
     }
@@ -939,8 +947,10 @@ mod tests {
 
     #[test]
     fn test_html_max_history_injected() {
-        let mut cfg = WebClientConfig::default();
-        cfg.max_message_history = 42;
+        let cfg = WebClientConfig {
+            max_message_history: 42,
+            ..Default::default()
+        };
         let html = web_client_html(&cfg);
         assert!(html.contains("maxHistory: 42"));
     }
@@ -1005,8 +1015,10 @@ mod tests {
 
     #[test]
     fn test_config_with_html_in_title() {
-        let mut cfg = WebClientConfig::default();
-        cfg.title = "<b>Evil</b>".to_string();
+        let cfg = WebClientConfig {
+            title: "<b>Evil</b>".to_string(),
+            ..Default::default()
+        };
         let html = web_client_html(&cfg);
         assert!(!html.contains("<b>Evil</b>"));
         assert!(html.contains("&lt;b&gt;Evil&lt;/b&gt;"));

@@ -12,7 +12,7 @@
 //! back to a provider the daemon can actually build. Ollama is served
 //! separately by the endpoint (live `/api/tags` locals + [`OLLAMA_CHAT_MODELS`]
 //! + `providers::ollama::OLLAMA_CLOUD_MODELS`), so it is intentionally absent
-//! from [`PROVIDER_MODELS`].
+//!   from [`PROVIDER_MODELS`].
 
 /// Ollama chat models addressable via a local pull or ollama.com. Excludes the
 /// `*-cloud` datacenter models, which live in
@@ -453,7 +453,10 @@ mod tests {
             "clients send `name` verbatim, so it must be the API's own id"
         );
         for name in POOLSIDE {
-            assert!(name.starts_with("poolside/"), "`{name}` would be rejected bare");
+            assert!(
+                name.starts_with("poolside/"),
+                "`{name}` would be rejected bare"
+            );
         }
     }
 
@@ -485,7 +488,10 @@ mod tests {
             composed_id("groq", "openai/gpt-oss-120b"),
             "groq/openai/gpt-oss-120b"
         );
-        assert_eq!(composed_id("claude", "claude-opus-5"), "claude/claude-opus-5");
+        assert_eq!(
+            composed_id("claude", "claude-opus-5"),
+            "claude/claude-opus-5"
+        );
 
         for (provider, names) in PROVIDER_MODELS {
             for name in *names {

@@ -410,7 +410,7 @@ fn classify_call(node: &Node<'_>, src: &str, lang: Language) -> CallType {
             return CallType::Method;
         }
         // Heuristic: capitalized first char → constructor-ish.
-        if raw.chars().next().map_or(false, |c| c.is_ascii_uppercase()) {
+        if raw.chars().next().is_some_and(|c| c.is_ascii_uppercase()) {
             return CallType::Constructor;
         }
     }

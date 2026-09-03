@@ -541,7 +541,7 @@ mod tests {
 
     #[test]
     fn finds_anthropic_key() {
-        let f = scan_str(&format!("API={};", format!("sk-ant-{}", "x".repeat(50))));
+        let f = scan_str(&format!("API=sk-ant-{};", "x".repeat(50)));
         assert!(f
             .iter()
             .any(|f| f.rule_id == "secret-leak:anthropic-api-key"));

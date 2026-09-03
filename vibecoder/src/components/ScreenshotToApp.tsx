@@ -1,5 +1,6 @@
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { GeneratedFileList, type GeneratedFile } from "./design/GeneratedFileList";
 
 /** Extract a human-readable message from raw API error strings. */
 function parseApiError(raw: string): string {
@@ -17,21 +18,14 @@ function parseApiError(raw: string): string {
   return body;
 }
 
-/** Vision-capable provider keywords — used to show a hint when the selected model likely won't work. */
-const VISION_PROVIDERS = ["claude", "openai", "gpt", "gemini", "vertex", "bedrock", "azure"];
-function isVisionCapable(p: string) {
-  return VISION_PROVIDERS.some(k => p.toLowerCase().includes(k));
-}
-
-interface GeneratedFile {
-  path: string;
-  content: string;
-  language: string;
-  /** True when the response carried no `// FILE:` marker and `path` is a
-   *  placeholder the parser invented. Those get an editable destination rather
-   *  than being written to an invented name nothing imports. */
-  path_inferred?: boolean;
-}
+/*
+ * There is deliberately no client-side "is this model vision-capable?" list
+ * here. There used to be — a keyword match on the provider's display name —
+ * and it refused every vision model whose name did not contain "claude",
+ * "gpt" or "gemini", local ones included. `generate_app_from_image` asks the
+ * active provider itself (`supports_vision()`) and returns a real error, so
+ * the answer comes from the provider rather than from a guess about its name.
+ */
 
 const FRAMEWORKS = [
   { value: "react", label: "React (TSX)" },
@@ -52,17 +46,11 @@ export function ScreenshotToApp({ workspacePath, provider: propProvider }: { wor
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [files, setFiles] = useState<GeneratedFile[]>([]);
-  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [writeStatus, setWriteStatus] = useState<Record<number, string>>({});
-  // Destination overrides, keyed by index — only set for files the user retargets.
-  const [pathEdits, setPathEdits] = useState<Record<number, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
 
   const ACCEPTED = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
-
-  const unnamedCount = useMemo(() => files.filter(f => f.path_inferred).length, [files]);
 
   const loadImage = useCallback((file: File) => {
     if (!ACCEPTED.includes(file.type)) {
@@ -71,7 +59,6 @@ export function ScreenshotToApp({ workspacePath, provider: propProvider }: { wor
     }
     setError(null);
     setFiles([]);
-    setWriteStatus({});
     // Normalize jpg → jpeg; backend mime list mirrors the provider trait's accepted types.
     setImageMime(file.type === "image/jpg" ? "image/jpeg" : file.type);
     const reader = new FileReader();
@@ -109,19 +96,9 @@ export function ScreenshotToApp({ workspacePath, provider: propProvider }: { wor
       setError("No provider selected. Pick one in the toolbar dropdown.");
       return;
     }
-    if (!isVisionCapable(selectedProvider)) {
-      setError(
-        `"${selectedProvider}" can't read images. Switch the toolbar provider to ` +
-        `Claude, GPT-4o, or Gemini before generating.`
-      );
-      return;
-    }
     setGenerating(true);
     setError(null);
     setFiles([]);
-    setWriteStatus({});
-    setPathEdits({});
-    setExpandedIdx(null);
     try {
       const result = await invoke<GeneratedFile[]>("generate_app_from_image", {
         imageBase64,
@@ -130,7 +107,6 @@ export function ScreenshotToApp({ workspacePath, provider: propProvider }: { wor
         provider: selectedProvider,
       });
       setFiles(result);
-      if (result.length > 0) setExpandedIdx(0);
     } catch (e: unknown) {
       setError(parseApiError(String(e)));
     } finally {
@@ -138,73 +114,12 @@ export function ScreenshotToApp({ workspacePath, provider: propProvider }: { wor
     }
   };
 
-  /** Where a file will actually be written: the user's override if they typed
-   *  one, otherwise the path parsed out of the response. */
-  const destinationFor = useCallback(
-    (idx: number) => (pathEdits[idx] ?? files[idx].path).trim(),
-    [pathEdits, files]
-  );
-
-  const writeOne = useCallback(async (idx: number, root: string) => {
-    const destination = destinationFor(idx);
-    if (!destination) {
-      setWriteStatus(prev => ({ ...prev, [idx]: "error" }));
-      setError("Give the file a destination path before writing it.");
-      return;
-    }
-    const fullPath = root.endsWith("/") ? root + destination : root + "/" + destination;
-    try {
-      setWriteStatus(prev => ({ ...prev, [idx]: "writing" }));
-      await invoke("write_file", { path: fullPath, content: files[idx].content });
-      setWriteStatus(prev => ({ ...prev, [idx]: "done" }));
-    } catch (e: unknown) {
-      setWriteStatus(prev => ({ ...prev, [idx]: "error" }));
-      setError(`Failed to write ${destination}: ${String(e)}`);
-    }
-  }, [destinationFor, files]);
-
-  const handleWriteFile = async (idx: number) => {
-    if (!workspacePath) {
-      setError("No workspace folder open.");
-      return;
-    }
-    await writeOne(idx, workspacePath);
-    window.dispatchEvent(new Event("vibecoder:refresh-files"));
-  };
-
-  const handleWriteAll = async () => {
-    if (!workspacePath) {
-      setError("No workspace folder open.");
-      return;
-    }
-    for (let i = 0; i < files.length; i++) {
-      await writeOne(i, workspacePath);
-    }
-    window.dispatchEvent(new Event("vibecoder:refresh-files"));
-  };
-
   const handleClear = () => {
     setImageBase64(null);
     setImagePreview(null);
     setFiles([]);
     setError(null);
-    setWriteStatus({});
-    setPathEdits({});
-    setExpandedIdx(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const langColor = (lang: string) => {
-    switch (lang) {
-      case "tsx": case "jsx": return "var(--accent-color)";
-      case "typescript": case "ts": return "var(--accent-color)";
-      case "javascript": case "js": return "var(--warning-color)";
-      case "vue": return "var(--success-color)";
-      case "svelte": return "var(--error-color)";
-      case "html": return "var(--error-color)";
-      case "css": return "var(--accent-color)";
-      default: return "var(--text-secondary)";
-    }
   };
 
   return (
@@ -280,13 +195,9 @@ export function ScreenshotToApp({ workspacePath, provider: propProvider }: { wor
         }}>
           {selectedProvider || "(none selected)"}
         </span>
-        {!selectedProvider ? (
+        {!selectedProvider && (
           <span style={{ fontSize: "var(--font-size-xs)", color: "var(--warning-color)" }}>
             ⚠ Pick a provider in the toolbar dropdown.
-          </span>
-        ) : !isVisionCapable(selectedProvider) && (
-          <span style={{ fontSize: "var(--font-size-xs)", color: "var(--warning-color)" }}>
-            ⚠ Toolbar provider isn't vision-capable. Switch to Claude, GPT-4o, or Gemini.
           </span>
         )}
       </div>
@@ -322,7 +233,7 @@ export function ScreenshotToApp({ workspacePath, provider: propProvider }: { wor
       {/* Generate button */}
       <button
         onClick={handleGenerate}
-        disabled={!imageBase64 || generating || !selectedProvider || !isVisionCapable(selectedProvider)}
+        disabled={!imageBase64 || generating || !selectedProvider}
         style={{
           width: "100%", padding: "10px",
           background: !imageBase64 ? "var(--bg-secondary)" : generating ? "var(--bg-tertiary)" : "var(--accent-color)",
@@ -369,124 +280,14 @@ export function ScreenshotToApp({ workspacePath, provider: propProvider }: { wor
         </div>
       )}
 
-      {/* Generated files list */}
-      {files.length > 0 && (
-        <div>
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            marginBottom: "8px",
-          }}>
-            <span style={{ color: "var(--success-color)", fontWeight: "bold", fontSize: "var(--font-size-base)" }}>
-              {files.length} file{files.length !== 1 ? "s" : ""} generated
-            </span>
-            <button
-              onClick={handleWriteAll}
-              disabled={!workspacePath}
-              style={{
-                background: "var(--success-color)", color: "var(--text-primary)", border: "none",
-                borderRadius: "var(--radius-xs-plus)", padding: "4px 12px", cursor: "pointer",
-                fontSize: "var(--font-size-sm)", opacity: workspacePath ? 1 : 0.5,
-              }}
-            >
-              Write All to Project
-            </button>
-          </div>
+      {/* Generated files — the same review-and-write list the Import tab and
+          the Figma import use, so all three behave identically. */}
+      <GeneratedFileList
+        files={files}
+        workspacePath={workspacePath}
+        onError={setError}
+      />
 
-          {unnamedCount > 0 && (
-            <div style={{
-              color: "var(--text-secondary)", marginBottom: "8px",
-              fontSize: "var(--font-size-sm)", lineHeight: "1.5",
-            }}>
-              {unnamedCount} file{unnamedCount !== 1 ? "s" : ""} came back without a path
-              and {unnamedCount !== 1 ? "were" : "was"} named after the code
-              {unnamedCount !== 1 ? " they declare" : " it declares"}. Edit any name
-              before writing, or rename later.
-            </div>
-          )}
-
-          {files.map((file, idx) => (
-            <div
-              key={idx}
-              style={{
-                border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)",
-                marginBottom: "6px", overflow: "hidden",
-              }}
-            >
-              {/* File header */}
-              <div
-                onClick={() => setExpandedIdx(expandedIdx === idx ? null : idx)}
-                style={{
-                  display: "flex", alignItems: "center", gap: "8px",
-                  padding: "8px 10px", cursor: "pointer",
-                  background: "var(--bg-secondary)",
-                }}
-              >
-                <span style={{
-                  fontSize: "var(--font-size-xs)", transform: expandedIdx === idx ? "rotate(90deg)" : "rotate(0deg)",
-                  transition: "transform 0.15s", color: "var(--text-secondary)",
-                }}>
-                  &#9654;
-                </span>
-                <span style={{
-                  background: langColor(file.language), color: "var(--bg-primary)",
-                  padding: "1px 6px", borderRadius: "3px", fontSize: "var(--font-size-xs)",
-                  fontWeight: "bold",
-                }}>
-                  {file.language.toUpperCase()}
-                </span>
-                {file.path_inferred ? (
-                  <input
-                    value={destinationFor(idx)}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => setPathEdits(prev => ({ ...prev, [idx]: e.target.value }))}
-                    placeholder="path/to/file.tsx"
-                    title="Named after what the code declares — edit to retarget an existing file"
-                    style={{
-                      flex: 1, minWidth: 0, background: "var(--bg-primary)",
-                      color: "var(--text-primary)", fontFamily: "var(--font-mono)",
-                      fontSize: "var(--font-size-sm)", padding: "2px 6px",
-                      border: "1px solid var(--border-color)", borderRadius: "3px",
-                    }}
-                  />
-                ) : (
-                  <span style={{ color: "var(--text-primary)", fontSize: "var(--font-size-base)", flex: 1 }}>
-                    {file.path}
-                  </span>
-                )}
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleWriteFile(idx); }}
-                  disabled={!workspacePath || writeStatus[idx] === "writing"}
-                  style={{
-                    background: writeStatus[idx] === "done" ? "var(--success-color)"
-                      : writeStatus[idx] === "error" ? "var(--error-color)"
-                      : "var(--accent-color)",
-                    color: "var(--text-primary)", border: "none", borderRadius: "3px",
-                    padding: "2px 8px", cursor: "pointer", fontSize: "var(--font-size-sm)",
-                    opacity: workspacePath ? 1 : 0.5,
-                  }}
-                >
-                  {writeStatus[idx] === "writing" ? "..."
-                    : writeStatus[idx] === "done" ? "Written"
-                    : writeStatus[idx] === "error" ? "Retry"
-                    : "Write"}
-                </button>
-              </div>
-
-              {/* Code preview */}
-              {expandedIdx === idx && (
-                <pre style={{
-                  margin: 0, padding: "10px", background: "var(--bg-primary)",
-                  overflow: "auto", maxHeight: "300px",
-                  fontSize: "var(--font-size-sm)", lineHeight: "1.5",
-                  color: "var(--text-primary)", whiteSpace: "pre",
-                }}>
-                  {file.content}
-                </pre>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Info box when idle */}
       {!generating && files.length === 0 && !error && (

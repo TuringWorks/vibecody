@@ -166,7 +166,7 @@ impl MacroRegistry {
     /// Most-used macros (descending by use_count).
     pub fn top_used(&self, n: usize) -> Vec<&ReplMacro> {
         let mut v: Vec<_> = self.macros.values().collect();
-        v.sort_by(|a, b| b.use_count.cmp(&a.use_count));
+        v.sort_by_key(|b| std::cmp::Reverse(b.use_count));
         v.truncate(n);
         v
     }

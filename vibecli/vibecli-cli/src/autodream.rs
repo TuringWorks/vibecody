@@ -90,7 +90,7 @@ impl AutoDream {
 
         // Cap by max_entries (evict lowest access_count)
         if entries.len() > self.policy.max_entries {
-            entries.sort_by(|a, b| b.access_count.cmp(&a.access_count));
+            entries.sort_by_key(|b| std::cmp::Reverse(b.access_count));
             let pruned_cap = entries.len() - self.policy.max_entries;
             entries.truncate(self.policy.max_entries);
             let kept = entries.len();
@@ -112,7 +112,7 @@ impl AutoDream {
     }
 
     pub fn rank_by_relevance(&self, mut entries: Vec<MemoryEntry>) -> Vec<MemoryEntry> {
-        entries.sort_by(|a, b| b.access_count.cmp(&a.access_count));
+        entries.sort_by_key(|b| std::cmp::Reverse(b.access_count));
         entries
     }
 }

@@ -89,9 +89,8 @@ match.require_tls = false
 
 #[when(expr = "I send {string} through the broker")]
 fn send_request(world: &mut AWorld, req: String) {
-    let mut parts = req.splitn(2, ' ');
-    let method = parts.next().unwrap();
-    let url = parts.next().unwrap();
+    let (method, url) = req.split_once(' ').unwrap();
+
     let parsed = url::Url::parse(url).unwrap();
     let host = parsed.host_str().unwrap().to_owned();
     let path_q = format!(

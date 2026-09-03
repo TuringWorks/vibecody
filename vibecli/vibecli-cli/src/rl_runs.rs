@@ -42,6 +42,9 @@ impl RunStatus {
         }
     }
 
+    // Not `FromStr`: that trait must return a `Result`, and this parser reports an
+    // unknown input as `None` rather than as an error value it would have to invent.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         Some(match s {
             "created" => Self::Created,
@@ -107,6 +110,9 @@ impl RunKind {
         }
     }
 
+    // Not `FromStr`: that trait must return a `Result`, and this parser reports an
+    // unknown input as `None` rather than as an error value it would have to invent.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         Some(match s {
             "train" => Self::Train,

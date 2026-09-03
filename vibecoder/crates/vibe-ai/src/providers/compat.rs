@@ -23,7 +23,8 @@
 use super::openai_compat::{self, ChatRequest};
 use crate::provider::{
     AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message,
-    ProviderConfig, StopReasonSink};
+    ProviderConfig, StopReasonSink,
+};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 
@@ -89,7 +90,8 @@ impl CompatSpec {
 pub const VLLM: CompatSpec = CompatSpec::local("vllm", "vLLM", "http://localhost:8000/v1");
 
 /// LM Studio's local server (Developer tab → Start Server).
-pub const LM_STUDIO: CompatSpec = CompatSpec::local("lmstudio", "LM Studio", "http://localhost:1234/v1");
+pub const LM_STUDIO: CompatSpec =
+    CompatSpec::local("lmstudio", "LM Studio", "http://localhost:1234/v1");
 
 /// An OpenAI-compatible provider, behaviour identical to the hand-written
 /// twelve, with the differences supplied by `spec`.
@@ -323,12 +325,119 @@ impl AIProvider for CompatProvider {
     }
 }
 
+/// Declare an OpenAI-compatible provider as a named type over [`CompatProvider`].
+///
+/// The twelve hand-written providers each exposed a concrete type —
+/// `CerebrasProvider`, `GroqProvider` — that callers and their own test suites
+/// name directly. Replacing them with `CompatProvider` everywhere would be a
+/// wide, mechanical edit across the workspace *and* would throw away those
+/// suites, which are the only evidence the migration preserved behaviour.
+///
+/// So the name stays and the body goes. Each provider keeps its type and its
+/// tests; what it loses is ~150 lines that differed from its neighbour's by a
+/// dozen.
+#[macro_export]
+macro_rules! openai_compat_provider {
+    ($ty:ident, $id:literal, $label:literal, $base:expr, $env:literal) => {
+        /// The provider's identity, as data. Public so the daemon can describe
+        /// it without constructing one.
+        pub const SPEC: $crate::providers::compat::CompatSpec =
+            $crate::providers::compat::CompatSpec::cloud($id, $label, $base, $env);
+
+        #[doc = concat!("`", $label, "`, an OpenAI-compatible provider.")]
+        pub struct $ty($crate::providers::compat::CompatProvider);
+
+        impl $ty {
+            pub fn new(config: $crate::provider::ProviderConfig) -> Self {
+                Self($crate::providers::compat::CompatProvider::new(SPEC, config))
+            }
+        }
+
+        // Gives the inherent helpers — `base_url`, `chat_url`, `api_key` — which
+        // the existing test suites call directly.
+        impl std::ops::Deref for $ty {
+            type Target = $crate::providers::compat::CompatProvider;
+            fn deref(&self) -> &Self::Target {
+                &self.0
+            }
+        }
+
+        #[async_trait::async_trait]
+        impl $crate::provider::AIProvider for $ty {
+            fn name(&self) -> &str {
+                $crate::provider::AIProvider::name(&self.0)
+            }
+            async fn is_available(&self) -> bool {
+                self.0.is_available().await
+            }
+            async fn complete(
+                &self,
+                context: &$crate::provider::CodeContext,
+            ) -> anyhow::Result<$crate::provider::CompletionResponse> {
+                self.0.complete(context).await
+            }
+            async fn stream_complete(
+                &self,
+                context: &$crate::provider::CodeContext,
+            ) -> anyhow::Result<$crate::provider::CompletionStream> {
+                self.0.stream_complete(context).await
+            }
+            async fn chat_response(
+                &self,
+                messages: &[$crate::provider::Message],
+                context: Option<String>,
+            ) -> anyhow::Result<$crate::provider::CompletionResponse> {
+                self.0.chat_response(messages, context).await
+            }
+            async fn chat(
+                &self,
+                messages: &[$crate::provider::Message],
+                context: Option<String>,
+            ) -> anyhow::Result<String> {
+                self.0.chat(messages, context).await
+            }
+            async fn stream_chat(
+                &self,
+                messages: &[$crate::provider::Message],
+            ) -> anyhow::Result<$crate::provider::CompletionStream> {
+                self.0.stream_chat(messages).await
+            }
+            async fn chat_with_images(
+                &self,
+                messages: &[$crate::provider::Message],
+                images: &[$crate::provider::ImageAttachment],
+                context: Option<String>,
+            ) -> anyhow::Result<String> {
+                self.0.chat_with_images(messages, images, context).await
+            }
+            /// Delegated like every other capability: the inner
+            /// `CompatProvider` is the one that builds the request, so it is
+            /// the one that knows whether schemas ride along.
+            fn harness_profile(&self) -> $crate::harness::ModelProfile {
+                $crate::provider::AIProvider::harness_profile(&self.0)
+            }
+            fn advertises_native_tools(&self) -> bool {
+                $crate::provider::AIProvider::advertises_native_tools(&self.0)
+            }
+            /// Delegated for the same reason as the rest: the inner provider
+            /// holds the base URL, the key and the model id.
+            async fn context_window(&self) -> Option<usize> {
+                self.0.context_window().await
+            }
+        }
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const CLOUD: CompatSpec =
-        CompatSpec::cloud("testly", "Testly", "https://api.testly.ai/v1", "TESTLY_API_KEY");
+    const CLOUD: CompatSpec = CompatSpec::cloud(
+        "testly",
+        "Testly",
+        "https://api.testly.ai/v1",
+        "TESTLY_API_KEY",
+    );
 
     fn config(model: &str) -> ProviderConfig {
         ProviderConfig {
@@ -441,107 +550,4 @@ mod tests {
         let p = CompatProvider::new(VLLM, cfg);
         assert!(!p.is_available().await);
     }
-}
-
-/// Declare an OpenAI-compatible provider as a named type over [`CompatProvider`].
-///
-/// The twelve hand-written providers each exposed a concrete type —
-/// `CerebrasProvider`, `GroqProvider` — that callers and their own test suites
-/// name directly. Replacing them with `CompatProvider` everywhere would be a
-/// wide, mechanical edit across the workspace *and* would throw away those
-/// suites, which are the only evidence the migration preserved behaviour.
-///
-/// So the name stays and the body goes. Each provider keeps its type and its
-/// tests; what it loses is ~150 lines that differed from its neighbour's by a
-/// dozen.
-#[macro_export]
-macro_rules! openai_compat_provider {
-    ($ty:ident, $id:literal, $label:literal, $base:expr, $env:literal) => {
-        /// The provider's identity, as data. Public so the daemon can describe
-        /// it without constructing one.
-        pub const SPEC: $crate::providers::compat::CompatSpec =
-            $crate::providers::compat::CompatSpec::cloud($id, $label, $base, $env);
-
-        #[doc = concat!("`", $label, "`, an OpenAI-compatible provider.")]
-        pub struct $ty($crate::providers::compat::CompatProvider);
-
-        impl $ty {
-            pub fn new(config: $crate::provider::ProviderConfig) -> Self {
-                Self($crate::providers::compat::CompatProvider::new(SPEC, config))
-            }
-        }
-
-        // Gives the inherent helpers — `base_url`, `chat_url`, `api_key` — which
-        // the existing test suites call directly.
-        impl std::ops::Deref for $ty {
-            type Target = $crate::providers::compat::CompatProvider;
-            fn deref(&self) -> &Self::Target {
-                &self.0
-            }
-        }
-
-        #[async_trait::async_trait]
-        impl $crate::provider::AIProvider for $ty {
-            fn name(&self) -> &str {
-                $crate::provider::AIProvider::name(&self.0)
-            }
-            async fn is_available(&self) -> bool {
-                self.0.is_available().await
-            }
-            async fn complete(
-                &self,
-                context: &$crate::provider::CodeContext,
-            ) -> anyhow::Result<$crate::provider::CompletionResponse> {
-                self.0.complete(context).await
-            }
-            async fn stream_complete(
-                &self,
-                context: &$crate::provider::CodeContext,
-            ) -> anyhow::Result<$crate::provider::CompletionStream> {
-                self.0.stream_complete(context).await
-            }
-            async fn chat_response(
-                &self,
-                messages: &[$crate::provider::Message],
-                context: Option<String>,
-            ) -> anyhow::Result<$crate::provider::CompletionResponse> {
-                self.0.chat_response(messages, context).await
-            }
-            async fn chat(
-                &self,
-                messages: &[$crate::provider::Message],
-                context: Option<String>,
-            ) -> anyhow::Result<String> {
-                self.0.chat(messages, context).await
-            }
-            async fn stream_chat(
-                &self,
-                messages: &[$crate::provider::Message],
-            ) -> anyhow::Result<$crate::provider::CompletionStream> {
-                self.0.stream_chat(messages).await
-            }
-            async fn chat_with_images(
-                &self,
-                messages: &[$crate::provider::Message],
-                images: &[$crate::provider::ImageAttachment],
-                context: Option<String>,
-            ) -> anyhow::Result<String> {
-                self.0.chat_with_images(messages, images, context).await
-            }
-            /// Delegated like every other capability: the inner
-            /// `CompatProvider` is the one that builds the request, so it is
-            /// the one that knows whether schemas ride along.
-            fn harness_profile(&self) -> $crate::harness::ModelProfile {
-                $crate::provider::AIProvider::harness_profile(&self.0)
-            }
-            fn advertises_native_tools(&self) -> bool {
-                $crate::provider::AIProvider::advertises_native_tools(&self.0)
-            }
-            /// Delegated for the same reason as the rest: the inner provider
-            /// holds the base URL, the key and the model id.
-            async fn context_window(&self) -> Option<usize> {
-                self.0.context_window().await
-            }
-        }
-    };
 }

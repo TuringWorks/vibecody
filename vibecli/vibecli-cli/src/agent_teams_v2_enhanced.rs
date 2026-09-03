@@ -71,6 +71,12 @@ pub struct SharedTaskList {
     pub tasks: Vec<SharedTask>,
 }
 
+impl Default for SharedTaskList {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SharedTaskList {
     pub fn new() -> Self {
         Self { tasks: Vec::new() }
@@ -127,6 +133,12 @@ pub struct AgentTeamManager {
     next_agent_id: u64,
     next_task_id: u64,
     timestamp_counter: u64,
+}
+
+impl Default for AgentTeamManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AgentTeamManager {

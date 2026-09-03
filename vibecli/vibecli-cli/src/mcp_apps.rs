@@ -43,6 +43,9 @@ pub enum WidgetKind {
 }
 
 impl WidgetKind {
+    // Not `FromStr`: that trait must return a `Result`, and this parser is deliberately
+    // total — every input maps to a variant, so there is no error to report.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
             "table" => WidgetKind::Table,
@@ -90,6 +93,9 @@ pub enum ChartType {
 }
 
 impl ChartType {
+    // Not `FromStr`: that trait must return a `Result`, and this parser is deliberately
+    // total — every input maps to a variant, so there is no error to report.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
             "bar" => ChartType::Bar,

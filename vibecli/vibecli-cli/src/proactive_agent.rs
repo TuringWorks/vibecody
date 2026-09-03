@@ -697,8 +697,10 @@ mod tests {
 
     #[test]
     fn test_scan_respects_max_suggestions() {
-        let mut cfg = ProactiveScanConfig::default();
-        cfg.max_suggestions_per_scan = 2;
+        let cfg = ProactiveScanConfig {
+            max_suggestions_per_scan: 2,
+            ..Default::default()
+        };
         let mut agent = ProactiveAgent::new(cfg);
         let files: Vec<&str> = vec!["a.rs", "b.rs", "c.rs", "d.rs", "e.rs"];
         let result = agent.scan(&ScanCategory::Security, &files);
@@ -731,8 +733,10 @@ mod tests {
 
     #[test]
     fn test_scan_filters_by_min_confidence() {
-        let mut cfg = ProactiveScanConfig::default();
-        cfg.min_confidence = 0.99;
+        let cfg = ProactiveScanConfig {
+            min_confidence: 0.99,
+            ..Default::default()
+        };
         let mut agent = ProactiveAgent::new(cfg);
         let result = agent.scan(&ScanCategory::Documentation, &["notes.md"]);
         // Documentation + unknown ext = 0.50, below 0.99

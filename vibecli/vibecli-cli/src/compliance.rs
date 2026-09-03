@@ -64,7 +64,12 @@ impl ComplianceFramework {
     }
 
     pub fn parse(input: &str) -> Option<Self> {
-        match input.trim().to_lowercase().replace([' ', '-', '_'], "").as_str() {
+        match input
+            .trim()
+            .to_lowercase()
+            .replace([' ', '-', '_'], "")
+            .as_str()
+        {
             "soc2" => Some(ComplianceFramework::SOC2),
             "fedramp" | "nist80053" => Some(ComplianceFramework::FedRAMP),
             "hipaa" => Some(ComplianceFramework::HIPAA),
@@ -412,7 +417,6 @@ source scan can demonstrate.\n\n",
     md
 }
 
-
 // ── Bundles: one scan, every framework, filed with checksums ──────────────────
 
 /// How a single report is rendered. `both` expands to every variant, so no
@@ -448,9 +452,7 @@ impl ReportFormat {
             "markdown" | "md" => Ok(vec![ReportFormat::Markdown]),
             "json" => Ok(vec![ReportFormat::Json]),
             "both" | "all" => Ok(ReportFormat::all().to_vec()),
-            other => anyhow::bail!(
-                "Unsupported format: {other}. Supported: markdown, json, both"
-            ),
+            other => anyhow::bail!("Unsupported format: {other}. Supported: markdown, json, both"),
         }
     }
 
@@ -654,12 +656,8 @@ mod tests {
     fn a_bundle_files_every_framework_in_every_format() {
         let root = fixture("bundle-coverage");
         write(&root, "LICENSE", "MIT");
-        let bundle = build_bundle(
-            &root,
-            ComplianceFramework::all(),
-            ReportFormat::all(),
-        )
-        .expect("bundle");
+        let bundle =
+            build_bundle(&root, ComplianceFramework::all(), ReportFormat::all()).expect("bundle");
         assert_eq!(
             bundle.reports.len(),
             ComplianceFramework::all().len() * ReportFormat::all().len()
@@ -680,9 +678,8 @@ mod tests {
     fn manifest_and_checksums_match_the_rendered_bytes() {
         let root = fixture("bundle-checksums");
         write(&root, "LICENSE", "MIT");
-        let bundle =
-            build_bundle(&root, ComplianceFramework::all(), &[ReportFormat::Markdown])
-                .expect("bundle");
+        let bundle = build_bundle(&root, ComplianceFramework::all(), &[ReportFormat::Markdown])
+            .expect("bundle");
         let manifest: Manifest =
             serde_json::from_str(&bundle.manifest_contents).expect("manifest is json");
         assert_eq!(manifest.checksum_algorithm, "sha256");
@@ -698,7 +695,10 @@ mod tests {
                 .unwrap_or_else(|| panic!("{} missing from manifest", report.file));
             assert_eq!(entry.sha256, digest);
             assert_eq!(entry.bytes, report.contents.len());
-            assert_eq!(entry.compliance_percentage, report.summary.compliance_percentage);
+            assert_eq!(
+                entry.compliance_percentage,
+                report.summary.compliance_percentage
+            );
             // `shasum -a 256 -c` reads exactly this shape.
             assert!(
                 bundle
@@ -715,8 +715,8 @@ mod tests {
     fn every_report_in_a_bundle_comes_from_the_same_scan() {
         let root = fixture("bundle-one-scan");
         write(&root, "LICENSE", "MIT");
-        let bundle = build_bundle(&root, ComplianceFramework::all(), &[ReportFormat::Json])
-            .expect("bundle");
+        let bundle =
+            build_bundle(&root, ComplianceFramework::all(), &[ReportFormat::Json]).expect("bundle");
         let reports: Vec<ComplianceReport> = bundle
             .reports
             .iter()
@@ -785,8 +785,14 @@ mod tests {
         let report = generate_report_for_path("fedramp", &root).expect("report");
         let s = &report.summary;
         assert_eq!(s.scored, s.implemented + s.partial + s.not_implemented);
-        assert_eq!(s.total_controls, s.scored + s.not_assessed + s.not_applicable);
-        assert!(s.scored < s.total_controls, "FedRAMP has organisational controls");
+        assert_eq!(
+            s.total_controls,
+            s.scored + s.not_assessed + s.not_applicable
+        );
+        assert!(
+            s.scored < s.total_controls,
+            "FedRAMP has organisational controls"
+        );
         let _ = fs::remove_dir_all(&root);
     }
 

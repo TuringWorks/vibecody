@@ -37,8 +37,9 @@ use vibe_sync_ext::{LockRecover, RwLockRecover};
 use crate::desktop_agent::{self, DesktopAction, DesktopAutomation, MouseButton};
 use crate::observe_act::{
     is_destructive, now_ms, validate_action_batch, LlmPromptBuilder, ObservationStep,
-    ObserveActAction, ObserveActConfig, ObserveActEvent, ObserveActSession, SafetyMode, SafetyRails,
-    ScreenGeometry, ScrollDirection, SessionStatus, SessionSummary, VerificationResult,
+    ObserveActAction, ObserveActConfig, ObserveActEvent, ObserveActSession, SafetyMode,
+    SafetyRails, ScreenGeometry, ScrollDirection, SessionStatus, SessionSummary,
+    VerificationResult,
 };
 
 // ── Hard limits ────────────────────────────────────────────────────────────
@@ -142,13 +143,14 @@ impl ScreenDriver for DesktopScreenDriver {
             .await
             .with_context(|| format!("running screen-size probe: {cmd}"))?;
         let stdout = String::from_utf8_lossy(&out.stdout);
-        let info = desktop_agent::parse_screen_size(&stdout, self.automation.platform)
-            .ok_or_else(|| {
+        let info = desktop_agent::parse_screen_size(&stdout, self.automation.platform).ok_or_else(
+            || {
                 anyhow!(
                     "could not read the screen size from `{cmd}` (got {:?})",
                     stdout.trim()
                 )
-            })?;
+            },
+        )?;
         if info.width == 0 || info.height == 0 {
             return Err(anyhow!("screen-size probe reported a zero-sized screen"));
         }
@@ -355,8 +357,10 @@ pub fn encode_for_model(path: &Path, max_w: u32, max_h: u32) -> Result<EncodedIm
     let (width, height) = (img.width(), img.height());
 
     let mut buf = Vec::with_capacity(256 * 1024);
-    let mut encoder =
-        image::codecs::jpeg::JpegEncoder::new_with_quality(std::io::Cursor::new(&mut buf), JPEG_QUALITY);
+    let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(
+        std::io::Cursor::new(&mut buf),
+        JPEG_QUALITY,
+    );
     encoder
         .encode_image(&img.to_rgb8())
         .context("encoding screenshot as JPEG")?;
@@ -580,7 +584,9 @@ impl SessionHandle {
                     warn!(session = %self.id, error = %e, "could not persist observe-act session");
                 }
             }
-            Err(e) => warn!(session = %self.id, error = %e, "could not serialise observe-act session"),
+            Err(e) => {
+                warn!(session = %self.id, error = %e, "could not serialise observe-act session")
+            }
         }
     }
 }
@@ -669,7 +675,10 @@ impl ObserveActRegistry {
                 Err(_) => continue,
             };
             let mut session = record.session;
-            if matches!(session.status, SessionStatus::Running | SessionStatus::Paused) {
+            if matches!(
+                session.status,
+                SessionStatus::Running | SessionStatus::Paused
+            ) {
                 session.status = SessionStatus::Aborted;
             }
             let started = session.started_at_ms;
@@ -892,13 +901,10 @@ async fn run_session(
         .await
         {
             Ok(step) => {
-                let done = step
-                    .actions_taken
-                    .iter()
-                    .find_map(|a| match a {
-                        ObserveActAction::Done { summary } => Some(summary.clone()),
-                        _ => None,
-                    });
+                let done = step.actions_taken.iter().find_map(|a| match a {
+                    ObserveActAction::Done { summary } => Some(summary.clone()),
+                    _ => None,
+                });
                 {
                     let mut s = handle.state.lock_recover();
                     s.record_step(step);
@@ -1765,7 +1771,14 @@ mod tests {
         });
         assert_eq!(clamped.max_actions_per_step, MAX_ACTIONS_PER_STEP_CEILING);
         assert_eq!(clamped.rate_limit_ms, 10_000);
-        assert_eq!(clamp_safety(SafetyRails { max_actions_per_step: 0, ..SafetyRails::default() }).max_actions_per_step, 1);
+        assert_eq!(
+            clamp_safety(SafetyRails {
+                max_actions_per_step: 0,
+                ..SafetyRails::default()
+            })
+            .max_actions_per_step,
+            1
+        );
     }
 
     // ── Coordinate mapping ─────────────────────────────────────────────

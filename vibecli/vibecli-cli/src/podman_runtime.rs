@@ -17,6 +17,12 @@ pub struct PodmanRuntime {
     binary: String,
 }
 
+impl Default for PodmanRuntime {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PodmanRuntime {
     pub fn new() -> Self {
         Self {

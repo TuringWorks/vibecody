@@ -68,13 +68,10 @@ fn percent_decode(text: &str) -> String {
     while i < bytes.len() {
         if bytes[i] == b'%' && i + 2 < bytes.len() {
             let hex = std::str::from_utf8(&bytes[i + 1..i + 3]).ok();
-            match hex.and_then(|h| u8::from_str_radix(h, 16).ok()) {
-                Some(byte) => {
-                    out.push(byte);
-                    i += 3;
-                    continue;
-                }
-                None => {}
+            if let Some(byte) = hex.and_then(|h| u8::from_str_radix(h, 16).ok()) {
+                out.push(byte);
+                i += 3;
+                continue;
             }
         }
         out.push(bytes[i]);

@@ -752,8 +752,12 @@ impl FileStamp {
 /// is a browsing aid, not a store.
 const INDEX_CACHE_CAPACITY: usize = 8;
 
+/// One cached archive index: which file it came from, the stamp that says the
+/// file has not changed since, and the members read out of it.
+type CachedIndex = (PathBuf, FileStamp, Arc<Vec<ArchiveMember>>);
+
 struct IndexCache {
-    entries: Mutex<Vec<(PathBuf, FileStamp, Arc<Vec<ArchiveMember>>)>>,
+    entries: Mutex<Vec<CachedIndex>>,
 }
 
 impl IndexCache {

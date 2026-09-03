@@ -70,6 +70,12 @@ pub struct PluginRegistry {
     pub index: Option<RegistryIndex>,
 }
 
+impl Default for PluginRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PluginRegistry {
     pub fn new() -> Self {
         let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
@@ -167,7 +173,7 @@ impl PluginRegistry {
             Some(idx) => idx.entries.iter().collect(),
             None => return vec![],
         };
-        entries.sort_by(|a, b| b.downloads.cmp(&a.downloads));
+        entries.sort_by_key(|b| std::cmp::Reverse(b.downloads));
         entries.into_iter().take(limit).collect()
     }
 
@@ -637,7 +643,7 @@ mod tests {
         let connectors = reg.list_by_kind(&PluginKind::Connector);
         assert!(connectors.len() >= 3);
         let themes = reg.list_by_kind(&PluginKind::Theme);
-        assert!(themes.len() >= 1);
+        assert!(!themes.is_empty());
     }
 
     #[test]

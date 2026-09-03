@@ -1629,6 +1629,12 @@ pub struct GateMetrics {
     pub custom_metrics: HashMap<String, f64>,
 }
 
+impl Default for GateMetrics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GateMetrics {
     pub fn new() -> Self {
         Self {

@@ -125,7 +125,7 @@ static GRAPH: OnceLock<GraphHandle> = OnceLock::new();
 /// `workspace_root` argument is only used the first time). Opens the SQLite
 /// store at `<workspace>/.vibecli/codegraph.db` and loads any persisted graph
 /// + hash cache into the `RwLock`s. Probe is `Ready` if a graph loaded, else
-/// `Disabled` (caller should [`spawn_background_build`] to populate it).
+///   `Disabled` (caller should [`spawn_background_build`] to populate it).
 ///
 /// Returns `None` when no store can be opened at all — the graph is an
 /// optional accelerator, and this module already has a `Disabled` state for

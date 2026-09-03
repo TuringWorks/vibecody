@@ -189,7 +189,15 @@ fn microservices() -> String {
         node("odb", "orders_db", style::STORE, 220, 340, 140, 70),
         node("bdb", "billing_db", style::STORE, 460, 340, 140, 70),
         node("cdb", "catalog_db", style::STORE, 700, 340, 140, 70),
-        node("bus", "Message Bus\n(order.placed, payment.settled)", style::ACCENT, 340, 480, 380, 60),
+        node(
+            "bus",
+            "Message Bus\n(order.placed, payment.settled)",
+            style::ACCENT,
+            340,
+            480,
+            380,
+            60,
+        ),
         node(
             "note",
             "Replace the names with your own services.\nDashed edges are asynchronous events.",
@@ -217,12 +225,52 @@ fn ci_cd() -> String {
         node("start", "", style::START, 60, 210, 30, 30),
         node("commit", "Commit\npushed", style::BOX, 130, 195, 130, 60),
         node("build", "Build", style::BOX, 300, 195, 130, 60),
-        node("test", "Unit +\nintegration tests", style::BOX, 470, 195, 150, 60),
+        node(
+            "test",
+            "Unit +\nintegration tests",
+            style::BOX,
+            470,
+            195,
+            150,
+            60,
+        ),
         node("gate", "Tests\npass?", style::DECISION, 670, 185, 120, 80),
-        node("stage", "Deploy to\nstaging", style::ACCENT, 840, 195, 140, 60),
-        node("approve", "Manual\napproval", style::DECISION, 840, 330, 140, 80),
-        node("prod", "Deploy to\nproduction", style::ACCENT, 840, 460, 140, 60),
-        node("fail", "Notify author\n· block merge", style::BOX, 670, 330, 130, 60),
+        node(
+            "stage",
+            "Deploy to\nstaging",
+            style::ACCENT,
+            840,
+            195,
+            140,
+            60,
+        ),
+        node(
+            "approve",
+            "Manual\napproval",
+            style::DECISION,
+            840,
+            330,
+            140,
+            80,
+        ),
+        node(
+            "prod",
+            "Deploy to\nproduction",
+            style::ACCENT,
+            840,
+            460,
+            140,
+            60,
+        ),
+        node(
+            "fail",
+            "Notify author\n· block merge",
+            style::BOX,
+            670,
+            330,
+            130,
+            60,
+        ),
         node("done", "", style::END, 895, 570, 30, 30),
         edge("c1", "", style::EDGE, "start", "commit"),
         edge("c2", "", style::EDGE, "commit", "build"),
@@ -245,15 +293,47 @@ fn er_saas() -> String {
         node("acct", "account", style::ENTITY, 60, 60, 200, 138),
         child("acct_id", "id  PK", style::FIELD, "acct", 26, 200, 26),
         child("acct_name", "name", style::FIELD, "acct", 52, 200, 26),
-        child("acct_created", "created_at", style::FIELD, "acct", 78, 200, 26),
-        child("acct_plan", "plan_id  FK", style::FIELD, "acct", 104, 200, 26),
+        child(
+            "acct_created",
+            "created_at",
+            style::FIELD,
+            "acct",
+            78,
+            200,
+            26,
+        ),
+        child(
+            "acct_plan",
+            "plan_id  FK",
+            style::FIELD,
+            "acct",
+            104,
+            200,
+            26,
+        ),
     ]
     .concat();
     let user = [
         node("usr", "user", style::ENTITY, 340, 60, 200, 138),
         child("usr_id", "id  PK", style::FIELD, "usr", 26, 200, 26),
-        child("usr_acct", "account_id  FK", style::FIELD, "usr", 52, 200, 26),
-        child("usr_email", "email  UNIQUE", style::FIELD, "usr", 78, 200, 26),
+        child(
+            "usr_acct",
+            "account_id  FK",
+            style::FIELD,
+            "usr",
+            52,
+            200,
+            26,
+        ),
+        child(
+            "usr_email",
+            "email  UNIQUE",
+            style::FIELD,
+            "usr",
+            78,
+            200,
+            26,
+        ),
         child("usr_role", "role", style::FIELD, "usr", 104, 200, 26),
     ]
     .concat();
@@ -261,21 +341,53 @@ fn er_saas() -> String {
         node("plan", "plan", style::ENTITY, 60, 300, 200, 112),
         child("plan_id", "id  PK", style::FIELD, "plan", 26, 200, 26),
         child("plan_name", "name", style::FIELD, "plan", 52, 200, 26),
-        child("plan_price", "price_cents", style::FIELD, "plan", 78, 200, 26),
+        child(
+            "plan_price",
+            "price_cents",
+            style::FIELD,
+            "plan",
+            78,
+            200,
+            26,
+        ),
     ]
     .concat();
     let sub = [
         node("sub", "subscription", style::ENTITY, 340, 300, 200, 138),
         child("sub_id", "id  PK", style::FIELD, "sub", 26, 200, 26),
-        child("sub_acct", "account_id  FK", style::FIELD, "sub", 52, 200, 26),
+        child(
+            "sub_acct",
+            "account_id  FK",
+            style::FIELD,
+            "sub",
+            52,
+            200,
+            26,
+        ),
         child("sub_status", "status", style::FIELD, "sub", 78, 200, 26),
-        child("sub_period", "period_end", style::FIELD, "sub", 104, 200, 26),
+        child(
+            "sub_period",
+            "period_end",
+            style::FIELD,
+            "sub",
+            104,
+            200,
+            26,
+        ),
     ]
     .concat();
     let invoice = [
         node("inv", "invoice", style::ENTITY, 620, 300, 200, 138),
         child("inv_id", "id  PK", style::FIELD, "inv", 26, 200, 26),
-        child("inv_sub", "subscription_id  FK", style::FIELD, "inv", 52, 200, 26),
+        child(
+            "inv_sub",
+            "subscription_id  FK",
+            style::FIELD,
+            "inv",
+            52,
+            200,
+            26,
+        ),
         child("inv_total", "total_cents", style::FIELD, "inv", 78, 200, 26),
         child("inv_paid", "paid_at", style::FIELD, "inv", 104, 200, 26),
     ]
@@ -450,7 +562,13 @@ fn state_order() -> String {
         edge("t2", "dispatched", style::EDGE, "paid", "shipped"),
         edge("t3", "signed for", style::EDGE, "shipped", "delivered"),
         edge("t4", "", style::EDGE, "delivered", "end"),
-        edge("t5", "cancelled before dispatch", style::EDGE, "placed", "cancelled"),
+        edge(
+            "t5",
+            "cancelled before dispatch",
+            style::EDGE,
+            "placed",
+            "cancelled",
+        ),
         edge("t6", "refund issued", style::EDGE, "cancelled", "refunded"),
         edge("t7", "returned", style::EDGE, "delivered", "refunded"),
         edge("t8", "", style::EDGE, "refunded", "end2"),
@@ -464,22 +582,70 @@ fn domain_model() -> String {
         node("cCust", "Customer", style::CLASS, 60, 60, 200, 112),
         child("cc1", "+ id: Uuid", style::FIELD, "cCust", 26, 200, 26),
         child("cc2", "+ email: String", style::FIELD, "cCust", 52, 200, 26),
-        child("cc3", "+ placeOrder(): Order", style::FIELD, "cCust", 78, 200, 26),
+        child(
+            "cc3",
+            "+ placeOrder(): Order",
+            style::FIELD,
+            "cCust",
+            78,
+            200,
+            26,
+        ),
     ]
     .concat();
     let order = [
         node("cOrd", "Order", style::CLASS, 380, 60, 200, 138),
         child("co1", "+ id: Uuid", style::FIELD, "cOrd", 26, 200, 26),
-        child("co2", "+ placedAt: DateTime", style::FIELD, "cOrd", 52, 200, 26),
-        child("co3", "+ status: OrderStatus", style::FIELD, "cOrd", 78, 200, 26),
-        child("co4", "+ total(): Money", style::FIELD, "cOrd", 104, 200, 26),
+        child(
+            "co2",
+            "+ placedAt: DateTime",
+            style::FIELD,
+            "cOrd",
+            52,
+            200,
+            26,
+        ),
+        child(
+            "co3",
+            "+ status: OrderStatus",
+            style::FIELD,
+            "cOrd",
+            78,
+            200,
+            26,
+        ),
+        child(
+            "co4",
+            "+ total(): Money",
+            style::FIELD,
+            "cOrd",
+            104,
+            200,
+            26,
+        ),
     ]
     .concat();
     let line = [
         node("cLine", "OrderLine", style::CLASS, 380, 300, 200, 112),
         child("cl1", "+ quantity: u32", style::FIELD, "cLine", 26, 200, 26),
-        child("cl2", "+ unitPrice: Money", style::FIELD, "cLine", 52, 200, 26),
-        child("cl3", "+ subtotal(): Money", style::FIELD, "cLine", 78, 200, 26),
+        child(
+            "cl2",
+            "+ unitPrice: Money",
+            style::FIELD,
+            "cLine",
+            52,
+            200,
+            26,
+        ),
+        child(
+            "cl3",
+            "+ subtotal(): Money",
+            style::FIELD,
+            "cLine",
+            78,
+            200,
+            26,
+        ),
     ]
     .concat();
     let product = [
@@ -608,7 +774,10 @@ mod tests {
         // so the markup must be escaped there.
         let cell = node("x", "<b>Bold</b>", "style", 0, 0, 10, 10);
         assert!(cell.contains("&lt;b&gt;Bold&lt;/b&gt;"), "{cell}");
-        assert!(!cell.contains("value=\"<b>"), "raw markup in an attribute: {cell}");
+        assert!(
+            !cell.contains("value=\"<b>"),
+            "raw markup in an attribute: {cell}"
+        );
     }
 
     #[test]
@@ -634,7 +803,8 @@ mod tests {
                 t.id
             );
             assert!(
-                xml.contains("<mxCell id=\"0\"/>") && xml.contains("<mxCell id=\"1\" parent=\"0\"/>"),
+                xml.contains("<mxCell id=\"0\"/>")
+                    && xml.contains("<mxCell id=\"1\" parent=\"0\"/>"),
                 "{}: missing the root cells every draw.io model needs",
                 t.id
             );

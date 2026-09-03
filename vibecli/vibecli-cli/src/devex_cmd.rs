@@ -206,7 +206,10 @@ pub fn run_devex_command(args: &[String]) -> i32 {
                         println!("      caveat: {c}");
                     }
                 }
-                println!("  mean detected level: {:.2}/{}", r.mean_level, r.max_detectable_level);
+                println!(
+                    "  mean detected level: {:.2}/{}",
+                    r.mean_level, r.max_detectable_level
+                );
                 EXIT_OK
             }
             Err(e) => fail(e),
@@ -217,7 +220,9 @@ pub fn run_devex_command(args: &[String]) -> i32 {
                 None => DEFAULT_WINDOW_DAYS,
                 Some(w) => match w.parse::<u32>().ok().filter(|w| *w > 0) {
                     Some(w) => w,
-                    None => return usage(&format!("--window must be a positive number, got '{w}'")),
+                    None => {
+                        return usage(&format!("--window must be a positive number, got '{w}'"))
+                    }
                 },
             };
             match scan_onboarding(&path, window) {
@@ -229,7 +234,11 @@ pub fn run_devex_command(args: &[String]) -> i32 {
                     );
                     for s in &r.readiness {
                         let mark = if s.found { "yes" } else { "NO " };
-                        println!("  [{mark}] {} {}", s.name, s.path.clone().unwrap_or_default());
+                        println!(
+                            "  [{mark}] {} {}",
+                            s.name,
+                            s.path.clone().unwrap_or_default()
+                        );
                     }
                     println!(
                         "New contributors in the last {} days: {}",
@@ -403,7 +412,10 @@ pub fn run_devex_command(args: &[String]) -> i32 {
             }
 
             if !missed.is_empty() {
-                eprintln!("devex gate: {} metric(s) below the agreed band", missed.len());
+                eprintln!(
+                    "devex gate: {} metric(s) below the agreed band",
+                    missed.len()
+                );
                 return EXIT_MISSED;
             }
             if !unmeasurable.is_empty() {
@@ -471,7 +483,11 @@ mod tests {
     fn a_gate_with_no_criterion_is_refused() {
         // The cheapest way to a green gate must not be to remove its criteria.
         let dir = tempfile::tempdir().expect("tempdir");
-        let code = run_devex_command(&argv(&["gate", "--path", &dir.path().display().to_string()]));
+        let code = run_devex_command(&argv(&[
+            "gate",
+            "--path",
+            &dir.path().display().to_string(),
+        ]));
         assert_eq!(code, EXIT_USAGE);
     }
 
