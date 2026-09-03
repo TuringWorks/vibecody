@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useEffect, lazy, Suspense, type ComponentType, type ReactNode } from "react";
+import { useState, useRef, useMemo, useEffect, useContext, lazy, Suspense, type ComponentType, type ReactNode } from "react";
 import { applyLayout, tabHost, tabKey, tabsMovedInto } from "../lib/layoutPrefs";
 import { useLayoutPrefs } from "../hooks/useLayoutPrefs";
 import type { RegisteredTab } from "../constants/tabRegistry";
@@ -92,6 +92,7 @@ function movedTabComponent(tab: RegisteredTab): ComponentType<HostProps> {
  * Pass activeTab + onTabChange for fully controlled mode (e.g. Watch-driven tab switching).
  */
 export function TabbedPanel({ tabs, defaultTab, activeTab, onTabChange, panelId, hostProps }: TabbedPanelProps) {
+  const parentVisible = useContext(PanelVisibilityContext);
   const prefs = useLayoutPrefs();
 
   // Keys of tabs Settings has re-homed *into* this panel. Read from the
@@ -269,7 +270,7 @@ export function TabbedPanel({ tabs, defaultTab, activeTab, onTabChange, panelId,
               {/* An inactive tab stays mounted (its state must survive the
                   switch), so panels that poll need to know they are hidden.
                   See useVisibleInterval. */}
-              <PanelVisibilityContext.Provider value={activeEntry?.key === e.key}>
+              <PanelVisibilityContext.Provider value={parentVisible && activeEntry?.key === e.key}>
                 {e.content}
               </PanelVisibilityContext.Provider>
             </div>

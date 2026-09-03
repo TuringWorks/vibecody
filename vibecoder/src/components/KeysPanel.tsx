@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useModelRegistry } from "../hooks/useModelRegistry";
+import { ConfirmationDialog } from "./ConfirmationDialog";
 
 const DEFAULT_PROFILE = "default";
 
@@ -29,6 +30,7 @@ export function KeysPanel() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [pendingRemoval, setPendingRemoval] = useState<string | null>(null);
 
   const loadProfile = useCallback(async () => {
     try {
@@ -132,7 +134,6 @@ export function KeysPanel() {
   };
 
   const remove = async (provider: string) => {
-    if (!window.confirm(`Delete the API key for "${provider}"?`)) return;
     setError(null);
     try {
       await invoke("profile_api_key_delete", { profileId, provider });
@@ -141,6 +142,7 @@ export function KeysPanel() {
         ...prev,
         [provider]: { provider, hasKey: false },
       }));
+      setPendingRemoval(null);
     } catch (e) {
       setError(String(e));
     }
@@ -158,6 +160,15 @@ export function KeysPanel() {
 
   return (
     <div className="panel-container">
+      <ConfirmationDialog
+        open={pendingRemoval !== null}
+        title="Delete API key?"
+        message={`Delete the API key for “${pendingRemoval ?? ""}”? This provider will stop working until another key is saved.`}
+        confirmLabel="Delete key"
+        danger
+        onCancel={() => setPendingRemoval(null)}
+        onConfirm={() => { if (pendingRemoval) void remove(pendingRemoval); }}
+      />
       <div className="panel-header">
         <h3>API Keys</h3>
         <span
@@ -254,7 +265,7 @@ export function KeysPanel() {
             onSave={() => save(row.provider)}
             onReveal={() => reveal(row.provider)}
             onHide={() => hide(row.provider)}
-            onRemove={() => remove(row.provider)}
+            onRemove={() => setPendingRemoval(row.provider)}
           />
         ))}
       </div>

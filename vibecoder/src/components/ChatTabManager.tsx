@@ -48,8 +48,8 @@ interface ChatTabManagerProps {
      *  project it is looking at — a file tree alone never names one. */
     workspacePath?: string | null;
     onPendingWrite?: (path: string, content: string) => void;
-    /** /goal slash command → forwarded to AIChat. */
-    onSwitchToGoals?: (seed?: string) => void;
+    /** `/goals` slash command → forwarded to AIChat. */
+    onSwitchToGoals?: () => void;
     /** Show a file in the editor, by absolute path.
      *
      * The spoken path is the only one that needs it: a typed answer that

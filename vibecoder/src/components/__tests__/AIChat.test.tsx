@@ -331,6 +331,84 @@ describe('AIChat', () => {
     });
   });
 
+  it('starts a durable goal directly from /goal without opening a modal', async () => {
+    mockInvoke.mockImplementation((command: string) => {
+      if (command === 'exec_goal_create') return Promise.resolve({ id: 'goal-1' });
+      return Promise.resolve(null);
+    });
+    const onSwitchToGoals = vi.fn();
+    render(<AIChat provider="ollama" workspacePath="/workspace" onSwitchToGoals={onSwitchToGoals} />);
+    const textarea = screen.getByPlaceholderText(/Ask anything/) as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: '/goal replace the legacy icons', selectionStart: 30 } });
+    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+
+    await waitFor(() => expect(mockInvoke).toHaveBeenCalledWith('exec_goal_create', expect.objectContaining({
+      statement: 'replace the legacy icons',
+      workspace: '/workspace',
+    })));
+    expect(mockInvoke).toHaveBeenCalledWith('exec_goal_pin', { id: 'goal-1', workspace: '/workspace' });
+    expect(mockInvoke).toHaveBeenCalledWith('start_agent_task', expect.objectContaining({
+      task: 'replace the legacy icons',
+    }));
+    expect(onSwitchToGoals).not.toHaveBeenCalled();
+  });
+
+  it('shows the current goal inline for bare /goal', async () => {
+    mockInvoke.mockImplementation((command: string) => Promise.resolve(
+      command === 'exec_goal_current'
+        ? { goal_id: 'goal-1', goal: { id: 'goal-1', title: 'Ship icons', statement: 'Replace legacy icons', status: 'active' } }
+        : null,
+    ));
+    render(<AIChat provider="ollama" workspacePath="/workspace" />);
+    const textarea = screen.getByPlaceholderText(/Ask anything/) as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: '/goal', selectionStart: 5 } });
+    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+
+    await waitFor(() => expect(document.body.textContent).toContain('Current goal: Ship icons · active'));
+    expect(mockInvoke).not.toHaveBeenCalledWith('start_agent_task', expect.anything());
+  });
+
+  it('pauses and clears the current goal inline', async () => {
+    mockInvoke.mockImplementation((command: string) => Promise.resolve(
+      command === 'exec_goal_current'
+        ? { goal_id: 'goal-1', goal: { id: 'goal-1', title: 'Ship icons', statement: 'Replace icons', status: 'active' } }
+        : null,
+    ));
+    render(<AIChat provider="ollama" workspacePath="/workspace" />);
+    const textarea = screen.getByPlaceholderText(/Ask anything/) as HTMLTextAreaElement;
+
+    fireEvent.change(textarea, { target: { value: '/goal pause', selectionStart: 11 } });
+    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+    await waitFor(() => expect(mockInvoke).toHaveBeenCalledWith('exec_goal_update', {
+      id: 'goal-1', status: 'paused',
+    }));
+
+    fireEvent.change(textarea, { target: { value: '/goal clear', selectionStart: 11 } });
+    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+    await waitFor(() => expect(mockInvoke).toHaveBeenCalledWith('exec_goal_unpin', {
+      workspace: '/workspace',
+    }));
+  });
+
+  it('resumes the current goal as an agent run', async () => {
+    mockInvoke.mockImplementation((command: string) => Promise.resolve(
+      command === 'exec_goal_current'
+        ? { goal_id: 'goal-1', goal: { id: 'goal-1', title: 'Ship icons', statement: 'Replace icons', status: 'paused' } }
+        : null,
+    ));
+    render(<AIChat provider="ollama" workspacePath="/workspace" />);
+    const textarea = screen.getByPlaceholderText(/Ask anything/) as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: '/goal resume', selectionStart: 12 } });
+    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+
+    await waitFor(() => expect(mockInvoke).toHaveBeenCalledWith('exec_goal_update', {
+      id: 'goal-1', status: 'active',
+    }));
+    expect(mockInvoke).toHaveBeenCalledWith('start_agent_task', expect.objectContaining({
+      task: 'Replace icons',
+    }));
+  });
+
   // ── Attachments ───────────────────────────────────────────────────────
 
   it('shows attachment count badge when attachments present via controlled messages', () => {

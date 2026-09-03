@@ -7,6 +7,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Lock, X } from "lucide-react";
+import { ConfirmationDialog } from "./ConfirmationDialog";
 
 interface CompanySecretsPanelProps {
   workspacePath?: string | null;
@@ -21,6 +22,7 @@ export function CompanySecretsPanel({ workspacePath: _wp }: CompanySecretsPanelP
   const [cmdResult, setCmdResult] = useState<string | null>(null);
   const [deleteKey, setDeleteKey] = useState("");
   const [saving, setSaving] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -55,11 +57,11 @@ export function CompanySecretsPanel({ workspacePath: _wp }: CompanySecretsPanelP
 
   const deleteSecret = async (key: string) => {
     if (!key.trim()) return;
-    if (!confirm(`Delete secret "${key}"?`)) return;
     try {
       const out = await invoke<string>("company_secret_delete", { key: key.trim() });
       setCmdResult(out);
       setDeleteKey("");
+      setPendingDelete(null);
       load();
     } catch (e) {
       setCmdResult(`Error: ${e}`);
@@ -70,6 +72,15 @@ export function CompanySecretsPanel({ workspacePath: _wp }: CompanySecretsPanelP
 
   return (
     <div className="panel-container">
+      <ConfirmationDialog
+        open={pendingDelete !== null}
+        title="Delete secret?"
+        message={`Permanently delete “${pendingDelete ?? ""}” from the company secrets vault?`}
+        confirmLabel="Delete secret"
+        danger
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => { if (pendingDelete) void deleteSecret(pendingDelete); }}
+      />
       <div className="panel-header">
         <h3>Secrets Vault</h3>
         <div style={{ display: "flex", gap: 6, marginLeft: "auto" }}>
@@ -139,13 +150,13 @@ export function CompanySecretsPanel({ workspacePath: _wp }: CompanySecretsPanelP
               <input
                 value={deleteKey}
                 onChange={(e) => setDeleteKey(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && deleteSecret(deleteKey)}
+                onKeyDown={(e) => e.key === "Enter" && deleteKey.trim() && setPendingDelete(deleteKey.trim())}
                 placeholder="Key name to delete"
                 className="panel-input"
                 style={{ flex: 1 }}
               />
               <button
-                onClick={() => deleteSecret(deleteKey)}
+                onClick={() => setPendingDelete(deleteKey.trim())}
                 disabled={!deleteKey.trim()}
                 className="panel-btn panel-btn-danger"
                 style={{ opacity: deleteKey.trim() ? 1 : 0.5 }}

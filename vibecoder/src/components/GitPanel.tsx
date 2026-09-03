@@ -6,6 +6,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { ReviewPanel, ReviewControls, useCodeReview } from './ReviewPanel';
 import { useToast } from '../hooks/useToast';
 import { Toaster } from './Toaster';
+import { useVisibleInterval } from '../hooks/usePanelVisibility';
 
 /** The GitHub tabs (Remote / Actions / Triage) render inside this panel rather
  *  than in a second one on the right — lazily, so opening Source Control does
@@ -186,12 +187,8 @@ export function GitPanel({ workspacePath, onCompareFile, selectedProvider, view:
  // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [workspacePath]);
 
- // Auto-refresh git status every 30 seconds
- useEffect(() => {
- if (!workspacePath) return;
- const id = setInterval(loadGitStatus, 30_000);
- return () => clearInterval(id);
- }, [workspacePath, loadGitStatus]);
+ // Auto-refresh only while this keep-alive panel is actually visible.
+ useVisibleInterval(loadGitStatus, workspacePath ? 30_000 : null, { runOnShow: false });
 
  // The embedded GitHub tabs send the user back here for anything that writes
  // to the repo. Both halves are inside this panel, so no shell round-trip.
