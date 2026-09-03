@@ -109,17 +109,34 @@ impl TokenDashboard {
             max_history: 1000,
             session_id: session_id.into(),
         };
-        // Built-in pricing for common models (per 1M tokens)
+        // Built-in pricing for common models, list per 1M tokens, read from
+        // each vendor's pricing page on 2026-09-02. A model absent from this map
+        // is priced at nothing by `estimated_cost`, so an id that goes stale
+        // here does not merely age — it starts reporting paid usage as free.
+        // The claude-opus-4-6 / sonnet-4-6 rows carried Claude 3-era numbers.
         dash.pricing
-            .insert("claude-opus-4-6".to_string(), (15.0, 75.0));
+            .insert("claude-fable-5-1".to_string(), (10.0, 50.0));
+        dash.pricing.insert("claude-fable-5".to_string(), (10.0, 50.0));
+        dash.pricing.insert("claude-opus-5".to_string(), (5.0, 25.0));
+        dash.pricing.insert("claude-sonnet-5".to_string(), (2.0, 10.0));
+        dash.pricing.insert("claude-opus-4-8".to_string(), (5.0, 25.0));
+        dash.pricing.insert("claude-opus-4-7".to_string(), (5.0, 25.0));
+        dash.pricing.insert("claude-opus-4-6".to_string(), (5.0, 25.0));
         dash.pricing
             .insert("claude-sonnet-4-6".to_string(), (3.0, 15.0));
         dash.pricing
-            .insert("claude-haiku-4-5".to_string(), (0.25, 1.25));
-        dash.pricing.insert("gpt-4o".to_string(), (5.0, 15.0));
-        dash.pricing.insert("gpt-4o-mini".to_string(), (0.15, 0.60));
+            .insert("claude-haiku-4-5".to_string(), (1.0, 5.0));
+        // OpenAI 5.6 rates are the short-context tier; long-context bills higher
+        // and this map has no way to express the split.
+        dash.pricing.insert("gpt-5.6-sol".to_string(), (4.0, 20.0));
+        dash.pricing.insert("gpt-5.6-terra".to_string(), (2.0, 12.0));
+        dash.pricing.insert("gpt-5.6-luna".to_string(), (0.2, 1.2));
+        // gemini-3.6-flash is on promotional pricing that doubles 2027-01-01;
+        // the Pro rate shown is the <=200k-prompt tier.
         dash.pricing
-            .insert("gemini-2.5-pro".to_string(), (1.25, 5.0));
+            .insert("gemini-3.6-flash".to_string(), (0.75, 3.75));
+        dash.pricing
+            .insert("gemini-3.1-pro-preview".to_string(), (2.0, 12.0));
         dash
     }
 

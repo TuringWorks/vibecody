@@ -57,7 +57,7 @@ vibecli --tui
 **Example:**
 
 ```bash
-vibecli --tui --provider openai --model gpt-4-turbo
+vibecli --tui --provider openai --model gpt-5.6-sol
 ```
 
 ### Interactive Commands (TUI)
@@ -87,7 +87,7 @@ model = "glm-5.2:cloud"
 [openai]
 enabled = false
 api_key = "sk-..."
-model = "gpt-4-turbo"
+model = "gpt-5.6-sol"
 
 [claude]
 enabled = false

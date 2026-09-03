@@ -67,7 +67,7 @@ When the user presses Enter or clicks Send:
 await invoke("stream_chat_message", {
   request: {
     messages: [...messages, userMessage],
-    provider: "gemini-2.5-flash",     // selected provider name
+    provider: "gemini-3.6-flash",     // selected provider name
     context: editorContent,            // current file content
     file_tree: ["src/main.rs", ...],   // workspace file list
     current_file: "src/main.rs",       // active editor file

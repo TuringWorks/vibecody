@@ -21,23 +21,23 @@ VibeCody supports 24 AI providers, covering cloud APIs, local models, inference 
 | Provider | Type | API Key Env Var | Default Model | Free Tier | Streaming |
 |----------|------|-----------------|---------------|-----------|-----------|
 | [Ollama](ollama/) | Local | None (no key needed) | `glm-5.2:cloud` | Yes (fully free) | Yes |
-| [Claude](claude/) | Cloud | `ANTHROPIC_API_KEY` | `claude-sonnet-4-6` | No | Yes |
-| [OpenAI](openai/) | Cloud | `OPENAI_API_KEY` | `gpt-4o` | No | Yes |
-| [Gemini](gemini/) | Cloud | `GEMINI_API_KEY` | `gemini-2.5-flash` | Yes (generous) | Yes |
-| [DeepSeek](deepseek/) | Cloud | `DEEPSEEK_API_KEY` | `deepseek-chat` | No | Yes |
-| [Grok](grok/) | Cloud | `GROK_API_KEY` | `grok-3-mini` | No | Yes |
-| [Groq](groq/) | Cloud | `GROQ_API_KEY` | `llama-3.3-70b-versatile` | Yes (rate-limited) | Yes |
-| [OpenRouter](openrouter/) | Cloud | `OPENROUTER_API_KEY` | `anthropic/claude-3.5-sonnet` | No | Yes |
-| [Azure OpenAI](azure-openai/) | Cloud | `AZURE_OPENAI_API_KEY` | `gpt-4o` | No | Yes |
-| [AWS Bedrock](bedrock/) | Cloud | `AWS_ACCESS_KEY_ID` | `anthropic.claude-3-sonnet-*` | No | Yes |
-| [GitHub Copilot](copilot/) | Cloud | `GITHUB_TOKEN` | `gpt-4o` | Yes (with subscription) | Yes |
+| [Claude](claude/) | Cloud | `ANTHROPIC_API_KEY` | `claude-opus-5` | No | Yes |
+| [OpenAI](openai/) | Cloud | `OPENAI_API_KEY` | `gpt-5.6-sol` | No | Yes |
+| [Gemini](gemini/) | Cloud | `GEMINI_API_KEY` | `gemini-3.6-flash` | Yes (generous) | Yes |
+| [DeepSeek](deepseek/) | Cloud | `DEEPSEEK_API_KEY` | `deepseek-v4-pro` | No | Yes |
+| [Grok](grok/) | Cloud | `GROK_API_KEY` | `grok-4.6` | No | Yes |
+| [Groq](groq/) | Cloud | `GROQ_API_KEY` | `openai/gpt-oss-120b` | Yes (rate-limited) | Yes |
+| [OpenRouter](openrouter/) | Cloud | `OPENROUTER_API_KEY` | `anthropic/claude-opus-5` | No | Yes |
+| [Azure OpenAI](azure-openai/) | Cloud | `AZURE_OPENAI_API_KEY` | `gpt-5.6-sol` | No | Yes |
+| [AWS Bedrock](bedrock/) | Cloud | `AWS_ACCESS_KEY_ID` | `anthropic.claude-sonnet-5` | No | Yes |
+| [GitHub Copilot](copilot/) | Cloud | `GITHUB_TOKEN` | `gpt-5.6-sol` | Yes (with subscription) | Yes |
 | [Mistral](mistral/) | Cloud | `MISTRAL_API_KEY` | `mistral-large-latest` | No | Yes |
-| [Cerebras](cerebras/) | Cloud | `CEREBRAS_API_KEY` | `llama3.1-70b` | Yes (limited) | Yes |
-| [Zhipu GLM](zhipu/) | Cloud | `ZHIPU_API_KEY` | `glm-4` | No | Yes |
+| [Cerebras](cerebras/) | Cloud | `CEREBRAS_API_KEY` | `gpt-oss-120b` | Yes (limited) | Yes |
+| [Zhipu GLM](zhipu/) | Cloud | `ZHIPU_API_KEY` | `glm-5.2` | No | Yes |
 | [Vercel AI](vercel-ai/) | Cloud | Via provider key | Provider-dependent | No | Yes |
-| [MiniMax](minimax/) | Cloud | `MINIMAX_API_KEY` | `abab6.5s-chat` | No | Yes |
+| [MiniMax](minimax/) | Cloud | `MINIMAX_API_KEY` | `MiniMax-M3` | No | Yes |
 | [Perplexity](perplexity/) | Cloud | `PERPLEXITY_API_KEY` | `sonar-pro` | No | Yes |
-| [Together AI](together/) | Inference | `TOGETHER_API_KEY` | `meta-llama/Llama-3.1-70B-Instruct-Turbo` | Yes (limited) | Yes |
+| [Together AI](together/) | Inference | `TOGETHER_API_KEY` | `moonshotai/Kimi-K2.7-Code` | Yes (limited) | Yes |
 | [Fireworks AI](fireworks/) | Inference | `FIREWORKS_API_KEY` | `llama-v3p1-70b-instruct` | Yes (limited) | Yes |
 | [SambaNova](sambanova/) | Inference | `SAMBANOVA_API_KEY` | `Meta-Llama-3.1-70B-Instruct` | Yes (limited) | Yes |
 | [Poolside](poolside/) | Cloud | `POOLSIDE_API_KEY` | `poolside/laguna-s-2.1` | No | Yes |
@@ -101,7 +101,7 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 vibecli --provider claude "Fix the bug in src/auth.rs" --agent
 
 export OPENAI_API_KEY="sk-..."
-vibecli --provider openai --model gpt-4o "Write unit tests for parser.rs"
+vibecli --provider openai --model gpt-5.6-sol "Write unit tests for parser.rs"
 
 export GEMINI_API_KEY="AIza..."
 vibecli --provider gemini "Summarize this codebase" --add-dir ./src/

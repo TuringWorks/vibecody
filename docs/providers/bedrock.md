@@ -36,7 +36,7 @@ vibecli --provider bedrock
 [bedrock]
 enabled = true
 api_key = "AKIA..."          # AWS access key ID
-model = "anthropic.claude-3-sonnet-20240229-v1:0"
+model = "anthropic.claude-sonnet-5"
 region = "us-east-1"
 ```
 
@@ -46,18 +46,24 @@ The `api_key` field holds the AWS access key ID. The secret access key is read f
 
 | Model | Provider | Best for |
 |-------|----------|----------|
-| `anthropic.claude-3-sonnet-20240229-v1:0` | Anthropic | Strong coding, default |
-| `anthropic.claude-3-haiku-20240307-v1:0` | Anthropic | Fast, affordable |
+| `anthropic.claude-opus-5` | Anthropic | Deepest reasoning |
+| `anthropic.claude-sonnet-5` | Anthropic | Strong coding, default |
+| `anthropic.claude-opus-4-8` | Anthropic | Previous-gen Opus |
+| `anthropic.claude-haiku-4-5` | Anthropic | Fast, affordable |
 | `meta.llama3-1-70b-instruct-v1:0` | Meta | Open model |
 | `mistral.mistral-large-2402-v1:0` | Mistral | European alternative |
 | `amazon.titan-text-premier-v1:0` | Amazon | AWS-native model |
 
-**Default:** `anthropic.claude-3-sonnet-20240229-v1:0`
+**Default:** `anthropic.claude-sonnet-5`
+
+The Claude 3 ids this page used to list are retired (3.5 Sonnet on 2025-10-28,
+3 Haiku on 2026-04-20). Bedrock is partner-operated and sets its own retirement
+schedule, so check the model is listed in your region before pinning it.
 
 Override from the CLI:
 
 ```bash
-vibecli --provider bedrock --model anthropic.claude-3-haiku-20240307-v1:0
+vibecli --provider bedrock --model anthropic.claude-haiku-4-5
 ```
 
 ## Authentication

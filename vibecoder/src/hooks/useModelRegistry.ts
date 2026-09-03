@@ -25,8 +25,9 @@ import { OLLAMA_CHAT_MODELS } from "../constants/ollamaModels";
  */
 // v4 (2026-09-02): retired-model sweep — a v3 cache still holds
 // gpt-5.6-sol-pro (never a real id), deepseek-chat (retired 2026-07-24),
-// gemini-3-pro / gemini-2.5-pro and gpt-4o, all of which now fail at request
-// time. v3 (2026-08-05) swept deepseek-v3.1:671b-cloud and friends, which 410.
+// grok-4.20, and gemini-3-pro / gemini-3.1-pro / gemini-2.5-pro, all of which
+// fail at request time. v3 (2026-08-05) swept deepseek-v3.1:671b-cloud and
+// friends, which 410.
 export const CACHE_KEY = "vibecody:model-registry:v4";
 
 /**
@@ -87,11 +88,19 @@ export const STATIC_MODELS: Record<string, string[]> = {
   // gpt-5 removed: its only snapshot (gpt-5-2025-08-07) was deprecated
   // 2026-06-11, API shutdown 2026-12-11.
   //
-  // gpt-4o / gpt-4o-mini / gpt-4.1 / gpt-4.1-mini removed as superseded, not as
-  // broken — OpenAI still lists all four Active on the API even though they
-  // left ChatGPT on 2026-02-13. They are two generations behind everything else
-  // here and the model guidance routes them all to the 5.6 family.
-  openai: ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-5.5-pro", "gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-5.3-codex", "gpt-5.3-chat"],
+  // gpt-4o / gpt-4o-mini / gpt-4.1 / gpt-4.1-mini are kept, at the end of the
+  // row. They are two generations behind everything above and OpenAI's model
+  // guidance routes all four to the 5.6 family, but the deprecation table still
+  // lists them **Active on the API** — leaving ChatGPT on 2026-02-13 retired
+  // them from the consumer product, not from here. The RULE below is about ids
+  // that are not callable; "superseded" is not the same thing, and an id that
+  // still answers stays until it is dated. Briefly cut in the 2026-09-02 sweep
+  // and restored the same day.
+  //
+  // Their neighbours in that generation stay out: gpt-4.1-nano, gpt-4-turbo and
+  // gpt-3.5-turbo are deprecated with an API shutdown on 2026-10-23, and gpt-5's
+  // only snapshot (gpt-5-2025-08-07) shuts down 2026-12-11.
+  openai: ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-5.5-pro", "gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-5.3-codex", "gpt-5.3-chat", "gpt-4.1", "gpt-4.1-mini", "gpt-4o", "gpt-4o-mini"],
   // gemini-3.6-flash is the current workhorse (shipped 2026-07-21) and stays the
   // default; 3.8-flash (2026-09-02) and 3.7-flash (2026-08-13) are offered but
   // not defaulted to until they have a track record.

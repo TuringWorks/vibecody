@@ -347,7 +347,7 @@ model = "claude-opus-5"
 
 [openai]
 enabled = false
-model = "gpt-4o"
+model = "gpt-5.6-sol"
 
 [gemini]
 enabled = false
@@ -355,7 +355,7 @@ model = "gemini-2.0-flash"
 
 [grok]
 enabled = false
-model = "grok-3-mini"
+model = "grok-4.6"
 
 [groq]
 enabled = false

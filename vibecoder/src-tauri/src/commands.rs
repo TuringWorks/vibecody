@@ -12913,11 +12913,11 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
     }
 
     if !settings.openai_api_key.is_empty() {
-        // Every id here was a generation or more behind the picker until
-        // 2026-09-02: gpt-4/gpt-4-turbo/gpt-3.5-turbo/o1/o1-mini/o1-preview/
-        // o3-mini are all deprecated with an API shutdown on 2026-10-23, and
-        // o1-preview was retired outright. Mirrors OPENAI in
-        // vibe-ai/src/catalog.rs.
+        // Mirrors OPENAI in vibe-ai/src/catalog.rs. The 4-series tail is kept:
+        // OpenAI still lists those four Active on the API. What left on
+        // 2026-09-02 was the deprecated set — gpt-4/gpt-4-turbo/gpt-3.5-turbo/
+        // o1/o1-mini/o3-mini all shut down 2026-10-23, and o1-preview was
+        // retired outright.
         let openai_models = [
             "gpt-5.6-sol",
             "gpt-5.6-terra",
@@ -12928,6 +12928,10 @@ pub fn register_cloud_providers(engine: &mut ChatEngine, settings: &ApiKeySettin
             "gpt-5.4-mini",
             "gpt-5.3-codex",
             "gpt-5.3-chat",
+            "gpt-4.1",
+            "gpt-4.1-mini",
+            "gpt-4o",
+            "gpt-4o-mini",
         ];
         for model_id in &openai_models {
             let config = vibe_ai::provider::ProviderConfig {
