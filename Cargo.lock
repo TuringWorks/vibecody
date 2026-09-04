@@ -12675,6 +12675,7 @@ dependencies = [
  "opentelemetry-semantic-conventions",
  "opentelemetry_sdk",
  "p256",
+ "quick-xml 0.42.0",
  "rand 0.10.2",
  "ratatui",
  "regex",

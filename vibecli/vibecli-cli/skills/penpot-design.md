@@ -22,19 +22,30 @@ All endpoints: `{host}/api/rpc/command/{method}`
 |---|---|---|
 | Get profile | GET | `get-profile` |
 | List projects | GET | `get-all-projects` |
-| Get files | GET | `get-files?project-id={id}` |
+| Get files | GET | `get-project-files?project-id={id}` (older instances: `get-files`) |
 | Get file | GET | `get-file?id={id}` |
 | Export file | POST | `export-binfile` with `file-id, page-id, object-ids, format` |
 | Duplicate file | POST | `duplicate-file` with `file-id, name` |
 
 ## Tauri Commands
 ```
-connect_penpot(host, token) → { projects }
-list_penpot_files(host, token, projectId) → { files }
-import_penpot_file(host, token, fileId, workspacePath, provider) → { components, tokens }
+connect_penpot(host, token) → { status, host, profile, projects }
+list_penpot_files(host, token, projectId) → { files, project_id }
+import_penpot_file(host, token, fileId, workspacePath?, provider?) → { file_id, name, components, tokens }
 export_penpot_component(host, token, componentId, framework, workspacePath, provider) → String
 export_penpot_tokens(tokens, format) → String
 ```
+
+The first three perform the HTTP request and return an `Err` carrying the
+status and Penpot's own error body when it fails. They never echo the access
+token back to the caller.
+
+`connect_penpot` calls `get-profile` before `get-all-projects`, so "connected"
+means a token that authenticated — an empty project list afterwards is a real
+answer rather than an unmade request.
+
+`export_penpot_component` uses the provider selected in the toolbar and errors
+when none is; it never falls back to a vendor of its own.
 
 ## Token Extraction
 Penpot files expose:

@@ -64173,9 +64173,11 @@ pub async fn generate_drawio_xml(
     let user_prompt = format!("Generate a {kind} draw.io XML diagram for:\n\n{description}");
     let _ = workspace_path;
     let mut engine = state.chat_engine.lock().await;
-    if !provider.is_empty() {
-        let _ = engine.set_provider_by_name(&provider);
-    }
+    // Provider-agnostic, STRICT: an empty or unknown selection is an error.
+    // `let _ = set_provider_by_name(..)` left the engine on whichever provider
+    // it happened to hold, so the Design tabs could answer from a vendor the
+    // toolbar was not pointing at.
+    select_provider(&mut engine, &provider)?;
     engine
         .chat(
             &[
@@ -64639,65 +64641,230 @@ pub async fn execute_drawio_mcp(
 }
 
 /// Parse a Pencil EP XML document.
+///
+/// Reports what the document actually contains. The previous version counted
+/// `"<Page "` substrings, hardcoded the name as "Pencil Document" and applied
+/// `.max(1)` to the page count — so XML with no pages at all was reported as
+/// having one, and a malformed paste was reported as a valid document.
 #[tauri::command]
-pub async fn parse_pencil_ep(xml: String) -> Result<String, String> {
-    let pages = xml.matches("<Page ").count() + xml.matches("<Page>").count();
-    let shapes = xml.matches("<Shape ").count() + xml.matches("<Shape>").count();
-    Ok(serde_json::to_string_pretty(&serde_json::json!({
-        "name": "Pencil Document", "pages": pages.max(1), "total_shapes": shapes,
+pub async fn parse_pencil_ep(xml: String) -> Result<serde_json::Value, String> {
+    use vibecli_cli::pencil_connector::parse_ep_xml;
+    let doc = parse_ep_xml(&xml).map_err(|e| e.to_string())?;
+    let pages: Vec<serde_json::Value> = doc
+        .pages
+        .iter()
+        .map(|p| {
+            serde_json::json!({
+                "name": p.name,
+                "width": p.width,
+                "height": p.height,
+                "shapes": p.shape_count(),
+            })
+        })
+        .collect();
+    let total_shapes: usize = doc.pages.iter().map(|p| p.shape_count()).sum();
+    Ok(serde_json::json!({
+        "name": doc.name,
+        "id": doc.id,
+        "pages": pages,
+        "page_count": doc.pages.len(),
+        "total_shapes": total_shapes,
     }))
-    .unwrap_or_default())
 }
 
 /// Generate a Pencil wireframe from a template.
+///
+/// Builds the real document via `pencil_connector` and returns its EP XML.
+/// This used to return `epXml: ""` and `shapes: 0` for a page list it made up
+/// from the template id, so the panel showed a wireframe that did not exist
+/// and every export downloaded an empty file.
+///
+/// `workspace_path` and `provider` are optional: generation is local and
+/// deterministic, and requiring a workspace meant the whole tab failed to
+/// deserialise its arguments — silently, since the panel swallowed the error —
+/// whenever no folder was open.
 #[tauri::command]
 pub async fn generate_pencil_wireframe(
     template_id: String,
     title: String,
     sections: Vec<String>,
-    workspace_path: String,
-    provider: String,
+    workspace_path: Option<String>,
+    provider: Option<String>,
 ) -> Result<serde_json::Value, String> {
     let _ = (workspace_path, provider);
-    let page_names: Vec<&str> = match template_id.as_str() {
-        "landing_page" => vec!["Hero", "Features", "CTA", "Footer"],
-        "mobile_app" => vec!["Home", "Search", "Profile"],
-        _ => sections.iter().map(|s| s.as_str()).collect(),
+    let title = if title.trim().is_empty() {
+        template_id.replace('_', " ")
+    } else {
+        title
     };
-    let pages: Vec<serde_json::Value> = page_names
+    let doc = vibecli_cli::pencil_connector::generate_template(&template_id, &title, &sections)
+        .map_err(|e| e.message)?;
+    let pages: Vec<serde_json::Value> = doc
+        .pages
         .iter()
-        .map(|name| serde_json::json!({ "name": name, "shapes": 0 }))
+        .map(|p| {
+            serde_json::json!({
+                "name": p.name,
+                "shapes": p.shape_count(),
+                "width": p.width,
+                "height": p.height,
+            })
+        })
         .collect();
-    Ok(serde_json::json!({ "title": title, "template": template_id, "pages": pages, "epXml": "" }))
+    Ok(serde_json::json!({
+        "title": doc.name,
+        "template": template_id,
+        "pages": pages,
+        "epXml": doc.to_ep_xml(),
+    }))
 }
 
 /// Execute a TuringWorks Pencil MCP operation.
+///
+/// Returns the request that *would* be sent, explicitly labelled as not
+/// dispatched. It used to answer `status: "ok"` for every operation including
+/// ones that do not exist — a success nobody performed.
 #[tauri::command]
 pub async fn execute_pencil_mcp(
     operation: String,
     file_path: Option<String>,
 ) -> Result<String, String> {
-    Ok(serde_json::json!({
-        "operation": operation, "file": file_path, "status": "ok",
-        "note": "Connect Pencil desktop app for live operations",
+    use vibecli_cli::pencil_connector::PencilMcpOp;
+    let op = PencilMcpOp::for_operation(&operation, file_path.as_deref())
+        .map_err(|e| e.message)?;
+    Ok(serde_json::to_string_pretty(&serde_json::json!({
+        "operation": op.tool,
+        "params": op.params,
+        "status": "not_dispatched",
+        "reason": "No Pencil MCP server is connected to VibeCody yet. This is the \
+                   request that would be sent — run it against the TuringWorks \
+                   Pencil MCP server to execute it.",
+    }))
+    .unwrap_or_default())
+}
+
+// ── Penpot RPC ───────────────────────────────────────────────────────────────
+//
+// These four commands used to build a `curl` string and answer
+// `status: "configured"` with an empty project list, without ever contacting
+// the instance — so the panel reported "Connected — 0 project(s)" against a
+// wrong host, a revoked token or no network at all. They now perform the
+// request and report what came back, including the failure. The access token
+// is never echoed into the response: it went out in a `curl` line the panel
+// rendered on screen.
+
+/// Call one Penpot RPC query command and return its JSON body.
+///
+/// Penpot answers errors with a JSON body that names the problem (`:type`,
+/// `:code`); it is far more useful than the status line alone, so both are
+/// reported.
+async fn penpot_get(
+    host: &str,
+    token: &str,
+    command: &str,
+    query: &[(&str, &str)],
+) -> Result<serde_json::Value, String> {
+    let host = host.trim().trim_end_matches('/');
+    if host.is_empty() {
+        return Err("Penpot host is required".to_string());
+    }
+    if !host.starts_with("http://") && !host.starts_with("https://") {
+        return Err(format!(
+            "Penpot host must start with http:// or https:// — got `{host}`"
+        ));
+    }
+    if token.trim().is_empty() {
+        return Err("A Penpot access token is required".to_string());
+    }
+
+    let url = format!("{host}/api/rpc/command/{command}");
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("HTTP client error: {e}"))?;
+
+    let res = client
+        .get(&url)
+        .header("Authorization", format!("Token {}", token.trim()))
+        .header("Accept", "application/json")
+        .query(query)
+        .send()
+        .await
+        .map_err(|e| format!("Cannot reach {url}: {e}"))?;
+
+    let status = res.status();
+    let body = res
+        .text()
+        .await
+        .map_err(|e| format!("{url} returned an unreadable body: {e}"))?;
+
+    if !status.is_success() {
+        let detail: String = body.chars().take(400).collect();
+        return Err(format!(
+            "Penpot {command} failed ({}): {}",
+            status,
+            if detail.trim().is_empty() {
+                "no response body".to_string()
+            } else {
+                detail
+            }
+        ));
+    }
+
+    serde_json::from_str(&body).map_err(|e| {
+        format!(
+            "Penpot {command} did not return JSON ({e}): {}",
+            body.chars().take(200).collect::<String>()
+        )
     })
-    .to_string())
+}
+
+/// Penpot's JSON encoding is kebab-case; read a field under either spelling.
+fn penpot_field<'a>(v: &'a serde_json::Value, name: &str) -> Option<&'a serde_json::Value> {
+    v.get(name).or_else(|| v.get(name.replace('-', "_")))
+}
+
+fn penpot_str(v: &serde_json::Value, name: &str) -> Option<String> {
+    penpot_field(v, name)
+        .and_then(|f| f.as_str())
+        .map(str::to_string)
 }
 
 /// Connect to a Penpot instance and list projects.
+///
+/// The profile call is what makes "connected" mean something: it is the
+/// cheapest request that fails loudly on a bad token, so an empty project list
+/// afterwards is a real answer rather than an unmade request.
 #[tauri::command]
 pub async fn connect_penpot(host: String, token: String) -> Result<serde_json::Value, String> {
-    if host.is_empty() {
-        return Err("host is required".to_string());
-    }
-    let api_url = format!(
-        "{}/api/rpc/command/get-all-projects",
-        host.trim_end_matches('/')
-    );
-    let curl = format!("curl -H 'Authorization: Token {}' '{}'", token, api_url);
-    Ok(
-        serde_json::json!({ "status": "configured", "host": host, "api_url": api_url, "curl": curl, "projects": [] }),
-    )
+    let profile = penpot_get(&host, &token, "get-profile", &[]).await?;
+    let projects_raw = penpot_get(&host, &token, "get-all-projects", &[]).await?;
+    let projects: Vec<serde_json::Value> = projects_raw
+        .as_array()
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|p| {
+                    Some(serde_json::json!({
+                        "id": penpot_str(p, "id")?,
+                        "name": penpot_str(p, "name").unwrap_or_else(|| "Untitled".to_string()),
+                        "team_id": penpot_str(p, "team-id"),
+                    }))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    Ok(serde_json::json!({
+        "status": "connected",
+        "host": host.trim().trim_end_matches('/'),
+        "profile": {
+            "id": penpot_str(&profile, "id"),
+            "email": penpot_str(&profile, "email"),
+            "fullname": penpot_str(&profile, "fullname"),
+        },
+        "projects": projects,
+    }))
 }
 
 /// List files in a Penpot project.
@@ -64707,13 +64874,36 @@ pub async fn list_penpot_files(
     token: String,
     project_id: String,
 ) -> Result<serde_json::Value, String> {
-    let api_url = format!(
-        "{}/api/rpc/command/get-all-files?project-id={}",
-        host.trim_end_matches('/'),
-        project_id
-    );
-    let curl = format!("curl -H 'Authorization: Token {}' '{}'", token, api_url);
-    Ok(serde_json::json!({ "curl": curl, "files": [], "project_id": project_id }))
+    if project_id.trim().is_empty() {
+        return Err("Pick a project first".to_string());
+    }
+    // Penpot instances differ on the name of this query. Try the current one,
+    // fall back to the older spelling, and report the *first* failure if both
+    // are refused — the second error would only ever say "not found".
+    let params = [("project-id", project_id.trim())];
+    let raw = match penpot_get(&host, &token, "get-project-files", &params).await {
+        Ok(v) => v,
+        Err(first) => penpot_get(&host, &token, "get-files", &params)
+            .await
+            .map_err(|_| first)?,
+    };
+    let files: Vec<serde_json::Value> = raw
+        .as_array()
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|f| {
+                    Some(serde_json::json!({
+                        "id": penpot_str(f, "id")?,
+                        "name": penpot_str(f, "name").unwrap_or_else(|| "Untitled".to_string()),
+                        "project_id": penpot_str(f, "project-id")
+                            .unwrap_or_else(|| project_id.trim().to_string()),
+                    }))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    Ok(serde_json::json!({ "files": files, "project_id": project_id }))
 }
 
 /// Import a Penpot file and extract components + tokens.
@@ -64722,17 +64912,79 @@ pub async fn import_penpot_file(
     host: String,
     token: String,
     file_id: String,
-    workspace_path: String,
-    provider: String,
+    workspace_path: Option<String>,
+    provider: Option<String>,
 ) -> Result<serde_json::Value, String> {
+    // Reading a file is a plain API call; neither a workspace nor a model is
+    // involved. They stay in the signature because the panel sends them.
     let _ = (workspace_path, provider);
-    let api_url = format!(
-        "{}/api/rpc/command/get-file?file-id={}",
-        host.trim_end_matches('/'),
-        file_id
+    if file_id.trim().is_empty() {
+        return Err("Pick a file first".to_string());
+    }
+    let file = penpot_get(&host, &token, "get-file", &[("id", file_id.trim())]).await?;
+    let data = penpot_field(&file, "data").unwrap_or(&serde_json::Value::Null);
+
+    // `components`, `colors` and `typographies` are maps keyed by id in a
+    // Penpot file's shared-library data.
+    let components: Vec<serde_json::Value> = penpot_field(data, "components")
+        .and_then(|c| c.as_object())
+        .map(|map| {
+            map.iter()
+                .map(|(id, c)| {
+                    serde_json::json!({
+                        "id": penpot_str(c, "id").unwrap_or_else(|| id.clone()),
+                        "name": penpot_str(c, "name").unwrap_or_else(|| "Component".to_string()),
+                        "description": penpot_str(c, "path").unwrap_or_default(),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let mut tokens: Vec<serde_json::Value> = penpot_field(data, "colors")
+        .and_then(|c| c.as_object())
+        .map(|map| {
+            map.values()
+                .filter_map(|c| {
+                    Some(serde_json::json!({
+                        "name": penpot_str(c, "name")?,
+                        "token_type": "color",
+                        "value": penpot_str(c, "color").unwrap_or_default(),
+                    }))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    tokens.extend(
+        penpot_field(data, "typographies")
+            .and_then(|t| t.as_object())
+            .map(|map| {
+                map.values()
+                    .filter_map(|t| {
+                        Some(serde_json::json!({
+                            "name": penpot_str(t, "name")?,
+                            "token_type": "typography",
+                            "value": format!(
+                                "{} {}",
+                                penpot_str(t, "font-family").unwrap_or_default(),
+                                penpot_str(t, "font-size").unwrap_or_default(),
+                            )
+                            .trim()
+                            .to_string(),
+                        }))
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default(),
     );
-    let curl = format!("curl -H 'Authorization: Token {}' '{}'", token, api_url);
-    Ok(serde_json::json!({ "curl": curl, "components": [], "tokens": [], "file_id": file_id }))
+
+    Ok(serde_json::json!({
+        "file_id": file_id,
+        "name": penpot_str(&file, "name"),
+        "components": components,
+        "tokens": tokens,
+    }))
 }
 
 /// Export a Penpot component to framework code.
@@ -64747,9 +64999,11 @@ pub async fn export_penpot_component(
     use vibe_ai::provider::{Message, MessageRole};
     let _ = workspace_path;
     let mut engine = state.chat_engine.lock().await;
-    if !provider.is_empty() {
-        let _ = engine.set_provider_by_name(&provider);
-    }
+    // Provider-agnostic, STRICT: an empty or unknown selection is an error.
+    // `let _ = set_provider_by_name(..)` left the engine on whichever provider
+    // it happened to hold, so the Design tabs could answer from a vendor the
+    // toolbar was not pointing at.
+    select_provider(&mut engine, &provider)?;
     engine
         .chat(
             &[Message {
@@ -64825,9 +65079,11 @@ pub async fn generate_diagram(
     };
     let _ = workspace_path;
     let mut engine = state.chat_engine.lock().await;
-    if !provider.is_empty() {
-        let _ = engine.set_provider_by_name(&provider);
-    }
+    // Provider-agnostic, STRICT: an empty or unknown selection is an error.
+    // `let _ = set_provider_by_name(..)` left the engine on whichever provider
+    // it happened to hold, so the Design tabs could answer from a vendor the
+    // toolbar was not pointing at.
+    select_provider(&mut engine, &provider)?;
     engine
         .chat(
             &[
@@ -68898,22 +69154,56 @@ pub async fn company_task_move(id: String, status: String) -> Result<serde_json:
 
 /// Export a generated wireframe.
 ///
-/// `ep_xml` is the document as-is; `react` asks the selected provider to
-/// convert it. Provider-agnostic: an unset selection is an error rather than a
-/// silent fallback to one vendor.
+/// Returns the payload *and* how to save it, because the formats do not agree
+/// on either: `ep` is a ZIP (base64), the rest are text. The panel used to
+/// assume every format was UTF-8 text and name it `.ep`, which produced a file no
+/// Pencil build can open — `.ep` is a ZIP archive containing `content.xml`.
+///
+/// `ep`, `ep_xml` and `html` are deterministic and need no provider; `react`
+/// asks the selected provider to convert. Provider-agnostic: an unset
+/// selection is an error rather than a silent fallback to one vendor.
 #[tauri::command]
 pub async fn export_pencil_wireframe(
     xml: String,
     format: String,
     workspace_path: Option<String>,
     provider: Option<String>,
-) -> Result<String, String> {
+) -> Result<serde_json::Value, String> {
+    use base64::Engine as _;
+    use vibecli_cli::pencil_connector::parse_ep_xml;
+
     let _ = workspace_path;
     if xml.trim().is_empty() {
         return Err("Generate a wireframe before exporting".to_string());
     }
+
+    let text = |data: String, filename: &str, mime: &str| {
+        Ok(serde_json::json!({
+            "filename": filename,
+            "mimeType": mime,
+            "encoding": "utf8",
+            "data": data,
+        }))
+    };
+
     match format.as_str() {
-        "ep_xml" => Ok(xml),
+        // The real Evolus artefact: a ZIP whose content.xml is the document.
+        "ep" => {
+            let doc = parse_ep_xml(&xml).map_err(|e| e.message)?;
+            let bytes = doc.to_ep_archive().map_err(|e| e.message)?;
+            Ok(serde_json::json!({
+                "filename": format!("{}.ep", slugify_for_filename(&doc.name)),
+                "mimeType": "application/zip",
+                "encoding": "base64",
+                "data": base64::engine::general_purpose::STANDARD.encode(bytes),
+            }))
+        }
+        "ep_xml" => text(xml, "content.xml", "application/xml"),
+        "html" => {
+            let doc = parse_ep_xml(&xml).map_err(|e| e.message)?;
+            let name = slugify_for_filename(&doc.name);
+            text(doc.to_html(), &format!("{name}.html"), "text/html")
+        }
         "react" => {
             let provider = provider
                 .filter(|p| !p.trim().is_empty())
@@ -68922,12 +69212,200 @@ pub async fn export_pencil_wireframe(
                 "Convert this Pencil (evolus) wireframe XML into a single self-contained \
                  React function component using inline styles. Return only the code.\n\n{xml}"
             );
-            ai_chat_with_effort(provider, String::new(), prompt, None).await
+            let code = ai_chat_with_effort(provider, String::new(), prompt, None).await?;
+            let code = strip_code_fence(&code);
+            text(code, "Wireframe.tsx", "text/plain")
         }
         other => Err(format!(
-            "Unsupported export format `{other}` — expected `ep_xml` or `react`"
+            "Unsupported export format `{other}` — expected `ep`, `ep_xml`, `html` or `react`"
         )),
     }
+}
+
+/// A filesystem-safe stem for a download named after a document title.
+///
+/// Runs of separators collapse as they are produced — a single
+/// `replace("--", "-")` pass leaves `----` as `--`, which is how
+/// `Acme "Demo" & Co` came out as `acme-demo--co`.
+fn slugify_for_filename(name: &str) -> String {
+    let mut slug = String::new();
+    for c in name.chars() {
+        if c.is_ascii_alphanumeric() || c == '_' {
+            slug.push(c.to_ascii_lowercase());
+        } else if !slug.ends_with('-') {
+            slug.push('-');
+        }
+    }
+    let stem: String = slug.trim_matches('-').chars().take(60).collect();
+    let stem = stem.trim_end_matches('-');
+    if stem.is_empty() {
+        "wireframe".to_string()
+    } else {
+        stem.to_string()
+    }
+}
+
+#[cfg(test)]
+mod pencil_export_tests {
+    use super::*;
+
+    #[test]
+    fn slug_is_safe_and_never_empty() {
+        assert_eq!(slugify_for_filename("Acme \"Demo\" & Co"), "acme-demo-co");
+        assert_eq!(slugify_for_filename("../../etc/passwd"), "etc-passwd");
+        assert_eq!(slugify_for_filename("   "), "wireframe");
+        assert_eq!(slugify_for_filename("!!!"), "wireframe");
+        assert!(slugify_for_filename(&"x".repeat(200)).len() <= 60);
+    }
+
+    #[test]
+    fn code_fence_is_stripped_with_and_without_a_language_tag() {
+        assert_eq!(strip_code_fence("```tsx\nconst a = 1;\n```"), "const a = 1;");
+        assert_eq!(strip_code_fence("```\nconst a = 1;\n```"), "const a = 1;");
+        // Unfenced code is returned as-is, not truncated.
+        assert_eq!(strip_code_fence("  const a = 1;  "), "const a = 1;");
+    }
+
+    #[test]
+    fn penpot_fields_read_kebab_and_snake_case() {
+        let v = serde_json::json!({ "team-id": "t1", "project_id": "p1" });
+        assert_eq!(penpot_str(&v, "team-id").as_deref(), Some("t1"));
+        assert_eq!(penpot_str(&v, "project-id").as_deref(), Some("p1"));
+        assert_eq!(penpot_str(&v, "missing"), None);
+    }
+
+    #[tokio::test]
+    async fn penpot_get_refuses_a_host_without_a_scheme_before_dialling() {
+        let err = penpot_get("design.penpot.app", "tok", "get-profile", &[])
+            .await
+            .unwrap_err();
+        assert!(err.contains("http://"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn penpot_get_requires_a_token() {
+        let err = penpot_get("https://design.penpot.app", "  ", "get-profile", &[])
+            .await
+            .unwrap_err();
+        assert!(err.contains("access token"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn export_refuses_an_empty_document_and_an_unknown_format() {
+        assert!(
+            export_pencil_wireframe(String::new(), "ep".into(), None, None)
+                .await
+                .is_err()
+        );
+        let err = export_pencil_wireframe("<Document name=\"D\" id=\"d\"></Document>".into(), "pdf".into(), None, None)
+            .await
+            .unwrap_err();
+        assert!(err.contains("Unsupported export format"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn ep_export_is_base64_zip_and_html_export_needs_no_provider() {
+        use base64::Engine as _;
+        let doc = vibecli_cli::pencil_connector::generate_template("dashboard", "Ops Board", &[])
+            .unwrap();
+        let xml = doc.to_ep_xml();
+
+        let ep = export_pencil_wireframe(xml.clone(), "ep".into(), None, None)
+            .await
+            .expect("ep export");
+        assert_eq!(ep["encoding"], "base64");
+        assert_eq!(ep["filename"], "ops-board.ep");
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(ep["data"].as_str().unwrap())
+            .unwrap();
+        assert_eq!(&bytes[..2], b"PK");
+
+        // No provider passed: HTML must still export.
+        let html = export_pencil_wireframe(xml, "html".into(), None, None)
+            .await
+            .expect("html export");
+        assert_eq!(html["encoding"], "utf8");
+        assert!(html["data"].as_str().unwrap().starts_with("<!DOCTYPE html>"));
+    }
+
+    #[tokio::test]
+    async fn react_export_without_a_provider_is_an_error_not_a_vendor_default() {
+        let err = export_pencil_wireframe(
+            "<Document name=\"D\" id=\"d\"></Document>".into(),
+            "react".into(),
+            None,
+            Some("  ".into()),
+        )
+        .await
+        .unwrap_err();
+        assert!(err.contains("Select a provider"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn generate_reports_real_shape_counts_and_needs_no_workspace() {
+        let out = generate_pencil_wireframe(
+            "login_form".into(),
+            "Sign in".into(),
+            vec![],
+            None,
+            None,
+        )
+        .await
+        .expect("generate");
+        assert!(!out["epXml"].as_str().unwrap().is_empty());
+        let pages = out["pages"].as_array().unwrap();
+        assert_eq!(pages.len(), 1);
+        assert!(pages[0]["shapes"].as_u64().unwrap() > 0, "no shapes reported");
+    }
+
+    #[tokio::test]
+    async fn generate_refuses_an_unknown_template() {
+        assert!(
+            generate_pencil_wireframe("nope".into(), "T".into(), vec![], None, None)
+                .await
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn parse_reports_the_document_it_was_given_and_errors_on_junk() {
+        let doc =
+            vibecli_cli::pencil_connector::generate_template("mobile_app", "App", &[]).unwrap();
+        let out = parse_pencil_ep(doc.to_ep_xml()).await.expect("parse");
+        assert_eq!(out["name"], "App");
+        assert_eq!(out["page_count"], 3);
+        assert!(out["total_shapes"].as_u64().unwrap() > 0);
+
+        // No `.max(1)`: junk is an error, not a document with one page.
+        assert!(parse_pencil_ep("not xml at all".into()).await.is_err());
+        assert!(parse_pencil_ep(String::new()).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn mcp_never_reports_an_operation_it_did_not_dispatch() {
+        let out = execute_pencil_mcp("get_editor_state".into(), None)
+            .await
+            .expect("build request");
+        assert!(out.contains("not_dispatched"), "{out}");
+        assert!(!out.contains("\"status\": \"ok\""), "{out}");
+        assert!(execute_pencil_mcp("open_document".into(), None).await.is_err());
+        assert!(execute_pencil_mcp("nope".into(), None).await.is_err());
+    }
+}
+
+/// Drop a ``` fence a model wrapped code in, so the downloaded `.tsx` compiles.
+fn strip_code_fence(raw: &str) -> String {
+    let trimmed = raw.trim();
+    let Some(rest) = trimmed.strip_prefix("```") else {
+        return trimmed.to_string();
+    };
+    // The opening fence may carry a language tag on the same line.
+    let body = rest.split_once('\n').map(|(_, b)| b).unwrap_or("");
+    body.trim_end()
+        .strip_suffix("```")
+        .unwrap_or(body)
+        .trim_end()
+        .to_string()
 }
 
 // ── Agile / SAFe panel ───────────────────────────────────────────────────────

@@ -54,3 +54,33 @@ Feature: Pencil wireframe integration
     Given a Pencil MCP operation for get_editor_state
     When I serialise to JSON
     Then the JSON should contain "get_editor_state"
+
+  Scenario Outline: Every offered template produces a document that parses back
+    Given I generate the "<template>" template titled "Round Trip"
+    Then the template should have at least 1 page
+    And every page should have at least one shape
+    And the EP XML should round-trip through the parser
+
+    Examples:
+      | template      |
+      | landing_page  |
+      | dashboard     |
+      | mobile_app    |
+      | login_form    |
+      | settings_page |
+      | data_table    |
+
+  Scenario: An unknown template id is refused rather than substituted
+    Given I generate the "not_a_template" template titled "X"
+    Then a template error should be returned
+
+  Scenario: The .ep export is a ZIP containing content.xml
+    Given I generate the "login_form" template titled "Sign in"
+    When I package the document as a .ep archive
+    Then the archive should be a ZIP
+    And the archive should contain "content.xml"
+
+  Scenario: The HTML export renders one block per shape
+    Given I generate the "data_table" template titled "Records"
+    When I render the document as HTML
+    Then the HTML should contain one block per shape

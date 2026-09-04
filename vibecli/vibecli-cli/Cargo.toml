@@ -188,6 +188,10 @@ vibe-infer = { path = "../../vibecoder/crates/vibe-infer", features = ["mistralr
 tower.workspace = true
 cucumber = { version = "0.23", features = ["macros"] }
 tempfile = "3"
+# Well-formedness check for the Pencil EP exports. A hand-rolled writer that
+# only its own hand-rolled reader has ever read is not evidence that an editor
+# can open the file; a real XML reader is.
+quick-xml = "0.42"
 tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread"] }
 
 # US-001: real HTTP search backends for web grounding

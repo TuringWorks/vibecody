@@ -42,6 +42,9 @@ const inputStyle: React.CSSProperties = {
 };
 
 interface PenpotProject { id: string; name: string; }
+/** Who the token authenticated as — proof the connection was actually made. */
+interface PenpotProfile { id?: string | null; email?: string | null; fullname?: string | null; }
+interface PenpotConnection { status: string; host: string; profile?: PenpotProfile | null; projects: PenpotProject[]; }
 interface PenpotFile { id: string; name: string; project_id: string; }
 interface PenpotComponent { id: string; name: string; description: string; }
 interface PenpotToken { name: string; token_type: string; value: string; }
@@ -51,6 +54,7 @@ export function PenpotPanel({ workspacePath, provider }: PenpotPanelProps) {
   const [host, setHost] = useState("https://design.penpot.app");
   const [token, setToken] = useState("");
   const [isConnected, setIsConnected] = useState(false);
+  const [profile, setProfile] = useState<PenpotProfile | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [projects, setProjects] = useState<PenpotProject[]>([]);
   const [files, setFiles] = useState<PenpotFile[]>([]);
@@ -76,15 +80,19 @@ export function PenpotPanel({ workspacePath, provider }: PenpotPanelProps) {
     setIsLoading(true);
     setError("");
     try {
-      const result = await invoke<{ projects: PenpotProject[] }>("connect_penpot", {
+      const result = await invoke<PenpotConnection>("connect_penpot", {
         host: host.trim(),
         token: token.trim(),
-      }).catch((e: unknown) => { throw new Error(String(e)); });
+      });
       setProjects(result.projects || []);
+      setProfile(result.profile ?? null);
       setIsConnected(true);
       showStatus(`Connected — ${result.projects?.length ?? 0} project(s)`);
       setActiveTab("projects");
     } catch (e) {
+      setIsConnected(false);
+      setProfile(null);
+      setProjects([]);
       setError(String(e));
     } finally {
       setIsLoading(false);
@@ -93,11 +101,17 @@ export function PenpotPanel({ workspacePath, provider }: PenpotPanelProps) {
 
   const loadProjectFiles = async (projectId: string) => {
     setIsLoading(true);
+    setError("");
     try {
+      // An empty list and a failed request are different answers; the panel
+      // used to render both as "this project has no files".
       const result = await invoke<{ files: PenpotFile[] }>("list_penpot_files", {
         host, token, projectId,
-      }).catch(() => ({ files: [] }));
-      setFiles(result.files);
+      });
+      setFiles(result.files ?? []);
+      showStatus(`${result.files?.length ?? 0} file(s)`);
+    } catch (e) {
+      setError(String(e));
     } finally {
       setIsLoading(false);
     }
@@ -110,10 +124,14 @@ export function PenpotPanel({ workspacePath, provider }: PenpotPanelProps) {
       const result = await invoke<{ components: PenpotComponent[]; tokens: PenpotToken[] }>(
         "import_penpot_file",
         { host, token, fileId, workspacePath, provider }
-      ).catch(() => ({ components: [], tokens: [] }));
-      setComponents(result.components);
-      setTokens(result.tokens);
-      showStatus(`Loaded ${result.components.length} component(s), ${result.tokens.length} token(s)`);
+      );
+      setComponents(result.components ?? []);
+      setTokens(result.tokens ?? []);
+      showStatus(`Loaded ${result.components?.length ?? 0} component(s), ${result.tokens?.length ?? 0} token(s)`);
+    } catch (e) {
+      setComponents([]);
+      setTokens([]);
+      setError(String(e));
     } finally {
       setIsLoading(false);
     }
@@ -126,8 +144,12 @@ export function PenpotPanel({ workspacePath, provider }: PenpotPanelProps) {
       const code = await invoke<string>("export_penpot_component", {
         host, token, componentId: selectedComponent, framework: exportFramework,
         workspacePath, provider,
-      }).catch((e: unknown) => String(e));
+      });
       setExportedCode(code);
+      showStatus("Component generated");
+    } catch (e) {
+      setExportedCode("");
+      setError(String(e));
     } finally {
       setIsLoading(false);
     }
@@ -138,15 +160,21 @@ export function PenpotPanel({ workspacePath, provider }: PenpotPanelProps) {
     try {
       const result = await invoke<string>("export_penpot_tokens", {
         tokens, format: tokenFormat,
-      }).catch((e: unknown) => String(e));
+      });
       setTokenExport(result);
+    } catch (e) {
+      setTokenExport("");
+      setError(String(e));
     } finally {
       setIsLoading(false);
     }
   };
 
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => showStatus("Copied!")).catch(() => {});
+    navigator.clipboard
+      .writeText(text)
+      .then(() => showStatus("Copied!"))
+      .catch((e: unknown) => setError(`Clipboard unavailable: ${String(e)}`));
   };
 
   // ── Render ────────────────────────────────────────────────────────────
@@ -162,7 +190,6 @@ export function PenpotPanel({ workspacePath, provider }: PenpotPanelProps) {
       <input value={host} onChange={(e) => setHost(e.target.value)} placeholder="https://design.penpot.app" style={inputStyle} />
       <label style={{ display: "block", fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 4 }}>Personal Access Token</label>
       <input type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Enter your access token" style={inputStyle} />
-      {error && <div style={{ fontSize: "var(--font-size-base)", color: "var(--error-color, #f85149)", marginBottom: 12, padding: "8px 12px", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)" }}>{error}</div>}
       <button className="panel-btn"
         onClick={handleConnect}
         disabled={isLoading || !host.trim() || !token.trim()}
@@ -173,7 +200,9 @@ export function PenpotPanel({ workspacePath, provider }: PenpotPanelProps) {
       {isConnected && (
         <div style={{ marginTop: 16, padding: 12, background: "var(--bg-secondary)", borderRadius: "var(--radius-sm-alt)", border: "1px solid var(--border-color)" }}>
           <div style={{ color: "var(--text-success)", fontSize: "var(--font-size-md)", fontWeight: 600 }}>✓ Connected to {host}</div>
-          <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 4 }}>{projects.length} project(s) found</div>
+          <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginTop: 4 }}>
+            {`${profile?.fullname || profile?.email || "authenticated"} · ${projects.length} project(s)`}
+          </div>
         </div>
       )}
     </div>
@@ -338,6 +367,15 @@ export function PenpotPanel({ workspacePath, provider }: PenpotPanelProps) {
         ))}
         {statusMsg && <span style={{ marginLeft: "auto", marginRight: 12, fontSize: "var(--font-size-sm)", color: "var(--text-success)", lineHeight: "30px" }}>✓ {statusMsg}</span>}
       </div>
+      {/* One banner for every tab: a failed file listing used to be invisible
+          because the only error slot lived inside the Connect tab. */}
+      {error && (
+        <div role="alert" style={{ display: "flex", gap: 8, alignItems: "flex-start", padding: "8px 12px", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-color)", color: "var(--error-color, #f85149)", fontSize: "var(--font-size-base)" }}>
+          <span style={{ flex: 1 }}>{error}</span>
+          <button onClick={() => setError("")} aria-label="Dismiss error"
+            style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: "var(--font-size-base)" }}>✕</button>
+        </div>
+      )}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {activeTab === "connect" && renderConnect()}
         {activeTab === "projects" && renderProjects()}

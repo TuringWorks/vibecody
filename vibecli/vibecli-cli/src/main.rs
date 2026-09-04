@@ -3225,7 +3225,6 @@ mod graph_index;
 mod mcts_repair;
 mod mobile_gateway;
 #[allow(dead_code)]
-pub mod pencil_connector;
 pub mod penpot_connector;
 mod proactive_agent;
 // The compliance scanner reuses `discover_files` from here rather than

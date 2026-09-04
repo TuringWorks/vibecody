@@ -124,7 +124,12 @@ export function DiagramGeneratorPanel({ workspacePath, provider }: DiagramGenera
   };
 
   const copyOutput = () => {
-    navigator.clipboard.writeText(output).then(() => showStatus("Copied!")).catch(() => {});
+    navigator.clipboard
+      .writeText(output)
+      .then(() => showStatus("Copied!"))
+      // A clipboard the webview refused is not a copy; saying nothing leaves
+      // the user pasting the last thing they copied somewhere else.
+      .catch((e: unknown) => setError(`Clipboard unavailable: ${String(e)}`));
   };
 
   const saveToWorkspace = async () => {

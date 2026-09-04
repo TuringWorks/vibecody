@@ -4,8 +4,9 @@
  */
 use cucumber::{given, then, when, World};
 use vibecli_cli::pencil_connector::{
-    parse_ep_xml, template_dashboard, template_landing_page, template_mobile_app, PencilDocument,
-    PencilMcpOp, PencilPage, PencilShape, PencilShapeKind, PencilStyle,
+    generate_template, parse_ep_xml, template_dashboard, template_landing_page,
+    template_mobile_app, PencilDocument, PencilMcpOp, PencilPage, PencilShape, PencilShapeKind,
+    PencilStyle,
 };
 
 #[derive(Debug, Default, World)]
@@ -16,6 +17,9 @@ pub struct PencilWorld {
     mcp_op: Option<PencilMcpOp>,
     mcp_json: String,
     design_file: Option<vibecli_cli::design_providers::DesignFile>,
+    template_error: Option<vibecli_cli::design_providers::DesignError>,
+    archive: Vec<u8>,
+    html: String,
 }
 
 // ── Given ──────────────────────────────────────────────────────────────────
@@ -202,6 +206,95 @@ fn then_design_file_tokens(world: &mut PencilWorld, min: usize) {
 #[then(expr = "the JSON should contain {string}")]
 fn then_json_contains(world: &mut PencilWorld, s: String) {
     assert!(world.mcp_json.contains(s.as_str()), "JSON missing: {s}");
+}
+
+// ── Template dispatch, archive and HTML export ─────────────────────────────
+
+#[given(expr = "I generate the {string} template titled {string}")]
+fn given_named_template(world: &mut PencilWorld, template: String, title: String) {
+    match generate_template(&template, &title, &[]) {
+        Ok(doc) => {
+            world.document = Some(doc);
+            world.template_error = None;
+        }
+        Err(e) => {
+            world.document = None;
+            world.template_error = Some(e);
+        }
+    }
+}
+
+#[then(expr = "the template should have at least {int} page")]
+fn then_at_least_pages(world: &mut PencilWorld, min: usize) {
+    assert!(world.document.as_ref().unwrap().pages.len() >= min);
+}
+
+#[then("every page should have at least one shape")]
+fn then_every_page_has_shapes(world: &mut PencilWorld) {
+    for page in &world.document.as_ref().unwrap().pages {
+        assert!(page.shape_count() > 0, "page `{}` is empty", page.name);
+    }
+}
+
+#[then("the EP XML should round-trip through the parser")]
+fn then_round_trips(world: &mut PencilWorld) {
+    let doc = world.document.as_ref().unwrap();
+    let back = parse_ep_xml(&doc.to_ep_xml()).expect("re-parse the document we just wrote");
+    assert_eq!(back.name, doc.name);
+    assert_eq!(back.pages.len(), doc.pages.len());
+    for (a, b) in doc.pages.iter().zip(back.pages.iter()) {
+        assert_eq!(a.name, b.name);
+        assert_eq!(a.shape_count(), b.shape_count(), "page `{}`", a.name);
+    }
+}
+
+#[then("a template error should be returned")]
+fn then_template_error(world: &mut PencilWorld) {
+    assert!(
+        world.template_error.is_some(),
+        "an unknown template id must be an error, not a different wireframe"
+    );
+    assert!(world.document.is_none());
+}
+
+#[when("I package the document as a .ep archive")]
+fn when_package_archive(world: &mut PencilWorld) {
+    world.archive = world
+        .document
+        .as_ref()
+        .unwrap()
+        .to_ep_archive()
+        .expect("build the .ep archive");
+}
+
+#[then("the archive should be a ZIP")]
+fn then_archive_is_zip(world: &mut PencilWorld) {
+    assert_eq!(&world.archive[..2], b"PK", ".ep must be a ZIP archive");
+}
+
+#[then(expr = "the archive should contain {string}")]
+fn then_archive_contains(world: &mut PencilWorld, entry: String) {
+    let mut zip = zip::ZipArchive::new(std::io::Cursor::new(world.archive.clone()))
+        .expect("the archive is readable");
+    assert!(zip.by_name(&entry).is_ok(), "no `{entry}` in the archive");
+}
+
+#[when("I render the document as HTML")]
+fn when_render_html(world: &mut PencilWorld) {
+    world.html = world.document.as_ref().unwrap().to_html();
+}
+
+#[then("the HTML should contain one block per shape")]
+fn then_html_block_per_shape(world: &mut PencilWorld) {
+    let expected: usize = world
+        .document
+        .as_ref()
+        .unwrap()
+        .pages
+        .iter()
+        .map(|p| p.shape_count())
+        .sum();
+    assert_eq!(world.html.matches("class=\"wf-shape\"").count(), expected);
 }
 
 fn main() {

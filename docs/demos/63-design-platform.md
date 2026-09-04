@@ -81,14 +81,36 @@ The Pencil tab generates low-fidelity wireframes in the Evolus Pencil format —
 | `settings_page` | Grouped settings with toggles |
 | `data_table` | Filter bar, column headers, rows |
 
+Templates are generated locally — no provider selected and no network needed.
+The comma-separated **Sections** field feeds `dashboard` (sidebar sections),
+`mobile_app` (one screen per entry), `settings_page` (setting groups) and
+`data_table` (columns); Landing Page and Login Form ignore it.
+
+### Export formats
+
+| Format | What you get |
+|---|---|
+| **Pencil (.ep)** | The archive Evolus Pencil opens — a ZIP whose `content.xml` is the document |
+| **content.xml** | The same XML, unzipped |
+| **HTML** | A standalone page, one positioned block per shape — rendered locally |
+| **React Component** | Converted by the provider selected in the toolbar |
+
+Only the React export needs a provider. **Preview** renders the HTML export in
+a sandboxed frame without downloading anything.
+
 ### TuringWorks Pencil MCP
 
-For `.pen` files in the active Pencil editor, use the MCP tab to send `batch_design` operations:
+For `.pen` files in the active Pencil editor, the MCP tab builds `batch_design`
+operations:
 
 ```
 foo=I("parent", { type: "rectangle", x: 100, y: 100, width: 200, height: 60 })
 U(foo, { fill: "#3b82f6" })
 ```
+
+VibeCody does not dispatch these yet — the tab returns the exact tool call,
+labelled `status: "not_dispatched"`, to run against a connected Pencil MCP
+server.
 
 ---
 
@@ -100,7 +122,9 @@ U(foo, { fill: "#3b82f6" })
 
 1. Open VibeCoder → Design → Penpot → Connect tab
 2. Enter your Penpot host (e.g. `https://design.penpot.app`) and access token
-3. Click **Connect** — projects and files load automatically
+3. Click **Connect** — the token is verified against `get-profile`, then
+   projects load. A wrong host, an expired token or an unreachable instance is
+   reported with Penpot's own error; it is never reported as a connection.
 
 ### Token Export
 
