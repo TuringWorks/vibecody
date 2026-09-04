@@ -136,8 +136,8 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  <div style={{ width: 190, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", flexShrink: 0 }}>
  <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", alignItems: "center", gap: 6 }}>
  <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, flex: 1 }}>Files</span>
- <button className="panel-btn" onClick={newFile} title="New file" style={{ fontSize: "var(--font-size-md)", background: "none", border: "none", color: "var(--accent-primary)", cursor: "pointer", fontWeight: 700, lineHeight: 1 }}>+</button>
- <button className="panel-btn" onClick={loadFiles} title="Refresh" style={{ fontSize: "var(--font-size-sm)", background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>↺</button>
+ <button aria-label="New file" className="panel-btn" onClick={newFile} title="New file" style={{ fontSize: "var(--font-size-md)", background: "none", border: "none", color: "var(--accent-primary)", cursor: "pointer", fontWeight: 700, lineHeight: 1 }}>+</button>
+ <button aria-label="Refresh Markdown files" className="panel-btn" onClick={loadFiles} title="Refresh" style={{ fontSize: "var(--font-size-sm)", background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>↺</button>
  </div>
  <div style={{ padding: "8px 8px", borderBottom: "1px solid var(--border-color)" }}>
  <input

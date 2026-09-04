@@ -240,12 +240,12 @@ export function ColorConverterPanel() {
  style={{ position: "absolute", inset: 0, opacity: 0, width: "100%", height: "100%", cursor: "pointer" }} />
  </div>
  {/* Hex input */}
- <input value={hex} onChange={e => handleHexInput(e.target.value)} maxLength={7} spellCheck={false}
+ <input aria-label="Hex color" value={hex} onChange={e => handleHexInput(e.target.value)} maxLength={7} spellCheck={false}
  style={{ width: 100, padding: "4px 8px", fontSize: "var(--font-size-md)", fontFamily: "var(--font-mono)", fontWeight: 700, background: "var(--bg-primary)", border: `1px solid ${hexToRgb(hex) ? "var(--border-color)" : "var(--accent-rose)"}`, borderRadius: "var(--radius-xs-plus)", color: hexNorm, outline: "none", letterSpacing: "0.05em" }} />
  {/* Alpha */}
  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
  <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>α:</span>
- <input type="range" min={0} max={100} value={alpha} onChange={e => setAlpha(+e.target.value)} style={{ width: 80, accentColor: hexNorm }} />
+ <input aria-label="Alpha" type="range" min={0} max={100} value={alpha} onChange={e => setAlpha(+e.target.value)} style={{ width: 80, accentColor: hexNorm }} />
  <span style={{ fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", color: "var(--text-secondary)", width: 32 }}>{alpha}%</span>
  </div>
  {/* Nearest name */}
@@ -323,7 +323,7 @@ export function ColorConverterPanel() {
  <input type="color" value={bgHex} onChange={e => setBgHex(e.target.value.toUpperCase())}
  style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer", width: "100%", height: "100%" }} />
  </div>
- <input value={bgHex} onChange={e => setBgHex(e.target.value)} maxLength={7}
+ <input aria-label="Custom background color" value={bgHex} onChange={e => setBgHex(e.target.value)} maxLength={7}
  style={{ width: 90, padding: "3px 8px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }} />
  </div>
  <ContrastBadge ratio={contrastCustom} bg={bgRgb} hexNorm={hexNorm} />

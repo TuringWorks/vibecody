@@ -5,27 +5,30 @@ type Row = string[];
 type SortDir = "asc" | "desc" | null;
 
 function parseCsv(text: string, delimiter: string): Row[] {
- const lines = text.split(/\r?\n/);
  const rows: Row[] = [];
- for (const line of lines) {
- if (!line.trim()) continue;
- const cells: string[] = [];
+ let cells: string[] = [];
  let cur = "";
  let inQuote = false;
- for (let i = 0; i < line.length; i++) {
- const ch = line[i];
+ const pushRow = () => {
+ if (cells.length > 0 || cur.trim() !== "") rows.push([...cells, cur]);
+ cells = [];
+ cur = "";
+ };
+ for (let i = 0; i < text.length; i++) {
+ const ch = text[i];
  if (ch === '"') {
- if (inQuote && line[i + 1] === '"') { cur += '"'; i++; }
+ if (inQuote && text[i + 1] === '"') { cur += '"'; i++; }
  else inQuote = !inQuote;
  } else if (ch === delimiter && !inQuote) {
  cells.push(cur); cur = "";
+ } else if ((ch === "\n" || ch === "\r") && !inQuote) {
+ if (ch === "\r" && text[i + 1] === "\n") i++;
+ pushRow();
  } else {
  cur += ch;
  }
  }
- cells.push(cur);
- rows.push(cells);
- }
+ if (cells.length > 0 || cur.trim() !== "") pushRow();
  return rows;
 }
 
@@ -219,7 +222,7 @@ export function CsvPanel() {
  <div className="panel-body" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 24 }}>
  <Table size={32} strokeWidth={1.5} style={{ color: "var(--accent-color)" }} />
  <div style={{ color: "var(--text-secondary)", textAlign: "center" }}>Open a CSV / TSV file or paste data below</div>
- <textarea
+ <textarea aria-label="CSV data"
  placeholder="Paste CSV data here..."
  style={{ width: "100%", height: 180, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)", padding: 8, fontSize: "var(--font-size-base)", resize: "vertical", boxSizing: "border-box" }}
  onChange={e => { if (e.target.value) loadText(e.target.value); }}
@@ -277,7 +280,7 @@ export function CsvPanel() {
  <td key={ci} onDoubleClick={() => { setEditCell({ r: ri, c: ci }); setEditVal(cell); }}
  style={{ padding: "3px 8px", borderBottom: "1px solid var(--border-color)", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", wordBreak: "break-word", cursor: "text" }}>
  {editCell?.r === ri && editCell?.c === ci ? (
- <input autoFocus value={editVal} onChange={e => setEditVal(e.target.value)}
+ <input aria-label="Edit CSV cell" autoFocus value={editVal} onChange={e => setEditVal(e.target.value)}
  onBlur={commitEdit} onKeyDown={e => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") setEditCell(null); }}
  style={{ width: "100%", background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--accent-color)", borderRadius: 2, padding: "1px 4px", fontSize: "var(--font-size-base)", boxSizing: "border-box" }} />
  ) : cell}
@@ -303,7 +306,7 @@ export function CsvPanel() {
  {tab === "filter" && (
  <div className="panel-body" style={{ padding: 12 }}>
  <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center" }}>
- <input value={filterText} onChange={e => setFilterText(e.target.value)} placeholder="Filter value..."
+ <input aria-label="Filter CSV values" value={filterText} onChange={e => setFilterText(e.target.value)} placeholder="Filter value..."
  style={{ flex: 1, background: "var(--bg-secondary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "4px 8px", fontSize: "var(--font-size-base)" }} />
  <select value={filterCol} onChange={e => setFilterCol(e.target.value === "all" ? "all" : Number(e.target.value))}
  style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "4px 8px", fontSize: "var(--font-size-base)" }}>

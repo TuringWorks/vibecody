@@ -160,9 +160,9 @@ export function DiffToolPanel() {
  <div key={idx} style={{ flex: 1, display: "flex", flexDirection: "column", borderRight: idx === 0 ? "1px solid var(--border-color)" : "none" }}>
  <div style={{ padding: "4px 12px", background: "var(--bg-secondary)", fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between" }}>
  <span>{label}</span>
- <button onClick={() => { navigator.clipboard.readText().then(t => setter(t)).catch(() => {}); }} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>Paste</button>
+ <button aria-label={`Paste into ${label}`} onClick={() => { navigator.clipboard.readText().then(t => setter(t)).catch(() => {}); }} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>Paste</button>
  </div>
- <textarea
+ <textarea aria-label={label}
  value={value}
  onChange={e => setter(e.target.value)}
  spellCheck={false}
@@ -183,7 +183,7 @@ export function DiffToolPanel() {
  {[{ label: "Original (A)", value: left, setter: setLeft }, { label: "Modified (B)", value: right, setter: setRight }].map(({ label, value, setter }, idx) => (
  <div key={idx} style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
  <label style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-secondary)" }}>{label}</label>
- <textarea value={value} onChange={e => setter(e.target.value)} rows={5} spellCheck={false} style={{ resize: "vertical", padding: "8px 8px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }} />
+ <textarea aria-label={label} value={value} onChange={e => setter(e.target.value)} rows={5} spellCheck={false} style={{ resize: "vertical", padding: "8px 8px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }} />
  </div>
  ))}
  </div>
