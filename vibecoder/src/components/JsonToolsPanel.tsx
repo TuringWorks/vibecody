@@ -107,7 +107,10 @@ function generateInterfaces(root: unknown, rootName = "Root"): string {
  if (val === null) return "null";
  if (Array.isArray(val)) {
  if (val.length === 0) return "unknown[]";
- return `${visit(val[0], name.replace(/s$/, "") || name + "Item")}[]`;
+ const itemName = name.replace(/s$/, "") || name + "Item";
+ const itemTypes = [...new Set(val.map(item => visit(item, itemName)))];
+ const itemType = itemTypes.length === 1 ? itemTypes[0] : `(${itemTypes.join(" | ")})`;
+ return `${itemType}[]`;
  }
  if (typeof val === "object") {
  const entries = Object.entries(val as object);
@@ -207,31 +210,32 @@ export function JsonToolsPanel() {
  const [copied, setCopied] = useState<string | null>(null);
 
  const { value: parsed, error: parseError } = useMemo(() => tryParse(input), [input]);
+ const hasValidJson = parseError === null;
 
  // ── Format actions ──────────────────────────────────────────────────────────
 
- const prettify = () => { if (parsed !== null) setInput(JSON.stringify(parsed, null, indent)); };
- const minify = () => { if (parsed !== null) setInput(JSON.stringify(parsed)); };
- const sortAndFmt = () => { if (parsed !== null) setInput(JSON.stringify(sortKeys(parsed), null, indent)); };
+ const prettify = () => { if (hasValidJson) setInput(JSON.stringify(parsed, null, indent)); };
+ const minify = () => { if (hasValidJson) setInput(JSON.stringify(parsed)); };
+ const sortAndFmt = () => { if (hasValidJson) setInput(JSON.stringify(sortKeys(parsed), null, indent)); };
 
  // ── Derived outputs ─────────────────────────────────────────────────────────
 
  const yamlOutput = useMemo(() => {
- if (!parsed) return "";
+ if (!hasValidJson) return "";
  try { return toYaml(parsed); } catch { return ""; }
- }, [parsed]);
+ }, [parsed, hasValidJson]);
 
  const tsOutput = useMemo(() => {
- if (!parsed || typeof parsed !== "object" || parsed === null) return "";
+ if (!hasValidJson || typeof parsed !== "object" || parsed === null) return "";
  try { return generateInterfaces(parsed); } catch { return ""; }
- }, [parsed]);
+ }, [parsed, hasValidJson]);
 
  const queryResult = useMemo(() => {
- if (!parsed) return { result: undefined, error: parseError };
+ if (!hasValidJson) return { result: undefined, error: parseError };
  return queryPath(parsed, queryPath_);
- }, [parsed, queryPath_, parseError]);
+ }, [parsed, queryPath_, parseError, hasValidJson]);
 
- const suggestions = useMemo(() => parsed ? suggestPaths(parsed) : [], [parsed]);
+ const suggestions = useMemo(() => hasValidJson ? suggestPaths(parsed) : [], [parsed, hasValidJson]);
 
  // ── Copy ────────────────────────────────────────────────────────────────────
 
@@ -286,25 +290,25 @@ export function JsonToolsPanel() {
  ))}
  </div>
  </div>
- <textarea value={input} onChange={e => setInput(e.target.value)} rows={7} spellCheck={false}
+ <textarea aria-label="JSON input" value={input} onChange={e => setInput(e.target.value)} rows={7} spellCheck={false}
  style={{ resize: "vertical", padding: "8px 12px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", lineHeight: 1.6, background: parseError && input.trim() ? "rgba(243,139,168,0.04)" : "var(--bg-primary)", color: "var(--text-primary)", border: "none", outline: "none", width: "100%", boxSizing: "border-box" }} />
- {parseError && input.trim() && <div style={{ padding: "3px 12px", fontSize: "var(--font-size-xs)", color: "var(--text-danger)", background: "color-mix(in srgb, var(--accent-rose) 6%, transparent)" }}>{parseError}</div>}
+ {parseError && input.trim() && <div role="alert" style={{ padding: "3px 12px", fontSize: "var(--font-size-xs)", color: "var(--text-danger)", background: "color-mix(in srgb, var(--accent-rose) 6%, transparent)" }}>{parseError}</div>}
  </div>
 
  {/* ── FORMAT TAB ── */}
  {subTab === "format" && (
  <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" }}>
  <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 6 }}>
- <button className="panel-btn" onClick={prettify} disabled={!parsed} style={{ padding: "3px 12px", fontSize: "var(--font-size-sm)", background: "color-mix(in srgb, var(--accent-green) 10%, transparent)", border: "1px solid var(--success-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-success)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}><Wand2 size={11} strokeWidth={1.5} /> Prettify</button>
- <button className="panel-btn" onClick={minify} disabled={!parsed} style={{ padding: "3px 12px", fontSize: "var(--font-size-sm)", background: "rgba(250,179,135,0.1)", border: "1px solid var(--warning-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-warning-alt)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}><Minimize2 size={11} strokeWidth={1.5} /> Minify</button>
- <button className="panel-btn" onClick={sortAndFmt} disabled={!parsed} style={{ padding: "3px 12px", fontSize: "var(--font-size-sm)", background: "color-mix(in srgb, var(--accent-blue) 10%, transparent)", border: "1px solid var(--accent-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-info)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}><ArrowUpDown size={11} strokeWidth={1.5} /> Sort Keys</button>
+ <button className="panel-btn" onClick={prettify} disabled={!hasValidJson} style={{ padding: "3px 12px", fontSize: "var(--font-size-sm)", background: "color-mix(in srgb, var(--accent-green) 10%, transparent)", border: "1px solid var(--success-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-success)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}><Wand2 size={11} strokeWidth={1.5} /> Prettify</button>
+ <button className="panel-btn" onClick={minify} disabled={!hasValidJson} style={{ padding: "3px 12px", fontSize: "var(--font-size-sm)", background: "rgba(250,179,135,0.1)", border: "1px solid var(--warning-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-warning-alt)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}><Minimize2 size={11} strokeWidth={1.5} /> Minify</button>
+ <button className="panel-btn" onClick={sortAndFmt} disabled={!hasValidJson} style={{ padding: "3px 12px", fontSize: "var(--font-size-sm)", background: "color-mix(in srgb, var(--accent-blue) 10%, transparent)", border: "1px solid var(--accent-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-info)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}><ArrowUpDown size={11} strokeWidth={1.5} /> Sort Keys</button>
  <div style={{ marginLeft: "auto" }}>
  <button onClick={() => copy(input, "fmt")} style={{ padding: "3px 12px", fontSize: "var(--font-size-xs)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer" }}>
  {copied === "fmt" ? "✓ Copied" : "Copy"}
  </button>
  </div>
  </div>
- {parsed != null && (
+ {hasValidJson && (
  <div style={{ flex: 1, overflow: "auto", padding: "12px 12px", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)", lineHeight: 1.7, background: "var(--bg-primary)" }}>
  {/* Stats */}
  <div style={{ marginBottom: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -336,7 +340,7 @@ export function JsonToolsPanel() {
  <span>GENERATED INTERFACES</span>
  <button onClick={() => copy(tsOutput, "ts")} style={{ fontSize: 9, padding: "2px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer" }}>{copied === "ts" ? "✓ Copied" : "Copy"}</button>
  </div>
- {!parsed
+ {!hasValidJson
  ? <div style={{ padding: 16, color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>Fix JSON errors above to generate TypeScript interfaces.</div>
  : typeof parsed !== "object" || parsed === null
  ? <div style={{ padding: 16, color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>Paste a JSON object or array to generate interfaces.</div>
@@ -352,7 +356,7 @@ export function JsonToolsPanel() {
  <span>YAML OUTPUT</span>
  <button onClick={() => copy(yamlOutput, "yaml")} style={{ fontSize: 9, padding: "2px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer" }}>{copied === "yaml" ? "✓ Copied" : "Copy"}</button>
  </div>
- {!parsed
+ {!hasValidJson
  ? <div style={{ padding: 16, color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>Fix JSON errors above to convert to YAML.</div>
  : <pre style={outputStyle}>{yamlOutput}</pre>
  }
@@ -365,7 +369,7 @@ export function JsonToolsPanel() {
  {/* Path input */}
  <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center" }}>
  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", flexShrink: 0 }}>Path:</span>
- <input value={queryPath_} onChange={e => setQueryPath(e.target.value)} placeholder="user.address.city or [0].name"
+ <input aria-label="JSON query path" value={queryPath_} onChange={e => setQueryPath(e.target.value)} placeholder="user.address.city or [0].name"
  style={{ flex: 1, padding: "4px 8px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }} />
  <button onClick={() => setQueryPath("")} style={{ fontSize: "var(--font-size-xs)", background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>✕</button>
  </div>
@@ -380,7 +384,7 @@ export function JsonToolsPanel() {
  <div style={{ padding: "4px 12px", fontSize: "var(--font-size-xs)", fontWeight: 700, color: queryResult.error ? "var(--error-color)" : "var(--warning-color)", background: "var(--bg-secondary)", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)" }}>
  <span>RESULT</span>
  {queryResult.result !== undefined && !queryResult.error && (
- <button onClick={() => copy(JSON.stringify(queryResult.result, null, indent), "qr")} style={{ fontSize: 9, padding: "2px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer" }}>{copied === "qr" ? "✓" : ""}</button>
+ <button aria-label="Copy query result" onClick={() => copy(JSON.stringify(queryResult.result, null, indent), "qr")} style={{ fontSize: 9, padding: "2px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer" }}>{copied === "qr" ? "✓" : ""}</button>
  )}
  </div>
  {queryResult.error

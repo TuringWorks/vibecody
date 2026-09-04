@@ -1,0 +1,617 @@
+{
+  "list": {
+    "engagements": [
+      {
+        "id": "91b06c8c-6285-4100-8f3c-85b69c186501",
+        "name": "Acme Platform Modernization",
+        "client": "Acme Corp",
+        "workspace_path": "/Volumes/fast01/source/git/vibecody",
+        "status": "draft",
+        "current_phase": "discover",
+        "summary": "",
+        "created_at": 1788467565200,
+        "updated_at": 1788467565200
+      }
+    ]
+  },
+  "report": {
+    "report": {
+      "engagement": {
+        "id": "91b06c8c-6285-4100-8f3c-85b69c186501",
+        "name": "Acme Platform Modernization",
+        "client": "Acme Corp",
+        "workspace_path": "/Volumes/fast01/source/git/vibecody",
+        "status": "draft",
+        "current_phase": "discover",
+        "summary": "",
+        "created_at": 1788467565200,
+        "updated_at": 1788467565200
+      },
+      "phases": [
+        {
+          "phase": "discover",
+          "title": "Discover & Assess",
+          "cadence": null,
+          "deliverables": {
+            "total": 9,
+            "not_started": 9,
+            "in_progress": 0,
+            "ready": 0,
+            "accepted": 0,
+            "waived": 0,
+            "claimed_without_evidence": 0
+          },
+          "gates": {
+            "total": 3,
+            "not_measured": 3,
+            "pending": 0,
+            "pass": 0,
+            "fail": 0,
+            "waived": 0
+          },
+          "completion": 0.0,
+          "blockers": [
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "current-state-architecture-map",
+              "detail": "'Current-state architecture map' is not_started, not accepted."
+            },
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "system-inventory",
+              "detail": "'System inventory' is not_started, not accepted."
+            },
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "stakeholder-interviews",
+              "detail": "'Operator interviews' is not_started, not accepted."
+            },
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "functional-requirements",
+              "detail": "'Functional requirements' is not_started, not accepted."
+            },
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "non-functional-requirements",
+              "detail": "'Non-functional requirements' is not_started, not accepted."
+            },
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "risk-register",
+              "detail": "'Risk register' is not_started, not accepted."
+            },
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "dependency-register",
+              "detail": "'Dependency register' is not_started, not accepted."
+            },
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "tech-debt-register",
+              "detail": "'Technical-debt register' is not_started, not accepted."
+            },
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "prioritized-roadmap",
+              "detail": "'Prioritized roadmap with effort and sequencing' is not_started, not accepted."
+            },
+            {
+              "kind": "gate_not_measured",
+              "subject": "f4849d0e-ad52-43fb-8567-edb1962a5213",
+              "detail": "'Inventory is complete' has not been measured."
+            },
+            {
+              "kind": "gate_not_measured",
+              "subject": "fc5c5a35-3e61-4642-bd50-6b39b8f55088",
+              "detail": "'Requirements are testable' has not been measured."
+            },
+            {
+              "kind": "gate_not_measured",
+              "subject": "b085f79b-da42-4c5a-81bf-a2a34d354358",
+              "detail": "'Roadmap is sequenced by dependency' has not been measured."
+            }
+          ],
+          "can_exit": false
+        },
+        {
+          "phase": "prove",
+          "title": "Prove",
+          "cadence": "4\u20138 weeks",
+          "deliverables": {
+            "total": 5,
+            "not_started": 5,
+            "in_progress": 0,
+            "ready": 0,
+            "accepted": 0,
+            "waived": 0,
+            "claimed_without_evidence": 0
+          },
+          "gates": {
+            "total": 4,
+            "not_measured": 4,
+            "pending": 0,
+            "pass": 0,
+            "fail": 0,
+            "waived": 0
+          },
+          "completion": 0.0,
+          "blockers": [
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "success-criteria",
+              "detail": "'Agreed success criteria' is not_started, not accepted."
+            },
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "pilot-deployment",
+              "detail": "'Working pilot deployed in your environment' is not_started, not accepted."
+            },
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "measured-results",
+              "detail": "'Measured results against agreed criteria' is not_started, not accepted."
+            },
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "cost-model",
+              "detail": "'Cost model at target production volume' is not_started, not accepted."
+            },
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "go-no-go",
+              "detail": "'Go / no-go recommendation with alternatives' is not_started, not accepted."
+            },
+            {
+              "kind": "gate_not_measured",
+              "subject": "2f588571-ca01-4f0c-89af-23f38d9a7f26",
+              "detail": "'Criteria agreed before the pilot ran' has not been measured."
+            },
+            {
+              "kind": "gate_not_measured",
+              "subject": "1e8d65fd-072e-4a7b-81b1-d1d83eb86471",
+              "detail": "'Pilot ran on client infrastructure and client data' has not been measured."
+            },
+            {
+              "kind": "gate_not_measured",
+              "subject": "2e6d4860-2602-4d4c-9b58-0e6c9362b6fd",
+              "detail": "'Every criterion has a verdict' has not been measured."
+            },
+            {
+              "kind": "gate_not_measured",
+              "subject": "de417933-552b-4306-b4ee-e5934ddb7fb3",
+              "detail": "'Cost model is stated at production volume with assumptions' has not been measured."
+            }
+          ],
+          "can_exit": false
+        },
+        {
+          "phase": "build",
+          "title": "Build & Harden",
+          "cadence": "Scope-dependent",
+          "deliverables": {
+            "total": 9,
+            "not_started": 9,
+            "in_progress": 0,
+            "ready": 0,
+            "accepted": 0,
+            "waived": 0,
+            "claimed_without_evidence": 0
+          },
+          "gates": {
+            "total": 5,
+            "not_measured": 5,
+            "pending": 0,
+            "pass": 0,
+            "fail": 0,
+            "waived": 0
+          },
+          "completion": 0.0,
+          "blockers": [
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "production-system",
+              "detail": "'Production system' is not_started, not accepted."
+            },
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "infrastructure-as-code",
+              "detail": "'Infrastructure as code' is not_started, not accepted."
+            },
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "ci-cd-pipelines",
+              "detail": "'Automated CI/CD pipelines' is not_started, not accepted."
+            },
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "test-coverage",
+              "detail": "'Test coverage' is not_started, not accepted."
+            },
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "observability",
+              "detail": "'Observability' is not_started, not accepted."
+            },
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "alerting-and-slos",
+              "detail": "'Alerting and SLO definitions' is not_started, not accepted."
+            },
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "threat-model",
+              "detail": "'Threat model' is not_started, not accepted."
+            },
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "compliance-evidence",
+              "detail": "'Compliance evidence' is not_started, not accepted."
+            },
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "architecture-decision-records",
+              "detail": "'Architecture decision records' is not_started, not accepted."
+            },
+            {
+              "kind": "gate_not_measured",
+              "subject": "78cab823-f238-4964-ab65-c5345e1413e8",
+              "detail": "'Environment rebuildable from source' has not been measured."
+            },
+            {
+              "kind": "gate_not_measured",
+              "subject": "f9bd923c-f12d-49c3-9e25-bf40c4b3869e",
+              "detail": "'Pipeline blocks a bad change' has not been measured."
+            },
+            {
+              "kind": "gate_not_measured",
+              "subject": "09051bbc-57e3-4d5b-bd72-a16064f6aa0f",
+              "detail": "'SLOs defined with alerting that fires' has not been measured."
+            },
+            {
+              "kind": "gate_not_measured",
+              "subject": "0449dd65-c1c9-4f52-afe1-a8d8714dab31",
+              "detail": "'Security review happened during the build' has not been measured."
+            },
+            {
+              "kind": "gate_not_measured",
+              "subject": "05f6403c-14f7-434c-af18-a21e42dd4c29",
+              "detail": "'Significant decisions have ADRs' has not been measured."
+            }
+          ],
+          "can_exit": false
+        },
+        {
+          "phase": "operate",
+          "title": "Operate & Transfer",
+          "cadence": "Ongoing or fixed",
+          "deliverables": {
+            "total": 7,
+            "not_started": 7,
+            "in_progress": 0,
+            "ready": 0,
+            "accepted": 0,
+            "waived": 0,
+            "claimed_without_evidence": 0
+          },
+          "gates": {
+            "total": 4,
+            "not_measured": 4,
+            "pending": 0,
+            "pass": 0,
+            "fail": 0,
+            "waived": 0
+          },
+          "completion": 0.0,
+          "blockers": [
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "runbooks",
+              "detail": "'Runbooks' is not_started, not accepted."
+            },
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "escalation-paths",
+              "detail": "'Escalation paths' is not_started, not accepted."
+            },
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "oncall-handbook",
+              "detail": "'On-call handbook' is not_started, not accepted."
+            },
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "sla-managed-operation",
+              "detail": "'SLA-backed managed operation' is not_started, not accepted."
+            },
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "enablement-sessions",
+              "detail": "'Enablement sessions' is not_started, not accepted."
+            },
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "pairing-log",
+              "detail": "'Pairing with your engineers' is not_started, not accepted."
+            },
+            {
+              "kind": "deliverable_outstanding",
+              "subject": "exit-plan",
+              "detail": "'Documented exit plan' is not_started, not accepted."
+            },
+            {
+              "kind": "gate_not_measured",
+              "subject": "8d3041cc-4612-4b73-8521-7859ccc8f875",
+              "detail": "'Every alert has a runbook' has not been measured."
+            },
+            {
+              "kind": "gate_not_measured",
+              "subject": "87a310c5-dbe0-4fc0-8e3b-4b3f25473a96",
+              "detail": "'Escalation path tested end to end' has not been measured."
+            },
+            {
+              "kind": "gate_not_measured",
+              "subject": "ce28c739-2ab5-456d-af9d-342b171b9cf8",
+              "detail": "'Client engineers have operated the system unaided' has not been measured."
+            },
+            {
+              "kind": "gate_not_measured",
+              "subject": "dd78c6db-88ee-4297-bf9b-21983e4e7f58",
+              "detail": "'Exit plan agreed and dated' has not been measured."
+            }
+          ],
+          "can_exit": false
+        }
+      ],
+      "generated_at": 1788467618057
+    }
+  },
+  "deliverables": {
+    "deliverables": [
+      {
+        "id": "01bc3a52-632b-42f5-8c93-ec3475d08978",
+        "engagement_id": "91b06c8c-6285-4100-8f3c-85b69c186501",
+        "phase": "discover",
+        "key": "current-state-architecture-map",
+        "title": "Current-state architecture map",
+        "description": "A diagram and written model of the system as it is today, not as it was designed. Derived from the running code and confirmed with the people who operate it.",
+        "status": "not_started",
+        "owner": null,
+        "tool_hint": "ArchitectureSpecPanel",
+        "notes": "",
+        "evidence_count": 0,
+        "created_at": 1788467565200,
+        "updated_at": 1788467565200
+      },
+      {
+        "id": "77689cd9-fd7d-4994-9263-05c40221f553",
+        "engagement_id": "91b06c8c-6285-4100-8f3c-85b69c186501",
+        "phase": "discover",
+        "key": "system-inventory",
+        "title": "System inventory",
+        "description": "Every deployed service, datastore, scheduled job, and third-party dependency, with owner and criticality. The list nobody has in one place.",
+        "status": "not_started",
+        "owner": null,
+        "tool_hint": "DepsPanel",
+        "notes": "",
+        "evidence_count": 0,
+        "created_at": 1788467565200,
+        "updated_at": 1788467565200
+      },
+      {
+        "id": "fb2f7276-47d4-4a9a-adff-89ac0f964cbd",
+        "engagement_id": "91b06c8c-6285-4100-8f3c-85b69c186501",
+        "phase": "discover",
+        "key": "stakeholder-interviews",
+        "title": "Operator interviews",
+        "description": "Notes from the people who run the system day to day. The problems worth solving are usually named here and nowhere in the codebase.",
+        "status": "not_started",
+        "owner": null,
+        "tool_hint": "DocumentIngestPanel",
+        "notes": "",
+        "evidence_count": 0,
+        "created_at": 1788467565200,
+        "updated_at": 1788467565200
+      },
+      {
+        "id": "ba40f47e-202c-4e77-896b-b5aa29395c9e",
+        "engagement_id": "91b06c8c-6285-4100-8f3c-85b69c186501",
+        "phase": "discover",
+        "key": "functional-requirements",
+        "title": "Functional requirements",
+        "description": "What the system must do, stated so that a disagreement about scope can be settled by reading it.",
+        "status": "not_started",
+        "owner": null,
+        "tool_hint": "SpecPanel",
+        "notes": "",
+        "evidence_count": 0,
+        "created_at": 1788467565200,
+        "updated_at": 1788467565200
+      },
+      {
+        "id": "e08ecf83-1d84-4a06-ab5e-ddfb7ebc1c92",
+        "engagement_id": "91b06c8c-6285-4100-8f3c-85b69c186501",
+        "phase": "discover",
+        "key": "non-functional-requirements",
+        "title": "Non-functional requirements",
+        "description": "Latency, availability, throughput, retention, residency, and cost ceilings \u2014 each with a number and the source of that number.",
+        "status": "not_started",
+        "owner": null,
+        "tool_hint": "SpecPanel",
+        "notes": "",
+        "evidence_count": 0,
+        "created_at": 1788467565200,
+        "updated_at": 1788467565200
+      },
+      {
+        "id": "8b210fad-50ed-4512-b879-0164e3652481",
+        "engagement_id": "91b06c8c-6285-4100-8f3c-85b69c186501",
+        "phase": "discover",
+        "key": "risk-register",
+        "title": "Risk register",
+        "description": "Each risk with likelihood, impact, owner, and the trigger that would tell us it is happening. A risk with no owner is a wish.",
+        "status": "not_started",
+        "owner": null,
+        "tool_hint": "SecurityPosturePanel",
+        "notes": "",
+        "evidence_count": 0,
+        "created_at": 1788467565200,
+        "updated_at": 1788467565200
+      },
+      {
+        "id": "0d6efd94-80bb-41d3-8a4e-c286f20a40a1",
+        "engagement_id": "91b06c8c-6285-4100-8f3c-85b69c186501",
+        "phase": "discover",
+        "key": "dependency-register",
+        "title": "Dependency register",
+        "description": "Upstream and downstream dependencies including the human ones \u2014 teams, vendors, and approvals that gate delivery.",
+        "status": "not_started",
+        "owner": null,
+        "tool_hint": "SmartDepsPanel",
+        "notes": "",
+        "evidence_count": 0,
+        "created_at": 1788467565200,
+        "updated_at": 1788467565200
+      },
+      {
+        "id": "96c9731e-b152-43d4-96f9-3aa43146ee88",
+        "engagement_id": "91b06c8c-6285-4100-8f3c-85b69c186501",
+        "phase": "discover",
+        "key": "tech-debt-register",
+        "title": "Technical-debt register",
+        "description": "Debt itemised with the interest it charges: what it costs per change, not just that it exists.",
+        "status": "not_started",
+        "owner": null,
+        "tool_hint": "CodeMetricsPanel",
+        "notes": "",
+        "evidence_count": 0,
+        "created_at": 1788467565200,
+        "updated_at": 1788467565200
+      },
+      {
+        "id": "74970ae6-2d4d-4178-9b2d-f640b83b80ca",
+        "engagement_id": "91b06c8c-6285-4100-8f3c-85b69c186501",
+        "phase": "discover",
+        "key": "prioritized-roadmap",
+        "title": "Prioritized roadmap with effort and sequencing",
+        "description": "Ordered work with effort estimates and the dependencies that force the order. The output the engagement is actually judged on.",
+        "status": "not_started",
+        "owner": null,
+        "tool_hint": "PlanDocumentPanel",
+        "notes": "",
+        "evidence_count": 0,
+        "created_at": 1788467565200,
+        "updated_at": 1788467565200
+      },
+      {
+        "id": "72a11709-0887-427a-8c43-188aa14b9e6a",
+        "engagement_id": "91b06c8c-6285-4100-8f3c-85b69c186501",
+        "phase": "prove",
+        "key": "success-criteria",
+        "title": "Agreed success criteria",
+        "description": "The criteria the pilot will be judged against, recorded as gates before the pilot starts. Criteria written afterwards measure nothing.",
+        "status": "not_started",
+        "owner": null,
+        "tool_hint": "EngagementPanel",
+        "notes": "",
+        "evidence_count": 0,
+        "created_at": 1788467565200,
+        "updated_at": 1788467565200
+      },
+      {
+        "id": "c537e9ea-079c-4e50-a7c9-efa2ba4422bb",
+        "engagement_id": "91b06c8c-6285-4100-8f3c-85b69c186501",
+        "phase": "prove",
+        "key": "pilot-deployment",
+        "title": "Working pilot deployed in your environment",
+        "description": "Running on the client's infrastructure, against the client's data. A pilot on our laptop proves our laptop works.",
+        "status": "not_started",
+        "owner": null,
+        "tool_hint": "DeployPanel",
+        "notes": "",
+        "evidence_count": 0,
+        "created_at": 1788467565200,
+        "updated_at": 1788467565200
+      }
+    ]
+  },
+  "gates": {
+    "gates": [
+      {
+        "id": "f4849d0e-ad52-43fb-8567-edb1962a5213",
+        "engagement_id": "91b06c8c-6285-4100-8f3c-85b69c186501",
+        "phase": "discover",
+        "title": "Inventory is complete",
+        "criterion": "Every deployed system, datastore, and scheduled job appears in the inventory with a named owner.",
+        "measurement": "Reconcile the inventory against the cloud account, the CI project list, and the on-call rotation. Any system in one and not the other is a miss.",
+        "observed": null,
+        "verdict": "not_measured",
+        "rationale": "",
+        "decided_by": null,
+        "decided_at": null,
+        "created_at": 1788467565200,
+        "updated_at": 1788467565200
+      },
+      {
+        "id": "fc5c5a35-3e61-4642-bd50-6b39b8f55088",
+        "engagement_id": "91b06c8c-6285-4100-8f3c-85b69c186501",
+        "phase": "discover",
+        "title": "Requirements are testable",
+        "criterion": "Every non-functional requirement carries a number and the source of that number.",
+        "measurement": "Read each NFR and attempt to write the assertion that would falsify it. An NFR that cannot be falsified is not a requirement.",
+        "observed": null,
+        "verdict": "not_measured",
+        "rationale": "",
+        "decided_by": null,
+        "decided_at": null,
+        "created_at": 1788467565200,
+        "updated_at": 1788467565200
+      },
+      {
+        "id": "b085f79b-da42-4c5a-81bf-a2a34d354358",
+        "engagement_id": "91b06c8c-6285-4100-8f3c-85b69c186501",
+        "phase": "discover",
+        "title": "Roadmap is sequenced by dependency",
+        "criterion": "Every roadmap item's position is explained by a dependency, a risk, or a stated business date \u2014 not by preference.",
+        "measurement": "Walk the roadmap and name the constraint fixing each item's position. Unexplained ordering fails.",
+        "observed": null,
+        "verdict": "not_measured",
+        "rationale": "",
+        "decided_by": null,
+        "decided_at": null,
+        "created_at": 1788467565200,
+        "updated_at": 1788467565200
+      },
+      {
+        "id": "2f588571-ca01-4f0c-89af-23f38d9a7f26",
+        "engagement_id": "91b06c8c-6285-4100-8f3c-85b69c186501",
+        "phase": "prove",
+        "title": "Criteria agreed before the pilot ran",
+        "criterion": "The success criteria were recorded and accepted before the pilot began.",
+        "measurement": "Compare each gate's creation timestamp against the pilot's start. A criterion created after the start is evidence of the outcome, not a test of it.",
+        "observed": null,
+        "verdict": "not_measured",
+        "rationale": "",
+        "decided_by": null,
+        "decided_at": null,
+        "created_at": 1788467565200,
+        "updated_at": 1788467565200
+      },
+      {
+        "id": "1e8d65fd-072e-4a7b-81b1-d1d83eb86471",
+        "engagement_id": "91b06c8c-6285-4100-8f3c-85b69c186501",
+        "phase": "prove",
+        "title": "Pilot ran on client infrastructure and client data",
+        "criterion": "The pilot executed in the client's environment against the client's data, not a synthetic sample.",
+        "measurement": "Deployment target and dataset provenance recorded as evidence on the pilot deliverable.",
+        "observed": null,
+        "verdict": "not_measured",
+        "rationale": "",
+        "decided_by": null,
+        "decided_at": null,
+        "created_at": 1788467565200,
+        "updated_at": 1788467565200
+      }
+    ]
+  }
+}

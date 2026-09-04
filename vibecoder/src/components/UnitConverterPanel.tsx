@@ -208,7 +208,7 @@ function fmt(n: number): string {
  if (n === 0) return "0";
  const abs = Math.abs(n);
  if (abs >= 1e15 || (abs < 1e-6 && abs > 0)) return n.toExponential(6);
- if (abs >= 1000) return n.toPrecision(10).replace(/\.?0+$/, "");
+ if (abs >= 1000) return Number(n.toPrecision(10)).toString();
  return parseFloat(n.toPrecision(10)).toString();
 }
 
@@ -229,35 +229,36 @@ export function UnitConverterPanel() {
  return to.fromBase(base);
  };
 
- const inputNum = parseFloat(inputVal);
+ const inputNum = inputVal.trim() ? Number(inputVal) : NaN;
+ const hasValidInput = Number.isFinite(inputNum);
  const fromUnit = cat.units[fromIdx];
  const toUnit = cat.units[toIdx];
- const result = !isNaN(inputNum) ? convert(fromUnit, toUnit, inputNum) : NaN;
+ const result = hasValidInput ? convert(fromUnit, toUnit, inputNum) : NaN;
 
  // All units table
  const allResults = useMemo(() => {
- if (isNaN(inputNum)) return [];
+ if (!hasValidInput) return [];
  const base = fromUnit.toBase(inputNum);
  return cat.units.map(u => ({ unit: u, value: u.fromBase(base) }));
- }, [inputNum, fromUnit, cat]);
+ }, [inputNum, hasValidInput, fromUnit, cat]);
 
  const swap = () => {
  setFromIdx(toIdx);
  setToIdx(fromIdx);
- if (!isNaN(result)) setInputVal(fmt(result));
+ if (Number.isFinite(result)) setInputVal(fmt(result));
  };
 
  return (
  <div className="panel-container" style={{ flexDirection: "row", fontSize: "var(--font-size-md)" }}>
  {/* Category sidebar */}
  <div style={{ width: 140, borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", overflow: "hidden", flexShrink: 0 }}>
- <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…"
+ <input aria-label="Search categories" type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…"
  className="panel-input" style={{ margin: 6, fontSize: "var(--font-size-base)" }} />
  <div style={{ flex: 1, overflowY: "auto" }}>
  {filteredCats.map((c) => {
  const realIdx = CATEGORIES.indexOf(c);
  return (
- <button key={c.name} onClick={() => { setCatIdx(realIdx); setFromIdx(0); setToIdx(1); setSearch(""); }}
+ <button key={c.name} aria-label={c.name} onClick={() => { setCatIdx(realIdx); setFromIdx(0); setToIdx(1); setSearch(""); }}
  style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", padding: "8px 12px", border: "none", background: catIdx === realIdx ? "rgba(var(--accent-rgb,99,102,241),0.18)" : "none", color: catIdx === realIdx ? "var(--accent-color)" : "var(--text-secondary)", textAlign: "left", cursor: "pointer", fontSize: "var(--font-size-base)", borderLeft: catIdx === realIdx ? "3px solid var(--accent-color)" : "3px solid transparent" }}>
  <span>{c.icon}</span>{c.name}
  </button>
@@ -272,21 +273,21 @@ export function UnitConverterPanel() {
  <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)" }}>
  <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, marginBottom: 12 }}>{cat.icon} {cat.name}</div>
  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
- <input value={inputVal} onChange={e => setInputVal(e.target.value)} type="number"
+ <input aria-label="Value" value={inputVal} onChange={e => setInputVal(e.target.value)} type="number"
  className="panel-input" style={{ width: 140, fontSize: "var(--font-size-lg)" }} />
- <select value={fromIdx} onChange={e => setFromIdx(Number(e.target.value))} className="panel-select" style={{ minWidth: 150 }}>
+ <select aria-label="From unit" value={fromIdx} onChange={e => setFromIdx(Number(e.target.value))} className="panel-select" style={{ minWidth: 150 }}>
  {cat.units.map((u, i) => <option key={i} value={i}>{u.label} ({u.symbol})</option>)}
  </select>
- <button className="panel-btn" onClick={swap} title="Swap"
+ <button aria-label="Swap units" className="panel-btn" onClick={swap} title="Swap"
  style={{ padding: "4px 12px", background: "none", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer", color: "var(--text-primary)", fontSize: 16 }}>⇄</button>
- <select value={toIdx} onChange={e => setToIdx(Number(e.target.value))} className="panel-select" style={{ minWidth: 150 }}>
+ <select aria-label="To unit" value={toIdx} onChange={e => setToIdx(Number(e.target.value))} className="panel-select" style={{ minWidth: 150 }}>
  {cat.units.map((u, i) => <option key={i} value={i}>{u.label} ({u.symbol})</option>)}
  </select>
- <span style={{ fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--accent-color)", minWidth: 180 }}>
- = {isNaN(result) ? "—" : fmt(result)} {toUnit.symbol}
+ <span data-testid="conversion-result" aria-live="polite" style={{ fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--accent-color)", minWidth: 180 }}>
+ = {Number.isFinite(result) ? fmt(result) : "—"} {toUnit.symbol}
  </span>
- {!isNaN(result) && (
- <button onClick={() => navigator.clipboard.writeText(fmt(result))}
+ {Number.isFinite(result) && (
+ <button aria-label="Copy conversion result" onClick={() => navigator.clipboard.writeText(fmt(result))}
  style={{ padding: "4px 8px", background: "none", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", cursor: "pointer", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>
  Copy
  </button>
@@ -297,15 +298,15 @@ export function UnitConverterPanel() {
  {/* All units table */}
  <div style={{ flex: 1, overflowY: "auto", padding: "12px 20px" }}>
  <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginBottom: 8 }}>
- All {cat.name} units — {isNaN(inputNum) ? "enter a value above" : `${inputVal} ${fromUnit.symbol}`}
+ All {cat.name} units — {!hasValidInput ? "enter a value above" : `${inputVal} ${fromUnit.symbol}`}
  </div>
  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
  <thead>
  <tr>
  {["Unit", "Symbol", "Value"].map(h => (
- <th key={h} style={{ padding: "4px 12px", textAlign: "left", borderBottom: "2px solid var(--accent-blue)", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>{h}</th>
+ <th key={h} scope="col" style={{ padding: "4px 12px", textAlign: "left", borderBottom: "2px solid var(--accent-blue)", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>{h}</th>
  ))}
- <th style={{ width: 50 }} />
+ <th scope="col" aria-label="Actions" style={{ width: 50 }} />
  </tr>
  </thead>
  <tbody>
@@ -322,11 +323,11 @@ export function UnitConverterPanel() {
  </td>
  <td style={{ padding: "4px 12px", color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>{unit.symbol}</td>
  <td style={{ padding: "4px 12px", fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>
- {isNaN(inputNum) ? "—" : fmt(value)}
+ {!hasValidInput ? "—" : fmt(value)}
  </td>
  <td style={{ padding: "4px 8px" }}>
- <button onClick={() => navigator.clipboard.writeText(isNaN(inputNum) ? "" : fmt(value))} title="Copy"
- style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", opacity: isNaN(inputNum) ? 0.3 : 1 }}>⎘</button>
+ <button aria-label={`Copy ${unit.label} result`} disabled={!hasValidInput || !Number.isFinite(value)} onClick={() => navigator.clipboard.writeText(fmt(value))} title="Copy"
+ style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", opacity: !hasValidInput || !Number.isFinite(value) ? 0.3 : 1 }}>⎘</button>
  </td>
  </tr>
  );

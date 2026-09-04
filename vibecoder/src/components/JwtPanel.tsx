@@ -12,7 +12,11 @@ import { useState, useMemo, useCallback } from "react";
 function b64urlDecode(s: string): string {
  const pad = s.replace(/-/g, "+").replace(/_/g, "/");
  const padded = pad + "=".repeat((4 - (pad.length % 4)) % 4);
- try { return atob(padded); } catch { return ""; }
+ try {
+ const binary = atob(padded);
+ const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
+ return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+ } catch { return ""; }
 }
 
 function b64urlEncode(buf: ArrayBuffer): string {
@@ -56,7 +60,7 @@ function getExpiryInfo(payload: Record<string, unknown>): ExpiryInfo {
  const exp = typeof payload.exp === "number" ? payload.exp : null;
  if (exp === null) return { status: "none", remaining: "", exp: null };
  const now = Math.floor(Date.now() / 1000);
- if (exp < now) {
+ if (exp <= now) {
  const ago = now - exp;
  return { status: "expired", remaining: `expired ${fmtDuration(ago)} ago`, exp };
  }
@@ -141,6 +145,8 @@ export function JwtPanel() {
  try {
  const h = JSON.parse(b64urlDecode(parts[0]));
  const p = JSON.parse(b64urlDecode(parts[1]));
+ if (!h || typeof h !== "object" || Array.isArray(h)) throw new Error("JWT header must be a JSON object");
+ if (!p || typeof p !== "object" || Array.isArray(p)) throw new Error("JWT payload must be a JSON object");
  return { header: h, payload: p, signature: parts[2], decodeError: "" };
  } catch (e) {
  return { header: null, payload: null, signature: "", decodeError: (e as Error).message };
@@ -163,11 +169,15 @@ export function JwtPanel() {
  setSignError("");
  setSigning(true);
  try {
- JSON.parse(signHeader);
- JSON.parse(signPayload);
+ const parsedHeader = JSON.parse(signHeader) as unknown;
+ const parsedPayload = JSON.parse(signPayload) as unknown;
+ if (!parsedHeader || typeof parsedHeader !== "object" || Array.isArray(parsedHeader)) throw new Error("JWT header must be a JSON object");
+ if ((parsedHeader as Record<string, unknown>).alg !== "HS256") throw new Error("Only HS256 headers can be signed by this panel.");
+ if (!parsedPayload || typeof parsedPayload !== "object" || Array.isArray(parsedPayload)) throw new Error("JWT payload must be a JSON object");
  const jwt = await signHS256(signHeader, signPayload, secret);
  setGenerated(jwt);
  } catch (e) {
+ setGenerated("");
  setSignError((e as Error).message);
  } finally {
  setSigning(false);
@@ -205,7 +215,7 @@ export function JwtPanel() {
  <button onClick={() => setRawJwt("")} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>✕ Clear</button>
  </div>
  </div>
- <textarea value={rawJwt} onChange={e => setRawJwt(e.target.value)} rows={4} spellCheck={false} placeholder="Paste JWT here…"
+ <textarea aria-label="JWT input" value={rawJwt} onChange={e => setRawJwt(e.target.value)} rows={4} spellCheck={false} placeholder="Paste JWT here…"
  style={{ width: "100%", resize: "vertical", padding: "8px 12px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", lineHeight: 1.6, background: "var(--bg-primary)", color: decodeError ? "var(--text-danger)" : "var(--text-accent)", border: "none", outline: "none", boxSizing: "border-box" }} />
  {decodeError && <div style={{ padding: "4px 12px", fontSize: "var(--font-size-sm)", color: "var(--text-danger)", background: "color-mix(in srgb, var(--accent-rose) 6%, transparent)" }}>{decodeError}</div>}
  </div>
@@ -215,7 +225,7 @@ export function JwtPanel() {
  <div style={{ borderBottom: "1px solid var(--border-color)" }}>
  <div style={{ padding: "4px 12px", fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-info)", background: "var(--bg-secondary)", display: "flex", justifyContent: "space-between" }}>
  <span>HEADER · <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>{(header as Record<string, unknown>).alg as string} · {(header as Record<string, unknown>).typ as string}</span></span>
- <button onClick={() => copy(prettyJson(header), "header")} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>{copied === "header" ? "✓" : ""}</button>
+ <button aria-label="Copy decoded header" onClick={() => copy(prettyJson(header), "header")} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>{copied === "header" ? "✓" : ""}</button>
  </div>
  <div style={{ padding: "8px 12px", background: "var(--bg-primary)" }}><JsonView json={header} /></div>
  </div>
@@ -233,7 +243,7 @@ export function JwtPanel() {
  </span>
  )}
  {expiry?.status === "none" && <span style={{ fontSize: 9, color: "var(--text-secondary)" }}>no expiry</span>}
- <button onClick={() => copy(prettyJson(payload), "payload")} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>{copied === "payload" ? "✓" : ""}</button>
+ <button aria-label="Copy decoded payload" onClick={() => copy(prettyJson(payload), "payload")} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>{copied === "payload" ? "✓" : ""}</button>
  </div>
  </div>
  <div style={{ padding: "8px 12px", background: "var(--bg-primary)" }}><JsonView json={payload} /></div>
@@ -251,7 +261,7 @@ export function JwtPanel() {
  <div>
  <div style={{ padding: "4px 12px", fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-danger)", background: "var(--bg-secondary)", display: "flex", justifyContent: "space-between" }}>
  <span>SIGNATURE</span>
- <button onClick={() => copy(signature, "sig")} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>{copied === "sig" ? "✓" : ""}</button>
+ <button aria-label="Copy signature" onClick={() => copy(signature, "sig")} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>{copied === "sig" ? "✓" : ""}</button>
  </div>
  <div style={{ padding: "8px 12px", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-sm)", color: "var(--text-danger)", wordBreak: "break-all", background: "var(--bg-primary)" }}>{signature}</div>
  <div style={{ padding: "2px 12px 8px", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", background: "var(--bg-primary)", fontStyle: "italic" }}>
@@ -268,26 +278,26 @@ export function JwtPanel() {
  {/* Header editor */}
  <div style={{ borderBottom: "1px solid var(--border-color)" }}>
  <div style={{ padding: "4px 12px", fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-info)", background: "var(--bg-secondary)" }}>HEADER (JSON)</div>
- <textarea value={signHeader} onChange={e => setSignHeader(e.target.value)} rows={4} spellCheck={false}
+ <textarea aria-label="JWT header JSON" value={signHeader} onChange={e => setSignHeader(e.target.value)} rows={4} spellCheck={false}
  style={{ width: "100%", resize: "vertical", padding: "8px 12px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", lineHeight: 1.6, background: "var(--bg-primary)", color: "var(--text-primary)", border: "none", outline: "none", boxSizing: "border-box" }} />
  </div>
  {/* Payload editor */}
  <div style={{ borderBottom: "1px solid var(--border-color)" }}>
  <div style={{ padding: "4px 12px", fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-success)", background: "var(--bg-secondary)" }}>PAYLOAD (JSON)</div>
- <textarea value={signPayload} onChange={e => setSignPayload(e.target.value)} rows={7} spellCheck={false}
+ <textarea aria-label="JWT payload JSON" value={signPayload} onChange={e => setSignPayload(e.target.value)} rows={7} spellCheck={false}
  style={{ width: "100%", resize: "vertical", padding: "8px 12px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", lineHeight: 1.6, background: "var(--bg-primary)", color: "var(--text-primary)", border: "none", outline: "none", boxSizing: "border-box" }} />
  </div>
  {/* Secret */}
  <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center" }}>
  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", flexShrink: 0 }}>Secret (HS256):</span>
- <input type={showSecret ? "text" : "password"} value={secret} onChange={e => setSecret(e.target.value)}
+ <input aria-label="HS256 secret" type={showSecret ? "text" : "password"} value={secret} onChange={e => setSecret(e.target.value)}
  style={{ flex: 1, padding: "4px 8px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }} />
  <button onClick={() => setShowSecret(v => !v)} style={{ fontSize: "var(--font-size-xs)", padding: "3px 8px", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer" }}>{showSecret ? "Hide" : "Show"}</button>
  <button className="panel-btn" onClick={handleSign} disabled={signing} style={{ padding: "4px 16px", fontSize: "var(--font-size-sm)", fontWeight: 700, background: "color-mix(in srgb, var(--accent-blue) 20%, transparent)", border: "1px solid var(--accent-primary)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-info)", cursor: "pointer" }}>
  {signing ? "Signing…" : "Sign"}
  </button>
  </div>
- {signError && <div style={{ padding: "8px 12px", fontSize: "var(--font-size-sm)", color: "var(--text-danger)", background: "color-mix(in srgb, var(--accent-rose) 6%, transparent)", borderBottom: "1px solid var(--border-color)" }}>{signError}</div>}
+ {signError && <div role="alert" style={{ padding: "8px 12px", fontSize: "var(--font-size-sm)", color: "var(--text-danger)", background: "color-mix(in srgb, var(--accent-rose) 6%, transparent)", borderBottom: "1px solid var(--border-color)" }}>{signError}</div>}
  {/* Generated JWT */}
  {generated && (
  <div>

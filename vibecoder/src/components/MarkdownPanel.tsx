@@ -40,7 +40,7 @@ function wordCount(text: string): number {
 }
 
 function readingTime(words: number): string {
- const mins = Math.max(1, Math.round(words / 200));
+ const mins = Math.max(1, Math.ceil(words / 200));
  return `${mins} min read`;
 }
 
@@ -65,7 +65,9 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  try {
  const list = await invoke<MarkdownFile[]>("list_markdown_files", { workspace: workspacePath });
  setFiles(list);
- } catch { /* no workspace */ }
+ } catch (e) {
+ setStatus(`Load failed: ${e}`);
+ }
  }, [workspacePath]);
 
  useEffect(() => { loadFiles(); }, [loadFiles]);
@@ -90,7 +92,12 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  };
 
  const save = async () => {
- const path = filePath ?? (workspacePath ? `${workspacePath}/${fileName}` : null);
+ const trimmedName = fileName.trim();
+ if (!filePath && (!trimmedName || trimmedName.includes("/") || trimmedName.includes("\\"))) {
+ setStatus("Invalid filename — use a file name without folders");
+ return;
+ }
+ const path = filePath ?? (workspacePath ? `${workspacePath}/${trimmedName}` : null);
  if (!path) { setStatus("No workspace — cannot save"); return; }
  setSaving(true);
  try {
@@ -121,6 +128,7 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  const words = wordCount(content);
  const chars = content.length;
  const filtered = files.filter(f => !filter || f.name.toLowerCase().includes(filter.toLowerCase()));
+ const statusIsError = status?.startsWith("Error") || status?.startsWith("Save failed") || status?.startsWith("Load failed") || status?.startsWith("No workspace") || status?.startsWith("Invalid filename");
 
  return (
  <div className="panel-container" style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
@@ -133,6 +141,7 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  </div>
  <div style={{ padding: "8px 8px", borderBottom: "1px solid var(--border-color)" }}>
  <input
+ aria-label="Filter Markdown files"
  value={filter}
  onChange={e => setFilter(e.target.value)}
  placeholder="Filter files…"
@@ -169,9 +178,9 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
  {/* Toolbar */}
  <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
- <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600, flex: 1, color: dirty ? "var(--warning-color)" : "var(--text-primary)" }}>
- {fileName}{dirty ? " •" : ""}
- </span>
+ {filePath
+ ? <span style={{ fontSize: "var(--font-size-base)", fontWeight: 600, flex: 1, color: dirty ? "var(--warning-color)" : "var(--text-primary)" }}>{fileName}{dirty ? " •" : ""}</span>
+ : <input aria-label="Markdown filename" value={fileName} onChange={e => { setFileName(e.target.value); setDirty(true); }} style={{ fontSize: "var(--font-size-base)", fontWeight: 600, flex: 1, minWidth: 100, color: dirty ? "var(--warning-color)" : "var(--text-primary)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "2px 6px" }} />}
 
  {/* View toggle */}
  {(["split", "editor", "preview"] as View[]).map(v => (
@@ -181,16 +190,16 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  ))}
 
  <button className="panel-btn" onClick={save} disabled={saving} style={{ padding: "3px 12px", fontSize: "var(--font-size-sm)", fontWeight: 700, background: "var(--accent-color)", border: "none", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", cursor: saving ? "not-allowed" : "pointer" }}>
- {saving ? "" : "Save"}
+ {saving ? "Saving…" : "Save"}
  </button>
- <button className="panel-btn" onClick={exportHtml} style={{ padding: "3px 12px", fontSize: "var(--font-size-sm)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer" }}>
+ <button aria-label="Export HTML" className="panel-btn" onClick={exportHtml} style={{ padding: "3px 12px", fontSize: "var(--font-size-sm)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-secondary)", cursor: "pointer" }}>
  ↗ HTML
  </button>
  </div>
 
  {/* Status bar */}
  {status && (
- <div style={{ padding: "3px 12px", fontSize: "var(--font-size-xs)", background: status.startsWith("Error") ? "color-mix(in srgb, var(--accent-rose) 10%, transparent)" : "color-mix(in srgb, var(--accent-green) 10%, transparent)", color: status.startsWith("Error") ? "var(--error-color)" : "var(--success-color)", borderBottom: "1px solid var(--border-color)" }}>
+ <div role={statusIsError ? "alert" : "status"} style={{ padding: "3px 12px", fontSize: "var(--font-size-xs)", background: statusIsError ? "color-mix(in srgb, var(--accent-rose) 10%, transparent)" : "color-mix(in srgb, var(--accent-green) 10%, transparent)", color: statusIsError ? "var(--error-color)" : "var(--success-color)", borderBottom: "1px solid var(--border-color)" }}>
  {status}
  </div>
  )}
@@ -201,6 +210,7 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  {view !== "preview" && (
  <div style={{ flex: 1, display: "flex", flexDirection: "column", borderRight: view === "split" ? "1px solid var(--border-color)" : "none" }}>
  <textarea
+ aria-label="Markdown editor"
  value={content}
  onChange={e => { setContent(e.target.value); setDirty(true); }}
  onKeyDown={e => {
@@ -211,7 +221,7 @@ export function MarkdownPanel({ workspacePath }: { workspacePath: string | null 
  const el = e.target as HTMLTextAreaElement;
  const start = el.selectionStart;
  const end = el.selectionEnd;
- const next = content.slice(0, start) + " " + content.slice(end);
+ const next = content.slice(0, start) + "  " + content.slice(end);
  setContent(next);
  setDirty(true);
  requestAnimationFrame(() => { el.selectionStart = el.selectionEnd = start + 2; });

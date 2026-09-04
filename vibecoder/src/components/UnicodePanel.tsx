@@ -64,7 +64,15 @@ const NAMED: Record<number, string> = {
 };
 
 function cpToStr(cp: number): string {
+  if (!Number.isInteger(cp) || cp < 0 || cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF)) {
+    throw new RangeError("Code point is not a Unicode scalar value");
+  }
   return String.fromCodePoint(cp);
+}
+
+function percentEncode(char: string): string {
+  try { return encodeURIComponent(char); }
+  catch { return "invalid Unicode scalar"; }
 }
 
 function cpToHex(cp: number): string {
@@ -139,7 +147,7 @@ function InfoPanel({ info, toggleFavorite, isFav }: InfoPanelProps) {
           <div style={{ fontWeight: 600, fontSize: "var(--font-size-lg)" }}>{info.name}</div>
           <div style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)" }}>U+{cpToHex(info.cp)} · dec {info.cp}</div>
         </div>
-        <button onClick={() => toggleFavorite(info)}
+        <button aria-label={`${isFav(info.cp) ? "Remove" : "Add"} ${info.name} ${isFav(info.cp) ? "from" : "to"} favorites`} onClick={() => toggleFavorite(info)}
           style={{ marginLeft: "auto", background: "none", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "4px 8px", cursor: "pointer", color: isFav(info.cp) ? "var(--warning-color)" : "var(--text-secondary)", fontSize: 16 }}>
           {isFav(info.cp) ? "★" : "☆"}
         </button>
@@ -151,14 +159,14 @@ function InfoPanel({ info, toggleFavorite, isFav }: InfoPanelProps) {
           { label: "CSS escape", value: cssEscape(info.cp) },
           { label: "JS escape", value: jsEscape(info.cp) },
           { label: "UTF-8 hex", value: Array.from(new TextEncoder().encode(info.char)).map(b => b.toString(16).toUpperCase().padStart(2, "0")).join(" ") },
-          { label: "Percent-encoded", value: encodeURIComponent(info.char) },
+          { label: "Percent-encoded", value: percentEncode(info.char) },
         ].map(({ label, value }) => (
           <div key={label} style={{ background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", padding: "4px 8px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
             <div>
               <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>{label}</div>
               <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)" }}>{value}</div>
             </div>
-            <button onClick={() => navigator.clipboard.writeText(value)}
+            <button aria-label={`Copy ${label}`} onClick={() => navigator.clipboard.writeText(value)}
               style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)", flexShrink: 0 }}>⎘</button>
           </div>
         ))}
@@ -335,7 +343,7 @@ export function UnicodePanel() {
                 <thead>
                   <tr>
                     {["Char", "Code Point", "Name", "HTML Entity", "UTF-8"].map(h => (
-                      <th key={h} style={{ padding: "4px 12px", textAlign: "left", borderBottom: "2px solid var(--accent-blue)", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>{h}</th>
+                      <th key={h} scope="col" style={{ padding: "4px 12px", textAlign: "left", borderBottom: "2px solid var(--accent-blue)", color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>

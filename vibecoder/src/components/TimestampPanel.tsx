@@ -50,8 +50,20 @@ function iso8601(date: Date): string {
 }
 
 function rfc2822(date: Date): string {
- try { return new Intl.DateTimeFormat("en-US", { weekday: "short", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", timeZoneName: "short", hour12: false }).format(date).replace(",", ""); }
- catch { return date.toString(); }
+ return date.toUTCString();
+}
+
+function isoWeekInTimezone(date: Date, tz: string): string {
+ try {
+ const parts = new Intl.DateTimeFormat("en-US", {
+ timeZone: tz, year: "numeric", month: "numeric", day: "numeric",
+ }).formatToParts(date);
+ const number = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find(part => part.type === type)?.value);
+ const d = new Date(Date.UTC(number("year"), number("month") - 1, number("day")));
+ d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+ const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+ return `W${String(Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)).padStart(2, "0")}`;
+ } catch { return "—"; }
 }
 
 function relativeTime(date: Date, now = new Date()): string {
@@ -94,16 +106,35 @@ function calcDuration(a: Date, b: Date): Duration {
  const totalDays = Math.floor(totalHours / 24);
 
  const [start, end] = a <= b ? [a, b] : [b, a];
+ const addYearsClamped = (date: Date, amount: number) => {
+ const result = new Date(date);
+ const day = result.getDate();
+ result.setDate(1);
+ result.setFullYear(result.getFullYear() + amount);
+ result.setDate(Math.min(day, new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate()));
+ return result;
+ };
+ const addMonthsClamped = (date: Date, amount: number) => {
+ const result = new Date(date);
+ const day = result.getDate();
+ result.setDate(1);
+ result.setMonth(result.getMonth() + amount);
+ result.setDate(Math.min(day, new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate()));
+ return result;
+ };
+
  let years = end.getFullYear() - start.getFullYear();
- let months = end.getMonth() - start.getMonth();
- if (months < 0) { years--; months += 12; }
- const dayDiff = end.getDate() - start.getDate();
- if (dayDiff < 0) { months--; if (months < 0) { years--; months += 12; } }
- const days = Math.floor((totalMs % (1000 * 60 * 60 * 24 * 30.44)) / (1000 * 60 * 60 * 24));
- const hours = Math.floor(totalMs / (1000 * 60 * 60)) % 24;
- const minutes = Math.floor(totalMs / (1000 * 60)) % 60;
- const seconds = Math.floor(totalMs / 1000) % 60;
- const ms = totalMs % 1000;
+ if (addYearsClamped(start, years) > end) years--;
+ let cursor = addYearsClamped(start, years);
+ let months = (end.getFullYear() - cursor.getFullYear()) * 12 + end.getMonth() - cursor.getMonth();
+ if (addMonthsClamped(cursor, months) > end) months--;
+ cursor = addMonthsClamped(cursor, months);
+ const remainderMs = end.getTime() - cursor.getTime();
+ const days = Math.floor(remainderMs / 86400000);
+ const hours = Math.floor(remainderMs / 3600000) % 24;
+ const minutes = Math.floor(remainderMs / 60000) % 60;
+ const seconds = Math.floor(remainderMs / 1000) % 60;
+ const ms = remainderMs % 1000;
  return { totalMs, totalSecs, totalMins, totalHours, totalDays, years, months, days, hours, minutes, seconds, ms };
 }
 
@@ -119,8 +150,8 @@ function parseTimestampInput(s: string): Date | null {
  if (!trimmed) return null;
  const n = Number(trimmed);
  if (!isNaN(n)) {
- // Auto-detect ms vs seconds: if > 1e12, treat as ms
- const ms = n > 1e12 ? n : n * 1000;
+ // Auto-detect ms vs seconds for dates on either side of the Unix epoch.
+ const ms = Math.abs(n) >= 1e12 ? n : n * 1000;
  const d = new Date(ms);
  return isNaN(d.getTime()) ? null : d;
  }
@@ -154,7 +185,7 @@ export function TimestampPanel() {
 
  const fmtRows = useMemo(() => {
  if (!parsedDate) return [];
- return [
+ const rows = [
  { label: "ISO 8601", value: iso8601(parsedDate) },
  { label: "RFC 2822", value: rfc2822(parsedDate) },
  { label: "Relative", value: relativeTime(parsedDate) },
@@ -165,13 +196,14 @@ export function TimestampPanel() {
  { label: "Date only", value: fmt(parsedDate, tz, { dateStyle: "long" }) },
  { label: "Time only", value: fmt(parsedDate, tz, { timeStyle: "medium" }) },
  { label: "Weekday", value: fmt(parsedDate, tz, { weekday: "long" }) },
- { label: "Week of year", value: (() => { const d = new Date(Date.UTC(parsedDate.getFullYear(),parsedDate.getMonth(),parsedDate.getDate())); d.setUTCDate(d.getUTCDate()+4-(d.getUTCDay()||7)); const y=new Date(Date.UTC(d.getUTCFullYear(),0,1)); return `W${String(Math.ceil((((d.getTime()-y.getTime())/86400000)+1)/7)).padStart(2,"0")}`; })() },
+ { label: "Week of year", value: isoWeekInTimezone(parsedDate, tz) },
  ];
+ return rows;
  }, [parsedDate, tz, tick]); // eslint-disable-line react-hooks/exhaustive-deps
 
  const tzRows = useMemo(() => {
  if (!parsedDate) return [];
- return [
+ const rows = [
  { tz: "UTC", label: "UTC" },
  { tz: localTz, label: `Local (${localTz})` },
  { tz: "America/New_York", label: "New York (ET)" },
@@ -181,7 +213,8 @@ export function TimestampPanel() {
  { tz: "Asia/Kolkata", label: "India (IST)" },
  { tz: "Asia/Tokyo", label: "Tokyo (JST)" },
  { tz: "Australia/Sydney", label: "Sydney (AEST)" },
- ].map(r => ({
+ ].filter((row, index, all) => all.findIndex(candidate => candidate.tz === row.tz) === index);
+ return rows.map(r => ({
  ...r,
  value: fmt(parsedDate, r.tz, { dateStyle: "medium", timeStyle: "short" }),
  }));
@@ -270,14 +303,14 @@ export function TimestampPanel() {
  <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: 12 }}>
  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
  <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
- <label style={{ fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-secondary)" }}>START</label>
- <input type="datetime-local" value={durA} onChange={e => setDurA(e.target.value)}
+ <label htmlFor="timestamp-duration-start" style={{ fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-secondary)" }}>START</label>
+ <input id="timestamp-duration-start" type="datetime-local" value={durA} onChange={e => setDurA(e.target.value)}
  style={{ padding: "4px 8px", fontSize: "var(--font-size-base)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }} />
  </div>
  <span style={{ fontSize: 18, color: "var(--text-secondary)", paddingTop: 16 }}>→</span>
  <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
- <label style={{ fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-secondary)" }}>END</label>
- <input type="datetime-local" value={durB} onChange={e => setDurB(e.target.value)}
+ <label htmlFor="timestamp-duration-end" style={{ fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-secondary)" }}>END</label>
+ <input id="timestamp-duration-end" type="datetime-local" value={durB} onChange={e => setDurB(e.target.value)}
  style={{ padding: "4px 8px", fontSize: "var(--font-size-base)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }} />
  </div>
  <button onClick={() => { setDurA(toLocalInputValue(new Date())); setDurB(toLocalInputValue(new Date())); }} style={{ paddingTop: 16, fontSize: "var(--font-size-xs)", background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>Reset</button>
@@ -325,8 +358,8 @@ export function TimestampPanel() {
  {subTab === "relative" && (
  <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: 12 }}>
  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
- <label style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", flexShrink: 0 }}>Base date:</label>
- <input type="datetime-local" value={relBase} onChange={e => setRelBase(e.target.value)}
+ <label htmlFor="timestamp-relative-base" style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", flexShrink: 0 }}>Base date:</label>
+ <input id="timestamp-relative-base" type="datetime-local" value={relBase} onChange={e => setRelBase(e.target.value)}
  style={{ flex: 1, padding: "4px 8px", fontSize: "var(--font-size-base)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }} />
  <button onClick={() => setRelBase(toLocalInputValue(new Date()))} style={{ padding: "3px 12px", fontSize: "var(--font-size-xs)", background: "color-mix(in srgb, var(--accent-blue) 10%, transparent)", border: "1px solid var(--text-info)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-info)", cursor: "pointer" }}>Now</button>
  </div>
@@ -342,7 +375,8 @@ export function TimestampPanel() {
  <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-secondary)", marginBottom: 8, letterSpacing: "0.05em" }}>OFFSETS FROM BASE DATE</div>
  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 4 }}>
  {offsets.map(days => {
- const d = new Date(relDate.getTime() + days * 86400000);
+ const d = new Date(relDate);
+ d.setDate(d.getDate() + days);
  const label = days === 0 ? "Base date" : days > 0 ? `+${days} day${Math.abs(days) !== 1 ? "s" : ""}` : `${days} day${Math.abs(days) !== 1 ? "s" : ""}`;
  return (
  <div key={days} style={{ display: "flex", justifyContent: "space-between", padding: "4px 12px", background: days === 0 ? "rgba(137,180,250,0.08)" : "var(--bg-secondary)", border: `1px solid ${days === 0 ? "var(--text-info)" : "var(--border-color)"}`, borderRadius: "var(--radius-xs-plus)", fontSize: "var(--font-size-sm)" }}>

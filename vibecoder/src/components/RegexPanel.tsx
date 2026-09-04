@@ -15,13 +15,13 @@ interface PatternEntry { name: string; pattern: string; flags: string; descripti
 const COMMON_PATTERNS: PatternEntry[] = [
  { name: "Email", pattern: "[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}", flags: "gi", description: "Standard email address" },
  { name: "URL", pattern: "https?://[^\\s/$.?#].[^\\s]*", flags: "gi", description: "HTTP/HTTPS URL" },
- { name: "IPv4", pattern: "\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b", flags: "g", description: "IPv4 address" },
+ { name: "IPv4", pattern: "\\b(?:(?:25[0-5]|2[0-4]\\d|1?\\d?\\d)\\.){3}(?:25[0-5]|2[0-4]\\d|1?\\d?\\d)\\b", flags: "g", description: "IPv4 address" },
  { name: "IPv6", pattern: "([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}", flags: "gi", description: "Full IPv6 address" },
  { name: "Phone (US)", pattern: "\\+?1?[-.\\s]?\\(?\\d{3}\\)?[-.\\s]?\\d{3}[-.\\s]?\\d{4}", flags: "g", description: "US phone number" },
  { name: "Date ISO", pattern: "\\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\\d|3[01])", flags: "g", description: "YYYY-MM-DD" },
  { name: "Time 24h", pattern: "(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?", flags: "g", description: "HH:MM or HH:MM:SS" },
  { name: "Hex Color", pattern: "#(?:[0-9a-fA-F]{3}){1,2}\\b", flags: "gi", description: "#RGB or #RRGGBB" },
- { name: "UUID", pattern: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", flags: "gi", description: "UUID v4" },
+ { name: "UUID", pattern: "[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}", flags: "gi", description: "UUID v4" },
  { name: "JWT", pattern: "eyJ[A-Za-z0-9_-]+\\.eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+", flags: "g", description: "JSON Web Token" },
  { name: "Semver", pattern: "\\bv?(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)(?:-[\\w.-]+)?(?:\\+[\\w.-]+)?\\b", flags: "g", description: "Semantic version" },
  { name: "Git SHA", pattern: "\\b[0-9a-f]{7,40}\\b", flags: "g", description: "Git commit hash (7–40 hex chars)" },
@@ -102,7 +102,7 @@ export function RegexPanel() {
  const matches = useMemo<MatchInfo[]>(() => {
  if (!regex || !testText) return [];
  const result: MatchInfo[] = [];
- const r = new RegExp(regex.source, regex.flags.includes("g") ? regex.flags : regex.flags + "g");
+ const r = new RegExp(regex.source, regex.flags);
  let m: RegExpExecArray | null;
  let safety = 0;
  while ((m = r.exec(testText)) !== null && safety++ < 2000) {
@@ -114,7 +114,7 @@ export function RegexPanel() {
  groups: m.slice(1),
  namedGroups: m.groups ? { ...m.groups } : null,
  });
- if (!r.flags.includes("g")) break;
+ if (!r.global) break;
  if (m[0].length === 0) r.lastIndex++;
  }
  return result;
@@ -177,6 +177,7 @@ export function RegexPanel() {
  {/* Delimiter */}
  <span style={{ fontSize: 16, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>/</span>
  <input
+ aria-label="Regular expression"
  value={pattern}
  onChange={e => { setPattern(e.target.value); setActiveLib(null); }}
  placeholder="pattern"
@@ -185,8 +186,8 @@ export function RegexPanel() {
  />
  <span style={{ fontSize: 16, color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>/</span>
  {/* Flags */}
- {["g","i","m","s","u"].map(f => (
- <button key={f} onClick={() => toggleFlag(f)} style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", fontWeight: 700, borderRadius: "var(--radius-xs-plus)", border: `1px solid ${flags.includes(f) ? "var(--accent-primary)" : "var(--border-color)"}`, background: flags.includes(f) ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)", color: flags.includes(f) ? "var(--text-info)" : "var(--text-secondary)", cursor: "pointer" }}>{f}</button>
+ {([['g', 'Global'], ['i', 'Ignore case'], ['m', 'Multiline'], ['s', 'Dot all'], ['u', 'Unicode']] as const).map(([f, label]) => (
+ <button key={f} aria-label={label} aria-pressed={flags.includes(f)} onClick={() => toggleFlag(f)} style={{ padding: "2px 8px", fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", fontWeight: 700, borderRadius: "var(--radius-xs-plus)", border: `1px solid ${flags.includes(f) ? "var(--accent-primary)" : "var(--border-color)"}`, background: flags.includes(f) ? "color-mix(in srgb, var(--accent-blue) 20%, transparent)" : "var(--bg-primary)", color: flags.includes(f) ? "var(--text-info)" : "var(--text-secondary)", cursor: "pointer" }}>{f}</button>
  ))}
  {/* Replace toggle */}
  <button onClick={() => setShowReplace(v => !v)} style={{ padding: "3px 12px", fontSize: "var(--font-size-xs)", borderRadius: "var(--radius-xs-plus)", border: `1px solid ${showReplace ? "var(--text-warning-alt)" : "var(--border-color)"}`, background: showReplace ? "rgba(250,179,135,0.1)" : "var(--bg-primary)", color: showReplace ? "var(--text-warning-alt)" : "var(--text-secondary)", cursor: "pointer" }}>⇄ Replace</button>
@@ -196,7 +197,7 @@ export function RegexPanel() {
  {showReplace && (
  <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 8, alignItems: "center" }}>
  <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", flexShrink: 0 }}>Replace with:</span>
- <input value={replaceStr} onChange={e => setReplaceStr(e.target.value)} placeholder="replacement (use $1, $2 for groups)" spellCheck={false} style={{ flex: 1, padding: "3px 8px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }} />
+ <input aria-label="Replacement" value={replaceStr} onChange={e => setReplaceStr(e.target.value)} placeholder="replacement (use $1, $2 for groups)" spellCheck={false} style={{ flex: 1, padding: "3px 8px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", background: "var(--bg-primary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-xs-plus)", color: "var(--text-primary)", outline: "none" }} />
  </div>
  )}
 
@@ -209,7 +210,7 @@ export function RegexPanel() {
  <span>TEST STRING</span>
  <button onClick={() => setTestText("")} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>✕ Clear</button>
  </div>
- <textarea value={testText} onChange={e => setTestText(e.target.value)} rows={5} spellCheck={false}
+ <textarea aria-label="Test string" value={testText} onChange={e => setTestText(e.target.value)} rows={5} spellCheck={false}
  style={{ width: "100%", resize: "vertical", padding: "8px 12px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", lineHeight: 1.6, background: "var(--bg-primary)", color: "var(--text-primary)", border: "none", outline: "none", boxSizing: "border-box" }} />
  </div>
 
@@ -234,13 +235,13 @@ export function RegexPanel() {
  </div>
 
  {/* Replace preview */}
- {showReplace && replacePreview && (
+ {showReplace && regex && (
  <div style={{ borderBottom: "1px solid var(--border-color)" }}>
  <div style={{ padding: "4px 12px", fontSize: "var(--font-size-xs)", fontWeight: 700, color: "var(--text-warning-alt)", background: "var(--bg-secondary)", display: "flex", justifyContent: "space-between" }}>
  <span>REPLACE PREVIEW</span>
- <button onClick={() => { navigator.clipboard.writeText(replacePreview); }} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>Copy</button>
+ <button aria-label="Copy replacement preview" onClick={() => { navigator.clipboard.writeText(replacePreview); }} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>Copy</button>
  </div>
- <pre style={{ margin: 0, padding: "8px 12px", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)", lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-all", background: "var(--bg-primary)", color: "var(--text-warning-alt)" }}>{replacePreview}</pre>
+ <pre style={{ margin: 0, padding: "8px 12px", fontFamily: "var(--font-mono)", fontSize: "var(--font-size-base)", lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-all", background: "var(--bg-primary)", color: "var(--text-warning-alt)" }}>{replacePreview || <em>(empty string)</em>}</pre>
  </div>
  )}
 
@@ -281,7 +282,7 @@ export function RegexPanel() {
  )}
  </div>
  {/* Copy button */}
- <button onClick={() => navigator.clipboard.writeText(m.value)} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", flexShrink: 0 }}></button>
+ <button aria-label={`Copy match ${m.index + 1}`} onClick={() => navigator.clipboard.writeText(m.value)} style={{ fontSize: 9, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", flexShrink: 0 }}>Copy</button>
  </div>
  ))}
  </div>

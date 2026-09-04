@@ -18,8 +18,9 @@ function ipToInt(ip: string): number | null {
  if (parts.length !== 4) return null;
  let n = 0;
  for (const p of parts) {
- const v = parseInt(p, 10);
- if (isNaN(v) || v < 0 || v > 255) return null;
+ if (!/^\d{1,3}$/.test(p)) return null;
+ const v = Number(p);
+ if (v > 255) return null;
  n = (n << 8) | v;
  }
  return n >>> 0;
@@ -81,8 +82,9 @@ function calcSubnet(ip: string, prefix: number): SubnetInfo | null {
 function parseCidr(s: string): { ip: string; prefix: number } | null {
  const parts = s.trim().split("/");
  if (parts.length !== 2) return null;
- const prefix = parseInt(parts[1], 10);
- if (isNaN(prefix) || prefix < 0 || prefix > 32) return null;
+ if (!/^\d{1,2}$/.test(parts[1])) return null;
+ const prefix = Number(parts[1]);
+ if (prefix > 32) return null;
  if (ipToInt(parts[0]) === null) return null;
  return { ip: parts[0].trim(), prefix };
 }
@@ -162,11 +164,12 @@ export function CidrPanel() {
 
  const parsed = useMemo(() => parseCidr(cidrInput), [cidrInput]);
  const info = useMemo(() => parsed ? calcSubnet(parsed.ip, parsed.prefix) : null, [parsed]);
+ const effectiveSplitPrefix = info ? Math.min(32, Math.max(splitPrefix, info.prefix + 1)) : splitPrefix;
 
  const splitResults = useMemo(() => {
- if (!info || splitPrefix <= info.prefix) return [];
- return splitSubnet(info, splitPrefix);
- }, [info, splitPrefix]);
+ if (!info || effectiveSplitPrefix <= info.prefix) return [];
+ return splitSubnet(info, effectiveSplitPrefix);
+ }, [info, effectiveSplitPrefix]);
 
  // Binary view with network bits highlighted
  const BinaryView = ({ value, prefix }: { value: number; prefix: number }) => {
@@ -277,12 +280,16 @@ export function CidrPanel() {
  <div style={{ display: "flex", flexDirection: "column" }}>
  {info && (
  <>
+ {info.prefix === 32 ? (
+ <div style={{ padding: 12, color: "var(--text-secondary)", fontSize: "var(--font-size-base)" }}>A /32 host route cannot be split into smaller IPv4 networks.</div>
+ ) : (
+ <>
  <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-color)", background: "var(--bg-secondary)", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
- <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Split into /<span style={{ color: "var(--text-info)", fontFamily: "var(--font-mono)" }}>{splitPrefix}</span> blocks</span>
- <input type="range" min={info.prefix + 1} max={32} value={splitPrefix} onChange={e => setSplitPrefix(+e.target.value)}
+ <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Split into /<span style={{ color: "var(--text-info)", fontFamily: "var(--font-mono)" }}>{effectiveSplitPrefix}</span> blocks</span>
+ <input type="range" min={info.prefix + 1} max={32} value={effectiveSplitPrefix} onChange={e => setSplitPrefix(+e.target.value)}
  style={{ flex: 1, minWidth: 80, accentColor: "var(--accent-color)" }} />
  <span style={{ fontSize: "var(--font-size-sm)", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>
- {Math.pow(2, splitPrefix - info.prefix).toLocaleString()} subnets × {Math.max(0, Math.pow(2, 32 - splitPrefix) - 2).toLocaleString()} hosts
+ {Math.pow(2, effectiveSplitPrefix - info.prefix).toLocaleString()} subnets × {Math.max(0, Math.pow(2, 32 - effectiveSplitPrefix) - 2).toLocaleString()} hosts
  </span>
  </div>
  <div style={{ overflow: "auto" }}>
@@ -302,6 +309,8 @@ export function CidrPanel() {
  <div style={{ padding: "8px 12px", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", fontStyle: "italic" }}>Showing first 256 subnets.</div>
  )}
  </div>
+ </>
+ )}
  </>
  )}
  {!info && cidrInput.trim() && <div style={{ padding: 12, color: "var(--text-danger)", fontSize: "var(--font-size-base)" }}>Fix the CIDR input above first.</div>}

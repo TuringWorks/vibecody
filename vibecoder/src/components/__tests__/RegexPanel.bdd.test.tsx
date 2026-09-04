@@ -165,7 +165,7 @@ describe('RegexPanel — flags', () => {
   it('toggles "m" flag on/off when the m button is clicked', () => {
     render(<RegexPanel />);
     // Default flags are "gi" — "m" is not active
-    const mBtn = screen.getByRole('button', { name: /^m$/ });
+    const mBtn = screen.getByRole('button', { name: 'Multiline' });
     fireEvent.click(mBtn); // add m → flags contain m
     fireEvent.click(mBtn); // remove m → flags do not contain m
     // No error thrown = correct toggle cycle
@@ -186,5 +186,77 @@ describe('RegexPanel — match list', () => {
     // Default sample has emails — first match at position 0
     const posInfo = screen.getAllByText(/pos \d+–\d+/);
     expect(posInfo.length).toBeGreaterThan(0);
+  });
+});
+
+describe('RegexPanel — matching semantics and edge cases', () => {
+  const setPatternAndText = (pattern: string, text: string) => {
+    fireEvent.change(screen.getByRole('textbox', { name: 'Regular expression' }), { target: { value: pattern } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Test string' }), { target: { value: text } });
+  };
+
+  const matchCount = () => Number(screen.getByText('matches:').nextElementSibling?.textContent);
+
+  it('honors the global flag instead of silently matching globally', () => {
+    render(<RegexPanel />);
+    setPatternAndText('a', 'aaa');
+    fireEvent.click(screen.getByRole('button', { name: 'Global' }));
+
+    expect(matchCount()).toBe(1);
+    expect(screen.getByText('MATCHES (1)')).toBeInTheDocument();
+  });
+
+  it('reports numbered and named capture groups', () => {
+    render(<RegexPanel />);
+    setPatternAndText('(?<user>\\w+)@(\\w+)', 'alice@example');
+
+    expect(screen.getByText('$1').parentElement).toHaveTextContent('$1 = alice');
+    expect(screen.getByText('$2').parentElement).toHaveTextContent('$2 = example');
+    expect(screen.getByText('user').parentElement).toHaveTextContent('user = alice');
+  });
+
+  it('advances safely through global zero-width matches', () => {
+    render(<RegexPanel />);
+    setPatternAndText('(?=a)', 'aa');
+
+    expect(matchCount()).toBe(2);
+    expect(screen.getAllByText('(empty match)')).toHaveLength(2);
+  });
+
+  it('keeps the replacement preview visible when the valid result is empty', () => {
+    render(<RegexPanel />);
+    setPatternAndText('.+', 'abc');
+    fireEvent.click(screen.getByRole('button', { name: /Replace/i }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Replacement' }), { target: { value: '' } });
+
+    expect(screen.getByText('REPLACE PREVIEW')).toBeInTheDocument();
+    expect(screen.getByText('(empty string)')).toBeInTheDocument();
+  });
+
+  it('copies an individual match through an operable button', () => {
+    render(<RegexPanel />);
+    setPatternAndText('cat', 'cat');
+    fireEvent.click(screen.getByRole('button', { name: 'Copy match 1' }));
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('cat');
+  });
+
+  it('uses an IPv4 preset that rejects out-of-range octets', () => {
+    render(<RegexPanel />);
+    fireEvent.click(screen.getByRole('button', { name: /IPv4/ }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Test string' }), { target: { value: 'valid 192.168.1.1 invalid 999.999.999.999' } });
+
+    expect(matchCount()).toBe(1);
+    expect(screen.getAllByText('192.168.1.1')).toHaveLength(2);
+  });
+
+  it('uses a UUID v4 preset that enforces version and variant bits', () => {
+    render(<RegexPanel />);
+    fireEvent.click(screen.getByRole('button', { name: /UUID/ }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Test string' }), {
+      target: { value: 'v4 550e8400-e29b-41d4-a716-446655440000 v1 550e8400-e29b-11d4-7716-446655440000' },
+    });
+
+    expect(matchCount()).toBe(1);
   });
 });

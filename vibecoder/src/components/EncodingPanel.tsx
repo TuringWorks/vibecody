@@ -58,7 +58,16 @@ function htmlEncode(s: string): string {
 }
 function htmlDecode(s: string): string {
  const d: Record<string, string> = { "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'", "&nbsp;": " " };
- return s.replace(/&[a-z]+;|&#\d+;/gi, m => d[m] ?? m);
+ return s.replace(/&(?:[a-z]+|#\d+|#x[0-9a-f]+);/gi, entity => {
+ const named = d[entity.toLowerCase()];
+ if (named !== undefined) return named;
+ if (!entity.startsWith("&#")) return entity;
+ const hexadecimal = entity[2]?.toLowerCase() === "x";
+ const digits = entity.slice(hexadecimal ? 3 : 2, -1);
+ const codePoint = Number.parseInt(digits, hexadecimal ? 16 : 10);
+ if (!Number.isInteger(codePoint) || codePoint > 0x10ffff || (codePoint >= 0xd800 && codePoint <= 0xdfff)) return entity;
+ return String.fromCodePoint(codePoint);
+ });
 }
 
 // ── Hashing ────────────────────────────────────────────────────────────────────
@@ -95,7 +104,14 @@ const cases: { label: string; fn: (s: string) => string }[] = [
 // ── Stats ──────────────────────────────────────────────────────────────────────
 
 function getStats(s: string) {
- const chars = s.length;
+ type SegmenterConstructor = new (
+ locales?: string | string[],
+ options?: { granularity: "grapheme" },
+ ) => { segment(input: string): Iterable<unknown> };
+ const Segmenter = (Intl as unknown as { Segmenter?: SegmenterConstructor }).Segmenter;
+ const chars = Segmenter
+ ? Array.from(new Segmenter(undefined, { granularity: "grapheme" }).segment(s)).length
+ : Array.from(s).length;
  const bytes = new TextEncoder().encode(s).length;
  const lines = s ? s.split("\n").length : 0;
  const words = s.trim() ? s.trim().split(/\s+/).length : 0;
@@ -188,7 +204,7 @@ export function EncodingPanel() {
  <button onClick={() => setInput("")} style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3, fontSize: 9 }}><X size={9} /> Clear</button>
  <span style={{ marginLeft: "auto", fontSize: 9, color: "var(--text-secondary)" }}>{input.length} chars</span>
  </div>
- <textarea value={input} onChange={e => setInput(e.target.value)} rows={4} spellCheck={false}
+ <textarea aria-label="Input text" value={input} onChange={e => setInput(e.target.value)} rows={4} spellCheck={false}
  style={{ width: "100%", resize: "vertical", padding: "8px 12px", fontSize: "var(--font-size-base)", fontFamily: "var(--font-mono)", lineHeight: 1.6, background: "var(--bg-primary)", color: "var(--text-primary)", border: "none", outline: "none", boxSizing: "border-box" }} />
  </div>
 
