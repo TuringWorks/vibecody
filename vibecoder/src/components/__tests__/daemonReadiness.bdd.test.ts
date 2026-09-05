@@ -41,12 +41,12 @@ function readiness(over: Partial<DaemonReadiness>): DaemonReadiness {
     port: 7878,
     ready: true,
     daemonRunning: true,
-    daemonVersion: "0.5.11",
-    clientVersion: "0.5.11",
+    daemonVersion: "0.5.12",
+    clientVersion: "0.5.12",
     versionMatches: true,
     tokenState: "valid",
     features: null,
-    message: "VibeCLI daemon 0.5.11 already running",
+    message: "VibeCLI daemon 0.5.12 already running",
     ...over,
   };
 }

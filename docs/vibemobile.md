@@ -12,7 +12,7 @@ As of **v0.5.5** VibeMobile gained URL-only pairing, zero-config mDNS / Tailscal
 
 ---
 
-## What's new in 0.5.11
+## What's new in 0.5.12
 
 | Area | Improvement |
 |------|-------------|
@@ -56,13 +56,13 @@ Added in **0.5.5**: URL-only / URL + Bearer pairing (works on emulators), P-256 
 
 ### From release artifacts (fastest)
 
-See the [Releases page](/vibecody/release/) for the current build. For v0.5.11:
+See the [Releases page](/vibecody/release/) for the current build. For v0.5.12:
 
 | Platform | Artifact |
 |----------|----------|
-| iOS | [`VibeCody-Mobile-v0.5.11-ios.ipa`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeCody-Mobile-v0.5.11-ios.ipa) (unsigned — sideload via AltStore / Sideloadly) |
-| Android APK | [`VibeCody-Mobile-v0.5.11-android.apk`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeCody-Mobile-v0.5.11-android.apk) |
-| Android AAB | [`VibeCody-Mobile-v0.5.11-android.aab`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.11/VibeCody-Mobile-v0.5.11-android.aab) |
+| iOS | [`VibeCody-Mobile-v0.5.12-ios.ipa`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.12/VibeCody-Mobile-v0.5.12-ios.ipa) (unsigned — sideload via AltStore / Sideloadly) |
+| Android APK | [`VibeCody-Mobile-v0.5.12-android.apk`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.12/VibeCody-Mobile-v0.5.12-android.apk) |
+| Android AAB | [`VibeCody-Mobile-v0.5.12-android.aab`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.12/VibeCody-Mobile-v0.5.12-android.aab) |
 
 ### From source
 

@@ -17,7 +17,7 @@ android {
         minSdk = 30          // Wear OS 3.0
         targetSdk = 36       // Android 16 / Wear OS 6
         versionCode = 6
-        versionName = "0.5.11"
+        versionName = "0.5.12"
     }
 
     buildTypes {

@@ -633,7 +633,7 @@ See [`memory-architecture.md`]({{ site.baseurl }}/memory-architecture/) for comp
 ## Testing Strategy
 
 **17,170 test functions + 89 BDD / integration harnesses** across the workspace,
-counted at v0.5.11 by `#[test]` / `#[tokio::test]` attribute. A count is not a
+counted at v0.5.12 by `#[test]` / `#[tokio::test]` attribute. A count is not a
 pass rate — run `make test`, or read the CI run for the commit you care about.
 
 | Crate | Tests | Key coverage areas |

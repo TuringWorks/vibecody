@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag (e.g. v0.5.9)"
+        description: "Release tag (e.g. v0.5.12)"
         required: true
         # Deliberately no `default:`. This input is only read on a manual
         # dispatch, and a default is a one-click re-release of whatever was
@@ -1736,11 +1736,11 @@ jobs:
 
             ### What's New in ${{ github.event.inputs.tag || github.ref_name }}
 
-            - **Parallel Agent Spawning** — Claude Code-style `/spawn` command: launch multiple autonomous agents, decompose tasks, aggregate results
-            - **Agent Pool Management** — Priority queuing, pause/resume, inter-agent messaging, conflict detection
-            - **SpawnAgentPanel** — VibeCoder panel for managing parallel agents with live progress tracking
-            - **iOS & Android builds** — VibeCody Mobile companion app now included in releases
-            - **150+ VibeCoder panels**, 18 AI providers, 540+ skills, 6,000+ tests
+            - **Daemon readiness and token rotation** — port-scoped credentials, fingerprint diagnostics, version-aware readiness probes, and clearer 401/404 errors across desktop clients
+            - **Full-duplex voice** — interruptible speech, per-turn language detection, configurable engines, and workspace-aware spoken file actions
+            - **Developer Excellence and Observe-Act** — repository-backed DORA/SPACE reporting plus guarded screenshot/vision/action sessions
+            - **Document and archive workflows** — editable PDFs and office documents, safe archive browsing/extraction, and persistent draw.io files
+            - **Reliable macOS packaging** — Developer ID verification and CI-safe DMG creation that bypasses Finder cosmetics on headless runners
 
             ### Full Platform Matrix
 

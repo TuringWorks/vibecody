@@ -468,7 +468,7 @@ sudo pacman -S webkit2gtk-4.1 gtk3 libappindicator-gtk3 librsvg patchelf openssl
 
 **17,170 test functions + 89 BDD/integration harnesses** across the workspace.
 
-> Counted at v0.5.11 by `#[test]` / `#[tokio::test]` attributes across `crates/`,
+> Counted at v0.5.12 by `#[test]` / `#[tokio::test]` attributes across `crates/`,
 > `vibecli/`, `vibecoder/crates/` and `vibecoder/src-tauri/`, plus harness files in
 > `vibecli/vibecli-cli/tests/`. A count is not a pass rate — run `make test` for that.
 

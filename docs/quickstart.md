@@ -136,7 +136,7 @@ vibecli
 You will see the prompt:
 
 ```
-VibeCLI v0.5.11 — AI coding assistant
+VibeCLI v0.5.12 — AI coding assistant
 Provider: ollama (glm-5.2:cloud)
 Type a message or /help for commands.
 
@@ -245,7 +245,7 @@ vibecli --provider claude
 Expected output:
 
 ```sh
-VibeCLI v0.5.11 — AI coding assistant
+VibeCLI v0.5.12 — AI coding assistant
 Provider: claude (claude-opus-5)
 
 vibecli>

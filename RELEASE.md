@@ -1,10 +1,10 @@
-# VibeCody v0.5.11 Release
+# VibeCody v0.5.12 Release
 
-**137 commits since v0.5.11.**
+Release candidate for the latest changes on `main`.
 
 ---
 
-## What's in v0.5.11
+## What's in v0.5.12
 
 The voice release. An open microphone you can talk over, a neural voice to
 answer in, and a spoken turn that can read the project you have open and act on
@@ -131,52 +131,52 @@ code was correct, inert, and the symptom was "the assistant sounds mechanical".
 | Linux x86_64 (static musl) | `vibecli-x86_64-linux.tar.gz` |
 | Linux ARM64 (static musl) | `vibecli-aarch64-linux.tar.gz` |
 | Windows x64 | `vibecli-x86_64-windows.zip` |
-| Docker | `vibecli-docker-v0.5.11.tar.gz` |
+| Docker | `vibecli-docker-v0.5.12.tar.gz` |
 
 ### VibeCoder — Desktop Code Editor
 
 | Platform | File |
 |----------|------|
-| macOS (Apple Silicon) | `VibeCoder_0.5.11_aarch64.dmg` |
-| macOS (Intel) | `VibeCoder_0.5.11_x64.dmg` |
+| macOS (Apple Silicon) | `VibeCoder_0.5.12_aarch64.dmg` |
+| macOS (Intel) | `VibeCoder_0.5.12_x64.dmg` |
 | macOS (`.app`) | `VibeCoder-macOS-{arm64,x64}.app.zip` |
-| Linux x64 / arm64 (`.deb`) | `VibeCoder_0.5.11_{amd64,arm64}.deb` |
-| Linux x64 / arm64 (`.AppImage`) | `VibeCoder_0.5.11_{amd64,aarch64}.AppImage` |
-| Windows x64 | `VibeCoder_0.5.11_x64_en-US.msi` · `VibeCoder_0.5.11_x64-setup.exe` |
+| Linux x64 / arm64 (`.deb`) | `VibeCoder_0.5.12_{amd64,arm64}.deb` |
+| Linux x64 / arm64 (`.AppImage`) | `VibeCoder_0.5.12_{amd64,aarch64}.AppImage` |
+| Windows x64 | `VibeCoder_0.5.12_x64_en-US.msi` · `VibeCoder_0.5.12_x64-setup.exe` |
 
 ### VibeAIChat — Desktop AI Assistant
 
 | Platform | File |
 |----------|------|
-| macOS (Apple Silicon) | `VibeAIChat_0.5.11_aarch64.dmg` |
-| macOS (Intel) | `VibeAIChat_0.5.11_x64.dmg` |
-| Linux x64 / arm64 (`.deb`) | `VibeAIChat_0.5.11_{amd64,arm64}.deb` |
-| Linux x64 / arm64 (`.AppImage`) | `VibeAIChat_0.5.11_{amd64,aarch64}.AppImage` |
-| Windows x64 | `VibeAIChat_0.5.11_x64_en-US.msi` · `VibeAIChat_0.5.11_x64-setup.exe` |
+| macOS (Apple Silicon) | `VibeAIChat_0.5.12_aarch64.dmg` |
+| macOS (Intel) | `VibeAIChat_0.5.12_x64.dmg` |
+| Linux x64 / arm64 (`.deb`) | `VibeAIChat_0.5.12_{amd64,arm64}.deb` |
+| Linux x64 / arm64 (`.AppImage`) | `VibeAIChat_0.5.12_{amd64,aarch64}.AppImage` |
+| Windows x64 | `VibeAIChat_0.5.12_x64_en-US.msi` · `VibeAIChat_0.5.12_x64-setup.exe` |
 
 ### VibeDesk — Desktop Task Shell
 
 | Platform | File |
 |----------|------|
-| macOS (Apple Silicon) | `VibeDesk_0.5.11_aarch64.dmg` |
-| macOS (Intel) | `VibeDesk_0.5.11_x64.dmg` |
-| Linux x64 / arm64 (`.deb`) | `VibeDesk_0.5.11_{amd64,arm64}.deb` |
-| Linux x64 / arm64 (`.AppImage`) | `VibeDesk_0.5.11_{amd64,aarch64}.AppImage` |
-| Windows x64 | `VibeDesk_0.5.11_x64_en-US.msi` · `VibeDesk_0.5.11_x64-setup.exe` |
+| macOS (Apple Silicon) | `VibeDesk_0.5.12_aarch64.dmg` |
+| macOS (Intel) | `VibeDesk_0.5.12_x64.dmg` |
+| Linux x64 / arm64 (`.deb`) | `VibeDesk_0.5.12_{amd64,arm64}.deb` |
+| Linux x64 / arm64 (`.AppImage`) | `VibeDesk_0.5.12_{amd64,aarch64}.AppImage` |
+| Windows x64 | `VibeDesk_0.5.12_x64_en-US.msi` · `VibeDesk_0.5.12_x64-setup.exe` |
 
 ### VibeCody Mobile
 
 | Platform | File |
 |----------|------|
-| iOS (unsigned `.ipa`) | `VibeCody-Mobile-v0.5.11-ios.ipa` |
-| Android | `VibeCody-Mobile-v0.5.11-android.apk` · `.aab` |
+| iOS (unsigned `.ipa`) | `VibeCody-Mobile-v0.5.12-ios.ipa` |
+| Android | `VibeCody-Mobile-v0.5.12-android.apk` · `.aab` |
 
 ### VibeCody Watch
 
 | Platform | File |
 |----------|------|
-| watchOS 10+ (unsigned `.app.zip`) | `VibeCody-WatchOS-v0.5.11.app.zip` |
-| Wear OS 3+ | `VibeCody-Wear-v0.5.11.apk` · `.aab` |
+| watchOS 10+ (unsigned `.app.zip`) | `VibeCody-WatchOS-v0.5.12.app.zip` |
+| Wear OS 3+ | `VibeCody-Wear-v0.5.12.apk` · `.aab` |
 
 ---
 
@@ -187,20 +187,21 @@ code was correct, inert, and the symptom was "the assistant sounds mechanical".
 curl -fsSL https://raw.githubusercontent.com/TuringWorks/vibecody/main/install.sh | sh
 
 # Docker (air-gapped / on-prem)
-docker load < vibecli-docker-v0.5.11.tar.gz
-docker run -p 7878:7878 vibecli:v0.5.11
+docker load < vibecli-docker-v0.5.12.tar.gz
+docker run -p 7878:7878 vibecli:v0.5.12
 
 # Verify
-vibecli --version   # Should print: vibecli 0.5.11
+vibecli --version   # Should print: vibecli 0.5.12
 ```
 
 ---
 
 ## macOS code signing
 
-Developer ID signing has covered the whole macOS surface since v0.5.8, the
-`vibecli` binary included; before that it shipped with **no signature at all**
-and the three app bundles were ad-hoc. Nothing about signing changed in v0.5.11.
+Developer ID signing covers the macOS app and CLI artifacts when the release
+secrets are configured. DMG creation skips Finder cosmetics in CI so the
+signed bundle is reproducible on headless runners; local builds can use
+`CI=true` for the same reliable path.
 
 Whether a given download is signed depends on the build that produced it — the
 release workflow signs only when the signing secrets are configured, and says
@@ -254,7 +255,7 @@ Four things to know:
    open for the whole session, so it is opt-in per shell; push-to-talk is
    unchanged and needs nothing.
 4. **iOS builds now floor at 15.0** (from 13.0), a consequence of the Flutter
-   3.47.1 pin. Devices below iOS 15 cannot run the 0.5.11 mobile app.
+   3.47.1 pin. Devices below iOS 15 cannot run the 0.5.12 mobile app.
 
 ### From v0.5.9 or earlier
 
@@ -269,4 +270,4 @@ connector routes need.
 ## Full Changelog
 
 See [docs/CHANGELOG.md](docs/CHANGELOG.md) for the complete history.
-See [compare view](../../compare/v0.5.10...v0.5.11) for the v0.5.11 diff.
+See [compare view](../../compare/v0.5.10...v0.5.12) for the v0.5.12 diff.

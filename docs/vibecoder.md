@@ -6,7 +6,7 @@ permalink: /vibecoder/
 
 **AI-powered desktop code editor built with Tauri 2 and Monaco.** VibeCoder provides a VS Code-like editing experience with a native Rust backend, Monaco Editor frontend, integrated AI chat, autonomous agent mode, explicit-chord diff-mode AI editing (⌘.), terminal, Git panel, code review, and a WASM extension system.
 
-### What's new in 0.5.11
+### What's new in 0.5.12
 
 - **Full-duplex voice** — the microphone stays open while the assistant speaks and you can interrupt it mid-sentence. Measured end of speech to first audio: 134–158 ms. It is off until you turn it on, because it holds the microphone open for the whole session.
 - **It answers in the language you asked in**, detected every turn across 99 languages, and reads the answer in a voice that speaks it. Pinning a language suppresses detection, so the default is `auto`.
@@ -96,7 +96,7 @@ blank white window — no panic, no log line, nothing on screen to say why.
 Both halves of the build now say so rather than leaving you to find out:
 
 ```
-warning: vibe-coder@0.5.11: this release build will not embed the frontend — it
+warning: vibe-coder@0.5.12: this release build will not embed the frontend — it
 will load http://localhost:1420 and open on a blank window. Build it with
 `npm run tauri:build` (or `make build-vibecoder`), or add
 `--features custom-protocol`.
@@ -1398,7 +1398,7 @@ VibeCoder implements WCAG 2.1 Level AA accessibility:
 
 ## Testing
 
-**17,170 test functions** across the workspace (counted at v0.5.11 by `#[test]` / `#[tokio::test]` attribute).
+**17,170 test functions** across the workspace (counted at v0.5.12 by `#[test]` / `#[tokio::test]` attribute).
 
 | Crate | Tests | Key coverage areas |
 |-------|-------|--------------------|

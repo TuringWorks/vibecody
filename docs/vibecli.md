@@ -8,7 +8,7 @@ permalink: /vibecli/
 
 VibeCLI provides two interaction modes: a rich **Terminal UI (TUI)** powered by Ratatui, and a **REPL** mode for quick, scriptable use. It also runs as an HTTP daemon (`--serve`) that powers VibeCoder, VibeMobile, and the new native VibeWatch clients.
 
-### What's new in 0.5.11
+### What's new in 0.5.12
 
 - **The daemon speaks.** Full-duplex voice (`GET /ws/voice/duplex`) runs the whole pipeline here — voice-activity detection, turn-taking, transcription, the model call and speech synthesis — so a client contributes a microphone and speakers and nothing else. Language is detected per turn across 99 of them and the reply is spoken in a voice that matches.
 - **A speech engine you can install and choose.** `GET`/`PUT /voice/settings` holds the engine, language and voice for the machine, because the daemon is what speaks and three clients keeping local copies would be three settings disagreeing about one host. `make voice-sidecar` installs the streaming platform engine, `make voice-kokoro` the neural one, and `make voice-status` reports which will actually run. One engine is warmed at daemon start, since the neural one measured 6.6 s to first sample and paying that inside the socket handler is silence that looks like a broken microphone.
